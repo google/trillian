@@ -51,13 +51,13 @@ var (
 )
 
 var (
-	// Metrics are all per-map (label "mapid"), but may also be
-	// per-entrypoint (label "ep") or per-return-code (label "rc").
+	// Metrics are all per-map (label "mapid"), and per-entrypoint (label "ep").
 	once        sync.Once
-	reqs        monitoring.Counter // mapid, ep => value
-	errs        monitoring.Counter // mapid, ep => value
-	rsps        monitoring.Counter // mapid, ep, rc => value
-	invalidReqs monitoring.Counter // mapid, ep => value
+	reqs        monitoring.Counter   // mapid, ep => value
+	errs        monitoring.Counter   // mapid, ep => value
+	rsps        monitoring.Counter   // mapid, ep => value
+	rspLatency  monitoring.Histogram // mapid, ep => distribution-of-values
+	invalidReqs monitoring.Counter   // mapid, ep => value
 )
 
 // setupMetrics initializes all the exported metrics.
@@ -65,6 +65,7 @@ func setupMetrics(mf monitoring.MetricFactory) {
 	reqs = mf.NewCounter("reqs", "Number of valid requests sent", "mapid", "ep")
 	errs = mf.NewCounter("errs", "Number of error responses received for valid requests", "mapid", "ep")
 	rsps = mf.NewCounter("rsps", "Number of responses received for valid requests", "mapid", "ep")
+	rspLatency = mf.NewHistogram("rsp_latency", "Latency of responses received for valid requests in seconds", "mapid", "ep")
 	invalidReqs = mf.NewCounter("invalid_reqs", "Number of deliberately-invalid requests sent", "mapid", "ep")
 }
 
@@ -462,6 +463,9 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	}
 
 	glog.V(3).Infof("%d: perform %s operation", s.cfg.MapID, ep)
+	defer func(start time.Time) {
+		rspLatency.Observe(time.Since(start).Seconds(), s.label(), string(ep))
+	}(time.Now())
 
 	deadline := time.Now().Add(maxRetryDuration)
 	ctx, cancel := context.WithDeadline(ctx, deadline)
