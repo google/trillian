@@ -17,7 +17,6 @@ package merkle
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -40,6 +39,7 @@ type consistencyTestVector struct {
 }
 
 var (
+	sha256SomeHash      = dh("abacaba000000000000000000000000000000000000000000060061e00123456")
 	sha256EmptyTreeHash = dh("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	inclusionProofs     = []inclusionProofTestVector{
 		{0, 0, 0, []logProofTestVector{{dh(""), 0}, {dh(""), 0}, {dh(""), 0}}},
@@ -118,228 +118,184 @@ var (
 	}
 )
 
+// inclVerifProbe is a parameter set for inclusion proof verification.
+type inclVerifProbe struct {
+	leafIndex int64
+	treeSize  int64
+	root      []byte
+	leafHash  []byte
+	proof     [][]byte
+
+	desc string
+}
+
+// consVerifProbe is a parameter set for consistency proof verification.
+type consVerifProbe struct {
+	snapshot1 int64
+	snapshot2 int64
+	root1     []byte
+	root2     []byte
+	proof     [][]byte
+
+	desc string
+}
+
+func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, leafHash []byte) []inclVerifProbe {
+	ret := []inclVerifProbe{
+		// Wrong leaf index.
+		{leafIndex - 1, treeSize, root, leafHash, proof, "leafIndex - 1"},
+		{leafIndex + 1, treeSize, root, leafHash, proof, "leafIndex + 1"},
+		{leafIndex ^ 2, treeSize, root, leafHash, proof, "leafIndex ^ 2"},
+		// Wrong tree height.
+		{leafIndex, treeSize * 2, root, leafHash, proof, "treeSize * 2"},
+		{leafIndex, treeSize / 2, root, leafHash, proof, "treeSize / 2"},
+		// Wrong leaf or root.
+		{leafIndex, treeSize, root, []byte("WrongLeaf"), proof, "wrong leaf"},
+		{leafIndex, treeSize, sha256EmptyTreeHash, leafHash, proof, "empty root"},
+		{leafIndex, treeSize, sha256SomeHash, leafHash, proof, "random root"},
+		// Add garbage at the end.
+		{leafIndex, treeSize, root, leafHash, append(proof, []byte{}), "trailing garbage"},
+		{leafIndex, treeSize, root, leafHash, append(proof, root), "trailing root"},
+		// Add garbage at the front.
+		{leafIndex, treeSize, root, leafHash, append([][]byte{{}}, proof...), "preceding garbage"},
+		{leafIndex, treeSize, root, leafHash, append([][]byte{root}, proof...), "preceding root"},
+	}
+	ln := len(proof)
+
+	// Modify single bit in an element of the proof.
+	for i := 0; i < ln; i++ {
+		wrongProof := append([][]byte(nil), proof...)
+		wrongProof[i][0] ^= 8
+		desc := fmt.Sprintf("modified proof[%d] bit 3", i)
+		ret = append(ret, inclVerifProbe{leafIndex, treeSize, root, leafHash, wrongProof, desc})
+	}
+
+	if ln > 0 {
+		ret = append(ret, inclVerifProbe{leafIndex, treeSize, root, leafHash, proof[:ln-1], "removed component"})
+	}
+	if ln > 1 {
+		wrongProof := append([][]byte{proof[0], sha256SomeHash}, proof[1:]...)
+		ret = append(ret, inclVerifProbe{leafIndex, treeSize, root, leafHash, wrongProof, "inserted component"})
+	}
+
+	return ret
+}
+
+func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) []consVerifProbe {
+	ln := len(proof)
+	ret := []consVerifProbe{
+		// Wrong snapshot index.
+		{snapshot1 - 1, snapshot2, root1, root2, proof, "snapshot1 - 1"},
+		{snapshot1 + 1, snapshot2, root1, root2, proof, "snapshot1 + 1"},
+		{snapshot1 ^ 2, snapshot2, root1, root2, proof, "snapshot1 ^ 2"},
+		// Wrong tree height.
+		{snapshot1, snapshot2 * 2, root1, root2, proof, "snapshot2 * 2"},
+		{snapshot1, snapshot2 / 2, root1, root2, proof, "snapshot2 / 2"},
+		// Wrong root.
+		{snapshot1, snapshot2, []byte("WrongRoot"), root2, proof, "wrong root1"},
+		{snapshot1, snapshot2, root1, []byte("WrongRoot"), proof, "wrong root2"},
+		{snapshot1, snapshot2, root2, root1, proof, "swapped roots"},
+		// Empty proof.
+		{snapshot1, snapshot2, root1, root2, [][]byte{}, "empty proof"},
+		// Add garbage at the end.
+		{snapshot1, snapshot2, root1, root2, append(proof, []byte{}), "trailing garbage"},
+		{snapshot1, snapshot2, root1, root2, append(proof, root1), "trailing root1"},
+		{snapshot1, snapshot2, root1, root2, append(proof, root2), "trailing root2"},
+		// Add garbage at the front.
+		{snapshot1, snapshot2, root1, root2, append([][]byte{{}}, proof...), "preceding garbage"},
+		{snapshot1, snapshot2, root1, root2, append([][]byte{root1}, proof...), "preceding root1"},
+		{snapshot1, snapshot2, root1, root2, append([][]byte{root2}, proof...), "preceding root2"},
+		{snapshot1, snapshot2, root1, root2, append([][]byte{proof[0]}, proof...), "preceding proof[0]"},
+	}
+
+	// Remove a node from the end.
+	if ln > 0 {
+		ret = append(ret, consVerifProbe{snapshot1, snapshot2, root1, root2, proof[:ln-1], "truncated proof"})
+	}
+
+	// Modify single bit in an element of the proof.
+	for i := 0; i < ln; i++ {
+		wrongProof := append([][]byte(nil), proof...)
+		wrongProof[i][0] ^= 16
+		desc := fmt.Sprintf("modified proof[%d] bit 4", i)
+		ret = append(ret, consVerifProbe{snapshot1, snapshot2, root1, root2, wrongProof, desc})
+	}
+
+	return ret
+}
+
 func verifierCheck(v *LogVerifier, leafIndex, treeSize int64, proof [][]byte, root, leafHash []byte) error {
-	// Verify original inclusion proof
+	// Verify original inclusion proof.
 	got, err := v.RootFromInclusionProof(leafIndex, treeSize, proof, leafHash)
 	if err != nil {
 		return err
 	}
-	if want := root; !bytes.Equal(got, want) {
-		return fmt.Errorf("got root:\n%x\nexpected:\n%x", got, want)
+	if !bytes.Equal(got, root) {
+		return fmt.Errorf("got root:\n%x\nexpected:\n%x", got, root)
 	}
 	if err := v.VerifyInclusionProof(leafIndex, treeSize, proof, root, leafHash); err != nil {
 		return err
 	}
 
-	// Wrong leaf index
-	if err := v.VerifyInclusionProof(leafIndex-1, treeSize, proof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against leafIndex - 1")
-	}
-	if err := v.VerifyInclusionProof(leafIndex+1, treeSize, proof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against leafIndex + 1")
-	}
-	if err := v.VerifyInclusionProof(leafIndex^2, treeSize, proof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against leafIndex ^ 2")
-	}
-
-	// Wrong tree height
-	if err := v.VerifyInclusionProof(leafIndex, treeSize*2, proof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against treeSize * 2")
-	}
-	if err := v.VerifyInclusionProof(leafIndex, treeSize/2, proof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against treeSize / 2")
-	}
-
-	// Wrong leaf
-	if err := v.VerifyInclusionProof(leafIndex, treeSize, proof, root, []byte("WrongLeaf")); err == nil {
-		return errors.New("incorrectly verified against WrongLeaf")
-	}
-
-	// Wrong root
-	if err := v.VerifyInclusionProof(leafIndex, treeSize, proof, sha256EmptyTreeHash, leafHash); err == nil {
-		return errors.New("incorrectly verified against empty root hash")
-	}
-
-	// Wrong inclusion proofs
-
-	// Modify single element of the proof
-	for i := 0; i < len(proof); i++ {
-		tmp := proof[i]
-		proof[i] = sha256EmptyTreeHash
-		if err := v.VerifyInclusionProof(leafIndex, treeSize, proof, root, leafHash); err == nil {
-			return errors.New("incorrectly verified against incorrect inclusion proof")
-		}
-		proof[i] = tmp
-	}
-
-	// Add garbage at the end
-	wrongProof := append(proof, []byte(""))
-	if err := v.VerifyInclusionProof(leafIndex, treeSize, wrongProof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against proof with trailing garbage")
-	}
-
-	wrongProof = append(proof, root)
-	if err := v.VerifyInclusionProof(leafIndex, treeSize, wrongProof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against proof with trailing root")
-	}
-
-	if len(proof) > 0 {
-		// Remove a node from the end
-		wrongProof = proof[:len(proof)-1]
-		if err := v.VerifyInclusionProof(leafIndex, treeSize, wrongProof, root, leafHash); err == nil {
-			return errors.New("incorrectly verified against truncated proof")
+	probes := corruptInclVerification(leafIndex, treeSize, proof, root, leafHash)
+	for _, p := range probes {
+		if err := v.VerifyInclusionProof(p.leafIndex, p.treeSize, p.proof, p.root, p.leafHash); err == nil {
+			return fmt.Errorf("incorrectly verified against: %s", p.desc)
 		}
 	}
-
-	// Add garbage at the front
-	wrongProof = append([][]byte{{}}, proof...)
-	if err := v.VerifyInclusionProof(leafIndex, treeSize, wrongProof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against proof with preceding garbage")
-	}
-
-	wrongProof = append([][]byte{root}, proof...)
-	if err := v.VerifyInclusionProof(leafIndex, treeSize, wrongProof, root, leafHash); err == nil {
-		return errors.New("incorrectly verified against proof with preceding garbage")
-	}
-
 	return nil
 }
 
 func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error {
-	// Verify original consistency proof
-	err := v.VerifyConsistencyProof(snapshot1, snapshot2, root1, root2, proof)
-	if err != nil {
+	// Verify original consistency proof.
+	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root1, root2, proof); err != nil {
 		return err
 	}
-
+	// For simplicity test only non-trivial proofs that have root1 != root2,
+	// snapshot1 != 0 and snapshot1 != snapshot2.
 	if len(proof) == 0 {
-		// For simplicity test only non-trivial proofs that have root1 != root2
-		// snapshot1 != 0 and snapshot1 != snapshot2.
 		return nil
 	}
 
-	// Wrong snapshot index
-	if err := v.VerifyConsistencyProof(snapshot1-1, snapshot2, root1, root2, proof); err == nil {
-		return errors.New("incorrectly verified against snapshot1-1")
-	}
-	if err := v.VerifyConsistencyProof(snapshot1+1, snapshot2, root1, root2, proof); err == nil {
-		return errors.New("incorrectly verified against snapshot1+1")
-	}
-	if err := v.VerifyConsistencyProof(snapshot1^2, snapshot2, root1, root2, proof); err == nil {
-		return errors.New("incorrectly verified against snapshot1^2")
-	}
-
-	// Wrong tree height
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2*2, root1, root2, proof); err == nil {
-		return errors.New("incorrectly verified against snapshot2*2")
-	}
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2/2, root1, root2, proof); err == nil {
-		return errors.New("incorrectly verified against snapshot2/2")
-	}
-
-	// Wrong root
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, []byte("WrongRoot"), root2, proof); err == nil {
-		return errors.New("incorrectly verified against wrong root1")
-	}
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root1, []byte("WrongRoot"), proof); err == nil {
-		return errors.New("incorrectly verified against wrong root2")
-	}
-	// Swap roots
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2*2, root2, root1, proof); err == nil {
-		return errors.New("incorrectly verified against swapped roots")
-	}
-
-	// Wrong consistency proofs
-	// Empty proof
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root2, root1, [][]byte{}); err == nil {
-		return errors.New("incorrectly verified against empty proof")
-	}
-
-	// Modify single element of the proof
-	for i := 0; i < len(proof); i++ {
-		tmp := proof[i]
-		proof[i] = sha256EmptyTreeHash
-		if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root2, root1, proof); err == nil {
-			return errors.New("incorrectly verified against incorrect consistency proof")
+	probes := corruptConsVerification(snapshot1, snapshot2, root1, root2, proof)
+	for _, p := range probes {
+		if err := v.VerifyConsistencyProof(p.snapshot1, p.snapshot2, p.root1, p.root2, p.proof); err == nil {
+			return fmt.Errorf("incorrectly verified against: %s", p.desc)
 		}
-		proof[i] = tmp
 	}
-
-	// Add garbage at the end
-	wrongProof := append(proof, []byte(""))
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root2, root1, wrongProof); err == nil {
-		return errors.New("incorrectly verified against proof with trailing garbage")
-	}
-
-	wrongProof = append(proof, root1)
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root2, root1, wrongProof); err == nil {
-		return errors.New("incorrectly verified against proof with trailing root")
-	}
-
-	// Remove a node from the end
-	wrongProof = proof[:len(proof)-1]
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root2, root1, wrongProof); err == nil {
-		return errors.New("incorrectly verified against truncated proof")
-	}
-
-	// Add garbage at the front
-	wrongProof = append([][]byte{{}}, proof...)
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root2, root1, wrongProof); err == nil {
-		return errors.New("incorrectly verified against proof with preceding garbage")
-	}
-
-	wrongProof = append([][]byte{proof[0]}, proof...)
-	if err := v.VerifyConsistencyProof(snapshot1, snapshot2, root2, root1, wrongProof); err == nil {
-		return errors.New("incorrectly verified against proof with preceding garbage")
-	}
-
 	return nil
 }
 
 func TestVerifyInclusionProof(t *testing.T) {
 	v := NewLogVerifier(rfc6962.DefaultHasher)
 	path := [][]byte{}
-	// Various invalid paths
-	if err := v.VerifyInclusionProof(0, 0, path, []byte{}, []byte{1}); err == nil {
-		t.Fatal("Incorrectly verified invalid path 1")
-	}
-	if err := v.VerifyInclusionProof(0, 1, path, []byte{}, []byte{1}); err == nil {
-		t.Fatal("Incorrectly verified invalid path 2")
-	}
-	if err := v.VerifyInclusionProof(1, 0, path, []byte{}, []byte{1}); err == nil {
-		t.Fatal("Incorrectly verified invalid path 3")
-	}
-	if err := v.VerifyInclusionProof(2, 1, path, []byte{}, []byte{1}); err == nil {
-		t.Fatal("Incorrectly verified invalid path 4")
-	}
 
-	if err := v.VerifyInclusionProof(0, 0, path, sha256EmptyTreeHash, []byte{}); err == nil {
-		t.Fatal("Incorrectly verified invalid root 1")
-	}
-	if err := v.VerifyInclusionProof(0, 1, path, sha256EmptyTreeHash, []byte{}); err == nil {
-		t.Fatal("Incorrectly verified invalid root 2")
-	}
-	if err := v.VerifyInclusionProof(1, 0, path, sha256EmptyTreeHash, []byte{}); err == nil {
-		t.Fatal("Incorrectly verified invalid root 3")
-	}
-	if err := v.VerifyInclusionProof(2, 1, path, sha256EmptyTreeHash, []byte{}); err == nil {
-		t.Fatal("Incorrectly verified invalid root 4")
+	invalidPaths := []struct {
+		index, size int64
+	}{{0, 0}, {0, 1}, {1, 0}, {2, 1}}
+	for i, p := range invalidPaths {
+		if err := v.VerifyInclusionProof(p.index, p.size, path, []byte{}, []byte{1}); err == nil {
+			t.Errorf("Incorrectly verified invalid path %d", i)
+		}
+		if err := v.VerifyInclusionProof(p.index, p.size, path, sha256EmptyTreeHash, []byte{}); err == nil {
+			t.Errorf("Incorrectly verified invalid root %d", i)
+		}
 	}
 
 	// i = 0 is an invalid path.
 	for i := 1; i < 6; i++ {
+		p := inclusionProofs[i]
 		// Construct the path.
 		proof := [][]byte{}
-		for j := int64(0); j < inclusionProofs[i].proofLength; j++ {
-			proof = append(proof, inclusionProofs[i].proof[j].h)
+		for j := int64(0); j < p.proofLength; j++ {
+			proof = append(proof, p.proof[j].h)
 		}
-		leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaves[inclusionProofs[i].leaf-1].h)
+		leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaves[p.leaf-1].h)
 		if err != nil {
 			t.Fatalf("HashLeaf(): %v", err)
 		}
-		if err := verifierCheck(&v, inclusionProofs[i].leaf-1, inclusionProofs[i].snapshot, proof,
-			roots[inclusionProofs[i].snapshot-1].h, leafHash); err != nil {
-			t.Fatalf("i=%d: %s", i, err)
+		if err := verifierCheck(&v, p.leaf-1, p.snapshot, proof, roots[p.snapshot-1].h, leafHash); err != nil {
+			t.Errorf("%d: verifierCheck(): %s", i, err)
 		}
 	}
 
