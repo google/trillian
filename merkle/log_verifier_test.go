@@ -349,8 +349,8 @@ func dh(h string, expLen int) []byte {
 	if err != nil {
 		panic(err)
 	}
-	if len(r) != expLen {
-		panic("unexpected length after hex decoding")
+	if got := len(r); got != expLen {
+		panic(fmt.Sprintf("decode %q: len=%d, want %d", h, got, expLen))
 	}
 	return r
 }
