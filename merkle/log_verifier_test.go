@@ -436,7 +436,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 
 	tree, verif := createTree(0)
 	for _, size := range sizes {
-		growTree(tree, size-tree.LeafCount())
+		growTree(tree, size)
 		root := tree.CurrentRoot().Hash()
 
 		for i := int64(0); i < size; i++ {
@@ -514,9 +514,8 @@ func createTree(size int64) (*InMemoryMerkleTree, LogVerifier) {
 	return tree, NewLogVerifier(rfc6962.DefaultHasher)
 }
 
-func growTree(tree *InMemoryMerkleTree, growBy int64) {
-	size := tree.LeafCount()
-	for i, end := size, size+growBy; i < end; i++ {
+func growTree(tree *InMemoryMerkleTree, upTo int64) {
+	for i := tree.LeafCount(); i < upTo; i++ {
 		data := []byte(fmt.Sprintf("data:%d", i))
 		tree.AddLeaf(data)
 	}
