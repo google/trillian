@@ -291,56 +291,45 @@ func TestVerifyInclusionProof(t *testing.T) {
 func TestVerifyConsistencyProof(t *testing.T) {
 	v := NewLogVerifier(rfc6962.DefaultHasher)
 
-	proof := [][]byte{}
-	root1 := []byte("don't care")
-	root2 := []byte("don't care")
+	root1 := []byte("don't care 1")
+	root2 := []byte("don't care 2")
+	proof1 := [][]byte{}
+	proof2 := [][]byte{sha256EmptyTreeHash}
 
-	// Snapshots that are always consistent
-	if err := verifierConsistencyCheck(&v, 0, 0, root1, root2, proof); err != nil {
-		t.Fatalf("Failed to verify proof: %s", err)
+	tests := []struct {
+		snap1, snap2 int64
+		root1, root2 []byte
+		proof        [][]byte
+		wantErr      bool
+	}{
+		{0, 0, root1, root2, proof1, true},
+		{1, 1, root1, root2, proof1, true},
+		// Snapshots that are always consistent.
+		{0, 0, root1, root1, proof1, false},
+		{0, 1, root1, root2, proof1, false},
+		{1, 1, root2, root2, proof1, false},
+		// Time travel to the past.
+		{1, 0, root1, root2, proof1, true},
+		{2, 1, root1, root2, proof1, true},
+		// Empty proof.
+		{1, 2, root1, root2, proof1, true},
+		// Roots don't match.
+		{0, 0, sha256EmptyTreeHash, root2, proof1, true},
+		{1, 1, sha256EmptyTreeHash, root2, proof1, true},
+		// Roots match but the proof is not empty.
+		{0, 0, sha256EmptyTreeHash, sha256EmptyTreeHash, proof2, true},
+		{0, 1, sha256EmptyTreeHash, sha256EmptyTreeHash, proof2, true},
+		{1, 1, sha256EmptyTreeHash, sha256EmptyTreeHash, proof2, true},
 	}
-	if err := verifierConsistencyCheck(&v, 0, 1, root1, root2, proof); err != nil {
-		t.Fatalf("Failed to verify proof: %s", err)
-	}
-	if err := verifierConsistencyCheck(&v, 1, 1, root1, root2, proof); err != nil {
-		t.Fatalf("Failed to verify proof: %s", err)
-	}
-
-	// Invalid consistency proofs.
-	// Time travel to the past.
-	if err := verifierConsistencyCheck(&v, 1, 0, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified timetravelling proof")
-	}
-	if err := verifierConsistencyCheck(&v, 2, 1, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified timetravelling proof")
-	}
-
-	// Empty proof
-	if err := verifierConsistencyCheck(&v, 1, 2, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified timetravelling proof")
-	}
-
-	root1 = sha256EmptyTreeHash
-	// Roots don't match.
-	if err := verifierConsistencyCheck(&v, 0, 0, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified mismatched root")
-	}
-	if err := verifierConsistencyCheck(&v, 1, 1, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified mismatched root")
-	}
-
-	// Roots match but the proof is not empty.
-	root2 = sha256EmptyTreeHash
-	proof = [][]byte{sha256EmptyTreeHash}
-
-	if err := verifierConsistencyCheck(&v, 0, 0, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified non-empty proof")
-	}
-	if err := verifierConsistencyCheck(&v, 0, 1, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified non-empty proof")
-	}
-	if err := verifierConsistencyCheck(&v, 1, 1, root1, root2, proof); err == nil {
-		t.Fatal("Incorrectly verified non-empty proof")
+	for i, p := range tests {
+		t.Run(fmt.Sprintf("test:%d:snap:%d-%d", i, p.snap1, p.snap2), func(t *testing.T) {
+			err := verifierConsistencyCheck(&v, p.snap1, p.snap2, p.root1, p.root2, p.proof)
+			if p.wantErr && err == nil {
+				t.Errorf("Incorrectly verified")
+			} else if !p.wantErr && err != nil {
+				t.Errorf("Failed to verify: %v", err)
+			}
+		})
 	}
 
 	for i := 0; i < 4; i++ {
