@@ -416,17 +416,6 @@ func TestVerifyConsistencyProof(t *testing.T) {
 	}
 }
 
-func getLeafAndProof(tree *InMemoryMerkleTree, index int64) ([]byte, [][]byte) {
-	// Note: InMemoryMerkleTree counts leaves from 1.
-	desc := tree.PathToCurrentRoot(index + 1)
-	proof := make([][]byte, len(desc))
-	for i, d := range desc {
-		proof[i] = d.Value.Hash()
-	}
-	leafHash := tree.LeafHash(index + 1)
-	return leafHash, proof
-}
-
 func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 	var sizes []int64
 	for s := 1; s <= 258; s++ {
@@ -519,4 +508,15 @@ func growTree(tree *InMemoryMerkleTree, upTo int64) {
 		data := []byte(fmt.Sprintf("data:%d", i))
 		tree.AddLeaf(data)
 	}
+}
+
+func getLeafAndProof(tree *InMemoryMerkleTree, index int64) ([]byte, [][]byte) {
+	// Note: InMemoryMerkleTree counts leaves from 1.
+	desc := tree.PathToCurrentRoot(index + 1)
+	proof := make([][]byte, len(desc))
+	for i, d := range desc {
+		proof[i] = d.Value.Hash()
+	}
+	leafHash := tree.LeafHash(index + 1)
+	return leafHash, proof
 }
