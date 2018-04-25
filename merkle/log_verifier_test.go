@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/trillian/merkle/rfc6962"
@@ -216,10 +217,14 @@ func verifierCheck(v *LogVerifier, leafIndex, treeSize int64, proof [][]byte, ro
 	}
 
 	probes := corruptInclVerification(leafIndex, treeSize, proof, root, leafHash)
+	var wrong []string
 	for _, p := range probes {
 		if err := v.VerifyInclusionProof(p.leafIndex, p.treeSize, p.proof, p.root, p.leafHash); err == nil {
-			return fmt.Errorf("incorrectly verified against: %s", p.desc)
+			wrong = append(wrong, p.desc)
 		}
+	}
+	if len(wrong) > 0 {
+		return fmt.Errorf("incorrectly verified against: %s", strings.Join(wrong, ", "))
 	}
 	return nil
 }
@@ -236,10 +241,14 @@ func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1,
 	}
 
 	probes := corruptConsVerification(snapshot1, snapshot2, root1, root2, proof)
+	var wrong []string
 	for _, p := range probes {
 		if err := v.VerifyConsistencyProof(p.snapshot1, p.snapshot2, p.root1, p.root2, p.proof); err == nil {
-			return fmt.Errorf("incorrectly verified against: %s", p.desc)
+			wrong = append(wrong, p.desc)
 		}
+	}
+	if len(wrong) > 0 {
+		return fmt.Errorf("incorrectly verified against: %s", strings.Join(wrong, ", "))
 	}
 	return nil
 }
@@ -272,11 +281,10 @@ func TestVerifyInclusionProof(t *testing.T) {
 				t.Fatalf("HashLeaf(): %v", err)
 			}
 			if err := verifierCheck(&v, p.leaf-1, p.snapshot, proof, roots[p.snapshot-1], leafHash); err != nil {
-				t.Errorf("%d: verifierCheck(): %s", i, err)
+				t.Errorf("verifierCheck(): %s", err)
 			}
 		})
 	}
-
 }
 
 func TestVerifyConsistencyProof(t *testing.T) {
@@ -336,11 +344,13 @@ func TestVerifyConsistencyProof(t *testing.T) {
 
 	for i := 0; i < 4; i++ {
 		p := consistencyProofs[i]
-		err := verifierConsistencyCheck(&v, p.snapshot1, p.snapshot2,
-			roots[p.snapshot1-1], roots[p.snapshot2-1], p.proof)
-		if err != nil {
-			t.Fatalf("Failed to verify known good proof for i=%d: %s", i, err)
-		}
+		t.Run(fmt.Sprintf("proof:%d", i), func(t *testing.T) {
+			err := verifierConsistencyCheck(&v, p.snapshot1, p.snapshot2,
+				roots[p.snapshot1-1], roots[p.snapshot2-1], p.proof)
+			if err != nil {
+				t.Fatalf("Failed to verify known good proof: %s", err)
+			}
+		})
 	}
 }
 
