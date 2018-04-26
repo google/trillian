@@ -439,25 +439,21 @@ func TestVerifyConsistencyProof(t *testing.T) {
 }
 
 func TestVerifyConsistencyProofGenerated(t *testing.T) {
-	sizes := make([]int64, 0, 18)
-	for s := 1; s < cap(sizes); s++ {
-		sizes = append(sizes, int64(s))
+	size := int64(130)
+	tree, v := createTree(size)
+	roots := make([][]byte, size+1)
+	for i := int64(0); i <= size; i++ {
+		roots[i] = tree.RootAtSnapshot(i).Hash()
 	}
-	sizes = append(sizes, 74)
 
-	for _, size := range sizes {
-		tree, v := createTree(size)
-		for i := int64(0); i <= size; i++ {
-			for j := i; j <= size; j++ {
-				t.Run(fmt.Sprintf("size:%d:consistency:%d-%d", size, i, j), func(t *testing.T) {
-					proof := rawProof(tree.SnapshotConsistency(i, j))
-					root1 := tree.RootAtSnapshot(i).Hash()
-					root2 := tree.RootAtSnapshot(j).Hash()
-					if err := verifierConsistencyCheck(&v, i, j, root1, root2, proof); err != nil {
-						t.Fatalf("verifierConsistencyCheck(): %v", err)
-					}
-				})
-			}
+	for i := int64(0); i <= size; i++ {
+		for j := i; j <= size; j++ {
+			proof := rawProof(tree.SnapshotConsistency(i, j))
+			t.Run(fmt.Sprintf("size:%d:consistency:%d-%d", size, i, j), func(t *testing.T) {
+				if err := verifierConsistencyCheck(&v, i, j, roots[i], roots[j], proof); err != nil {
+					t.Errorf("verifierConsistencyCheck(): %v", err)
+				}
+			})
 		}
 	}
 }
