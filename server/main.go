@@ -108,9 +108,8 @@ func (m *Main) Run(ctx context.Context) error {
 			return err
 		}
 
-		httpMux := http.DefaultServeMux
-		httpMux.Handle("/", gatewayMux)
-		httpMux.Handle("/metrics", promhttp.Handler())
+		http.Handle("/", gatewayMux)
+		http.Handle("/metrics", promhttp.Handler())
 
 		go func() {
 			glog.Infof("HTTP server starting on %v", endpoint)
@@ -118,9 +117,9 @@ func (m *Main) Run(ctx context.Context) error {
 			var err error
 			// Let http.ListenAndServeTLS handle the error case when only one of the flags is set.
 			if m.TLSCertFile != "" || m.TLSKeyFile != "" {
-				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, httpMux)
+				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, nil)
 			} else {
-				err = http.ListenAndServe(endpoint, httpMux)
+				err = http.ListenAndServe(endpoint, nil)
 			}
 
 			if err != nil {
