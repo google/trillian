@@ -77,7 +77,7 @@ func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][
 		return nil, fmt.Errorf("wrong proof size %d, want %d", got, want)
 	}
 
-	ch := hashChainer{v.hasher}
+	ch := hashChainer(v)
 	res := ch.chainInner(leafHash, proof[:inner], leafIndex)
 	res = ch.chainBorderRight(res, proof[inner:])
 	return res, nil
@@ -131,7 +131,7 @@ func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 	// inclusion proof for entry |snapshot1-1| in a tree of size |snapshot2|.
 
 	// Verify the first root.
-	ch := hashChainer{v.hasher}
+	ch := hashChainer(v)
 	mask := (snapshot1 - 1) >> uint(shift) // Start chaining from level |shift|.
 	hash1 := ch.chainInnerRight(seed, proof[:inner], mask)
 	hash1 = ch.chainBorderRight(hash1, proof[inner:])
@@ -173,7 +173,7 @@ func (v LogVerifier) VerifiedPrefixHashFromInclusionProof(
 	}
 
 	inner := innerProofSize(subSize, size)
-	ch := hashChainer{v.hasher}
+	ch := hashChainer(v)
 	res := ch.chainInnerRightOpen(proof[:inner], subSize)
 	res = ch.chainBorderRightOpen(res, proof[inner:])
 	return res, nil
