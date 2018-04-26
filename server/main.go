@@ -99,23 +99,18 @@ func (m *Main) Run(ctx context.Context) error {
 	reflection.Register(srv)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
-		mux := runtime.NewServeMux()
+		gatewayMux := runtime.NewServeMux()
 		opts := []grpc.DialOption{grpc.WithInsecure()}
-		if err := m.RegisterHandlerFn(ctx, mux, m.RPCEndpoint, opts); err != nil {
+		if err := m.RegisterHandlerFn(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
 			return err
 		}
-		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
+		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
 			return err
 		}
 
-		handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			switch {
-			case req.RequestURI == "/metrics":
-				promhttp.Handler().ServeHTTP(w, req)
-			default:
-				mux.ServeHTTP(w, req)
-			}
-		})
+		httpMux := http.DefaultServeMux
+		httpMux.Handle("/", gatewayMux)
+		httpMux.Handle("/metrics", promhttp.Handler())
 
 		go func() {
 			glog.Infof("HTTP server starting on %v", endpoint)
@@ -123,9 +118,9 @@ func (m *Main) Run(ctx context.Context) error {
 			var err error
 			// Let http.ListenAndServeTLS handle the error case when only one of the flags is set.
 			if m.TLSCertFile != "" || m.TLSKeyFile != "" {
-				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, handler)
+				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, httpMux)
 			} else {
-				err = http.ListenAndServe(endpoint, handler)
+				err = http.ListenAndServe(endpoint, httpMux)
 			}
 
 			if err != nil {
