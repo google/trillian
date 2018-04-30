@@ -31,7 +31,7 @@ spec:
             command:
             - curl
             - -f
-            - http://localhost:8091/metrics
+            - http://localhost:8091/healthz
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 30
