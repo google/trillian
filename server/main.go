@@ -71,6 +71,11 @@ type Main struct {
 	// RegisterServerFn is called to register RPC servers.
 	RegisterServerFn func(*grpc.Server, extension.Registry) error
 
+	// IsHealthy will be called whenever "/healthz" is called on the mux.
+	// A nil return value from this function will result in a 200-OK response
+	// on the /healthz endpoint.
+	IsHealthy func(context.Context) error
+
 	// AllowedTreeTypes determines which types of trees may be created through the Admin Server
 	// bound by Main. nil means unrestricted.
 	AllowedTreeTypes []trillian.TreeType
@@ -78,6 +83,18 @@ type Main struct {
 	TreeGCEnabled         bool
 	TreeDeleteThreshold   time.Duration
 	TreeDeleteMinInterval time.Duration
+}
+
+func (m *Main) healthz(rw http.ResponseWriter, req *http.Request) {
+	if m.IsHealthy != nil {
+		if err := m.IsHealthy(req.Context()); err != nil {
+			rw.WriteHeader(http.StatusServiceUnavailable)
+			rw.Write([]byte(err.Error()))
+			return
+		}
+	}
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("ok"))
 }
 
 // Run starts the configured server. Blocks until the server exits.
@@ -110,6 +127,7 @@ func (m *Main) Run(ctx context.Context) error {
 
 		http.Handle("/", gatewayMux)
 		http.Handle("/metrics", promhttp.Handler())
+		http.HandleFunc("/healthz", m.healthz)
 
 		go func() {
 			glog.Infof("HTTP server starting on %v", endpoint)
