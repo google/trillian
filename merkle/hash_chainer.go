@@ -15,8 +15,6 @@
 package merkle
 
 import (
-	"math/bits"
-
 	"github.com/google/trillian/merkle/hashers"
 )
 
@@ -31,9 +29,6 @@ import (
 // hash of a tree sub-range rather than the full tree.
 //
 // Border* methods are for chaining proof hashes along (sub-)tree borders.
-//
-// *Open methods are for open-ended queries, i.e. when the query result should
-// not include the boundary leaf.
 //
 // Note: There is no *Left in addition to *Right queries at the moment because
 // Merkle Trees don't hash together nodes along left borders.
@@ -61,27 +56,9 @@ func (c hashChainer) chainInnerRight(seed []byte, proof [][]byte, mask int64) []
 	return seed
 }
 
-func (c hashChainer) chainInnerRightOpen(proof [][]byte, index int64) []byte {
-	shift := bits.TrailingZeros64(uint64(index))
-	if shift >= len(proof) {
-		return nil
-	}
-	return c.chainInnerRight(proof[shift], proof[shift+1:], index>>uint(shift+1))
-}
-
 func (c hashChainer) chainBorderRight(seed []byte, proof [][]byte) []byte {
 	for _, h := range proof {
 		seed = c.hasher.HashChildren(h, seed)
 	}
 	return seed
-}
-
-func (c hashChainer) chainBorderRightOpen(seed []byte, proof [][]byte) []byte {
-	if seed == nil {
-		if len(proof) == 0 {
-			return nil
-		}
-		return c.chainBorderRight(proof[0], proof[1:])
-	}
-	return c.chainBorderRight(seed, proof)
 }
