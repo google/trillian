@@ -149,8 +149,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		pxKey := string(px)
 		// TODO(al): fix for non-uniform strata
 		id.PrefixLenBits = len(px) * depthQuantum
-		_, ok := s.subtrees[pxKey]
-		if !ok {
+		if _, ok := s.subtrees[pxKey]; !ok {
 			want[pxKey] = &id
 		}
 	}
@@ -330,13 +329,17 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	// node, and store it accordingly.
 	sfxKey := sx.String()
 	if int32(sx.Bits) == c.Depth {
-		// Short-circuit write if we're simply overwriting an identical value.
+		// If the value being set is identical to the one we read from storage, then
+		// leave the cache state alone, and return.  This will prevent a write (and
+		// subtree revision bump) for identical data.
 		if bytes.Equal(c.Leaves[sfxKey], h) {
 			return nil
 		}
 		c.Leaves[sfxKey] = h
 	} else {
-		// Short-circuit write if we're simply overwriting an identical value.
+		// If the value being set is identical to the one we read from storage, then
+		// leave the cache state alone, and return.  This will prevent a write (and
+		// subtree revision bump) for identical data.
 		if bytes.Equal(c.InternalNodes[sfxKey], h) {
 			return nil
 		}
