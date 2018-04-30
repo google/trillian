@@ -87,12 +87,12 @@ func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][
 // between the passed in tree snapshots. Snapshots are the respective tree
 // sizes. Accepts shapshot2 >= snapshot1 >= 0.
 func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error {
-	if snapshot1 < 0 {
+	switch {
+	case snapshot1 < 0:
 		return fmt.Errorf("snapshot1 (%d) < 0 ", snapshot1)
-	} else if snapshot2 < snapshot1 {
+	case snapshot2 < snapshot1:
 		return fmt.Errorf("snapshot2 (%d) < snapshot1 (%d)", snapshot1, snapshot2)
-	}
-	if snapshot1 == snapshot2 {
+	case snapshot1 == snapshot2:
 		if !bytes.Equal(root1, root2) {
 			return RootMismatchError{
 				CalculatedRoot: root1,
@@ -102,15 +102,13 @@ func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 			return errors.New("root1 and root2 match, but proof is non-empty")
 		}
 		return nil // Proof OK.
-	}
-	if snapshot1 == 0 {
+	case snapshot1 == 0:
 		// Any snapshot greater than 0 is consistent with snapshot 0.
 		if len(proof) > 0 {
 			return fmt.Errorf("expected empty proof, but got %d components", len(proof))
 		}
 		return nil // Proof OK.
-	}
-	if len(proof) == 0 {
+	case len(proof) == 0:
 		return errors.New("empty proof")
 	}
 
