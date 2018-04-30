@@ -428,9 +428,9 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 		growTree(tree, size)
 		root := tree.CurrentRoot().Hash()
 
-		for i := int64(0); i < size; i++ {
+		for i := int64(1); i <= size; i++ {
 			t.Run(fmt.Sprintf("size:%d:prefix:%d", size, i), func(t *testing.T) {
-				leaf, proof := getLeafAndProof(tree, i)
+				leaf, proof := getLeafAndProof(tree, i-1)
 				pRoot, err := verif.VerifiedPrefixHashFromInclusionProof(i, size, proof, root, leaf)
 				if err != nil {
 					t.Fatalf("VerifiedPrefixHashFromInclusionProof(): %v", err)
@@ -449,19 +449,18 @@ func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 	tree, verif := createTree(size)
 	root := tree.CurrentRoot().Hash()
 
-	// Proofs for #2 and #3 are same length, unlike #306. We will use that below.
 	leaf2, proof2 := getLeafAndProof(tree, 2)
 	_, proof3 := getLeafAndProof(tree, 3)
-	_, proof306 := getLeafAndProof(tree, 306)
+	_, proof301 := getLeafAndProof(tree, 301)
 
 	idxTests := []struct {
 		index int64
 		size  int64
 	}{
 		{-1, -1}, {-10, -1}, {-1, -10},
-		{10, -1}, {10, 0}, {10, 9},
+		{10, -1}, {10, 0}, {10, 9}, {0, 10},
 		{0, -1}, {0, 0}, {-1, 0},
-		{-1, size}, {size, size}, {size + 1, size}, {size + 100, size},
+		{-1, size}, {0, size}, {size, size}, {size + 1, size}, {size + 100, size},
 	}
 	for _, it := range idxTests {
 		if _, err := verif.VerifiedPrefixHashFromInclusionProof(it.index, it.size, proof2, root, leaf2); err == nil {
@@ -469,14 +468,14 @@ func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 		}
 	}
 
-	if _, err := verif.VerifiedPrefixHashFromInclusionProof(2, size, proof2, root, leaf2); err != nil {
+	if _, err := verif.VerifiedPrefixHashFromInclusionProof(3, size, proof2, root, leaf2); err != nil {
 		t.Errorf("VerifiedPrefixHashFromInclusionProof(): %v, expected no error", err)
 	}
-	// Note: Proofs #2 and #3 are same lengths, plus the procedure of computing
-	// [0..2) root hash for both of them would return the same correct result.
-	// However, the proof #3 can't be verified against index #2, hence the error.
-	for _, proof := range [][][]byte{proof3, proof306} {
-		if _, err := verif.VerifiedPrefixHashFromInclusionProof(2, size, proof, root, leaf2); err == nil {
+
+	// Proofs #3 has the same length, but doesn't verify against index #2.
+	// Neither does proof #301 as it has a different length.
+	for _, proof := range [][][]byte{proof3, proof301} {
+		if _, err := verif.VerifiedPrefixHashFromInclusionProof(3, size, proof, root, leaf2); err == nil {
 			t.Error("VerifiedPrefixHashFromInclusionProof(): expected error")
 		}
 	}
