@@ -157,7 +157,7 @@ func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 
 // VerifiedPrefixHashFromInclusionProof calculates a root hash over leaves
 // [0..subSize), based on the inclusion |proof| and |leafHash| for a leaf at
-// the |subSize| index in a tree of the specified |size| with the passed in
+// index |subSize-1| in a tree of the specified |size| with the passed in
 // |root| hash.
 // Returns an error if the |proof| verification fails. The resulting smaller
 // tree's root hash is trusted iff the bigger tree's |root| hash is trusted.
@@ -165,17 +165,18 @@ func (v LogVerifier) VerifiedPrefixHashFromInclusionProof(
 	subSize, size int64,
 	proof [][]byte, root []byte, leafHash []byte,
 ) ([]byte, error) {
-	if err := v.VerifyInclusionProof(subSize, size, proof, root, leafHash); err != nil {
+	if subSize <= 0 {
+		return nil, fmt.Errorf("subtree size is %d, want > 0", subSize)
+	}
+	leaf := subSize - 1
+	if err := v.VerifyInclusionProof(leaf, size, proof, root, leafHash); err != nil {
 		return nil, err
 	}
-	if subSize == 0 {
-		return v.hasher.EmptyRoot(), nil
-	}
 
-	inner := innerProofSize(subSize, size)
+	inner := innerProofSize(leaf, size)
 	ch := hashChainer(v)
-	res := ch.chainInnerRightOpen(proof[:inner], subSize)
-	res = ch.chainBorderRightOpen(res, proof[inner:])
+	res := ch.chainInnerRight(leafHash, proof[:inner], leaf)
+	res = ch.chainBorderRight(res, proof[inner:])
 	return res, nil
 }
 
