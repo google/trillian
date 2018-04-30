@@ -235,13 +235,11 @@ func (v LogVerifier) VerifiedPrefixHashFromInclusionProof(
 	// |tail| is the number of proof hashes corresponding to tree nodes below the
 	// split point between paths to leaves |subSize-1| and |size-1|.
 	tail := bits.Len64(uint64(leaf ^ (size - 1)))
-
 	res := leafHash
 	for i, h := range proof {
-		if i < tail && (leaf>>uint(i))&1 == 0 {
-			continue
+		if i >= tail || (leaf>>uint(i))&1 == 1 {
+			res = v.hasher.HashChildren(h, res)
 		}
-		res = v.hasher.HashChildren(h, res)
 	}
 	return res, nil
 }

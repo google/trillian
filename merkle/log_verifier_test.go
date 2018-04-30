@@ -472,7 +472,7 @@ func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 		t.Errorf("VerifiedPrefixHashFromInclusionProof(): %v, expected no error", err)
 	}
 
-	// Proofs #3 has the same length, but doesn't verify against index #2.
+	// Proof #3 has the same length, but doesn't verify against index #2.
 	// Neither does proof #301 as it has a different length.
 	for _, proof := range [][][]byte{proof3, proof301} {
 		if _, err := verif.VerifiedPrefixHashFromInclusionProof(3, size, proof, root, leaf2); err == nil {
