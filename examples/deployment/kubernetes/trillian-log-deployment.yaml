@@ -50,7 +50,7 @@ spec:
             - http://localhost:8091/healthz
           failureThreshold: 3
           periodSeconds: 30
-          timeoutSeconds: 30
+          timeoutSeconds: 5
         ports:
         - containerPort: 8090
           name: rpc
