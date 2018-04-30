@@ -265,6 +265,14 @@ func (s *hammerState) rev(which int) int64 {
 	return s.contents[which].rev
 }
 
+// lastRev returns the most recent revision from known contents (and returns 0 if
+// there are no known contents yet).
+func (s *hammerState) lastRev() int64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.contents[0].rev
+}
+
 func (s *hammerState) empty(which int) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -718,8 +726,9 @@ leafloop:
 		}
 	}
 	req := trillian.SetMapLeavesRequest{
-		MapId:  s.cfg.MapID,
-		Leaves: leaves,
+		MapId:    s.cfg.MapID,
+		Leaves:   leaves,
+		Metadata: metadataForRev(uint64(s.lastRev() + 1)),
 	}
 	rsp, err := s.cfg.Client.SetLeaves(ctx, &req)
 	if err != nil {
@@ -776,6 +785,9 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 	root, err := CheckSignature(s.cfg, rsp.MapRoot)
 	if err != nil {
 		return err
+	}
+	if got, want := string(root.Metadata), string(metadataForRev(root.Revision)); got != want {
+		return fmt.Errorf("map metadata=%q; want %q", got, want)
 	}
 
 	s.pushSMR(rsp.MapRoot)
@@ -855,4 +867,13 @@ func smrRev(smr *trillian.SignedMapRoot) string {
 
 func dehash(index []byte) string {
 	return strings.TrimRight(string(index), "\x00")
+}
+
+// metadataForRev returns the metadata value that the maphammer always uses for
+// a specific revision.
+func metadataForRev(rev uint64) []byte {
+	if rev == 0 {
+		return []byte{}
+	}
+	return []byte(fmt.Sprintf("Metadata-%d", rev))
 }
