@@ -126,6 +126,10 @@ func main() {
 			}
 			return nil
 		},
+		IsHealthy: func(ctx context.Context) error {
+			as := sp.AdminStorage()
+			return as.CheckDatabaseAccessible(ctx)
+		},
 		AllowedTreeTypes:      []trillian.TreeType{trillian.TreeType_MAP},
 		TreeGCEnabled:         *treeGCEnabled,
 		TreeDeleteThreshold:   *treeDeleteThreshold,
