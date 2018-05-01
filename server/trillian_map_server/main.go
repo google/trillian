@@ -61,6 +61,7 @@ var (
 
 	tracing          = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
 	tracingProjectID = flag.String("tracing_project_id", "", "project ID to pass to Stackdriver client. Can be empty for GCP, consult docs for other platforms.")
+	tracingPercent   = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -78,7 +79,7 @@ func main() {
 	mf := prometheus.MetricFactory{}
 
 	if *tracing {
-		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID)
+		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID, *tracingPercent)
 		if err != nil {
 			glog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
 		}

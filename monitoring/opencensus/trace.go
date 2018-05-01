@@ -15,6 +15,8 @@
 package opencensus
 
 import (
+	"errors"
+
 	"go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats/view"
@@ -26,13 +28,24 @@ import (
 // options must be passed to the GRPC server. The supplied
 // projectID can be nil for GCP but might need to be set for other
 // cloud platforms. Refer to the appropriate documentation.
-func EnableRPCServerTracing(projectID string) ([]grpc.ServerOption, error) {
+func EnableRPCServerTracing(projectID string, percent int) ([]grpc.ServerOption, error) {
 	sde, err := stackdriver.NewExporter(stackdriver.Options{ProjectID: projectID})
 	if err != nil {
 		return nil, err
 	}
 	view.RegisterExporter(sde)
 	trace.RegisterExporter(sde)
+
+	switch {
+	case percent == 0:
+		// Use the default config, which traces relatively few requests.
+	case percent == 100:
+		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+	case percent > 100:
+		return nil, errors.New("cannot trace more than 100% of requests")
+	default:
+		trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(float64(percent) / 100.0)})
+	}
 
 	// Register the views to collect server request count.
 	if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
