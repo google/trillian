@@ -55,7 +55,7 @@ spec:
             - http://localhost:8091/metrics
           failureThreshold: 3
           periodSeconds: 30
-          timeoutSeconds: 30
+          timeoutSeconds: 5
         name: trillian-log-signer
         ports:
         - containerPort: 8091

@@ -29,6 +29,7 @@ spec:
         "--etcd_http_service=trillian-logserver-http",
         "--rpc_endpoint=0.0.0.0:8090",
         "--http_endpoint=0.0.0.0:8091",
+        "--tracing",
         "--alsologtostderr"
         ]
         envFrom:
@@ -47,10 +48,10 @@ spec:
             command:
             - curl
             - -f
-            - http://localhost:8091/metrics
+            - http://localhost:8091/healthz
           failureThreshold: 3
           periodSeconds: 30
-          timeoutSeconds: 30
+          timeoutSeconds: 5
         ports:
         - containerPort: 8090
           name: rpc
