@@ -71,6 +71,14 @@ type Main struct {
 	// RegisterServerFn is called to register RPC servers.
 	RegisterServerFn func(*grpc.Server, extension.Registry) error
 
+	// IsHealthy will be called whenever "/healthz" is called on the mux.
+	// A nil return value from this function will result in a 200-OK response
+	// on the /healthz endpoint.
+	IsHealthy func(context.Context) error
+	// HealthyDeadline is the maximum duration to wait wait for a successful
+	// IsHealthy() call.
+	HealthyDeadline time.Duration
+
 	// AllowedTreeTypes determines which types of trees may be created through the Admin Server
 	// bound by Main. nil means unrestricted.
 	AllowedTreeTypes []trillian.TreeType
@@ -78,11 +86,31 @@ type Main struct {
 	TreeGCEnabled         bool
 	TreeDeleteThreshold   time.Duration
 	TreeDeleteMinInterval time.Duration
+
+	// These will be added to the GRPC server options.
+	ExtraOptions []grpc.ServerOption
+}
+
+func (m *Main) healthz(rw http.ResponseWriter, req *http.Request) {
+	if m.IsHealthy != nil {
+		ctx, cancel := context.WithTimeout(req.Context(), m.HealthyDeadline)
+		defer cancel()
+		if err := m.IsHealthy(ctx); err != nil {
+			rw.WriteHeader(http.StatusServiceUnavailable)
+			rw.Write([]byte(err.Error()))
+			return
+		}
+	}
+	rw.Write([]byte("ok"))
 }
 
 // Run starts the configured server. Blocks until the server exits.
 func (m *Main) Run(ctx context.Context) error {
 	glog.CopyStandardLogTo("WARNING")
+
+	if m.HealthyDeadline == 0 {
+		m.HealthyDeadline = 5 * time.Second
+	}
 
 	srv, err := m.newGRPCServer()
 	if err != nil {
@@ -99,23 +127,18 @@ func (m *Main) Run(ctx context.Context) error {
 	reflection.Register(srv)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
-		mux := runtime.NewServeMux()
+		gatewayMux := runtime.NewServeMux()
 		opts := []grpc.DialOption{grpc.WithInsecure()}
-		if err := m.RegisterHandlerFn(ctx, mux, m.RPCEndpoint, opts); err != nil {
+		if err := m.RegisterHandlerFn(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
 			return err
 		}
-		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
+		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
 			return err
 		}
 
-		handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			switch {
-			case req.RequestURI == "/metrics":
-				promhttp.Handler().ServeHTTP(w, req)
-			default:
-				mux.ServeHTTP(w, req)
-			}
-		})
+		http.Handle("/", gatewayMux)
+		http.Handle("/metrics", promhttp.Handler())
+		http.HandleFunc("/healthz", m.healthz)
 
 		go func() {
 			glog.Infof("HTTP server starting on %v", endpoint)
@@ -123,9 +146,9 @@ func (m *Main) Run(ctx context.Context) error {
 			var err error
 			// Let http.ListenAndServeTLS handle the error case when only one of the flags is set.
 			if m.TLSCertFile != "" || m.TLSKeyFile != "" {
-				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, handler)
+				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, nil)
 			} else {
-				err = http.ListenAndServe(endpoint, handler)
+				err = http.ListenAndServe(endpoint, nil)
 			}
 
 			if err != nil {
@@ -177,6 +200,7 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(netInterceptor),
 	}
+	serverOpts = append(serverOpts, m.ExtraOptions...)
 
 	// Let credentials.NewServerTLSFromFile handle the error case when only one of the flags is set.
 	if m.TLSCertFile != "" || m.TLSKeyFile != "" {
