@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
@@ -63,6 +64,10 @@ var (
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
 	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", server.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
 
+	tracing          = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
+	tracingProjectID = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
+	tracingPercent   = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler")
+
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
@@ -77,7 +82,17 @@ func main() {
 
 	ctx := context.Background()
 
+	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}
+
+	if *tracing {
+		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID, *tracingPercent)
+		if err != nil {
+			glog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
+		}
+		// Enable the server request counter tracing etc.
+		options = append(options, opts...)
+	}
 
 	sp, err := server.NewStorageProviderFromFlags(mf)
 	if err != nil {
@@ -118,6 +133,7 @@ func main() {
 		TLSCertFile:  *tlsCertFile,
 		TLSKeyFile:   *tlsKeyFile,
 		StatsPrefix:  "log",
+		ExtraOptions: options,
 		QuotaDryRun:  *quotaDryRun,
 		DBClose:      sp.Close,
 		Registry:     registry,
@@ -141,6 +157,10 @@ func main() {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
 			return nil
+		},
+		IsHealthy: func(ctx context.Context) error {
+			as := sp.AdminStorage()
+			return as.CheckDatabaseAccessible(ctx)
 		},
 		AllowedTreeTypes:      []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG},
 		TreeGCEnabled:         *treeGCEnabled,

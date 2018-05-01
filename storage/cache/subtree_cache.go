@@ -147,10 +147,9 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		id := id
 		px, _ := s.splitNodeID(id)
 		pxKey := string(px)
-		_, ok := s.subtrees[pxKey]
 		// TODO(al): fix for non-uniform strata
 		id.PrefixLenBits = len(px) * depthQuantum
-		if !ok {
+		if _, ok := s.subtrees[pxKey]; !ok {
 			want[pxKey] = &id
 		}
 	}
@@ -326,15 +325,27 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	if c.Prefix == nil {
 		return fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey)
 	}
-	s.dirtyPrefixes[prefixKey] = true
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
 	sfxKey := sx.String()
 	if int32(sx.Bits) == c.Depth {
+		// If the value being set is identical to the one we read from storage, then
+		// leave the cache state alone, and return.  This will prevent a write (and
+		// subtree revision bump) for identical data.
+		if bytes.Equal(c.Leaves[sfxKey], h) {
+			return nil
+		}
 		c.Leaves[sfxKey] = h
 	} else {
+		// If the value being set is identical to the one we read from storage, then
+		// leave the cache state alone, and return.  This will prevent a write (and
+		// subtree revision bump) for identical data.
+		if bytes.Equal(c.InternalNodes[sfxKey], h) {
+			return nil
+		}
 		c.InternalNodes[sfxKey] = h
 	}
+	s.dirtyPrefixes[prefixKey] = true
 	if glog.V(4) {
 		b, err := base64.StdEncoding.DecodeString(sfxKey)
 		if err != nil {

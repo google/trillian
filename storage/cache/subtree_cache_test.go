@@ -346,3 +346,82 @@ func TestGetStratumInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestIdempotentWrites(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	m := NewMockNodeStorage(mockCtrl)
+
+	h := "0123456789abcdef0123456789abcdef"
+	nodeID := storage.NewNodeIDFromHash([]byte(h))
+	nodeID.PrefixLenBits = 40
+	subtreeID := nodeID
+	subtreeID.PrefixLenBits = 32
+
+	expectedSetIDs := make(map[string]string)
+	expectedSetIDs[subtreeID.String()] = "expected"
+
+	// The first time we read the subtree we'll emulate an empty subtree:
+	m.EXPECT().GetSubtree(stestonly.NodeIDEq(subtreeID)).Do(func(n storage.NodeID) {
+		t.Logf("read %v", n.String())
+	}).Return((*storagepb.SubtreeProto)(nil), nil)
+
+	// We should only see a single write attempt
+	m.EXPECT().SetSubtrees(gomock.Any()).Times(1).Do(func(trees []*storagepb.SubtreeProto) {
+		for _, s := range trees {
+			subID := storage.NewNodeIDFromHash(s.Prefix)
+			state, ok := expectedSetIDs[subID.String()]
+			if !ok {
+				t.Errorf("Unexpected write to subtree %s", subID.String())
+			}
+			switch state {
+			case "expected":
+				expectedSetIDs[subID.String()] = "met"
+			case "met":
+				t.Errorf("Second write to subtree %s", subID.String())
+			default:
+				t.Errorf("Unknown state for subtree %s: %s", subID.String(), state)
+			}
+
+			// After this write completes, subsequent reads will see the subtree
+			// being written now:
+			m.EXPECT().GetSubtree(stestonly.NodeIDEq(subID)).AnyTimes().Do(func(n storage.NodeID) {
+				t.Logf("read again %v", n.String())
+			}).Return(s, nil)
+
+			t.Logf("write %v -> %#v", subID.String(), s)
+		}
+	}).Return(nil)
+
+	// Now write the same value to the same node multiple times.
+	// We should see many reads, but only the first call to SetNodeHash should
+	// result in an actual write being flushed through to storage.
+	for i := 0; i < 10; i++ {
+		c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
+		_, err := c.GetNodeHash(nodeID, m.GetSubtree)
+		if err != nil {
+			t.Fatalf("%d: failed to get node hash: %v", i, err)
+		}
+
+		err = c.SetNodeHash(nodeID, []byte("noodled"), noFetch)
+		if err != nil {
+			t.Fatalf("%d: failed to set node hash: %v", i, err)
+		}
+
+		if err := c.Flush(m.SetSubtrees); err != nil {
+			t.Fatalf("%d: failed to flush cache: %v", i, err)
+		}
+	}
+
+	for k, v := range expectedSetIDs {
+		switch v {
+		case "expected":
+			t.Errorf("Subtree %s remains unset", k)
+		case "met":
+			//
+		default:
+			t.Errorf("Unknown state for subtree %s: %s", k, v)
+		}
+	}
+}
