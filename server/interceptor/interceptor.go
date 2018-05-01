@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
+	"go.opencensus.io/trace"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -40,6 +41,7 @@ const (
 	insufficientTokensReason = "insufficient_tokens"
 	getTreeStage             = "get_tree"
 	getTokensStage           = "get_tokens"
+	traceSpanRoot            = "github/com/google/trillian/server/interceptor"
 )
 
 var (
@@ -141,6 +143,8 @@ type trillianProcessor struct {
 }
 
 func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
+	ctx, span := spanFor(ctx, "Before")
+	defer span.End()
 	quotaUser := tp.parent.qm.GetUser(ctx, req)
 	info, err := newRPCInfo(req, quotaUser)
 	if err != nil {
@@ -224,7 +228,9 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		// Run PutTokens in a separate goroutine and with a separate context.
 		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), PutTokensTimeout)
+			ctx, span := spanFor(context.Background(), "After.PutTokens")
+			defer span.End()
+			ctx, cancel := context.WithTimeout(ctx, PutTokensTimeout)
 			defer cancel()
 
 			// TODO(codingllama): If PutTokens turns out to be unreliable we can still leak tokens. In
@@ -456,4 +462,8 @@ func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterc
 func ErrorWrapper(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	rsp, err := handler(ctx, req)
 	return rsp, errors.WrapError(err)
+}
+
+func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
+	return trace.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }
