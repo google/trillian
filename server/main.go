@@ -86,6 +86,9 @@ type Main struct {
 	TreeGCEnabled         bool
 	TreeDeleteThreshold   time.Duration
 	TreeDeleteMinInterval time.Duration
+
+	// These will be added to the GRPC server options.
+	ExtraOptions []grpc.ServerOption
 }
 
 func (m *Main) healthz(rw http.ResponseWriter, req *http.Request) {
@@ -197,6 +200,7 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(netInterceptor),
 	}
+	serverOpts = append(serverOpts, m.ExtraOptions...)
 
 	// Let credentials.NewServerTLSFromFile handle the error case when only one of the flags is set.
 	if m.TLSCertFile != "" || m.TLSKeyFile != "" {

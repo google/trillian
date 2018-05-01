@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
@@ -58,6 +59,9 @@ var (
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
 	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", server.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
 
+	tracing           = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
+	tracing_projectid = flag.String("tracing_projectid", "", "project ID to pass to Stackdriver client. Can be empty for GCP, consult docs for other platforms.")
+
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
@@ -70,7 +74,17 @@ func main() {
 		}
 	}
 
+	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}
+
+	if *tracing {
+		opts, err := opencensus.EnableRPCServerTracing(*tracing_projectid)
+		if err != nil {
+			glog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
+		}
+		// Enable the server request counter tracing etc.
+		options = append(options, opts...)
+	}
 
 	sp, err := server.NewStorageProviderFromFlags(mf)
 	if err != nil {
@@ -103,6 +117,7 @@ func main() {
 		TLSCertFile:  *tlsCertFile,
 		TLSKeyFile:   *tlsKeyFile,
 		StatsPrefix:  "map",
+		ExtraOptions: options,
 		QuotaDryRun:  *quotaDryRun,
 		DBClose:      sp.Close,
 		Registry:     registry,
