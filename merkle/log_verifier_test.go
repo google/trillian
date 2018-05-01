@@ -119,7 +119,7 @@ type consistencyProbe struct {
 	desc string
 }
 
-func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, leafHash []byte) []inclusionProbe {
+func corruptInclusionProof(leafIndex, treeSize int64, proof [][]byte, root, leafHash []byte) []inclusionProbe {
 	ret := []inclusionProbe{
 		// Wrong leaf index.
 		{leafIndex - 1, treeSize, root, leafHash, proof, "leafIndex - 1"},
@@ -161,7 +161,7 @@ func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, le
 	return ret
 }
 
-func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) []consistencyProbe {
+func corruptConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) []consistencyProbe {
 	ln := len(proof)
 	ret := []consistencyProbe{
 		// Wrong snapshot index.
@@ -218,7 +218,7 @@ func verifierCheck(v *LogVerifier, leafIndex, treeSize int64, proof [][]byte, ro
 		return err
 	}
 
-	probes := corruptInclVerification(leafIndex, treeSize, proof, root, leafHash)
+	probes := corruptInclusionProof(leafIndex, treeSize, proof, root, leafHash)
 	var wrong []string
 	for _, p := range probes {
 		if err := v.VerifyInclusionProof(p.leafIndex, p.treeSize, p.proof, p.root, p.leafHash); err == nil {
@@ -242,7 +242,7 @@ func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1,
 		return nil
 	}
 
-	probes := corruptConsVerification(snapshot1, snapshot2, root1, root2, proof)
+	probes := corruptConsistencyProof(snapshot1, snapshot2, root1, root2, proof)
 	var wrong []string
 	for _, p := range probes {
 		if err := v.VerifyConsistencyProof(p.snapshot1, p.snapshot2, p.root1, p.root2, p.proof); err == nil {
