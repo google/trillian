@@ -21,6 +21,8 @@ import (
 // hashChainer provides convenience methods for hashing subranges of Merkle
 // Tree proofs to obtain (sub-)tree hashes. Depending on how the path to a tree
 // node relates to the query and/or tree borders, different methods are there.
+//
+// TODO(pavelkalinnikov): Add a Merkle Trees doc with visual explanations.
 type hashChainer struct {
 	hasher hashers.LogHasher
 }
