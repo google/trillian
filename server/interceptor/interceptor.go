@@ -191,8 +191,6 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 }
 
 func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {
-	ctx, span := spanFor(ctx, "After")
-	defer span.End()
 	switch {
 	case tp.info == nil:
 		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
@@ -230,7 +228,9 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		// Run PutTokens in a separate goroutine and with a separate context.
 		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), PutTokensTimeout)
+			ctx, span := spanFor(context.Background(), "After.PutTokens")
+			defer span.End()
+			ctx, cancel := context.WithTimeout(ctx, PutTokensTimeout)
 			defer cancel()
 
 			// TODO(codingllama): If PutTokens turns out to be unreliable we can still leak tokens. In
