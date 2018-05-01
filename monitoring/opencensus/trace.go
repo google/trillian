@@ -42,7 +42,7 @@ func EnableRPCServerTracing(projectID string, percent int) ([]grpc.ServerOption,
 	case percent == 100:
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 	case percent > 100:
-		return nil, errors.New("cannot trace more than 100% of requests")
+		return nil, errors.New("cannot trace more than 100 percent of requests")
 	default:
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(float64(percent) / 100.0)})
 	}
