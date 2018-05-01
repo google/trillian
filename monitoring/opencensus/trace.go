@@ -18,18 +18,24 @@ import (
 	"go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats/view"
+	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 )
 
+// EnableRPCServerTracing turns on Stackdriver tracing. The returned
+// options must be passed to the GRPC server. The supplied
+// projectID can be nil for GCP but might need to be set for other
+// cloud platforms. Refer to the appropriate documentation.
 func EnableRPCServerTracing(projectID string) ([]grpc.ServerOption, error) {
 	sde, err := stackdriver.NewExporter(stackdriver.Options{ProjectID: projectID})
 	if err != nil {
 		return nil, err
 	}
 	view.RegisterExporter(sde)
+	trace.RegisterExporter(sde)
 
 	// Register the views to collect server request count.
-	if err := view.Subscribe(ocgrpc.DefaultServerViews...); err != nil {
+	if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
 		return nil, err
 	}
 

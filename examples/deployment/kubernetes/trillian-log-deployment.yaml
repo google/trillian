@@ -29,6 +29,7 @@ spec:
         "--etcd_http_service=trillian-logserver-http",
         "--rpc_endpoint=0.0.0.0:8090",
         "--http_endpoint=0.0.0.0:8091",
+        "--tracing",
         "--alsologtostderr"
         ]
         envFrom:

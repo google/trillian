@@ -59,8 +59,8 @@ var (
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
 	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", server.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
 
-	tracing           = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
-	tracing_projectid = flag.String("tracing_projectid", "", "project ID to pass to Stackdriver client. Can be empty for GCP, consult docs for other platforms.")
+	tracing          = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
+	tracingProjectID = flag.String("tracing_project_id", "", "project ID to pass to Stackdriver client. Can be empty for GCP, consult docs for other platforms.")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -78,7 +78,7 @@ func main() {
 	mf := prometheus.MetricFactory{}
 
 	if *tracing {
-		opts, err := opencensus.EnableRPCServerTracing(*tracing_projectid)
+		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID)
 		if err != nil {
 			glog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
 		}
