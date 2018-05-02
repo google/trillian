@@ -62,15 +62,15 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	// * 2nd loop: Snapshot()/ListTrees() only.
 
 	// 1st loop
-	listTX1.EXPECT().ListTrees(ctx, true /* includeDeleted */).Return([]*trillian.Tree{tree1}, nil)
+	listTX1.EXPECT().ListTrees(gomock.Any(), true /* includeDeleted */).Return([]*trillian.Tree{tree1}, nil)
 	listTX1.EXPECT().Close().Return(nil)
 	listTX1.EXPECT().Commit().Return(nil)
-	deleteTX1.EXPECT().HardDeleteTree(ctx, tree1.TreeId).Return(nil)
+	deleteTX1.EXPECT().HardDeleteTree(gomock.Any(), tree1.TreeId).Return(nil)
 	deleteTX1.EXPECT().Close().Return(nil)
 	deleteTX1.EXPECT().Commit().Return(nil)
 
 	// 2nd loop
-	listTX2.EXPECT().ListTrees(ctx, true /* includeDeleted */).Return(nil, nil)
+	listTX2.EXPECT().ListTrees(gomock.Any(), true /* includeDeleted */).Return(nil, nil)
 	listTX2.EXPECT().Close().Return(nil)
 	listTX2.EXPECT().Commit().Return(nil)
 
@@ -162,13 +162,13 @@ func TestDeletedTreeGC_RunOnce(t *testing.T) {
 		listTX := storage.NewMockReadOnlyAdminTX(ctrl)
 		as := &testonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{listTX}}
 
-		listTX.EXPECT().ListTrees(ctx, true /* includeDeleted */).Return(allTrees, nil)
+		listTX.EXPECT().ListTrees(gomock.Any(), true /* includeDeleted */).Return(allTrees, nil)
 		listTX.EXPECT().Close().Return(nil)
 		listTX.EXPECT().Commit().Return(nil)
 
 		for _, id := range test.wantDeleted {
 			deleteTX := storage.NewMockAdminTX(ctrl)
-			deleteTX.EXPECT().HardDeleteTree(ctx, id).Return(nil)
+			deleteTX.EXPECT().HardDeleteTree(gomock.Any(), id).Return(nil)
 			deleteTX.EXPECT().Close().Return(nil)
 			deleteTX.EXPECT().Commit().Return(nil)
 			as.TX = append(as.TX, deleteTX)

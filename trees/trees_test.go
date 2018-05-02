@@ -304,8 +304,8 @@ func TestGetTree(t *testing.T) {
 
 		admin := storage.NewMockAdminStorage(ctrl)
 		tx := storage.NewMockReadOnlyAdminTX(ctrl)
-		admin.EXPECT().Snapshot(ctx).MaxTimes(1).Return(tx, test.beginErr)
-		tx.EXPECT().GetTree(ctx, test.treeID).MaxTimes(1).Return(test.storageTree, test.getErr)
+		admin.EXPECT().Snapshot(gomock.Any()).MaxTimes(1).Return(tx, test.beginErr)
+		tx.EXPECT().GetTree(gomock.Any(), test.treeID).MaxTimes(1).Return(test.storageTree, test.getErr)
 		tx.EXPECT().Close().MaxTimes(1).Return(nil)
 		tx.EXPECT().Commit().MaxTimes(1).Return(test.commitErr)
 

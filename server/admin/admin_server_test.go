@@ -102,7 +102,7 @@ func TestServer_BeginError(t *testing.T) {
 	for _, test := range tests {
 		as := storage.NewMockAdminStorage(ctrl)
 		if test.snapshot {
-			as.EXPECT().Snapshot(ctx).Return(nil, errors.New("snapshot error"))
+			as.EXPECT().Snapshot(gomock.Any()).Return(nil, errors.New("snapshot error"))
 		} else {
 			as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).Return(errors.New("begin error"))
 		}
@@ -171,7 +171,7 @@ func TestServer_ListTrees(t *testing.T) {
 			false /* commitErr */)
 
 		tx := setup.snapshotTX
-		tx.EXPECT().ListTrees(ctx, test.req.ShowDeleted).Return(test.trees, nil)
+		tx.EXPECT().ListTrees(gomock.Any(), test.req.ShowDeleted).Return(test.trees, nil)
 
 		s := setup.server
 		resp, err := s.ListTrees(ctx, test.req)
@@ -217,7 +217,7 @@ func TestServer_ListTreesErrors(t *testing.T) {
 			test.commitErr /* commitErr */)
 
 		tx := setup.snapshotTX
-		tx.EXPECT().ListTrees(ctx, false).Return(nil, test.listErr)
+		tx.EXPECT().ListTrees(gomock.Any(), false).Return(nil, test.listErr)
 
 		s := setup.server
 		if _, err := s.ListTrees(ctx, &trillian.ListTreesRequest{}); err == nil {
@@ -262,9 +262,9 @@ func TestServer_GetTree(t *testing.T) {
 		storedTree := *testonly.LogTree
 		storedTree.TreeId = 12345
 		if test.getErr {
-			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(nil, errors.New("GetTree failed"))
+			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(nil, errors.New("GetTree failed"))
 		} else {
-			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(&storedTree, nil)
+			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(&storedTree, nil)
 		}
 		wantErr := test.getErr || test.commitErr
 
@@ -496,7 +496,7 @@ func TestServer_CreateTree(t *testing.T) {
 
 			if test.req.Tree != nil {
 				var newTree trillian.Tree
-				tx.EXPECT().CreateTree(ctx, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
+				tx.EXPECT().CreateTree(gomock.Any(), gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
 					newTree = *tree
 					newTree.TreeId = 12345
 					newTree.CreateTime = nowPB
@@ -606,7 +606,7 @@ func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 
 		// Storage interactions aren't the focus of this test, so mocks are configured in a rather
 		// permissive way.
-		tx.EXPECT().CreateTree(ctx, gomock.Any()).AnyTimes().Return(&trillian.Tree{}, nil)
+		tx.EXPECT().CreateTree(gomock.Any(), gomock.Any()).AnyTimes().Return(&trillian.Tree{}, nil)
 
 		_, err := s.CreateTree(ctx, test.req)
 		switch s, ok := status.FromError(err); {
@@ -723,7 +723,7 @@ func TestServer_UpdateTree(t *testing.T) {
 		s := setup.server
 
 		if test.req.Tree != nil {
-			tx.EXPECT().UpdateTree(ctx, test.req.Tree.TreeId, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, treeID int64, updateFn func(*trillian.Tree)) {
+			tx.EXPECT().UpdateTree(gomock.Any(), test.req.Tree.TreeId, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, treeID int64, updateFn func(*trillian.Tree)) {
 				// This step should be done by the storage layer, but since we're mocking it we have to trigger it ourselves.
 				updateFn(test.currentTree)
 			}).Return(test.currentTree, test.updateErr)
@@ -775,7 +775,7 @@ func TestServer_DeleteTree(t *testing.T) {
 		req := &trillian.DeleteTreeRequest{TreeId: test.tree.TreeId}
 
 		tx := setup.tx
-		tx.EXPECT().SoftDeleteTree(ctx, req.TreeId).Return(test.tree, nil)
+		tx.EXPECT().SoftDeleteTree(gomock.Any(), req.TreeId).Return(test.tree, nil)
 
 		s := setup.server
 		got, err := s.DeleteTree(ctx, req)
@@ -817,7 +817,7 @@ func TestServer_DeleteTreeErrors(t *testing.T) {
 		req := &trillian.DeleteTreeRequest{TreeId: 10}
 
 		tx := setup.tx
-		tx.EXPECT().SoftDeleteTree(ctx, req.TreeId).Return(&trillian.Tree{}, test.deleteErr)
+		tx.EXPECT().SoftDeleteTree(gomock.Any(), req.TreeId).Return(&trillian.Tree{}, test.deleteErr)
 
 		s := setup.server
 		if _, err := s.DeleteTree(ctx, req); err == nil {
@@ -862,7 +862,7 @@ func TestServer_UndeleteTree(t *testing.T) {
 		req := &trillian.UndeleteTreeRequest{TreeId: test.tree.TreeId}
 
 		tx := setup.tx
-		tx.EXPECT().UndeleteTree(ctx, req.TreeId).Return(test.tree, nil)
+		tx.EXPECT().UndeleteTree(gomock.Any(), req.TreeId).Return(test.tree, nil)
 
 		s := setup.server
 		got, err := s.UndeleteTree(ctx, req)
@@ -904,7 +904,7 @@ func TestServer_UndeleteTreeErrors(t *testing.T) {
 		req := &trillian.UndeleteTreeRequest{TreeId: 10}
 
 		tx := setup.tx
-		tx.EXPECT().UndeleteTree(ctx, req.TreeId).Return(&trillian.Tree{}, test.undeleteErr)
+		tx.EXPECT().UndeleteTree(gomock.Any(), req.TreeId).Return(&trillian.Tree{}, test.undeleteErr)
 
 		s := setup.server
 		if _, err := s.UndeleteTree(ctx, req); err == nil {
