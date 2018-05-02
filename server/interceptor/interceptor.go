@@ -191,6 +191,8 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 }
 
 func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {
+	_, span := spanFor(ctx, "After")
+	defer span.End()
 	switch {
 	case tp.info == nil:
 		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
@@ -460,6 +462,8 @@ func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterc
 
 // ErrorWrapper is a grpc.UnaryServerInterceptor that wraps the errors emitted by the underlying handler.
 func ErrorWrapper(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	ctx, span := spanFor(ctx, "ErrorWrapper")
+	defer span.End()
 	rsp, err := handler(ctx, req)
 	return rsp, errors.WrapError(err)
 }
