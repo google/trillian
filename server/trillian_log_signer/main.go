@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -128,6 +129,7 @@ func main() {
 
 		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
 		http.Handle("/metrics", promhttp.Handler())
+		http.HandleFunc("/healthz", healthzFunc(sp.AdminStorage(), 0))
 		if err := util.StartHTTPServer(*httpEndpoint, *tlsCertFile, *tlsKeyFile); err != nil {
 			glog.Exitf("Failed to start HTTP server on %v: %v", *httpEndpoint, err)
 		}
@@ -156,4 +158,20 @@ func main() {
 	glog.Infof("Stopping server, about to exit")
 	glog.Flush()
 	time.Sleep(time.Second * 5)
+}
+
+func healthzFunc(as storage.AdminStorage, deadline time.Duration) func(http.ResponseWriter, *http.Request) {
+	if deadline == 0 {
+		deadline = 5 * time.Second
+	}
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx, cancel := context.WithTimeout(req.Context(), deadline)
+		defer cancel()
+		if err := as.CheckDatabaseAccessible(ctx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		w.Write([]byte("ok"))
+	}
 }
