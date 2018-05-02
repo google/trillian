@@ -21,7 +21,7 @@ import (
 	_ "github.com/golang/glog"
 )
 
-func TestRfc6962Hasher(t *testing.T) {
+func TestRFC6962Hasher(t *testing.T) {
 	hasher := DefaultHasher
 
 	leafHash, err := hasher.HashLeaf([]byte("L123456"))
@@ -40,14 +40,14 @@ func TestRfc6962Hasher(t *testing.T) {
 	}{
 		// echo -n | sha256sum
 		{
-			desc: "RFC962 Empty",
+			desc: "RFC6962 Empty",
 			want: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			got:  hasher.EmptyRoot(),
 		},
 		// Check that the empty hash is not the same as the hash of an empty leaf.
 		// echo -n 00 | xxd -r -p | sha256sum
 		{
-			desc: "RFC962 Empty Leaf",
+			desc: "RFC6962 Empty Leaf",
 			want: "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
 			got:  emptyLeafHash,
 		},
@@ -76,7 +76,7 @@ func TestRfc6962Hasher(t *testing.T) {
 	}
 }
 
-func TestRfc6962HasherCollisions(t *testing.T) {
+func TestRFC6962HasherCollisions(t *testing.T) {
 	hasher := DefaultHasher
 
 	// Check that different leaves have different hashes.
