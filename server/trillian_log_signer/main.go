@@ -54,6 +54,7 @@ var (
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
 	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
+	healthzTimeout           = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
 
 	quotaIncreaseFactor = flag.Float64("quota_increase_factor", log.QuotaIncreaseFactor,
 		"Increase factor for tokens replenished by sequencing-based quotas (1 means a 1:1 relationship between sequenced leaves and replenished tokens)."+
@@ -129,7 +130,7 @@ func main() {
 
 		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
 		http.Handle("/metrics", promhttp.Handler())
-		http.HandleFunc("/healthz", healthzFunc(sp.AdminStorage(), 0))
+		http.HandleFunc("/healthz", healthzFunc(sp.AdminStorage(), *healthzTimeout))
 		if err := util.StartHTTPServer(*httpEndpoint, *tlsCertFile, *tlsKeyFile); err != nil {
 			glog.Exitf("Failed to start HTTP server on %v: %v", *httpEndpoint, err)
 		}

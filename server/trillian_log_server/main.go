@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -53,6 +54,7 @@ import (
 var (
 	rpcEndpoint     = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint    = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
+	healthzTimeout  = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
 	tlsCertFile     = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile      = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
 	etcdService     = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
@@ -162,6 +164,7 @@ func main() {
 			as := sp.AdminStorage()
 			return as.CheckDatabaseAccessible(ctx)
 		},
+		HealthyDeadline:       *healthzTimeout,
 		AllowedTreeTypes:      []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG},
 		TreeGCEnabled:         *treeGCEnabled,
 		TreeDeleteThreshold:   *treeDeleteThreshold,
