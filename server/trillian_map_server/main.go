@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -48,10 +49,11 @@ import (
 )
 
 var (
-	rpcEndpoint  = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
-	httpEndpoint = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
-	tlsCertFile  = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
-	tlsKeyFile   = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
+	rpcEndpoint    = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
+	httpEndpoint   = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
+	healthzTimeout = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
+	tlsCertFile    = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
+	tlsKeyFile     = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
 
 	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
@@ -146,6 +148,7 @@ func main() {
 			as := sp.AdminStorage()
 			return as.CheckDatabaseAccessible(ctx)
 		},
+		HealthyDeadline:       *healthzTimeout,
 		AllowedTreeTypes:      []trillian.TreeType{trillian.TreeType_MAP},
 		TreeGCEnabled:         *treeGCEnabled,
 		TreeDeleteThreshold:   *treeDeleteThreshold,
