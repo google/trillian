@@ -25,12 +25,15 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"go.opencensus.io/trace"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
+
+const traceSpanRoot = "github.com/google/trillian/trees"
 
 type treeKey struct{}
 
@@ -153,15 +156,21 @@ func validate(o GetOpts, tree *trillian.Tree) error {
 // The tree will be validated according to GetOpts before returned. Tree state is also considered
 // (for example, deleted tree will return NotFound errors).
 func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
-	// TODO(codingllama): Record stats of ctx hits/misses, so we can assess whether RPCs work
-	// as intended.
+	ctx, span := spanFor(ctx, "GetTree")
+	defer span.End()
+	cachedTree := true
 	tree, ok := FromContext(ctx)
 	if !ok || tree.TreeId != treeID {
+		cachedTree = false
 		var err error
 		tree, err = storage.GetTree(ctx, s, treeID)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if span.IsRecordingEvents() {
+		span.AddAttributes(trace.BoolAttribute("cached-tree", cachedTree))
 	}
 
 	if err := validate(opts, tree); err != nil {
@@ -210,4 +219,8 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 	}
 
 	return tcrypto.NewSigner(tree.GetTreeId(), signer, hash), nil
+}
+
+func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
+	return trace.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }
