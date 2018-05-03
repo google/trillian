@@ -93,6 +93,14 @@ To build and run tests, use:
 go test ./...
 ```
 
+Note that go seems to sometimes fail to fetch or update all dependencies (as of
+v1.10.2), so you may need to manually fetch missing ones, or update all Go
+source with:
+
+```bash
+go get -u -v all
+```
+
 The repository also includes multi-process integration tests, described in the
 [Integration Tests](#integration-tests) section below.
 
