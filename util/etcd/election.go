@@ -67,7 +67,7 @@ func (eme *MasterElection) Close(ctx context.Context) error {
 	if err := eme.session.Close(); err != nil {
 		glog.Errorf("error closing session: %v", err)
 	}
-	return eme.client.Close()
+	return nil
 }
 
 // ElectionFactory creates etcd.MasterElection instances.
