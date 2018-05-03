@@ -71,6 +71,9 @@ func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][
 	case leafIndex >= treeSize:
 		return nil, fmt.Errorf("leafIndex is beyond treeSize: %d >= %d", leafIndex, treeSize)
 	}
+	if got, want := len(leafHash), v.hasher.Size(); got != want {
+		return nil, fmt.Errorf("leafHash has unexpected size %d, want %d", got, want)
+	}
 
 	inner, border := decompInclProof(leafIndex, treeSize)
 	if got, want := len(proof), inner+border; got != want {
