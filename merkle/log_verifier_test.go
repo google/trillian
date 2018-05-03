@@ -255,20 +255,51 @@ func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1,
 	return nil
 }
 
+func TestVerifyInclusionProofSingleEntry(t *testing.T) {
+	v := NewLogVerifier(rfc6962.DefaultHasher)
+	data := []byte("data")
+	// Root and leaf hash for 1-entry tree are the same.
+	hash, _ := v.hasher.HashLeaf(data)
+	// The corresponding inclusion proof is empty.
+	proof := [][]byte{}
+	emptyHash := []byte{}
+
+	for i, tc := range []struct {
+		root    []byte
+		leaf    []byte
+		wantErr bool
+	}{
+		{hash, hash, false},
+		{hash, emptyHash, true},
+		{emptyHash, hash, true},
+		{emptyHash, emptyHash, true}, // Wrong hash size.
+	} {
+		t.Run(fmt.Sprintf("test:%d", i), func(t *testing.T) {
+			err := v.VerifyInclusionProof(0, 1, proof, tc.root, tc.leaf)
+			if got, want := (err != nil), tc.wantErr; got != want {
+				t.Errorf("error: %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 func TestVerifyInclusionProof(t *testing.T) {
 	v := NewLogVerifier(rfc6962.DefaultHasher)
-	path := [][]byte{}
+	proof := [][]byte{}
 
 	probes := []struct {
 		index, size int64
 	}{{0, 0}, {0, 1}, {1, 0}, {2, 1}}
 	for _, p := range probes {
 		t.Run(fmt.Sprintf("probe:%d:%d", p.index, p.size), func(t *testing.T) {
-			if err := v.VerifyInclusionProof(p.index, p.size, path, []byte{}, []byte{1}); err == nil {
-				t.Error("Incorrectly verified invalid path")
+			if err := v.VerifyInclusionProof(p.index, p.size, proof, []byte{}, sha256SomeHash); err == nil {
+				t.Error("Incorrectly verified invalid root/leaf")
 			}
-			if err := v.VerifyInclusionProof(p.index, p.size, path, sha256EmptyTreeHash, []byte{}); err == nil {
-				t.Error("Incorrectly verified invalid root")
+			if err := v.VerifyInclusionProof(p.index, p.size, proof, sha256EmptyTreeHash, []byte{}); err == nil {
+				t.Error("Incorrectly verified invalid root/leaf")
+			}
+			if err := v.VerifyInclusionProof(p.index, p.size, proof, sha256EmptyTreeHash, sha256SomeHash); err == nil {
+				t.Error("Incorrectly verified invalid root/leaf")
 			}
 		})
 	}
