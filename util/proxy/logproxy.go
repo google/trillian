@@ -16,8 +16,9 @@
 package proxy
 
 import (
+	"context"
+
 	"github.com/google/trillian"
-	"golang.org/x/net/context"
 )
 
 // Log implements the TrillianLogServer interface.

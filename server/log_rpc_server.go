@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -28,7 +29,6 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 	"go.opencensus.io/trace"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

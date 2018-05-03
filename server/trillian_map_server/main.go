@@ -35,8 +35,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	netcontext "golang.org/x/net/context"
-
 	// Register pprof HTTP handlers
 	_ "net/http/pprof"
 	// Register key ProtoHandlers
@@ -124,7 +122,7 @@ func main() {
 		QuotaDryRun:  *quotaDryRun,
 		DBClose:      sp.Close,
 		Registry:     registry,
-		RegisterHandlerFn: func(ctx netcontext.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
+		RegisterHandlerFn: func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
 			if err := trillian.RegisterTrillianMapHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
 				return err
 			}

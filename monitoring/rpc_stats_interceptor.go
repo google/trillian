@@ -16,12 +16,12 @@
 package monitoring
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/google/trillian/util"
 	"go.opencensus.io/trace"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

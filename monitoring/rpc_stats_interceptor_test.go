@@ -15,6 +15,7 @@
 package monitoring_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -22,7 +23,6 @@ import (
 
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/util"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
