@@ -76,6 +76,7 @@ func TestRFC6962Hasher(t *testing.T) {
 	}
 }
 
+// TODO(pavelkalinnikov): Apply this test to all LogHasher implementations.
 func TestRFC6962HasherCollisions(t *testing.T) {
 	hasher := DefaultHasher
 
