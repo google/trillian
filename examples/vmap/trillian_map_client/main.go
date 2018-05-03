@@ -16,12 +16,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

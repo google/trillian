@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/google/trillian/types"
 
 	"github.com/golang/glog"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

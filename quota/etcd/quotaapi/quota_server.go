@@ -16,13 +16,14 @@
 package quotaapi
 
 import (
+	"context"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
-	"golang.org/x/net/context"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
