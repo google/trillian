@@ -64,10 +64,7 @@ func (eme *MasterElection) ResignAndRestart(ctx context.Context) error {
 // Close terminates election operation.
 func (eme *MasterElection) Close(ctx context.Context) error {
 	_ = eme.ResignAndRestart(ctx)
-	if err := eme.session.Close(); err != nil {
-		glog.Errorf("error closing session: %v", err)
-	}
-	return eme.client.Close()
+	return eme.session.Close()
 }
 
 // ElectionFactory creates etcd.MasterElection instances.
@@ -77,7 +74,9 @@ type ElectionFactory struct {
 	lockDir    string
 }
 
-// NewElectionFactory builds an election factory that uses the given parameters.
+// NewElectionFactory builds an election factory that uses the given
+// parameters. The passed in etcd client should remain valid for the lifetime
+// of the ElectionFactory.
 func NewElectionFactory(instanceID string, client *clientv3.Client, lockDir string) *ElectionFactory {
 	return &ElectionFactory{
 		client:     client,
