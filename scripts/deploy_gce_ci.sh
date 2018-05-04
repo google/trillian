@@ -4,10 +4,10 @@
 #set -o nounset
 #set -o xtrace
 
-export PROJECT_NAME=trillian-opensource-lowlatency
-export CLUSTER_NAME=trillian-opensource-lowlatency
+export PROJECT_NAME=trillian-opensource-ci
+export CLUSTER_NAME=trillian-opensource-ci
 export REGION=us-central1
-export ZONE=us-central1-b
+export ZONE=us-central1-a
 export CONFIGMAP=trillian-opensource-ci.yaml
 
 
@@ -15,7 +15,6 @@ gcloud --quiet config set project ${PROJECT_NAME}
 gcloud --quiet config set container/cluster ${CLUSTER_NAME}
 gcloud --quiet config set compute/zone ${ZONE}
 gcloud --quiet container clusters get-credentials ${CLUSTER_NAME}
-
 
 echo "Building docker images..."
 cd $GOPATH/src/github.com/google/trillian
