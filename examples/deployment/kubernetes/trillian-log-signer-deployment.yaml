@@ -32,7 +32,7 @@ spec:
         "--sequencer_interval=$(SIGNER_INTERVAL)",
         "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
         "--batch_size=$(SIGNER_BATCH_SIZE)",
-        "--cloudspanner_dequeue_bucket_fraction=$(DEQUEUE_BUCKET_FRACTION)",
+        "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
         "--resign_odds=$(SIGNER_RESIGN_ODDS)",
         "--alsologtostderr"
         ]

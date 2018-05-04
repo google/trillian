@@ -4,12 +4,13 @@
 #set -o nounset
 #set -o xtrace
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 export PROJECT_NAME=trillian-opensource-ci
 export CLUSTER_NAME=trillian-opensource-ci
 export REGION=us-central1
 export ZONE=us-central1-a
 export CONFIGMAP=trillian-opensource-ci.yaml
-
 
 gcloud --quiet config set project ${PROJECT_NAME}
 gcloud --quiet config set container/cluster ${CLUSTER_NAME}
@@ -31,11 +32,11 @@ gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME}/log_signer:${TRAV
 
 echo "Updating jobs..."
 kubectl delete configmap deploy-config
-envsubst < ${DIR}/${CONFIGMAP} | kubectl create -f -
+envsubst < ${DIR}/../examples/deployment/kubernetes/${CONFIGMAP} | kubectl create -f -
 
-envsubst < ${DIR}/trillian-log-deployment.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-log-service.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-log-signer-deployment.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-log-signer-service.yaml | kubectl apply -f -
+envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-deployment.yaml | kubectl apply -f -
+envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-service.yaml | kubectl apply -f -
+envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-signer-deployment.yaml | kubectl apply -f -
+envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-signer-service.yaml | kubectl apply -f -
 kubectl set image deployment/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_NAME}/log_server:${TRAVIS_COMMIT}
 kubectl set image deployment/trillian-logsigner-deployment trillian-log-signer=gcr.io/${PROJECT_NAME}/log_signer:${TRAVIS_COMMIT}
