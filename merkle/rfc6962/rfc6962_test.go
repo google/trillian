@@ -91,10 +91,10 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 	// Compute an intermediate subtree hash.
 	subHash1 := hasher.HashChildren(hash1, hash2)
 	// Check that this is not the same as a leaf hash of their concatenation.
-	image := append(hash1, hash2...)
-	forgedHash, _ := hasher.HashLeaf(image)
+	preimage := append(hash1, hash2...)
+	forgedHash, _ := hasher.HashLeaf(preimage)
 	if bytes.Equal(subHash1, forgedHash) {
-		t.Errorf("Hasher is not resistant to pre-image attack")
+		t.Errorf("Hasher is not second-preimage resistant")
 	}
 
 	// Swap the order of nodes and check that the hash is different.
