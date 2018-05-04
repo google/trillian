@@ -16,31 +16,18 @@ package etcd
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/google/trillian/testonly/integration/etcd"
 )
 
-var (
-	// client is an etcd client. Initialized by TestMain().
-	client *clientv3.Client
-)
-
-func TestMain(m *testing.M) {
-	_, c, cleanup, err := etcd.StartEtcd()
-	if err != nil {
-		panic(fmt.Sprintf("StartEtcd(): %v", err))
-	}
-	client = c
-	code := m.Run()
-	cleanup()
-	os.Exit(code)
-}
-
 func TestMasterElectionThroughCommonClient(t *testing.T) {
+	_, client, cleanup, err := etcd.StartEtcd()
+	if err != nil {
+		t.Fatalf("StartEtcd(): %v", err)
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 	fact := NewElectionFactory("serv", client, "trees/")
 
