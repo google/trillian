@@ -57,10 +57,3 @@ sleep 30
 
 # TODO(al): have to wait before doing this?
 kubectl apply -f ${DIR}/etcd-cluster.yaml
-
-
-
-
-
-
-
