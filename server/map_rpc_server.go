@@ -159,7 +159,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 			Inclusion: proof,
 		})
 	}
-	glog.Infof("%v: wanted %v leaves, found %v", mapID, len(indices), found)
+	glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), found)
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("could not commit db transaction: %v", err)
