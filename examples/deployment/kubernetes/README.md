@@ -39,6 +39,9 @@ To provision a tree into Trillian, you can use the Trillian admin API, like so:
 
 ```bash
 curl -X POST ${LOG_URL}/v1beta1/trees -d '{ "tree":{ "tree_state":"ACTIVE", "tree_type":"LOG", "hash_strategy":"RFC6962_SHA256", "signature_algorithm":"ECDSA", "max_root_duration":"0", "hash_algorithm":"SHA256" }, "key_spec":{ "ecdsa_params":{ "curve":"P256" } } }'
+{... tree_id: <large number here> ...}
+curl -X POST ${LOG_URL}/v1beta1/logs/${tree_id}:init
+
 ```
 
 The easiest way to do this is probably to use `kubectl exec <name of one of the logserver pods> -ti -- /bin/bash` to get a shell on a logserver POD, and use curl from there.
@@ -51,6 +54,11 @@ personality layer.**
 
 Next, you may wish to deploy the [Certificate Transparency personality](https://github.com/google/certificate-transparency-go/tree/master/trillian).
 Example Kubernetes deployment configs for that can be found [here](https://github.com/google/certificate-transparency-go/tree/master/trillian/examples/deployment/kubernetes).
+You can probably use the [deploy_gce_ci.sh](https://github.com/google/certificate-transparency-go/blob/master/scripts/deploy_gce_ci.sh)
+script with a small tweak to the environment variables it contains at the top
+to set the project ID and zone.
+
+TODO(al): Provide a complete end-to-end script/walk through of this.
 
 
 Known Issues
