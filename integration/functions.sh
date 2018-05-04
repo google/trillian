@@ -326,6 +326,7 @@ map_provision() {
 
   for ((i=0; i < count; i++)); do
     local map_id=$(./createtree \
+      --logtostderr \
       --admin_server="${admin_server}" \
       --tree_type=MAP \
       --hash_strategy=TEST_MAP_HASHER \
