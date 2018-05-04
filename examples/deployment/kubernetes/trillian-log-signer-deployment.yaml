@@ -16,7 +16,7 @@ spec:
       volumes:
       - name: google-cloud-key
         secret:
-          secretName: spanner-key
+          secretName: trillian-key
       nodeSelector:
         cloud.google.com/gke-nodepool: signer-pool
       restartPolicy: Always
@@ -29,18 +29,18 @@ spec:
         "--etcd_http_service=trillian-logsigner-http",
         "--http_endpoint=0.0.0.0:8091",
         "--sequencer_guard_window=1s",
-        "--sequencer_interval=2ms",
-        "--num_sequencers=10",
-        "--batch_size=1800",
-        "--cloudspanner_dequeue_bucket_fraction=0.0078", # 2/256, or 2 merkle buckets
-        "--resign_odds=1000",
+        "--sequencer_interval=$(SIGNER_INTERVAL)",
+        "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
+        "--batch_size=$(SIGNER_BATCH_SIZE)",
+        "--cloudspanner_dequeue_bucket_fraction=$(DEQUEUE_BUCKET_FRACTION)",
+        "--resign_odds=$(SIGNER_RESIGN_ODDS)",
         "--alsologtostderr"
         ]
         envFrom:
           - configMapRef:
               name: deploy-config
         # Update this with the name of your project:
-        image: gcr.io/trillian-opensource-ci/log_signer:latest
+        image: gcr.io/${PROJECT_NAME}/log_signer:latest
         imagePullPolicy: Always
         resources:
           limits:

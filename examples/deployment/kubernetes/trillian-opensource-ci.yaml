@@ -5,6 +5,10 @@ metadata:
   namespace: default
 data:
   STORAGE_SYSTEM: cloud_spanner
-  STORAGE_FLAG: --cloudspanner_uri=projects/trillian-opensource-ci/instances/trillian-opensource-ci/databases/trillian-opensource-ci-db
+  STORAGE_FLAG: --cloudspanner_uri=projects/${PROJECT_NAME}/instances/trillian-spanner/databases/trillian-db
   GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
-
+  SIGNER_DEQUEUE_BUCKET_FRACTION: "0.0078"
+  SIGNER_BATCH_SIZE: "1800"
+  SIGNER_INTERVAL: "2ms"
+  SIGNER_NUM_SEQUENCERS: "10"
+  SIGNER_RESIGN_ODDS: "1000"
