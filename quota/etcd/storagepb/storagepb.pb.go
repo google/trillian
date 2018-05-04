@@ -111,7 +111,7 @@ func (m *Configs) GetConfigs() []*Config {
 
 // Configuration of a quota.
 type Config struct {
-	// Name of the config, eg, “quotas/trees/1234/read/config”.
+	// Name of the config, eg, "quotas/trees/1234/read/config".
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	// State of the config.
 	State Config_State `protobuf:"varint,2,opt,name=state,enum=storagepb.Config_State" json:"state,omitempty"`
