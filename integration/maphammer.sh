@@ -16,7 +16,7 @@ map_provision "${RPC_SERVER_1}" ${MAP_COUNT}
 metrics_port=$(pick_unused_port)
 echo "Running test(s) with metrics at localhost:${metrics_port}"
 set +e
-./maphammer --map_ids=${MAP_IDS} --rpc_server=${RPC_SERVER_1} --metrics_endpoint="localhost:${metrics_port}" --logtostderr ${HAMMER_OPTS}
+./maphammer --map_ids=${MAP_IDS} --admin_server=${RPC_SERVER_1} --rpc_server=${RPC_SERVER_1} --metrics_endpoint="localhost:${metrics_port}" --logtostderr ${HAMMER_OPTS}
 RESULT=$?
 set -e
 

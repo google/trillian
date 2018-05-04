@@ -28,6 +28,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/client"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
@@ -154,36 +155,27 @@ type MapConfig struct {
 	MapID         int64
 	MetricFactory monitoring.MetricFactory
 	Client        trillian.TrillianMapClient
+	Admin         trillian.TrillianAdminClient
 	EPBias        MapBias
 	Operations    uint64
 	EmitInterval  time.Duration
 	IgnoreErrors  bool
-	// TODO(phad): remove CheckSignatures when downstream dependencies no longer need it,
-	// i.e. when all Map storage implementations support signature storage.
-	CheckSignatures bool
 }
 
 // String conforms with Stringer for MapConfig.
 func (c MapConfig) String() string {
-	return fmt.Sprintf("mapID:%d biases:{%v} #operations:%d emit every:%v ignoreErrors? %t checkSignatures? %t",
-		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.IgnoreErrors, c.CheckSignatures)
-}
-
-// CheckSignature verifies the signature and returns the map root contents.
-func CheckSignature(_ *MapConfig, r *trillian.SignedMapRoot) (*types.MapRootV1, error) {
-	// TODO(gbelvin): verify signatures
-	var root types.MapRootV1
-	if err := root.UnmarshalBinary(r.GetMapRoot()); err != nil {
-		return nil, err
-	}
-	return &root, nil
+	return fmt.Sprintf("mapID:%d biases:{%v} #operations:%d emit every:%v ignoreErrors? %t",
+		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.IgnoreErrors)
 }
 
 // HitMap performs load/stress operations according to given config.
 func HitMap(cfg MapConfig) error {
 	ctx := context.Background()
 
-	s := newHammerState(&cfg)
+	s, err := newHammerState(ctx, &cfg)
+	if err != nil {
+		return err
+	}
 
 	ticker := time.NewTicker(cfg.EmitInterval)
 	go func(c <-chan time.Time) {
@@ -211,7 +203,8 @@ type mapContents struct {
 
 // hammerState tracks the operations that have been performed during a test run.
 type hammerState struct {
-	cfg *MapConfig
+	cfg      *MapConfig
+	verifier *client.MapVerifier
 
 	mu sync.RWMutex // Protects everything below
 
@@ -228,7 +221,17 @@ type hammerState struct {
 	valueIdx int
 }
 
-func newHammerState(cfg *MapConfig) *hammerState {
+func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
+	tree, err := cfg.Admin.GetTree(ctx, &trillian.GetTreeRequest{TreeId: cfg.MapID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tree information: %v", err)
+	}
+	glog.Infof("%d: hammering tree with configuration %+v", cfg.MapID, tree)
+	verifier, err := client.NewMapVerifierFromTree(tree)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tree verifier: %v", err)
+	}
+
 	mf := cfg.MetricFactory
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
@@ -237,7 +240,7 @@ func newHammerState(cfg *MapConfig) *hammerState {
 	if cfg.EmitInterval == 0 {
 		cfg.EmitInterval = defaultEmitSeconds * time.Second
 	}
-	return &hammerState{cfg: cfg}
+	return &hammerState{cfg: cfg, verifier: verifier}, nil
 }
 
 func (s *hammerState) nextKey() string {
@@ -313,20 +316,13 @@ func (s *hammerState) pushSMR(smr *trillian.SignedMapRoot) {
 		s.smr[i] = s.smr[i-1]
 	}
 
-	if !s.cfg.CheckSignatures {
-		smr.Signature = nil
-	}
 	s.smr[0] = smr
 }
 
 func (s *hammerState) previousSMR(which int) *trillian.SignedMapRoot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	r := s.smr[which]
-	if !s.cfg.CheckSignatures && r != nil && r.Signature != nil {
-		panic(fmt.Sprintf("signature should have been cleared before storing SMR %v", r))
-	}
-	return r
+	return s.smr[which]
 }
 
 // pickKey randomly select a key that already exists in a particular
@@ -425,6 +421,7 @@ func (s *hammerState) dumpContents() {
 	fmt.Println("~~~~~~~~")
 }
 
+// checkContents compares information returned from the Map against its expected state.
 func (s *hammerState) checkContents(which int, leafInclusions []*trillian.MapLeafInclusion) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -618,12 +615,16 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 		dumpRespKeyVals(rsp.MapLeafInclusion)
 	}
 
-	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
 		return err
 	}
+	for _, inc := range rsp.MapLeafInclusion {
+		if err := s.verifier.VerifyMapLeafInclusionHash(root.RootHash, inc); err != nil {
+			return err
+		}
+	}
 
-	// TODO(drysdale): verify inclusion
 	if err := s.checkContents(which, rsp.MapLeafInclusion); err != nil {
 		return fmt.Errorf("incorrect contents of %s(%+v): %v", label, rqMsg, err)
 	}
@@ -734,7 +735,7 @@ leafloop:
 	if err != nil {
 		return fmt.Errorf("failed to set-leaves(%+v): %v", req, err)
 	}
-	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
 		return err
 	}
@@ -782,7 +783,7 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get-smr: %v", err)
 	}
-	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
 		return err
 	}
@@ -802,7 +803,7 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
 		return errSkip{}
 	}
-	smrRoot, err := CheckSignature(s.cfg, smr)
+	smrRoot, err := s.verifier.VerifySignedMapRoot(smr)
 	if err != nil {
 		return err
 	}
@@ -813,15 +814,11 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get-smr-rev(@%d): %v", rev, err)
 	}
-	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
 		return err
 	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
-
-	if !s.cfg.CheckSignatures {
-		rsp.MapRoot.Signature = nil
-	}
 
 	if !proto.Equal(rsp.MapRoot, smr) {
 		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, rsp.MapRoot, smr)
