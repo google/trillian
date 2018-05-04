@@ -40,23 +40,23 @@ done
 # Bring up etcd cluster
 # Work-around for etcd-operator role on GKE.
 # You need the jq command installed.
-if ! jq > /dev/null; then
+if ! jq --help > /dev/null; then
   echo "Please install the jq command"
   exit 1
 fi
 COREACCOUNT=$(gcloud config config-helper --format=json | jq -r '.configuration.properties.core.account')
 kubectl create clusterrolebinding etcd-cluster-admin-binding --clusterrole=cluster-admin --user="${COREACCOUNT}"
 
-kubectl apply -f examples/deployment/kubernetes/etcd-role-binding.yaml
-kubectl apply -f examples/deployment/kubernetes/etcd-role.yaml
-kubectl apply -f examples/deployment/kubernetes/etcd-deployment.yaml
-kubectl apply -f examples/deployment/kubernetes/etcd-service.yaml
+kubectl apply -f ${DIR}/etcd-role-binding.yaml
+kubectl apply -f ${DIR}/etcd-role.yaml
+kubectl apply -f ${DIR}/etcd-deployment.yaml
+kubectl apply -f ${DIR}/etcd-service.yaml
 
 # TODO(al): wait for this properly somehow
 sleep 30
 
 # TODO(al): have to wait before doing this?
-kubectl apply -f examples/deployment/kubernetes/etcd-cluster.yaml
+kubectl apply -f ${DIR}/etcd-cluster.yaml
 
 
 

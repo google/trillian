@@ -12,4 +12,8 @@ data:
   STORAGE_FLAG: --mysql_uri=test:zaphod@tcp(db:3306)/test
   STORAGE_SYSTEM: mysql
   GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
+  SIGNER_BATCH_SIZE: "500"
+  SIGNER_INTERVAL: "20ms"
+  SIGNER_NUM_SEQUENCERS: "10"
+  SIGNER_RESIGN_ODDS: "1000"
 
