@@ -47,6 +47,7 @@ var (
 	rpcServer       = flag.String("rpc_server", "", "Server address:port")
 	adminServer     = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 	metricsEndpoint = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will not be exposed")
+	outLog          = flag.String("log_to", "", "File to record operations in")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	operations      = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
 )
@@ -115,6 +116,15 @@ func main() {
 	r.Close()
 	fmt.Print("\n\nLet me hammer him today?\n\n")
 
+	dialOpts := []grpc.DialOption{grpc.WithInsecure()}
+	if *outLog != "" {
+		cl, err := hammer.NewRecordingInterceptor(*outLog)
+		if err != nil {
+			glog.Exitf("failed to build recording interceptor: %v", err)
+		}
+		dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(cl))
+	}
+
 	mIDs := strings.Split(*mapIDs, ",")
 	type result struct {
 		mapID int64
@@ -128,11 +138,11 @@ func main() {
 			glog.Exitf("Invalid map ID %q", m)
 		}
 		wg.Add(1)
-		c, err := grpc.Dial(*rpcServer, grpc.WithInsecure())
+		c, err := grpc.Dial(*rpcServer, dialOpts...)
 		if err != nil {
 			glog.Exitf("Failed to create map client conn: %v", err)
 		}
-		ac, err := grpc.Dial(*adminServer, grpc.WithInsecure())
+		ac, err := grpc.Dial(*adminServer, dialOpts...)
 		if err != nil {
 			glog.Exitf("Failed to create admin client conn: %v", err)
 		}
