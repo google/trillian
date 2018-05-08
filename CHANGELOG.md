@@ -1,17 +1,5 @@
 # TRILLIAN Changelog
 
-## v1.1.1 - CloudSpanner / Tracing / Health Checks
-
-Published 2018-05-08 10:59:47 +0000 UTC
-
-More improvements have been made to the CloudSpanner storage code. CloudSpanner storage has now been tested up to ~3.1 billion log entries.
-
-Explicit health checks have been added to the gRPC Log and Map servers (and the log signer). The HTTP endpoint must be enabled  and the checks will serve on `/healthz` where a non 200 response means the server is unhealthy. The example Kubernetes deployment configuration has been updated to include them. Other improvements have been made to the Kubernetes deployment scripts and docs.
-
-The gRPC Log and Map servers have been instrumented for tracing with [OpenCensus](https://opencensus.io/). For GCP it just requires the `--tracing` flag to be added and results will be available in the GCP console under StackDriver -> Trace.
-
-Commit [3a68a845f0febdd36937c15f1d97a3a0f9509440](https://api.github.com/repos/google/trillian/commits/3a68a845f0febdd36937c15f1d97a3a0f9509440) Download [zip](https://api.github.com/repos/google/trillian/zipball/v1.1.1)
-
 ## v1.1.0 - CloudSpanner Improvements & Log Root structure changes etc.
 
 Published 2018-04-17 08:02:50 +0000 UTC
