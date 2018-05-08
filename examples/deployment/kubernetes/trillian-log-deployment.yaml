@@ -15,7 +15,7 @@ spec:
       volumes:
       - name: google-cloud-key
         secret:
-          secretName: spanner-key
+          secretName: trillian-key
       restartPolicy: Always
       nodeSelector:
         cloud.google.com/gke-nodepool: logserver-pool
@@ -35,8 +35,7 @@ spec:
         envFrom:
           - configMapRef:
               name: deploy-config
-        # Update this with the name of your project:
-        image: gcr.io/trillian-opensource-ci/log_server:latest
+        image: gcr.io/${PROJECT_NAME}/log_server:latest
         imagePullPolicy: Always
         resources:
           limits:
