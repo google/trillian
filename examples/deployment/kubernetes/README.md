@@ -71,4 +71,4 @@ Known Issues
 - This deployment is quite tightly coupled to Google Cloud Kubernetes
 - Only CloudSpanner is supported currently
 - There is no Trillian Map support currently (because there is no map support
-  in the current CloudSpanner storage implementation.)
+  in the current CloudSpanner storage implementation).
