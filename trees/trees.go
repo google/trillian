@@ -158,19 +158,13 @@ func validate(o GetOpts, tree *trillian.Tree) error {
 func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
 	ctx, span := spanFor(ctx, "GetTree")
 	defer span.End()
-	cachedTree := true
 	tree, ok := FromContext(ctx)
 	if !ok || tree.TreeId != treeID {
-		cachedTree = false
 		var err error
 		tree, err = storage.GetTree(ctx, s, treeID)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if span.IsRecordingEvents() {
-		span.AddAttributes(trace.BoolAttribute("cached-tree", cachedTree))
 	}
 
 	if err := validate(opts, tree); err != nil {
