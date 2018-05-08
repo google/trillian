@@ -21,13 +21,18 @@ import (
 	_ "github.com/golang/glog"
 )
 
-func TestRfc6962Hasher(t *testing.T) {
+func TestRFC6962Hasher(t *testing.T) {
 	hasher := DefaultHasher
 
 	leafHash, err := hasher.HashLeaf([]byte("L123456"))
 	if err != nil {
 		t.Fatalf("HashLeaf(): %v", err)
 	}
+	emptyLeafHash, err := hasher.HashLeaf([]byte{})
+	if err != nil {
+		t.Fatalf("HashLeaf(empty): %v", err)
+	}
+
 	for _, tc := range []struct {
 		desc string
 		got  []byte
@@ -35,9 +40,16 @@ func TestRfc6962Hasher(t *testing.T) {
 	}{
 		// echo -n | sha256sum
 		{
-			desc: "RFC962 Empty",
+			desc: "RFC6962 Empty",
 			want: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			got:  hasher.EmptyRoot(),
+		},
+		// Check that the empty hash is not the same as the hash of an empty leaf.
+		// echo -n 00 | xxd -r -p | sha256sum
+		{
+			desc: "RFC6962 Empty Leaf",
+			want: "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+			got:  emptyLeafHash,
 		},
 		// echo -n 004C313233343536 | xxd -r -p | sha256sum
 		{
@@ -52,14 +64,42 @@ func TestRfc6962Hasher(t *testing.T) {
 			got:  hasher.HashChildren([]byte("N123"), []byte("N456")),
 		},
 	} {
-		wantBytes, err := hex.DecodeString(tc.want)
-		if err != nil {
-			t.Errorf("hex.DecodeString(%v): %v", tc.want, err)
-			continue
-		}
+		t.Run(tc.desc, func(t *testing.T) {
+			wantBytes, err := hex.DecodeString(tc.want)
+			if err != nil {
+				t.Fatalf("hex.DecodeString(%x): %v", tc.want, err)
+			}
+			if got, want := tc.got, wantBytes; !bytes.Equal(got, want) {
+				t.Errorf("got %x, want %x", got, want)
+			}
+		})
+	}
+}
 
-		if got, want := tc.got, wantBytes; !bytes.Equal(got, want) {
-			t.Fatalf("%v: got %x, want %x", tc.desc, got, want)
-		}
+// TODO(pavelkalinnikov): Apply this test to all LogHasher implementations.
+func TestRFC6962HasherCollisions(t *testing.T) {
+	hasher := DefaultHasher
+
+	// Check that different leaves have different hashes.
+	leaf1, leaf2 := []byte("Hello"), []byte("World")
+	hash1, _ := hasher.HashLeaf(leaf1)
+	hash2, _ := hasher.HashLeaf(leaf2)
+	if bytes.Equal(hash1, hash2) {
+		t.Errorf("Leaf hashes should differ, but both are %x", hash1)
+	}
+
+	// Compute an intermediate subtree hash.
+	subHash1 := hasher.HashChildren(hash1, hash2)
+	// Check that this is not the same as a leaf hash of their concatenation.
+	preimage := append(hash1, hash2...)
+	forgedHash, _ := hasher.HashLeaf(preimage)
+	if bytes.Equal(subHash1, forgedHash) {
+		t.Errorf("Hasher is not second-preimage resistant")
+	}
+
+	// Swap the order of nodes and check that the hash is different.
+	subHash2 := hasher.HashChildren(hash2, hash1)
+	if bytes.Equal(subHash1, subHash2) {
+		t.Errorf("Subtree hash does not depend on the order of leaves")
 	}
 }
