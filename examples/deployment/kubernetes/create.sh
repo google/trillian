@@ -6,6 +6,20 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/config.sh
 
+# Check required binaries are installed
+if ! glcoud --help > /dev/null; then
+  echo "Need gcloud installed."
+  exit 1
+fi
+if ! kubectl --help > /dev/null; then
+  echo "Need kubectl installed."
+  exit 1
+fi
+if ! jq --help > /dev/null; then
+  echo "Please install the jq command"
+  exit 1
+fi
+
 # Uncomment this to create a GCE project from scratch, or you can create it
 # manually through the web UI.
 # gcloud projects create ${PROJECT_NAME}
@@ -39,11 +53,6 @@ done
 
 # Bring up etcd cluster
 # Work-around for etcd-operator role on GKE.
-# You need the jq command installed.
-if ! jq --help > /dev/null; then
-  echo "Please install the jq command"
-  exit 1
-fi
 COREACCOUNT=$(gcloud config config-helper --format=json | jq -r '.configuration.properties.core.account')
 kubectl create clusterrolebinding etcd-cluster-admin-binding --clusterrole=cluster-admin --user="${COREACCOUNT}"
 
