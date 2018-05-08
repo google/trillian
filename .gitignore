@@ -14,6 +14,7 @@
 /etcdiscover
 /loglb
 /maphammer
+/mapreplay
 /protoc
 /trillian_log_server
 /trillian_log_signer
