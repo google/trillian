@@ -52,8 +52,10 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash c
 // NewLogVerifierFromTree creates a new LogVerifier using the algorithms
 // specified by *trillian.Tree.
 func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
-	if got, want := config.TreeType, trillian.TreeType_LOG; got != want {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v", got, want)
+	got := config.TreeType
+	want1, want2 := trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG
+	if got != want1 && got != want2 {
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v or %v", got, want1, want2)
 	}
 
 	logHasher, err := hashers.NewLogHasher(config.GetHashStrategy())
