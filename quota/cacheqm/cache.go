@@ -173,7 +173,7 @@ func (m *manager) evict(ctx context.Context) {
 	evicts := len(m.cache) - m.maxEntries
 	for i := 0; i < evicts; i++ {
 		b := buckets[i]
-		glog.Infof("Too many tokens cached, returning least recently used (%v tokens for %+v)", b.tokens, b.spec)
+		glog.V(1).Infof("Too many tokens cached, returning least recently used (%v tokens for %+v)", b.tokens, b.spec)
 		delete(m.cache, b.spec)
 
 		// goroutines must not access the cache, the lock is released before they complete.
