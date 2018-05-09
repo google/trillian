@@ -28,10 +28,10 @@ import "google/api/annotations.proto";
 message MapLeaf {
   // index is the location of this leaf.
   // All indexes for a given Map must contain a constant number of bits.
-  // Note that this is typically a hash and not a numeric index and thus the
-  // length of all incices in the map will match the number of bits in the
-  // hash function. Map entries do not have a well defined ordering and it's
-  // not possible to sequentially iterate over them.
+  // These are not numeric indices. Note that this is typically derived using a
+  // hash and thus the length of all indices in the map will match the number
+  // of bits in the hash function. Map entries do not have a well defined
+  // ordering and it's not possible to sequentially iterate over them.
   bytes index = 1;
   // leaf_hash is the tree hash of leaf_value.  This does not need to be set
   // on SetMapLeavesRequest; the server will fill it in.

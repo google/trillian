@@ -28,10 +28,10 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 type MapLeaf struct {
 	// index is the location of this leaf.
 	// All indexes for a given Map must contain a constant number of bits.
-	// Note that this is typically a hash and not a numeric index and thus the
-	// length of all incices in the map will match the number of bits in the
-	// hash function. Map entries do not have a well defined ordering and it's
-	// not possible to sequentially iterate over them.
+	// These are not numeric indices. Note that this is typically derived using a
+	// hash and thus the length of all indices in the map will match the number
+	// of bits in the hash function. Map entries do not have a well defined
+	// ordering and it's not possible to sequentially iterate over them.
 	Index []byte `protobuf:"bytes,1,opt,name=index,proto3" json:"index,omitempty"`
 	// leaf_hash is the tree hash of leaf_value.  This does not need to be set
 	// on SetMapLeavesRequest; the server will fill it in.
@@ -49,7 +49,7 @@ func (m *MapLeaf) Reset()         { *m = MapLeaf{} }
 func (m *MapLeaf) String() string { return proto.CompactTextString(m) }
 func (*MapLeaf) ProtoMessage()    {}
 func (*MapLeaf) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{0}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{0}
 }
 func (m *MapLeaf) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapLeaf.Unmarshal(m, b)
@@ -109,7 +109,7 @@ func (m *MapLeafInclusion) Reset()         { *m = MapLeafInclusion{} }
 func (m *MapLeafInclusion) String() string { return proto.CompactTextString(m) }
 func (*MapLeafInclusion) ProtoMessage()    {}
 func (*MapLeafInclusion) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{1}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{1}
 }
 func (m *MapLeafInclusion) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapLeafInclusion.Unmarshal(m, b)
@@ -155,7 +155,7 @@ func (m *GetMapLeavesRequest) Reset()         { *m = GetMapLeavesRequest{} }
 func (m *GetMapLeavesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetMapLeavesRequest) ProtoMessage()    {}
 func (*GetMapLeavesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{2}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{2}
 }
 func (m *GetMapLeavesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMapLeavesRequest.Unmarshal(m, b)
@@ -205,7 +205,7 @@ func (m *GetMapLeavesByRevisionRequest) Reset()         { *m = GetMapLeavesByRev
 func (m *GetMapLeavesByRevisionRequest) String() string { return proto.CompactTextString(m) }
 func (*GetMapLeavesByRevisionRequest) ProtoMessage()    {}
 func (*GetMapLeavesByRevisionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{3}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{3}
 }
 func (m *GetMapLeavesByRevisionRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMapLeavesByRevisionRequest.Unmarshal(m, b)
@@ -258,7 +258,7 @@ func (m *GetMapLeavesResponse) Reset()         { *m = GetMapLeavesResponse{} }
 func (m *GetMapLeavesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetMapLeavesResponse) ProtoMessage()    {}
 func (*GetMapLeavesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{4}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{4}
 }
 func (m *GetMapLeavesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMapLeavesResponse.Unmarshal(m, b)
@@ -305,7 +305,7 @@ func (m *SetMapLeavesRequest) Reset()         { *m = SetMapLeavesRequest{} }
 func (m *SetMapLeavesRequest) String() string { return proto.CompactTextString(m) }
 func (*SetMapLeavesRequest) ProtoMessage()    {}
 func (*SetMapLeavesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{5}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{5}
 }
 func (m *SetMapLeavesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SetMapLeavesRequest.Unmarshal(m, b)
@@ -357,7 +357,7 @@ func (m *SetMapLeavesResponse) Reset()         { *m = SetMapLeavesResponse{} }
 func (m *SetMapLeavesResponse) String() string { return proto.CompactTextString(m) }
 func (*SetMapLeavesResponse) ProtoMessage()    {}
 func (*SetMapLeavesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{6}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{6}
 }
 func (m *SetMapLeavesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SetMapLeavesResponse.Unmarshal(m, b)
@@ -395,7 +395,7 @@ func (m *GetSignedMapRootRequest) Reset()         { *m = GetSignedMapRootRequest
 func (m *GetSignedMapRootRequest) String() string { return proto.CompactTextString(m) }
 func (*GetSignedMapRootRequest) ProtoMessage()    {}
 func (*GetSignedMapRootRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{7}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{7}
 }
 func (m *GetSignedMapRootRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetSignedMapRootRequest.Unmarshal(m, b)
@@ -434,7 +434,7 @@ func (m *GetSignedMapRootByRevisionRequest) Reset()         { *m = GetSignedMapR
 func (m *GetSignedMapRootByRevisionRequest) String() string { return proto.CompactTextString(m) }
 func (*GetSignedMapRootByRevisionRequest) ProtoMessage()    {}
 func (*GetSignedMapRootByRevisionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{8}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{8}
 }
 func (m *GetSignedMapRootByRevisionRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetSignedMapRootByRevisionRequest.Unmarshal(m, b)
@@ -479,7 +479,7 @@ func (m *GetSignedMapRootResponse) Reset()         { *m = GetSignedMapRootRespon
 func (m *GetSignedMapRootResponse) String() string { return proto.CompactTextString(m) }
 func (*GetSignedMapRootResponse) ProtoMessage()    {}
 func (*GetSignedMapRootResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{9}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{9}
 }
 func (m *GetSignedMapRootResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetSignedMapRootResponse.Unmarshal(m, b)
@@ -517,7 +517,7 @@ func (m *InitMapRequest) Reset()         { *m = InitMapRequest{} }
 func (m *InitMapRequest) String() string { return proto.CompactTextString(m) }
 func (*InitMapRequest) ProtoMessage()    {}
 func (*InitMapRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{10}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{10}
 }
 func (m *InitMapRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InitMapRequest.Unmarshal(m, b)
@@ -555,7 +555,7 @@ func (m *InitMapResponse) Reset()         { *m = InitMapResponse{} }
 func (m *InitMapResponse) String() string { return proto.CompactTextString(m) }
 func (*InitMapResponse) ProtoMessage()    {}
 func (*InitMapResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_trillian_map_api_579f77746effddef, []int{11}
+	return fileDescriptor_trillian_map_api_582c7600c2ea3f9b, []int{11}
 }
 func (m *InitMapResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InitMapResponse.Unmarshal(m, b)
@@ -839,10 +839,10 @@ var _TrillianMap_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("trillian_map_api.proto", fileDescriptor_trillian_map_api_579f77746effddef)
+	proto.RegisterFile("trillian_map_api.proto", fileDescriptor_trillian_map_api_582c7600c2ea3f9b)
 }
 
-var fileDescriptor_trillian_map_api_579f77746effddef = []byte{
+var fileDescriptor_trillian_map_api_582c7600c2ea3f9b = []byte{
 	// 693 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x55, 0xdd, 0x4e, 0xdb, 0x4c,
 	0x10, 0xfd, 0xf2, 0x47, 0x92, 0xc9, 0x27, 0x9a, 0x2e, 0xb4, 0x18, 0x43, 0x2a, 0x30, 0x42, 0x14,
