@@ -247,7 +247,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
 	if c == nil {
-		glog.Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
+		glog.V(1).Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
 		// Cache miss, so we'll try to fetch from storage.
 		subID := id
 		subID.PrefixLenBits = len(px) * depthQuantum // this won't work if depthQuantum changes

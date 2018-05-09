@@ -504,7 +504,7 @@ func (t *snapshotTX) Close() error {
 		return ErrTransactionClosed
 	}
 	if stx, ok := t.stx.(*spanner.ReadOnlyTransaction); ok {
-		glog.Infof("Closed log snapshot %p", stx)
+		glog.V(1).Infof("Closed log snapshot %p", stx)
 		stx.Close()
 	}
 	t.stx = nil
