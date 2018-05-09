@@ -434,7 +434,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, fmt.Errorf("enum truncated: %v", err)
 	}
 
-	// TODO(codingllama): There's a strong disconnect between trillian.Tree and TreeControl. Are we OK with that?
 	insertControlStmt, err := t.tx.PrepareContext(
 		ctx,
 		`INSERT INTO TreeControl(
