@@ -59,6 +59,9 @@ func (b *Backoff) Reset() {
 }
 
 // Recover reduces retry pause duration by the given power of Backoff.Factor.
+// This might be useful when calling Retry multiple times, to gradually adapt
+// to the rate of errors: in some use-cases a successfully returned Retry could
+// indicate that a bigger flow of requests can now be handled.
 func (b *Backoff) Recover(factors int) {
 	pause := float64(b.Min + b.delta)
 	newPause := pause / math.Pow(b.Factor, float64(factors))
