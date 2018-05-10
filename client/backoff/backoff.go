@@ -33,27 +33,27 @@ type Backoff struct {
 	delta time.Duration // Current pause duration relative to Min, no jitter.
 }
 
-// Duration returns the time to wait on current retry iteration.
-// Every time Duration is called, the returned value will exponentially
-// increase by Factor until Backoff.Max. If Jitter is enabled, will wait an
-// additional random value between 0 and Factor^x * Min, capped by Backoff.Max.
+// Duration returns the time to wait on current retry iteration. Every time
+// Duration is called, the returned value will exponentially increase by Factor
+// until Backoff.Max. If Jitter is enabled, will add an additional random value
+// between 0 and the duration, so the result can at most double.
 func (b *Backoff) Duration() time.Duration {
-	pause := b.Min + b.delta
-
-	newPause := time.Duration(float64(pause) * b.Factor)
-	if newPause > b.Max || newPause < b.Min { // Multiplication could overflow.
-		newPause = b.Max
-	}
-	b.delta = newPause - b.Min
-
-	if b.Jitter {
-		// Add a number in the range [0, pause).
+	base := b.Min + b.delta
+	pause := base
+	if b.Jitter { // Add a number in the range [0, pause).
 		pause += time.Duration(rand.Int63n(int64(pause)))
 	}
+
+	nextPause := time.Duration(float64(base) * b.Factor)
+	if nextPause > b.Max || nextPause < b.Min { // Multiplication could overflow.
+		nextPause = b.Max
+	}
+	b.delta = nextPause - b.Min
+
 	return pause
 }
 
-// Reset sets the internal state back to first iteration.
+// Reset sets the internal state back to first retry iteration.
 func (b *Backoff) Reset() {
 	b.delta = 0
 }
