@@ -51,6 +51,49 @@ func TestBackoff(t *testing.T) {
 	}
 }
 
+func TestRecover(t *testing.T) {
+	b := Backoff{
+		Min:    time.Duration(1),
+		Max:    time.Duration(100),
+		Factor: 2,
+	}
+	for _, test := range []struct {
+		times    int
+		recTimes int
+		want     time.Duration
+	}{
+		{1, 0, 2},
+		{1, 1, 1},
+		{1, 10, 1},
+		{2, 1, 2},
+		{3, 1, 4},
+		{3, 2, 2},
+		{3, 3, 1},
+		{4, 1, 8},
+		{6, 1, 32},
+		{6, 2, 16},
+		{7, 1, 50},
+		{7, 2, 25},
+		{8, 1, 50},
+		{8, 2, 25},
+		{8, 3, 12},
+		{8, 5, 3},
+		{8, 6, 1},
+		{8, 7, 1},
+		{8, 100, 1},
+	} {
+		b.Reset()
+		for i := 0; i < test.times; i++ {
+			b.Duration()
+		}
+		b.Recover(test.recTimes)
+		got := b.Duration()
+		if got != test.want {
+			t.Errorf("Duration() %v times, recover %d: %v, want %v", test.times, test.recTimes, got, test.want)
+		}
+	}
+}
+
 func TestJitter(t *testing.T) {
 	b := Backoff{
 		Min:    1 * time.Second,
