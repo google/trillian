@@ -66,11 +66,7 @@ func (b *Backoff) Recover(factors int) {
 	pause := float64(b.Min + b.delta)
 	newPause := pause / math.Pow(b.Factor, float64(factors))
 	minNanos := float64(b.Min)
-	if newPause <= minNanos {
-		b.delta = 0
-		return
-	}
-	b.delta = time.Duration(newPause - minNanos)
+	b.delta = time.Duration(math.Max(minNanos, newPause) - minNanos)
 }
 
 // Retry calls a function until it succeeds or the context is done.
