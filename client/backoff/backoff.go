@@ -17,42 +17,44 @@ package backoff
 
 import (
 	"context"
-	"math"
 	"math/rand"
 	"time"
 )
 
-// Backoff specifies the parameters of the backoff algorithm.
+// Backoff specifies the parameters of the backoff algorithm. Works correctly
+// if 0 < Min <= Max <= 2^62 (nanosec), Factor >= 1, and Max * Factor < 2^63.
 type Backoff struct {
-	Min    time.Duration
-	Max    time.Duration
-	Factor float64
-	Jitter bool
-	x      int
+	Min    time.Duration // Duration of the first pause.
+	Max    time.Duration // Max duration of a pause.
+	Factor float64       // The factor of duration increase between iterations.
+	Jitter bool          // Add random noise to pauses.
+
+	delta time.Duration // Current pause duration relative to Min, no jitter.
 }
 
-// Duration returns the time to wait on duration x.
-// Every time Duration is called, the returned value will exponentially increase by Factor
-// until Backoff.Max. If Jitter is enabled, will wait an additional random value between
-// 0 and factor^x * min, capped by Backoff.Max.
+// Duration returns the time to wait on current retry iteration.
+// Every time Duration is called, the returned value will exponentially
+// increase by Factor until Backoff.Max. If Jitter is enabled, will wait an
+// additional random value between 0 and Factor^x * Min, capped by Backoff.Max.
 func (b *Backoff) Duration() time.Duration {
-	// min( min * factor ^ x , max)
-	minNanos := float64(b.Min.Nanoseconds())
-	maxNanos := float64(b.Max.Nanoseconds())
-	nanos := minNanos * math.Pow(b.Factor, float64(b.x))
-	nanos = math.Min(nanos, maxNanos)
-	if b.Jitter {
-		// Generate a number in the range [0, factor^x * b.Min)
-		r := float64(rand.Int63n(int64(nanos)))
-		nanos += r
+	pause := b.Min + b.delta
+
+	newPause := time.Duration(float64(pause) * b.Factor)
+	if newPause > b.Max {
+		newPause = b.Max
 	}
-	b.x++
-	return time.Duration(nanos) * time.Nanosecond
+	b.delta = newPause - b.Min
+
+	if b.Jitter {
+		// Add a number in the range [0, pause).
+		pause += time.Duration(rand.Int63n(int64(pause)))
+	}
+	return pause
 }
 
-// Reset sets the internal iteration count back to 0.
+// Reset sets the internal state back to first iteration.
 func (b *Backoff) Reset() {
-	b.x = 0
+	b.delta = 0
 }
 
 // Retry calls a function until it succeeds or the context is done.
@@ -67,8 +69,7 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 
 	// Try calling f until it doesn't return an error or ctx is done.
 	for {
-		err := f()
-		if err != nil {
+		if err := f(); err != nil {
 			select {
 			case <-time.After(b.Duration()):
 				continue
@@ -76,7 +77,6 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 				return err
 			}
 		}
-
 		return nil
 	}
 }
