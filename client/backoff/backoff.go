@@ -22,7 +22,7 @@ import (
 )
 
 // Backoff specifies the parameters of the backoff algorithm. Works correctly
-// if 0 < Min <= Max <= 2^62 (nanosec), Factor >= 1, and Max * Factor < 2^63.
+// if 0 < Min <= Max <= 2^62 (nanosec), and Factor >= 1.
 type Backoff struct {
 	Min    time.Duration // Duration of the first pause.
 	Max    time.Duration // Max duration of a pause.
@@ -40,7 +40,7 @@ func (b *Backoff) Duration() time.Duration {
 	pause := b.Min + b.delta
 
 	newPause := time.Duration(float64(pause) * b.Factor)
-	if newPause > b.Max {
+	if newPause > b.Max || newPause < b.Min { // Multiplication could overflow.
 		newPause = b.Max
 	}
 	b.delta = newPause - b.Min
