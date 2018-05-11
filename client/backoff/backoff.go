@@ -17,7 +17,6 @@ package backoff
 
 import (
 	"context"
-	"math"
 	"math/rand"
 	"time"
 )
@@ -56,17 +55,6 @@ func (b *Backoff) Duration() time.Duration {
 // Reset sets the internal state back to first retry iteration.
 func (b *Backoff) Reset() {
 	b.delta = 0
-}
-
-// Recover reduces retry pause duration by the given power of Backoff.Factor.
-// This might be useful when calling Retry multiple times, to gradually adapt
-// to the rate of errors: in some use-cases a successfully returned Retry could
-// indicate that a bigger flow of requests can now be handled.
-func (b *Backoff) Recover(factors int) {
-	pause := float64(b.Min + b.delta)
-	newPause := pause / math.Pow(b.Factor, float64(factors))
-	minNanos := float64(b.Min)
-	b.delta = time.Duration(math.Max(minNanos, newPause) - minNanos)
 }
 
 // Retry calls a function until it succeeds or the context is done.
