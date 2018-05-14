@@ -106,11 +106,12 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (stora
 	}
 
 	mtx := &mapTreeTX{
-		treeTX: ttx,
-		ms:     m,
+		treeTX:       ttx,
+		ms:           m,
+		readRevision: -1,
 	}
 
-	mtx.root, err = mtx.LatestSignedMapRoot(ctx)
+	root, err := mtx.LatestSignedMapRoot(ctx)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
@@ -118,11 +119,13 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (stora
 		return mtx, err
 	}
 
-	if err := mtx.smr.UnmarshalBinary(mtx.root.MapRoot); err != nil {
+	var mr types.MapRootV1
+	if err := mr.UnmarshalBinary(root.MapRoot); err != nil {
 		return nil, err
 	}
 
-	mtx.treeTX.writeRevision = int64(mtx.smr.Revision) + 1
+	mtx.readRevision = int64(mr.Revision)
+	mtx.treeTX.writeRevision = int64(mr.Revision) + 1
 	return mtx, nil
 }
 
@@ -146,13 +149,12 @@ func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 
 type mapTreeTX struct {
 	treeTX
-	ms   *mySQLMapStorage
-	root trillian.SignedMapRoot
-	smr  types.MapRootV1
+	ms           *mySQLMapStorage
+	readRevision int64
 }
 
 func (m *mapTreeTX) ReadRevision() int64 {
-	return int64(m.smr.Revision)
+	return int64(m.readRevision)
 }
 
 func (m *mapTreeTX) WriteRevision() int64 {
