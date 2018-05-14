@@ -112,6 +112,9 @@ service TrillianMap {
   // For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
   rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
   rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns(GetMapLeavesResponse) {}
+  // SetLeaves sets the values for the provided leaves, and returns the new map root if successful.
+  // Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request),
+  // the API user is required to retry the request before performing a different SetLeaves request.
   rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
   rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {
       option (google.api.http) = {

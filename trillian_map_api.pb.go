@@ -612,6 +612,9 @@ type TrillianMapClient interface {
 	// For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
 	GetLeaves(ctx context.Context, in *GetMapLeavesRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
 	GetLeavesByRevision(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
+	// SetLeaves sets the values for the provided leaves, and returns the new map root if successful.
+	// Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request),
+	// the API user is required to retry the request before performing a different SetLeaves request.
 	SetLeaves(ctx context.Context, in *SetMapLeavesRequest, opts ...grpc.CallOption) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(ctx context.Context, in *GetSignedMapRootRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(ctx context.Context, in *GetSignedMapRootByRevisionRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
