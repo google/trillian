@@ -121,12 +121,8 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	inclusions := make([]*trillian.MapLeafInclusion, 0, len(indices))
 	found := 0
 	for _, index := range indices {
-		// Note that while the parameter is named 'indices' (also in the RPC API)
-		// the inputs are hashes. Hence we expect them to match the hash function
-		// size.
-		if got, want := len(index), hasher.Size(); got != want {
-			return nil, status.Errorf(codes.InvalidArgument,
-				"index len(%x): %v, want %v", index, got, want)
+		if err := checkIndexSize(index, hasher); err != nil {
+			return nil, err
 		}
 		// Fetch the leaf if it exists.
 		leaves, err := tx.Get(ctx, int64(mapRoot.Revision), [][]byte{index})
@@ -173,6 +169,21 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}, nil
 }
 
+func checkIndexSize(index []byte, hasher hashers.MapHasher) error {
+	// The parameter is named 'index' (here and in the RPC API) because it's the ordinal number
+	// of the leaf, but that number is obtained by hashing the key value that corresponds to the
+	// leaf.  Leaf "indices" are therefore sparsely scattered in the range [0, 2^hashsize) and
+	// are represented as a []byte, and every leaf must have an index that is the same size.
+	//
+	// We currently police this by requiring that the hash size for the index space be the same
+	// as the hash size for the tree itself, although that's not strictly required (e.g. could
+	// have SHA-256 for generating leaf indices, but SHA-512 for building the root hash).
+	if len(index) != hasher.Size() {
+		return status.Errorf(codes.InvalidArgument, "index len(%x) is not %d", index, hasher.Size())
+	}
+	return nil
+}
+
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
 	ctx, span := spanFor(ctx, "SetLeaves")
@@ -199,9 +210,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 
 		for _, l := range req.Leaves {
-			if got, want := len(l.Index), hasher.Size(); got != want {
-				return status.Errorf(codes.InvalidArgument,
-					"len(%x): %v, want %v", l.Index, got, want)
+			if err := checkIndexSize(l.Index, hasher); err != nil {
+				return err
 			}
 			if l.LeafValue == nil {
 				// Leaves are empty by default. Do not allow clients to store
@@ -209,7 +219,6 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 				// branches.
 				continue
 			}
-			// TODO(gbelvin) use LeafHash rather than computing here. #423
 			leafHash, err := hasher.HashLeaf(mapID, l.Index, l.LeafValue)
 			if err != nil {
 				return fmt.Errorf("HashLeaf(): %v", err)
