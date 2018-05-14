@@ -99,20 +99,20 @@ func TestMapSnapshot(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			tx, err := s.SnapshotForTree(ctx, test.tree)
-
-			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
-			} else if hasErr {
-				return
+			if err != nil {
+				t.Fatalf("SnapshotForTree()=_,%v; want _, nil", err)
 			}
 			defer tx.Close()
 
 			_, err = tx.LatestSignedMapRoot(ctx)
+			if gotErr := (err != nil); gotErr != test.wantErr {
+				t.Errorf("LatestSignedMapRoot()=_,%v; want _, err? %v", err, test.wantErr)
+			}
 			if err != nil {
-				t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
+				return
 			}
 			if err := tx.Commit(); err != nil {
-				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
+				t.Errorf("Commit()=_,%v; want _,nil", err)
 			}
 		})
 	}
