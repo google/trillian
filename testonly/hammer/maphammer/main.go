@@ -69,7 +69,7 @@ func main() {
 		*seed = time.Now().UTC().UnixNano() & 0xFFFFFFFF
 	}
 	fmt.Printf("Today's test has been brought to you by the letters M, A, and P and the number %#x\n", *seed)
-	rand.Seed(*seed)
+	randSrc := rand.NewSource(*seed)
 
 	bias := hammer.MapBias{
 		Bias: map[hammer.MapEntrypointName]int{
@@ -151,6 +151,7 @@ func main() {
 			Client:        trillian.NewTrillianMapClient(c),
 			Admin:         trillian.NewTrillianAdminClient(ac),
 			MetricFactory: mf,
+			RandSource:    randSrc,
 			EPBias:        bias,
 			Operations:    *operations,
 		}

@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -124,14 +125,14 @@ type MapBias struct {
 	InvalidChance map[MapEntrypointName]int
 }
 
-// Choose randomly picks an operation to perform according to the biases.
-func (hb *MapBias) Choose() MapEntrypointName {
+// choose randomly picks an operation to perform according to the biases.
+func (hb *MapBias) choose(s rand.Source) MapEntrypointName {
 	if hb.total == 0 {
 		for _, ep := range mapEntrypoints {
 			hb.total += hb.Bias[ep]
 		}
 	}
-	which := rand.Intn(hb.total)
+	which := intN(s, hb.total)
 	for _, ep := range mapEntrypoints {
 		which -= hb.Bias[ep]
 		if which < 0 {
@@ -141,13 +142,13 @@ func (hb *MapBias) Choose() MapEntrypointName {
 	panic("random choice out of range")
 }
 
-// Invalid randomly chooses whether an operation should be invalid.
-func (hb *MapBias) Invalid(ep MapEntrypointName) bool {
+// invalid randomly chooses whether an operation should be invalid.
+func (hb *MapBias) invalid(ep MapEntrypointName, s rand.Source) bool {
 	chance := hb.InvalidChance[ep]
 	if chance <= 0 {
 		return false
 	}
-	return (rand.Intn(chance) == 0)
+	return (intN(s, chance) == 0)
 }
 
 // MapConfig provides configuration for a stress/load test.
@@ -156,6 +157,7 @@ type MapConfig struct {
 	MetricFactory monitoring.MetricFactory
 	Client        trillian.TrillianMapClient
 	Admin         trillian.TrillianAdminClient
+	RandSource    rand.Source
 	EPBias        MapBias
 	Operations    uint64
 	EmitInterval  time.Duration
@@ -205,6 +207,7 @@ type mapContents struct {
 type hammerState struct {
 	cfg      *MapConfig
 	verifier *client.MapVerifier
+	prng     rand.Source
 
 	mu sync.RWMutex // Protects everything below
 
@@ -219,6 +222,13 @@ type hammerState struct {
 	// Counters for generating unique keys/values.
 	keyIdx   int
 	valueIdx int
+}
+
+func intN(prng rand.Source, n int) int {
+	x := prng.Int63()
+	// This is not uniformly distributed on [0, n), but that's not worth
+	// bothering to adjust here.
+	return int(x % int64(n))
 }
 
 func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
@@ -240,7 +250,11 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	if cfg.EmitInterval == 0 {
 		cfg.EmitInterval = defaultEmitSeconds * time.Second
 	}
-	return &hammerState{cfg: cfg, verifier: verifier}, nil
+	return &hammerState{
+		cfg:      cfg,
+		prng:     cfg.RandSource,
+		verifier: verifier,
+	}, nil
 }
 
 func (s *hammerState) nextKey() string {
@@ -336,8 +350,17 @@ func (s *hammerState) pickKey(which int) []byte {
 		panic(fmt.Sprintf("internal error: can't pick a key, map contents[%d] is empty!", which))
 	}
 
-	choice := rand.Intn(l)
-	for k := range s.contents[which].data {
+	choice := intN(s.prng, l)
+	// Need sorted keys for reproduceability.
+	data := s.contents[which].data // map[mapKey]string
+	keys := make([]mapKey, 0)
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		return bytes.Compare(keys[i][:], keys[j][:]) == -1
+	})
+	for _, k := range keys {
 		if choice == 0 {
 			return k[:]
 		}
@@ -360,7 +383,7 @@ func (s *hammerState) pickCopy() (int, bool) {
 		// No copied contents yet
 		return -1, false
 	}
-	return rand.Intn(i), true
+	return intN(s.prng, i), true
 }
 
 func (s *hammerState) updateContents(rev uint64, leaves []*trillian.MapLeaf) error {
@@ -450,13 +473,13 @@ func (s *hammerState) checkContents(which int, leafInclusions []*trillian.MapLea
 func (s *hammerState) chooseOp() MapEntrypointName {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.cfg.EPBias.Choose()
+	return s.cfg.EPBias.choose(s.prng)
 }
 
 func (s *hammerState) chooseInvalid(ep MapEntrypointName) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.cfg.EPBias.Invalid(ep)
+	return s.cfg.EPBias.invalid(ep, s.prng)
 }
 
 func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
@@ -569,10 +592,10 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 		rev = s.rev(0)
 	}
 
-	n := rand.Intn(10) // can be zero
+	n := intN(s.prng, 10) // can be zero
 	indices := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		choice := choices[rand.Intn(len(choices))]
+		choice := choices[intN(s.prng, len(choices))]
 		switch choice {
 		case ExistingKey:
 			// No duplicate removal, so we can end up asking for same key twice in the same request.
@@ -662,7 +685,7 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 
 	req := trillian.GetMapLeavesByRevisionRequest{MapId: s.cfg.MapID}
 	rev := int64(0)
-	choice := choices[rand.Intn(len(choices))]
+	choice := choices[intN(s.prng, len(choices))]
 	if s.empty(latestCopy) {
 		choice = MalformedKey
 	} else {
@@ -691,11 +714,11 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 func (s *hammerState) setLeaves(ctx context.Context) error {
 	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
 
-	n := 1 + rand.Intn(10)
+	n := 1 + intN(s.prng, 10)
 	leaves := make([]*trillian.MapLeaf, 0, n)
 leafloop:
 	for i := 0; i < n; i++ {
-		choice := choices[rand.Intn(len(choices))]
+		choice := choices[intN(s.prng, len(choices))]
 		if s.empty(latestCopy) {
 			choice = CreateLeaf
 		}
@@ -754,8 +777,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
 	var leaves []*trillian.MapLeaf
 	value := []byte("value-for-invalid-req")
 
-	choice := choices[rand.Intn(len(choices))]
-
+	choice := choices[intN(s.prng, len(choices))]
 	if s.empty(latestCopy) {
 		choice = MalformedKey
 	}
@@ -797,7 +819,7 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 }
 
 func (s *hammerState) getSMRRev(ctx context.Context) error {
-	which := rand.Intn(smrCount)
+	which := intN(s.prng, smrCount)
 	smr := s.previousSMR(which)
 	if smr == nil || len(smr.MapRoot) == 0 {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
@@ -834,7 +856,7 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 		rev = s.rev(latestCopy)
 	}
 
-	choice := choices[rand.Intn(len(choices))]
+	choice := choices[intN(s.prng, len(choices))]
 
 	switch choice {
 	case RevTooBig:
