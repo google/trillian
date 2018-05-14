@@ -92,9 +92,6 @@ func createMetrics(mf monitoring.MetricFactory) {
 	seqMergeDelay = mf.NewHistogram("sequencer_merge_delay", "Delay between queuing and integration of leaves", logIDLabel)
 }
 
-// TODO(Martin2112): Add admin support for safely changing params like guard window during operation
-// TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
-
 // Sequencer instances are responsible for integrating new leaves into a single log.
 // Leaves will be assigned unique sequence numbers when they are processed.
 // There is no strong ordering guarantee but in general entries will be processed
@@ -108,9 +105,9 @@ type Sequencer struct {
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
-// TODO(al): We actually can't go beyond 2^63 entries because we use int64s,
-//           but we need to calculate tree depths from a multiple of 8 due to
-//           the subtrees.
+// Note: We actually can't go beyond 2^63 entries because we use int64s,
+// but we need to calculate tree depths from a multiple of 8 due to the
+// subtree assumptions.
 const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.

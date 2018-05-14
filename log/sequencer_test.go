@@ -450,8 +450,6 @@ func TestIntegrateBatch(t *testing.T) {
 			errStr: "commit",
 		},
 		{
-			// TODO: We used a perfect tree size so this isn't testing code that loads the compact Merkle
-			// tree. This will be done later as it's planned to refactor it anyway.
 			desc: "sequence-leaf-16",
 			params: testParameters{
 				logID:            154035,
