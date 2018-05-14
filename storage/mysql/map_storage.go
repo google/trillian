@@ -93,7 +93,7 @@ func (t *readOnlyMapTX) Close() error {
 	return nil
 }
 
-func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (storage.MapTreeTX, error) {
+func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool) (storage.MapTreeTX, error) {
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
@@ -111,6 +111,14 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (stora
 		readRevision: -1,
 	}
 
+	if readonly {
+		// readRevision will be set later, by the first
+		// GetSignedMapRoot/LatestSignedMapRoot operation.
+		return mtx, nil
+	}
+
+	// A read-write transaction needs to know the current revision
+	// so it can write at revision+1.
 	root, err := mtx.LatestSignedMapRoot(ctx)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
@@ -130,11 +138,11 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (stora
 }
 
 func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyMapTreeTX, error) {
-	return m.begin(ctx, tree)
+	return m.begin(ctx, tree, true /* readonly */)
 }
 
 func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
-	tx, err := m.begin(ctx, tree)
+	tx, err := m.begin(ctx, tree, false /* readonly */)
 	if tx != nil {
 		defer tx.Close()
 	}
@@ -258,6 +266,7 @@ func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trill
 		}
 		return trillian.SignedMapRoot{}, err
 	}
+	m.readRevision = mapRevision
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }
 
@@ -281,6 +290,7 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	} else if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}
+	m.readRevision = mapRevision
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }
 
