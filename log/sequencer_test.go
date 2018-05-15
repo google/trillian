@@ -68,6 +68,26 @@ var (
 			RootHash:       testRoot16.RootHash,
 		})
 
+	testRoot17 = &types.LogRootV1{
+		TreeSize: 16,
+		Revision: 5,
+		// RootHash can't be nil because that's how the sequencer currently
+		// detects that there was no stored tree head.
+		RootHash:       []byte{},
+		TimestampNanos: uint64(fakeTimeForTest.UnixNano()),
+	}
+	testSignedRoot17, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(testRoot17)
+
+	testRoot18 = &types.LogRootV1{
+		TreeSize: 16,
+		Revision: 5,
+		// RootHash can't be nil because that's how the sequencer currently
+		// detects that there was no stored tree head.
+		RootHash:       []byte{},
+		TimestampNanos: uint64(fakeTimeForTest.Add(10 * time.Millisecond).UnixNano()),
+	}
+	testSignedRoot18, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(testRoot18)
+
 	// These will be accepted in either order because of custom sorting in the mock
 	updatedNodes = []storage.Node{
 		{
@@ -464,6 +484,34 @@ func TestIntegrateBatch(t *testing.T) {
 				signer:           fixedSigner,
 			},
 			wantCount: 1,
+		},
+		{
+			desc: "prev-root-timestamp-equals",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       int64(testRoot16.Revision + 1),
+				dequeueLimit:        1,
+				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:    testSignedRoot17,
+				updatedLeaves:       &leaves16,
+				merkleNodesSet:      &updatedNodes,
+				skipStoreSignedRoot: true,
+			},
+			errStr: "refusing to sign root with timestamp earlier than previous root (1464173705000000000 <= 1464173705000000000)",
+		},
+		{
+			desc: "prev-root-timestamp-in-future",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       int64(testRoot16.Revision + 1),
+				dequeueLimit:        1,
+				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:    testSignedRoot18,
+				updatedLeaves:       &leaves16,
+				merkleNodesSet:      &updatedNodes,
+				skipStoreSignedRoot: true,
+			},
+			errStr: "refusing to sign root with timestamp earlier than previous root (1464173705000000000 <= 1464173705010000000)",
 		},
 	}
 
