@@ -487,7 +487,7 @@ func TestIntegrateBatch(t *testing.T) {
 				merkleNodesSet:      &updatedNodes,
 				skipStoreSignedRoot: true,
 			},
-			errStr: "refusing to sign root with timestamp earlier than previous root (1464173705000000000 < 1464173705010000000)",
+			errStr: "refusing to sign root with timestamp earlier than previous root (1464173705000000000 <= 1464173705010000000)",
 		},
 	}
 

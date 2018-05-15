@@ -430,8 +430,8 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			Revision:       uint64(newVersion),
 		}
 
-		if currentRoot.RootHash != nil && newLogRoot.TimestampNanos < currentRoot.TimestampNanos {
-			err := fmt.Errorf("refusing to sign root with timestamp earlier than previous root (%d < %d)", newLogRoot.TimestampNanos, currentRoot.TimestampNanos)
+		if newLogRoot.TimestampNanos <= currentRoot.TimestampNanos {
+			err := fmt.Errorf("refusing to sign root with timestamp earlier than previous root (%d <= %d)", newLogRoot.TimestampNanos, currentRoot.TimestampNanos)
 			glog.Warningf("%v: %s", tree.TreeId, err)
 			return err
 		}
