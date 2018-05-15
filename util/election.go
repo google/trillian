@@ -29,6 +29,8 @@ type MasterElection interface {
 	ResignAndRestart(context.Context) error
 	// Close permanently stops the mastership election process.
 	Close(context.Context) error
+	// GetCurrentMaster returns the instance ID of the current elected master, if any.
+	GetCurrentMaster(context.Context) (string, error)
 }
 
 // ElectionFactory encapsulates the creation of a MasterElection instance for a treeID.
@@ -65,6 +67,11 @@ func (ne *NoopElection) ResignAndRestart(ctx context.Context) error {
 // Close permanently stops the mastership election process.
 func (ne *NoopElection) Close(ctx context.Context) error {
 	return nil
+}
+
+// GetCurrentMaster returns the string "It's you!"
+func (ne *NoopElection) GetCurrentMaster(ctx context.Context) (string, error) {
+	return "It's you!", nil
 }
 
 // NoopElectionFactory creates NoopElection instances.
