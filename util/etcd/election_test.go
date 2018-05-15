@@ -61,7 +61,7 @@ func TestMasterElectionThroughCommonClient(t *testing.T) {
 	}
 }
 
-func everyoneAgreesOnMaster(t *testing.T, ctx context.Context, want string, elections []util.MasterElection) {
+func everyoneAgreesOnMaster(ctx context.Context, t *testing.T, want string, elections []util.MasterElection) {
 	t.Helper()
 	for _, e := range elections {
 		for {
@@ -83,48 +83,63 @@ func everyoneAgreesOnMaster(t *testing.T, ctx context.Context, want string, elec
 	}
 }
 
+func mustCreateClientFor(t *testing.T, e string) *clientv3.Client {
+	t.Helper()
+	c, err := clientv3.New(clientv3.Config{
+		Endpoints: []string{e},
+	})
+	if err != nil {
+		t.Fatalf("Error creating etcd client: %v", err)
+	}
+	return c
+}
+
 func TestGetCurrentMaster(t *testing.T) {
 	e, client, cleanup, err := etcd.StartEtcd()
 	if err != nil {
 		t.Fatalf("StartEtcd(): %v", err)
 	}
 	defer cleanup()
-	client2, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{e.Config().LCUrls[0].String()},
-	})
-	if err != nil {
-		t.Fatalf("Error creating 2nd etcd client: %v", err)
-	}
+	// add another active participant
+	client2 := mustCreateClientFor(t, e.Config().LCUrls[0].String())
 	defer client2.Close()
 
-	ctx := context.Background()
-	fact1 := NewElectionFactory("serv1", client, "trees/")
-	fact2 := NewElectionFactory("serv2", client2, "trees/")
+	// add a couple of passive observers
+	ob1 := mustCreateClientFor(t, e.Config().LCUrls[0].String())
+	defer ob1.Close()
+	ob2 := mustCreateClientFor(t, e.Config().LCUrls[0].String())
+	defer ob2.Close()
 
-	el1, err := fact1.NewElection(ctx, 10)
-	if err != nil {
-		t.Fatalf("NewElection(10): %v", err)
+	ctx := context.Background()
+	facts := make([]*ElectionFactory, 0)
+	facts = append(facts, NewElectionFactory("serv1", client, "trees/"))
+	facts = append(facts, NewElectionFactory("serv2", client2, "trees/"))
+	facts = append(facts, NewElectionFactory("ob1", ob1, "trees/"))
+	facts = append(facts, NewElectionFactory("ob2", ob2, "trees/"))
+
+	elections := make([]util.MasterElection, 0)
+	for _, f := range facts {
+		e, err := f.NewElection(ctx, 10)
+		if err != nil {
+			t.Fatalf("NewElection(10): %v", err)
+		}
+		elections = append(elections, e)
 	}
-	el2, err := fact2.NewElection(ctx, 10)
-	if err != nil {
-		t.Fatalf("NewElection(10): %v", err)
-	}
-	elections := []util.MasterElection{el1, el2}
 
 	wg := &sync.WaitGroup{}
-	for _, e := range elections {
+	for _, e := range elections[0:2] {
 		wg.Add(1)
 		go func(e util.MasterElection) {
 			if err := e.WaitForMastership(ctx); err != nil {
-				t.Fatalf("WaitForMastership(10): %v", err)
+				t.Errorf("WaitForMastership(10): %v", err)
 			}
 			id := e.(*MasterElection).instanceID
 
 			log.Printf("%v is master", id)
 
-			everyoneAgreesOnMaster(t, ctx, id, elections)
+			everyoneAgreesOnMaster(ctx, t, id, elections)
 			if err := e.Close(ctx); err != nil {
-				t.Fatalf("Close(10): %v", err)
+				t.Errorf("Close(10): %v", err)
 			}
 			wg.Done()
 		}(e)
