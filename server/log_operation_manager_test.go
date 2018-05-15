@@ -355,6 +355,10 @@ func (te *testElection) Close(ctx context.Context) error {
 	return te.closeErr
 }
 
+func (te *testElection) GetCurrentMaster(ctx context.Context) (string, error) {
+	return "It's you!", nil
+}
+
 type failureFactory struct{}
 
 func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (util.MasterElection, error) {
