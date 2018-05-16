@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/coreos/etcd/clientv3/concurrency"
 	"github.com/google/trillian/testonly/integration/etcd"
 	"github.com/google/trillian/util"
 )
@@ -65,7 +64,7 @@ func everyoneAgreesOnMaster(ctx context.Context, t *testing.T, want string, elec
 	for _, e := range elections {
 		for {
 			got, err := e.GetCurrentMaster(ctx)
-			if err == concurrency.ErrElectionNoLeader {
+			if err == util.ErrNoLeader {
 				t.Error("No leader...")
 				time.Sleep(time.Second)
 				continue

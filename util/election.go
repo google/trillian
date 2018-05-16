@@ -40,7 +40,7 @@ type MasterElection interface {
 }
 
 // ErrNoLeader indicates that there is currently no leader elected.
-var ErrNoLeader error = errors.New("no leader")
+var ErrNoLeader = errors.New("no leader")
 
 // ElectionFactory encapsulates the creation of a MasterElection instance for a treeID.
 type ElectionFactory interface {
