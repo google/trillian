@@ -14,7 +14,10 @@
 
 package util
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // MasterElection provides operations for determining if a local instance is the current
 // master for a particular election.
@@ -30,8 +33,14 @@ type MasterElection interface {
 	// Close permanently stops the mastership election process.
 	Close(context.Context) error
 	// GetCurrentMaster returns the instance ID of the current elected master, if any.
+	// Implementations should allow election participants to specify their instance
+	// ID string, participants should ensure that it is unique to them.
+	// If there is currently no leader, ErrNoLeader will be returned.
 	GetCurrentMaster(context.Context) (string, error)
 }
+
+// ErrNoLeader indicates that there is currently no leader elected.
+var ErrNoLeader error = errors.New("no leader")
 
 // ElectionFactory encapsulates the creation of a MasterElection instance for a treeID.
 type ElectionFactory interface {

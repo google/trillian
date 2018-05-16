@@ -16,7 +16,6 @@ package etcd
 
 import (
 	"context"
-	"log"
 	"sync"
 	"testing"
 	"time"
@@ -65,8 +64,7 @@ func everyoneAgreesOnMaster(ctx context.Context, t *testing.T, want string, elec
 	t.Helper()
 	for _, e := range elections {
 		for {
-			log.Print("Getting master")
-			m, err := e.GetCurrentMaster(ctx)
+			got, err := e.GetCurrentMaster(ctx)
 			if err == concurrency.ErrElectionNoLeader {
 				t.Error("No leader...")
 				time.Sleep(time.Second)
@@ -74,9 +72,8 @@ func everyoneAgreesOnMaster(ctx context.Context, t *testing.T, want string, elec
 			} else if err != nil {
 				t.Fatalf("Failed to GetCurrentMaster: %v", err)
 			}
-			if m != want {
-				log.Printf("got %v want %v", m, want)
-				t.Errorf("Current master is %v, want %v", m, want)
+			if got != want {
+				t.Errorf("Current master is %v, want %v", got, want)
 			}
 			break
 		}
@@ -111,11 +108,13 @@ func TestGetCurrentMaster(t *testing.T) {
 	defer ob2.Close()
 
 	ctx := context.Background()
-	facts := make([]*ElectionFactory, 0)
-	facts = append(facts, NewElectionFactory("serv1", client, "trees/"))
-	facts = append(facts, NewElectionFactory("serv2", client2, "trees/"))
-	facts = append(facts, NewElectionFactory("ob1", ob1, "trees/"))
-	facts = append(facts, NewElectionFactory("ob2", ob2, "trees/"))
+	pfx := "trees/"
+	facts := []*ElectionFactory{
+		NewElectionFactory("serv1", client, pfx),
+		NewElectionFactory("serv2", client2, pfx),
+		NewElectionFactory("ob1", ob1, pfx),
+		NewElectionFactory("ob2", ob2, pfx),
+	}
 
 	elections := make([]util.MasterElection, 0)
 	for _, f := range facts {
@@ -135,8 +134,6 @@ func TestGetCurrentMaster(t *testing.T) {
 			}
 			id := e.(*MasterElection).instanceID
 
-			log.Printf("%v is master", id)
-
 			everyoneAgreesOnMaster(ctx, t, id, elections)
 			if err := e.Close(ctx); err != nil {
 				t.Errorf("Close(10): %v", err)
@@ -145,4 +142,28 @@ func TestGetCurrentMaster(t *testing.T) {
 		}(e)
 	}
 	wg.Wait()
+}
+
+func TestGetCurrentMasterReturnsNoLeader(t *testing.T) {
+	ctx := context.Background()
+	_, client, cleanup, err := etcd.StartEtcd()
+	if err != nil {
+		t.Fatalf("StartEtcd(): %v", err)
+	}
+	defer cleanup()
+	fact := NewElectionFactory("serv1", client, "trees/")
+	el, err := fact.NewElection(ctx, 10)
+	if err != nil {
+		t.Fatalf("NewElection(10): %v", err)
+	}
+	if err := el.WaitForMastership(ctx); err != nil {
+		t.Errorf("WaitForMastership(10): %v", err)
+	}
+	if err := el.Close(ctx); err != nil {
+		t.Errorf("Close(10): %v", err)
+	}
+	_, err = el.GetCurrentMaster(ctx)
+	if want := util.ErrNoLeader; err != want {
+		t.Errorf("GetCurrentMaster()=%v, want %v", err, want)
+	}
 }

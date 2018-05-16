@@ -70,7 +70,10 @@ func (eme *MasterElection) Close(ctx context.Context) error {
 // GetCurrentMaster returns the instanceID of the current master, if any.
 func (eme *MasterElection) GetCurrentMaster(ctx context.Context) (string, error) {
 	leader, err := eme.election.Leader(ctx)
-	if err != nil {
+	switch {
+	case err == concurrency.ErrElectionNoLeader:
+		return "", util.ErrNoLeader
+	case err != nil:
 		return "", err
 	}
 	return string(leader.Kvs[0].Value), nil
