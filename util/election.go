@@ -78,9 +78,9 @@ func (ne *NoopElection) Close(ctx context.Context) error {
 	return nil
 }
 
-// GetCurrentMaster returns the string "It's you!"
+// GetCurrentMaster returns ne.instanceID
 func (ne *NoopElection) GetCurrentMaster(ctx context.Context) (string, error) {
-	return "It's you!", nil
+	return ne.instanceID, nil
 }
 
 // NoopElectionFactory creates NoopElection instances.
