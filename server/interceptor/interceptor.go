@@ -218,6 +218,12 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 			if !isLeafOK(resp.GetQueuedLeaf()) {
 				tokens = 1
 			}
+		case *trillian.AddSequencedLeavesResponse:
+			for _, leaf := range resp.GetResults() {
+				if !isLeafOK(leaf) {
+					tokens++
+				}
+			}
 		case *trillian.QueueLeavesResponse:
 			for _, leaf := range resp.GetQueuedLeaves() {
 				if !isLeafOK(leaf) {
