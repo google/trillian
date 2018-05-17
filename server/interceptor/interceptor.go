@@ -405,8 +405,21 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 			info.tokens = len(req.GetLeaves())
 		case *trillian.AddSequencedLeavesRequest:
 			info.tokens = len(req.GetLeaves())
+		case *trillian.GetLeavesByRangeRequest:
+			info.tokens = 1
+			if c := req.GetCount(); c > 1 {
+				info.tokens = int(c)
+			}
+		case *trillian.GetLeavesByIndexRequest:
+			info.tokens = len(req.GetLeafIndex())
+		case *trillian.GetLeavesByHashRequest:
+			info.tokens = len(req.GetLeafHash())
 		case *trillian.SetMapLeavesRequest:
 			info.tokens = len(req.GetLeaves())
+		case *trillian.GetMapLeavesRequest:
+			info.tokens = len(req.GetIndex())
+		case *trillian.GetMapLeavesByRevisionRequest:
+			info.tokens = len(req.GetIndex())
 		default:
 			info.tokens = 1
 		}
