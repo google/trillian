@@ -166,6 +166,9 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 	mapTree := *testonly.MapTree
 	mapTree.TreeId = 11
 
+	preorderedTree := *testonly.PreorderedLogTree
+	preorderedTree.TreeId = 12
+
 	user := "llama"
 	tests := []struct {
 		desc         string
@@ -187,6 +190,46 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 1,
 		},
 		{
+			desc: "logReadIndices",
+			req:  &trillian.GetLeavesByIndexRequest{LogId: logTree.TreeId, LeafIndex: []int64{1, 2, 3}},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			wantTokens: 3,
+		},
+		{
+			desc: "logReadRange",
+			req:  &trillian.GetLeavesByRangeRequest{LogId: logTree.TreeId, Count: 123},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			wantTokens: 123,
+		},
+		{
+			desc: "logReadNegativeRange",
+			req:  &trillian.GetLeavesByRangeRequest{LogId: logTree.TreeId, Count: -123},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			wantTokens: 1,
+		},
+		{
+			desc: "logReadZeroRange",
+			req:  &trillian.GetLeavesByRangeRequest{LogId: logTree.TreeId, Count: 0},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			wantTokens: 1,
+		},
+		{
 			desc: "logWrite",
 			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
@@ -198,13 +241,13 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc: "mapRead",
-			req:  &trillian.GetMapLeavesRequest{MapId: mapTree.TreeId},
+			req:  &trillian.GetMapLeavesRequest{MapId: mapTree.TreeId, Index: [][]byte{{0x01}, {0x02}}},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Read, User: user},
 				{Group: quota.Tree, Kind: quota.Read, TreeID: mapTree.TreeId},
 				{Group: quota.Global, Kind: quota.Read},
 			},
-			wantTokens: 1,
+			wantTokens: 2,
 		},
 		{
 			desc: "emptyBatchRequest",
@@ -222,6 +265,19 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Write, User: user},
 				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantTokens: 3,
+		},
+		{
+			desc: "batchSequencedLogLeavesRequest",
+			req: &trillian.AddSequencedLeavesRequest{
+				LogId:  preorderedTree.TreeId,
+				Leaves: []*trillian.LogLeaf{{}, {}, {}},
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: preorderedTree.TreeId},
 				{Group: quota.Global, Kind: quota.Write},
 			},
 			wantTokens: 3,
@@ -275,6 +331,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
 			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
 			adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(&mapTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), preorderedTree.TreeId).AnyTimes().Return(&preorderedTree, nil)
 			adminTX.EXPECT().Close().AnyTimes().Return(nil)
 			adminTX.EXPECT().Commit().AnyTimes().Return(nil)
 
