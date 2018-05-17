@@ -214,11 +214,11 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		tokens = tp.info.tokens
 	} else {
 		switch resp := resp.(type) {
-		case logLeafResponse:
+		case *trillian.QueueLeafResponse:
 			if !isLeafOK(resp.GetQueuedLeaf()) {
 				tokens = 1
 			}
-		case logLeavesResponse:
+		case *trillian.QueueLeavesResponse:
 			for _, leaf := range resp.GetQueuedLeaves() {
 				if !isLeafOK(leaf) {
 					tokens++
@@ -401,9 +401,11 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 			{Group: quota.Global, Kind: kind},
 		}
 		switch req := req.(type) {
-		case logLeavesRequest:
+		case *trillian.QueueLeavesRequest:
 			info.tokens = len(req.GetLeaves())
-		case mapLeavesRequest:
+		case *trillian.AddSequencedLeavesRequest:
+			info.tokens = len(req.GetLeaves())
+		case *trillian.SetMapLeavesRequest:
 			info.tokens = len(req.GetLeaves())
 		default:
 			info.tokens = 1
@@ -427,22 +429,6 @@ type treeIDRequest interface {
 
 type treeRequest interface {
 	GetTree() *trillian.Tree
-}
-
-type logLeavesRequest interface {
-	GetLeaves() []*trillian.LogLeaf
-}
-
-type mapLeavesRequest interface {
-	GetLeaves() []*trillian.MapLeaf
-}
-
-type logLeafResponse interface {
-	GetQueuedLeaf() *trillian.QueuedLogLeaf
-}
-
-type logLeavesResponse interface {
-	GetQueuedLeaves() []*trillian.QueuedLogLeaf
 }
 
 // Combine combines unary interceptors.
