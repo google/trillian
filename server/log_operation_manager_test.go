@@ -18,9 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +27,8 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/election"
+	"github.com/google/trillian/util/election/mock"
 )
 
 func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
@@ -207,72 +207,18 @@ func TestHeldInfo(t *testing.T) {
 	}
 }
 
-func TestShouldResign(t *testing.T) {
-	startTime := time.Date(1970, 9, 19, 12, 00, 00, 00, time.UTC)
-	var tests = []struct {
-		hold     time.Duration
-		odds     int
-		wantHold time.Duration
-		wantProb float64
-	}{
-		{hold: 12 * time.Second, odds: 10, wantHold: 12 * time.Second, wantProb: 0.1},
-		{hold: time.Second, odds: 10, wantHold: 10 * time.Second, wantProb: 0.1},
-		{hold: 10 * time.Second, odds: 0, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: 1, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: -1, wantHold: 10 * time.Second, wantProb: 1.0},
-	}
-	for _, test := range tests {
-		fakeTimeSource := util.FakeTimeSource{}
-		info := fixupElectionInfo(LogOperationInfo{
-			MasterHoldInterval: test.hold,
-			ResignOdds:         test.odds,
-			TimeSource:         &fakeTimeSource,
-		})
-		er := electionRunner{info: &info}
-
-		holdChecks := int64(10)
-		holdNanos := test.wantHold.Nanoseconds() / holdChecks
-	timeslot:
-		for i := int64(-1); i < holdChecks; i++ {
-			gapNanos := time.Duration(i * holdNanos)
-			fakeTimeSource.Set(startTime.Add(gapNanos))
-			for j := 0; j < 100; j++ {
-				if er.shouldResign(startTime) {
-					t.Errorf("shouldResign(hold=%v,odds=%v @ start+%v)=true; want false", test.hold, test.odds, gapNanos)
-					continue timeslot
-				}
-			}
-		}
-
-		fakeTimeSource.Set(startTime.Add(test.wantHold).Add(time.Nanosecond))
-		iterations := 10000
-		count := 0
-		for i := 0; i < iterations; i++ {
-			if er.shouldResign(startTime) {
-				count++
-			}
-		}
-		got := float64(count) / float64(iterations)
-		deltaFraction := math.Abs(got-test.wantProb) / test.wantProb
-		if deltaFraction > 0.05 {
-			t.Errorf("P(shouldResign(hold=%v,odds=%v))=%f; want ~%f", test.hold, test.odds, got, test.wantProb)
-		}
-
-	}
-}
-
 func TestMasterFor(t *testing.T) {
 	ctx := context.Background()
 	firstIDs := []int64{1, 2, 3, 4}
 	allIDs := []int64{1, 2, 3, 4, 5, 6}
 
 	var tests = []struct {
-		factory util.ElectionFactory
+		factory election.Factory
 		want1   []int64
 		want2   []int64
 	}{
 		{factory: nil, want1: firstIDs, want2: allIDs},
-		{factory: util.NoopElectionFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
+		{factory: election.NoopFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
 		{factory: masterForEvenFactory{}, want1: []int64{2, 4}, want2: []int64{2, 4, 6}},
 		{factory: failureFactory{}, want1: nil, want2: nil},
 	}
@@ -305,151 +251,19 @@ func TestMasterFor(t *testing.T) {
 		}
 
 		cancel()
-		time.Sleep(2 * info.MasterCheckInterval)
+		time.Sleep(2 * info.ElectionConfig.MasterCheckInterval)
 	}
 }
 
 type masterForEvenFactory struct{}
 
-func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (util.MasterElection, error) {
+func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	isMaster := (treeID % 2) == 0
-	return &testElection{waitBlocks: !isMaster, isMaster: isMaster}, nil
-}
-
-type testElection struct {
-	startErr, waitErr, isMasterErr, resignErr, closeErr error
-	waitBlocks                                          bool
-	isMaster                                            bool
-}
-
-func (te *testElection) Start(ctx context.Context) error {
-	return te.startErr
-}
-
-func (te *testElection) WaitForMastership(ctx context.Context) error {
-	if te.waitErr != nil {
-		return te.waitErr
-	}
-	if !te.waitBlocks {
-		return nil
-	}
-	for {
-		time.Sleep(10 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			return errors.New("context canceled")
-		default:
-		}
-	}
-}
-
-func (te *testElection) IsMaster(ctx context.Context) (bool, error) {
-	return te.isMaster, te.isMasterErr
-}
-
-func (te *testElection) ResignAndRestart(ctx context.Context) error {
-	return te.resignErr
-}
-
-func (te *testElection) Close(ctx context.Context) error {
-	return te.closeErr
+	return mock.NewMasterElection(isMaster), nil
 }
 
 type failureFactory struct{}
 
-func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (util.MasterElection, error) {
+func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	return nil, errors.New("injected failure")
-}
-
-func TestElectionRunnerRun(t *testing.T) {
-	ctx := context.Background()
-	fakeTimeSource := util.NewFakeTimeSource(time.Now())
-	info := fixupElectionInfo(LogOperationInfo{TimeSource: fakeTimeSource})
-	var tests = []struct {
-		election   testElection
-		wantMaster bool
-	}{
-		// Basic cases
-		{
-			election: testElection{
-				waitBlocks: true,
-			},
-		},
-		{
-			election: testElection{
-				waitBlocks: false,
-				isMaster:   true,
-			},
-			wantMaster: true,
-		},
-		// Error cases
-		{
-			election: testElection{
-				startErr: errors.New("on start"),
-			},
-		},
-		{
-			election: testElection{
-				waitErr: errors.New("on wait"),
-			},
-		},
-		{
-			election: testElection{
-				isMaster:    true,
-				isMasterErr: errors.New("on IsMaster"),
-				waitBlocks:  false,
-			},
-			wantMaster: true,
-		},
-		{
-			election: testElection{
-				waitBlocks: false,
-				isMaster:   false,
-			},
-			// a) WaitForMaster() falls through => master=true
-			// b) IsMaster() returns false => master=false
-			// goroutine termination happens after a) before b) so...
-			wantMaster: true,
-		},
-		{
-			election: testElection{
-				waitBlocks: false,
-				isMaster:   true,
-				resignErr:  errors.New("resignation failure"),
-			},
-			wantMaster: true,
-		},
-	}
-	for _, test := range tests {
-		logID := int64(6962)
-		ctx, cancel := context.WithCancel(ctx)
-		tracker := util.NewMasterTracker([]int64{logID})
-		var wg sync.WaitGroup
-		er := electionRunner{
-			logID:    logID,
-			info:     &info,
-			tracker:  tracker,
-			election: &test.election,
-			wg:       &wg,
-		}
-		startTime := time.Now()
-		fakeTimeSource.Set(startTime)
-		wg.Add(1)
-		resignations := make(chan resignation, 100)
-		go er.Run(ctx, resignations)
-		time.Sleep(minMasterCheckInterval)
-		// Advance fake time so that shouldResign() triggers too.
-		fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
-		time.Sleep(minMasterCheckInterval)
-		for len(resignations) > 0 {
-			r := <-resignations
-			r.done <- true
-		}
-		cancel()
-		wg.Wait()
-		held := tracker.Held()
-		if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
-			t.Errorf("election=%+v gives held=%v => master=%v; want %v", test.election, held, got, test.wantMaster)
-		}
-	}
 }

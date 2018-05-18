@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+// Package election provides implementation of master election and tracking, as
+// well as interfaces for plugging in a custom underlying mechanism.
+package election
 
 import "context"
 
-// MasterElection provides operations for determining if a local instance is the current
-// master for a particular election.
+// MasterElection provides operations for determining if a local instance is
+// the current master for a particular election.
 type MasterElection interface {
 	// Start kicks off the process of mastership election.
 	Start(context.Context) error
-	// WaitForMastership blocks until the current instance is master for this election.
+	// WaitForMastership blocks until the current instance is master.
 	WaitForMastership(context.Context) error
 	// IsMaster returns whether the current instance is master.
 	IsMaster(context.Context) (bool, error)
@@ -31,12 +33,12 @@ type MasterElection interface {
 	Close(context.Context) error
 }
 
-// ElectionFactory encapsulates the creation of a MasterElection instance for a treeID.
-type ElectionFactory interface {
+// Factory encapsulates the creation of a MasterElection instance for a treeID.
+type Factory interface {
 	NewElection(ctx context.Context, treeID int64) (MasterElection, error)
 }
 
-// NoopElection is a stub implementation that tells every instance that it is master.
+// NoopElection is a stub implementation that the current instance is master.
 type NoopElection struct {
 	treeID     int64
 	instanceID string
@@ -47,7 +49,7 @@ func (ne *NoopElection) Start(ctx context.Context) error {
 	return nil
 }
 
-// WaitForMastership blocks until the current instance is master for this election.
+// WaitForMastership blocks until the current instance is master.
 func (ne *NoopElection) WaitForMastership(ctx context.Context) error {
 	return nil
 }
@@ -67,12 +69,12 @@ func (ne *NoopElection) Close(ctx context.Context) error {
 	return nil
 }
 
-// NoopElectionFactory creates NoopElection instances.
-type NoopElectionFactory struct {
+// NoopFactory creates NoopElection instances.
+type NoopFactory struct {
 	InstanceID string
 }
 
 // NewElection creates a specific NoopElection instance.
-func (nf NoopElectionFactory) NewElection(ctx context.Context, treeID int64) (MasterElection, error) {
+func (nf NoopFactory) NewElection(ctx context.Context, treeID int64) (MasterElection, error) {
 	return &NoopElection{instanceID: nf.InstanceID, treeID: treeID}, nil
 }

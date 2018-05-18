@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -61,7 +62,9 @@ var (
 			"Only effective for --quota_system=etcd.")
 
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
+	restartInterval     = flag.Duration("restart_interval", 5*time.Second, "Inverval between master election restarts in case of errors")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
+	masterTTL           = flag.Duration("master_ttl", 20*time.Second, "Maximal interval between successful checks necessary to retain mastership")
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
 	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
 
@@ -99,11 +102,11 @@ func main() {
 
 	hostname, _ := os.Hostname()
 	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
-	var electionFactory util.ElectionFactory
+	var electionFactory election.Factory
 	switch {
 	case *forceMaster:
 		glog.Warning("**** Acting as master for all logs ****")
-		electionFactory = util.NoopElectionFactory{InstanceID: instanceID}
+		electionFactory = election.NoopFactory{InstanceID: instanceID}
 	case client != nil:
 		electionFactory = etcd.NewElectionFactory(instanceID, client, *lockDir)
 	default:
@@ -143,15 +146,17 @@ func main() {
 	log.QuotaIncreaseFactor = *quotaIncreaseFactor
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	info := server.LogOperationInfo{
-		Registry:            registry,
-		BatchSize:           *batchSizeFlag,
-		NumWorkers:          *numSeqFlag,
-		RunInterval:         *sequencerIntervalFlag,
-		TimeSource:          util.SystemTimeSource{},
-		PreElectionPause:    *preElectionPause,
-		MasterCheckInterval: *masterCheckInterval,
-		MasterHoldInterval:  *masterHoldInterval,
-		ResignOdds:          *resignOdds,
+		Registry:    registry,
+		BatchSize:   *batchSizeFlag,
+		NumWorkers:  *numSeqFlag,
+		RunInterval: *sequencerIntervalFlag,
+		ElectionConfig: election.Config{
+			PreElectionPause:    *preElectionPause,
+			MasterCheckInterval: *masterCheckInterval,
+			MasterHoldInterval:  *masterHoldInterval,
+			ResignOdds:          *resignOdds,
+		},
+		TimeSource: util.SystemTimeSource{},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
 	sequencerTask.OperationLoop(ctx)
