@@ -260,8 +260,8 @@ func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
 }
 
 type rpcInfo struct {
-	// auth and getTree enable their corresponding interceptor logic.
-	auth, getTree bool
+	// getTree indicates whether the interceptor should populate treeID.
+	getTree bool
 
 	readonly  bool
 	treeID    int64
@@ -274,7 +274,6 @@ type rpcInfo struct {
 func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
 	info := &rpcInfo{
-		auth:      true,
 		getTree:   true,
 		readonly:  true,
 		treeTypes: nil,
@@ -291,19 +290,16 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		*quotapb.GetConfigRequest,
 		*quotapb.ListConfigsRequest,
 		*quotapb.UpdateConfigRequest:
-		info.auth = false
 		info.getTree = false
 		info.readonly = false // Doesn't really matter as all interceptors are turned off
 
 	// Admin create
 	case *trillian.CreateTreeRequest:
-		info.auth = false    // Tree doesn't exist
 		info.getTree = false // Tree doesn't exist
 		info.readonly = false
 
 	// Admin list
 	case *trillian.ListTreesRequest:
-		info.auth = false    // Auth done within RPC handler
 		info.getTree = false // Zero to many trees
 
 	// Admin / readonly
@@ -401,7 +397,7 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		return nil, err
 	}
 
-	if info.auth || info.getTree || info.tokens > 0 {
+	if info.getTree || info.tokens > 0 {
 		switch req := req.(type) {
 		case logIDRequest:
 			info.treeID = req.GetLogId()
