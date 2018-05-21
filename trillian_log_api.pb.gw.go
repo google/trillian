@@ -206,6 +206,10 @@ func request_TrillianLog_GetConsistencyProof_0(ctx context.Context, marshaler ru
 
 }
 
+var (
+	filter_TrillianLog_GetLatestSignedLogRoot_0 = &utilities.DoubleArray{Encoding: map[string]int{"log_id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
 func request_TrillianLog_GetLatestSignedLogRoot_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetLatestSignedLogRootRequest
 	var metadata runtime.ServerMetadata
@@ -228,10 +232,18 @@ func request_TrillianLog_GetLatestSignedLogRoot_0(ctx context.Context, marshaler
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
 	}
 
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetLatestSignedLogRoot_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	msg, err := client.GetLatestSignedLogRoot(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
+
+var (
+	filter_TrillianLog_GetSequencedLeafCount_0 = &utilities.DoubleArray{Encoding: map[string]int{"log_id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
 
 func request_TrillianLog_GetSequencedLeafCount_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetSequencedLeafCountRequest
@@ -253,6 +265,10 @@ func request_TrillianLog_GetSequencedLeafCount_0(ctx context.Context, marshaler 
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetSequencedLeafCount_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetSequencedLeafCount(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -306,6 +322,10 @@ func request_TrillianLog_GetEntryAndProof_0(ctx context.Context, marshaler runti
 
 }
 
+var (
+	filter_TrillianLog_InitLog_0 = &utilities.DoubleArray{Encoding: map[string]int{"log_id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
 func request_TrillianLog_InitLog_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq InitLogRequest
 	var metadata runtime.ServerMetadata
@@ -326,6 +346,10 @@ func request_TrillianLog_InitLog_0(ctx context.Context, marshaler runtime.Marsha
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_InitLog_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.InitLog(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
