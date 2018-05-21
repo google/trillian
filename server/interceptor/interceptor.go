@@ -271,6 +271,34 @@ type rpcInfo struct {
 	tokens int
 }
 
+// chargable is satisfied by request proto messages which contain a GetCharge
+// accessor.
+type chargable interface {
+	GetUser() []string
+}
+
+// addChargedUsers adds quota spec entries for any chargable user quotas.
+// Quota specs are only added if req is non-nil and satisfies the chargable
+// interface.
+func (i *rpcInfo) addChargedUsers(req interface{}) {
+	if req == nil {
+		return
+	}
+	charge, ok := req.(chargable)
+	if !ok {
+		return
+	}
+
+	kind := quota.Read
+	if !i.readonly {
+		kind = quota.Write
+	}
+
+	for _, u := range charge.GetUser() {
+		i.specs = append(i.specs, quota.Spec{Group: quota.User, Kind: kind, User: u})
+	}
+}
+
 func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
 	info := &rpcInfo{
@@ -388,6 +416,8 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		return nil, status.Errorf(codes.Internal, "newRPCInfo: unmapped request type: %T", req)
 	}
 
+	info.addChargedUsers(req)
+
 	return info, nil
 }
 
@@ -417,11 +447,11 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		if info.readonly {
 			kind = quota.Read
 		}
-		info.specs = []quota.Spec{
+		info.specs = append(info.specs, []quota.Spec{
 			{Group: quota.User, Kind: kind, User: quotaUser},
 			{Group: quota.Tree, Kind: kind, TreeID: info.treeID},
 			{Group: quota.Global, Kind: kind},
-		}
+		}...)
 	}
 
 	return info, nil
