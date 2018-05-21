@@ -172,7 +172,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 	user := "llama"
 	charge1 := "alpaca"
 	charge2 := "cama"
-	charges := &trillian.Charge{User: []string{charge1, charge2}}
+	charges := &trillian.ChargeTo{User: []string{charge1, charge2}}
 	tests := []struct {
 		desc         string
 		dryRun       bool
@@ -234,7 +234,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc: "logRead with charges",
-			req:  &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId, Charge: charges},
+			req:  &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId, ChargeTo: charges},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Read, User: charge1},
 				{Group: quota.User, Kind: quota.Read, User: charge2},
@@ -256,7 +256,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc: "logWrite with charges",
-			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId, Charge: charges},
+			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId, ChargeTo: charges},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Write, User: charge1},
 				{Group: quota.User, Kind: quota.Write, User: charge2},
@@ -312,9 +312,9 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		{
 			desc: "batchLogLeavesRequest with charges",
 			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: []*trillian.LogLeaf{{}, {}, {}},
-				Charge: charges,
+				LogId:    logTree.TreeId,
+				Leaves:   []*trillian.LogLeaf{{}, {}, {}},
+				ChargeTo: charges,
 			},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Write, User: charge1},

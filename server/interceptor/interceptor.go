@@ -271,10 +271,10 @@ type rpcInfo struct {
 	tokens int
 }
 
-// chargable is satisfied by request proto messages which contain a GetCharge
+// chargable is satisfied by request proto messages which contain a GetChargeTo
 // accessor.
 type chargable interface {
-	GetCharge() *trillian.Charge
+	GetChargeTo() *trillian.ChargeTo
 }
 
 // addChargedUsers adds quota spec entries for any chargable user quotas.
@@ -288,8 +288,8 @@ func (i *rpcInfo) addChargedUsers(req interface{}) {
 	if !ok {
 		return
 	}
-	charge := c.GetCharge()
-	if charge == nil {
+	chargeTo := c.GetChargeTo()
+	if chargeTo == nil {
 		return
 	}
 
@@ -298,7 +298,7 @@ func (i *rpcInfo) addChargedUsers(req interface{}) {
 		kind = quota.Write
 	}
 
-	for _, u := range charge.User {
+	for _, u := range chargeTo.User {
 		i.specs = append(i.specs, quota.Spec{Group: quota.User, Kind: kind, User: u})
 	}
 }
