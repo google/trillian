@@ -262,7 +262,3 @@ User level quotas are applied to "quota users". Trillian makes no assumptions
 about what a quota user is. Therefore, initially, there's a single default user
 that is charged for all requests (note that, since no quotas are created by
 default, this user charges quotas that are effectively infinite).
-
-TODO(codingllama): Allow personalities to specify the quota user to be charged.
-As of this moment, the only way to specify users would be to fork Trillian or
-make a PR.
