@@ -271,6 +271,26 @@ type rpcInfo struct {
 	tokens int
 }
 
+// chargable is satisfied by request proto messages which contain a GetChargeTo
+// accessor.
+type chargable interface {
+	GetChargeTo() *trillian.ChargeTo
+}
+
+// chargedUsers returns user identifiers for any chargable user quotas.
+func chargedUsers(req interface{}) []string {
+	c, ok := req.(chargable)
+	if !ok {
+		return nil
+	}
+	chargeTo := c.GetChargeTo()
+	if chargeTo == nil {
+		return nil
+	}
+
+	return chargeTo.User
+}
+
 func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
 	info := &rpcInfo{
@@ -417,11 +437,14 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		if info.readonly {
 			kind = quota.Read
 		}
-		info.specs = []quota.Spec{
+		for _, user := range chargedUsers(req) {
+			info.specs = append(info.specs, quota.Spec{Group: quota.User, Kind: kind, User: user})
+		}
+		info.specs = append(info.specs, []quota.Spec{
 			{Group: quota.User, Kind: kind, User: quotaUser},
 			{Group: quota.Tree, Kind: kind, TreeID: info.treeID},
 			{Group: quota.Global, Kind: kind},
-		}
+		}...)
 	}
 
 	return info, nil

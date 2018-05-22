@@ -170,6 +170,9 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 	preorderedTree.TreeId = 12
 
 	user := "llama"
+	charge1 := "alpaca"
+	charge2 := "cama"
+	charges := &trillian.ChargeTo{User: []string{charge1, charge2}}
 	tests := []struct {
 		desc         string
 		dryRun       bool
@@ -230,9 +233,33 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 1,
 		},
 		{
+			desc: "logRead with charges",
+			req:  &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId, ChargeTo: charges},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: charge1},
+				{Group: quota.User, Kind: quota.Read, User: charge2},
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			wantTokens: 1,
+		},
+		{
 			desc: "logWrite",
 			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantTokens: 1,
+		},
+		{
+			desc: "logWrite with charges",
+			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId, ChargeTo: charges},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: charge1},
+				{Group: quota.User, Kind: quota.Write, User: charge2},
 				{Group: quota.User, Kind: quota.Write, User: user},
 				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
 				{Group: quota.Global, Kind: quota.Write},
@@ -278,6 +305,22 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Write, User: user},
 				{Group: quota.Tree, Kind: quota.Write, TreeID: preorderedTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantTokens: 3,
+		},
+		{
+			desc: "batchLogLeavesRequest with charges",
+			req: &trillian.QueueLeavesRequest{
+				LogId:    logTree.TreeId,
+				Leaves:   []*trillian.LogLeaf{{}, {}, {}},
+				ChargeTo: charges,
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: charge1},
+				{Group: quota.User, Kind: quota.Write, User: charge2},
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
 				{Group: quota.Global, Kind: quota.Write},
 			},
 			wantTokens: 3,

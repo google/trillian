@@ -138,9 +138,30 @@ service TrillianLog {
     }
 }
 
+// ChargeTo describes the user(s) associated with the request whose quota should
+// be checked and charged.
+message ChargeTo {
+  // user is a list of personality-defined strings.
+  // Trillian will treat them as /User/%{user}/... keys when checking and
+  // charging quota.
+  // If one or more of the specified users has insufficient quota, the
+  // request will be denied.
+  //
+  // As an example, a Certificate Transparency frontend might set the following
+  // user strings when sending a QueueLeaves request to the Trillian log:
+  //   - The requesting IP address.
+  //     This would limit the number of requests per IP.
+  //   - The "intermediate-<hash>" for each of the intermediate certificates in
+  //     the submitted chain.
+  //     This would have the effect of limiting the rate of submissions under
+  //     a given intermediate/root.
+  repeated string user = 1;
+}
+
 message QueueLeafRequest {
     int64 log_id = 1;
     LogLeaf leaf = 2;
+    ChargeTo charge_to = 3;
 }
 
 message QueueLeafResponse {
@@ -150,6 +171,7 @@ message QueueLeafResponse {
 message AddSequencedLeafRequest {
     int64 log_id = 1;
     LogLeaf leaf = 2;
+    ChargeTo charge_to = 3;
 }
 
 message AddSequencedLeafResponse {
@@ -160,6 +182,7 @@ message GetInclusionProofRequest {
     int64 log_id = 1;
     int64 leaf_index = 2;
     int64 tree_size = 3;
+    ChargeTo charge_to = 4;
 }
 
 message GetInclusionProofResponse {
@@ -172,6 +195,7 @@ message GetInclusionProofByHashRequest {
     bytes leaf_hash = 2;
     int64 tree_size = 3;
     bool order_by_sequence = 4;
+    ChargeTo charge_to = 5;
 }
 
 message GetInclusionProofByHashResponse {
@@ -186,6 +210,7 @@ message GetConsistencyProofRequest {
     int64 log_id = 1;
     int64 first_tree_size = 2;
     int64 second_tree_size = 3;
+    ChargeTo charge_to = 4;
 }
 
 message GetConsistencyProofResponse {
@@ -195,6 +220,7 @@ message GetConsistencyProofResponse {
 
 message GetLatestSignedLogRootRequest {
     int64 log_id = 1;
+    ChargeTo charge_to = 2;
 }
 
 message GetLatestSignedLogRootResponse {
@@ -203,6 +229,7 @@ message GetLatestSignedLogRootResponse {
 
 message GetSequencedLeafCountRequest {
     int64 log_id = 1;
+    ChargeTo charge_to = 2;
 }
 
 message GetSequencedLeafCountResponse {
@@ -213,6 +240,7 @@ message GetEntryAndProofRequest {
     int64 log_id = 1;
     int64 leaf_index = 2;
     int64 tree_size = 3;
+    ChargeTo charge_to = 4;
 }
 
 message GetEntryAndProofResponse {
@@ -223,6 +251,7 @@ message GetEntryAndProofResponse {
 
 message InitLogRequest {
     int64 log_id = 1;
+    ChargeTo charge_to = 2;
 }
 
 message InitLogResponse {
@@ -232,6 +261,7 @@ message InitLogResponse {
 message QueueLeavesRequest {
     int64 log_id = 1;
     repeated LogLeaf leaves = 2;
+    ChargeTo charge_to = 3;
 }
 
 message QueueLeavesResponse {
@@ -242,6 +272,7 @@ message QueueLeavesResponse {
 message AddSequencedLeavesRequest {
     int64 log_id = 1;
     repeated LogLeaf leaves = 2;
+    ChargeTo charge_to = 4;
 }
 
 message AddSequencedLeavesResponse {
@@ -252,6 +283,7 @@ message AddSequencedLeavesResponse {
 message GetLeavesByIndexRequest {
     int64 log_id = 1;
     repeated int64 leaf_index = 2;
+    ChargeTo charge_to = 5;
 }
 
 message GetLeavesByIndexResponse {
@@ -264,6 +296,7 @@ message GetLeavesByRangeRequest {
     int64 log_id = 1;
     int64 start_index = 2;
     int64 count = 3;
+    ChargeTo charge_to = 4;
 }
 
 message GetLeavesByRangeResponse {
@@ -279,6 +312,7 @@ message GetLeavesByHashRequest {
     int64 log_id = 1;
     repeated bytes leaf_hash = 2;
     bool order_by_sequence = 3;
+    ChargeTo charge_to = 5;
 }
 
 message GetLeavesByHashResponse {
