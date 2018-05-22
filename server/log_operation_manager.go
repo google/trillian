@@ -231,16 +231,14 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 			continue
 		}
 		glog.Infof("create master election goroutine for %v", logID)
-		innerCtx, cancel := context.WithCancel(ctx)
-		el, err := l.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
+		el, err := l.info.Registry.ElectionFactory.NewElection(ctx, logID)
 		if err != nil {
-			cancel()
 			return nil, fmt.Errorf("failed to create election for %d: %v", logID, err)
 		}
 
 		runner := election.NewRunner(&l.info.ElectionConfig, el, l.info.TimeSource, fmt.Sprintf("%d: ", logID))
 		l.electionRunner[logID] = runner
-		evts := runner.Run(innerCtx)
+		evts := runner.Run(ctx)
 
 		l.runnerWG.Add(1)
 		go func(logID int64) {
@@ -423,14 +421,7 @@ loop:
 		}
 	}
 
-	// Terminate all the election runners
-	for logID, runner := range l.electionRunner {
-		if runner == nil {
-			continue
-		}
-		glog.V(1).Infof("cancel election runner for %d", logID)
-		// runner.cancel() FIXME
-	}
+	// Election runners will terminate due to ctx canceling.
 	glog.Infof("wait for termination of election runners...")
 	l.runnerWG.Wait()
 	glog.Infof("wait for termination of election runners...done")
