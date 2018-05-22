@@ -259,7 +259,7 @@ type masterForEvenFactory struct{}
 
 func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	isMaster := (treeID % 2) == 0
-	return mock.NewMasterElection(isMaster), nil
+	return mock.NewMasterElection(isMaster, nil), nil
 }
 
 type failureFactory struct{}
