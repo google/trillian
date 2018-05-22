@@ -277,30 +277,21 @@ type chargable interface {
 	GetChargeTo() *trillian.ChargeTo
 }
 
-// addChargedUsers adds quota spec entries for any chargable user quotas.
-// Quota specs are only added if req is non-nil and satisfies the chargable
-// interface.
-func (i *rpcInfo) addChargedUsers(req interface{}) {
+// chargedUsers returns user identifiers for any chargable user quotas.
+func chargedUsers(req interface{}) []string {
 	if req == nil {
-		return
+		return nil
 	}
 	c, ok := req.(chargable)
 	if !ok {
-		return
+		return nil
 	}
 	chargeTo := c.GetChargeTo()
 	if chargeTo == nil {
-		return
+		return nil
 	}
 
-	kind := quota.Read
-	if !i.readonly {
-		kind = quota.Write
-	}
-
-	for _, u := range chargeTo.User {
-		i.specs = append(i.specs, quota.Spec{Group: quota.User, Kind: kind, User: u})
-	}
+	return chargeTo.User
 }
 
 func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
@@ -420,8 +411,6 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		return nil, status.Errorf(codes.Internal, "newRPCInfo: unmapped request type: %T", req)
 	}
 
-	info.addChargedUsers(req)
-
 	return info, nil
 }
 
@@ -450,6 +439,9 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		kind := quota.Write
 		if info.readonly {
 			kind = quota.Read
+		}
+		for _, user := range chargedUsers(req) {
+			info.specs = append(info.specs, quota.Spec{Group: quota.User, Kind: kind, User: user})
 		}
 		info.specs = append(info.specs, []quota.Spec{
 			{Group: quota.User, Kind: kind, User: quotaUser},
