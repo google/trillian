@@ -16,7 +16,10 @@
 // well as interfaces for plugging in a custom underlying mechanism.
 package election
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // MasterElection provides operations for determining if a local instance is
 // the current master for a particular election.
@@ -31,7 +34,15 @@ type MasterElection interface {
 	ResignAndRestart(context.Context) error
 	// Close permanently stops the mastership election process.
 	Close(context.Context) error
+	// GetCurrentMaster returns the instance ID of the current elected master, if any.
+	// Implementations should allow election participants to specify their instance
+	// ID string, participants should ensure that it is unique to them.
+	// If there is currently no leader, ErrNoLeader will be returned.
+	GetCurrentMaster(context.Context) (string, error)
 }
+
+// ErrNoLeader indicates that there is currently no leader elected.
+var ErrNoLeader = errors.New("no leader")
 
 // Factory encapsulates the creation of a MasterElection instance for a treeID.
 type Factory interface {
@@ -67,6 +78,11 @@ func (ne *NoopElection) ResignAndRestart(ctx context.Context) error {
 // Close permanently stops the mastership election process.
 func (ne *NoopElection) Close(ctx context.Context) error {
 	return nil
+}
+
+// GetCurrentMaster returns ne.instanceID
+func (ne *NoopElection) GetCurrentMaster(ctx context.Context) (string, error) {
+	return ne.instanceID, nil
 }
 
 // NoopFactory creates NoopElection instances.

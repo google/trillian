@@ -18,6 +18,8 @@ package mock
 import (
 	"context"
 	"sync"
+
+	"github.com/google/trillian/util/election"
 )
 
 // MasterElection implements election.MasterElection interface for testing.
@@ -100,4 +102,13 @@ func (e *MasterElection) Close(context.Context) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.CloseErr
+}
+
+func (e *MasterElection) GetCurrentMaster(context.Context) (string, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.Master {
+		return "self", nil
+	}
+	return "", election.ErrNoLeader
 }

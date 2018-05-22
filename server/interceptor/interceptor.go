@@ -171,7 +171,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 		ctx = trees.NewContext(ctx, tree)
 	}
 
-	if info.quota && len(info.specs) > 0 && info.tokens > 0 {
+	if info.tokens > 0 && len(info.specs) > 0 {
 		err := tp.parent.qm.GetTokens(ctx, info.tokens, info.specs)
 		if err != nil {
 			if !tp.parent.quotaDryRun {
@@ -197,7 +197,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 	case tp.info == nil:
 		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
 		return
-	case !tp.info.quota:
+	case tp.info.tokens == 0:
 		// After() currently only does quota processing
 		return
 	}
@@ -214,11 +214,17 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		tokens = tp.info.tokens
 	} else {
 		switch resp := resp.(type) {
-		case logLeafResponse:
+		case *trillian.QueueLeafResponse:
 			if !isLeafOK(resp.GetQueuedLeaf()) {
 				tokens = 1
 			}
-		case logLeavesResponse:
+		case *trillian.AddSequencedLeavesResponse:
+			for _, leaf := range resp.GetResults() {
+				if !isLeafOK(leaf) {
+					tokens++
+				}
+			}
+		case *trillian.QueueLeavesResponse:
 			for _, leaf := range resp.GetQueuedLeaves() {
 				if !isLeafOK(leaf) {
 					tokens++
@@ -254,8 +260,8 @@ func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
 }
 
 type rpcInfo struct {
-	// auth, getTree and quota enable their corresponding interceptor logic.
-	auth, getTree, quota bool
+	// getTree indicates whether the interceptor should populate treeID.
+	getTree bool
 
 	readonly  bool
 	treeID    int64
@@ -265,17 +271,16 @@ type rpcInfo struct {
 	tokens int
 }
 
-func newRPCInfoForRequestType(req interface{}) (*rpcInfo, error) {
+func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
 	info := &rpcInfo{
-		auth:      true,
 		getTree:   true,
-		quota:     true,
 		readonly:  true,
 		treeTypes: nil,
+		tokens:    0,
 	}
 
-	switch req.(type) {
+	switch req := req.(type) {
 
 	// Not intercepted at all
 	case
@@ -285,80 +290,99 @@ func newRPCInfoForRequestType(req interface{}) (*rpcInfo, error) {
 		*quotapb.GetConfigRequest,
 		*quotapb.ListConfigsRequest,
 		*quotapb.UpdateConfigRequest:
-		info.auth = false
 		info.getTree = false
-		info.quota = false
 		info.readonly = false // Doesn't really matter as all interceptors are turned off
 
 	// Admin create
 	case *trillian.CreateTreeRequest:
-		info.auth = false    // Tree doesn't exist
 		info.getTree = false // Tree doesn't exist
-		info.quota = false   // No quota for admin
 		info.readonly = false
 
 	// Admin list
 	case *trillian.ListTreesRequest:
-		info.auth = false    // Auth done within RPC handler
 		info.getTree = false // Zero to many trees
-		info.quota = false   // No quota for admin
 
 	// Admin / readonly
 	case *trillian.GetTreeRequest:
 		info.getTree = false // Read done within RPC handler
-		info.quota = false   // No quota for admin
 
 	// Admin / readwrite
 	case *trillian.DeleteTreeRequest,
 		*trillian.UndeleteTreeRequest,
 		*trillian.UpdateTreeRequest:
 		info.getTree = false // Read-modify-write done within RPC handler
-		info.quota = false   // No quota for admin
 		info.readonly = false
 
-	// Log / readonly
-	// Pre-ordered Log / readonly
+	// (Log + Pre-ordered Log) / readonly
 	case *trillian.GetConsistencyProofRequest,
 		*trillian.GetEntryAndProofRequest,
 		*trillian.GetInclusionProofByHashRequest,
 		*trillian.GetInclusionProofRequest,
-		*trillian.GetLatestSignedLogRootRequest,
-		*trillian.GetLeavesByHashRequest,
-		*trillian.GetLeavesByIndexRequest,
-		*trillian.GetLeavesByRangeRequest,
-		*trillian.GetSequencedLeafCountRequest:
+		*trillian.GetLatestSignedLogRootRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
+		info.tokens = 1
+	case *trillian.GetLeavesByHashRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
+		info.tokens = len(req.GetLeafHash())
+	case *trillian.GetLeavesByIndexRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
+		info.tokens = len(req.GetLeafIndex())
+	case *trillian.GetLeavesByRangeRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
+		info.tokens = 1
+		if c := req.GetCount(); c > 1 {
+			info.tokens = int(c)
+		}
+	case *trillian.GetSequencedLeafCountRequest:
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
 
 	// Log / readwrite
-	case *trillian.QueueLeafRequest,
-		*trillian.QueueLeavesRequest:
+	case *trillian.QueueLeafRequest:
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG}
+		info.tokens = 1
+	case *trillian.QueueLeavesRequest:
+		info.readonly = false
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG}
+		info.tokens = len(req.GetLeaves())
 
 	// Pre-ordered Log / readwrite
-	case *trillian.AddSequencedLeafRequest,
-		*trillian.AddSequencedLeavesRequest:
+	case *trillian.AddSequencedLeafRequest:
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_PREORDERED_LOG}
+		info.tokens = 1
+	case *trillian.AddSequencedLeavesRequest:
+		info.readonly = false
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_PREORDERED_LOG}
+		info.tokens = len(req.GetLeaves())
 
-	// Log / readwrite
-	// Pre-ordered Log / readwrite
+	// (Log + Pre-ordered Log) / readwrite
 	case *trillian.InitLogRequest:
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
+		info.tokens = 1
 
 	// Map / readonly
-	case *trillian.GetMapLeavesByRevisionRequest,
-		*trillian.GetMapLeavesRequest,
-		*trillian.GetSignedMapRootByRevisionRequest,
+	case *trillian.GetMapLeavesByRevisionRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = len(req.GetIndex())
+	case *trillian.GetMapLeavesRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = len(req.GetIndex())
+	case *trillian.GetSignedMapRootByRevisionRequest,
 		*trillian.GetSignedMapRootRequest:
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = 1
 
 	// Map / readwrite
-	case *trillian.SetMapLeavesRequest,
-		*trillian.InitMapRequest:
+	case *trillian.SetMapLeavesRequest:
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = len(req.GetLeaves())
+	case *trillian.InitMapRequest:
+		info.readonly = false
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = 1
 
 	default:
 		return nil, status.Errorf(codes.Internal, "newRPCInfo: unmapped request type: %T", req)
@@ -368,12 +392,12 @@ func newRPCInfoForRequestType(req interface{}) (*rpcInfo, error) {
 }
 
 func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
-	info, err := newRPCInfoForRequestType(req)
+	info, err := newRPCInfoForRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	if info.auth || info.getTree || info.quota {
+	if info.getTree || info.tokens > 0 {
 		switch req := req.(type) {
 		case logIDRequest:
 			info.treeID = req.GetLogId()
@@ -388,25 +412,15 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		}
 	}
 
-	if info.quota {
-		var kind quota.Kind
+	if info.tokens > 0 {
+		kind := quota.Write
 		if info.readonly {
 			kind = quota.Read
-		} else {
-			kind = quota.Write
 		}
 		info.specs = []quota.Spec{
 			{Group: quota.User, Kind: kind, User: quotaUser},
 			{Group: quota.Tree, Kind: kind, TreeID: info.treeID},
 			{Group: quota.Global, Kind: kind},
-		}
-		switch req := req.(type) {
-		case logLeavesRequest:
-			info.tokens = len(req.GetLeaves())
-		case mapLeavesRequest:
-			info.tokens = len(req.GetLeaves())
-		default:
-			info.tokens = 1
 		}
 	}
 
@@ -427,22 +441,6 @@ type treeIDRequest interface {
 
 type treeRequest interface {
 	GetTree() *trillian.Tree
-}
-
-type logLeavesRequest interface {
-	GetLeaves() []*trillian.LogLeaf
-}
-
-type mapLeavesRequest interface {
-	GetLeaves() []*trillian.MapLeaf
-}
-
-type logLeafResponse interface {
-	GetQueuedLeaf() *trillian.QueuedLogLeaf
-}
-
-type logLeavesResponse interface {
-	GetQueuedLeaves() []*trillian.QueuedLogLeaf
 }
 
 // Combine combines unary interceptors.

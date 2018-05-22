@@ -55,7 +55,7 @@ type Config struct {
 
 // shouldResign returns whether the instance can voluntarily give up on
 // mastership according to the config.
-func (c *Config) shouldResign(elected, now time.Time) bool {
+func (c *Config) ShouldResign(elected, now time.Time) bool {
 	passed := now.Sub(elected)
 	if passed < c.MasterHoldInterval {
 		// Always hold onto mastership for a minimum interval to prevent churn.
@@ -196,7 +196,7 @@ func (r *Runner) beMaster(ctx context.Context) (err error) {
 			}
 		case !isMaster:
 			return r.resign(ctx, NotMaster)
-		case r.cfg.shouldResign(elected, r.timeSource.Now()):
+		case r.cfg.ShouldResign(elected, r.timeSource.Now()):
 			return r.resign(ctx, NotMasterResign)
 		default: // We are the master, so update the deadline and continue.
 			deadline = now.Add(r.cfg.MasterTTL)

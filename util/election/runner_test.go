@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package election
+package election_test
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/trillian/util"
+	. "github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election/mock"
 )
 
@@ -111,7 +112,7 @@ func TestShouldResign(t *testing.T) {
 				gapNanos := time.Duration(i * holdNanos)
 				now := startTime.Add(gapNanos)
 				for j := 0; j < 100; j++ {
-					if cfg.shouldResign(startTime, now) {
+					if cfg.ShouldResign(startTime, now) {
 						t.Fatalf("shouldResign(start+%v)=true, want false", gapNanos)
 					}
 				}
@@ -120,7 +121,7 @@ func TestShouldResign(t *testing.T) {
 			now := startTime.Add(test.hold).Add(test.overheld)
 			count := 0
 			for i := 0; i < iterations; i++ {
-				if cfg.shouldResign(startTime, now) {
+				if cfg.ShouldResign(startTime, now) {
 					count++
 				}
 			}
