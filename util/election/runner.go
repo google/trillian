@@ -26,6 +26,7 @@ import (
 // EventType is a type of event occurred to an election instance.
 type EventType byte
 
+// EventType possible values.
 const (
 	BecomeMaster     EventType = iota // The instance believes to be the master.
 	NotMaster                         // Lost mastership along the way.
