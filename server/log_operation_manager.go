@@ -125,8 +125,8 @@ func fixupElectionInfo(info LogOperationInfo) LogOperationInfo {
 	if cfg.PreElectionPause < minPreElectionPause {
 		cfg.PreElectionPause = minPreElectionPause
 	}
-	if cfg.RestartInverval < minRestartInterval {
-		cfg.RestartInverval = minRestartInterval
+	if cfg.RestartInterval < minRestartInterval {
+		cfg.RestartInterval = minRestartInterval
 	}
 	if cfg.MasterCheckInterval < minMasterCheckInterval {
 		cfg.MasterCheckInterval = minMasterCheckInterval
@@ -260,7 +260,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 					// there is a chance of another master for this log.
 					evt.Ack()
 				default:
-					glog.Error("Wrong election event type: %v", evt.Type)
+					glog.Errorf("Wrong election event type: %v", evt.Type)
 				}
 			}
 		}(logID)

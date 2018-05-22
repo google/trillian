@@ -23,22 +23,23 @@ import (
 	"github.com/google/trillian/util"
 )
 
+// EventType is a type of event occurred to an election instance.
 type EventType byte
 
 const (
-	BecomeMaster     EventType = iota
-	NotMaster                  // Lost mastership along the way.
-	NotMasterResign            // Voluntarily resigned from mastership.
-	NotMasterTimeout           // Resigned due to master status update timeout.
+	BecomeMaster     EventType = iota // The instance believes to be the master.
+	NotMaster                         // Lost mastership along the way.
+	NotMasterResign                   // Voluntarily resigned from mastership.
+	NotMasterTimeout                  // Resigned due to status update timeout.
 )
 
 // Config is a set of parameters for a continuous master election process.
 type Config struct {
 	// PreElectionPause is the maximum interval to wait before starting election.
 	PreElectionPause time.Duration
-	// RestartInverval is the time the instance will wait before attempting to
+	// RestartInterval is the time the instance will wait before attempting to
 	// Start election after an error returned by the previous Start call.
-	RestartInverval time.Duration
+	RestartInterval time.Duration
 	// MasterCheckInterval is the interval between checks that the instance still
 	// holds mastership.
 	MasterCheckInterval time.Duration
@@ -53,7 +54,7 @@ type Config struct {
 	ResignOdds int
 }
 
-// shouldResign returns whether the instance can voluntarily give up on
+// ShouldResign returns whether the instance can voluntarily give up on
 // mastership according to the config.
 func (c *Config) ShouldResign(elected, now time.Time) bool {
 	passed := now.Sub(elected)
@@ -68,7 +69,7 @@ func (c *Config) ShouldResign(elected, now time.Time) bool {
 // Event describes whether the instance has become or stopped being the master.
 // Each Event *must* be Ack-ed when acted upon by the subscriber.
 type Event struct {
-	// Type denotes the type of event occured to the election instance.
+	// Type denotes the type of event occurred to the election instance.
 	Type EventType
 	// done notifies the Runner back when the Event has been acted upon.
 	done chan struct{}
@@ -145,7 +146,7 @@ func (r *Runner) run(ctx context.Context) (err error) {
 			break
 		}
 		glog.Warningf("%sMasterElection.Start: %v", r.prefix, err)
-		if err = sleepContext(ctx, r.cfg.RestartInverval); err != nil {
+		if err = sleepContext(ctx, r.cfg.RestartInterval); err != nil {
 			return err
 		}
 	}
@@ -165,7 +166,6 @@ func (r *Runner) run(ctx context.Context) (err error) {
 			glog.Warningf("%sbeMaster: %v", r.prefix, err)
 		}
 	}
-	return nil
 }
 
 func (r *Runner) beMaster(ctx context.Context) (err error) {

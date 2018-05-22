@@ -30,7 +30,7 @@ import (
 var (
 	cfg = Config{
 		PreElectionPause:    time.Millisecond,
-		RestartInverval:     time.Millisecond,
+		RestartInterval:     time.Millisecond,
 		MasterCheckInterval: time.Millisecond,
 		MasterHoldInterval:  time.Millisecond,
 	}
@@ -183,7 +183,7 @@ func TestRunner_VoluntarilyResignAndRecover(t *testing.T) {
 	evt.Ack()              // Because need to Ack the event to continue.
 	waitResigned(me)       // Which will finalize the resignation.
 	expectNoEvent(t, evts) // Still no taking over, because Ack has given it away.
-	me.Update(true, nil)   // But it should be taken over when availabe again.
+	me.Update(true, nil)   // But it should be taken over when available again.
 	expectEvent(t, evts, BecomeMaster)
 	expectNoEvent(t, evts)
 }

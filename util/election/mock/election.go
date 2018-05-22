@@ -32,16 +32,19 @@ type MasterElection struct {
 	cond *sync.Cond
 }
 
+// NewMasterElection returns a new initialized MasterElection for testing.
 func NewMasterElection(isMaster bool) *MasterElection {
 	res := &MasterElection{Master: isMaster}
 	res.Init()
 	return res
 }
 
+// Init initializes the MasterElection.
 func (e *MasterElection) Init() {
 	e.cond = sync.NewCond(&e.mu)
 }
 
+// Update changes mastership status and mocked error for all interface calls.
 func (e *MasterElection) Update(isMaster bool, err error) {
 	e.UpdateWithFn(func(e *MasterElection) {
 		e.Master = isMaster
@@ -49,6 +52,7 @@ func (e *MasterElection) Update(isMaster bool, err error) {
 	})
 }
 
+// UpdateWithFn updates the MasterElection with the provided functor.
 func (e *MasterElection) UpdateWithFn(fn func(*MasterElection)) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -56,21 +60,24 @@ func (e *MasterElection) UpdateWithFn(fn func(*MasterElection)) {
 	e.cond.Broadcast()
 }
 
-// Ping can be used to trigger context canceling in WaitForMastership which is
-// not supported in sync.Cond unfortunately. Normally, implementations will
-// support canceling in WaitForMastership properly.
+// Ping triggers context canceling in WaitForMastership if the latter is
+// blocked. This is due to sync.Cond being unable to catch context canceling.
+// Non-test implementations normally support canceling in WaitForMastership.
 func (e *MasterElection) Ping() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.cond.Broadcast()
 }
 
+// Start returns the stored error for this call.
 func (e *MasterElection) Start(context.Context) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.StartErr
 }
 
+// WaitForMastership blocks until this instance is master or, and error is
+// supplied or context is done (triggered by explicitly calling Ping).
 func (e *MasterElection) WaitForMastership(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -83,12 +90,14 @@ func (e *MasterElection) WaitForMastership(ctx context.Context) error {
 	return e.WaitErr
 }
 
+// IsMaster returns the stored mastership status and error.
 func (e *MasterElection) IsMaster(context.Context) (bool, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.Master, e.IsMasterErr
 }
 
+// ResignAndRestart resets mastership status and returns the stored error.
 func (e *MasterElection) ResignAndRestart(context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -98,12 +107,15 @@ func (e *MasterElection) ResignAndRestart(context.Context) error {
 	return e.ResignErr
 }
 
+// Close returns the stored error.
 func (e *MasterElection) Close(context.Context) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.CloseErr
 }
 
+// GetCurrentMaster returns the current master which is *this* instance, or
+// error if not currently the master.
 func (e *MasterElection) GetCurrentMaster(context.Context) (string, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()

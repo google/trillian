@@ -152,8 +152,10 @@ func main() {
 		RunInterval: *sequencerIntervalFlag,
 		ElectionConfig: election.Config{
 			PreElectionPause:    *preElectionPause,
+			RestartInterval:     *restartInterval,
 			MasterCheckInterval: *masterCheckInterval,
 			MasterHoldInterval:  *masterHoldInterval,
+			MasterTTL:           *masterTTL,
 			ResignOdds:          *resignOdds,
 		},
 		TimeSource: util.SystemTimeSource{},
