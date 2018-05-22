@@ -257,7 +257,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 					resignations.Inc(label)
 					l.resignations <- evt
 				default:
-					glog.Errorf("unknown EventType %v", evt.Type)
+					glog.Errorf("%d: unknown EventType %v", logID, evt.Type)
 					fallthrough // Safe default to not being master.
 				case election.NotMaster, election.NotMasterTimeout:
 					glog.Errorf("%d: no longer the master", logID)
