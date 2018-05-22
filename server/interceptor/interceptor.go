@@ -279,9 +279,6 @@ type chargable interface {
 
 // chargedUsers returns user identifiers for any chargable user quotas.
 func chargedUsers(req interface{}) []string {
-	if req == nil {
-		return nil
-	}
 	c, ok := req.(chargable)
 	if !ok {
 		return nil
