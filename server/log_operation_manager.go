@@ -246,21 +246,26 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 			for evt := range evts {
 				switch evt.Type {
 				case election.BecomeMaster:
+					glog.Infof("%d: holding mastership of the log", logID)
 					l.tracker.Set(logID, true)
 					isMaster.Set(1.0, label)
+					evt.Ack()
 				case election.NotMasterResign:
+					glog.Infof("%d: queue up resignation of mastership", logID)
 					l.tracker.Set(logID, false)
 					isMaster.Set(0.0, label)
 					resignations.Inc(label)
 					l.resignations <- evt
+				default:
+					glog.Errorf("unknown EventType %v", evt.Type)
+					fallthrough // Safe default to not being master.
 				case election.NotMaster, election.NotMasterTimeout:
+					glog.Errorf("%d: no longer the master", logID)
 					l.tracker.Set(logID, false)
 					isMaster.Set(0.0, label)
 					// TODO(pavelkalinnikov): Forcefully cancel operation before Ack,
 					// there is a chance of another master for this log.
 					evt.Ack()
-				default:
-					glog.Errorf("Wrong election event type: %v", evt.Type)
 				}
 			}
 		}(logID)
