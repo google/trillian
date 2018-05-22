@@ -8,12 +8,16 @@ usage() {
   echo " - DB_NAME"
   echo " - DB_USER"
   echo " - DB_PASSWORD"
+  echo " - DB_HOST"
+  echo " - DB_PORT"
 }
 
 collect_vars() {
   # set unset environment variables to defaults
   [ -z ${DB_USER+x} ] && DB_USER="root"
   [ -z ${DB_NAME+x} ] && DB_NAME="test"
+  [ -z ${DB_HOST+x} ] && DB_HOST="localhost"
+  [ -z ${DB_PORT+x} ] && DB_PORT="3306"
   FLAGS=()
 
   # handle flags
@@ -29,6 +33,8 @@ collect_vars() {
   done
 
   FLAGS+=(-u "${DB_USER}")
+  FLAGS+=(--host "${DB_HOST}")
+  FLAGS+=(--port "${DB_PORT}")
 
   # Optionally print flags (before appending password)
   [[ ${VERBOSE} = 'true' ]] && echo "- Using MySQL Flags: ${FLAGS[@]}"
