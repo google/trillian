@@ -22,41 +22,46 @@ import (
 	"github.com/google/trillian/util/election"
 )
 
+type Errors struct {
+	Start     error
+	Wait      error
+	IsMaster  error
+	Resign    error
+	Close     error
+	GetMaster error
+}
+
+func ErrAll(err error) *Errors {
+	return &Errors{err, err, err, err, err, err}
+}
+
 // MasterElection implements election.MasterElection interface for testing.
 type MasterElection struct {
-	StartErr, WaitErr, IsMasterErr, ResignErr, CloseErr error
-
-	Master bool
+	isMaster bool
+	errs     Errors
 
 	mu   sync.RWMutex
 	cond *sync.Cond
 }
 
 // NewMasterElection returns a new initialized MasterElection for testing.
-func NewMasterElection(isMaster bool) *MasterElection {
-	res := &MasterElection{Master: isMaster}
-	res.Init()
+func NewMasterElection(isMaster bool, errs *Errors) *MasterElection {
+	res := &MasterElection{isMaster: isMaster}
+	if errs != nil {
+		res.errs = *errs
+	}
+	res.cond = sync.NewCond(&res.mu)
 	return res
 }
 
-// Init initializes the MasterElection.
-func (e *MasterElection) Init() {
-	e.cond = sync.NewCond(&e.mu)
-}
-
 // Update changes mastership status and mocked error for all interface calls.
-func (e *MasterElection) Update(isMaster bool, err error) {
-	e.UpdateWithFn(func(e *MasterElection) {
-		e.Master = isMaster
-		e.StartErr, e.WaitErr, e.IsMasterErr, e.ResignErr, e.CloseErr = err, err, err, err, err
-	})
-}
-
-// UpdateWithFn updates the MasterElection with the provided functor.
-func (e *MasterElection) UpdateWithFn(fn func(*MasterElection)) {
+func (e *MasterElection) Update(isMaster bool, errs *Errors) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	fn(e)
+	if errs == nil {
+		errs = &Errors{}
+	}
+	e.isMaster, e.errs = isMaster, *errs
 	e.cond.Broadcast()
 }
 
@@ -73,7 +78,7 @@ func (e *MasterElection) Ping() {
 func (e *MasterElection) Start(context.Context) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.StartErr
+	return e.errs.Start
 }
 
 // WaitForMastership blocks until this instance is master or, and error is
@@ -81,37 +86,37 @@ func (e *MasterElection) Start(context.Context) error {
 func (e *MasterElection) WaitForMastership(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	for ctx.Err() == nil && !e.Master && e.WaitErr == nil {
+	for ctx.Err() == nil && !e.isMaster && e.errs.Wait == nil {
 		e.cond.Wait()
 	}
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	return e.WaitErr
+	return e.errs.Wait
 }
 
 // IsMaster returns the stored mastership status and error.
 func (e *MasterElection) IsMaster(context.Context) (bool, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.Master, e.IsMasterErr
+	return e.isMaster, e.errs.IsMaster
 }
 
 // ResignAndRestart resets mastership status and returns the stored error.
 func (e *MasterElection) ResignAndRestart(context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.ResignErr == nil {
-		e.Master = false
+	if e.errs.Resign == nil {
+		e.isMaster = false
 	}
-	return e.ResignErr
+	return e.errs.Resign
 }
 
 // Close returns the stored error.
 func (e *MasterElection) Close(context.Context) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.CloseErr
+	return e.errs.Close
 }
 
 // GetCurrentMaster returns the current master which is *this* instance, or
@@ -119,7 +124,10 @@ func (e *MasterElection) Close(context.Context) error {
 func (e *MasterElection) GetCurrentMaster(context.Context) (string, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	if e.Master {
+	if e.errs.GetMaster != nil {
+		return "", e.errs.GetMaster
+	}
+	if e.isMaster {
 		return "self", nil
 	}
 	return "", election.ErrNoLeader
