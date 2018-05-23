@@ -28,7 +28,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
-	"github.com/google/trillian/util/election/mock"
+	"github.com/google/trillian/util/election/stub"
 )
 
 func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
@@ -259,7 +259,7 @@ type masterForEvenFactory struct{}
 
 func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	isMaster := (treeID % 2) == 0
-	return mock.NewMasterElection(isMaster, nil), nil
+	return stub.NewMasterElection(isMaster, nil), nil
 }
 
 type failureFactory struct{}
