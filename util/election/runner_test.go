@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/trillian/util"
 	. "github.com/google/trillian/util/election"
-	"github.com/google/trillian/util/election/mock"
+	"github.com/google/trillian/util/election/stub"
 )
 
 var (
@@ -35,7 +35,7 @@ var (
 		MasterHoldInterval:  time.Millisecond,
 	}
 	noEventDur = 10 * time.Millisecond
-	mockError  = errors.New("mock.MasterElection error")
+	stubError  = errors.New("stub.MasterElection error")
 )
 
 func expectEvent(t *testing.T, evts <-chan Event, want EventType) Event {
@@ -69,7 +69,7 @@ func expectClosed(t *testing.T, evts <-chan Event) {
 	}
 }
 
-func waitResigned(em *mock.MasterElection) {
+func waitResigned(em *stub.MasterElection) {
 	for {
 		if is, _ := em.IsMaster(context.Background()); !is {
 			return
@@ -135,7 +135,7 @@ func TestShouldResign(t *testing.T) {
 }
 
 func TestRunner_BecomeMaster(t *testing.T) {
-	me, ts := mock.NewMasterElection(false, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
 	runner := NewRunner(&cfg, me, ts, "")
 	evts := runner.Run(context.Background())
 
@@ -146,7 +146,7 @@ func TestRunner_BecomeMaster(t *testing.T) {
 }
 
 func TestRunner_ForcefullyResignAndRecover(t *testing.T) {
-	me, ts := mock.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
 	runner := NewRunner(&cfg, me, ts, "")
 	evts := runner.Run(context.Background())
 	expectEvent(t, evts, BecomeMaster)
@@ -165,7 +165,7 @@ func TestRunner_ForcefullyResignAndRecover(t *testing.T) {
 func TestRunner_VoluntarilyResignAndRecover(t *testing.T) {
 	ctx := context.Background()
 
-	me, ts := mock.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
 	runner := NewRunner(&cfg, me, ts, "")
 	evts := runner.Run(ctx)
 	expectEvent(t, evts, BecomeMaster)
@@ -191,7 +191,7 @@ func TestRunner_VoluntarilyResignAndRecover(t *testing.T) {
 func TestRunner_HealthyLoop(t *testing.T) {
 	ctx := context.Background()
 
-	me, ts := mock.NewMasterElection(false, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
 	runner := NewRunner(&cfg, me, ts, "")
 	evts := runner.Run(ctx)
 
@@ -211,7 +211,7 @@ func TestRunner_HealthyLoop(t *testing.T) {
 }
 
 func TestRunner_ErrorStart(t *testing.T) {
-	me := mock.NewMasterElection(false, &mock.Errors{Start: mockError})
+	me := stub.NewMasterElection(false, &stub.Errors{Start: stubError})
 	ts := &util.FakeTimeSource{}
 
 	runner := NewRunner(&cfg, me, ts, "")
@@ -224,7 +224,7 @@ func TestRunner_ErrorStart(t *testing.T) {
 }
 
 func TestRunner_ErrorWaitForMastership(t *testing.T) {
-	me := mock.NewMasterElection(false, &mock.Errors{Wait: mockError})
+	me := stub.NewMasterElection(false, &stub.Errors{Wait: stubError})
 	ts := &util.FakeTimeSource{}
 
 	runner := NewRunner(&cfg, me, ts, "")
@@ -237,7 +237,7 @@ func TestRunner_ErrorWaitForMastership(t *testing.T) {
 }
 
 func TestRunner_ErrorIsMaster(t *testing.T) {
-	me := mock.NewMasterElection(true, &mock.Errors{IsMaster: mockError})
+	me := stub.NewMasterElection(true, &stub.Errors{IsMaster: stubError})
 	ts := &util.FakeTimeSource{}
 
 	runner := NewRunner(&cfg, me, ts, "")
@@ -258,13 +258,13 @@ func TestRunner_ErrorIsMaster(t *testing.T) {
 }
 
 func TestRunner_DisconnectAfterStart(t *testing.T) {
-	me, ts := mock.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
 	runner := NewRunner(&cfg, me, ts, "")
 	evts := runner.Run(context.Background())
 	expectEvent(t, evts, BecomeMaster)
 	expectNoEvent(t, evts)
 
-	me.Update(false, mock.ErrAll(mockError))
+	me.Update(false, stub.ErrAll(stubError))
 	ts.Set(ts.Now().Add(cfg.MasterTTL + 1))
 	evt := expectEvent(t, evts, NotMasterTimeout)
 	evt.Ack()
@@ -276,7 +276,7 @@ func TestRunner_DisconnectAfterStart(t *testing.T) {
 }
 
 func TestRunner_CancelBeforeStart(t *testing.T) {
-	me, ts := mock.NewMasterElection(false, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
 
 	// Delay election start so that we can intrude with cancel() before it.
 	cfg := cfg // Don't spoil the shared config template.
@@ -291,7 +291,7 @@ func TestRunner_CancelBeforeStart(t *testing.T) {
 }
 
 func TestRunner_CancelWhenMaster(t *testing.T) {
-	me, ts := mock.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
 	runner := NewRunner(&cfg, me, ts, "")
 	ctx, cancel := context.WithCancel(context.Background())
 	evts := runner.Run(ctx)
@@ -301,7 +301,7 @@ func TestRunner_CancelWhenMaster(t *testing.T) {
 }
 
 func TestRunner_CancelWhenNotMaster(t *testing.T) {
-	me, ts := mock.NewMasterElection(false, nil), &util.FakeTimeSource{}
+	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
 	runner := NewRunner(&cfg, me, ts, "")
 	ctx, cancel := context.WithCancel(context.Background())
 	evts := runner.Run(ctx)

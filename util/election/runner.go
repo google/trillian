@@ -23,7 +23,7 @@ import (
 	"github.com/google/trillian/util"
 )
 
-// EventType is a type of event occurred to an election instance.
+// EventType is a type of event which can occur on an election instance.
 type EventType byte
 
 // EventType possible values.
@@ -86,8 +86,8 @@ func (e *Event) Ack() {
 	}
 }
 
-// Runner coordinates master election for a single instance. Reports mastership
-// updates via an Event channel.
+// Runner coordinates election participation for a single instance. Reports
+// mastership updates via an Event channel.
 type Runner struct {
 	cfg        *Config
 	me         MasterElection
@@ -104,7 +104,7 @@ func NewRunner(cfg *Config, me MasterElection, ts util.TimeSource, prefix string
 
 // Run launches a continuous master election process, and returns a channel to
 // which it reports updates on this instance's mastership status. Events passed
-// to the channel will alternate between becoming and stop being the master
+// to the channel will alternate between becoming and stopping being the master
 // (see comment above the unexported run method for more details).
 //
 // The underlying goroutine will stop only if the context is done, in which
@@ -126,14 +126,14 @@ func (r *Runner) Run(ctx context.Context) <-chan Event {
 	return r.evts
 }
 
-// run executes election maitaining loop continuously until the passed in
+// run executes the election maitaining loop continuously until the passed in
 // context is done. Returns the latest error.
 //
 // Whenever mastership status of the log gets updated, a new Event is sent to
 // the output channel. It is guaranteed that the first event (if any) will be
-// becoming the master, and the events will alternate between becoming and stop
-// being the master (voluntarily, i.e. after MasterHoldInterval passes, or
-// unexpectedly, e.g. due to network partitioning).
+// becoming the master, and the events will alternate between becoming and
+// stopping being the master (voluntarily, i.e. after MasterHoldInterval
+// passes, or unexpectedly, e.g. due to network partitioning).
 func (r *Runner) run(ctx context.Context) (err error) {
 	// Pause for a random interval so that if multiple instances start at the
 	// same time there is less of a thundering herd.

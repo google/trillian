@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mock contains a mock MasterElection implementation.
-package mock
+// Package stub contains a MasterElection implementation for testing.
+package stub
 
 import (
 	"context"
@@ -22,15 +22,17 @@ import (
 	"github.com/google/trillian/util/election"
 )
 
+// Errors contains errors to be returned by each of MasterElection methods.
 type Errors struct {
 	Start     error
-	Wait      error
+	Wait      error // WaitForMastership error.
 	IsMaster  error
-	Resign    error
+	Resign    error // ResignAndRestart error.
 	Close     error
-	GetMaster error
+	GetMaster error // GetCurrentMaster error.
 }
 
+// ErrAll creates Errors containing the same err associated with each method.
 func ErrAll(err error) *Errors {
 	return &Errors{err, err, err, err, err, err}
 }
@@ -54,7 +56,7 @@ func NewMasterElection(isMaster bool, errs *Errors) *MasterElection {
 	return res
 }
 
-// Update changes mastership status and mocked error for all interface calls.
+// Update changes mastership status and errors returned by interface calls.
 func (e *MasterElection) Update(isMaster bool, errs *Errors) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -81,8 +83,8 @@ func (e *MasterElection) Start(context.Context) error {
 	return e.errs.Start
 }
 
-// WaitForMastership blocks until this instance is master or, and error is
-// supplied or context is done (triggered by explicitly calling Ping).
+// WaitForMastership blocks until this instance is master, or an error is
+// supplied, or context is done (triggered by explicitly calling Ping).
 func (e *MasterElection) WaitForMastership(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -102,7 +104,8 @@ func (e *MasterElection) IsMaster(context.Context) (bool, error) {
 	return e.isMaster, e.errs.IsMaster
 }
 
-// ResignAndRestart resets mastership status and returns the stored error.
+// ResignAndRestart returns the stored error and resets mastership status if
+// the error is nil.
 func (e *MasterElection) ResignAndRestart(context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
