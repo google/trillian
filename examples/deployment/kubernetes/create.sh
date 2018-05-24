@@ -27,6 +27,7 @@ fi
 # Connect to gcloud
 gcloud config set project "${PROJECT_NAME}"
 gcloud config set compute/zone "${ZONE}"
+gcloud config set container/cluster "${CLUSTER_NAME}"
 
 # Create cluster & node pools
 gcloud container clusters create "${CLUSTER_NAME}" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "2" --enable-autorepair --enable-autoupgrade
