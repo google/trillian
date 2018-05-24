@@ -28,6 +28,11 @@ fi
 gcloud config set project "${PROJECT_NAME}"
 gcloud config set compute/zone "${ZONE}"
 
+# Ensure Kubernetes Engine (container) and Cloud Spanner (spanner) services are enabled
+for SERVICE in container spanner; do
+  gcloud services enable ${SERVICE}.googleapis.com --project=${PROJECT_NAME}
+done
+
 # Create cluster & node pools
 gcloud container clusters create "${CLUSTER_NAME}" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "2" --enable-autorepair --enable-autoupgrade
 gcloud container node-pools create "logserver-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "4" --enable-autorepair --enable-autoupgrade
