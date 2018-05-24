@@ -16,6 +16,7 @@ Prerequisites
    [Cloud quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart)
    docs)
 1. You have a Google account with billing configured
+1. You will need to request additional Quota for Compute Engine "in-use IP addresses" (need: 11; default: 8) [link](https://console.cloud.google.com/iam-admin/quotas?service=compute.googleapis.com&metric=In-use%20IP%20addresses)
 
 Process
 -------
