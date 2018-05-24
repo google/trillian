@@ -7,7 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/config.sh
 
 # Check required binaries are installed
-if ! glcoud --help > /dev/null; then
+if ! gcloud --help > /dev/null; then
   echo "Need gcloud installed."
   exit 1
 fi
