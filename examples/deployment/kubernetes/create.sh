@@ -27,6 +27,7 @@ fi
 # Connect to gcloud
 gcloud config set project "${PROJECT_NAME}"
 gcloud config set compute/zone "${ZONE}"
+gcloud config set container/cluster "${CLUSTER_NAME}"
 
 # Ensure Kubernetes Engine (container) and Cloud Spanner (spanner) services are enabled
 for SERVICE in container spanner; do
