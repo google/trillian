@@ -64,9 +64,9 @@ var (
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	restartInterval     = flag.Duration("restart_interval", 5*time.Second, "Inverval between master election restarts in case of errors")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
-	masterTTL           = flag.Duration("master_ttl", 20*time.Second, "Maximal interval between successful checks necessary to retain mastership")
+	masterTTL           = flag.Duration("master_ttl", 5*time.Second, "Maximal interval between successful checks necessary to retain mastership")
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
-	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
+	resignSpread        = flag.Float64("resign_spread", 1.0, "Max extra time to keep mastership, as a fraction of master_hold_interval")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -156,7 +156,7 @@ func main() {
 			MasterCheckInterval: *masterCheckInterval,
 			MasterHoldInterval:  *masterHoldInterval,
 			MasterTTL:           *masterTTL,
-			ResignOdds:          *resignOdds,
+			ResignSpread:        *resignSpread,
 		},
 		TimeSource: util.SystemTimeSource{},
 	}

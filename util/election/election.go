@@ -30,8 +30,8 @@ type MasterElection interface {
 	WaitForMastership(context.Context) error
 	// IsMaster returns whether the current instance is master.
 	IsMaster(context.Context) (bool, error)
-	// ResignAndRestart releases mastership, and re-joins the election.
-	ResignAndRestart(context.Context) error
+	// Resign releases mastership.
+	Resign(context.Context) error
 	// Close permanently stops the mastership election process.
 	Close(context.Context) error
 	// GetCurrentMaster returns the instance ID of the current elected master, if any.
@@ -70,8 +70,8 @@ func (ne *NoopElection) IsMaster(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// ResignAndRestart releases mastership, and re-joins the election.
-func (ne *NoopElection) ResignAndRestart(ctx context.Context) error {
+// ResignAndRestart releases mastership.
+func (ne *NoopElection) Resign(ctx context.Context) error {
 	return nil
 }
 

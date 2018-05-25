@@ -56,14 +56,14 @@ func (eme *MasterElection) IsMaster(ctx context.Context) (bool, error) {
 	return string(leader.Kvs[0].Value) == eme.instanceID, nil
 }
 
-// ResignAndRestart releases mastership, and re-joins the election.
-func (eme *MasterElection) ResignAndRestart(ctx context.Context) error {
+// Resign releases mastership.
+func (eme *MasterElection) Resign(ctx context.Context) error {
 	return eme.election.Resign(ctx)
 }
 
 // Close terminates election operation.
 func (eme *MasterElection) Close(ctx context.Context) error {
-	_ = eme.ResignAndRestart(ctx)
+	_ = eme.Resign(ctx)
 	return eme.session.Close()
 }
 

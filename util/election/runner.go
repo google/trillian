@@ -16,84 +16,80 @@ package election
 
 import (
 	"context"
-	"math/rand"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/util"
 )
 
-// EventType is a type of event which can occur on an election instance.
-type EventType byte
-
-// EventType possible values.
-const (
-	BecomeMaster     EventType = iota // The instance believes to be the master.
-	NotMaster                         // Lost mastership along the way.
-	NotMasterResign                   // Voluntarily resigned from mastership.
-	NotMasterTimeout                  // Resigned due to status update timeout.
-)
-
 // Config is a set of parameters for a continuous master election process.
 type Config struct {
 	// PreElectionPause is the maximum interval to wait before starting election.
 	PreElectionPause time.Duration
-	// RestartInterval is the time the instance will wait before attempting to
-	// Start election after an error returned by the previous Start call.
-	RestartInterval time.Duration
 	// MasterCheckInterval is the interval between checks that the instance still
 	// holds mastership.
 	MasterCheckInterval time.Duration
 	// MasterTTL is the time after which the instance will resign if encountered
 	// no successful IsMaster calls.
 	MasterTTL time.Duration
-	// MasterHoldInterval is the minimum interval to hold mastership for during
-	// flawless operation.
-	MasterHoldInterval time.Duration
-	// ResignOdds gives the chance of resigning mastership after each check
-	// interval, as the N for 1-in-N.
-	ResignOdds int
 }
 
-// ShouldResign returns whether the instance can voluntarily give up on
-// mastership according to the config.
-func (c *Config) ShouldResign(elected, now time.Time) bool {
-	passed := now.Sub(elected)
-	if passed < c.MasterHoldInterval {
-		// Always hold onto mastership for a minimum interval to prevent churn.
-		return false
-	}
-	// Roll the bones.
-	return c.ResignOdds <= 0 || rand.Intn(c.ResignOdds) == 0
+// Run contains mastership status of a single instance during a single run of
+// being master.
+type Run struct {
+	// Start is the time when the instance became the master as measured by the
+	// corresponding Runner's TimeSource.
+	Start time.Time
+	// Ctx is the context which is active while the instance believes to be the
+	// master. As soon as Ctx is canceled, the instance attempts to resign, and
+	// stops monitoring its status.
+	Ctx context.Context
+	// Cancel cancels Ctx, or does nothing if that is already canceled.
+	// Effectively, it instructs the instance to resign if not yet.
+	Cancel context.CancelFunc
+	// Done closes when mastership status monitoring goroutine for this run
+	// terminates, strictly after Ctx.Done() closes. After calling Cancel, a
+	// closed Done indicates completion of resigning (unless it failed, or Ctx
+	// parent context was canceled earlier).
+	Done <-chan struct{}
 }
 
-// Event describes whether the instance has become or stopped being the master.
-// Each Event *must* be Ack-ed when acted upon by the subscriber.
-type Event struct {
-	// Type denotes the type of event occurred to the election instance.
-	Type EventType
-	// done notifies the Runner back when the Event has been acted upon.
-	done chan struct{}
+// Resign triggers mastership resignation, and returns when it is believed to
+// be completed.
+func (r *Run) Resign() {
+	r.Cancel()
+	<-r.Done
 }
 
-// Ack notifies the Runner that it can follow up with a new election round.
-// This allows the downstream client act on the fact of resigning before the
-// instance re-enters election, e.g. they may want to gracefully/forcefully
-// finish the outstanding work.
-func (e *Event) Ack() {
-	if e.done != nil {
-		close(e.done)
-	}
-}
-
-// Runner coordinates election participation for a single instance. Reports
-// mastership updates via an Event channel.
+// Runner coordinates election participation for a single instance.
+//
+// An example usage pattern:
+//
+//   defer runner.Close(ctx)
+//   for { // We want to be the master potentially multiple times.
+//     run, err := runner.BeMaster(ctx)
+//     if err != nil {
+//       // Return if ctx canceled, or retry after some time.Sleep.
+//     }
+//     for { // Now we are the master.
+//       // Note: The work will be canceled if mastership is suddenly over.
+//       if err := DoSomeWorkAsMaster(run.Ctx); err != nil {
+//         if run.Ctx.Err() == err { // ctx or run.Ctx was canceled.
+//           break // Stop doing work as master.
+//         }
+//         // ... some other error, react accordingly ...
+//       }
+//       if ShouldResign(run.Start) {
+//         run.Resign()
+//         break
+//       }
+//     }
+//  }
 type Runner struct {
 	cfg        *Config
 	me         MasterElection
 	timeSource util.TimeSource // Allows for mocking tests.
 	prefix     string          // Prefix for all glog messages.
-	evts       chan Event
 }
 
 // NewRunner returns a new election runner for the provided configuration and
@@ -102,136 +98,67 @@ func NewRunner(cfg *Config, me MasterElection, ts util.TimeSource, prefix string
 	return &Runner{cfg: cfg, me: me, timeSource: ts, prefix: prefix}
 }
 
-// Run launches a continuous master election process, and returns a channel to
-// which it reports updates on this instance's mastership status. Events passed
-// to the channel will alternate between becoming and stopping being the master
-// (see comment above the unexported run method for more details).
+// BeMaster blocks until it captures mastership on behalf of the current
+// instance, and returns a Run object which can be used to observe the
+// mastership status. Returns an error if capturing fails or the passed in
+// context is canceled before that.
 //
-// The underlying goroutine will stop only if the context is done, in which
-// case it will also close the output Event channel.
-//
-// If the master election process encounters any error other than canceling the
-// context, it will put it to glog and try to continue safely.
-func (r *Runner) Run(ctx context.Context) <-chan Event {
-	if r.evts != nil {
-		panic("Run must be invoked only once")
+// The method kicks off a goroutine which tracks mastership status, and
+// terminates as soon as mastership is lost, IsMaster check consistently
+// returns an error for longer than MasterTTL, the passed in context is
+// canceled, or the returned Run's Ctx is canceled. The goroutine will attempt
+// to explicitly Resign when it terminates.
+func (r *Runner) BeMaster(ctx context.Context) (*Run, error) {
+	if err := util.SleepContext(ctx, r.cfg.PreElectionPause); err != nil {
+		return nil, err
 	}
-	r.evts = make(chan Event)
-	go func() {
-		defer close(r.evts)
-		if err := r.run(ctx); err != nil {
-			glog.Warningf("%selection runner exited: %v", r.prefix, err)
-		}
-	}()
-	return r.evts
-}
-
-// run executes the election maitaining loop continuously until the passed in
-// context is done. Returns the latest error.
-//
-// Whenever mastership status of the log gets updated, a new Event is sent to
-// the output channel. It is guaranteed that the first event (if any) will be
-// becoming the master, and the events will alternate between becoming and
-// stopping being the master (voluntarily, i.e. after MasterHoldInterval
-// passes, or unexpectedly, e.g. due to network partitioning).
-func (r *Runner) run(ctx context.Context) (err error) {
-	// Pause for a random interval so that if multiple instances start at the
-	// same time there is less of a thundering herd.
-	pause := rand.Int63n(r.cfg.PreElectionPause.Nanoseconds())
-	if err := sleepContext(ctx, time.Duration(pause)); err != nil {
-		return err
+	if err := r.me.Start(ctx); err != nil {
+		return nil, err
 	}
-
-	for {
-		if err = r.me.Start(ctx); err == nil {
-			break
-		}
-		glog.Warningf("%sMasterElection.Start: %v", r.prefix, err)
-		if err = sleepContext(ctx, r.cfg.RestartInterval); err != nil {
-			return err
-		}
-	}
-	defer func(ctx context.Context) {
-		if cerr := r.me.Close(ctx); cerr != nil {
-			err = cerr
-		}
-	}(ctx)
-
-	for {
-		if err := r.beMaster(ctx); err != nil {
-			// TODO(pavelkalinnikov): If WaitForMastership returns errors constantly,
-			// this loop is very busy.
-			if ctx.Err() != nil {
-				return err
-			}
-			glog.Warningf("%sbeMaster: %v", r.prefix, err)
-		}
-	}
-}
-
-func (r *Runner) beMaster(ctx context.Context) (err error) {
 	if err := r.me.WaitForMastership(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	elected := r.timeSource.Now()
-	select {
-	case r.evts <- Event{Type: BecomeMaster}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	cctx, cancel := context.WithCancel(ctx)
+	ch := make(chan struct{})
 
-	for deadline := elected.Add(r.cfg.MasterTTL); ; {
-		if err = sleepContext(ctx, r.cfg.MasterCheckInterval); err != nil {
-			return err
-		}
-		isMaster, err := r.me.IsMaster(ctx)
-		now := r.timeSource.Now()
-		switch {
-		case ctx.Err() != nil:
-			return ctx.Err()
-		case err != nil:
-			glog.Warningf("%sIsMaster: %v", r.prefix, err)
-			if now.After(deadline) {
-				return r.resign(ctx, NotMasterTimeout)
+	go func() {
+		defer func() {
+			// Note: Use parent context to be able to resign if canceling the child.
+			if err := r.me.Resign(ctx); err != nil {
+				glog.Errorf("%sResign: %v", r.prefix, err)
 			}
-		case !isMaster:
-			return r.resign(ctx, NotMaster)
-		case r.cfg.ShouldResign(elected, r.timeSource.Now()):
-			return r.resign(ctx, NotMasterResign)
-		default: // We are the master, so update the deadline and continue.
-			deadline = now.Add(r.cfg.MasterTTL)
+			cancel()
+			close(ch)
+		}()
+
+		for deadline := elected.Add(r.cfg.MasterTTL); ; {
+			if err := util.SleepContext(cctx, r.cfg.MasterCheckInterval); err != nil {
+				return
+			}
+			isMaster, err := r.me.IsMaster(cctx)
+			now := r.timeSource.Now()
+			switch {
+			case err != nil:
+				glog.Warningf("%sIsMaster: %v", r.prefix, err)
+				if cctx.Err() != nil || now.After(deadline) {
+					return
+				}
+			case !isMaster:
+				glog.Warningf("%sIsMaster: false", r.prefix)
+				return
+			default: // We are the master, so update the deadline.
+				deadline = now.Add(r.cfg.MasterTTL)
+			}
 		}
-	}
+	}()
+
+	return &Run{Start: elected, Ctx: cctx, Cancel: cancel, Done: ch}, nil
 }
 
-func (r *Runner) resign(ctx context.Context, typ EventType) error {
-	evt := Event{Type: typ, done: make(chan struct{})}
-	select {
-	case r.evts <- evt:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	select {
-	case <-evt.done: // Wait until the event is Ack-ed.
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	if typ != BecomeMaster && typ != NotMaster {
-		return r.me.ResignAndRestart(ctx)
-	}
-	return nil
-}
-
-// sleepContext sleeps for at least the specified duration. Returns an error
-// iff the context is done before the timer fires.
-func sleepContext(ctx context.Context, dur time.Duration) error {
-	timer := time.NewTimer(dur)
-	select {
-	case <-timer.C:
-	case <-ctx.Done():
-		timer.Stop()
-		return ctx.Err()
-	}
-	return nil
+// Close permanently stops this Runner from participating in election. Must be
+// called after all Runs returned by this Runner are Done.
+func (r *Runner) Close(ctx context.Context) error {
+	return r.me.Close(ctx)
 }

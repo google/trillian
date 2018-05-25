@@ -104,9 +104,9 @@ func (e *MasterElection) IsMaster(context.Context) (bool, error) {
 	return e.isMaster, e.errs.IsMaster
 }
 
-// ResignAndRestart returns the stored error and resets mastership status if
-// the error is nil.
-func (e *MasterElection) ResignAndRestart(context.Context) error {
+// Resign returns the stored error and resets mastership status if the error is
+// nil.
+func (e *MasterElection) Resign(context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.errs.Resign == nil {

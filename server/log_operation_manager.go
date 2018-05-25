@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"sort"
 	"strconv"
@@ -33,9 +34,8 @@ import (
 
 const (
 	minPreElectionPause    = 10 * time.Millisecond
-	minRestartInterval     = 50 * time.Millisecond
 	minMasterCheckInterval = 50 * time.Millisecond
-	minMasterTTL           = 2 * time.Second
+	minMasterTTL           = 500 * time.Millisecond
 	minMasterHoldInterval  = 10 * time.Second
 	logIDLabel             = "logid"
 )
@@ -94,6 +94,12 @@ type LogOperationInfo struct {
 
 	// ElectionConfig configures per-log master election process.
 	ElectionConfig election.Config
+	// MasterHoldInterval is the minimum interval to hold mastership for.
+	MasterHoldInterval time.Duration
+	// ResignSpread is the max multiplier of MasterHoldInterval added to
+	// mastership hold time for a single log, i.e. the instance will hold
+	// mastership for MasterHoldInterval * (1 + rand(ResignSpread)).
+	ResignSpread float64
 
 	// NumWorkers is the number of worker goroutines to run in parallel.
 	NumWorkers int
@@ -116,7 +122,7 @@ type LogOperationManager struct {
 	logNamesMutex sync.Mutex
 	logNames      map[int64]string
 
-	resignations chan election.Event
+	resignations chan context.CancelFunc
 }
 
 // fixupElectionInfo ensures election parameters have required minimum values.
@@ -125,20 +131,17 @@ func fixupElectionInfo(info LogOperationInfo) LogOperationInfo {
 	if cfg.PreElectionPause < minPreElectionPause {
 		cfg.PreElectionPause = minPreElectionPause
 	}
-	if cfg.RestartInterval < minRestartInterval {
-		cfg.RestartInterval = minRestartInterval
-	}
 	if cfg.MasterCheckInterval < minMasterCheckInterval {
 		cfg.MasterCheckInterval = minMasterCheckInterval
-	}
-	if cfg.MasterHoldInterval < minMasterHoldInterval {
-		cfg.MasterHoldInterval = minMasterHoldInterval
 	}
 	if cfg.MasterTTL < minMasterTTL {
 		cfg.MasterTTL = minMasterTTL
 	}
-	if cfg.ResignOdds < 1 {
-		cfg.ResignOdds = 1
+	if info.MasterHoldInterval < minMasterHoldInterval {
+		info.MasterHoldInterval = minMasterHoldInterval
+	}
+	if info.ResignSpread < 0 {
+		info.ResignSpread = 0
 	}
 	return info
 }
@@ -153,7 +156,7 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 		logOperation:   logOperation,
 		electionRunner: make(map[int64]*election.Runner),
 		logNames:       make(map[int64]string),
-		resignations:   make(chan election.Event, 100),
+		resignations:   make(chan context.CancelFunc, 100),
 	}
 }
 
@@ -213,6 +216,9 @@ func (l *LogOperationManager) heldInfo(ctx context.Context, logIDs []int64) stri
 	return result
 }
 
+// TODO(pavelkalinnikov): Make each log track their own mastership status
+// directly during their operation loop and take actions on status updates
+// without having to distribute them to the common bottleneck.
 func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int64, error) {
 	if l.info.Registry.ElectionFactory == nil {
 		return allIDs, nil
@@ -238,34 +244,44 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 
 		runner := election.NewRunner(&l.info.ElectionConfig, el, l.info.TimeSource, fmt.Sprintf("%d: ", logID))
 		l.electionRunner[logID] = runner
-		evts := runner.Run(ctx)
 
 		l.runnerWG.Add(1)
 		go func(logID int64) {
+			resignSpread := int64(float64(l.info.MasterHoldInterval) * l.info.ResignSpread)
 			defer l.runnerWG.Done()
-			for evt := range evts {
-				switch evt.Type {
-				case election.BecomeMaster:
-					glog.Infof("%d: holding mastership of the log", logID)
-					l.tracker.Set(logID, true)
-					isMaster.Set(1.0, label)
-					evt.Ack()
-				case election.NotMasterResign:
-					glog.Infof("%d: queue up resignation of mastership", logID)
-					l.tracker.Set(logID, false)
-					isMaster.Set(0.0, label)
+			for {
+				run, err := runner.BeMaster(ctx)
+				if err != nil {
+					glog.Errorf("%d: failed to become the master: %v", logID, err)
+					// TODO(pavelkalinnikov): Retry while it's not context cancelation.
+					return
+				}
+
+				glog.Infof("%d: holding mastership of the log", logID)
+				l.tracker.Set(logID, true)
+				isMaster.Set(1.0, label)
+
+				sleep := l.info.MasterHoldInterval
+				if resignSpread > 0 {
+					sleep += time.Duration(rand.Int63n(resignSpread))
+				}
+
+				resign := true
+				// Note: The loop is to allow blocking by a mocked TimeSource.
+				for until := run.Start.Add(sleep); l.info.TimeSource.Now().Before(until); {
+					if err := util.Sleep(run.Done, sleep); err != nil {
+						resign = false
+						break
+					}
+				}
+
+				glog.Errorf("%d: no longer the master", logID)
+				l.tracker.Set(logID, false)
+				isMaster.Set(0.0, label)
+				if resign {
 					resignations.Inc(label)
-					l.resignations <- evt
-				default:
-					glog.Errorf("%d: unknown EventType %v", logID, evt.Type)
-					fallthrough // Safe default to not being master.
-				case election.NotMaster, election.NotMasterTimeout:
-					glog.Errorf("%d: no longer the master", logID)
-					l.tracker.Set(logID, false)
-					isMaster.Set(0.0, label)
-					// TODO(pavelkalinnikov): Forcefully cancel operation before Ack,
-					// there is a chance of another master for this log.
-					evt.Ack()
+					l.resignations <- run.Cancel
+					<-run.Done
 				}
 			}
 		}(logID)
@@ -408,8 +424,8 @@ loop:
 		// Process any pending resignations while there's no activity.
 		for done := false; !done; {
 			select {
-			case evt := <-l.resignations:
-				evt.Ack()
+			case cancel := <-l.resignations:
+				cancel()
 			default:
 				done = true
 			}
