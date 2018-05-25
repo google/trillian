@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package etcd holds an etcd-specific implementation of the
-// util.MasterElection interface.
+// election.MasterElection interface.
 package etcd
 
 import (
@@ -24,10 +24,10 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/concurrency"
 	"github.com/golang/glog"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/election"
 )
 
-// MasterElection is an implementation of util.MasterElection based on etcd.
+// MasterElection is an implementation of election.MasterElection based on etcd.
 type MasterElection struct {
 	instanceID string
 	treeID     int64
@@ -56,14 +56,14 @@ func (eme *MasterElection) IsMaster(ctx context.Context) (bool, error) {
 	return string(leader.Kvs[0].Value) == eme.instanceID, nil
 }
 
-// ResignAndRestart releases mastership, and re-joins the election.
-func (eme *MasterElection) ResignAndRestart(ctx context.Context) error {
+// Resign releases mastership.
+func (eme *MasterElection) Resign(ctx context.Context) error {
 	return eme.election.Resign(ctx)
 }
 
 // Close terminates election operation.
 func (eme *MasterElection) Close(ctx context.Context) error {
-	_ = eme.ResignAndRestart(ctx)
+	_ = eme.Resign(ctx)
 	return eme.session.Close()
 }
 
@@ -72,7 +72,7 @@ func (eme *MasterElection) GetCurrentMaster(ctx context.Context) (string, error)
 	leader, err := eme.election.Leader(ctx)
 	switch {
 	case err == concurrency.ErrElectionNoLeader:
-		return "", util.ErrNoLeader
+		return "", election.ErrNoLeader
 	case err != nil:
 		return "", err
 	}
@@ -98,7 +98,7 @@ func NewElectionFactory(instanceID string, client *clientv3.Client, lockDir stri
 }
 
 // NewElection creates a specific etcd.MasterElection instance.
-func (ef ElectionFactory) NewElection(ctx context.Context, treeID int64) (util.MasterElection, error) {
+func (ef ElectionFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	session, err := concurrency.NewSession(ef.client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd session: %v", err)

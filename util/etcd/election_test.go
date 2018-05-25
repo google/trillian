@@ -22,7 +22,7 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/google/trillian/testonly/integration/etcd"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/election"
 )
 
 func TestMasterElectionThroughCommonClient(t *testing.T) {
@@ -59,12 +59,12 @@ func TestMasterElectionThroughCommonClient(t *testing.T) {
 	}
 }
 
-func everyoneAgreesOnMaster(ctx context.Context, t *testing.T, want string, elections []util.MasterElection) {
+func everyoneAgreesOnMaster(ctx context.Context, t *testing.T, want string, elections []election.MasterElection) {
 	t.Helper()
 	for _, e := range elections {
 		for {
 			got, err := e.GetCurrentMaster(ctx)
-			if err == util.ErrNoLeader {
+			if err == election.ErrNoLeader {
 				t.Error("No leader...")
 				time.Sleep(time.Second)
 				continue
@@ -115,7 +115,7 @@ func TestGetCurrentMaster(t *testing.T) {
 		NewElectionFactory("ob2", ob2, pfx),
 	}
 
-	elections := make([]util.MasterElection, 0)
+	elections := make([]election.MasterElection, 0)
 	for _, f := range facts {
 		e, err := f.NewElection(ctx, 10)
 		if err != nil {
@@ -127,7 +127,7 @@ func TestGetCurrentMaster(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	for _, e := range elections[0:2] {
 		wg.Add(1)
-		go func(e util.MasterElection) {
+		go func(e election.MasterElection) {
 			if err := e.WaitForMastership(ctx); err != nil {
 				t.Errorf("WaitForMastership(10): %v", err)
 			}
@@ -162,7 +162,7 @@ func TestGetCurrentMasterReturnsNoLeader(t *testing.T) {
 		t.Errorf("Close(10): %v", err)
 	}
 	_, err = el.GetCurrentMaster(ctx)
-	if want := util.ErrNoLeader; err != want {
+	if want := election.ErrNoLeader; err != want {
 		t.Errorf("GetCurrentMaster()=%v, want %v", err, want)
 	}
 }
