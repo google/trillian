@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/election"
 )
 
 func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
@@ -267,12 +268,12 @@ func TestMasterFor(t *testing.T) {
 	allIDs := []int64{1, 2, 3, 4, 5, 6}
 
 	var tests = []struct {
-		factory util.ElectionFactory
+		factory election.Factory
 		want1   []int64
 		want2   []int64
 	}{
 		{factory: nil, want1: firstIDs, want2: allIDs},
-		{factory: util.NoopElectionFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
+		{factory: election.NoopFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
 		{factory: masterForEvenFactory{}, want1: []int64{2, 4}, want2: []int64{2, 4, 6}},
 		{factory: failureFactory{}, want1: nil, want2: nil},
 	}
@@ -311,7 +312,7 @@ func TestMasterFor(t *testing.T) {
 
 type masterForEvenFactory struct{}
 
-func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (util.MasterElection, error) {
+func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	isMaster := (treeID % 2) == 0
 	return &testElection{waitBlocks: !isMaster, isMaster: isMaster}, nil
 }
@@ -347,7 +348,7 @@ func (te *testElection) IsMaster(ctx context.Context) (bool, error) {
 	return te.isMaster, te.isMasterErr
 }
 
-func (te *testElection) ResignAndRestart(ctx context.Context) error {
+func (te *testElection) Resign(ctx context.Context) error {
 	return te.resignErr
 }
 
@@ -361,7 +362,7 @@ func (te *testElection) GetCurrentMaster(ctx context.Context) (string, error) {
 
 type failureFactory struct{}
 
-func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (util.MasterElection, error) {
+func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	return nil, errors.New("injected failure")
 }
 
@@ -427,7 +428,7 @@ func TestElectionRunnerRun(t *testing.T) {
 	for _, test := range tests {
 		logID := int64(6962)
 		ctx, cancel := context.WithCancel(ctx)
-		tracker := util.NewMasterTracker([]int64{logID})
+		tracker := election.NewMasterTracker([]int64{logID})
 		var wg sync.WaitGroup
 		er := electionRunner{
 			logID:    logID,

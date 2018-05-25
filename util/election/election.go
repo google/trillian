@@ -12,38 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+// Package election provides implementation of master election and tracking, as
+// well as interface for plugging in a custom underlying mechanism.
+package election
 
 import (
 	"context"
 	"errors"
 )
 
-// MasterElection provides operations for determining if a local instance is the current
-// master for a particular election.
+// MasterElection provides operations for determining if a local instance is
+// the current master for a particular election.
 type MasterElection interface {
-	// Start kicks off the process of mastership election.
+	// Start kicks off this instance's participation in master election.
 	Start(context.Context) error
-	// WaitForMastership blocks until the current instance is master for this election.
+	// WaitForMastership blocks until the current instance is the master.
 	WaitForMastership(context.Context) error
-	// IsMaster returns whether the current instance is master.
+	// IsMaster returns whether the current instance is the master.
 	IsMaster(context.Context) (bool, error)
-	// ResignAndRestart releases mastership, and re-joins the election.
-	ResignAndRestart(context.Context) error
-	// Close permanently stops the mastership election process.
+	// Resign releases mastership, and stops this instance from participating in
+	// the master election.
+	Resign(context.Context) error
+	// Close releases all the resources associated with this MasterElection.
 	Close(context.Context) error
-	// GetCurrentMaster returns the instance ID of the current elected master, if any.
-	// Implementations should allow election participants to specify their instance
-	// ID string, participants should ensure that it is unique to them.
-	// If there is currently no leader, ErrNoLeader will be returned.
+	// GetCurrentMaster returns the instance ID of the current elected master, if
+	// any. Implementations should allow election participants to specify their
+	// instance ID string, participants should ensure that it is unique to them.
+	// If there is currently no master, ErrNoMaster will be returned.
 	GetCurrentMaster(context.Context) (string, error)
 }
 
-// ErrNoLeader indicates that there is currently no leader elected.
-var ErrNoLeader = errors.New("no leader")
+// ErrNoMaster indicates that there is currently no master elected.
+var ErrNoMaster = errors.New("no master")
 
-// ElectionFactory encapsulates the creation of a MasterElection instance for a treeID.
-type ElectionFactory interface {
+// Factory encapsulates the creation of a MasterElection instance for a treeID.
+type Factory interface {
 	NewElection(ctx context.Context, treeID int64) (MasterElection, error)
 }
 
@@ -68,8 +71,8 @@ func (ne *NoopElection) IsMaster(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// ResignAndRestart releases mastership, and re-joins the election.
-func (ne *NoopElection) ResignAndRestart(ctx context.Context) error {
+// Resign releases mastership.
+func (ne *NoopElection) Resign(ctx context.Context) error {
 	return nil
 }
 
@@ -83,12 +86,12 @@ func (ne *NoopElection) GetCurrentMaster(ctx context.Context) (string, error) {
 	return ne.instanceID, nil
 }
 
-// NoopElectionFactory creates NoopElection instances.
-type NoopElectionFactory struct {
+// NoopFactory creates NoopElection instances.
+type NoopFactory struct {
 	InstanceID string
 }
 
 // NewElection creates a specific NoopElection instance.
-func (nf NoopElectionFactory) NewElection(ctx context.Context, treeID int64) (MasterElection, error) {
+func (nf NoopFactory) NewElection(ctx context.Context, treeID int64) (MasterElection, error) {
 	return &NoopElection{instanceID: nf.InstanceID, treeID: treeID}, nil
 }

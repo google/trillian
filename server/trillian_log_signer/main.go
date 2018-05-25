@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -99,11 +100,11 @@ func main() {
 
 	hostname, _ := os.Hostname()
 	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
-	var electionFactory util.ElectionFactory
+	var electionFactory election.Factory
 	switch {
 	case *forceMaster:
 		glog.Warning("**** Acting as master for all logs ****")
-		electionFactory = util.NoopElectionFactory{InstanceID: instanceID}
+		electionFactory = election.NoopFactory{InstanceID: instanceID}
 	case client != nil:
 		electionFactory = etcd.NewElectionFactory(instanceID, client, *lockDir)
 	default:
