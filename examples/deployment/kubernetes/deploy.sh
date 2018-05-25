@@ -24,9 +24,13 @@ docker build -f examples/deployment/docker/log_signer/Dockerfile -t us.gcr.io/$P
 gcloud config set project "${PROJECT_NAME}"
 gcloud config set compute/zone "${ZONE}"
 
+# Configure Docker to use gcloud credentials with Google Container Registry
+gcloud auth configure-docker
+
 # Push docker images
-gcloud docker -- push "us.gcr.io/${PROJECT_NAME}/log_server:${TAG}"
-gcloud docker -- push "us.gcr.io/${PROJECT_NAME}/log_signer:${TAG}"
+docker push "us.gcr.io/${PROJECT_NAME}/log_server:${TAG}"
+docker push "us.gcr.io/${PROJECT_NAME}/log_signer:${TAG}"
+
 # TODO(al): when cloudspanner supports maps:
 # gcloud docker -- push "us.gcr.io/${PROJECT_NAME}/map_server:${TAG}"
 
