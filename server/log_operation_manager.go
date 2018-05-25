@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/election"
 )
 
 const (
@@ -107,10 +108,10 @@ type LogOperationInfo struct {
 type electionRunner struct {
 	logID    int64
 	info     *LogOperationInfo
-	tracker  *util.MasterTracker
+	tracker  *election.MasterTracker
 	cancel   context.CancelFunc
 	wg       *sync.WaitGroup
-	election util.MasterElection
+	election election.MasterElection
 }
 
 type resignation struct {
@@ -120,8 +121,11 @@ type resignation struct {
 
 func (r *resignation) execute(ctx context.Context) {
 	glog.Infof("%d: deliberately resigning mastership", r.er.logID)
-	if err := r.er.election.ResignAndRestart(ctx); err != nil {
+	if err := r.er.election.Resign(ctx); err != nil {
 		glog.Errorf("%d: failed to resign mastership: %v", r.er.logID, err)
+	}
+	if err := r.er.election.Start(ctx); err != nil {
+		glog.Errorf("%d: failed to restart election: %v", r.er.logID, err)
 	}
 	r.done <- true
 }
@@ -218,7 +222,7 @@ type LogOperationManager struct {
 	electionRunner      map[int64]*electionRunner
 	pendingResignations chan resignation
 	runnerWG            sync.WaitGroup
-	tracker             *util.MasterTracker
+	tracker             *election.MasterTracker
 	heldMutex           sync.Mutex
 	lastHeld            []int64
 	// Cache of logID => name; assumed not to change during runtime
@@ -319,7 +323,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 	}
 	if l.tracker == nil {
 		glog.Infof("creating mastership tracker for %v", allIDs)
-		l.tracker = util.NewMasterTracker(allIDs)
+		l.tracker = election.NewMasterTracker(allIDs)
 	}
 
 	// Synchronize the set of configured log IDs with those we are tracking mastership for.
