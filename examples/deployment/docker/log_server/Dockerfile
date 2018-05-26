@@ -1,25 +1,17 @@
-FROM golang:1.9
-
-ENV DB_FLAG="--mysql_uri=test:zaphod@tcp(mysql:3306)/test" \
-    DB_PROVIDER="mysql"
-
-ENV HOST=0.0.0.0 \
-    RPC_PORT=8090 \
-    HTTP_PORT=8091
-
-ENV DUMP_METRICS 0s
+FROM golang:1.10 as build
 
 ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian
 
 RUN go get ./server/trillian_log_server
 
-ENTRYPOINT /go/bin/trillian_log_server \
-  ${DB_FLAG} \
-  --storage_system=${DB_PROVIDER} \
-  --rpc_endpoint="$HOST:$RPC_PORT" \
-  --http_endpoint="$HOST:$HTTP_PORT" \
-  --alsologtostderr
+FROM gcr.io/distroless/base
+
+LABEL maintainer="Trillian Team <email@address.com>"
+
+COPY --from=build /go/bin/trillian_log_server /
+
+ENTRYPOINT ["/trillian_log_server"]
 
 EXPOSE $RPC_PORT
 EXPOSE $HTTP_PORT
