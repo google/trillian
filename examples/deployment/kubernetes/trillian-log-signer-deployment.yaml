@@ -21,7 +21,7 @@ spec:
         cloud.google.com/gke-nodepool: signer-pool
       restartPolicy: Always
       containers:
-      - command: ["/go/bin/trillian_log_signer",
+      - args: [
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
         "--etcd_servers=trillian-etcd-cluster-client:2379",
