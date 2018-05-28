@@ -1,0 +1,40 @@
+steps:
+- name: "gcr.io/cloud-builders/go"
+  args: [
+    "get",
+    "-t",
+#    "-u",
+    "-v",
+    "./..."
+  ]
+  env: ["PROJECT_ROOT=github.com/google/trillian"]
+- name: "gcr.io/cloud-builders/go"
+  args: [
+    "get",
+    "./server/trillian_log_server"
+  ]
+  env: ["PROJECT_ROOT=github.com/google/trillian"]
+- name: "gcr.io/cloud-builders/go"
+  args: [
+    "get",
+    "./server/trillian_log_signer"
+  ]
+  env: ["PROJECT_ROOT=github.com/google/trillian"]
+- name: "gcr.io/cloud-builders/docker"
+  args: [
+    "build",
+    "--file=examples/deployment/docker/log_server/Dockerfile",
+    "--tag=us.gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}",
+    "."
+  ]
+- name: "gcr.io/cloud-builders/docker"
+  args: [
+    "build",
+    "--file=examples/deployment/docker/log_signer/Dockerfile",
+    "--tag=us.gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}",
+    "."
+  ]
+images: [
+  "us.gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}",
+  "us.gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}"
+]
