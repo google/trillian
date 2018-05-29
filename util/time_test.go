@@ -62,7 +62,7 @@ func TestSleepContext(t *testing.T) {
 				defer cancel()
 			}
 			if got, want := SleepContext(ctx, tc.dur), tc.wantErr; got != want {
-				t.Errorf("Sleep() returned %v, want %v", got, want)
+				t.Errorf("SleepContext() returned %v, want %v", got, want)
 			}
 		})
 	}
