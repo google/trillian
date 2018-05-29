@@ -821,49 +821,72 @@ func TestGetProofByHashCommitFails(t *testing.T) {
 }
 
 func TestGetProofByHash(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	ctx := context.Background()
+	for _, tc := range []struct {
+		desc            string
+		wantCode        codes.Code
+		leavesByHashVal []*trillian.LogLeaf
+	}{
+		{desc: "OK", leavesByHashVal: []*trillian.LogLeaf{{LeafIndex: 2}}},
+		{desc: "NotFoundTreeSize", wantCode: codes.NotFound, leavesByHashVal: []*trillian.LogLeaf{{LeafIndex: 7}}},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-	fakeStorage := storage.NewMockLogStorage(ctrl)
-	mockTX := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
+			fakeStorage := storage.NewMockLogStorage(ctrl)
+			mockTX := storage.NewMockLogTreeTX(ctrl)
+			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
 
-	mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-	mockTX.EXPECT().ReadRevision().Return(int64(root1.Revision))
-	mockTX.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
-	mockTX.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
-		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
-		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
-	mockTX.EXPECT().Commit().Return(nil)
-	mockTX.EXPECT().Close().Return(nil)
+			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
+			mockTX.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return(tc.leavesByHashVal, nil)
+			mockTX.EXPECT().ReadRevision().Return(int64(root1.Revision)).AnyTimes()
+			mockTX.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
+				{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
+				{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
+				{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil).AnyTimes()
+			mockTX.EXPECT().Commit().Return(nil)
+			mockTX.EXPECT().Close().Return(nil)
 
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
-		LogStorage:   fakeStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{
+					treeID:       logID1,
+					numSnapshots: 1,
+				}),
+				LogStorage: fakeStorage,
+			}
+			server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	proofResponse, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
-	if err != nil {
-		t.Fatalf("get inclusion proof by hash should have succeeded but we got: %v", err)
-	}
+			proofResponse, err := server.GetInclusionProofByHash(ctx,
+				&trillian.GetInclusionProofByHashRequest{
+					LogId:    logID1,
+					TreeSize: 7,
+					LeafHash: []byte("ahash"),
+				})
+			if got, want := status.Code(err), tc.wantCode; got != want {
+				t.Fatalf("GetInclusionProofByHash(): %v, want %v", err, want)
+			}
+			if err != nil {
+				return
+			}
 
-	if proofResponse == nil {
-		t.Fatalf("server response was not successful: %v", proofResponse)
-	}
+			if proofResponse == nil {
+				t.Fatalf("server response was not successful: %v", proofResponse)
+			}
 
-	expectedProof := trillian.Proof{
-		LeafIndex: 2,
-		Hashes: [][]byte{
-			[]byte("nodehash0"),
-			[]byte("nodehash1"),
-			[]byte("nodehash2"),
-		},
-	}
+			expectedProof := trillian.Proof{
+				LeafIndex: 2,
+				Hashes: [][]byte{
+					[]byte("nodehash0"),
+					[]byte("nodehash1"),
+					[]byte("nodehash2"),
+				},
+			}
 
-	if !proto.Equal(proofResponse.Proof[0], &expectedProof) {
-		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof[0])
+			if !proto.Equal(proofResponse.Proof[0], &expectedProof) {
+				t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof[0])
+			}
+		})
 	}
 }
 
