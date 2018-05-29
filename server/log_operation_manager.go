@@ -137,7 +137,9 @@ func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 	// Pause for a random interval so that if multiple instances start at the same
 	// time there is less of a thundering herd.
 	pause := rand.Int63n(er.info.PreElectionPause.Nanoseconds())
-	time.Sleep(time.Duration(pause))
+	if err := util.SleepContext(ctx, time.Duration(pause)); err != nil {
+		return
+	}
 
 	glog.V(1).Infof("%d: start election-monitoring loop ", er.logID)
 	if err := er.election.Start(ctx); err != nil {
@@ -162,12 +164,9 @@ func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 
 		// While-master loop
 		for {
-			time.Sleep(er.info.MasterCheckInterval)
-			select {
-			case <-ctx.Done():
+			if err := util.SleepContext(ctx, er.info.MasterCheckInterval); err != nil {
 				glog.Infof("%d: termination requested", er.logID)
 				return
-			default:
 			}
 			master, err := er.election.IsMaster(ctx)
 			if err != nil {
@@ -498,7 +497,10 @@ loop:
 		wait := l.info.RunInterval - duration
 		if wait > 0 {
 			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
-			time.Sleep(wait)
+			if err := util.SleepContext(ctx, wait); err != nil {
+				glog.Infof("Log operation manager shutting down")
+				break loop
+			}
 		} else {
 			glog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
 		}
