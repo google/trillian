@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
+	"github.com/google/trillian/util/election/stub"
 )
 
 func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
@@ -314,47 +315,7 @@ type masterForEvenFactory struct{}
 
 func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	isMaster := (treeID % 2) == 0
-	return &testElection{waitBlocks: !isMaster, isMaster: isMaster}, nil
-}
-
-type testElection struct {
-	startErr, waitErr, isMasterErr, resignErr, closeErr error
-	waitBlocks                                          bool
-	isMaster                                            bool
-}
-
-func (te *testElection) Start(ctx context.Context) error {
-	return te.startErr
-}
-
-func (te *testElection) WaitForMastership(ctx context.Context) error {
-	if te.waitErr != nil {
-		return te.waitErr
-	}
-	if !te.waitBlocks {
-		return nil
-	}
-	for {
-		if err := util.SleepContext(ctx, 10*time.Millisecond); err != nil {
-			return err
-		}
-	}
-}
-
-func (te *testElection) IsMaster(ctx context.Context) (bool, error) {
-	return te.isMaster, te.isMasterErr
-}
-
-func (te *testElection) Resign(ctx context.Context) error {
-	return te.resignErr
-}
-
-func (te *testElection) Close(ctx context.Context) error {
-	return te.closeErr
-}
-
-func (te *testElection) GetCurrentMaster(ctx context.Context) (string, error) {
-	return "It's you!", nil
+	return stub.NewMasterElection(isMaster, nil), nil
 }
 
 type failureFactory struct{}
@@ -363,95 +324,96 @@ func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (electio
 	return nil, errors.New("injected failure")
 }
 
+// TODO(pavelkalinnikov): Reduce flakiness risk in this test by making fewer
+// time assumptions.
 func TestElectionRunnerRun(t *testing.T) {
-	ctx := context.Background()
-	fakeTimeSource := util.NewFakeTimeSource(time.Now())
 	info := fixupElectionInfo(LogOperationInfo{TimeSource: fakeTimeSource})
 	var tests = []struct {
-		election   testElection
+		desc       string
+		election   *stub.MasterElection
+		lostMaster bool
 		wantMaster bool
 	}{
 		// Basic cases
 		{
-			election: testElection{
-				waitBlocks: true,
-			},
+			desc:     "IsNotMaster",
+			election: stub.NewMasterElection(false, nil),
 		},
 		{
-			election: testElection{
-				waitBlocks: false,
-				isMaster:   true,
-			},
+			desc:       "IsMaster",
+			election:   stub.NewMasterElection(true, nil),
 			wantMaster: true,
+		},
+		{
+			desc:       "LostMaster",
+			election:   stub.NewMasterElection(true, nil),
+			lostMaster: true,
+			wantMaster: false,
 		},
 		// Error cases
 		{
-			election: testElection{
-				startErr: errors.New("on start"),
-			},
+			desc: "ErrorOnStart",
+			election: stub.NewMasterElection(false,
+				&stub.Errors{Start: errors.New("on start")}),
 		},
 		{
-			election: testElection{
-				waitErr: errors.New("on wait"),
-			},
+			desc: "ErrorOnWait",
+			election: stub.NewMasterElection(false,
+				&stub.Errors{Wait: errors.New("on wait")}),
 		},
 		{
-			election: testElection{
-				isMaster:    true,
-				isMasterErr: errors.New("on IsMaster"),
-				waitBlocks:  false,
-			},
+			desc: "ErrorOnIsMaster",
+			election: stub.NewMasterElection(true,
+				&stub.Errors{IsMaster: errors.New("on IsMaster")}),
 			wantMaster: true,
 		},
 		{
-			election: testElection{
-				waitBlocks: false,
-				isMaster:   false,
-			},
-			// a) WaitForMaster() falls through => master=true
-			// b) IsMaster() returns false => master=false
-			// goroutine termination happens after a) before b) so...
-			wantMaster: true,
-		},
-		{
-			election: testElection{
-				waitBlocks: false,
-				isMaster:   true,
-				resignErr:  errors.New("resignation failure"),
-			},
+			desc: "ErrorOnResign",
+			election: stub.NewMasterElection(true,
+				&stub.Errors{Resign: errors.New("resignation failure")}),
 			wantMaster: true,
 		},
 	}
+	const logID = int64(6962)
 	for _, test := range tests {
-		logID := int64(6962)
-		ctx, cancel := context.WithCancel(ctx)
-		tracker := election.NewMasterTracker([]int64{logID})
-		var wg sync.WaitGroup
-		er := electionRunner{
-			logID:    logID,
-			info:     &info,
-			tracker:  tracker,
-			election: &test.election,
-			wg:       &wg,
-		}
-		startTime := time.Now()
-		fakeTimeSource.Set(startTime)
-		wg.Add(1)
-		resignations := make(chan resignation, 100)
-		go er.Run(ctx, resignations)
-		time.Sleep(minMasterCheckInterval)
-		// Advance fake time so that shouldResign() triggers too.
-		fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
-		time.Sleep(minMasterCheckInterval)
-		for len(resignations) > 0 {
-			r := <-resignations
-			r.done <- true
-		}
-		cancel()
-		wg.Wait()
-		held := tracker.Held()
-		if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
-			t.Errorf("election=%+v gives held=%v => master=%v; want %v", test.election, held, got, test.wantMaster)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			var wg sync.WaitGroup
+			ctx, cancel := context.WithCancel(context.Background())
+
+			startTime := time.Now()
+			fakeTimeSource := util.NewFakeTimeSource(startTime)
+
+			el := test.election
+			tracker := election.NewMasterTracker([]int64{logID})
+			er := electionRunner{
+				logID:    logID,
+				info:     &info,
+				tracker:  tracker,
+				election: el,
+				wg:       &wg,
+			}
+			wg.Add(1)
+			resignations := make(chan resignation, 100)
+			go er.Run(ctx, resignations)
+			time.Sleep(minPreElectionPause + minPreElectionPause/2)
+			if test.lostMaster {
+				el.Update(false, nil)
+			}
+
+			// Advance fake time so that shouldResign() triggers too.
+			fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
+			time.Sleep(minMasterCheckInterval)
+			for len(resignations) > 0 {
+				r := <-resignations
+				r.done <- true
+			}
+
+			cancel()
+			wg.Wait()
+			held := tracker.Held()
+			if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
+				t.Errorf("held=%v => master=%v; want %v", held, got, test.wantMaster)
+			}
+		})
 	}
 }
