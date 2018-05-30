@@ -23,11 +23,11 @@ import (
 // closed before the timer fires.
 func Sleep(done <-chan struct{}, dur time.Duration) bool {
 	timer := time.NewTimer(dur)
+	defer timer.Stop()
 	select {
 	case <-timer.C:
 		return true
 	case <-done:
-		timer.Stop()
 		return false
 	}
 }
