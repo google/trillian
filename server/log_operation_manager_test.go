@@ -335,11 +335,8 @@ func (te *testElection) WaitForMastership(ctx context.Context) error {
 		return nil
 	}
 	for {
-		time.Sleep(10 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			return errors.New("context canceled")
-		default:
+		if err := util.SleepContext(ctx, 10*time.Millisecond); err != nil {
+			return err
 		}
 	}
 }
