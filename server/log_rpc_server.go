@@ -292,9 +292,6 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	if len(leaves) < 1 {
-		return nil, status.Errorf(codes.NotFound, "No leaves for hash: %x", req.LeafHash)
-	}
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -305,15 +302,13 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	r := &trillian.GetInclusionProofByHashResponse{SignedLogRoot: &slr}
-
-	if len(leaves) < 1 {
-		return r, nil
-	}
-
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 	proofs := make([]*trillian.Proof, 0, len(leaves))
 	for _, leaf := range leaves {
+		// Don't include leaves that aren't in the requested TreeSize.
+		if leaf.LeafIndex >= req.TreeSize {
+			continue
+		}
 		proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, leaf.LeafIndex, int64(root.TreeSize))
 		if err != nil {
 			return nil, err
@@ -324,9 +319,16 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	if len(proofs) < 1 {
+		return nil, status.Errorf(codes.NotFound,
+			"No leaf found for hash: %x in tree size %v", req.LeafHash, req.TreeSize)
+	}
 
-	r.Proof = proofs
-	return r, nil
+	// TODO(gbelvin): Rename "Proof" -> "Proofs"
+	return &trillian.GetInclusionProofByHashResponse{
+		SignedLogRoot: &slr,
+		Proof:         proofs,
+	}, nil
 }
 
 // GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
