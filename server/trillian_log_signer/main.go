@@ -63,8 +63,9 @@ var (
 
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
+	masterTTL           = flag.Duration("master_ttl", 20*time.Second, "Maximal interval between successful checks necessary to retain mastership")
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
-	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
+	resignSpread        = flag.Float64("resign_spread", 0.0, "Max extra fraction of master_hold_interval to hold mastership for")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -144,15 +145,18 @@ func main() {
 	log.QuotaIncreaseFactor = *quotaIncreaseFactor
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	info := server.LogOperationInfo{
-		Registry:            registry,
-		BatchSize:           *batchSizeFlag,
-		NumWorkers:          *numSeqFlag,
-		RunInterval:         *sequencerIntervalFlag,
-		TimeSource:          util.SystemTimeSource{},
-		PreElectionPause:    *preElectionPause,
-		MasterCheckInterval: *masterCheckInterval,
-		MasterHoldInterval:  *masterHoldInterval,
-		ResignOdds:          *resignOdds,
+		Registry:    registry,
+		BatchSize:   *batchSizeFlag,
+		NumWorkers:  *numSeqFlag,
+		RunInterval: *sequencerIntervalFlag,
+		ElectionConfig: election.Config{
+			PreElectionPause:    *preElectionPause,
+			MasterCheckInterval: *masterCheckInterval,
+			TTL:                 *masterTTL,
+		},
+		MasterHoldInterval: *masterHoldInterval,
+		ResignSpread:       *resignSpread,
+		TimeSource:         util.SystemTimeSource{},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
 	sequencerTask.OperationLoop(ctx)

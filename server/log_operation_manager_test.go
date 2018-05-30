@@ -18,9 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -209,60 +207,6 @@ func TestHeldInfo(t *testing.T) {
 	}
 }
 
-func TestShouldResign(t *testing.T) {
-	startTime := time.Date(1970, 9, 19, 12, 00, 00, 00, time.UTC)
-	var tests = []struct {
-		hold     time.Duration
-		odds     int
-		wantHold time.Duration
-		wantProb float64
-	}{
-		{hold: 12 * time.Second, odds: 10, wantHold: 12 * time.Second, wantProb: 0.1},
-		{hold: time.Second, odds: 10, wantHold: 10 * time.Second, wantProb: 0.1},
-		{hold: 10 * time.Second, odds: 0, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: 1, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: -1, wantHold: 10 * time.Second, wantProb: 1.0},
-	}
-	for _, test := range tests {
-		fakeTimeSource := util.FakeTimeSource{}
-		info := fixupElectionInfo(LogOperationInfo{
-			MasterHoldInterval: test.hold,
-			ResignOdds:         test.odds,
-			TimeSource:         &fakeTimeSource,
-		})
-		er := electionRunner{info: &info}
-
-		holdChecks := int64(10)
-		holdNanos := test.wantHold.Nanoseconds() / holdChecks
-	timeslot:
-		for i := int64(-1); i < holdChecks; i++ {
-			gapNanos := time.Duration(i * holdNanos)
-			fakeTimeSource.Set(startTime.Add(gapNanos))
-			for j := 0; j < 100; j++ {
-				if er.shouldResign(startTime) {
-					t.Errorf("shouldResign(hold=%v,odds=%v @ start+%v)=true; want false", test.hold, test.odds, gapNanos)
-					continue timeslot
-				}
-			}
-		}
-
-		fakeTimeSource.Set(startTime.Add(test.wantHold).Add(time.Nanosecond))
-		iterations := 10000
-		count := 0
-		for i := 0; i < iterations; i++ {
-			if er.shouldResign(startTime) {
-				count++
-			}
-		}
-		got := float64(count) / float64(iterations)
-		deltaFraction := math.Abs(got-test.wantProb) / test.wantProb
-		if deltaFraction > 0.05 {
-			t.Errorf("P(shouldResign(hold=%v,odds=%v))=%f; want ~%f", test.hold, test.odds, got, test.wantProb)
-		}
-
-	}
-}
-
 func TestMasterFor(t *testing.T) {
 	ctx := context.Background()
 	firstIDs := []int64{1, 2, 3, 4}
@@ -276,7 +220,7 @@ func TestMasterFor(t *testing.T) {
 		{factory: nil, want1: firstIDs, want2: allIDs},
 		{factory: election.NoopFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
 		{factory: masterForEvenFactory{}, want1: []int64{2, 4}, want2: []int64{2, 4, 6}},
-		{factory: failureFactory{}, want1: nil, want2: nil},
+		{factory: fixedFactory{err: errors.New("injected failure")}, want1: nil, want2: nil},
 	}
 	for _, test := range tests {
 		testCtx, cancel := context.WithCancel(ctx)
@@ -307,7 +251,7 @@ func TestMasterFor(t *testing.T) {
 		}
 
 		cancel()
-		time.Sleep(2 * info.MasterCheckInterval)
+		time.Sleep(2 * info.ElectionConfig.MasterCheckInterval)
 	}
 }
 
@@ -318,20 +262,25 @@ func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (el
 	return stub.NewMasterElection(isMaster, nil), nil
 }
 
-type failureFactory struct{}
+type fixedFactory struct {
+	el  *stub.MasterElection
+	err error
+}
 
-func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
-	return nil, errors.New("injected failure")
+func (ff fixedFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
+	return ff.el, ff.err
 }
 
 // TODO(pavelkalinnikov): Reduce flakiness risk in this test by making fewer
 // time assumptions.
 func TestElectionRunnerRun(t *testing.T) {
-	info := fixupElectionInfo(LogOperationInfo{TimeSource: fakeTimeSource})
+	const logID = int64(6962)
+
 	var tests = []struct {
 		desc       string
 		election   *stub.MasterElection
 		lostMaster bool
+		resign     bool
 		wantMaster bool
 	}{
 		// Basic cases
@@ -348,6 +297,12 @@ func TestElectionRunnerRun(t *testing.T) {
 			desc:       "LostMaster",
 			election:   stub.NewMasterElection(true, nil),
 			lostMaster: true,
+			wantMaster: false,
+		},
+		{
+			desc:       "Resigned",
+			election:   stub.NewMasterElection(true, nil),
+			resign:     true,
 			wantMaster: false,
 		},
 		// Error cases
@@ -374,46 +329,40 @@ func TestElectionRunnerRun(t *testing.T) {
 			wantMaster: true,
 		},
 	}
-	const logID = int64(6962)
 	for _, test := range tests {
+		startTime := time.Now()
+		fakeTimeSource := util.NewFakeTimeSource(startTime)
+
+		registry := extension.Registry{ElectionFactory: fixedFactory{el: test.election}}
+		info := LogOperationInfo{
+			Registry:   registry,
+			TimeSource: fakeTimeSource,
+		}
+		lom := NewLogOperationManager(info, nil)
+		lom.info.MasterHoldInterval = 100 * time.Millisecond
+
 		t.Run(test.desc, func(t *testing.T) {
-			var wg sync.WaitGroup
-			ctx, cancel := context.WithCancel(context.Background())
+			cctx, cancel := context.WithCancel(context.Background())
+			lom.masterFor(cctx, []int64{logID}) // Starts election runner.
 
-			startTime := time.Now()
-			fakeTimeSource := util.NewFakeTimeSource(startTime)
-
-			el := test.election
-			tracker := election.NewMasterTracker([]int64{logID})
-			er := electionRunner{
-				logID:    logID,
-				info:     &info,
-				tracker:  tracker,
-				election: el,
-				wg:       &wg,
-			}
-			wg.Add(1)
-			resignations := make(chan resignation, 100)
-			go er.Run(ctx, resignations)
 			time.Sleep(minPreElectionPause + minPreElectionPause/2)
 			if test.lostMaster {
-				el.Update(false, nil)
+				test.election.Update(false, nil)
+				time.Sleep(minMasterCheckInterval + minMasterCheckInterval/2)
+			} else if test.resign {
+				// Advance fake time so that resignation triggers too.
+				fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
+				resign := <-lom.resignations
+				resign()
 			}
 
-			// Advance fake time so that shouldResign() triggers too.
-			fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
-			time.Sleep(minMasterCheckInterval)
-			for len(resignations) > 0 {
-				r := <-resignations
-				r.done <- true
-			}
-
-			cancel()
-			wg.Wait()
-			held := tracker.Held()
+			held := lom.tracker.Held()
 			if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
 				t.Errorf("held=%v => master=%v; want %v", held, got, test.wantMaster)
 			}
+
+			cancel()
+			lom.runnerWG.Wait()
 		})
 	}
 }
