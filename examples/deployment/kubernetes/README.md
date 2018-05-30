@@ -12,7 +12,7 @@ Prerequisites
    may work, but YMMV)
 1. You must have the [`jq` binary](https://packages.debian.org/stretch/jq)
    installed (for command-line manipulation of JSON)
-1. You have `gcloud`/`kubectl` etc. installed (See
+1. You have `gcloud`/`kubectl`/`go`/`Docker` etc. installed (See
    [Cloud quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart)
    docs)
 1. You have a Google account with billing configured
