@@ -21,7 +21,7 @@ spec:
         cloud.google.com/gke-nodepool: logserver-pool
       containers:
       - name: trillian-logserver
-        command: ["/go/bin/trillian_log_server",
+        args: [
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
         "--quota_system=etcd",
