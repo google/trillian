@@ -48,11 +48,9 @@ spec:
           requests:
             cpu: "1"
         livenessProbe:
-          exec:
-            command:
-            - curl
-            - -f
-            - http://localhost:8091/healthz
+          httpGet:
+            path: /healthz
+            port: 8091
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 5
