@@ -45,17 +45,18 @@ func expectNotClosed(t *testing.T, done <-chan struct{}, msg string) {
 
 func becomeMaster(ctx context.Context, t *testing.T, me *stub.MasterElection, runner *Runner) (run *Run) {
 	isMaster := make(chan struct{})
+	var err error
 	go func() {
 		defer close(isMaster)
-		var err error
-		if run, err = runner.AwaitMastership(ctx); err != nil {
-			t.Fatalf("AwaitMastership(): %v", err)
-		}
+		run, err = runner.AwaitMastership(ctx)
 	}()
 	expectNotClosed(t, isMaster, "Became master unexpectedly")
 
 	me.Update(true, nil)
 	<-isMaster // Now should become the master.
+	if err != nil {
+		t.Fatalf("AwaitMastership(): %v", err)
+	}
 
 	if run == nil {
 		t.Fatal("Expected non-nil Run")

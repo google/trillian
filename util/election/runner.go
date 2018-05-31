@@ -49,7 +49,7 @@ type Run struct {
 	Done <-chan struct{}
 }
 
-// Close stops this Run checking its mastership status, blocks until its
+// Stop stops this Run checking its mastership status, blocks until its
 // resources are released.
 func (r *Run) Stop() {
 	r.Cancel()
