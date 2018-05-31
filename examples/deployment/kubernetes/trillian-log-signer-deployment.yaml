@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     io.kompose.service: trillian-log-signer
-  name: trillian-logsigner-deployment
+  name: trillian-log-signer
 spec:
   replicas: 2
   strategy: {}
@@ -18,30 +18,30 @@ spec:
         secret:
           secretName: trillian-key
       nodeSelector:
-        cloud.google.com/gke-nodepool: signer-pool
+        cloud.google.com/gke-nodepool: logsigner-pool
       restartPolicy: Always
       containers:
-      - args: [
-        "$(STORAGE_FLAG)",
-        "--storage_system=$(STORAGE_SYSTEM)",
-        "--etcd_servers=trillian-etcd-cluster-client:2379",
-        "--quota_system=etcd",
-        "--etcd_http_service=trillian-logsigner-http",
-        "--http_endpoint=0.0.0.0:8091",
-        "--sequencer_guard_window=1s",
-        "--sequencer_interval=$(SIGNER_INTERVAL)",
-        "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
-        "--batch_size=$(SIGNER_BATCH_SIZE)",
-        "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
-        "--resign_odds=$(SIGNER_RESIGN_ODDS)",
-        "--alsologtostderr"
+      - name: trillian-log-signer
+        image: gcr.io/${PROJECT_NAME}/log_signer:${TAG}
+        imagePullPolicy: Always
+        args: [
+          "$(STORAGE_FLAG)",
+          "--storage_system=$(STORAGE_SYSTEM)",
+          "--etcd_servers=trillian-etcd-cluster-client:2379",
+          "--quota_system=etcd",
+          "--etcd_http_service=trillian-logsigner-http",
+          "--http_endpoint=0.0.0.0:8091",
+          "--sequencer_guard_window=1s",
+          "--sequencer_interval=$(SIGNER_INTERVAL)",
+          "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
+          "--batch_size=$(SIGNER_BATCH_SIZE)",
+          "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
+          "--resign_odds=$(SIGNER_RESIGN_ODDS)",
+          "--alsologtostderr"
         ]
         envFrom:
           - configMapRef:
               name: deploy-config
-        # Update this with the name of your project:
-        image: gcr.io/${PROJECT_NAME}/log_signer:latest
-        imagePullPolicy: Always
         resources:
           limits:
             cpu: "1.5"
@@ -54,7 +54,6 @@ spec:
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 5
-        name: trillian-log-signer
         ports:
         - containerPort: 8091
         volumeMounts:

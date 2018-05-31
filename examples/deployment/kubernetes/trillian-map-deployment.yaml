@@ -18,24 +18,23 @@ spec:
         io.kompose.service: trillian-map
     spec:
       containers:
-      - command:
+      - name: trillian-map
+        image: gcr.io/${PROJECT_NAME}/map_server:${TAG}
+        imagePullPolicy: Always
+        command:
         - /go/bin/trillian_map_server
         - --mysql_uri=test:zaphod@tcp(db:3306)/test
         - --rpc_endpoint=0.0.0.0:8090
         - --http_endpoint=0.0.0.0:8091
         - --alsologtostderr
-        image: us.gcr.io/project-name/map_server:latest
-        imagePullPolicy: Always
         livenessProbe:
-          exec:
-            command:
-            - curl
-            - -f
-            - http://localhost:8091/healthz
+          httpGet:
+            path: /healthz
+            port: 8091
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 30
-        name: trillian-map
+
         ports:
         - containerPort: 8090
         - containerPort: 8091

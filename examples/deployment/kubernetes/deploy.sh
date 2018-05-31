@@ -28,8 +28,8 @@ gcloud config set compute/zone "${ZONE}"
 gcloud auth configure-docker
 
 # Push docker images
-docker push "gcr.io/${PROJECT_NAME}/log_server:${TAG}"
-docker push "gcr.io/${PROJECT_NAME}/log_signer:${TAG}"
+docker push gcr.io/${PROJECT_NAME}/log_server:${TAG}
+docker push gcr.io/${PROJECT_NAME}/log_signer:${TAG}
 
 # TODO(al): when cloudspanner supports maps:
 # gcloud docker -- push "us.gcr.io/${PROJECT_NAME}/map_server:${TAG}"
@@ -39,8 +39,8 @@ kubectl delete configmap deploy-config
 envsubst < examples/deployment/kubernetes/trillian-cloudspanner.yaml | kubectl create -f -
 
 # Launch with kubernetes
-envsubst < examples/deployment/kubernetes/trillian-log-deployment.yaml | kubectl apply -f -
-envsubst < examples/deployment/kubernetes/trillian-log-service.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-log-server-deployment.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-log-server-service.yaml | kubectl apply -f -
 envsubst < examples/deployment/kubernetes/trillian-log-signer-deployment.yaml | kubectl apply -f -
 envsubst < examples/deployment/kubernetes/trillian-log-signer-service.yaml | kubectl apply -f -
 kubectl get all

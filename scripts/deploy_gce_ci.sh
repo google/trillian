@@ -34,8 +34,8 @@ echo "Updating jobs..."
 kubectl delete configmap deploy-config
 envsubst < ${DIR}/../examples/deployment/kubernetes/${CONFIGMAP} | kubectl create -f -
 
-envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-deployment.yaml | kubectl apply -f -
-envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-service.yaml | kubectl apply -f -
+envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-server-deployment.yaml | kubectl apply -f -
+envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-server-service.yaml | kubectl apply -f -
 envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-signer-deployment.yaml | kubectl apply -f -
 envsubst < ${DIR}/../examples/deployment/kubernetes/trillian-log-signer-service.yaml | kubectl apply -f -
 kubectl set image deployment/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_NAME}/log_server:${TRAVIS_COMMIT}
