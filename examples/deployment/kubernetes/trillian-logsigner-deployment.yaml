@@ -2,46 +2,51 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    io.kompose.service: trillian-log
-  name: trillian-logserver-deployment
+    io.kompose.service: trillian-logsigner
+  name: trillian-logsigner
 spec:
-  replicas: 4
+  replicas: 2
   strategy: {}
   template:
     metadata:
+      creationTimestamp: null
       labels:
-        io.kompose.service: trillian-log
+        io.kompose.service: trillian-logsigner
     spec:
       volumes:
       - name: google-cloud-key
         secret:
           secretName: trillian-key
-      restartPolicy: Always
       nodeSelector:
-        cloud.google.com/gke-nodepool: logserver-pool
+        cloud.google.com/gke-nodepool: logsigner-pool
+      restartPolicy: Always
       containers:
-      - name: trillian-logserver
+      - name: trillian-logsigner
+        image: us.gcr.io/${PROJECT_NAME}/log_signer:${TAG}
+        imagePullPolicy: Always
         args: [
-        "$(STORAGE_FLAG)",
-        "--storage_system=$(STORAGE_SYSTEM)",
-        "--quota_system=etcd",
-        "--etcd_servers=trillian-etcd-cluster-client:2379",
-        "--etcd_http_service=trillian-logserver-http",
-        "--rpc_endpoint=0.0.0.0:8090",
-        "--http_endpoint=0.0.0.0:8091",
-        "--tracing",
-        "--alsologtostderr"
+          "$(STORAGE_FLAG)",
+          "--storage_system=$(STORAGE_SYSTEM)",
+          "--etcd_servers=trillian-etcd-cluster-client:2379",
+          "--quota_system=etcd",
+          "--etcd_http_service=trillian-logsigner-http",
+          "--http_endpoint=0.0.0.0:8091",
+          "--sequencer_guard_window=1s",
+          "--sequencer_interval=$(SIGNER_INTERVAL)",
+          "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
+          "--batch_size=$(SIGNER_BATCH_SIZE)",
+          "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
+          "--resign_odds=$(SIGNER_RESIGN_ODDS)",
+          "--alsologtostderr"
         ]
         envFrom:
           - configMapRef:
               name: deploy-config
-        image: us.gcr.io/${PROJECT_NAME}/log_server:${TAG}
-        imagePullPolicy: Always
         resources:
           limits:
-            cpu: "1.0"
+            cpu: "1.5"
           requests:
-            cpu: "0.4"
+            cpu: "1"
         livenessProbe:
           httpGet:
             path: /healthz
@@ -50,10 +55,7 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 5
         ports:
-        - containerPort: 8090
-          name: rpc
         - containerPort: 8091
-          name: metrics
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
@@ -65,15 +67,10 @@ spec:
         command:
           - /monitor
           - --stackdriver-prefix=custom.googleapis.com
-          - --source=logserver:http://localhost:8091/metrics
+          - --source=logsigner:http://localhost:8091/metrics
           - --pod-id=$(POD_NAME)
           - --namespace-id=$(POD_NAMESPACE)
           - --metrics-resolution=5s
-        resources:
-          limits:
-            cpu: 20m
-          requests:
-            cpu: 20m
         env:
           - name: POD_NAME
             valueFrom:

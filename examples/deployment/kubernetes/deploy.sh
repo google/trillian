@@ -39,10 +39,10 @@ kubectl delete configmap deploy-config
 envsubst < examples/deployment/kubernetes/trillian-cloudspanner.yaml | kubectl create -f -
 
 # Launch with kubernetes
-envsubst < examples/deployment/kubernetes/trillian-log-deployment.yaml | kubectl apply -f -
-envsubst < examples/deployment/kubernetes/trillian-log-service.yaml | kubectl apply -f -
-envsubst < examples/deployment/kubernetes/trillian-log-signer-deployment.yaml | kubectl apply -f -
-envsubst < examples/deployment/kubernetes/trillian-log-signer-service.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-logserver-deployment.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-logserver-service.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-logsigner-deployment.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-logsigner-service.yaml | kubectl apply -f -
 kubectl get all
 kubectl get services
 
