@@ -2,8 +2,8 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    io.kompose.service: trillian-log-service
-  name: trillian-log-service
+    io.kompose.service: trillian-logserver
+  name: trillian-logserver
   annotations:
       cloud.google.com/load-balancer-type: "Internal"
 spec:

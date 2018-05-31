@@ -2,51 +2,46 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    io.kompose.service: trillian-log-signer
-  name: trillian-logsigner-deployment
+    io.kompose.service: trillian-logserver
+  name: trillian-logserver
 spec:
-  replicas: 2
+  replicas: 4
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
-        io.kompose.service: trillian-log-signer
+        io.kompose.service: trillian-log
     spec:
       volumes:
       - name: google-cloud-key
         secret:
           secretName: trillian-key
-      nodeSelector:
-        cloud.google.com/gke-nodepool: signer-pool
       restartPolicy: Always
+      nodeSelector:
+        cloud.google.com/gke-nodepool: logserver-pool
       containers:
-      - args: [
+      - name: trillian-logserver
+        args: [
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
-        "--etcd_servers=trillian-etcd-cluster-client:2379",
         "--quota_system=etcd",
-        "--etcd_http_service=trillian-logsigner-http",
+        "--etcd_servers=trillian-etcd-cluster-client:2379",
+        "--etcd_http_service=trillian-logserver-http",
+        "--rpc_endpoint=0.0.0.0:8090",
         "--http_endpoint=0.0.0.0:8091",
-        "--sequencer_guard_window=1s",
-        "--sequencer_interval=$(SIGNER_INTERVAL)",
-        "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
-        "--batch_size=$(SIGNER_BATCH_SIZE)",
-        "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
-        "--resign_odds=$(SIGNER_RESIGN_ODDS)",
+        "--tracing",
         "--alsologtostderr"
         ]
         envFrom:
           - configMapRef:
               name: deploy-config
-        # Update this with the name of your project:
-        image: gcr.io/${PROJECT_NAME}/log_signer:latest
+        image: us.gcr.io/${PROJECT_NAME}/log_server:${TAG}
         imagePullPolicy: Always
         resources:
           limits:
-            cpu: "1.5"
+            cpu: "1.0"
           requests:
-            cpu: "1"
+            cpu: "0.4"
         livenessProbe:
           httpGet:
             path: /healthz
@@ -54,9 +49,11 @@ spec:
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 5
-        name: trillian-log-signer
         ports:
+        - containerPort: 8090
+          name: rpc
         - containerPort: 8091
+          name: metrics
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
@@ -68,10 +65,15 @@ spec:
         command:
           - /monitor
           - --stackdriver-prefix=custom.googleapis.com
-          - --source=logsigner:http://localhost:8091/metrics
+          - --source=logserver:http://localhost:8091/metrics
           - --pod-id=$(POD_NAME)
           - --namespace-id=$(POD_NAMESPACE)
           - --metrics-resolution=5s
+        resources:
+          limits:
+            cpu: 20m
+          requests:
+            cpu: 20m
         env:
           - name: POD_NAME
             valueFrom:

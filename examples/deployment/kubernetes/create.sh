@@ -37,7 +37,7 @@ done
 # Create cluster & node pools
 gcloud container clusters create "${CLUSTER_NAME}" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "2" --enable-autorepair --enable-autoupgrade
 gcloud container node-pools create "logserver-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "4" --enable-autorepair --enable-autoupgrade
-gcloud container node-pools create "signer-pool" --machine-type "n1-standard-2" --image-type "COS" --num-nodes "1" --enable-autorepair --enable-autoupgrade
+gcloud container node-pools create "logsigner-pool" --machine-type "n1-standard-2" --image-type "COS" --num-nodes "1" --enable-autorepair --enable-autoupgrade
 gcloud container node-pools create "ctfe-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "4" --enable-autorepair --enable-autoupgrade
 gcloud container clusters get-credentials "${CLUSTER_NAME}"
 
@@ -57,6 +57,9 @@ for ROLE in spanner.databaseUser logging.logWriter monitoring.metricWriter; do
     --role "roles/${ROLE}"
 done
 
+# TODO: wait for the cluster to stabilize before deploying etcd operator
+sleep 60s
+
 # Bring up etcd cluster
 # Work-around for etcd-operator role on GKE.
 COREACCOUNT=$(gcloud config config-helper --format=json | jq -r '.configuration.properties.core.account')
@@ -68,7 +71,7 @@ kubectl apply -f ${DIR}/etcd-deployment.yaml
 kubectl apply -f ${DIR}/etcd-service.yaml
 
 # TODO(al): wait for this properly somehow
-sleep 30
+sleep 30s
 
 # TODO(al): have to wait before doing this?
 kubectl apply -f ${DIR}/etcd-cluster.yaml
