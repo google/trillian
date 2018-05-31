@@ -9,9 +9,6 @@ FROM gcr.io/distroless/base
 
 LABEL maintainer="Trillian Team <email@address.com>"
 
+COPY --from=build /go/bin/trillian_log_signer /
+
 ENTRYPOINT ["/trillian_log_signer"]
-
-EXPOSE $HTTP_PORT
-
-HEALTHCHECK --interval=5m --timeout=3s \
-  CMD curl -f http://localhost:$HTTP_PORT/debug/vars || exit 1
