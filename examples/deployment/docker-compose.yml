@@ -1,6 +1,6 @@
 version: '3'
 services:
-  mysql:
+  db:
     image: mariadb:10.1
     environment:
       - MYSQL_ROOT_PASSWORD=$DB_PASSWORD
@@ -8,10 +8,14 @@ services:
     build:
       context: ../..
       dockerfile: ./examples/deployment/docker/db_client/Dockerfile
+    depends_on:
+      - db
     environment:
+      - DB_HOST=db
       - DB_USER=root
       - DB_PASSWORD=$DB_PASSWORD
-    command: ./wait-for-it.sh -t 0 mysql:3306 -- ./scripts/resetdb.sh --verbose --force -h mysql
+    command: ./wait-for-it.sh -t 0 db:3306 -- ./scripts/resetdb.sh --verbose --force
+
   trillian-log-server:
     build:
       context: ../..
@@ -21,10 +25,19 @@ services:
       - "8090:8090"
       - "8091:8091"
     depends_on:
-      - mysql
+      - db
     environment:
       - DB_USER=root
       - DB_PASSWORD=$DB_PASSWORD
+    # can't use service's `environment` variables in `command`
+    # could use environment variables from the shell (!) in `command`
+    command:
+      - --mysql_uri=test:zaphod@tcp(db:3306)/test
+      - --storage_system=mysql
+      - --http_endpoint=0.0.0.0:8091
+      - --rpc_endpoint=0.0.0.0:8090
+      - --alsologtostderr
+
   trillian-log-signer:
     build:
       context: ../..
@@ -33,7 +46,19 @@ services:
     ports:
       - "8092:8091"
     depends_on:
-      - mysql
+      - db
     environment:
       - DB_USER=root
       - DB_PASSWORD=$DB_PASSWORD
+    # can't use service's `environment` variables in `command`
+    # could use environment variables from the shell (!) in `command`    
+    command:
+      - --mysql_uri=test:zaphod@tcp(db:3306)/test
+      - --storage_system=mysql
+      - --http_endpoint=0.0.0.0:8091
+      - --sequencer_guard_window=0s
+      - --sequencer_interval=300ms
+      - --num_sequencers=10
+      - --batch_size=2000
+      - --force_master=true
+      - --alsologtostderr
