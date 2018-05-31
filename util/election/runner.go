@@ -30,9 +30,6 @@ type Config struct {
 	// MasterCheckInterval is the interval between checks that the instance still
 	// holds mastership.
 	MasterCheckInterval time.Duration
-	// TTL is the time after which the instance will resign if encountered no
-	// successful IsMaster calls.
-	TTL time.Duration
 }
 
 // Run contains the status of a single instance's mastership round.
@@ -83,16 +80,15 @@ func (r *Run) Stop() {
 //     }
 //  }
 type Runner struct {
-	cfg        *Config
-	me         MasterElection
-	timeSource util.TimeSource // Allows for mocking tests.
-	prefix     string          // Prefix for all glog messages.
+	cfg    *Config
+	me     MasterElection
+	prefix string // Prefix for all glog messages.
 }
 
 // NewRunner returns a new election runner for the provided configuration and
 // MasterElection interface.
 func NewRunner(cfg *Config, me MasterElection, ts util.TimeSource, prefix string) *Runner {
-	return &Runner{cfg: cfg, me: me, timeSource: ts, prefix: prefix}
+	return &Runner{cfg: cfg, me: me, prefix: prefix}
 }
 
 // AwaitMastership blocks until it captures mastership on behalf of the current
@@ -101,10 +97,8 @@ func NewRunner(cfg *Config, me MasterElection, ts util.TimeSource, prefix string
 // context is canceled before that.
 //
 // The method kicks off a goroutine which tracks mastership status, and
-// terminates as soon as mastership is lost, IsMaster check consistently
-// returns an error for longer than TTL, the passed in context is
-// canceled, or the returned Run's Ctx is canceled. The goroutine will attempt
-// to explicitly Resign when it terminates.
+// terminates as soon as mastership is lost, IsMaster check returns an error,
+// the passed in context is canceled, or the returned Run's Ctx is canceled.
 func (r *Runner) AwaitMastership(ctx context.Context) (*Run, error) {
 	// Pause for a random interval so that if multiple instances start at the
 	// same time there is less of a thundering herd.
@@ -121,30 +115,23 @@ func (r *Runner) AwaitMastership(ctx context.Context) (*Run, error) {
 	}
 
 	cctx, cancel := context.WithCancel(ctx)
-	elected := r.timeSource.Now()
 	done := make(chan struct{})
 
 	go func() {
 		defer close(done)
 		defer cancel()
 
-		for deadline := elected.Add(r.cfg.TTL); ; {
+		for {
 			if err := util.SleepContext(cctx, r.cfg.MasterCheckInterval); err != nil {
 				return
 			}
 			isMaster, err := r.me.IsMaster(cctx)
-			now := r.timeSource.Now()
-			switch {
-			case err != nil:
-				glog.Warningf("%sIsMaster: %v", r.prefix, err)
-				if cctx.Err() != nil || now.After(deadline) {
-					return
-				}
-			case !isMaster:
+			if err != nil {
 				glog.Warningf("%sIsMaster: false", r.prefix)
 				return
-			default: // We are the master, so update the deadline.
-				deadline = now.Add(r.cfg.TTL)
+			} else if !isMaster {
+				glog.Warningf("%sIsMaster: %v", r.prefix, err)
+				return
 			}
 		}
 	}()

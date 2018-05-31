@@ -35,7 +35,6 @@ import (
 const (
 	minPreElectionPause    = 10 * time.Millisecond
 	minMasterCheckInterval = 50 * time.Millisecond
-	minMasterTTL           = 500 * time.Millisecond
 	minMasterHoldInterval  = 10 * time.Second
 	logIDLabel             = "logid"
 )
@@ -132,9 +131,6 @@ func fixupElectionInfo(info LogOperationInfo) LogOperationInfo {
 	}
 	if cfg.MasterCheckInterval < minMasterCheckInterval {
 		cfg.MasterCheckInterval = minMasterCheckInterval
-	}
-	if cfg.TTL < minMasterTTL {
-		cfg.TTL = minMasterTTL
 	}
 	if info.MasterHoldInterval < minMasterHoldInterval {
 		info.MasterHoldInterval = minMasterHoldInterval

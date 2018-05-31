@@ -63,7 +63,6 @@ var (
 
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
-	masterTTL           = flag.Duration("master_ttl", 20*time.Second, "Maximal interval between successful checks necessary to retain mastership")
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
 	resignSpread        = flag.Float64("resign_spread", 0.0, "Max extra fraction of master_hold_interval to hold mastership for")
 
@@ -152,7 +151,6 @@ func main() {
 		ElectionConfig: election.Config{
 			PreElectionPause:    *preElectionPause,
 			MasterCheckInterval: *masterCheckInterval,
-			TTL:                 *masterTTL,
 		},
 		MasterHoldInterval: *masterHoldInterval,
 		ResignSpread:       *resignSpread,

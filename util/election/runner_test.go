@@ -29,7 +29,6 @@ var (
 	cfg = Config{
 		PreElectionPause:    time.Millisecond,
 		MasterCheckInterval: time.Millisecond,
-		TTL:                 time.Millisecond,
 	}
 	decentDur = 10 * time.Millisecond
 	stubErr   = errors.New("stub.MasterElection error")
@@ -112,12 +111,7 @@ func TestRunner_BecomeMasterAndError(t *testing.T) {
 	run := becomeMaster(ctx, t, me, runner)
 
 	me.Update(true, &stub.Errors{IsMaster: stubErr})
-	expectNotClosed(t, run.Ctx.Done(), "Closed master context unexpectedly")
-	ts.Set(ts.Now().Add(cfg.TTL))
-	expectNotClosed(t, run.Ctx.Done(), "Closed master context unexpectedly")
-	expectNotClosed(t, run.Done, "Closed master context unexpectedly")
-	ts.Set(ts.Now().Add(1)) // Just enough to trigger resignation.
-	<-run.Done              // Now should terminate.
+	<-run.Done // Mastership monitoring should terminate.
 
 	if is, _ := me.IsMaster(ctx); !is {
 		t.Errorf("Unexpected masteship resignation")
