@@ -95,13 +95,25 @@ type LogOperationInfo struct {
 	ElectionConfig election.Config
 	// MasterHoldInterval is the minimum interval to hold mastership for.
 	MasterHoldInterval time.Duration
-	// ResignSpread is the max multiplier of MasterHoldInterval added to
-	// mastership hold time for a single log, i.e. the instance will hold
-	// mastership for MasterHoldInterval * (1 + rand(ResignSpread)).
-	ResignSpread float64
+	// ResignSpread is the max extra number of master check intervals to keep
+	// mastership for. The master will resign in:
+	//   MasterHoldInterval + rand(ResignSpread) * MasterCheckInverval.
+	ResignSpread int
 
 	// NumWorkers is the number of worker goroutines to run in parallel.
 	NumWorkers int
+}
+
+// getResignDelay computes master resignation delay based on operation
+// parameters.
+func getResignDelay(info *LogOperationInfo) time.Duration {
+	delay := info.MasterHoldInterval
+	if info.ResignSpread <= 0 {
+		return delay
+	}
+	mult := rand.Float64() * float64(info.ResignSpread)
+	add := mult * float64(info.ElectionConfig.MasterCheckInterval)
+	return delay + time.Duration(add)
 }
 
 // LogOperationManager controls scheduling activities for logs.
@@ -135,7 +147,7 @@ func fixupElectionInfo(info LogOperationInfo) LogOperationInfo {
 	if info.MasterHoldInterval < minMasterHoldInterval {
 		info.MasterHoldInterval = minMasterHoldInterval
 	}
-	if info.ResignSpread < 0 {
+	if info.ResignSpread <= 0 {
 		info.ResignSpread = 0
 	}
 	return info
@@ -243,7 +255,6 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 		l.runnerWG.Add(1)
 		go func(logID int64) {
 			defer l.runnerWG.Done()
-			resignSpread := int64(float64(l.info.MasterHoldInterval) * l.info.ResignSpread)
 			for {
 				run, err := runner.AwaitMastership(ctx)
 				if err != nil {
@@ -257,15 +268,11 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 				l.tracker.Set(logID, true)
 				isMaster.Set(1.0, label)
 
-				pause := l.info.MasterHoldInterval
-				if resignSpread > 0 {
-					pause += time.Duration(rand.Int63n(resignSpread))
-				}
-
 				resign := true
+				delay := getResignDelay(&l.info)
 				// Note: The loop is to allow blocking by a mocked TimeSource.
-				for until := start.Add(pause); l.info.TimeSource.Now().Before(until); {
-					if !util.Sleep(run.Done, pause) {
+				for until := start.Add(delay); l.info.TimeSource.Now().Before(until); {
+					if !util.Sleep(run.Done, delay) {
 						resign = false
 						break
 					}

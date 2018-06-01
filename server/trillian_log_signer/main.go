@@ -64,7 +64,7 @@ var (
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
-	resignSpread        = flag.Float64("resign_spread", 0.0, "Max extra fraction of master_hold_interval to hold mastership for")
+	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -153,8 +153,10 @@ func main() {
 			MasterCheckInterval: *masterCheckInterval,
 		},
 		MasterHoldInterval: *masterHoldInterval,
-		ResignSpread:       *resignSpread,
-		TimeSource:         util.SystemTimeSource{},
+		// TODO(pavelkalinnikov): ResignOdds initially set a geometric
+		// distribution, but now it's uniform. Rename the flag.
+		ResignSpread: *resignOdds,
+		TimeSource:   util.SystemTimeSource{},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
 	sequencerTask.OperationLoop(ctx)
