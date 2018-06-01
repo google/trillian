@@ -255,6 +255,8 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 		l.runnerWG.Add(1)
 		go func(logID int64) {
 			defer l.runnerWG.Done()
+			defer runner.Close(ctx)
+
 			for {
 				run, err := runner.AwaitMastership(ctx)
 				if err != nil {
@@ -272,7 +274,8 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 				delay := getResignDelay(&l.info)
 				// Note: The loop is to allow blocking by a mocked TimeSource.
 				for until := start.Add(delay); l.info.TimeSource.Now().Before(until); {
-					if !util.Sleep(run.Done, delay) {
+					if util.SleepContext(run.Ctx, delay) != nil {
+						// Lost mastership or canceled.
 						resign = false
 						break
 					}

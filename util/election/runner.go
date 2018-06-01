@@ -127,10 +127,10 @@ func (r *Runner) AwaitMastership(ctx context.Context) (*Run, error) {
 			}
 			isMaster, err := r.me.IsMaster(cctx)
 			if err != nil {
-				glog.Warningf("%sIsMaster: false", r.prefix)
+				glog.Warningf("%sIsMaster: %v", r.prefix, err)
 				return
 			} else if !isMaster {
-				glog.Warningf("%sIsMaster: %v", r.prefix, err)
+				glog.Warningf("%sIsMaster: false", r.prefix)
 				return
 			}
 		}
