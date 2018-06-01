@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"google.golang.org/grpc"
 )
@@ -50,6 +51,7 @@ func buildGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *tril
 // It's just a basic skeleton at the moment.
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	ctx := context.Background()
 

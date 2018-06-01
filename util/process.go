@@ -56,7 +56,6 @@ func AwaitSignal(doneFn func()) {
 	// Now block main and wait for a signal
 	sig := <-sigs
 	glog.Warningf("Signal received: %v", sig)
-	glog.Flush()
 
 	doneFn()
 }

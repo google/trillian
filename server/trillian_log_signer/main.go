@@ -71,6 +71,7 @@ var (
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	if *configFile != "" {
 		if err := cmd.ParseFlagFile(*configFile); err != nil {
@@ -159,7 +160,6 @@ func main() {
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
-	glog.Flush()
 	time.Sleep(time.Second * 5)
 }
 
