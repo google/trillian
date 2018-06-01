@@ -57,8 +57,11 @@ for ROLE in spanner.databaseUser logging.logWriter monitoring.metricWriter; do
     --role "roles/${ROLE}"
 done
 
-# TODO: wait for cluster provisioning to complete
-sleep 120s
+# Wait for cluster provisioning to complete by awaiting completion of its operations
+# Need to block on these because the kubectls will fail until the cluster (and node pools) stabilize
+for OPERATION in $(gcloud container operations list --format="value(name)"); do
+  gcloud container operations wait ${OPERATION}
+done
 
 # Bring up etcd cluster
 # Work-around for etcd-operator role on GKE.
