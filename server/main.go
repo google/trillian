@@ -162,7 +162,7 @@ func (m *Main) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	go util.AwaitSignal(srv.Stop)
+	go util.AwaitSignal(ctx, srv.Stop)
 
 	if m.TreeGCEnabled {
 		go func() {
