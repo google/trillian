@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -198,7 +199,9 @@ func main() {
 	}
 
 	state := newServiceInstanceInfo(*etcdServers, *etcdServices, *targetFile)
-	go util.AwaitSignal(func() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go util.AwaitSignal(ctx, func() {
 		state.Close()
 	})
 	state.Watch()

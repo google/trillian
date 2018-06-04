@@ -96,7 +96,8 @@ func main() {
 	defer client.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go util.AwaitSignal(cancel)
+	defer cancel()
+	go util.AwaitSignal(ctx, cancel)
 
 	hostname, _ := os.Hostname()
 	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
