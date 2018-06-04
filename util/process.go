@@ -48,7 +48,8 @@ func StartHTTPServer(addr, certFile, keyFile string) error {
 }
 
 // AwaitSignal waits for standard termination signals, then runs the given
-// function. Can early return if the passed in context is canceled.
+// function. Can early return if the passed in context is canceled, in which
+// case the function is not run.
 func AwaitSignal(ctx context.Context, doneFn func()) {
 	// Subscribe for the standard set of signals used to terminate a server.
 	sigs := make(chan os.Signal, 1)
