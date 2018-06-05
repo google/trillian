@@ -36,17 +36,17 @@ func TestAddGetLeaf(t *testing.T) {
 
 // addSequencedLeaves is a temporary stand-in function for tests until the real API gets built.
 func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *LogClient, leaves [][]byte) error {
-	// TODO(pavelkalinnikov): Replace with AddSequencedLeaves batch API.
+	if len(leaves) == 0 {
+		return nil
+	}
 	for i, l := range leaves {
 		if err := client.AddSequencedLeaf(ctx, l, int64(i)); err != nil {
 			return fmt.Errorf("AddSequencedLeaf(): %v", err)
 		}
 	}
 	env.Sequencer.OperationSingle(ctx)
-	for _, l := range leaves {
-		if err := client.WaitForInclusion(ctx, l); err != nil {
-			return fmt.Errorf("WaitForInclusion(): %v", err)
-		}
+	if err := client.WaitForInclusion(ctx, leaves[len(leaves)-1]); err != nil {
+		return fmt.Errorf("WaitForInclusion(): %v", err)
 	}
 	return nil
 }
