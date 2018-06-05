@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/trillian"
@@ -31,9 +32,10 @@ import (
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
 	*LogVerifier
-	LogID  int64
-	client trillian.TrillianLogClient
-	root   types.LogRootV1
+	LogID    int64
+	client   trillian.TrillianLogClient
+	root     types.LogRootV1
+	rootLock sync.Mutex
 }
 
 // New returns a new LogClient.
@@ -191,6 +193,9 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
 // seen in the past, and updating the currently trusted root if the new root verifies.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
+	c.rootLock.Lock()
+	defer c.rootLock.Unlock()
+
 	currentlyTrusted := &c.root
 	newTrusted, err := c.getLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
