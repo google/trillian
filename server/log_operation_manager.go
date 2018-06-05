@@ -483,7 +483,7 @@ func newExecutor(op LogOperation, info *LogOperationInfo, jobs int) *logOperatio
 	if jobs < 0 {
 		jobs = 0
 	}
-	return &logOperationExecutor{op: op, info: info, jobs: make(chan in64, jobs)}
+	return &logOperationExecutor{op: op, info: info, jobs: make(chan int64, jobs)}
 }
 
 // run sets off a collection of transient worker goroutines which process the
