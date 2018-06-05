@@ -88,6 +88,8 @@ func (ab *lockedBool) Set(v bool) {
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
+
 	epochMillis := time.Now().UnixNano() / int64(time.Millisecond)
 
 	// Add leaves forever

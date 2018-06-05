@@ -63,6 +63,7 @@ func decodeArgs(args []string) [][]byte {
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	hasher := createHasher()
 	decoded := decodeArgs(flag.Args())

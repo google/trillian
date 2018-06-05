@@ -35,6 +35,7 @@ var (
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	conn, err := grpc.Dial(*adminServerAddr, grpc.WithInsecure())
 	if err != nil {

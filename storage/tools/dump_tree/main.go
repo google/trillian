@@ -40,6 +40,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/storage/tools/dump_tree/dumplib"
 )
 
@@ -59,6 +60,7 @@ var (
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	fmt.Print(dumplib.Main(dumplib.Options{
 		TreeSize:       *treeSizeFlag,

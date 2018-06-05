@@ -96,6 +96,7 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	ctx, cancel := context.WithTimeout(context.Background(), *rpcDeadline)
 	defer cancel()

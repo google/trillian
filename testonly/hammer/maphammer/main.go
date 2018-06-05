@@ -62,6 +62,8 @@ var (
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
+
 	if *mapIDs == "" {
 		glog.Exit("Test aborted as no map IDs provided (via --map_ids)")
 	}

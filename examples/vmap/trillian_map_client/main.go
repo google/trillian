@@ -29,6 +29,7 @@ var server = flag.String("server", "localhost:8091", "Server address:port")
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	conn, err := grpc.Dial(*server, grpc.WithInsecure())
 	if err != nil {

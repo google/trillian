@@ -155,6 +155,7 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 
 	if *configFile != "" {
 		if err := cmd.ParseFlagFile(*configFile); err != nil {

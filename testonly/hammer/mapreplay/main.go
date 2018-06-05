@@ -37,6 +37,7 @@ var (
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
 	ctx := context.Background()
 
 	if *replayFrom == "" {

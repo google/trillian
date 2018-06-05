@@ -191,6 +191,8 @@ func (s *serviceInstanceInfo) watchService(service string) {
 
 func main() {
 	flag.Parse()
+	defer glog.Flush()
+
 	if *etcdServers == "" {
 		glog.Exitf("No etcd servers configured with --etcd_servers")
 	}
