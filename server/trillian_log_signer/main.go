@@ -94,7 +94,9 @@ func main() {
 	if err != nil {
 		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
 	}
-	defer client.Close()
+	if client != nil {
+		defer client.Close()
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
