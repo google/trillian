@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang/glog"
@@ -379,72 +380,17 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 		return fmt.Errorf("failed to determine log IDs we're master for: %v", err)
 	}
 	l.updateHeldIDs(ctx, logIDs, allIDs)
+	glog.V(1).Infof("Beginning run for %v active log(s)", len(logIDs))
 
-	numWorkers := l.info.NumWorkers
-	if numWorkers == 0 {
-		glog.Warning("Executing a LogOperation pass with numWorkers == 0, assuming 1")
-		numWorkers = 1
-	}
-	glog.V(1).Infof("Beginning run for %v active log(s) using %d workers", len(logIDs), numWorkers)
-
-	var mu sync.Mutex
-	successCount := 0
-	itemCount := 0
-
-	// Build a channel of the logIDs that need to be processed.
-	toProcess := make(chan int64, len(logIDs))
+	// TODO(pavelkalinnikov): Run executor once instead of doing it on each pass.
+	// This will be also needed when factoring out per-log operation loop.
+	ex := newExecutor(l.logOperation, &l.info, len(logIDs))
+	// Put logIDs that need to be processed to the executor's channel.
 	for _, logID := range logIDs {
-		toProcess <- logID
+		ex.jobs <- logID
 	}
-	close(toProcess)
-
-	// Set off a collection of transient worker goroutines to process the pending logIDs.
-	startBatch := l.info.TimeSource.Now()
-	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				logID, more := <-toProcess
-				if !more {
-					return
-				}
-
-				label := strconv.FormatInt(logID, 10)
-				start := l.info.TimeSource.Now()
-				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
-				if err != nil {
-					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
-					failedSigningRuns.Inc(label)
-					continue
-				}
-
-				// This indicates signing activity is proceeding on the logID.
-				signingRuns.Inc(label)
-				if count > 0 {
-					d := util.SecondsSince(l.info.TimeSource, start)
-					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
-					// This allows an operator to determine that the queue is empty
-					// for a particular log if signing runs are succeeding but nothing
-					// is being processed then this counter will stop increasing.
-					entriesAdded.Add(float64(count), label)
-				} else {
-					glog.V(1).Infof("%v: no items to process", logID)
-				}
-				mu.Lock()
-				successCount++
-				itemCount += count
-				mu.Unlock()
-			}
-		}()
-	}
-
-	// Wait for the workers to consume all of the logIDs
-	wg.Wait()
-	d := util.SecondsSince(l.info.TimeSource, startBatch)
-	glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, len(logIDs)-successCount, itemCount)
-
+	close(ex.jobs) // Cause executor's run to terminate when it has drained the jobs.
+	ex.run(ctx)
 	return nil
 }
 
@@ -518,4 +464,84 @@ loop:
 	glog.Infof("wait for termination of election runners...")
 	l.runnerWG.Wait()
 	glog.Infof("wait for termination of election runners...done")
+}
+
+// logOperationExecutor runs the specified LogOperation on the submitted logs
+// in a set of parallel workers.
+type logOperationExecutor struct {
+	op   LogOperation
+	info *LogOperationInfo
+
+	// jobs holds logIDs to run log operation on.
+	// TODO(pavelkalinnikov): Use mastership context for each job to make them
+	// auto-cancelable when mastership is lost.
+	// TODO(pavelkalinnikov): Report job completion status back.
+	jobs chan int64
+}
+
+func newExecutor(op LogOperation, info *LogOperationInfo, jobs int) *logOperationExecutor {
+	if jobs < 0 {
+		jobs = 0
+	}
+	return &logOperationExecutor{op: op, info: info, jobs: make(chan int64, jobs)}
+}
+
+// run sets off a collection of transient worker goroutines which process the
+// pending log operation jobs until the jobs channel is closed.
+func (e *logOperationExecutor) run(ctx context.Context) {
+	startBatch := e.info.TimeSource.Now()
+
+	numWorkers := e.info.NumWorkers
+	if numWorkers <= 0 {
+		glog.Warning("Running executor with NumWorkers <= 0, assuming 1")
+		numWorkers = 1
+	}
+	glog.V(1).Infof("Running executor with %d worker(s)", numWorkers)
+
+	var wg sync.WaitGroup
+	var successCount, failCount, itemCount int64
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				logID, ok := <-e.jobs
+				if !ok {
+					return
+				}
+
+				label := strconv.FormatInt(logID, 10)
+				start := e.info.TimeSource.Now()
+				count, err := e.op.ExecutePass(ctx, logID, e.info)
+				if err != nil {
+					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
+					failedSigningRuns.Inc(label)
+					atomic.AddInt64(&failCount, 1)
+					continue
+				}
+
+				// This indicates signing activity is proceeding on the logID.
+				signingRuns.Inc(label)
+				if count > 0 {
+					d := util.SecondsSince(e.info.TimeSource, start)
+					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
+					// This allows an operator to determine that the queue is empty for a
+					// particular log if signing runs are succeeding but nothing is being
+					// processed then this counter will stop increasing.
+					entriesAdded.Add(float64(count), label)
+				} else {
+					glog.V(1).Infof("%v: no items to process", logID)
+				}
+
+				atomic.AddInt64(&successCount, 1)
+				atomic.AddInt64(&itemCount, int64(count))
+			}
+		}()
+	}
+
+	// Wait for the workers to consume all of the logIDs.
+	wg.Wait()
+	d := util.SecondsSince(e.info.TimeSource, startBatch)
+	glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, failCount, itemCount)
 }
