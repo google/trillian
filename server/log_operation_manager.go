@@ -480,12 +480,10 @@ type logOperationExecutor struct {
 }
 
 func newExecutor(op LogOperation, info *LogOperationInfo, jobs int) *logOperationExecutor {
-	ex := &logOperationExecutor{op: op, info: info}
-	if jobs <= 0 {
-		ex.jobs = make(chan int64)
-	} else {
-		ex.jobs = make(chan int64, jobs)
+	if jobs < 0 {
+		jobs = 0
 	}
+	ex := &logOperationExecutor{op: op, info: info, jobs: make(chan in64, jobs)}
 	return ex
 }
 
