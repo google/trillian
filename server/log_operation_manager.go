@@ -389,7 +389,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	for _, logID := range logIDs {
 		ex.jobs <- logID
 	}
-	close(ex.jobs) // Cause executor's run terminate when drained the jobs.
+	close(ex.jobs) // Cause executor's run to terminate when it has drained the jobs.
 	ex.run(ctx)
 	return nil
 }
@@ -483,8 +483,7 @@ func newExecutor(op LogOperation, info *LogOperationInfo, jobs int) *logOperatio
 	if jobs < 0 {
 		jobs = 0
 	}
-	ex := &logOperationExecutor{op: op, info: info, jobs: make(chan in64, jobs)}
-	return ex
+	return &logOperationExecutor{op: op, info: info, jobs: make(chan in64, jobs)}
 }
 
 // run sets off a collection of transient worker goroutines which process the
