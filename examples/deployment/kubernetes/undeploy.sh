@@ -3,6 +3,8 @@
 # - Cluster has already been created & configured using the create.sh script
 # - Go 1.10 is installed
 
+set -e
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/config.sh
 
