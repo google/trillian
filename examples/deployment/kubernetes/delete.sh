@@ -2,6 +2,8 @@
 #
 # This script (optionally) deletes resources in a Google Cloud project to host a Trillian instance using Kubernetes.
 
+set -e
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/config.sh
 

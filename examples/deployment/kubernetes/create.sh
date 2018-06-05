@@ -3,6 +3,8 @@
 # This script (optionally) creates and then prepares a Google Cloud project to host a
 # Trillian instance using Kubernetes.
 
+set -e
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/config.sh
 
