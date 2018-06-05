@@ -17,6 +17,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -36,13 +37,15 @@ func TestAddGetLeaf(t *testing.T) {
 // addSequencedLeaves is a temporary stand-in function for tests until the real API gets built.
 func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *LogClient, leaves [][]byte) error {
 	// TODO(pavelkalinnikov): Replace with AddSequencedLeaves batch API.
-	for _, l := range leaves {
-		if err := client.QueueLeaf(ctx, l); err != nil {
-			return err
+	for i, l := range leaves {
+		if err := client.AddSequencedLeaf(ctx, l, int64(i)); err != nil {
+			return fmt.Errorf("AddSequencedLeaf(): %v", err)
 		}
-		env.Sequencer.OperationSingle(ctx)
+	}
+	env.Sequencer.OperationSingle(ctx)
+	for _, l := range leaves {
 		if err := client.WaitForInclusion(ctx, l); err != nil {
-			return err
+			return fmt.Errorf("WaitForInclusion(): %v", err)
 		}
 	}
 	return nil
@@ -58,7 +61,7 @@ func TestGetByIndex(t *testing.T) {
 	defer env.Close()
 
 	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
 		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
@@ -76,7 +79,7 @@ func TestGetByIndex(t *testing.T) {
 	}
 
 	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
-		t.Errorf("Failed to add leaves: %v", err)
+		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
 	for i, l := range leafData {
@@ -100,7 +103,7 @@ func TestListByIndex(t *testing.T) {
 	}
 	defer env.Close()
 	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
 		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
@@ -118,7 +121,7 @@ func TestListByIndex(t *testing.T) {
 	}
 
 	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
-		t.Errorf("Failed to add leaves: %v", err)
+		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
 	// Fetch leaves.
@@ -142,7 +145,7 @@ func TestVerifyInclusion(t *testing.T) {
 	}
 	defer env.Close()
 	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
 		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
@@ -159,7 +162,7 @@ func TestVerifyInclusion(t *testing.T) {
 	}
 
 	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
-		t.Errorf("Failed to add leaves: %v", err)
+		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
 	for _, l := range leafData {
@@ -178,7 +181,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 	}
 	defer env.Close()
 	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
 		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
@@ -195,7 +198,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 	}
 
 	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
-		t.Errorf("Failed to add leaves: %v", err)
+		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
 	for i, l := range leafData {

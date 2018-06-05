@@ -55,6 +55,18 @@ func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree) (*Log
 	return New(config.GetTreeId(), client, verifier), nil
 }
 
+// AddSequencedLeafAndWait adds a leaf at a specific index to the log.
+// Blocks until it has been included in an sth.
+func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, index int64) error {
+	if err := c.AddSequencedLeaf(ctx, data, index); err != nil {
+		return fmt.Errorf("QueueLeaf(): %v", err)
+	}
+	if err := c.WaitForInclusion(ctx, data); err != nil {
+		return fmt.Errorf("WaitForInclusion(): %v", err)
+	}
+	return nil
+}
+
 // AddLeaf adds leaf to the append only log.
 // Blocks until it gets a verifiable response.
 func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
@@ -295,6 +307,21 @@ func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []b
 	return true, nil
 }
 
+// AddSequencedLeaf adds a leaf at a particular index.
+func (c *LogClient) AddSequencedLeaf(ctx context.Context, data []byte, index int64) error {
+	leaf, err := c.BuildLeaf(data)
+	if err != nil {
+		return err
+	}
+	leaf.LeafIndex = index
+
+	_, err = c.client.AddSequencedLeaf(ctx, &trillian.AddSequencedLeafRequest{
+		LogId: c.LogID,
+		Leaf:  leaf,
+	})
+	return err
+}
+
 // QueueLeaf adds a leaf to a Trillian log without blocking.
 // AlreadyExists is considered a success case by this function.
 func (c *LogClient) QueueLeaf(ctx context.Context, data []byte) error {
@@ -303,11 +330,9 @@ func (c *LogClient) QueueLeaf(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	if _, err := c.client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
+	_, err = c.client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
 		LogId: c.LogID,
 		Leaf:  leaf,
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
+	return err
 }
