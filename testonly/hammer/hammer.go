@@ -121,13 +121,13 @@ type MapBias struct {
 }
 
 // choose randomly picks an operation to perform according to the biases.
-func (hb *MapBias) choose(s rand.Source) MapEntrypointName {
+func (hb *MapBias) choose(r *rand.Rand) MapEntrypointName {
 	if hb.total == 0 {
 		for _, ep := range mapEntrypoints {
 			hb.total += hb.Bias[ep]
 		}
 	}
-	which := intN(s, hb.total)
+	which := r.Intn(hb.total)
 	for _, ep := range mapEntrypoints {
 		which -= hb.Bias[ep]
 		if which < 0 {
@@ -138,12 +138,12 @@ func (hb *MapBias) choose(s rand.Source) MapEntrypointName {
 }
 
 // invalid randomly chooses whether an operation should be invalid.
-func (hb *MapBias) invalid(ep MapEntrypointName, s rand.Source) bool {
+func (hb *MapBias) invalid(ep MapEntrypointName, r *rand.Rand) bool {
 	chance := hb.InvalidChance[ep]
 	if chance <= 0 {
 		return false
 	}
-	return (intN(s, chance) == 0)
+	return (r.Intn(chance) == 0)
 }
 
 // MapConfig provides configuration for a stress/load test.
@@ -244,7 +244,7 @@ type hammerState struct {
 
 	// prng is not thread-safe and should only be used from the main hammer
 	// goroutine for reproducability.
-	prng rand.Source
+	prng *rand.Rand
 
 	// copies of earlier contents of the map
 	prevContents versionedMapContents
@@ -258,13 +258,6 @@ type hammerState struct {
 	// Counters for generating unique keys/values.
 	keyIdx   int
 	valueIdx int
-}
-
-func intN(prng rand.Source, n int) int {
-	x := prng.Int63()
-	// This is not uniformly distributed on [0, n), but that's not worth
-	// bothering to adjust here.
-	return int(x % int64(n))
 }
 
 func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
@@ -295,7 +288,7 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 
 	return &hammerState{
 		cfg:      cfg,
-		prng:     cfg.RandSource,
+		prng:     rand.New(cfg.RandSource),
 		verifier: verifier,
 	}, nil
 }
@@ -319,7 +312,7 @@ func (s *hammerState) performOperations(ctx context.Context, done <-chan struct{
 // channel is closed.
 func (s *hammerState) readChecker(ctx context.Context, done <-chan struct{}, idx int) error {
 	// Use a separate rand.Source so the main goroutine stays predictable.
-	prng := rand.NewSource(int64(idx))
+	prng := rand.New(rand.NewSource(int64(idx)))
 	for {
 		select {
 		case <-done:
@@ -397,9 +390,9 @@ func (s *hammerState) chooseInvalid(ep MapEntrypointName) bool {
 	return s.cfg.EPBias.invalid(ep, s.prng)
 }
 
-func (s *hammerState) chooseLeafCount(prng rand.Source) int {
+func (s *hammerState) chooseLeafCount(prng *rand.Rand) int {
 	delta := 1 + s.cfg.MaxLeaves - s.cfg.MinLeaves
-	return s.cfg.MinLeaves + intN(prng, delta)
+	return s.cfg.MinLeaves + prng.Intn(delta)
 }
 
 func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
@@ -494,7 +487,7 @@ func (s *hammerState) getLeavesRev(ctx context.Context) error {
 	return s.doGetLeaves(ctx, s.prng, false /*latest*/)
 }
 
-func (s *hammerState) doGetLeaves(ctx context.Context, prng rand.Source, latest bool) error {
+func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest bool) error {
 	choices := []Choice{ExistingKey, NonexistentKey}
 
 	if s.prevContents.empty() {
@@ -511,7 +504,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng rand.Source, latest 
 	n := s.chooseLeafCount(prng) // can be zero
 	indices := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		choice := choices[intN(prng, len(choices))]
+		choice := choices[prng.Intn(len(choices))]
 		if contents.empty() {
 			choice = NonexistentKey
 		}
@@ -604,7 +597,7 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 
 	req := trillian.GetMapLeavesByRevisionRequest{MapId: s.cfg.MapID}
 	contents := s.prevContents.lastCopy()
-	choice := choices[intN(s.prng, len(choices))]
+	choice := choices[s.prng.Intn(len(choices))]
 
 	rev := int64(0)
 	var index []byte
@@ -650,7 +643,7 @@ func (s *hammerState) setLeaves(ctx context.Context) error {
 	}
 leafloop:
 	for i := 0; i < n; i++ {
-		choice := choices[intN(s.prng, len(choices))]
+		choice := choices[s.prng.Intn(len(choices))]
 		if contents == nil || contents.empty() {
 			choice = CreateLeaf
 		}
@@ -709,7 +702,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
 	var leaves []*trillian.MapLeaf
 	value := []byte("value-for-invalid-req")
 
-	choice := choices[intN(s.prng, len(choices))]
+	choice := choices[s.prng.Intn(len(choices))]
 	contents := s.prevContents.lastCopy()
 	if contents == nil || contents.empty() {
 		choice = MalformedKey
@@ -752,7 +745,7 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 }
 
 func (s *hammerState) getSMRRev(ctx context.Context) error {
-	which := intN(s.prng, smrCount)
+	which := s.prng.Intn(smrCount)
 	smr := s.previousSMR(which)
 	if smr == nil || len(smr.MapRoot) == 0 {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
@@ -790,7 +783,7 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 		rev = contents.rev
 	}
 
-	choice := choices[intN(s.prng, len(choices))]
+	choice := choices[s.prng.Intn(len(choices))]
 
 	switch choice {
 	case RevTooBig:

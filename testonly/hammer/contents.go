@@ -39,12 +39,12 @@ func (m *mapContents) empty() bool {
 
 // pickKey randomly selects a key that already exists in a given copy of the
 // map's contents. Assumes that the copy is non-empty.
-func (m *mapContents) pickKey(prng rand.Source) []byte {
+func (m *mapContents) pickKey(prng *rand.Rand) []byte {
 	if m.empty() {
 		panic("internal error: can't pick a key, map data is empty!")
 	}
 
-	choice := intN(prng, len(m.data))
+	choice := prng.Intn(len(m.data))
 	// Need sorted keys for reproduceability.
 	keys := make([]mapKey, 0)
 	for k := range m.data {
@@ -133,7 +133,7 @@ func (p *versionedMapContents) lastCopy() *mapContents {
 
 // pickCopy returns a previous copy of the map's contents, returning
 // nil if there are no local copies.
-func (p *versionedMapContents) pickCopy(prng rand.Source) *mapContents {
+func (p *versionedMapContents) pickCopy(prng *rand.Rand) *mapContents {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	// Count the number of filled copies.
@@ -147,7 +147,7 @@ func (p *versionedMapContents) pickCopy(prng rand.Source) *mapContents {
 		// No copied contents yet
 		return nil
 	}
-	choice := intN(prng, i)
+	choice := prng.Intn(i)
 	return p.contents[choice]
 }
 
