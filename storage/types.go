@@ -25,19 +25,6 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
-// Error is a typed error that the storage layer can return to give callers information
-// about the error to decide how to handle it.
-type Error struct {
-	ErrType int
-	Detail  string
-	Cause   error
-}
-
-// Error formats the internal details of an Error including the original cause.
-func (s Error) Error() string {
-	return fmt.Sprintf("Storage: %d: %s: %v", s.ErrType, s.Detail, s.Cause)
-}
-
 // Node represents a single node in a Merkle tree.
 type Node struct {
 	NodeID       NodeID
