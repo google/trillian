@@ -178,15 +178,14 @@ func (p *versionedMapContents) updateContentsWith(rev uint64, leaves []*trillian
 // dumpLockedContents shows the local copies of the map's contents; it should be called with p.mu held.
 func (p *versionedMapContents) dumpLockedContents() {
 	fmt.Println("Contents\n~~~~~~~~")
-	i := 0
-	for ; i < copyCount; i++ {
-		if p.contents[i] == nil {
+	for i, c := range p.contents {
+		if c == nil {
 			break
 		}
 		fmt.Printf(" slot #%d\n", i)
-		fmt.Printf("  revision: %d\n", p.contents[i].rev)
+		fmt.Printf("  revision: %d\n", c.rev)
 		fmt.Println("  data:")
-		for k, v := range p.contents[i].data {
+		for k, v := range c.data {
 			fmt.Printf("   k: %s v: %v\n", string(k[:]), v)
 		}
 	}
