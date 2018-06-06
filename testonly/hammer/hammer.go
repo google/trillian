@@ -148,15 +148,16 @@ func (hb *MapBias) invalid(ep MapEntrypointName, s rand.Source) bool {
 
 // MapConfig provides configuration for a stress/load test.
 type MapConfig struct {
-	MapID         int64
-	MetricFactory monitoring.MetricFactory
-	Client        trillian.TrillianMapClient
-	Admin         trillian.TrillianAdminClient
-	RandSource    rand.Source
-	EPBias        MapBias
-	Operations    uint64
-	EmitInterval  time.Duration
-	IgnoreErrors  bool
+	MapID                int64
+	MetricFactory        monitoring.MetricFactory
+	Client               trillian.TrillianMapClient
+	Admin                trillian.TrillianAdminClient
+	RandSource           rand.Source
+	EPBias               MapBias
+	MinLeaves, MaxLeaves int
+	Operations           uint64
+	EmitInterval         time.Duration
+	IgnoreErrors         bool
 	// NumCheckers indicates how many separate inclusion checker goroutines
 	// to run.  Note that the behaviour of these checkers is not governed by
 	// RandSource.
@@ -285,6 +286,13 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	if cfg.EmitInterval == 0 {
 		cfg.EmitInterval = defaultEmitSeconds * time.Second
 	}
+	if cfg.MinLeaves < 0 {
+		return nil, fmt.Errorf("invalid MinLeaves %d", cfg.MinLeaves)
+	}
+	if cfg.MaxLeaves < cfg.MinLeaves {
+		return nil, fmt.Errorf("invalid MaxLeaves %d is less than MinLeaves %d", cfg.MaxLeaves, cfg.MinLeaves)
+	}
+
 	return &hammerState{
 		cfg:      cfg,
 		prng:     cfg.RandSource,
@@ -387,6 +395,11 @@ func (s *hammerState) chooseOp() MapEntrypointName {
 
 func (s *hammerState) chooseInvalid(ep MapEntrypointName) bool {
 	return s.cfg.EPBias.invalid(ep, s.prng)
+}
+
+func (s *hammerState) chooseLeafCount(prng rand.Source) int {
+	delta := 1 + s.cfg.MaxLeaves - s.cfg.MinLeaves
+	return s.cfg.MinLeaves + intN(prng, delta)
 }
 
 func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
@@ -495,7 +508,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng rand.Source, latest 
 		contents = s.prevContents.pickCopy(prng)
 	}
 
-	n := intN(prng, 10) // can be zero
+	n := s.chooseLeafCount(prng) // can be zero
 	indices := make([][]byte, n)
 	for i := 0; i < n; i++ {
 		choice := choices[intN(prng, len(choices))]
@@ -625,7 +638,10 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 func (s *hammerState) setLeaves(ctx context.Context) error {
 	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
 
-	n := 1 + intN(s.prng, 10)
+	n := s.chooseLeafCount(s.prng)
+	if n == 0 {
+		n = 1
+	}
 	leaves := make([]*trillian.MapLeaf, 0, n)
 	contents := s.prevContents.lastCopy()
 	rev := int64(0)

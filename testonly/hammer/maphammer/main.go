@@ -50,6 +50,8 @@ var (
 	outLog          = flag.String("log_to", "", "File to record operations in")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	operations      = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
+	minLeaves       = flag.Int("min_leaves", 0, "Minimum count of leaves to affect per-operation")
+	maxLeaves       = flag.Int("max_leaves", 10, "Maximum count of leaves to affect per-operation")
 	checkers        = flag.Int("checkers", 0, "Number of checker goroutines to run")
 )
 var (
@@ -156,6 +158,8 @@ func main() {
 			MetricFactory: mf,
 			RandSource:    randSrc,
 			EPBias:        bias,
+			MinLeaves:     *minLeaves,
+			MaxLeaves:     *maxLeaves,
 			Operations:    *operations,
 			NumCheckers:   *checkers,
 		}
