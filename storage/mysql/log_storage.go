@@ -612,10 +612,6 @@ func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error) {
 	if t.treeType == trillian.TreeType_LOG {
 		treeSize := int64(t.root.TreeSize)
-		if treeSize <= 0 {
-			return nil, status.Errorf(codes.FailedPrecondition, "empty tree")
-		}
-
 		for _, leaf := range leaves {
 			if leaf < 0 {
 				return nil, status.Errorf(codes.InvalidArgument, "index %d is < 0", leaf)
