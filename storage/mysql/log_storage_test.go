@@ -33,6 +33,8 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 	ttestonly "github.com/google/trillian/testonly"
@@ -744,8 +746,8 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if _, err := tx.GetLeavesByIndex(ctx, []int64{99999}); err == nil {
-			t.Fatalf("Returned ok for leaf index when nothing inserted: %v", err)
+		if _, err := tx.GetLeavesByIndex(ctx, []int64{99999}); err == nil || status.Code(err) != codes.OutOfRange {
+			t.Fatalf("got %v, want: err with status OutOfRange", err)
 		}
 		return nil
 	})
@@ -856,6 +858,9 @@ func TestGetLeavesByIndex(t *testing.T) {
 	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
+	// The leaf indices are checked against the tree size so we need a root.
+	createFakeSignedLogRoot(DB, tree, uint64(sequenceNumber+1))
+
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
@@ -868,6 +873,14 @@ func TestGetLeavesByIndex(t *testing.T) {
 			t.Fatalf("Got %d leaves but expected one", len(leaves))
 		}
 		checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+		return nil
+	})
+	// Now go off the end of the tree by one entry and we should get OutOfRange.
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		_, err := tx.GetLeavesByIndex(ctx, []int64{sequenceNumber + 1})
+		if err == nil || status.Code(err) != codes.OutOfRange {
+			t.Fatalf("got: %v for index outside tree, want: err with code OutOfRange", err)
+		}
 		return nil
 	})
 }
