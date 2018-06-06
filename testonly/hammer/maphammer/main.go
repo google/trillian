@@ -50,6 +50,7 @@ var (
 	outLog          = flag.String("log_to", "", "File to record operations in")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	operations      = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
+	checkers        = flag.Int("checkers", 0, "Number of checker goroutines to run")
 )
 var (
 	getLeavesBias    = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
@@ -156,6 +157,7 @@ func main() {
 			RandSource:    randSrc,
 			EPBias:        bias,
 			Operations:    *operations,
+			NumCheckers:   *checkers,
 		}
 		fmt.Printf("%v\n\n", cfg)
 		go func(cfg hammer.MapConfig) {

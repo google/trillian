@@ -157,6 +157,10 @@ type MapConfig struct {
 	Operations    uint64
 	EmitInterval  time.Duration
 	IgnoreErrors  bool
+	// NumCheckers indicates how many separate inclusion checker goroutines
+	// to run.  Note that the behaviour of these checkers is not governed by
+	// RandSource.
+	NumCheckers int
 }
 
 // String conforms with Stringer for MapConfig.
@@ -181,15 +185,55 @@ func HitMap(cfg MapConfig) error {
 		}
 	}(ticker.C)
 
-	for count := uint64(1); count < cfg.Operations; count++ {
-		if err := s.retryOneOp(ctx); err != nil {
-			return err
+	var wg sync.WaitGroup
+	errs := make(chan error, cfg.NumCheckers+1)
+	done := make(chan struct{})
+	for i := 0; i < cfg.NumCheckers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			glog.Infof("%d: start checker %d", s.cfg.MapID, i)
+			err := s.readChecker(ctx, done, i)
+			if err != nil {
+				errs <- err
+			}
+			glog.Infof("%d: checker %d done with %v", s.cfg.MapID, i, err)
+		}(i)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		glog.Infof("%d: start main goroutine", s.cfg.MapID)
+		count, err := s.performOperations(ctx, done)
+		errs <- err // may be nil for the main goroutine completion
+		glog.Infof("%d: performed %d operations on map", cfg.MapID, count)
+	}()
+
+	// Wait for first error, completion (which shows up as a nil error) or
+	// external cancellation.
+	var firstErr error
+	select {
+	case <-ctx.Done():
+		glog.Infof("%d: context canceled", cfg.MapID)
+	case e := <-errs:
+		firstErr = e
+		if firstErr != nil {
+			glog.Infof("%d: first error encountered: %v", cfg.MapID, e)
 		}
 	}
-	glog.Infof("%d: completed %d operations on map", cfg.MapID, cfg.Operations)
-	ticker.Stop()
+	close(done)
 
-	return nil
+	ticker.Stop()
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		if e == nil {
+			continue
+		}
+		glog.Infof("%d: error encountered: %v", cfg.MapID, e)
+	}
+	return firstErr
 }
 
 // hammerState tracks the operations that have been performed during a test run.
@@ -246,6 +290,41 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		prng:     cfg.RandSource,
 		verifier: verifier,
 	}, nil
+}
+
+func (s *hammerState) performOperations(ctx context.Context, done <-chan struct{}) (uint64, error) {
+	count := uint64(0)
+	for ; count < s.cfg.Operations; count++ {
+		select {
+		case <-done:
+			return count, nil
+		default:
+		}
+		if err := s.retryOneOp(ctx); err != nil {
+			return count, err
+		}
+	}
+	return count, nil
+}
+
+// readChecker loops performing (read-only) checking operations until the done
+// channel is closed.
+func (s *hammerState) readChecker(ctx context.Context, done <-chan struct{}, idx int) error {
+	// Use a separate rand.Source so the main goroutine stays predictable.
+	prng := rand.NewSource(int64(idx))
+	for {
+		select {
+		case <-done:
+			return nil
+		default:
+		}
+		if err := s.doGetLeaves(ctx, prng, false /* latest */); err != nil {
+			if _, ok := err.(errSkip); ok {
+				continue
+			}
+			return err
+		}
+	}
 }
 
 func (s *hammerState) nextKey() string {
@@ -395,14 +474,14 @@ func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName
 }
 
 func (s *hammerState) getLeaves(ctx context.Context) error {
-	return s.doGetLeaves(ctx, true /*latest*/)
+	return s.doGetLeaves(ctx, s.prng, true /*latest*/)
 }
 
 func (s *hammerState) getLeavesRev(ctx context.Context) error {
-	return s.doGetLeaves(ctx, false /*latest*/)
+	return s.doGetLeaves(ctx, s.prng, false /*latest*/)
 }
 
-func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
+func (s *hammerState) doGetLeaves(ctx context.Context, prng rand.Source, latest bool) error {
 	choices := []Choice{ExistingKey, NonexistentKey}
 
 	if s.prevContents.empty() {
@@ -413,20 +492,20 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 	if latest {
 		contents = s.prevContents.lastCopy()
 	} else {
-		contents = s.prevContents.pickCopy(s.prng)
+		contents = s.prevContents.pickCopy(prng)
 	}
 
-	n := intN(s.prng, 10) // can be zero
+	n := intN(prng, 10) // can be zero
 	indices := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		choice := choices[intN(s.prng, len(choices))]
+		choice := choices[intN(prng, len(choices))]
 		if contents.empty() {
 			choice = NonexistentKey
 		}
 		switch choice {
 		case ExistingKey:
 			// No duplicate removal, so we can end up asking for same key twice in the same request.
-			key := contents.pickKey(s.prng)
+			key := contents.pickKey(prng)
 			indices[i] = key
 		case NonexistentKey:
 			indices[i] = testonly.TransparentHash("non-existent-key")
