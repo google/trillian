@@ -32,10 +32,15 @@ func HashKey(key string) []byte {
 // TransparentHash returns a key that can be visually inspected.
 // This supports testing where it was nice to see what the key was.
 func TransparentHash(key string) []byte {
-	if len(key) > sha256.Size {
+	const prefixLen = 8
+	if prefixLen+len(key) > sha256.Size {
 		panic("key too long")
 	}
 	b := make([]byte, sha256.Size)
-	copy(b, key)
+	// Put some hashed bytes before the key so that key values are
+	// a bit more widely distributed around the Merkle tree.
+	h := HashKey(key)
+	copy(b[0:prefixLen], h[0:prefixLen])
+	copy(b[prefixLen:], key)
 	return b
 }
