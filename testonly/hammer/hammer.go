@@ -583,14 +583,11 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 		glog.V(3).Infof("%d: skipping get-leaves as no data yet", s.cfg.MapID)
 		return errSkip{}
 	}
-	// Note, even if 'latest'==false this selects the latest rev when 'which'==0.
-	// This it intended since a client may know the latest revision and specify it in
-	// GetLeavesByRevision.
-	rev := s.rev(which)
+
 	if latest {
 		which = 0
-		rev = s.rev(0)
 	}
+	rev := s.rev(which)
 
 	n := intN(s.prng, 10) // can be zero
 	indices := make([][]byte, n)
