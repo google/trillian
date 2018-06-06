@@ -47,6 +47,7 @@ var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafDa
 // Must be 32 bytes to match sha256 length if it was a real hash
 var dummyHash = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
 var dummyRawHash = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
+var dummyRawHash2 = []byte("yyyyhashyyyyhashyyyyhashyyyyhash")
 var dummyHash2 = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
 var dummyHash3 = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
 
@@ -61,6 +62,7 @@ var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
 // Used for tests involving extra data
 var someExtraData = []byte("Some extra data")
+var someExtraData2 = []byte("Some even more extra data")
 
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
@@ -740,19 +742,6 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	})
 }
 
-func TestGetLeavesByIndexNotPresent(t *testing.T) {
-	cleanTestDB(DB)
-	tree := createTreeOrPanic(DB, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
-
-	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if _, err := tx.GetLeavesByIndex(ctx, []int64{99999}); err == nil || status.Code(err) != codes.OutOfRange {
-			t.Fatalf("got %v, want: err with status OutOfRange", err)
-		}
-		return nil
-	})
-}
-
 func TestGetLeavesByHash(t *testing.T) {
 	ctx := context.Background()
 
@@ -862,27 +851,83 @@ func TestGetLeavesByIndex(t *testing.T) {
 	createFakeSignedLogRoot(DB, tree, uint64(sequenceNumber+1))
 
 	data := []byte("some data")
+	data2 := []byte("some other data")
 	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash2, dummyHash2, data2, someExtraData2, sequenceNumber-1, t)
 
-	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		leaves, err := tx.GetLeavesByIndex(ctx, []int64{sequenceNumber})
-		if err != nil {
-			t.Fatalf("Unexpected error getting leaf by index: %v", err)
-		}
-		if len(leaves) != 1 {
-			t.Fatalf("Got %d leaves but expected one", len(leaves))
-		}
-		checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-		return nil
-	})
-	// Now go off the end of the tree by one entry and we should get OutOfRange.
-	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		_, err := tx.GetLeavesByIndex(ctx, []int64{sequenceNumber + 1})
-		if err == nil || status.Code(err) != codes.OutOfRange {
-			t.Fatalf("got: %v for index outside tree, want: err with code OutOfRange", err)
-		}
-		return nil
-	})
+	var tests = []struct {
+		desc     string
+		indices  []int64
+		wantErr  bool
+		wantCode codes.Code
+		checkFn  func([]*trillian.LogLeaf, *testing.T)
+	}{
+		{
+			desc:    "InTree",
+			indices: []int64{sequenceNumber},
+			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
+				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+			},
+		},
+		{
+			desc:    "InTree2",
+			indices: []int64{sequenceNumber - 1},
+			wantErr: false,
+			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
+				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash2, dummyHash2, data2, someExtraData2, t)
+			},
+		},
+		{
+			desc:    "InTreeMultiple",
+			indices: []int64{sequenceNumber - 1, sequenceNumber},
+			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
+				checkLeafContents(leaves[1], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash2, dummyHash2, data2, someExtraData2, t)
+			},
+		},
+		{
+			desc:     "OutsideTree",
+			indices:  []int64{sequenceNumber + 1},
+			wantErr:  true,
+			wantCode: codes.OutOfRange,
+		},
+		{
+			desc:     "LongWayOutsideTree",
+			indices:  []int64{9999},
+			wantErr:  true,
+			wantCode: codes.OutOfRange,
+		},
+		{
+			desc:     "MixedInOutTree",
+			indices:  []int64{sequenceNumber, sequenceNumber + 1},
+			wantErr:  true,
+			wantCode: codes.OutOfRange,
+		},
+		{
+			desc:     "MixedInOutTree2",
+			indices:  []int64{sequenceNumber - 1, sequenceNumber + 1},
+			wantErr:  true,
+			wantCode: codes.OutOfRange,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+				leaves, err := tx.GetLeavesByIndex(ctx, test.indices)
+				if test.wantErr {
+					if err == nil || status.Code(err) != test.wantCode {
+						t.Errorf("got: %v, %v, want: nil, err with code %v", leaves, err, test.wantCode)
+					}
+				} else {
+					if err != nil {
+						t.Errorf("got: %v, %v, want: leaves, nil", leaves, err)
+					}
+				}
+				return nil
+			})
+		})
+	}
 }
 
 // GetLeavesByRange tests. -----------------------------------------------------
