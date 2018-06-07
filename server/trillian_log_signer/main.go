@@ -148,15 +148,18 @@ func main() {
 	log.QuotaIncreaseFactor = *quotaIncreaseFactor
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	info := server.LogOperationInfo{
-		Registry:            registry,
-		BatchSize:           *batchSizeFlag,
-		NumWorkers:          *numSeqFlag,
-		RunInterval:         *sequencerIntervalFlag,
-		TimeSource:          util.SystemTimeSource{},
-		PreElectionPause:    *preElectionPause,
-		MasterCheckInterval: *masterCheckInterval,
-		MasterHoldInterval:  *masterHoldInterval,
-		ResignOdds:          *resignOdds,
+		Registry:    registry,
+		BatchSize:   *batchSizeFlag,
+		NumWorkers:  *numSeqFlag,
+		RunInterval: *sequencerIntervalFlag,
+		TimeSource:  util.SystemTimeSource{},
+		ElectionConfig: election.RunnerConfig{
+			PreElectionPause:    *preElectionPause,
+			MasterCheckInterval: *masterCheckInterval,
+			MasterHoldInterval:  *masterHoldInterval,
+			ResignOdds:          *resignOdds,
+			TimeSource:          util.SystemTimeSource{},
+		},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
 	sequencerTask.OperationLoop(ctx)
