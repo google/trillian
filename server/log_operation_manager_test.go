@@ -384,7 +384,7 @@ func TestElectionRunnerRun(t *testing.T) {
 			fakeTimeSource := util.NewFakeTimeSource(startTime)
 
 			el := test.election
-			tracker := election.NewMasterTracker([]int64{logID})
+			tracker := election.NewMasterTracker([]int64{logID}, nil)
 			er := electionRunner{
 				logID:    logID,
 				info:     &info,

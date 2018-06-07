@@ -160,7 +160,6 @@ func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 		}
 		glog.V(1).Infof("%d: Now, I am the master", er.logID)
 		er.tracker.Set(er.logID, true)
-		isMaster.Set(1.0, label)
 		masterSince := er.info.TimeSource.Now()
 
 		// While-master loop
@@ -177,14 +176,12 @@ func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 			if !master {
 				glog.Errorf("%d: no longer the master!", er.logID)
 				er.tracker.Set(er.logID, false)
-				isMaster.Set(0.0, label)
 				break
 			}
 			if er.shouldResign(masterSince) {
 				glog.Infof("%d: queue up resignation of mastership", er.logID)
 				resignations.Inc(label)
 				er.tracker.Set(er.logID, false)
-				isMaster.Set(0.0, label)
 
 				done := make(chan bool)
 				r := resignation{er: er, done: done}
@@ -323,7 +320,13 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 	}
 	if l.tracker == nil {
 		glog.Infof("creating mastership tracker for %v", allIDs)
-		l.tracker = election.NewMasterTracker(allIDs)
+		l.tracker = election.NewMasterTracker(allIDs, func(id int64, v bool) {
+			val := 0.0
+			if v {
+				val = 1.0
+			}
+			isMaster.Set(val, strconv.FormatInt(id, 10))
+		})
 	}
 
 	// Synchronize the set of configured log IDs with those we are tracking mastership for.

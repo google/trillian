@@ -92,7 +92,7 @@ func TestMasterTracker(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		mt := NewMasterTracker(test.ids)
+		mt := NewMasterTracker(test.ids, nil)
 		for _, op := range test.ops {
 			mt.Set(op.id, op.val)
 		}
