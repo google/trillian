@@ -187,7 +187,11 @@ func HitMap(cfg MapConfig) error {
 	}(ticker.C)
 
 	var wg sync.WaitGroup
+	// Anything that arrives on errs terminates all processing (but there
+	// may be more errors queued up behind it).
 	errs := make(chan error, cfg.NumCheckers+1)
+	// The done channel is used to signal all of the goroutines to
+	// terminate.
 	done := make(chan struct{})
 	for i := 0; i < cfg.NumCheckers; i++ {
 		wg.Add(1)
@@ -229,10 +233,9 @@ func HitMap(cfg MapConfig) error {
 	wg.Wait()
 	close(errs)
 	for e := range errs {
-		if e == nil {
-			continue
+		if e != nil {
+			glog.Infof("%d: error encountered: %v", cfg.MapID, e)
 		}
-		glog.Infof("%d: error encountered: %v", cfg.MapID, e)
 	}
 	return firstErr
 }
