@@ -886,6 +886,13 @@ func TestGetLeavesByIndex(t *testing.T) {
 			},
 		},
 		{
+			desc:    "InTreeMultipleReverse",
+			indices: []int64{sequenceNumber, sequenceNumber - 1},
+			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
+				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+				checkLeafContents(leaves[1], sequenceNumber, dummyRawHash2, dummyHash2, data2, someExtraData2, t)
+			},
+		}, {
 			desc:     "OutsideTree",
 			indices:  []int64{sequenceNumber + 1},
 			wantErr:  true,
@@ -914,14 +921,14 @@ func TestGetLeavesByIndex(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-				leaves, err := tx.GetLeavesByIndex(ctx, test.indices)
+				got, err := tx.GetLeavesByIndex(ctx, test.indices)
 				if test.wantErr {
 					if err == nil || status.Code(err) != test.wantCode {
-						t.Errorf("got: %v, %v, want: nil, err with code %v", leaves, err, test.wantCode)
+						t.Errorf("GetLeavesByIndex(%v)=%v,%v; want: nil, err with code %v", test.indices, got, err, test.wantCode)
 					}
 				} else {
 					if err != nil {
-						t.Errorf("got: %v, %v, want: leaves, nil", leaves, err)
+						t.Errorf("GetLeavesByIndex(%v)=%v,%v; want: got, nil", test.indices, got, err)
 					}
 				}
 				return nil
