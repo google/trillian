@@ -18,9 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -209,105 +207,48 @@ func TestHeldInfo(t *testing.T) {
 	}
 }
 
-func TestShouldResign(t *testing.T) {
-	startTime := time.Date(1970, 9, 19, 12, 00, 00, 00, time.UTC)
-	var tests = []struct {
-		hold     time.Duration
-		odds     int
-		wantHold time.Duration
-		wantProb float64
-	}{
-		{hold: 12 * time.Second, odds: 10, wantHold: 12 * time.Second, wantProb: 0.1},
-		{hold: time.Second, odds: 10, wantHold: 10 * time.Second, wantProb: 0.1},
-		{hold: 10 * time.Second, odds: 0, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: 1, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: -1, wantHold: 10 * time.Second, wantProb: 1.0},
-	}
-	for _, test := range tests {
-		fakeTimeSource := util.FakeTimeSource{}
-		info := fixupElectionInfo(LogOperationInfo{
-			MasterHoldInterval: test.hold,
-			ResignOdds:         test.odds,
-			TimeSource:         &fakeTimeSource,
-		})
-		er := electionRunner{info: &info}
-
-		holdChecks := int64(10)
-		holdNanos := test.wantHold.Nanoseconds() / holdChecks
-	timeslot:
-		for i := int64(-1); i < holdChecks; i++ {
-			gapNanos := time.Duration(i * holdNanos)
-			fakeTimeSource.Set(startTime.Add(gapNanos))
-			for j := 0; j < 100; j++ {
-				if er.shouldResign(startTime) {
-					t.Errorf("shouldResign(hold=%v,odds=%v @ start+%v)=true; want false", test.hold, test.odds, gapNanos)
-					continue timeslot
-				}
-			}
-		}
-
-		fakeTimeSource.Set(startTime.Add(test.wantHold).Add(time.Nanosecond))
-		iterations := 10000
-		count := 0
-		for i := 0; i < iterations; i++ {
-			if er.shouldResign(startTime) {
-				count++
-			}
-		}
-		got := float64(count) / float64(iterations)
-		deltaFraction := math.Abs(got-test.wantProb) / test.wantProb
-		if deltaFraction > 0.05 {
-			t.Errorf("P(shouldResign(hold=%v,odds=%v))=%f; want ~%f", test.hold, test.odds, got, test.wantProb)
-		}
-
-	}
-}
-
 func TestMasterFor(t *testing.T) {
 	ctx := context.Background()
 	firstIDs := []int64{1, 2, 3, 4}
 	allIDs := []int64{1, 2, 3, 4, 5, 6}
 
 	var tests = []struct {
+		desc    string
 		factory election.Factory
 		want1   []int64
 		want2   []int64
 	}{
-		{factory: nil, want1: firstIDs, want2: allIDs},
-		{factory: election.NoopFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
-		{factory: masterForEvenFactory{}, want1: []int64{2, 4}, want2: []int64{2, 4, 6}},
-		{factory: failureFactory{}, want1: nil, want2: nil},
+		{desc: "no-factory", factory: nil, want1: firstIDs, want2: allIDs},
+		{desc: "noop-factory", factory: election.NoopFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
+		{desc: "master-for-even", factory: masterForEvenFactory{}, want1: []int64{2, 4}, want2: []int64{2, 4, 6}},
+		{desc: "failure-factory", factory: failureFactory{}, want1: nil, want2: nil},
 	}
 	for _, test := range tests {
-		testCtx, cancel := context.WithCancel(ctx)
-		registry := extension.Registry{ElectionFactory: test.factory}
-		info := LogOperationInfo{
-			Registry:   registry,
-			TimeSource: util.SystemTimeSource{},
-		}
-		lom := NewLogOperationManager(info, nil)
+		t.Run(test.desc, func(t *testing.T) {
+			testCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			registry := extension.Registry{ElectionFactory: test.factory}
+			info := LogOperationInfo{
+				Registry:   registry,
+				TimeSource: util.SystemTimeSource{},
+			}
+			lom := NewLogOperationManager(info, nil)
 
-		// Check mastership twice, to give the election threads a chance to get started and report.
-		lom.masterFor(testCtx, firstIDs)
-		time.Sleep(2 * minMasterCheckInterval)
-		logIDs, err := lom.masterFor(testCtx, firstIDs)
-		if !reflect.DeepEqual(logIDs, test.want1) {
-			t.Errorf("masterFor(factory=%T)=%v,%v; want %v,_", test.factory, logIDs, err, test.want1)
-			cancel()
-			continue
-		}
-		// Now add extra IDs and re-check.
-		lom.masterFor(testCtx, allIDs)
-		time.Sleep(2 * minMasterCheckInterval)
-		logIDs, err = lom.masterFor(testCtx, allIDs)
-		if !reflect.DeepEqual(logIDs, test.want2) {
-			t.Errorf("masterFor(factory=%T)=%v,%v; want %v,_", test.factory, logIDs, err, test.want2)
-			cancel()
-			continue
-		}
-
-		cancel()
-		time.Sleep(2 * info.MasterCheckInterval)
+			// Check mastership twice, to give the election threads a chance to get started and report.
+			lom.masterFor(testCtx, firstIDs)
+			time.Sleep(2 * election.MinMasterCheckInterval)
+			logIDs, err := lom.masterFor(testCtx, firstIDs)
+			if !reflect.DeepEqual(logIDs, test.want1) {
+				t.Fatalf("masterFor(factory=%T)=%v,%v; want %v,_", test.factory, logIDs, err, test.want1)
+			}
+			// Now add extra IDs and re-check.
+			lom.masterFor(testCtx, allIDs)
+			time.Sleep(2 * election.MinMasterCheckInterval)
+			logIDs, err = lom.masterFor(testCtx, allIDs)
+			if !reflect.DeepEqual(logIDs, test.want2) {
+				t.Fatalf("masterFor(factory=%T)=%v,%v; want %v,_", test.factory, logIDs, err, test.want2)
+			}
+		})
 	}
 }
 
@@ -322,98 +263,4 @@ type failureFactory struct{}
 
 func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
 	return nil, errors.New("injected failure")
-}
-
-// TODO(pavelkalinnikov): Reduce flakiness risk in this test by making fewer
-// time assumptions.
-func TestElectionRunnerRun(t *testing.T) {
-	info := fixupElectionInfo(LogOperationInfo{TimeSource: fakeTimeSource})
-	var tests = []struct {
-		desc       string
-		election   *stub.MasterElection
-		lostMaster bool
-		wantMaster bool
-	}{
-		// Basic cases
-		{
-			desc:     "IsNotMaster",
-			election: stub.NewMasterElection(false, nil),
-		},
-		{
-			desc:       "IsMaster",
-			election:   stub.NewMasterElection(true, nil),
-			wantMaster: true,
-		},
-		{
-			desc:       "LostMaster",
-			election:   stub.NewMasterElection(true, nil),
-			lostMaster: true,
-			wantMaster: false,
-		},
-		// Error cases
-		{
-			desc: "ErrorOnStart",
-			election: stub.NewMasterElection(false,
-				&stub.Errors{Start: errors.New("on start")}),
-		},
-		{
-			desc: "ErrorOnWait",
-			election: stub.NewMasterElection(false,
-				&stub.Errors{Wait: errors.New("on wait")}),
-		},
-		{
-			desc: "ErrorOnIsMaster",
-			election: stub.NewMasterElection(true,
-				&stub.Errors{IsMaster: errors.New("on IsMaster")}),
-			wantMaster: true,
-		},
-		{
-			desc: "ErrorOnResign",
-			election: stub.NewMasterElection(true,
-				&stub.Errors{Resign: errors.New("resignation failure")}),
-			wantMaster: true,
-		},
-	}
-	const logID = int64(6962)
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			var wg sync.WaitGroup
-			ctx, cancel := context.WithCancel(context.Background())
-
-			startTime := time.Now()
-			fakeTimeSource := util.NewFakeTimeSource(startTime)
-
-			el := test.election
-			tracker := election.NewMasterTracker([]int64{logID}, nil)
-			er := electionRunner{
-				logID:    logID,
-				info:     &info,
-				tracker:  tracker,
-				election: el,
-				wg:       &wg,
-			}
-			wg.Add(1)
-			resignations := make(chan resignation, 100)
-			go er.Run(ctx, resignations)
-			time.Sleep(minPreElectionPause + minPreElectionPause/2)
-			if test.lostMaster {
-				el.Update(false, nil)
-			}
-
-			// Advance fake time so that shouldResign() triggers too.
-			fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
-			time.Sleep(minMasterCheckInterval)
-			for len(resignations) > 0 {
-				r := <-resignations
-				r.done <- true
-			}
-
-			cancel()
-			wg.Wait()
-			held := tracker.Held()
-			if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
-				t.Errorf("held=%v => master=%v; want %v", held, got, test.wantMaster)
-			}
-		})
-	}
 }
