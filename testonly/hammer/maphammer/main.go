@@ -74,7 +74,6 @@ func main() {
 		*seed = time.Now().UTC().UnixNano() & 0xFFFFFFFF
 	}
 	fmt.Printf("Today's test has been brought to you by the letters M, A, and P and the number %#x\n", *seed)
-	randSrc := rand.NewSource(*seed)
 
 	bias := hammer.MapBias{
 		Bias: map[hammer.MapEntrypointName]int{
@@ -138,6 +137,7 @@ func main() {
 	results := make(chan result, len(mIDs))
 	var wg sync.WaitGroup
 	for _, m := range mIDs {
+		randSrc := rand.NewSource(*seed)
 		mapid, err := strconv.ParseInt(m, 10, 64)
 		if err != nil || mapid <= 0 {
 			glog.Exitf("Invalid map ID %q", m)
