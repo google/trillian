@@ -28,16 +28,17 @@ type MasterTracker struct {
 	mu          sync.RWMutex
 	masterFor   map[int64]bool
 	masterCount int
+	notify      func(id int64, isMaster bool)
 }
 
 // NewMasterTracker creates a new MasterTracker instance to track the mastership
 // status for the given set of ids.
-func NewMasterTracker(ids []int64) *MasterTracker {
+func NewMasterTracker(ids []int64, notify func(id int64, isMaster bool)) *MasterTracker {
 	mf := make(map[int64]bool)
 	for _, id := range ids {
 		mf[id] = false
 	}
-	return &MasterTracker{masterFor: mf}
+	return &MasterTracker{masterFor: mf, notify: notify}
 }
 
 // Set changes the tracked mastership status for the given id.  This method should
@@ -54,6 +55,9 @@ func (mt *MasterTracker) Set(id int64, val bool) {
 		mt.masterCount++
 	} else if !val && existing {
 		mt.masterCount--
+	}
+	if mt.notify != nil {
+		mt.notify(id, val)
 	}
 }
 
