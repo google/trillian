@@ -42,76 +42,138 @@ func expectNotClosed(t *testing.T, done <-chan struct{}, msg string) {
 	}
 }
 
-func becomeMaster(ctx context.Context, t *testing.T, me *stub.MasterElection, runner *Runner) (run *Run) {
+func TestRunner_MasterContext(t *testing.T) {
+	ctx := context.Background()
+	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
+	runner := NewRunner(&cfg, me, ts, "")
+	if runner.MasterContext() != nil {
+		t.Errorf("MasterContext(): expected nil")
+	}
+
+	testOneRun := func(ctx context.Context) context.Context {
+		me.Update(true, nil)
+		if err := runner.Start(ctx); err != nil {
+			t.Fatalf("Start(): %v", err)
+		}
+		mctx := runner.MasterContext()
+		if mctx == nil {
+			t.Errorf("MasterContext(): expected non-nil")
+		}
+		if err := mctx.Err(); err != nil {
+			t.Errorf("MasterContext error: %v, want nil", err)
+		}
+		runner.Resign(ctx)
+		if got, want := mctx.Err(), context.Canceled; got != want {
+			t.Errorf("MasterContext error: %v, want %v", got, want)
+		}
+		if got, want := runner.MasterContext(), mctx; got != want {
+			t.Errorf("MasterContext(): %+v, want %+v", got, want)
+		}
+		return mctx
+	}
+
+	ctx1 := testOneRun(ctx)
+	ctx2 := testOneRun(ctx)
+	if ctx1 == ctx2 {
+		t.Errorf("Got same contexts")
+	}
+}
+
+func TestRunner_Start(t *testing.T) {
+	ctx := context.Background()
+	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
+	runner := NewRunner(&cfg, me, ts, "")
+
 	isMaster := make(chan struct{})
 	var err error
 	go func() {
 		defer close(isMaster)
-		run, err = runner.AwaitMastership(ctx)
+		err = runner.Start(ctx)
 	}()
 	expectNotClosed(t, isMaster, "Became master unexpectedly")
 
 	me.Update(true, nil)
 	<-isMaster // Now should become the master.
 	if err != nil {
-		t.Fatalf("AwaitMastership(): %v", err)
+		t.Fatalf("Start(): %v", err)
 	}
 
-	if run == nil {
-		t.Fatal("Expected non-nil Run")
-	}
-	expectNotClosed(t, run.Ctx.Done(), "Closed master context unexpectedly")
-	expectNotClosed(t, run.Done, "Closed Done unexpectedly")
+	mctx := runner.MasterContext()
+	expectNotClosed(t, mctx.Done(), "Closed master context unexpectedly")
+
 	if is, _ := me.IsMaster(ctx); !is {
 		t.Errorf("Unexpected masteship resignation")
 	}
-
-	return run
 }
 
-func TestRunner_BecomeMasterAndCancel(t *testing.T) {
-	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
-	runner := NewRunner(&cfg, me, ts, "")
+func TestRunner_Cancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	run := becomeMaster(ctx, t, me, runner)
-	cancel()
-	<-run.Done // Runner should terminate.
-	if run.Ctx.Err() == nil {
-		t.Error("Expected closed master context")
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	runner := NewRunner(&cfg, me, ts, "")
+	if err := runner.Start(ctx); err != nil {
+		t.Fatalf("Start(): %v", err)
 	}
+
+	mctx := runner.MasterContext()
+	expectNotClosed(t, mctx.Done(), "Closed master context unexpectedly")
+	cancel()
+	<-mctx.Done() // Runner should terminate.
+
 	if is, _ := me.IsMaster(ctx); !is {
 		t.Error("Unexpected masteship resignation")
 	}
 }
 
-func TestRunner_BecomeMasterAndResign(t *testing.T) {
-	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
-	runner := NewRunner(&cfg, me, ts, "")
+func TestRunner_Resign(t *testing.T) {
 	ctx := context.Background()
-	run := becomeMaster(ctx, t, me, runner)
-
-	run.Stop()
-	if run.Ctx.Err() == nil {
-		t.Error("Expected closed master context")
-	}
-	if is, _ := me.IsMaster(ctx); !is {
-		t.Error("Unexpected masteship resignation")
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	runner := NewRunner(&cfg, me, ts, "")
+	if err := runner.Start(ctx); err != nil {
+		t.Fatalf("Start(): %v", err)
 	}
 
-	runner.Resign(ctx)
+	mctx := runner.MasterContext()
+	expectNotClosed(t, mctx.Done(), "Closed master context unexpectedly")
+	if err := runner.Resign(ctx); err != nil {
+		t.Fatalf("Resign(): %v", err)
+	}
+	<-mctx.Done() // Runner should terminate.
+
 	if is, _ := me.IsMaster(ctx); is {
 		t.Error("Expected masteship resignation")
 	}
 }
 
-func TestRunner_BecomeMasterAndError(t *testing.T) {
-	me, ts := stub.NewMasterElection(false, nil), &util.FakeTimeSource{}
-	runner := NewRunner(&cfg, me, ts, "")
+func TestRunner_Close(t *testing.T) {
 	ctx := context.Background()
-	run := becomeMaster(ctx, t, me, runner)
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	runner := NewRunner(&cfg, me, ts, "")
+	if err := runner.Start(ctx); err != nil {
+		t.Fatalf("Start(): %v", err)
+	}
+
+	mctx := runner.MasterContext()
+	expectNotClosed(t, mctx.Done(), "Closed master context unexpectedly")
+	if err := runner.Close(ctx); err != nil {
+		t.Fatalf("Close(): %v", err)
+	}
+	<-mctx.Done() // Runner should terminate.
+
+	if is, _ := me.IsMaster(ctx); !is {
+		t.Error("Unexpected masteship resignation")
+	}
+}
+
+func TestRunner_ErrorWhileMaster(t *testing.T) {
+	ctx := context.Background()
+	me, ts := stub.NewMasterElection(true, nil), &util.FakeTimeSource{}
+	runner := NewRunner(&cfg, me, ts, "")
+	if err := runner.Start(ctx); err != nil {
+		t.Fatalf("Start(): %v", err)
+	}
 
 	me.Update(true, &stub.Errors{IsMaster: stubErr})
-	<-run.Done // Mastership monitoring should terminate.
+	<-runner.MasterContext().Done() // Mastership monitoring should terminate.
 
 	if is, _ := me.IsMaster(ctx); !is {
 		t.Errorf("Unexpected masteship resignation")
@@ -124,13 +186,14 @@ func TestRunner_HealthyLoop(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
-		run := becomeMaster(ctx, t, me, runner)
-		// ... do some work as master ...
-		run.Stop()
-		if run.Ctx.Err() == nil {
-			t.Error("Expected closed context")
+		me.Update(true, nil)
+		if err := runner.Start(ctx); err != nil {
+			t.Fatalf("Start(): %v", err)
 		}
-		runner.Resign(ctx)
+		// ... do some work as master ...
+		if err := runner.Resign(ctx); err != nil {
+			t.Fatalf("Resign(): %v", err)
+		}
 		if is, _ := me.IsMaster(ctx); is {
 			t.Errorf("Expected masteship resignation")
 		}
@@ -141,7 +204,7 @@ func TestRunner_HealthyLoop(t *testing.T) {
 	}
 }
 
-func TestRunner_AwaitMastershipErrors(t *testing.T) {
+func TestRunner_StartErrors(t *testing.T) {
 	ts := &util.FakeTimeSource{}
 
 	for _, tc := range []struct {
@@ -165,12 +228,9 @@ func TestRunner_AwaitMastershipErrors(t *testing.T) {
 
 			me := stub.NewMasterElection(true, &tc.errs)
 			runner := NewRunner(&cfg, me, ts, "")
-			run, err := runner.AwaitMastership(ctx)
+			err := runner.Start(ctx)
 			if got, want := err, tc.want; got != want {
 				t.Errorf("AwaitMastership(): error=%v, want %v", got, want)
-			}
-			if got, want := (run != nil), (tc.want == nil); got != want {
-				t.Errorf("AwaitMastership() returned run %v, want %v", got, want)
 			}
 		})
 	}

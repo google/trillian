@@ -125,7 +125,7 @@ type LogOperationManager struct {
 
 	// electionRunner tracks the goroutines that run per-log mastership elections
 	electionRunner map[int64]*election.Runner
-	resignations   chan context.CancelFunc
+	resignations   chan func()
 	runnerWG       sync.WaitGroup
 	tracker        *election.MasterTracker
 	heldMutex      sync.Mutex
@@ -162,7 +162,7 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 		info:           fixupElectionInfo(info),
 		logOperation:   logOperation,
 		electionRunner: make(map[int64]*election.Runner),
-		resignations:   make(chan context.CancelFunc, 100),
+		resignations:   make(chan func(), 100),
 		logNames:       make(map[int64]string),
 	}
 }
@@ -252,14 +252,31 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 		runner := election.NewRunner(&l.info.ElectionConfig, el, l.info.TimeSource, label+": ")
 		l.electionRunner[logID] = runner
 
+		//   beMaster := func(ctx context.Context) error {
+		//     if err := runner.Start(ctx); err != nil {
+		//       return err
+		//     }
+		//     mctx = runner.MasterContext()
+		//     defer runner.Stop()
+		//
+		//     for { // While we are the master.
+		//       // Note: The work will be canceled if mastership is suddenly over.
+		//       if err := DoSomeWorkAsMaster(mctx); err != nil {
+		//         // Return if mctx is done, or report err and retry if possible.
+		//       }
+		//       if ShouldResign() {
+		//         return runner.Resign(ctx)
+		//       }
+		//     }
+		//   }
+
 		l.runnerWG.Add(1)
 		go func(logID int64) {
 			defer l.runnerWG.Done()
 			defer runner.Close(ctx)
 
 			for {
-				run, err := runner.AwaitMastership(ctx)
-				if err != nil {
+				if err := runner.Start(ctx); err != nil {
 					glog.Errorf("%d: failed to become the master: %v", logID, err)
 					// TODO(pavelkalinnikov): Retry while it's not context cancelation.
 					return
@@ -274,7 +291,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 				delay := getResignDelay(&l.info)
 				// Note: The loop is to allow blocking by a mocked TimeSource.
 				for until := start.Add(delay); l.info.TimeSource.Now().Before(until); {
-					if util.SleepContext(run.Ctx, delay) != nil {
+					if util.SleepContext(runner.MasterContext(), delay) != nil {
 						// Lost mastership or canceled.
 						resign = false
 						break
@@ -286,8 +303,8 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 				isMaster.Set(0.0, label)
 				if resign {
 					resignations.Inc(label)
-					l.resignations <- run.Cancel
-					<-run.Done
+					l.resignations <- func() { runner.Resign(ctx) }
+					runner.Wait()
 				}
 			}
 		}(logID)

@@ -30,102 +30,102 @@ type Config struct {
 	// MasterCheckInterval is the interval between checks that the instance still
 	// holds mastership.
 	MasterCheckInterval time.Duration
-}
-
-// Run contains the status of a single instance's mastership round.
-type Run struct {
-	// Ctx is the context which is active while the instance believes to be the
-	// master, and continues checking its mastership status.
-	Ctx context.Context
-	// Cancel cancels Ctx, instructs the instance stop checking its mastership
-	// status, and commences resource release.
-	Cancel context.CancelFunc
-	// Done is closed when the resources of this Run are released, and the
-	// instance no longer checks its mastership status. After Done is a safe
-	// place to invoke Runner.Resign method.
-	Done <-chan struct{}
-}
-
-// Stop stops this Run checking its mastership status, blocks until its
-// resources are released.
-func (r *Run) Stop() {
-	r.Cancel()
-	<-r.Done
+	// TODO(pavelkalinnikov): Add TTL to tolerate temporary IsMaster hiccups.
 }
 
 // Runner coordinates election participation for a single instance.
 //
 // An example usage pattern:
 //
+//   runner := NewRunner(...)
 //   defer runner.Close(ctx)
-//   for { // We want to be the master potentially multiple times.
-//     run, err := runner.AwaitMastership(ctx)
-//     if err != nil {
-//       // Return if ctx canceled, or retry.
+//
+//   beMaster := func(ctx context.Context) error {
+//     if err := runner.Start(ctx); err != nil {
+//       return err
 //     }
-//     for { // Now we are the master.
+//     mctx = runner.MasterContext()
+//     defer runner.Stop()
+//
+//     for { // While we are the master.
 //       // Note: The work will be canceled if mastership is suddenly over.
-//       if err := DoSomeWorkAsMaster(run.Ctx); err != nil {
-//         // ... log error ...
-//         if run.Ctx.Err() != nil { // Mastership interrupted.
-//           break // Stop doing work as master.
-//         }
-//         // ... some other error, react accordingly ...
+//       if err := DoSomeWorkAsMaster(mctx); err != nil {
+//         // Return if mctx is done, or report err and retry if possible.
 //       }
 //       if ShouldResign() {
-//         run.Stop()
-//         runner.Resign(ctx)
-//         break
+//         return runner.Resign(ctx)
 //       }
+//     }
+//   }
+//
+//   for !ShouldStop() { // Be the master potentially multiple times.
+//     if err := beMaster(ctx); err != nil {
+//       // Return if ctx canceled, or report the error and retry if possible.
 //     }
 //  }
 type Runner struct {
 	cfg    *Config
 	me     MasterElection
 	prefix string // Prefix for all glog messages.
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // NewRunner returns a new election runner for the provided configuration and
-// MasterElection interface.
+// MasterElection interface. After using the Runner, the caller must invoke
+// Close to release resources.
 func NewRunner(cfg *Config, me MasterElection, ts util.TimeSource, prefix string) *Runner {
 	return &Runner{cfg: cfg, me: me, prefix: prefix}
 }
 
-// AwaitMastership blocks until it captures mastership on behalf of the current
-// instance, and returns a Run object which can be used to observe the
-// mastership status. Returns an error if capturing fails or the passed in
-// context is canceled before that.
+// MasterContext returns the context which is active while the instance
+// believes to be the master. Must not be used before first Start.
+func (r *Runner) MasterContext() context.Context {
+	return r.ctx
+}
+
+// Start blocks until it captures mastership on behalf of the current instance.
+// Returns an error if capturing fails or the passed in context is canceled
+// before that. Effectively does nothing if called after another Start without
+// the corresponding Stop or Resign. Must not be called after Close.
 //
 // The method kicks off a goroutine which tracks mastership status, and
 // terminates as soon as mastership is lost, IsMaster check returns an error,
-// the passed in context is canceled, or the returned Run's Ctx is canceled.
-func (r *Runner) AwaitMastership(ctx context.Context) (*Run, error) {
+// or the passed in context is canceled. The goroutine maintains MasterContext
+// open until it terminates.
+func (r *Runner) Start(ctx context.Context) error {
+	if r.done != nil {
+		return ctx.Err()
+	}
+
 	// Pause for a random interval so that if multiple instances start at the
 	// same time there is less of a thundering herd.
 	pause := rand.Int63n(r.cfg.PreElectionPause.Nanoseconds())
 	if err := util.SleepContext(ctx, time.Duration(pause)); err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := r.me.Start(ctx); err != nil {
-		return nil, err
+		return err
 	}
 	if err := r.me.WaitForMastership(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
-	cctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
-
+	ctx, cancel := context.WithCancel(ctx)
+	r.ctx, r.cancel, r.done = ctx, cancel, done
 	go func() {
 		defer close(done)
 		defer cancel()
 
 		for {
-			if err := util.SleepContext(cctx, r.cfg.MasterCheckInterval); err != nil {
+			if err := util.SleepContext(ctx, r.cfg.MasterCheckInterval); err != nil {
 				return
 			}
-			isMaster, err := r.me.IsMaster(cctx)
+			isMaster, err := r.me.IsMaster(ctx)
 			if err != nil {
 				glog.Warningf("%sIsMaster: %v", r.prefix, err)
 				return
@@ -136,19 +136,34 @@ func (r *Runner) AwaitMastership(ctx context.Context) (*Run, error) {
 		}
 	}()
 
-	return &Run{Ctx: cctx, Cancel: cancel, Done: done}, nil
+	return nil
+}
+
+// Wait blocks until the Runner is Stopped and released its resources.
+func (r *Runner) Wait() {
+	<-r.done
+}
+
+// Stop shuts down mastership monitoring for this Runner. Returns when the
+// resources are released.
+func (r *Runner) stop() {
+	if r.done != nil {
+		r.cancel()
+		<-r.done // Terminates assuming MasterElection respects context cancelation.
+		r.cancel, r.done = nil, nil
+		// Note: MasterContext() remains valid, but Done.
+	}
 }
 
 // Resign releases mastership for this instance. The Runner is still able to
-// participate in new election rounds after. Before calling this the client
-// must wait until mastership monitoring is finished, i.e. Run.Done is closed.
+// participate in new election rounds after.
 func (r *Runner) Resign(ctx context.Context) error {
+	r.stop()
 	return r.me.Resign(ctx)
 }
 
-// Close permanently stops this Runner from participating in election. Before
-// calling this the client must wait until mastership monitoring is finished,
-// i.e. Run.Done is closed.
+// Close permanently stops this Runner from participating in election.
 func (r *Runner) Close(ctx context.Context) error {
+	r.stop()
 	return r.me.Close(ctx)
 }
