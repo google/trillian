@@ -133,7 +133,6 @@ func (r *resignation) execute(ctx context.Context) {
 
 func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 	defer er.wg.Done()
-	label := strconv.FormatInt(er.logID, 10)
 
 	// Pause for a random interval so that if multiple instances start at the same
 	// time there is less of a thundering herd.
@@ -180,7 +179,6 @@ func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 			}
 			if er.shouldResign(masterSince) {
 				glog.Infof("%d: queue up resignation of mastership", er.logID)
-				resignations.Inc(label)
 				er.tracker.Set(er.logID, false)
 
 				done := make(chan bool)
@@ -435,6 +433,7 @@ loop:
 		for !doneResigning {
 			select {
 			case r := <-l.pendingResignations:
+				resignations.Inc(strconv.FormatInt(r.er.logID, 10))
 				r.execute(ctx)
 			default:
 				doneResigning = true
