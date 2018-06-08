@@ -610,6 +610,17 @@ func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 }
 
 func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error) {
+	if t.treeType == trillian.TreeType_LOG {
+		treeSize := int64(t.root.TreeSize)
+		for _, leaf := range leaves {
+			if leaf < 0 {
+				return nil, status.Errorf(codes.InvalidArgument, "index %d is < 0", leaf)
+			}
+			if leaf >= treeSize {
+				return nil, status.Errorf(codes.OutOfRange, "invalid leaf index %d, want < TreeSize(%d)", leaf, treeSize)
+			}
+		}
+	}
 	tmpl, err := t.ls.getLeavesByIndexStmt(ctx, len(leaves))
 	if err != nil {
 		return nil, err
@@ -657,25 +668,25 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 	}
 
 	if got, want := len(ret), len(leaves); got != want {
-		return nil, fmt.Errorf("len(ret): %d, want %d", got, want)
+		return nil, status.Errorf(codes.Internal, "len(ret): %d, want %d", got, want)
 	}
 	return ret, nil
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
 	if count <= 0 {
-		return nil, fmt.Errorf("invalid count %d, want > 0", count)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid count %d, want > 0", count)
 	}
 	if start < 0 {
-		return nil, fmt.Errorf("invalid start %d, want >= 0", start)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid start %d, want >= 0", start)
 	}
 
 	if t.treeType == trillian.TreeType_LOG {
 		treeSize := int64(t.root.TreeSize)
 		if treeSize <= 0 {
-			return nil, fmt.Errorf("empty tree")
+			return nil, status.Errorf(codes.OutOfRange, "empty tree")
 		} else if start >= treeSize {
-			return nil, fmt.Errorf("invalid start %d, want < TreeSize(%d)", start, treeSize)
+			return nil, status.Errorf(codes.OutOfRange, "invalid start %d, want < TreeSize(%d)", start, treeSize)
 		}
 		// Ensure no entries queried/returned beyond the tree.
 		if maxCount := treeSize - start; count > maxCount {
