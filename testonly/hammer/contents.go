@@ -58,7 +58,7 @@ func (m *mapContents) pickKey(prng *rand.Rand) []byte {
 
 // checkContents compares information returned from the Map against a local copy
 // of the map's contents.
-func (m *mapContents) checkContents(leafInclusions []*trillian.MapLeafInclusion) error {
+func (m *mapContents) checkContents(leafInclusions []*trillian.MapLeafInclusion, extraSize uint) error {
 	for _, inc := range leafInclusions {
 		leaf := inc.Leaf
 		var key mapKey
@@ -68,7 +68,7 @@ func (m *mapContents) checkContents(leafInclusions []*trillian.MapLeafInclusion)
 			if string(leaf.LeafValue) != value {
 				return fmt.Errorf("got leaf[%v].LeafValue=%q, want %q", key, leaf.LeafValue, value)
 			}
-			if want := "extra-" + value; string(leaf.ExtraData) != want {
+			if want := extraDataForValue(leaf.LeafValue, extraSize); !bytes.Equal(leaf.ExtraData, want) {
 				return fmt.Errorf("got leaf[%v].ExtraData=%q, want %q", key, leaf.ExtraData, want)
 			}
 		} else {

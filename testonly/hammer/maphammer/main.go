@@ -52,6 +52,8 @@ var (
 	operations      = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
 	minLeaves       = flag.Int("min_leaves", 0, "Minimum count of leaves to affect per-operation")
 	maxLeaves       = flag.Int("max_leaves", 10, "Maximum count of leaves to affect per-operation")
+	leafSize        = flag.Uint("leaf_size", 100, "Size of leaf values")
+	extraSize       = flag.Uint("extra_size", 100, "Size of leaf extra data")
 	checkers        = flag.Int("checkers", 0, "Number of checker goroutines to run")
 )
 var (
@@ -158,6 +160,8 @@ func main() {
 			MetricFactory: mf,
 			RandSource:    randSrc,
 			EPBias:        bias,
+			LeafSize:      *leafSize,
+			ExtraSize:     *extraSize,
 			MinLeaves:     *minLeaves,
 			MaxLeaves:     *maxLeaves,
 			Operations:    *operations,

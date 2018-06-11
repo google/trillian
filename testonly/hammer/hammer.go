@@ -41,6 +41,9 @@ const (
 	invalidStretch = int64(10000)
 	// rev=-1 is used when requesting the latest revision
 	latestRevision = int64(-1)
+	// Format specifier for generating leaf values
+	valueFormat = "value-%09d"
+	minValueLen = len("value-") + 9 // prefix + 9 digits
 )
 
 var (
@@ -154,6 +157,7 @@ type MapConfig struct {
 	Admin                trillian.TrillianAdminClient
 	RandSource           rand.Source
 	EPBias               MapBias
+	LeafSize, ExtraSize  uint
 	MinLeaves, MaxLeaves int
 	Operations           uint64
 	EmitInterval         time.Duration
@@ -288,6 +292,9 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	if cfg.MaxLeaves < cfg.MinLeaves {
 		return nil, fmt.Errorf("invalid MaxLeaves %d is less than MinLeaves %d", cfg.MaxLeaves, cfg.MinLeaves)
 	}
+	if int(cfg.LeafSize) < minValueLen {
+		return nil, fmt.Errorf("invalid LeafSize %d is smaller than min %d", cfg.LeafSize, minValueLen)
+	}
 
 	return &hammerState{
 		cfg:      cfg,
@@ -342,7 +349,15 @@ func (s *hammerState) nextValue() []byte {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.valueIdx++
-	return []byte(fmt.Sprintf("value-%09d", s.valueIdx))
+	result := make([]byte, s.cfg.LeafSize)
+	copy(result, fmt.Sprintf(valueFormat, s.valueIdx))
+	return result
+}
+
+func extraDataForValue(value []byte, sz uint) []byte {
+	result := make([]byte, sz)
+	copy(result, "extra-"+string(value))
+	return result
 }
 
 func (s *hammerState) label() string {
@@ -563,7 +578,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		}
 	}
 
-	if err := contents.checkContents(rsp.MapLeafInclusion); err != nil {
+	if err := contents.checkContents(rsp.MapLeafInclusion, s.cfg.ExtraSize); err != nil {
 		return fmt.Errorf("incorrect contents of %s(%+v): %v", label, rqMsg, err)
 	}
 	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
@@ -657,7 +672,7 @@ leafloop:
 			leaves = append(leaves, &trillian.MapLeaf{
 				Index:     testonly.TransparentHash(key),
 				LeafValue: value,
-				ExtraData: []byte("extra-" + string(value)),
+				ExtraData: extraDataForValue(value, s.cfg.ExtraSize),
 			})
 			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, key, string(value))
 		case UpdateLeaf, DeleteLeaf:
@@ -671,7 +686,7 @@ leafloop:
 			var value, extra []byte
 			if choice == UpdateLeaf {
 				value = s.nextValue()
-				extra = []byte("extra-" + string(value))
+				extra = extraDataForValue(value, s.cfg.ExtraSize)
 			}
 			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
 			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", s.cfg.MapID, choice, dehash(key), string(value), string(extra))
