@@ -38,8 +38,8 @@ install:
   - |
     (
       cd ../protoc
-      wget "https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip"
-      unzip "protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip"
+      wget "https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
+      unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
     )
   - export PATH="$(pwd)/../protoc/bin:$PATH"
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
