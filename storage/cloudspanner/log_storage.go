@@ -193,7 +193,7 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 	bucketPrefix := (now % config.NumUnseqBuckets) << 8
 
 	results := make([]*trillian.QueuedLogLeaf, len(leaves))
-	writeDupes := make(map[string][]indexMerkleHash)
+	writeDupes := make(map[string][]int)
 
 	qTS := qTimestamp.UnixNano()
 	var wg sync.WaitGroup
@@ -220,7 +220,7 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 			_, err = ls.ts.client.Apply(ctx, []*spanner.Mutation{m1, m2})
 			if spanner.ErrCode(err) == codes.AlreadyExists {
 				k := string(l.LeafIdentityHash)
-				writeDupes[k] = append(writeDupes[k], indexMerkleHash{i, l.MerkleLeafHash})
+				writeDupes[k] = append(writeDupes[k], i)
 			} else if err != nil {
 				s, _ := status.FromError(err)
 				results[i] = &trillian.QueuedLogLeaf{Status: s.Proto()}
@@ -248,7 +248,7 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 
 // readDupeLeaves reads the leaves whose ids are passed as keys in the dupes map,
 // and stores them in results.
-func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map[string][]indexMerkleHash, results []*trillian.QueuedLogLeaf) error {
+func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map[string][]int, results []*trillian.QueuedLogLeaf) error {
 	numDupes := len(dupes)
 	if numDupes == 0 {
 		return nil
@@ -273,8 +273,7 @@ func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map
 		}
 		for _, i := range indices {
 			leaf := l
-			leaf.MerkleLeafHash = i.merkleHash
-			results[i.index] = &trillian.QueuedLogLeaf{
+			results[i] = &trillian.QueuedLogLeaf{
 				Leaf:   leaf,
 				Status: status.Newf(codes.AlreadyExists, "leaf already exists: %v", l.LeafIdentityHash).Proto(),
 			}
@@ -423,11 +422,6 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 		f(&l)
 		return nil
 	})
-}
-
-type indexMerkleHash struct {
-	index      int
-	merkleHash []byte
 }
 
 func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.LogLeaf, error) {
