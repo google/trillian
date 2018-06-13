@@ -78,7 +78,8 @@ type LogTreeTX interface {
 	// QueueLeaves enqueues leaves for later integration into the tree.
 	// If error is nil, the returned slice of leaves will be the same size as the
 	// input, and each entry will hold:
-	//  - the existing leaf entry if a duplicate has been submitted
+	//  - the existing leaf data (the LogLeaf fields not marked output-only) if
+	//    a duplicate has been submitted
 	//  - nil otherwise.
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
