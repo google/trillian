@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -254,13 +255,17 @@ func TestMasterFor(t *testing.T) {
 
 type masterForEvenFactory struct{}
 
-func (m masterForEvenFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
-	isMaster := (treeID % 2) == 0
+func (m masterForEvenFactory) NewElection(ctx context.Context, treeID string) (election.MasterElection, error) {
+	id, err := strconv.ParseInt(treeID, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	isMaster := (id % 2) == 0
 	return stub.NewMasterElection(isMaster, nil), nil
 }
 
 type failureFactory struct{}
 
-func (ff failureFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
+func (ff failureFactory) NewElection(ctx context.Context, treeID string) (election.MasterElection, error) {
 	return nil, errors.New("injected failure")
 }
