@@ -20,73 +20,73 @@ import (
 )
 
 type testOperation struct {
-	id  int64
+	id  string
 	val bool
 }
 
 func TestMasterTracker(t *testing.T) {
 	var tests = []struct {
-		ids   []int64
+		ids   []string
 		ops   []testOperation
 		count int
-		held  []int64
+		held  []string
 		str   string
 	}{
 		{
-			ids:   []int64{1, 2, 3},
-			ops:   []testOperation{{1, true}},
+			ids:   []string{"1", "2", "3"},
+			ops:   []testOperation{{"1", true}},
 			count: 1,
-			held:  []int64{1},
+			held:  []string{"1"},
 			str:   "1 . .",
 		},
 		{
-			ids:   []int64{1, 20000, 30000},
-			ops:   []testOperation{{30000, true}},
+			ids:   []string{"1", "20000", "30000"},
+			ops:   []testOperation{{"30000", true}},
 			count: 1,
-			held:  []int64{30000},
+			held:  []string{"30000"},
 			str:   ". ..... 30000",
 		},
 		{
-			ids: []int64{1, 2, 3},
+			ids: []string{"1", "2", "3"},
 			ops: []testOperation{
-				{1, true},
-				{2, true},
-				{3, true},
-				{1, false},
+				{"1", true},
+				{"2", true},
+				{"3", true},
+				{"1", false},
 			},
 			count: 2,
-			held:  []int64{2, 3},
+			held:  []string{"2", "3"},
 			str:   ". 2 3",
 		},
 		{
-			ids: []int64{},
+			ids: []string{},
 			ops: []testOperation{
-				{1, true},
-				{2, true},
-				{3, true},
-				{1, false},
+				{"1", true},
+				{"2", true},
+				{"3", true},
+				{"1", false},
 			},
 			count: 2,
-			held:  []int64{2, 3},
+			held:  []string{"2", "3"},
 			str:   ". 2 3",
 		},
 		{
-			ids: []int64{1, 2, 3},
+			ids: []string{"1", "2", "3"},
 			ops: []testOperation{
-				{1, true},
-				{1, true}, // error: already true
+				{"1", true},
+				{"1", true}, // error: already true
 			},
 			count: 1, // count still accurate though
-			held:  []int64{1},
+			held:  []string{"1"},
 			str:   "1 . .",
 		},
 		{
-			ids: []int64{1, 2, 3},
+			ids: []string{"1", "2", "3"},
 			ops: []testOperation{
-				{1, false}, // error: already false
+				{"1", false}, // error: already false
 			},
 			count: 0, // count still accurate though
-			held:  []int64{},
+			held:  []string{},
 			str:   ". . .",
 		},
 	}

@@ -26,15 +26,15 @@ import (
 // MasterTracker tracks the current mastership state across multiple IDs.
 type MasterTracker struct {
 	mu          sync.RWMutex
-	masterFor   map[int64]bool
+	masterFor   map[string]bool
 	masterCount int
-	notify      func(id int64, isMaster bool)
+	notify      func(id string, isMaster bool)
 }
 
 // NewMasterTracker creates a new MasterTracker instance to track the mastership
 // status for the given set of ids.
-func NewMasterTracker(ids []int64, notify func(id int64, isMaster bool)) *MasterTracker {
-	mf := make(map[int64]bool)
+func NewMasterTracker(ids []string, notify func(id string, isMaster bool)) *MasterTracker {
+	mf := make(map[string]bool)
 	for _, id := range ids {
 		mf[id] = false
 	}
@@ -43,7 +43,7 @@ func NewMasterTracker(ids []int64, notify func(id int64, isMaster bool)) *Master
 
 // Set changes the tracked mastership status for the given id.  This method should
 // be called exactly once for each state transition.
-func (mt *MasterTracker) Set(id int64, val bool) {
+func (mt *MasterTracker) Set(id string, val bool) {
 	mt.mu.Lock()
 	defer mt.mu.Unlock()
 	existing, ok := mt.masterFor[id]
@@ -69,28 +69,28 @@ func (mt *MasterTracker) Count() int {
 }
 
 // Held returns a (sorted) list of the IDs for which we are currently master.
-func (mt *MasterTracker) Held() []int64 {
+func (mt *MasterTracker) Held() []string {
 	mt.mu.RLock()
 	defer mt.mu.RUnlock()
-	ids := make([]int64, 0, mt.masterCount)
+	ids := make([]string, 0, mt.masterCount)
 	for id := range mt.masterFor {
 		if mt.masterFor[id] {
 			ids = append(ids, id)
 		}
 	}
-	sort.Sort(int64arr(ids))
+	sort.Strings(ids)
 	return ids
 }
 
 // IDs returns a (sorted) list of the IDs that we are currently tracking.
-func (mt *MasterTracker) IDs() []int64 {
+func (mt *MasterTracker) IDs() []string {
 	mt.mu.RLock()
 	defer mt.mu.RUnlock()
-	ids := make([]int64, 0, len(mt.masterFor))
+	ids := make([]string, 0, len(mt.masterFor))
 	for id := range mt.masterFor {
 		ids = append(ids, id)
 	}
-	sort.Sort(int64arr(ids))
+	sort.Strings(ids)
 	return ids
 }
 
@@ -101,15 +101,14 @@ func (mt *MasterTracker) String() string {
 
 // HeldInfo produces a textual description of the set of held IDs, compared
 // to a complete set of IDs.
-func HeldInfo(held []int64, ids []int64) string {
+func HeldInfo(held []string, ids []string) string {
 	result := ""
 	prefix := ""
 	for _, id := range ids {
-		idStr := fmt.Sprintf("%d", id)
-		show := strings.Repeat(".", len(idStr))
+		show := strings.Repeat(".", len(id))
 		for _, h := range held {
 			if h == id {
-				show = idStr
+				show = id
 			}
 			if h >= id {
 				break
@@ -119,22 +118,4 @@ func HeldInfo(held []int64, ids []int64) string {
 		prefix = " "
 	}
 	return result
-}
-
-// Make int64 slice sortable:
-type int64arr []int64
-
-// Len returns length
-func (a int64arr) Len() int {
-	return len(a)
-}
-
-// Swap swaps
-func (a int64arr) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-// Less compares
-func (a int64arr) Less(i, j int) bool {
-	return a[i] < a[j]
 }

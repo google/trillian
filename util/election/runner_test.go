@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -48,7 +49,7 @@ func TestShouldResign(t *testing.T) {
 			ResignOdds:         test.odds,
 			TimeSource:         &fakeTimeSource,
 		}
-		er := election.NewRunner(6962, &cfg, nil, nil, nil)
+		er := election.NewRunner("6962", &cfg, nil, nil, nil)
 
 		holdChecks := int64(10)
 		holdNanos := test.wantHold.Nanoseconds() / holdChecks
@@ -141,8 +142,9 @@ func TestElectionRunnerRun(t *testing.T) {
 			fakeTimeSource := util.NewFakeTimeSource(startTime)
 
 			el := test.election
-			tracker := election.NewMasterTracker([]int64{logID}, nil)
-			er := election.NewRunner(logID, &cfg, tracker, nil, el)
+			logString := strconv.FormatInt(logID, 10)
+			tracker := election.NewMasterTracker([]string{logString}, nil)
+			er := election.NewRunner(logString, &cfg, tracker, nil, el)
 			resignations := make(chan election.Resignation, 100)
 			wg.Add(1)
 			go func() {
@@ -165,7 +167,7 @@ func TestElectionRunnerRun(t *testing.T) {
 			cancel()
 			wg.Wait()
 			held := tracker.Held()
-			if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
+			if got := (len(held) > 0 && held[0] == logString); got != test.wantMaster {
 				t.Errorf("held=%v => master=%v; want %v", held, got, test.wantMaster)
 			}
 		})
