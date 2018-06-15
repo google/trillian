@@ -161,7 +161,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 		tree, err := trees.GetTree(
 			ctx, tp.parent.admin, info.treeID, trees.NewGetOpts(trees.Admin, info.treeTypes...))
 		if err != nil {
-			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
+			incRequestDeniedCounter(badTreeReason, info.treeID, info.quotaUsers)
 			return ctx, err
 		}
 		if err := ctx.Err(); err != nil {
@@ -175,7 +175,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 		err := tp.parent.qm.GetTokens(ctx, info.tokens, info.specs)
 		if err != nil {
 			if !tp.parent.quotaDryRun {
-				incRequestDeniedCounter(insufficientTokensReason, info.treeID, quotaUser)
+				incRequestDeniedCounter(insufficientTokensReason, info.treeID, info.quotaUsers)
 				return ctx, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 			}
 			glog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
@@ -269,6 +269,8 @@ type rpcInfo struct {
 
 	specs  []quota.Spec
 	tokens int
+	// Single string describing all of the users against which quota is requested.
+	quotaUsers string
 }
 
 // chargable is satisfied by request proto messages which contain a GetChargeTo
@@ -437,8 +439,14 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		if info.readonly {
 			kind = quota.Read
 		}
+
+		info.quotaUsers = quotaUser
 		for _, user := range chargedUsers(req) {
 			info.specs = append(info.specs, quota.Spec{Group: quota.User, Kind: kind, User: user})
+			if len(info.quotaUsers) > 0 {
+				info.quotaUsers += "+"
+			}
+			info.quotaUsers += user
 		}
 		info.specs = append(info.specs, []quota.Spec{
 			{Group: quota.User, Kind: kind, User: quotaUser},
