@@ -34,7 +34,7 @@ func New(client *clientv3.Client) quota.Manager {
 }
 
 func (m *manager) GetUser(ctx context.Context, req interface{}) string {
-	return "default" // Unused
+	return "" // Unused
 }
 
 func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {

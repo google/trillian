@@ -448,8 +448,10 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 			}
 			info.quotaUsers += user
 		}
+		if len(quotaUser) > 0 {
+			info.specs = append(info.specs, quota.Spec{Group: quota.User, Kind: kind, User: quotaUser})
+		}
 		info.specs = append(info.specs, []quota.Spec{
-			{Group: quota.User, Kind: kind, User: quotaUser},
 			{Group: quota.Tree, Kind: kind, TreeID: info.treeID},
 			{Group: quota.Global, Kind: kind},
 		}...)
