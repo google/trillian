@@ -68,7 +68,7 @@ func EnableHTTPServerTracing(projectID string, percent int) (http.Handler, error
 }
 
 func exporter(projectID string) error {
-	sde, err := stackdriver.NewExporter(stackdriver.Options{ProjectID: projectID})
+	sde, err := stackdriver.NewExporter(stackdriver.Options{ProjectID: projectID}) // nolint: megacheck
 	if err != nil {
 		return err
 	}
