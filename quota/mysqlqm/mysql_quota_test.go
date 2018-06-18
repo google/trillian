@@ -51,7 +51,6 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createTree() returned err = %v", err)
 	}
-	user := (&mysqlqm.QuotaManager{}).GetUser(ctx, nil /* req */)
 
 	tests := []struct {
 		desc                                           string
@@ -93,10 +92,10 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 			desc:      "unlimitedQuotas",
 			numTokens: 10,
 			specs: []quota.Spec{
-				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.User, Kind: quota.Read, User: "dylan"},
 				{Group: quota.Tree, Kind: quota.Read, TreeID: tree.TreeId},
 				{Group: quota.Global, Kind: quota.Read},
-				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.User, Kind: quota.Write, User: "dylan"},
 				{Group: quota.Tree, Kind: quota.Write, TreeID: tree.TreeId},
 			},
 		},
@@ -243,13 +242,6 @@ func TestQuotaManager_Noops(t *testing.T) {
 		fn   func() error
 	}{
 		{
-			desc: "GetUser",
-			fn: func() error {
-				_ = qm.GetUser(ctx, nil /* req */)
-				return nil
-			},
-		},
-		{
 			desc: "PutTokens",
 			fn: func() error {
 				return qm.PutTokens(ctx, 10 /* numTokens */, specs)
@@ -270,12 +262,11 @@ func TestQuotaManager_Noops(t *testing.T) {
 }
 
 func allSpecs(ctx context.Context, qm quota.Manager, treeID int64) []quota.Spec {
-	user := qm.GetUser(ctx, nil /* req */)
 	return []quota.Spec{
-		{Group: quota.User, Kind: quota.Read, User: user},
+		{Group: quota.User, Kind: quota.Read, User: "florence"},
 		{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},
 		{Group: quota.Global, Kind: quota.Read},
-		{Group: quota.User, Kind: quota.Write, User: user},
+		{Group: quota.User, Kind: quota.Write, User: "florence"},
 		{Group: quota.Tree, Kind: quota.Write, TreeID: treeID},
 		{Group: quota.Global, Kind: quota.Write},
 	}

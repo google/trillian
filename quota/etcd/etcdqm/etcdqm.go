@@ -33,10 +33,6 @@ func New(client *clientv3.Client) quota.Manager {
 	return &manager{qs: &storage.QuotaStorage{Client: client}}
 }
 
-func (m *manager) GetUser(ctx context.Context, req interface{}) string {
-	return "" // Unused
-}
-
 func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
 	return m.qs.Get(ctx, configNames(specs), int64(numTokens))
 }

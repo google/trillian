@@ -99,11 +99,6 @@ func (s Spec) String() string {
 
 // Manager is the component responsible for the management of tokens.
 type Manager interface {
-	// GetUser returns the quota user, as defined by the manager implementation,
-	// for the given RPC request message.  If no user is appropriate, an empty
-	// string is returned.
-	GetUser(ctx context.Context, req interface{}) string
-
 	// GetTokens acquires numTokens from all specs. Tokens are taken in the order specified by
 	// specs.
 	// Returns error if numTokens could not be acquired for all specs.

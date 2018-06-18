@@ -59,12 +59,6 @@ type QuotaManager struct {
 	UseSelectCount     bool
 }
 
-// GetUser implements quota.Manager.GetUser.
-// User quotas are not implemented by QuotaManager.
-func (m *QuotaManager) GetUser(ctx context.Context, req interface{}) string {
-	return "" // Not used
-}
-
 // GetTokens implements quota.Manager.GetTokens.
 // It doesn't actually reserve or retrieve tokens, instead it allows access based on the number of
 // rows in the Unsequenced table.

@@ -77,10 +77,6 @@ func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) (quota.Man
 	}, nil
 }
 
-func (m *manager) GetUser(ctx context.Context, req interface{}) string {
-	return m.qm.GetUser(ctx, req)
-}
-
 func (m *manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota.Spec]int, error) {
 	return m.qm.PeekTokens(ctx, specs)
 }
