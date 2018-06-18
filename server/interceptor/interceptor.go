@@ -145,11 +145,10 @@ type trillianProcessor struct {
 func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
 	ctx, span := spanFor(ctx, "Before")
 	defer span.End()
-	quotaUser := tp.parent.qm.GetUser(ctx, req)
-	info, err := newRPCInfo(req, quotaUser)
+	info, err := newRPCInfo(req)
 	if err != nil {
 		glog.Warningf("Failed to read tree info: %v", err)
-		incRequestDeniedCounter(badInfoReason, 0, quotaUser)
+		incRequestDeniedCounter(badInfoReason, 0, "")
 		return ctx, err
 	}
 	tp.info = info
@@ -413,7 +412,7 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 	return info, nil
 }
 
-func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
+func newRPCInfo(req interface{}) (*rpcInfo, error) {
 	info, err := newRPCInfoForRequest(req)
 	if err != nil {
 		return nil, err
@@ -440,7 +439,6 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 			kind = quota.Read
 		}
 
-		info.quotaUsers = quotaUser
 		for _, user := range chargedUsers(req) {
 			info.specs = append(info.specs, quota.Spec{Group: quota.User, Kind: kind, User: user})
 			if len(info.quotaUsers) > 0 {
@@ -449,7 +447,6 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 			info.quotaUsers += user
 		}
 		info.specs = append(info.specs, []quota.Spec{
-			{Group: quota.User, Kind: kind, User: quotaUser},
 			{Group: quota.Tree, Kind: kind, TreeID: info.treeID},
 			{Group: quota.Global, Kind: kind},
 		}...)

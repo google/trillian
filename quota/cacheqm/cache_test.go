@@ -55,25 +55,6 @@ func TestNewCachedManagerErrors(t *testing.T) {
 	}
 }
 
-func TestCachedManager_GetUser(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	ctx := context.Background()
-	want := "llama"
-	mock := quota.NewMockManager(ctrl)
-	mock.EXPECT().GetUser(ctx, nil).Return(want)
-
-	qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
-	if err != nil {
-		t.Fatalf("NewCachedManager() returned err = %v", err)
-	}
-
-	if got := qm.GetUser(ctx, nil /* req */); got != want {
-		t.Errorf("GetUser() = %v, want = %v", got, want)
-	}
-}
-
 func TestCachedManager_PeekTokens(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
