@@ -1,0 +1,20 @@
+steps:
+- id: build_log_server
+  name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --file=examples/deployment/docker/log_server/Dockerfile
+  - --tag=gcr.io/${PROJECT_ID}/log_server:${TAG_NAME}
+  - .
+  waitFor: ["-"]
+- id: build_log_signer
+  name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --file=examples/deployment/docker/log_signer/Dockerfile
+  - --tag=gcr.io/${PROJECT_ID}/log_signer:${TAG_NAME}
+  - .
+  waitFor: ["-"]
+images:
+- gcr.io/${PROJECT_ID}/log_server:${TAG_NAME}
+- gcr.io/${PROJECT_ID}/log_signer:${TAG_NAME}
