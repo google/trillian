@@ -21,7 +21,6 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/namespace"
-	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"github.com/coreos/etcd/proxy/grpcproxy"
 	"github.com/coreos/etcd/proxy/grpcproxy/adapter"
 )
@@ -58,6 +57,7 @@ func toGRPC(c *clientv3.Client) grpcAPI {
 	lp, lpch := grpcproxy.NewLeaseProxy(c)
 	mp := grpcproxy.NewMaintenanceProxy(c)
 	clp, _ := grpcproxy.NewClusterProxy(c, "", "") // without registering proxy URLs
+	authp := grpcproxy.NewAuthProxy(c)
 	lockp := grpcproxy.NewLockProxy(c)
 	electp := grpcproxy.NewElectionProxy(c)
 
@@ -67,7 +67,7 @@ func toGRPC(c *clientv3.Client) grpcAPI {
 		adapter.LeaseServerToLeaseClient(lp),
 		adapter.WatchServerToWatchClient(wp),
 		adapter.MaintenanceServerToMaintenanceClient(mp),
-		pb.NewAuthClient(c.ActiveConnection()),
+		adapter.AuthServerToAuthClient(authp),
 		adapter.LockServerToLockClient(lockp),
 		adapter.ElectionServerToElectionClient(electp),
 	}
@@ -99,12 +99,12 @@ func newClientV3(cfg clientv3.Config) (*clientv3.Client, error) {
 		return nil, err
 	}
 	rpc := toGRPC(c)
-	c.KV = clientv3.NewKVFromKVClient(rpc.KV)
+	c.KV = clientv3.NewKVFromKVClient(rpc.KV, c)
 	pmu.Lock()
 	lc := c.Lease
-	c.Lease = clientv3.NewLeaseFromLeaseClient(rpc.Lease, cfg.DialTimeout)
+	c.Lease = clientv3.NewLeaseFromLeaseClient(rpc.Lease, c, cfg.DialTimeout)
 	c.Watcher = &proxyCloser{
-		Watcher: clientv3.NewWatchFromWatchClient(rpc.Watch),
+		Watcher: clientv3.NewWatchFromWatchClient(rpc.Watch, c),
 		wdonec:  proxies[c].wdonec,
 		kvdonec: proxies[c].kvdonec,
 		lclose:  func() { lc.Close() },

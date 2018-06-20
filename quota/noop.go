@@ -21,17 +21,9 @@ import (
 
 type noopManager struct{}
 
-const (
-	noopUser = "noopQuotaUser" // arbitrary string
-)
-
 // Noop returns a noop implementation of Manager. It allows all requests without restriction.
 func Noop() Manager {
 	return &noopManager{}
-}
-
-func (n noopManager) GetUser(ctx context.Context, req interface{}) string {
-	return noopUser
 }
 
 func (n noopManager) GetTokens(ctx context.Context, numTokens int, specs []Spec) error {
@@ -77,8 +69,6 @@ func validateNumTokens(numTokens int) error {
 func validateSpecs(specs []Spec) error {
 	for _, spec := range specs {
 		switch {
-		case spec.Group == User && spec.User != noopUser:
-			return fmt.Errorf("invalid quota user: %v (expected %v)", spec.User, noopUser)
 		case spec.Group == Tree && spec.TreeID <= 0:
 			return fmt.Errorf("invalid tree ID: %v (expected >=0)", spec.TreeID)
 		}

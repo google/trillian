@@ -57,7 +57,7 @@ func TestNoop_ValidatesSpecs(t *testing.T) {
 	}{
 		{
 			desc:  "validUser",
-			specs: []Spec{{Group: User, Kind: Read, User: qm.GetUser(ctx, nil /* req */)}},
+			specs: []Spec{{Group: User, Kind: Read, User: "dougal"}},
 		},
 		{
 			desc:  "validTree",
@@ -70,20 +70,10 @@ func TestNoop_ValidatesSpecs(t *testing.T) {
 		{
 			desc: "validMixed",
 			specs: []Spec{
-				{Group: User, Kind: Read, User: qm.GetUser(ctx, nil /* req */)},
+				{Group: User, Kind: Read, User: "brian"},
 				{Group: Tree, Kind: Read, TreeID: 12345},
 				{Group: Global, Kind: Read},
 			},
-		},
-		{
-			desc:    "noUser",
-			specs:   []Spec{{Group: User, Kind: Read}},
-			wantErr: true,
-		},
-		{
-			desc:    "invalidUser",
-			specs:   []Spec{{Group: User, Kind: Read, User: "llama"}},
-			wantErr: true,
 		},
 		{
 			desc:    "noTreeID",
@@ -124,7 +114,7 @@ func TestNoopManager_PeekTokens(t *testing.T) {
 	qm := Noop()
 
 	specs := []Spec{
-		{Group: User, Kind: Read, User: qm.GetUser(ctx, nil /* req */)},
+		{Group: User, Kind: Read, User: "ermintrude"},
 		{Group: Tree, Kind: Read, TreeID: 12345},
 		{Group: Global, Kind: Read},
 	}

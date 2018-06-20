@@ -45,18 +45,6 @@ func (mr *MockManagerMockRecorder) GetTokens(arg0, arg1, arg2 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokens", reflect.TypeOf((*MockManager)(nil).GetTokens), arg0, arg1, arg2)
 }
 
-// GetUser mocks base method
-func (m *MockManager) GetUser(arg0 context.Context, arg1 interface{}) string {
-	ret := m.ctrl.Call(m, "GetUser", arg0, arg1)
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// GetUser indicates an expected call of GetUser
-func (mr *MockManagerMockRecorder) GetUser(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUser", reflect.TypeOf((*MockManager)(nil).GetUser), arg0, arg1)
-}
-
 // PeekTokens mocks base method
 func (m *MockManager) PeekTokens(arg0 context.Context, arg1 []Spec) (map[Spec]int, error) {
 	ret := m.ctrl.Call(m, "PeekTokens", arg0, arg1)

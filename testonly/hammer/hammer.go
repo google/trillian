@@ -537,7 +537,6 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 	}
 
 	var rsp *trillian.GetMapLeavesResponse
-	var rqMsg proto.Message
 	label := "get-leaves"
 	var err error
 	if latest {
@@ -547,9 +546,8 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		}
 		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to %s(%+v): %v", label, req, err)
+			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
 		}
-		rqMsg = req
 	} else {
 		label += "-rev"
 		req := &trillian.GetMapLeavesByRevisionRequest{
@@ -559,9 +557,8 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		}
 		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to %s(%+v): %v", label, req, err)
+			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
 		}
-		rqMsg = req
 	}
 
 	if glog.V(3) {
@@ -579,7 +576,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 	}
 
 	if err := contents.checkContents(rsp.MapLeafInclusion, s.cfg.ExtraSize); err != nil {
-		return fmt.Errorf("incorrect contents of %s(%+v): %v", label, rqMsg, err)
+		return fmt.Errorf("incorrect contents of %s(): %v", label, err)
 	}
 	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
@@ -699,7 +696,7 @@ leafloop:
 	}
 	rsp, err := s.cfg.Client.SetLeaves(ctx, &req)
 	if err != nil {
-		return fmt.Errorf("failed to set-leaves(%+v): %v", req, err)
+		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(req.Leaves), err)
 	}
 	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
