@@ -15,6 +15,7 @@
 package integration
 
 import (
+	"context"
 	"math/rand"
 	"strings"
 	"testing"
@@ -25,8 +26,6 @@ import (
 	"github.com/coreos/etcd/integration"
 	"github.com/coreos/etcd/pkg/testutil"
 	"github.com/coreos/etcd/pkg/transport"
-
-	"golang.org/x/net/context"
 )
 
 var (
@@ -122,7 +121,7 @@ func testDialSetEndpoints(t *testing.T, setBefore bool) {
 	if !setBefore {
 		cli.SetEndpoints(eps[toKill%3], eps[(toKill+1)%3])
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), integration.RequestWaitTimeout)
 	if _, err = cli.Get(ctx, "foo", clientv3.WithSerializable()); err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +182,7 @@ func TestDialForeignEndpoint(t *testing.T) {
 
 	// grpc can return a lazy connection that's not connected yet; confirm
 	// that it can communicate with the cluster.
-	kvc := clientv3.NewKVFromKVClient(pb.NewKVClient(conn))
+	kvc := clientv3.NewKVFromKVClient(pb.NewKVClient(conn), clus.Client(0))
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 	if _, gerr := kvc.Get(ctx, "abc"); gerr != nil {
