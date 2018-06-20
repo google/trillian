@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -132,7 +131,7 @@ func TestElectionRunnerRun(t *testing.T) {
 			wantMaster: true,
 		},
 	}
-	const logID = int64(6962)
+	const logID = "6962"
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			var wg sync.WaitGroup
@@ -142,9 +141,8 @@ func TestElectionRunnerRun(t *testing.T) {
 			fakeTimeSource := util.NewFakeTimeSource(startTime)
 
 			el := test.election
-			logString := strconv.FormatInt(logID, 10)
-			tracker := election.NewMasterTracker([]string{logString}, nil)
-			er := election.NewRunner(logString, &cfg, tracker, nil, el)
+			tracker := election.NewMasterTracker([]string{logID}, nil)
+			er := election.NewRunner(logID, &cfg, tracker, nil, el)
 			resignations := make(chan election.Resignation, 100)
 			wg.Add(1)
 			go func() {
@@ -167,7 +165,7 @@ func TestElectionRunnerRun(t *testing.T) {
 			cancel()
 			wg.Wait()
 			held := tracker.Held()
-			if got := (len(held) > 0 && held[0] == logString); got != test.wantMaster {
+			if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
 				t.Errorf("held=%v => master=%v; want %v", held, got, test.wantMaster)
 			}
 		})
