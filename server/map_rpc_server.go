@@ -186,6 +186,16 @@ func checkIndexSize(index []byte, hasher hashers.MapHasher) error {
 
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
+	// Check leaves all have unique indices.
+	seen := make(map[string]bool)
+	for _, leaf := range req.Leaves {
+		k := fmt.Sprintf("%x", leaf.Index)
+		if seen[k] {
+			return nil, status.Errorf(codes.InvalidArgument, "index %s duplicated", k)
+		}
+		seen[k] = true
+	}
+
 	ctx, span := spanFor(ctx, "SetLeaves")
 	defer span.End()
 	mapID := req.MapId
