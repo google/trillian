@@ -69,6 +69,7 @@ message GetMapLeavesResponse {
 
 message SetMapLeavesRequest {
   int64 map_id = 1;
+  // The leaves being set must have unique Index values within the request.
   repeated MapLeaf leaves = 2;
   reserved 3;  // was MapperMetadata (removed, replaced by metadata).
   // Metadata that the Map should associate with the new Map root after
