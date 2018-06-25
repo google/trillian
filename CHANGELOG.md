@@ -1,6 +1,6 @@
 # TRILLIAN Changelog
 
-## v1.2.0 - V1.2.0 Signer / Quota fixes. Error mapping fix. K8 improvements
+## v1.2.0 - Signer / Quota fixes. Error mapping fix. K8 improvements
 
 Published 2018-06-25 10:42:52 +0000 UTC
 
