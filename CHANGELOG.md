@@ -10,7 +10,7 @@ The Log Signer now publishes metrics for the logs that it is actively signing. I
 
 The Log API now allows personalities to explicitly list a vector of identifiers which should be charged for `User` quota. This allows a more nuanced application of request rate limiting across multiple dimensions. Some fixes have also been made to quota handling e.g. batch requests were not reserving the appropriate quota. Consult the corresponding PRs for more details.
 
-For the log RPC server APIS `GetLeavesByIndex` and `GetLeavesByRange` MySQL storage has been modified to return status codes that match CloudSpanner. Previously some requests with out of range parameters were receiving 5xx error status rather than 4xx when errors were mapped to the HTTP space by CTFE.
+For the log RPC server APIs `GetLeavesByIndex` and `GetLeavesByRange` MySQL storage has been modified to return status codes that match CloudSpanner. Previously some requests with out of range parameters were receiving 5xx error status rather than 4xx when errors were mapped to the HTTP space by CTFE.
 
 The Kubernetes deployment scripts continue to evolve and improve.
 
