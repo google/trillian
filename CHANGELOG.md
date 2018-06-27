@@ -1,5 +1,21 @@
 # TRILLIAN Changelog
 
+## v1.2.0 - Signer / Quota fixes. Error mapping fix. K8 improvements
+
+Published 2018-06-25 10:42:52 +0000 UTC
+
+The Log Signer now tries to avoid creating roots older than ones that already exist. This issue has been seen occurring on a test system. Important note: If running this code in production allowing clocks to drift out of sync between nodes can cause other problems including for clustering and database replication.
+
+The Log Signer now publishes metrics for the logs that it is actively signing. In a clustered environment responsibility can be expected to move around between signer instances over time.
+
+The Log API now allows personalities to explicitly list a vector of identifiers which should be charged for `User` quota. This allows a more nuanced application of request rate limiting across multiple dimensions. Some fixes have also been made to quota handling e.g. batch requests were not reserving the appropriate quota. Consult the corresponding PRs for more details.
+
+For the log RPC server APIs `GetLeavesByIndex` and `GetLeavesByRange` MySQL storage has been modified to return status codes that match CloudSpanner. Previously some requests with out of range parameters were receiving 5xx error status rather than 4xx when errors were mapped to the HTTP space by CTFE.
+
+The Kubernetes deployment scripts continue to evolve and improve.
+
+Commit [aef10347dba1bd86a0fcb152b47989d0b51ba1fa](https://api.github.com/repos/google/trillian/commits/aef10347dba1bd86a0fcb152b47989d0b51ba1fa) Download [zip](https://api.github.com/repos/google/trillian/zipball/v1.2.0)
+
 ## v1.1.1 - CloudSpanner / Tracing / Health Checks
 
 Published 2018-05-08 12:55:34 +0000 UTC

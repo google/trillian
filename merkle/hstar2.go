@@ -103,6 +103,7 @@ func (s *HStar2) hStar2b(depth, maxDepth int, values []HStar2LeafHash, offset *b
 		case len(values) == 1:
 			return values[0].LeafHash, nil
 		default:
+			glog.Errorf("base case with too many values: %+v", values)
 			return nil, fmt.Errorf("hStar2b base case: len(values): %d, want 1", len(values))
 		}
 	}
