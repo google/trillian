@@ -34,14 +34,14 @@ func TestMasterTracker(t *testing.T) {
 	}{
 		{
 			ids:   []string{"1", "2", "3"},
-			ops:   []testOperation{{"1", true}},
+			ops:   []testOperation{{id: "1", val: true}},
 			count: 1,
 			held:  []string{"1"},
 			str:   "1 . .",
 		},
 		{
 			ids:   []string{"1", "20000", "30000"},
-			ops:   []testOperation{{"30000", true}},
+			ops:   []testOperation{{id: "30000", val: true}},
 			count: 1,
 			held:  []string{"30000"},
 			str:   ". ..... 30000",
@@ -49,10 +49,10 @@ func TestMasterTracker(t *testing.T) {
 		{
 			ids: []string{"1", "2", "3"},
 			ops: []testOperation{
-				{"1", true},
-				{"2", true},
-				{"3", true},
-				{"1", false},
+				{id: "1", val: true},
+				{id: "2", val: true},
+				{id: "3", val: true},
+				{id: "1", val: false},
 			},
 			count: 2,
 			held:  []string{"2", "3"},
@@ -61,10 +61,10 @@ func TestMasterTracker(t *testing.T) {
 		{
 			ids: []string{},
 			ops: []testOperation{
-				{"1", true},
-				{"2", true},
-				{"3", true},
-				{"1", false},
+				{id: "1", val: true},
+				{id: "2", val: true},
+				{id: "3", val: true},
+				{id: "1", val: false},
 			},
 			count: 2,
 			held:  []string{"2", "3"},
@@ -73,8 +73,8 @@ func TestMasterTracker(t *testing.T) {
 		{
 			ids: []string{"1", "2", "3"},
 			ops: []testOperation{
-				{"1", true},
-				{"1", true}, // error: already true
+				{id: "1", val: true},
+				{id: "1", val: true}, // error: already true
 			},
 			count: 1, // count still accurate though
 			held:  []string{"1"},
@@ -83,7 +83,7 @@ func TestMasterTracker(t *testing.T) {
 		{
 			ids: []string{"1", "2", "3"},
 			ops: []testOperation{
-				{"1", false}, // error: already false
+				{id: "1", val: false}, // error: already false
 			},
 			count: 0, // count still accurate though
 			held:  []string{},
