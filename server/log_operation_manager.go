@@ -100,7 +100,7 @@ type LogOperationManager struct {
 	logOperation LogOperation
 
 	// electionRunner tracks the goroutines that run per-log mastership elections
-	electionRunner      map[int64]*election.Runner
+	electionRunner      map[string]*election.Runner
 	pendingResignations chan election.Resignation
 	runnerWG            sync.WaitGroup
 	tracker             *election.MasterTracker
@@ -119,7 +119,7 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 	return &LogOperationManager{
 		info:                info,
 		logOperation:        logOperation,
-		electionRunner:      make(map[int64]*election.Runner),
+		electionRunner:      make(map[string]*election.Runner),
 		pendingResignations: make(chan election.Resignation, 100),
 		logNames:            make(map[int64]string),
 	}
@@ -185,16 +185,14 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 	if l.info.Registry.ElectionFactory == nil {
 		return allIDs, nil
 	}
-	allIDString := make([]string, 0, len(allIDs))
-	idToString := make(map[int64]string)
+	allStringIDs := make([]string, 0, len(allIDs))
 	for _, id := range allIDs {
 		s := strconv.FormatInt(id, 10)
-		allIDString = append(allIDString, s)
-		idToString[id] = s
+		allStringIDs = append(allStringIDs, s)
 	}
 	if l.tracker == nil {
 		glog.Infof("creating mastership tracker for %v", allIDs)
-		l.tracker = election.NewMasterTracker(allIDString, func(id string, v bool) {
+		l.tracker = election.NewMasterTracker(allStringIDs, func(id string, v bool) {
 			val := 0.0
 			if v {
 				val = 1.0
@@ -204,19 +202,19 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 	}
 
 	// Synchronize the set of configured log IDs with those we are tracking mastership for.
-	for _, logID := range allIDs {
-		knownLogs.Set(1, idToString[logID])
+	for _, logID := range allStringIDs {
+		knownLogs.Set(1, logID)
 		if l.electionRunner[logID] != nil {
 			continue
 		}
 		glog.Infof("create master election goroutine for %v", logID)
 		innerCtx, cancel := context.WithCancel(ctx)
-		el, err := l.info.Registry.ElectionFactory.NewElection(innerCtx, idToString[logID])
+		el, err := l.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
 		if err != nil {
 			cancel()
 			return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
 		}
-		l.electionRunner[logID] = election.NewRunner(idToString[logID], &l.info.ElectionConfig, l.tracker, cancel, el)
+		l.electionRunner[logID] = election.NewRunner(logID, &l.info.ElectionConfig, l.tracker, cancel, el)
 		l.runnerWG.Add(1)
 		go func(r *election.Runner) {
 			defer l.runnerWG.Done()
