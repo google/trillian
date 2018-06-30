@@ -145,7 +145,7 @@ main() {
       'have you installed github.com/alecthomas/gometalinter?' || exit 1
 
     echo 'running gometalinter'
-    gometalinter --config=gometalinter.json --deadline=60s ./...
+    gometalinter --config=gometalinter.json --deadline=240s ./...
   fi
 
   if [[ "${run_generate}" -eq 1 ]]; then
