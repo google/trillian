@@ -35,11 +35,11 @@ func TestMasterElectionThroughCommonClient(t *testing.T) {
 	ctx := context.Background()
 	fact := NewElectionFactory("serv", client, "trees/")
 
-	el1, err := fact.NewElection(ctx, 10)
+	el1, err := fact.NewElection(ctx, "10")
 	if err != nil {
 		t.Fatalf("NewElection(10): %v", err)
 	}
-	el2, err := fact.NewElection(ctx, 20)
+	el2, err := fact.NewElection(ctx, "20")
 	if err != nil {
 		t.Fatalf("NewElection(20): %v", err)
 	}
@@ -117,7 +117,7 @@ func TestGetCurrentMaster(t *testing.T) {
 
 	elections := make([]election.MasterElection, 0)
 	for _, f := range facts {
-		e, err := f.NewElection(ctx, 10)
+		e, err := f.NewElection(ctx, "10")
 		if err != nil {
 			t.Fatalf("NewElection(10): %v", err)
 		}
@@ -151,7 +151,7 @@ func TestGetCurrentMasterReturnsNoLeader(t *testing.T) {
 	}
 	defer cleanup()
 	fact := NewElectionFactory("serv1", client, "trees/")
-	el, err := fact.NewElection(ctx, 10)
+	el, err := fact.NewElection(ctx, "10")
 	if err != nil {
 		t.Fatalf("NewElection(10): %v", err)
 	}

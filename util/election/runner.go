@@ -70,7 +70,7 @@ func fixupRunnerConfig(cfg *RunnerConfig) {
 type Runner struct {
 	// Allow the user to store a Cancel function with the runner for convenience.
 	Cancel   context.CancelFunc
-	id       int64
+	id       string
 	cfg      *RunnerConfig
 	tracker  *MasterTracker
 	election MasterElection
@@ -79,7 +79,7 @@ type Runner struct {
 // NewRunner builds a new election Runner instance with the given configuration.  On calling
 // Run(), the provided election will be continuously monitored and mastership changes will
 // be notified to the provided MasterTracker instance.
-func NewRunner(id int64, cfg *RunnerConfig, tracker *MasterTracker, cancel context.CancelFunc, el MasterElection) *Runner {
+func NewRunner(id string, cfg *RunnerConfig, tracker *MasterTracker, cancel context.CancelFunc, el MasterElection) *Runner {
 	fixupRunnerConfig(cfg)
 	return &Runner{
 		Cancel:   cancel,
@@ -169,7 +169,7 @@ func (er *Runner) ShouldResign(masterSince time.Time) bool {
 // Resignation indicates that a master should explicitly resign mastership, by invoking
 // the Execute() method at a point where no master-related activity is ongoing.
 type Resignation struct {
-	ID   int64
+	ID   string
 	er   *Runner
 	done chan<- bool
 }

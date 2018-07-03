@@ -45,14 +45,15 @@ type MasterElection interface {
 // ErrNoMaster indicates that there is currently no master elected.
 var ErrNoMaster = errors.New("no master")
 
-// Factory encapsulates the creation of a MasterElection instance for a treeID.
+// Factory encapsulates the creation of a MasterElection instance for a resourceID.
+// TreeID may be used as a resourceID.
 type Factory interface {
-	NewElection(ctx context.Context, treeID int64) (MasterElection, error)
+	NewElection(ctx context.Context, resourceID string) (MasterElection, error)
 }
 
 // NoopElection is a stub implementation that tells every instance that it is master.
 type NoopElection struct {
-	treeID     int64
+	resourceID string
 	instanceID string
 }
 
@@ -92,6 +93,6 @@ type NoopFactory struct {
 }
 
 // NewElection creates a specific NoopElection instance.
-func (nf NoopFactory) NewElection(ctx context.Context, treeID int64) (MasterElection, error) {
-	return &NoopElection{instanceID: nf.InstanceID, treeID: treeID}, nil
+func (nf NoopFactory) NewElection(ctx context.Context, resourceID string) (MasterElection, error) {
+	return &NoopElection{instanceID: nf.InstanceID, resourceID: resourceID}, nil
 }

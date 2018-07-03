@@ -100,7 +100,7 @@ type LogOperationManager struct {
 	logOperation LogOperation
 
 	// electionRunner tracks the goroutines that run per-log mastership elections
-	electionRunner      map[int64]*election.Runner
+	electionRunner      map[string]*election.Runner
 	pendingResignations chan election.Resignation
 	runnerWG            sync.WaitGroup
 	tracker             *election.MasterTracker
@@ -119,7 +119,7 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 	return &LogOperationManager{
 		info:                info,
 		logOperation:        logOperation,
-		electionRunner:      make(map[int64]*election.Runner),
+		electionRunner:      make(map[string]*election.Runner),
 		pendingResignations: make(chan election.Resignation, 100),
 		logNames:            make(map[int64]string),
 	}
@@ -185,20 +185,25 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 	if l.info.Registry.ElectionFactory == nil {
 		return allIDs, nil
 	}
+	allStringIDs := make([]string, 0, len(allIDs))
+	for _, id := range allIDs {
+		s := strconv.FormatInt(id, 10)
+		allStringIDs = append(allStringIDs, s)
+	}
 	if l.tracker == nil {
 		glog.Infof("creating mastership tracker for %v", allIDs)
-		l.tracker = election.NewMasterTracker(allIDs, func(id int64, v bool) {
+		l.tracker = election.NewMasterTracker(allStringIDs, func(id string, v bool) {
 			val := 0.0
 			if v {
 				val = 1.0
 			}
-			isMaster.Set(val, strconv.FormatInt(id, 10))
+			isMaster.Set(val, id)
 		})
 	}
 
 	// Synchronize the set of configured log IDs with those we are tracking mastership for.
-	for _, logID := range allIDs {
-		knownLogs.Set(1.0, strconv.FormatInt(logID, 10))
+	for _, logID := range allStringIDs {
+		knownLogs.Set(1, logID)
 		if l.electionRunner[logID] != nil {
 			continue
 		}
@@ -207,7 +212,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 		el, err := l.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
 		if err != nil {
 			cancel()
-			return nil, fmt.Errorf("failed to create election for %d: %v", logID, err)
+			return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
 		}
 		l.electionRunner[logID] = election.NewRunner(logID, &l.info.ElectionConfig, l.tracker, cancel, el)
 		l.runnerWG.Add(1)
@@ -218,8 +223,17 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 	}
 
 	held := l.tracker.Held()
+	heldIDs := make([]int64, 0, len(allIDs))
+	for _, s := range held {
+		id, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse logID %v as int64", s)
+		}
+		heldIDs = append(heldIDs, id)
+	}
+
 	glog.V(1).Infof("acting as master for %d / %d: %s", len(held), len(allIDs), l.tracker)
-	return held, nil
+	return heldIDs, nil
 }
 
 func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, allIDs []int64) {
@@ -298,7 +312,7 @@ loop:
 		for !doneResigning {
 			select {
 			case r := <-l.pendingResignations:
-				resignations.Inc(strconv.FormatInt(r.ID, 10))
+				resignations.Inc(r.ID)
 				r.Execute(ctx)
 			default:
 				doneResigning = true

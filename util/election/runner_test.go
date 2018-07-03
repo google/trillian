@@ -48,7 +48,7 @@ func TestShouldResign(t *testing.T) {
 			ResignOdds:         test.odds,
 			TimeSource:         &fakeTimeSource,
 		}
-		er := election.NewRunner(6962, &cfg, nil, nil, nil)
+		er := election.NewRunner("6962", &cfg, nil, nil, nil)
 
 		holdChecks := int64(10)
 		holdNanos := test.wantHold.Nanoseconds() / holdChecks
@@ -131,7 +131,7 @@ func TestElectionRunnerRun(t *testing.T) {
 			wantMaster: true,
 		},
 	}
-	const logID = int64(6962)
+	const logID = "6962"
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			var wg sync.WaitGroup
@@ -141,7 +141,7 @@ func TestElectionRunnerRun(t *testing.T) {
 			fakeTimeSource := util.NewFakeTimeSource(startTime)
 
 			el := test.election
-			tracker := election.NewMasterTracker([]int64{logID}, nil)
+			tracker := election.NewMasterTracker([]string{logID}, nil)
 			er := election.NewRunner(logID, &cfg, tracker, nil, el)
 			resignations := make(chan election.Resignation, 100)
 			wg.Add(1)

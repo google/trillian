@@ -30,7 +30,7 @@ import (
 // MasterElection is an implementation of util.MasterElection based on etcd.
 type MasterElection struct {
 	instanceID string
-	treeID     int64
+	treeID     string
 	lockFile   string
 	client     *clientv3.Client
 	session    *concurrency.Session
@@ -98,12 +98,12 @@ func NewElectionFactory(instanceID string, client *clientv3.Client, lockDir stri
 }
 
 // NewElection creates a specific etcd.MasterElection instance.
-func (ef ElectionFactory) NewElection(ctx context.Context, treeID int64) (election.MasterElection, error) {
+func (ef ElectionFactory) NewElection(ctx context.Context, treeID string) (election.MasterElection, error) {
 	session, err := concurrency.NewSession(ef.client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd session: %v", err)
 	}
-	lockFile := fmt.Sprintf("%s/%d", strings.TrimRight(ef.lockDir, "/"), treeID)
+	lockFile := fmt.Sprintf("%s/%v", strings.TrimRight(ef.lockDir, "/"), treeID)
 	election := concurrency.NewElection(session, lockFile)
 
 	eme := MasterElection{
