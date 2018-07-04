@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -264,6 +265,37 @@ func TestReadWriteTransaction(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestQueueDuplicateLeafParallel(t *testing.T) {
+	ctx := context.Background()
+	cleanTestDB(DB)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
+	s := NewLogStorage(DB, nil)
+	leaves := createTestLeaves(1, 10)
+	threadCount := 2
+
+	var wg sync.WaitGroup
+	for i := 0; i < threadCount; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+				existing, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime)
+				if err != nil {
+					return fmt.Errorf("[%d] failed to queue leaves: %v", i, err)
+				}
+				if got, want := len(existing), len(leaves); got != want {
+					return fmt.Errorf("[%d] len(QueueLeaves())=%d; want %d", i, got, want)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Errorf("Failed tx: %v", err)
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestQueueDuplicateLeaf(t *testing.T) {
