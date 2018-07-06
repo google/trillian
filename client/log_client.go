@@ -39,16 +39,7 @@ type LogClient struct {
 }
 
 // New returns a new LogClient.
-func New(logID int64, client trillian.TrillianLogClient, verifier *LogVerifier) *LogClient {
-	return &LogClient{
-		LogVerifier: verifier,
-		LogID:       logID,
-		client:      client,
-	}
-}
-
-// NewWithRoot returns a new LogClient.
-func NewWithRoot(logID int64, client trillian.TrillianLogClient, verifier *LogVerifier, root types.LogRootV1) *LogClient {
+func New(logID int64, client trillian.TrillianLogClient, verifier *LogVerifier, root types.LogRootV1) *LogClient {
 	return &LogClient{
 		LogVerifier: verifier,
 		LogID:       logID,
@@ -58,13 +49,13 @@ func NewWithRoot(logID int64, client trillian.TrillianLogClient, verifier *LogVe
 }
 
 // NewFromTree creates a new LogClient given a tree config.
-func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree) (*LogClient, error) {
+func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree, root types.LogRootV1) (*LogClient, error) {
 	verifier, err := NewLogVerifierFromTree(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return New(config.GetTreeId(), client, verifier), nil
+	return New(config.GetTreeId(), client, verifier, root), nil
 }
 
 // AddSequencedLeafAndWait adds a leaf at a specific index to the log.

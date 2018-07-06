@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly/integration"
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -67,7 +68,7 @@ func TestGetByIndex(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client, err := NewFromTree(env.Log, tree)
+	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
 	if err != nil {
 		t.Fatalf("NewFromTree(): %v", err)
 	}
@@ -109,7 +110,7 @@ func TestListByIndex(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client, err := NewFromTree(env.Log, tree)
+	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
 	if err != nil {
 		t.Fatalf("NewFromTree(): %v", err)
 	}
@@ -151,7 +152,7 @@ func TestVerifyInclusion(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client, err := NewFromTree(env.Log, tree)
+	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
 	if err != nil {
 		t.Fatalf("NewFromTree(): %v", err)
 	}
@@ -187,7 +188,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client, err := NewFromTree(env.Log, tree)
+	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
 	if err != nil {
 		t.Fatalf("NewFromTree(): %v", err)
 	}
@@ -236,7 +237,7 @@ func TestWaitForInclusion(t *testing.T) {
 			client: &MockLogClient{c: env.Log, mGetInclusionProof: true}, wantErr: true},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			client, err := NewFromTree(test.client, tree)
+			client, err := NewFromTree(test.client, tree, types.LogRootV1{})
 			if err != nil {
 				t.Fatalf("NewFromTree(): %v", err)
 			}
@@ -276,7 +277,7 @@ func TestUpdateRoot(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client, err := NewFromTree(env.Log, tree)
+	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
 	if err != nil {
 		t.Fatalf("NewFromTree(): %v", err)
 	}
