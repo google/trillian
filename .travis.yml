@@ -104,11 +104,7 @@ script:
   - set +e
 
 after_success:
-  - |
-      if [[ -f /tmp/coverage.txt ]]; then
-        cp /tmp/coverage.txt .
-        bash <(curl -s https://codecov.io/bash)
-      fi
+  - bash <(curl -s https://codecov.io/bash)
   - |
       # Push up to GCE CI instance if we're running after a merge to master
       if [[ "${GCE_CI}" == "true" ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then

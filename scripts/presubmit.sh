@@ -7,8 +7,6 @@
 # `scripts/presubmit.sh --help` for details.
 #
 # Globals:
-#   GO_TEST_PARALLELISM: max processes to use for Go tests. Optional (defaults
-#       to 10).
 #   GO_TEST_TIMEOUT: timeout for 'go test'. Optional (defaults to 5m).
 set -eu
 
@@ -102,35 +100,14 @@ main() {
     go test ${goflags} -i ./...
 
     if [[ ${coverage} -eq 1 ]]; then
-      # Individual package profiles are written to "$profile.out" files under
-      # /tmp/trillian_profile.
-      # An aggregate profile is created at /tmp/coverage.txt.
-      mkdir -p /tmp/trillian_profile
-      rm -f /tmp/trillian_profile/*
+        local coverflags="-covermode=atomic -coverprofile='coverage.txt'"
 
-      for d in $(go list ./...); do
-        # Create a different -coverprofile for each test
-        # Transform $d to a smaller, valid file name.
-        # For example:
-        # * github.com/google/trillian becomes trillian.out
-        # * github.com/google/trillian/cmd/createtree/keys becomes
-        #   trillian-cmd-createtree-keys.out
-        local profile="${d}.out"
-        profile="${profile#github.com/*/}"
-        profile="${profile//\//-}"
-        local coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/${profile}'"
-
-        # Do not run go test in the loop, instead echo it so we can use xargs to
-        # add some parallelism.
-        echo go test \
+        go test \
             -short \
             -timeout=${GO_TEST_TIMEOUT:-5m} \
             ${coverflags} \
             ${goflags} \
-            "$d" -alsologtostderr
-      done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:-10} bash -c '{}'
-
-      cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
+	    ./... -alsologtostderr
     else
       go test \
         -short \
