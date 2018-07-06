@@ -202,6 +202,14 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 	return &logRoot, nil
 }
 
+// GetRoot returns a copy of the latest trusted root.
+func (c *LogClient) GetRoot() types.LogRootV1 {
+	c.rootLock.Lock()
+	defer c.rootLock.Unlock()
+
+	return c.root
+}
+
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
 // seen in the past, and updating the currently trusted root if the new root verifies.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
