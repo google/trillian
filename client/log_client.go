@@ -47,6 +47,16 @@ func New(logID int64, client trillian.TrillianLogClient, verifier *LogVerifier) 
 	}
 }
 
+// NewWithRoot returns a new LogClient.
+func NewWithRoot(logID int64, client trillian.TrillianLogClient, verifier *LogVerifier, root types.LogRootV1) *LogClient {
+	return &LogClient{
+		LogVerifier: verifier,
+		LogID:       logID,
+		client:      client,
+		root:        root,
+	}
+}
+
 // NewFromTree creates a new LogClient given a tree config.
 func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree) (*LogClient, error) {
 	verifier, err := NewLogVerifierFromTree(config)
