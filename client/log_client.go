@@ -248,9 +248,14 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 	return nil, nil
 }
 
-// WaitForInclusion blocks until the requested data has been verified with an inclusion proof.
-// This assumes that the data has already been submitted.
-// Best practice is to call this method with a context that will timeout.
+// WaitForInclusion blocks until the requested data has been verified with an
+// inclusion proof.
+//
+// It will continuously update the root to the latest one available until the
+// data is found, or an error is returned.
+//
+// It is best to call this method with a context that will timeout to avoid
+// waiting forever.
 func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 	leaf, err := c.BuildLeaf(data)
 	if err != nil {
@@ -272,7 +277,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		}
 
 		// If not found or tree is empty, wait for a root update before retrying again.
-		if root, err = c.WaitForRootUpdate(ctx); err != nil {
+		if _, err = c.WaitForRootUpdate(ctx); err != nil {
 			return err
 		}
 
