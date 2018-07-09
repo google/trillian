@@ -273,22 +273,18 @@ func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 	return nil
 }
 
-// GetAndVerifyInclusionAtIndex updates the log root and ensures that the given leaf data has been included in the log at a particular index.
-func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byte, index int64) error {
-	root, err := c.UpdateRoot(ctx)
-	if err != nil {
-		return fmt.Errorf("UpdateRoot(): %v", err)
-	}
+// GetAndVerifyInclusionAtIndex ensures that the given leaf data has been included in the log at a particular index.
+func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byte, index int64, sth *types.LogRootV1) error {
 	resp, err := c.client.GetInclusionProof(ctx,
 		&trillian.GetInclusionProofRequest{
 			LogId:     c.LogID,
 			LeafIndex: index,
-			TreeSize:  int64(root.TreeSize),
+			TreeSize:  int64(sth.TreeSize),
 		})
 	if err != nil {
 		return err
 	}
-	return c.VerifyInclusionAtIndex(root, data, index, resp.Proof.Hashes)
+	return c.VerifyInclusionAtIndex(sth, data, index, resp.Proof.Hashes)
 }
 
 func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *types.LogRootV1) (bool, error) {
