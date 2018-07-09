@@ -165,6 +165,10 @@ func TestVerifyInclusion(t *testing.T) {
 		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
+	if _, err := client.UpdateRoot(ctx); err != nil {
+		t.Errorf("UpdateRoot(): %v", err)
+	}
+
 	for _, l := range leafData {
 		if err := client.VerifyInclusion(ctx, l); err != nil {
 			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
