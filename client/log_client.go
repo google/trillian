@@ -58,7 +58,7 @@ func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree) (*Log
 }
 
 // AddSequencedLeafAndWait adds a leaf at a specific index to the log.
-// Blocks until it has been included in a signed log root.
+// Blocks and continuously updates the trusted root until it has been included in a signed log root.
 func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, index int64) error {
 	if err := c.AddSequencedLeaf(ctx, data, index); err != nil {
 		return fmt.Errorf("QueueLeaf(): %v", err)
@@ -70,7 +70,7 @@ func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, in
 }
 
 // AddLeaf adds leaf to the append only log.
-// Blocks until it gets a verifiable response.
+// Blocks and continuously updates the trusted root until it gets a verifiable response.
 func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	if err := c.QueueLeaf(ctx, data); err != nil {
 		return fmt.Errorf("QueueLeaf(): %v", err)
