@@ -165,7 +165,7 @@ func TestVerifyInclusion(t *testing.T) {
 		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
-	if _, err := client.UpdateRoot(ctx); err != nil {
+	if _, err := client.WaitForRootUpdate(ctx); err != nil {
 		t.Errorf("UpdateRoot(): %v", err)
 	}
 
@@ -205,7 +205,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
-	root, err := client.UpdateRoot(ctx)
+	root, err := client.WaitForRootUpdate(ctx)
 	if err != nil {
 		t.Errorf("UpdateRoot(): %v", err)
 	}
