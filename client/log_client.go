@@ -120,23 +120,25 @@ func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*tri
 	return resp.Leaves, nil
 }
 
-// WaitForRootUpdate repeatedly fetches the Root until the fetched tree size >=
-// waitForTreeSize or until ctx times out.
-func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize uint64) (*types.LogRootV1, error) {
+// WaitForRootUpdate repeatedly fetches the latest root until there is an
+// update, which it then applies, or until ctx times out.
+func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, error) {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
 		Factor: 2,
 		Jitter: true,
 	}
-	for i := 0; ; i++ {
-		root, err := c.UpdateRoot(ctx)
-		switch x := status.Code(err); x {
+
+	for {
+		newTrusted, err := c.getLatestRoot(ctx, c.GetRoot())
+		switch status.Code(err) {
 		case codes.OK:
-			if root.TreeSize >= waitForTreeSize {
-				return root, nil
+			if c.updateRootIfNewer(newTrusted) {
+				return newTrusted, nil
 			}
-		case codes.Unavailable, codes.NotFound, codes.FailedPrecondition: // Retry.
+		case codes.Unavailable, codes.NotFound, codes.FailedPrecondition:
+			// Retry.
 		default:
 			return nil, err
 		}
@@ -212,24 +214,38 @@ func (c *LogClient) GetRoot() *types.LogRootV1 {
 	return &ret
 }
 
-// UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
-// seen in the past, and updating the currently trusted root if the new root verifies.
-func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
+// updateRootIfNewer updates the current trusted root if the new root is newer
+// than the currently trusted root and its tree size is larger.
+func (c *LogClient) updateRootIfNewer(newTrusted *types.LogRootV1) bool {
 	c.rootLock.Lock()
 	defer c.rootLock.Unlock()
 
 	currentlyTrusted := &c.root
+	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
+		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
+		// Take a copy of the new trusted root in order to prevent clients from modifying it.
+		c.root = *newTrusted
+		return true
+	}
+
+	return false
+}
+
+// UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
+// seen in the past, and updating the currently trusted root if the new root verifies, and is
+// newer than the currently trusted root.
+func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
+	currentlyTrusted := c.GetRoot()
 	newTrusted, err := c.getLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
 		return nil, err
 	}
-	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
-		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
-		c.root = *newTrusted
+
+	if c.updateRootIfNewer(newTrusted) {
+		return newTrusted, nil
 	}
-	// Copy the internal trusted root in order to prevent clients from modifying it.
-	ret := c.root
-	return &ret, nil
+
+	return nil, nil
 }
 
 // WaitForInclusion blocks until the requested data has been verified with an inclusion proof.
@@ -241,24 +257,25 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	// Fetch the current Root to improve our chances at a valid inclusion proof.
-	// It is illegal to ask for an inclusion proof with TreeSize = 0.
-	root, err := c.WaitForRootUpdate(ctx, 1)
-	if err != nil {
-		return err
-	}
+	var root *types.LogRootV1
 	for {
-		ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
-		if err != nil && status.Code(err) != codes.NotFound {
+		root = c.GetRoot()
+
+		// It is illegal to ask for an inclusion proof with TreeSize = 0.
+		if root.TreeSize >= 1 {
+			ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
+			if err != nil && status.Code(err) != codes.NotFound {
+				return err
+			} else if ok {
+				return nil
+			}
+		}
+
+		// If not found or tree is empty, wait for a root update before retrying again.
+		if root, err = c.WaitForRootUpdate(ctx); err != nil {
 			return err
 		}
-		if ok {
-			return nil
-		}
-		// Wait for TreeSize to update.
-		if root, err = c.WaitForRootUpdate(ctx, root.TreeSize+1); err != nil {
-			return err
-		}
+
 		// Retry
 	}
 }
