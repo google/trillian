@@ -201,8 +201,13 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
+	root, err := client.UpdateRoot(ctx)
+	if err != nil {
+		t.Errorf("UpdateRoot(): %v", err)
+	}
+
 	for i, l := range leafData {
-		if err := client.GetAndVerifyInclusionAtIndex(ctx, l, int64(i)); err != nil {
+		if err := client.GetAndVerifyInclusionAtIndex(ctx, l, int64(i), root); err != nil {
 			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
 		}
 	}
