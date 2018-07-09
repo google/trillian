@@ -203,11 +203,13 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 }
 
 // GetRoot returns a copy of the latest trusted root.
-func (c *LogClient) GetRoot() types.LogRootV1 {
+func (c *LogClient) GetRoot() *types.LogRootV1 {
 	c.rootLock.Lock()
 	defer c.rootLock.Unlock()
 
-	return c.root
+	// Copy the internal trusted root in order to prevent clients from modifying it.
+	ret := c.root
+	return &ret
 }
 
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
