@@ -165,10 +165,6 @@ func TestVerifyInclusion(t *testing.T) {
 		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
-	if _, err := client.WaitForRootUpdate(ctx); err != nil {
-		t.Errorf("UpdateRoot(): %v", err)
-	}
-
 	for _, l := range leafData {
 		if err := client.VerifyInclusion(ctx, l); err != nil {
 			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
@@ -205,11 +201,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		t.Fatalf("Failed to add leaves: %v", err)
 	}
 
-	root, err := client.WaitForRootUpdate(ctx)
-	if err != nil {
-		t.Errorf("UpdateRoot(): %v", err)
-	}
-
+	root := client.GetRoot()
 	for i, l := range leafData {
 		if err := client.GetAndVerifyInclusionAtIndex(ctx, l, int64(i), root); err != nil {
 			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
