@@ -100,44 +100,44 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 		return
 	}
 
-	glog.V(1).Infof("%d: start election-monitoring loop ", er.id)
+	glog.V(1).Infof("%s: start election-monitoring loop ", er.id)
 	if err := er.election.Start(ctx); err != nil {
-		glog.Errorf("%d: election.Start() failed: %v", er.id, err)
+		glog.Errorf("%s: election.Start() failed: %v", er.id, err)
 		return
 	}
 	defer func(ctx context.Context, er *Runner) {
-		glog.Infof("%d: shutdown election-monitoring loop", er.id)
+		glog.Infof("%s: shutdown election-monitoring loop", er.id)
 		er.election.Close(ctx)
 	}(ctx, er)
 
 	for {
-		glog.V(1).Infof("%d: When I left you, I was but the learner", er.id)
+		glog.V(1).Infof("%s: When I left you, I was but the learner", er.id)
 		if err := er.election.WaitForMastership(ctx); err != nil {
-			glog.Errorf("%d: er.election.WaitForMastership() failed: %v", er.id, err)
+			glog.Errorf("%s: er.election.WaitForMastership() failed: %v", er.id, err)
 			return
 		}
-		glog.V(1).Infof("%d: Now, I am the master", er.id)
+		glog.V(1).Infof("%s: Now, I am the master", er.id)
 		er.tracker.Set(er.id, true)
 		masterSince := er.cfg.TimeSource.Now()
 
 		// While-master loop
 		for {
 			if err := util.SleepContext(ctx, er.cfg.MasterCheckInterval); err != nil {
-				glog.Infof("%d: termination requested", er.id)
+				glog.Infof("%s: termination requested", er.id)
 				return
 			}
 			master, err := er.election.IsMaster(ctx)
 			if err != nil {
-				glog.Errorf("%d: failed to check mastership status", er.id)
+				glog.Errorf("%s: failed to check mastership status", er.id)
 				break
 			}
 			if !master {
-				glog.Errorf("%d: no longer the master!", er.id)
+				glog.Errorf("%s: no longer the master!", er.id)
 				er.tracker.Set(er.id, false)
 				break
 			}
 			if er.ShouldResign(masterSince) {
-				glog.Infof("%d: queue up resignation of mastership", er.id)
+				glog.Infof("%s: queue up resignation of mastership", er.id)
 				er.tracker.Set(er.id, false)
 
 				done := make(chan bool)
@@ -176,12 +176,12 @@ type Resignation struct {
 
 // Execute performs the pending deliberate resignation for an election runner.
 func (r *Resignation) Execute(ctx context.Context) {
-	glog.Infof("%d: deliberately resigning mastership", r.er.id)
+	glog.Infof("%s: deliberately resigning mastership", r.er.id)
 	if err := r.er.election.Resign(ctx); err != nil {
-		glog.Errorf("%d: failed to resign mastership: %v", r.er.id, err)
+		glog.Errorf("%s: failed to resign mastership: %v", r.er.id, err)
 	}
 	if err := r.er.election.Start(ctx); err != nil {
-		glog.Errorf("%d: failed to restart election: %v", r.er.id, err)
+		glog.Errorf("%s: failed to restart election: %v", r.er.id, err)
 	}
 	r.done <- true
 }
