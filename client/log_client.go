@@ -132,10 +132,10 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 	}
 
 	for {
-		newTrusted, err := c.getAndVerifyLatestRoot(ctx, c.GetRoot())
+		newTrusted, err := c.UpdateRoot(ctx)
 		switch status.Code(err) {
 		case codes.OK:
-			if c.updateRootIfNewer(newTrusted) {
+			if newTrusted != nil {
 				return newTrusted, nil
 			}
 		case codes.Unavailable, codes.NotFound, codes.FailedPrecondition:
@@ -215,23 +215,6 @@ func (c *LogClient) GetRoot() *types.LogRootV1 {
 	return &ret
 }
 
-// updateRootIfNewer updates the current trusted root if the new root is newer
-// than the currently trusted root and its tree size is larger.
-func (c *LogClient) updateRootIfNewer(newTrusted *types.LogRootV1) bool {
-	c.rootLock.Lock()
-	defer c.rootLock.Unlock()
-
-	currentlyTrusted := &c.root
-	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
-		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
-		// Take a copy of the new trusted root in order to prevent clients from modifying it.
-		c.root = *newTrusted
-		return true
-	}
-
-	return false
-}
-
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
 // seen in the past, and updating the currently trusted root if the new root verifies, and is
 // newer than the currently trusted root.
@@ -242,7 +225,16 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 		return nil, err
 	}
 
-	if c.updateRootIfNewer(newTrusted) {
+	c.rootLock.Lock()
+	defer c.rootLock.Unlock()
+
+	// Get the root again, since it might have been updated by a different thread
+	// while "getAndVerifyLatestRoot" was running.
+	currentlyTrusted = &c.root
+	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
+		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
+		// Take a copy of the new trusted root in order to prevent clients from modifying it.
+		c.root = *newTrusted
 		return newTrusted, nil
 	}
 
