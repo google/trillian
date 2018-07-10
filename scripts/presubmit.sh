@@ -124,7 +124,7 @@ main() {
     go test ${goflags} -i ./...
 
     if [[ ${coverage} -eq 1 ]]; then
-        local coverflags="-covermode=atomic -coverprofile='coverage.txt'"
+        local coverflags="-covermode=atomic -coverprofile=coverage.txt"
 
         go test \
             -short \
