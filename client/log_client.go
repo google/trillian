@@ -132,7 +132,7 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 	}
 
 	for {
-		newTrusted, err := c.getLatestRoot(ctx, c.GetRoot())
+		newTrusted, err := c.getAndVerifyLatestRoot(ctx, c.GetRoot())
 		switch status.Code(err) {
 		case codes.OK:
 			if c.updateRootIfNewer(newTrusted) {
@@ -152,9 +152,9 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 	}
 }
 
-// getLatestRoot fetches and verifies the latest root against a trusted root, seen in the past.
+// getAndVerifyLatestRoot fetches and verifies the latest root against a trusted root, seen in the past.
 // Pass nil for trusted if this is the first time querying this log.
-func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
+func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
 	resp, err := c.client.GetLatestSignedLogRoot(ctx,
 		&trillian.GetLatestSignedLogRootRequest{LogId: c.LogID})
 	if err != nil {
@@ -237,7 +237,7 @@ func (c *LogClient) updateRootIfNewer(newTrusted *types.LogRootV1) bool {
 // newer than the currently trusted root.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 	currentlyTrusted := c.GetRoot()
-	newTrusted, err := c.getLatestRoot(ctx, currentlyTrusted)
+	newTrusted, err := c.getAndVerifyLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
 		return nil, err
 	}
