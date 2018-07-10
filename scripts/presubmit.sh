@@ -11,6 +11,30 @@
 set -eu
 
 
+# Retries running a command N times, with exponential backoff between failures.
+#
+# Usage:
+#   retry N command ...args
+retry() {
+  local retries=$1
+  shift
+
+  local count=0
+  until "$@"; do
+    local exit=$?
+    local wait=$((2 ** $count))
+    local count=$(($count + 1))
+    if [ $count -lt $retries ]; then
+      echo "Attempt $count/$retries: $1 exited $exit, retrying in $wait seconds..."
+      sleep $wait
+    else
+      echo "Attempt $count/$retries: $1 exited $exit, no more retries left."
+      return $exit
+    fi
+  done
+  return 0
+}
+
 check_pkg() {
   local cmd="$1"
   local pkg="$2"
@@ -122,7 +146,7 @@ main() {
       'have you installed github.com/alecthomas/gometalinter?' || exit 1
 
     echo 'running gometalinter'
-    gometalinter --config=gometalinter.json --deadline=90s ./...
+    retry 5 gometalinter --config=gometalinter.json --deadline=2m ./...
   fi
 
   if [[ "${run_generate}" -eq 1 ]]; then
