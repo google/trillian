@@ -32,10 +32,11 @@ import (
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
 	*LogVerifier
-	LogID    int64
-	client   trillian.TrillianLogClient
-	root     types.LogRootV1
-	rootLock sync.Mutex
+	LogID      int64
+	client     trillian.TrillianLogClient
+	root       types.LogRootV1
+	rootLock   sync.Mutex
+	updateLock sync.Mutex
 }
 
 // New returns a new LogClient.
@@ -219,22 +220,33 @@ func (c *LogClient) GetRoot() *types.LogRootV1 {
 // seen in the past, and updating the currently trusted root if the new root verifies, and is
 // newer than the currently trusted root.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
+	// Only one root update should be running at any point in time.  This is
+	// because the consistency proof has to be requested against the currently
+	// trusted root, and allowing the current root to be updated during an
+	// existing update can lead to race conditions which result in incorrect and
+	// inconsistent state updates.
+	//
+	// For more details, see:
+	// https://github.com/google/trillian/pull/1225#discussion_r201489925
+	c.updateLock.Lock()
+	defer c.updateLock.Unlock()
+
 	currentlyTrusted := c.GetRoot()
 	newTrusted, err := c.getAndVerifyLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
 		return nil, err
 	}
 
+	// Lock "rootLock" for the "root" update.
 	c.rootLock.Lock()
 	defer c.rootLock.Unlock()
 
-	// Get the root again, since it might have been updated by a different thread
-	// while "getAndVerifyLatestRoot" was running.
-	currentlyTrusted = &c.root
 	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
 		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
+
 		// Take a copy of the new trusted root in order to prevent clients from modifying it.
 		c.root = *newTrusted
+
 		return newTrusted, nil
 	}
 
