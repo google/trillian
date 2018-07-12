@@ -32,10 +32,11 @@ import (
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
 	*LogVerifier
-	LogID    int64
-	client   trillian.TrillianLogClient
-	root     types.LogRootV1
-	rootLock sync.Mutex
+	LogID      int64
+	client     trillian.TrillianLogClient
+	root       types.LogRootV1
+	rootLock   sync.Mutex
+	updateLock sync.Mutex
 }
 
 // New returns a new LogClient.
@@ -59,7 +60,7 @@ func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree, root 
 }
 
 // AddSequencedLeafAndWait adds a leaf at a specific index to the log.
-// Blocks until it has been included in a signed log root.
+// Blocks and continuously updates the trusted root until it has been included in a signed log root.
 func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, index int64) error {
 	if err := c.AddSequencedLeaf(ctx, data, index); err != nil {
 		return fmt.Errorf("QueueLeaf(): %v", err)
@@ -71,7 +72,7 @@ func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, in
 }
 
 // AddLeaf adds leaf to the append only log.
-// Blocks until it gets a verifiable response.
+// Blocks and continuously updates the trusted root until it gets a verifiable response.
 func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	if err := c.QueueLeaf(ctx, data); err != nil {
 		return fmt.Errorf("QueueLeaf(): %v", err)
@@ -121,23 +122,25 @@ func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*tri
 	return resp.Leaves, nil
 }
 
-// WaitForRootUpdate repeatedly fetches the Root until the fetched tree size >=
-// waitForTreeSize or until ctx times out.
-func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize uint64) (*types.LogRootV1, error) {
+// WaitForRootUpdate repeatedly fetches the latest root until there is an
+// update, which it then applies, or until ctx times out.
+func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, error) {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
 		Factor: 2,
 		Jitter: true,
 	}
-	for i := 0; ; i++ {
-		root, err := c.UpdateRoot(ctx)
-		switch x := status.Code(err); x {
+
+	for {
+		newTrusted, err := c.UpdateRoot(ctx)
+		switch status.Code(err) {
 		case codes.OK:
-			if root.TreeSize >= waitForTreeSize {
-				return root, nil
+			if newTrusted != nil {
+				return newTrusted, nil
 			}
-		case codes.Unavailable, codes.NotFound, codes.FailedPrecondition: // Retry.
+		case codes.Unavailable, codes.NotFound, codes.FailedPrecondition:
+			// Retry.
 		default:
 			return nil, err
 		}
@@ -150,9 +153,9 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize uint6
 	}
 }
 
-// getLatestRoot fetches and verifies the latest root against a trusted root, seen in the past.
+// getAndVerifyLatestRoot fetches and verifies the latest root against a trusted root, seen in the past.
 // Pass nil for trusted if this is the first time querying this log.
-func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
+func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
 	resp, err := c.client.GetLatestSignedLogRoot(ctx,
 		&trillian.GetLatestSignedLogRootRequest{LogId: c.LogID})
 	if err != nil {
@@ -203,67 +206,97 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 	return &logRoot, nil
 }
 
-// UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
-// seen in the past, and updating the currently trusted root if the new root verifies.
-func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
+// GetRoot returns a copy of the latest trusted root.
+func (c *LogClient) GetRoot() *types.LogRootV1 {
 	c.rootLock.Lock()
 	defer c.rootLock.Unlock()
 
-	currentlyTrusted := &c.root
-	newTrusted, err := c.getLatestRoot(ctx, currentlyTrusted)
+	// Copy the internal trusted root in order to prevent clients from modifying it.
+	ret := c.root
+	return &ret
+}
+
+// UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
+// seen in the past, and updating the currently trusted root if the new root verifies, and is
+// newer than the currently trusted root.
+func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
+	// Only one root update should be running at any point in time.  This is
+	// because the consistency proof has to be requested against the currently
+	// trusted root, and allowing the current root to be updated during an
+	// existing update can lead to race conditions which result in incorrect and
+	// inconsistent state updates.
+	//
+	// For more details, see:
+	// https://github.com/google/trillian/pull/1225#discussion_r201489925
+	c.updateLock.Lock()
+	defer c.updateLock.Unlock()
+
+	currentlyTrusted := c.GetRoot()
+	newTrusted, err := c.getAndVerifyLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
 		return nil, err
 	}
+
+	// Lock "rootLock" for the "root" update.
+	c.rootLock.Lock()
+	defer c.rootLock.Unlock()
+
 	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
 		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
+
+		// Take a copy of the new trusted root in order to prevent clients from modifying it.
 		c.root = *newTrusted
+
+		return newTrusted, nil
 	}
-	// Copy the internal trusted root in order to prevent clients from modifying it.
-	ret := c.root
-	return &ret, nil
+
+	return nil, nil
 }
 
-// WaitForInclusion blocks until the requested data has been verified with an inclusion proof.
-// This assumes that the data has already been submitted.
-// Best practice is to call this method with a context that will timeout.
+// WaitForInclusion blocks until the requested data has been verified with an
+// inclusion proof.
+//
+// It will continuously update the root to the latest one available until the
+// data is found, or an error is returned.
+//
+// It is best to call this method with a context that will timeout to avoid
+// waiting forever.
 func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
 	}
 
-	// Fetch the current Root to improve our chances at a valid inclusion proof.
-	// It is illegal to ask for an inclusion proof with TreeSize = 0.
-	root, err := c.WaitForRootUpdate(ctx, 1)
-	if err != nil {
-		return err
-	}
+	var root *types.LogRootV1
 	for {
-		ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
-		if err != nil && status.Code(err) != codes.NotFound {
+		root = c.GetRoot()
+
+		// It is illegal to ask for an inclusion proof with TreeSize = 0.
+		if root.TreeSize >= 1 {
+			ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
+			if err != nil && status.Code(err) != codes.NotFound {
+				return err
+			} else if ok {
+				return nil
+			}
+		}
+
+		// If not found or tree is empty, wait for a root update before retrying again.
+		if _, err = c.WaitForRootUpdate(ctx); err != nil {
 			return err
 		}
-		if ok {
-			return nil
-		}
-		// Wait for TreeSize to update.
-		if root, err = c.WaitForRootUpdate(ctx, root.TreeSize+1); err != nil {
-			return err
-		}
+
 		// Retry
 	}
 }
 
-// VerifyInclusion updates the log root and ensures that the given leaf data has been included in the log.
+// VerifyInclusion ensures that the given leaf data has been included in the log.
 func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
 	}
-	root, err := c.UpdateRoot(ctx)
-	if err != nil {
-		return fmt.Errorf("UpdateRoot(): %v", err)
-	}
+	root := c.GetRoot()
 	ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
 	if err != nil {
 		return err
