@@ -33,7 +33,6 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	// Register pprof HTTP handlers
 	_ "net/http/pprof"
@@ -47,6 +46,7 @@ import (
 )
 
 var (
+	rpcEndpoint              = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
 	tlsCertFile              = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile               = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
@@ -135,13 +135,6 @@ func main() {
 		// Announce our endpoint to etcd if so configured.
 		unannounceHTTP := server.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
 		defer unannounceHTTP()
-
-		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
-		http.Handle("/metrics", promhttp.Handler())
-		http.HandleFunc("/healthz", healthzFunc(sp.AdminStorage(), *healthzTimeout))
-		if err := util.StartHTTPServer(*httpEndpoint, *tlsCertFile, *tlsKeyFile); err != nil {
-			glog.Exitf("Failed to start HTTP server on %v: %v", *httpEndpoint, err)
-		}
 	}
 
 	// Start the sequencing loop, which will run until we terminate the process. This controls
@@ -164,7 +157,23 @@ func main() {
 		},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
-	sequencerTask.OperationLoop(ctx)
+	go sequencerTask.OperationLoop(ctx)
+
+	m := server.Main{
+		RPCEndpoint:     *rpcEndpoint,
+		HTTPEndpoint:    *httpEndpoint,
+		TLSCertFile:     *tlsCertFile,
+		TLSKeyFile:      *tlsKeyFile,
+		StatsPrefix:     "logsigner",
+		DBClose:         sp.Close,
+		Registry:        registry,
+		IsHealthy:       func(ctx context.Context) error { return nil },
+		HealthyDeadline: *healthzTimeout,
+	}
+
+	if err := m.Run(ctx); err != nil {
+		glog.Exitf("Server exited with error: %v", err)
+	}
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
