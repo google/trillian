@@ -608,14 +608,14 @@ func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 			intercept := New(admin, qm, false /* quotaDryRun */, nil /* mf */)
 			p := intercept.NewProcessor()
 
-			_, err := p.Before(ctx, test.req)
+			_, err := p.Before(ctx, test.req, "")
 			if gotErr := err != nil; gotErr != test.wantBeforeErr {
 				t.Fatalf("Before() returned err = %v, wantErr = %v", err, test.wantBeforeErr)
 			}
 
 			// Other TrillianInterceptor tests assert After side-effects more in-depth, silently
 			// returning is good enough here.
-			p.After(ctx, test.resp, test.handlerErr)
+			p.After(ctx, test.resp, "", test.handlerErr)
 		})
 	}
 }

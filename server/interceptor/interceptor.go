@@ -63,12 +63,12 @@ type RequestProcessor interface {
 	// Before implements all interceptor logic that happens before the handler is called.
 	// It returns a (potentially) modified context that's passed forward to the handler (and After),
 	// plus an error, in case the request should be interrupted before the handler is invoked.
-	Before(ctx context.Context, req interface{}) (context.Context, error)
+	Before(ctx context.Context, req interface{}, method string) (context.Context, error)
 
 	// After implements all interceptor logic that happens after the handler is invoked.
 	// Before must be invoked prior to After and the same RequestProcessor instance must to be used
 	// to process a given request.
-	After(ctx context.Context, resp interface{}, handlerErr error)
+	After(ctx context.Context, resp interface{}, method string, handlerErr error)
 }
 
 // TrillianInterceptor checks that:
@@ -118,17 +118,17 @@ func incRequestDeniedCounter(reason string, treeID int64, quotaUser string) {
 }
 
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
-func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	// Implement UnaryInterceptor using a RequestProcessor, so we 1. exercise it and 2. make it
 	// easier to port this logic to non-gRPC implementations.
 	rp := i.NewProcessor()
 	var err error
-	ctx, err = rp.Before(ctx, req)
+	ctx, err = rp.Before(ctx, req, info.FullMethod)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := handler(ctx, req)
-	rp.After(ctx, resp, err)
+	rp.After(ctx, resp, info.FullMethod, err)
 	return resp, err
 }
 
@@ -142,7 +142,7 @@ type trillianProcessor struct {
 	info   *rpcInfo
 }
 
-func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
+func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method string) (context.Context, error) {
 	ctx, span := spanFor(ctx, "Before")
 	defer span.End()
 	info, err := newRPCInfo(req)
@@ -189,7 +189,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	return ctx, nil
 }
 
-func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {
+func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method string, handlerErr error) {
 	_, span := spanFor(ctx, "After")
 	defer span.End()
 	switch {
