@@ -159,7 +159,7 @@ func RegisterTrillianMapHandler(ctx context.Context, mux *runtime.ServeMux, conn
 func RegisterTrillianMapHandlerClient(ctx context.Context, mux *runtime.ServeMux, client TrillianMapClient) error {
 
 	mux.Handle("GET", pattern_TrillianMap_GetSignedMapRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -188,7 +188,7 @@ func RegisterTrillianMapHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_TrillianMap_GetSignedMapRootByRevision_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -217,7 +217,7 @@ func RegisterTrillianMapHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("POST", pattern_TrillianMap_InitMap_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {

@@ -45,7 +45,7 @@ func (x Specification_ECDSA_Curve) String() string {
 	return proto.EnumName(Specification_ECDSA_Curve_name, int32(x))
 }
 func (Specification_ECDSA_Curve) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{0, 0, 0}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{0, 0, 0}
 }
 
 // Specification for a private key.
@@ -65,7 +65,7 @@ func (m *Specification) Reset()         { *m = Specification{} }
 func (m *Specification) String() string { return proto.CompactTextString(m) }
 func (*Specification) ProtoMessage()    {}
 func (*Specification) Descriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{0}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{0}
 }
 func (m *Specification) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Specification.Unmarshal(m, b)
@@ -208,7 +208,7 @@ func (m *Specification_ECDSA) Reset()         { *m = Specification_ECDSA{} }
 func (m *Specification_ECDSA) String() string { return proto.CompactTextString(m) }
 func (*Specification_ECDSA) ProtoMessage()    {}
 func (*Specification_ECDSA) Descriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{0, 0}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{0, 0}
 }
 func (m *Specification_ECDSA) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Specification_ECDSA.Unmarshal(m, b)
@@ -250,7 +250,7 @@ func (m *Specification_RSA) Reset()         { *m = Specification_RSA{} }
 func (m *Specification_RSA) String() string { return proto.CompactTextString(m) }
 func (*Specification_RSA) ProtoMessage()    {}
 func (*Specification_RSA) Descriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{0, 1}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{0, 1}
 }
 func (m *Specification_RSA) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Specification_RSA.Unmarshal(m, b)
@@ -293,7 +293,7 @@ func (m *PEMKeyFile) Reset()         { *m = PEMKeyFile{} }
 func (m *PEMKeyFile) String() string { return proto.CompactTextString(m) }
 func (*PEMKeyFile) ProtoMessage()    {}
 func (*PEMKeyFile) Descriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{1}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{1}
 }
 func (m *PEMKeyFile) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PEMKeyFile.Unmarshal(m, b)
@@ -341,7 +341,7 @@ func (m *PrivateKey) Reset()         { *m = PrivateKey{} }
 func (m *PrivateKey) String() string { return proto.CompactTextString(m) }
 func (*PrivateKey) ProtoMessage()    {}
 func (*PrivateKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{2}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{2}
 }
 func (m *PrivateKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateKey.Unmarshal(m, b)
@@ -381,7 +381,7 @@ func (m *PublicKey) Reset()         { *m = PublicKey{} }
 func (m *PublicKey) String() string { return proto.CompactTextString(m) }
 func (*PublicKey) ProtoMessage()    {}
 func (*PublicKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{3}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{3}
 }
 func (m *PublicKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PublicKey.Unmarshal(m, b)
@@ -425,7 +425,7 @@ func (m *PKCS11Config) Reset()         { *m = PKCS11Config{} }
 func (m *PKCS11Config) String() string { return proto.CompactTextString(m) }
 func (*PKCS11Config) ProtoMessage()    {}
 func (*PKCS11Config) Descriptor() ([]byte, []int) {
-	return fileDescriptor_keyspb_30dfedc26d40c907, []int{4}
+	return fileDescriptor_keyspb_7c2a133bae564d06, []int{4}
 }
 func (m *PKCS11Config) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PKCS11Config.Unmarshal(m, b)
@@ -477,9 +477,9 @@ func init() {
 	proto.RegisterEnum("keyspb.Specification_ECDSA_Curve", Specification_ECDSA_Curve_name, Specification_ECDSA_Curve_value)
 }
 
-func init() { proto.RegisterFile("crypto/keyspb/keyspb.proto", fileDescriptor_keyspb_30dfedc26d40c907) }
+func init() { proto.RegisterFile("crypto/keyspb/keyspb.proto", fileDescriptor_keyspb_7c2a133bae564d06) }
 
-var fileDescriptor_keyspb_30dfedc26d40c907 = []byte{
+var fileDescriptor_keyspb_7c2a133bae564d06 = []byte{
 	// 403 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x92, 0x5f, 0x6f, 0xd3, 0x30,
 	0x14, 0xc5, 0xd7, 0x76, 0xad, 0x9a, 0xdb, 0x0e, 0x05, 0x3f, 0x6d, 0x41, 0xe3, 0x4f, 0x9e, 0x26,

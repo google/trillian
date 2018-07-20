@@ -45,7 +45,7 @@ func (x DigitallySigned_HashAlgorithm) String() string {
 	return proto.EnumName(DigitallySigned_HashAlgorithm_name, int32(x))
 }
 func (DigitallySigned_HashAlgorithm) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_sigpb_bab25d6b084f0db0, []int{0, 0}
+	return fileDescriptor_sigpb_62a21f00d4a205f5, []int{0, 0}
 }
 
 // SignatureAlgorithm defines the algorithm used to sign the object.
@@ -79,7 +79,7 @@ func (x DigitallySigned_SignatureAlgorithm) String() string {
 	return proto.EnumName(DigitallySigned_SignatureAlgorithm_name, int32(x))
 }
 func (DigitallySigned_SignatureAlgorithm) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_sigpb_bab25d6b084f0db0, []int{0, 1}
+	return fileDescriptor_sigpb_62a21f00d4a205f5, []int{0, 1}
 }
 
 // Protocol buffer encoding of the TLS DigitallySigned type, from RFC 5246 §4.7.
@@ -99,7 +99,7 @@ func (m *DigitallySigned) Reset()         { *m = DigitallySigned{} }
 func (m *DigitallySigned) String() string { return proto.CompactTextString(m) }
 func (*DigitallySigned) ProtoMessage()    {}
 func (*DigitallySigned) Descriptor() ([]byte, []int) {
-	return fileDescriptor_sigpb_bab25d6b084f0db0, []int{0}
+	return fileDescriptor_sigpb_62a21f00d4a205f5, []int{0}
 }
 func (m *DigitallySigned) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DigitallySigned.Unmarshal(m, b)
@@ -146,9 +146,9 @@ func init() {
 	proto.RegisterEnum("sigpb.DigitallySigned_SignatureAlgorithm", DigitallySigned_SignatureAlgorithm_name, DigitallySigned_SignatureAlgorithm_value)
 }
 
-func init() { proto.RegisterFile("crypto/sigpb/sigpb.proto", fileDescriptor_sigpb_bab25d6b084f0db0) }
+func init() { proto.RegisterFile("crypto/sigpb/sigpb.proto", fileDescriptor_sigpb_62a21f00d4a205f5) }
 
-var fileDescriptor_sigpb_bab25d6b084f0db0 = []byte{
+var fileDescriptor_sigpb_62a21f00d4a205f5 = []byte{
 	// 267 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0x41, 0x4b, 0xc3, 0x40,
 	0x10, 0x85, 0x9b, 0xa6, 0xad, 0x66, 0x30, 0x35, 0x8c, 0x97, 0x1c, 0x3c, 0x94, 0xa0, 0xd8, 0x5e,

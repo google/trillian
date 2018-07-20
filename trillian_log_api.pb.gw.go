@@ -32,8 +32,10 @@ func request_TrillianLog_QueueLeaf_0(ctx context.Context, marshaler runtime.Mars
 	var protoReq QueueLeafRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	if req.ContentLength > 0 {
+		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
 	}
 
 	var (
@@ -63,8 +65,10 @@ func request_TrillianLog_AddSequencedLeaf_0(ctx context.Context, marshaler runti
 	var protoReq AddSequencedLeafRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	if req.ContentLength > 0 {
+		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
 	}
 
 	var (
@@ -396,7 +400,7 @@ func RegisterTrillianLogHandler(ctx context.Context, mux *runtime.ServeMux, conn
 func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux, client TrillianLogClient) error {
 
 	mux.Handle("POST", pattern_TrillianLog_QueueLeaf_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -425,7 +429,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("POST", pattern_TrillianLog_AddSequencedLeaf_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -454,7 +458,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_TrillianLog_GetInclusionProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -483,7 +487,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_TrillianLog_GetInclusionProofByHash_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -512,7 +516,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_TrillianLog_GetConsistencyProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -541,7 +545,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_TrillianLog_GetLatestSignedLogRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -570,7 +574,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_TrillianLog_GetSequencedLeafCount_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -599,7 +603,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_TrillianLog_GetEntryAndProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -628,7 +632,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("POST", pattern_TrillianLog_InitLog_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
