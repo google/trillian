@@ -28,7 +28,6 @@ import (
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
@@ -166,7 +165,7 @@ func main() {
 		StatsPrefix:     "logsigner",
 		DBClose:         sp.Close,
 		Registry:        registry,
-		IsHealthy:       isHealthy(sp.AdminStorage(), *healthzTimeout),
+		IsHealthy:       sp.AdminStorage().CheckDatabaseAccessible,
 		HealthyDeadline: *healthzTimeout,
 	}
 
@@ -177,15 +176,4 @@ func main() {
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
 	time.Sleep(time.Second * 5)
-}
-
-func isHealthy(as storage.AdminStorage, deadline time.Duration) func(context.Context) error {
-	if deadline == 0 {
-		deadline = 5 * time.Second
-	}
-	return func(ctx context.Context) error {
-		ctx, cancel := context.WithTimeout(ctx, deadline)
-		defer cancel()
-		return as.CheckDatabaseAccessible(ctx)
-	}
 }
