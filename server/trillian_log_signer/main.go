@@ -19,7 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
@@ -167,7 +166,7 @@ func main() {
 		StatsPrefix:     "logsigner",
 		DBClose:         sp.Close,
 		Registry:        registry,
-		IsHealthy:       func(ctx context.Context) error { return nil },
+		IsHealthy:       isHealthy(sp.AdminStorage(), *healthzTimeout),
 		HealthyDeadline: *healthzTimeout,
 	}
 
@@ -180,18 +179,13 @@ func main() {
 	time.Sleep(time.Second * 5)
 }
 
-func healthzFunc(as storage.AdminStorage, deadline time.Duration) func(http.ResponseWriter, *http.Request) {
+func isHealthy(as storage.AdminStorage, deadline time.Duration) func(context.Context) error {
 	if deadline == 0 {
 		deadline = 5 * time.Second
 	}
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx, cancel := context.WithTimeout(req.Context(), deadline)
+	return func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, deadline)
 		defer cancel()
-		if err := as.CheckDatabaseAccessible(ctx); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		w.Write([]byte("ok"))
+		return as.CheckDatabaseAccessible(ctx)
 	}
 }
