@@ -59,8 +59,10 @@ func request_TrillianAdmin_CreateTree_0(ctx context.Context, marshaler runtime.M
 	var protoReq CreateTreeRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	if req.ContentLength > 0 {
+		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
 	}
 
 	msg, err := client.CreateTree(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -72,8 +74,10 @@ func request_TrillianAdmin_UpdateTree_0(ctx context.Context, marshaler runtime.M
 	var protoReq UpdateTreeRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	if req.ContentLength > 0 {
+		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
 	}
 
 	var (
@@ -192,7 +196,7 @@ func RegisterTrillianAdminHandler(ctx context.Context, mux *runtime.ServeMux, co
 func RegisterTrillianAdminHandlerClient(ctx context.Context, mux *runtime.ServeMux, client TrillianAdminClient) error {
 
 	mux.Handle("GET", pattern_TrillianAdmin_GetTree_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -221,7 +225,7 @@ func RegisterTrillianAdminHandlerClient(ctx context.Context, mux *runtime.ServeM
 	})
 
 	mux.Handle("POST", pattern_TrillianAdmin_CreateTree_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -250,7 +254,7 @@ func RegisterTrillianAdminHandlerClient(ctx context.Context, mux *runtime.ServeM
 	})
 
 	mux.Handle("PATCH", pattern_TrillianAdmin_UpdateTree_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -279,7 +283,7 @@ func RegisterTrillianAdminHandlerClient(ctx context.Context, mux *runtime.ServeM
 	})
 
 	mux.Handle("DELETE", pattern_TrillianAdmin_DeleteTree_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -308,7 +312,7 @@ func RegisterTrillianAdminHandlerClient(ctx context.Context, mux *runtime.ServeM
 	})
 
 	mux.Handle("DELETE", pattern_TrillianAdmin_UndeleteTree_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
