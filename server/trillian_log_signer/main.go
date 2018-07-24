@@ -31,7 +31,10 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"google.golang.org/grpc"
 
+	tpb "github.com/google/trillian"
 	// Register pprof HTTP handlers
 	_ "net/http/pprof"
 	// Register key ProtoHandlers
@@ -158,13 +161,21 @@ func main() {
 	go sequencerTask.OperationLoop(ctx)
 
 	m := server.Main{
-		RPCEndpoint:     *rpcEndpoint,
-		HTTPEndpoint:    *httpEndpoint,
-		TLSCertFile:     *tlsCertFile,
-		TLSKeyFile:      *tlsKeyFile,
-		StatsPrefix:     "logsigner",
-		DBClose:         sp.Close,
-		Registry:        registry,
+		RPCEndpoint:  *rpcEndpoint,
+		HTTPEndpoint: *httpEndpoint,
+		TLSCertFile:  *tlsCertFile,
+		TLSKeyFile:   *tlsKeyFile,
+		StatsPrefix:  "logsigner",
+		DBClose:      sp.Close,
+		Registry:     registry,
+		RegisterHandlerFn: func(_ context.Context, _ *runtime.ServeMux, _ string, _ []grpc.DialOption) error {
+			// No HTTP APIs are being exported.
+			return nil
+		},
+		RegisterServerFn: func(s *grpc.Server, _ extension.Registry) error {
+			tpb.RegisterTrillianLogSequencerServer(s, &struct{}{})
+			return nil
+		},
 		IsHealthy:       sp.AdminStorage().CheckDatabaseAccessible,
 		HealthyDeadline: *healthzTimeout,
 	}
