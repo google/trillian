@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -39,10 +40,12 @@ var (
 func MySQLAvailable() bool {
 	db, err := sql.Open("mysql", dataSource)
 	if err != nil {
+		log.Printf("sql.Open(): %v", err)
 		return false
 	}
 	defer db.Close()
 	if err := db.Ping(); err != nil {
+		log.Printf("db.Ping(): %v", err)
 		return false
 	}
 	return true
