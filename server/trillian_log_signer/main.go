@@ -19,7 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
@@ -29,12 +28,13 @@ import (
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"google.golang.org/grpc"
 
+	tpb "github.com/google/trillian"
 	// Register pprof HTTP handlers
 	_ "net/http/pprof"
 	// Register key ProtoHandlers
@@ -47,6 +47,7 @@ import (
 )
 
 var (
+	rpcEndpoint              = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
 	tlsCertFile              = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile               = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
@@ -135,13 +136,6 @@ func main() {
 		// Announce our endpoint to etcd if so configured.
 		unannounceHTTP := server.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
 		defer unannounceHTTP()
-
-		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
-		http.Handle("/metrics", promhttp.Handler())
-		http.HandleFunc("/healthz", healthzFunc(sp.AdminStorage(), *healthzTimeout))
-		if err := util.StartHTTPServer(*httpEndpoint, *tlsCertFile, *tlsKeyFile); err != nil {
-			glog.Exitf("Failed to start HTTP server on %v: %v", *httpEndpoint, err)
-		}
 	}
 
 	// Start the sequencing loop, which will run until we terminate the process. This controls
@@ -164,25 +158,33 @@ func main() {
 		},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
-	sequencerTask.OperationLoop(ctx)
+	go sequencerTask.OperationLoop(ctx)
+
+	m := server.Main{
+		RPCEndpoint:  *rpcEndpoint,
+		HTTPEndpoint: *httpEndpoint,
+		TLSCertFile:  *tlsCertFile,
+		TLSKeyFile:   *tlsKeyFile,
+		StatsPrefix:  "logsigner",
+		DBClose:      sp.Close,
+		Registry:     registry,
+		RegisterHandlerFn: func(_ context.Context, _ *runtime.ServeMux, _ string, _ []grpc.DialOption) error {
+			// No HTTP APIs are being exported.
+			return nil
+		},
+		RegisterServerFn: func(s *grpc.Server, _ extension.Registry) error {
+			tpb.RegisterTrillianLogSequencerServer(s, &struct{}{})
+			return nil
+		},
+		IsHealthy:       sp.AdminStorage().CheckDatabaseAccessible,
+		HealthyDeadline: *healthzTimeout,
+	}
+
+	if err := m.Run(ctx); err != nil {
+		glog.Exitf("Server exited with error: %v", err)
+	}
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
 	time.Sleep(time.Second * 5)
-}
-
-func healthzFunc(as storage.AdminStorage, deadline time.Duration) func(http.ResponseWriter, *http.Request) {
-	if deadline == 0 {
-		deadline = 5 * time.Second
-	}
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx, cancel := context.WithTimeout(req.Context(), deadline)
-		defer cancel()
-		if err := as.CheckDatabaseAccessible(ctx); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		w.Write([]byte("ok"))
-	}
 }
