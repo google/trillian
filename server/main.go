@@ -36,6 +36,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	etcdnaming "github.com/coreos/etcd/clientv3/naming"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 const (
@@ -193,12 +194,14 @@ func (m *Main) Run(ctx context.Context) error {
 func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, m.StatsPrefix, m.Registry.MetricFactory)
-	ti := interceptor.New(
-		m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
-	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	ti := interceptor.New(m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
 
 	serverOpts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(netInterceptor),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			stats.Interceptor(),
+			interceptor.ErrorWrapper,
+			ti.UnaryInterceptor,
+		)),
 	}
 	serverOpts = append(serverOpts, m.ExtraOptions...)
 

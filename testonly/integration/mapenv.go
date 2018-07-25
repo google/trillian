@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 // MapEnv is a map server and connected client.
@@ -103,12 +104,15 @@ func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
 		return nil, err
 	}
 
-	ti := interceptor.New(
-		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
-	ci := interceptor.Combine(interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	ti := interceptor.New(registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
 
 	// Create Map Server.
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ci))
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			interceptor.ErrorWrapper,
+			ti.UnaryInterceptor,
+		)),
+	)
 	mapServer := server.NewTrillianMapServer(registry)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
 	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry, nil /* allowedTreeTypes */))

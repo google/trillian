@@ -471,21 +471,6 @@ type treeRequest interface {
 	GetTree() *trillian.Tree
 }
 
-// Combine combines unary interceptors.
-// They are nested in order, so interceptor[0] calls on to (and sees the result of) interceptor[1], etc.
-func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		for i := len(interceptors) - 1; i >= 0; i-- {
-			intercept := interceptors[i]
-			baseHandler := handler
-			handler = func(ctx context.Context, req interface{}) (interface{}, error) {
-				return intercept(ctx, req, info, baseHandler)
-			}
-		}
-		return handler(ctx, req)
-	}
-}
-
 // ErrorWrapper is a grpc.UnaryServerInterceptor that wraps the errors emitted by the underlying handler.
 func ErrorWrapper(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	ctx, span := spanFor(ctx, "ErrorWrapper")

@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	serrors "github.com/google/trillian/server/errors"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 func TestTrillianInterceptor_TreeInterception(t *testing.T) {
@@ -682,7 +683,7 @@ func TestCombine(t *testing.T) {
 				i.called = false
 				intercepts = append(intercepts, i.run)
 			}
-			intercept := Combine(intercepts...)
+			intercept := grpc_middleware.ChainUnaryServer(intercepts...)
 
 			handler := &fakeHandler{resp: "response", err: test.handlerErr}
 			resp, err := intercept(ctx, req, info, handler.run)

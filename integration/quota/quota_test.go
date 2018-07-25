@@ -42,6 +42,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 func TestEtcdRateLimiting(t *testing.T) {
@@ -225,10 +227,13 @@ func (s *testServer) serve() {
 func newTestServer(registry extension.Registry) (*testServer, error) {
 	s := &testServer{}
 
-	intercept := interceptor.New(
-		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
-	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, intercept.UnaryInterceptor)
-	s.server = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
+	ti := interceptor.New(registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
+	s.server = grpc.NewServer(
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			interceptor.ErrorWrapper,
+			ti.UnaryInterceptor,
+		)),
+	)
 	trillian.RegisterTrillianAdminServer(s.server, admin.New(registry, nil /* allowedTreeTypes */))
 	trillian.RegisterTrillianLogServer(s.server, server.NewTrillianLogRPCServer(registry, util.SystemTimeSource{}))
 

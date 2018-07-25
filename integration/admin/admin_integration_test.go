@@ -36,6 +36,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	sa "github.com/google/trillian/server/admin"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 func TestAdminServer_CreateTree(t *testing.T) {
@@ -597,8 +598,12 @@ func setupAdminServer(ctx context.Context, t *testing.T) (*testServer, error) {
 
 	ti := interceptor.New(
 		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
-	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, ti.UnaryInterceptor)
-	ts.server = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
+	ts.server = grpc.NewServer(
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			interceptor.ErrorWrapper,
+			ti.UnaryInterceptor,
+		)),
+	)
 	trillian.RegisterTrillianAdminServer(ts.server, sa.New(registry, nil /* allowedTreeTypes */))
 	go ts.server.Serve(ts.lis)
 
