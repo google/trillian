@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/client/rpcflags"
 	"google.golang.org/grpc"
 )
 
@@ -37,7 +38,12 @@ func main() {
 	flag.Parse()
 	defer glog.Flush()
 
-	conn, err := grpc.Dial(*adminServerAddr, grpc.WithInsecure())
+	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
 	if err != nil {
 		glog.Exitf("failed to dial %v: %v", *adminServerAddr, err)
 	}

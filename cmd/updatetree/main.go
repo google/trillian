@@ -31,6 +31,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/client/rpcflags"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -73,7 +74,12 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 		UpdateMask: treeStateMask,
 	}
 
-	conn, err := grpc.Dial(*adminServerAddr, grpc.WithInsecure())
+	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial %v: %v", *adminServerAddr, err)
 	}
