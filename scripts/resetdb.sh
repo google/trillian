@@ -59,7 +59,8 @@ main() {
       echo "Resetting DB..."
       mysql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${DB_NAME};"
       mysql "${FLAGS[@]}" -e "CREATE DATABASE ${DB_NAME};"
-      mysql "${FLAGS[@]}" -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}' IDENTIFIED BY 'zaphod';"
+      mysql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${DB_NAME}@'localhost' IDENTIFIED BY 'zaphod';"
+      mysql "${FLAGS[@]}" -e "GRANT ALL ON ${DB_NAME}.* TO ${DB_NAME}@'localhost'"
       mysql "${FLAGS[@]}" -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql
       echo "Reset Complete"
   fi

@@ -4,8 +4,12 @@ language: go
 
 addons:
   apt:
+    sources:
+      - mysql-5.7-trusty
     packages:
       - softhsm
+      - mysql-server
+      - mysql-client
 
 cache:
   directories:
@@ -30,8 +34,23 @@ matrix:
   fast_finish: true
 
 services:
-  - mysql
   - docker
+
+before_install:
+  - sudo mysql -e "use mysql; update user set authentication_string=PASSWORD('') where User='root'; update user set plugin='mysql_native_password';FLUSH PRIVILEGES;"
+  - sudo mysql_upgrade
+  - sudo service mysql stop
+  - |
+    if [[ "$TRAVIS_SUDO" == "true" ]]; then
+      echo "Moving MySQL data to ramdisk..."
+      sudo mkdir /mnt/ramdisk
+      sudo mount -t tmpfs -o size=1024m tmpfs /mnt/ramdisk
+      sudo mv /var/lib/mysql /mnt/ramdisk
+      sudo ln -s /mnt/ramdisk/mysql /var/lib/mysql
+    else
+     echo "MySQL data staying on disk because sudo unavailable."
+    fi
+  - sudo service mysql start
 
 install:
   - mkdir ../protoc
@@ -61,18 +80,6 @@ install:
 
 
 before_script:
-  - |
-    if [[ "$TRAVIS_SUDO" == "true" ]]; then
-      echo "Moving MySQL data to ramdisk..."
-      sudo mkdir /mnt/ramdisk
-      sudo mount -t tmpfs -o size=1024m tmpfs /mnt/ramdisk
-      sudo stop mysql
-      sudo mv /var/lib/mysql /mnt/ramdisk
-      sudo ln -s /mnt/ramdisk/mysql /var/lib/mysql
-      sudo start mysql
-    else
-     echo "MySQL data staying on disk because sudo unavailable."
-    fi
   - yes | ./scripts/resetdb.sh
 
 script:
