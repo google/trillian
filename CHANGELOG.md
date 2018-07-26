@@ -1,6 +1,6 @@
 # TRILLIAN Changelog
 
-Added support for MySQL 5.7 trough MySQL 8. Dropping support for MySQL 5.6.
+Added support for MySQL 5.7 through MySQL 8. Dropping support for MySQL 5.6.
 
 ## v1.2.0 - Signer / Quota fixes. Error mapping fix. K8 improvements
 
