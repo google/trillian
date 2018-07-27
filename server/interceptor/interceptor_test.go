@@ -651,7 +651,7 @@ func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 			intercept := New(admin, qm, false /* quotaDryRun */, nil /* mf */)
 			p := intercept.NewProcessor()
 
-			_, err := p.Before(ctx, test.req, "")
+			_, err := p.Before(ctx, test.req, "/trillian.TrillianLog/foo")
 			if gotErr := err != nil; gotErr != test.wantBeforeErr {
 				t.Fatalf("Before() returned err = %v, wantErr = %v", err, test.wantBeforeErr)
 			}
