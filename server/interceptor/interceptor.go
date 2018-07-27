@@ -129,14 +129,6 @@ func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interfac
 	// 1. exercise it
 	// 2. make it easier to port this logic to non-gRPC implementations.
 
-	// Directly call the handler if interception was not explicitly
-	// enabled for this service in enabledServices.
-	svc := serviceName(info.FullMethod)
-	enabled := enabledServices[svc]
-	if !enabled {
-		return handler(ctx, req)
-	}
-
 	rp := i.NewProcessor()
 	var err error
 	ctx, err = rp.Before(ctx, req, info.FullMethod)
@@ -159,6 +151,11 @@ type trillianProcessor struct {
 }
 
 func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method string) (context.Context, error) {
+	// Skip if the interceptor is not enabled for this service.
+	if !enabledServices[serviceName(method)] {
+		return ctx, nil
+	}
+
 	ctx, span := spanFor(ctx, "Before")
 	defer span.End()
 	info, err := newRPCInfo(req)
@@ -206,6 +203,9 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 }
 
 func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method string, handlerErr error) {
+	if !enabledServices[serviceName(method)] {
+		return
+	}
 	_, span := spanFor(ctx, "After")
 	defer span.End()
 	switch {
