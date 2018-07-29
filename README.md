@@ -133,17 +133,13 @@ functionality, which can be run with:
 ./integration/integration_test.sh
 ```
 
-This runs several multi-process tests:
+This runs two multi-process tests:
 
  - A [test](integration/map_integration_test.go) that starts a Trillian server
    in Map mode, sets various key:value pairs and checks they can be retrieved.
  - A [test](integration/log_integration_test.go) that starts a Trillian server
    in Log mode, together with a signer, logs many leaves, and checks they are
    integrated correctly.
- - A [test](integration/ct_integration_test.go) that starts a set of Trillian
-   servers in Log mode, plus a signer and a set of Certificate Transparency
-   personality servers, then runs tests that exercise all of the
-   [RFC6962 entrypoints](https://tools.ietf.org/html/rfc6962#section-4).
 
 
 Working on the Code
