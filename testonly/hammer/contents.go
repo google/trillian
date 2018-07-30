@@ -34,6 +34,9 @@ type mapContents struct {
 type mapKey [sha256.Size]byte
 
 func (m *mapContents) empty() bool {
+	if m == nil {
+		return true
+	}
 	return len(m.data) == 0
 }
 
