@@ -59,6 +59,9 @@ var (
 		"trillian.TrillianLog":   true,
 		"trillian.TrillianMap":   true,
 		"trillian.TrillianAdmin": true,
+		"TrillianLog":            true,
+		"TrillianMap":            true,
+		"TrillianAdmin":          true,
 	}
 )
 
@@ -274,13 +277,21 @@ func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
 	return leaf == nil || leaf.Status == nil || leaf.Status.Code == int32(codes.OK)
 }
 
-// serviceName returns "some.package.service" for
-// "/some.package.service/method".
+// serviceName returns the fully qualified service name
+// "some.package.service" for "/some.package.service/method".
+// It returns the unqualified service name "service" for "/service.method".
 func serviceName(fullMethod string) string {
 	if !strings.HasPrefix(fullMethod, "/") {
 		return ""
 	}
-	return strings.Split(fullMethod, "/")[1]
+	bySlash := strings.Split(fullMethod, "/")
+	// Fully qualified: "/some.pakcage.service/method"
+	if len(bySlash) == 3 {
+		return bySlash[1] // some.package.service
+	}
+	// Unqualified: "/service.method"
+	byPeriod := strings.Split(bySlash[1], ".")
+	return byPeriod[0]
 }
 
 type rpcInfo struct {

@@ -38,6 +38,23 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
+func TestServiceName(t *testing.T) {
+	for _, tc := range []struct {
+		Desc       string
+		FullMethod string
+		Want       string
+	}{
+		{Desc: "grpc", FullMethod: "/trillian.TrillianLog/QueueLeaf", Want: "trillian.TrillianLog"},
+		{Desc: "unqualified", FullMethod: "/TrillianLog.QueueLeaf", Want: "TrillianLog"},
+	} {
+		t.Run(tc.Desc, func(t *testing.T) {
+			if got, want := serviceName(tc.FullMethod), tc.Want; got != want {
+				t.Errorf("serviceName(%v): %v, want %v", tc.FullMethod, got, want)
+			}
+		})
+	}
+}
+
 func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
@@ -196,7 +213,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 	}{
 		{
 			desc:   "logRead",
-			method: "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			method: "/TrillianLog.GetLatestSignedLogRoot",
 			req:    &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
@@ -206,7 +223,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "logReadIndices",
-			method: "/trillian.TrillianLog/GetLeavesByIndex",
+			method: "/TrillianLog.GetLeavesByIndex",
 			req:    &trillian.GetLeavesByIndexRequest{LogId: logTree.TreeId, LeafIndex: []int64{1, 2, 3}},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
@@ -216,7 +233,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "logReadRange",
-			method: "/trillian.TrillianLog/GetLeavesByRange",
+			method: "/TrillianLog.GetLeavesByRange",
 			req:    &trillian.GetLeavesByRangeRequest{LogId: logTree.TreeId, Count: 123},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
@@ -226,7 +243,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "logReadNegativeRange",
-			method: "/trillian.TrillianLog/GetLeavesByRange",
+			method: "/TrillianLog.GetLeavesByRange",
 			req:    &trillian.GetLeavesByRangeRequest{LogId: logTree.TreeId, Count: -123},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
@@ -236,7 +253,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "logReadZeroRange",
-			method: "/trillian.TrillianLog/GetLeavesByRange",
+			method: "/TrillianLog.GetLeavesByRange",
 			req:    &trillian.GetLeavesByRangeRequest{LogId: logTree.TreeId, Count: 0},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
@@ -246,7 +263,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "logRead with charges",
-			method: "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			method: "/TrillianLog.GetLatestSignedLogRoot",
 			req:    &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId, ChargeTo: charges},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Read, User: charge1},
@@ -258,7 +275,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "logWrite",
-			method: "/trillian.TrillianLog/QueueLeaf",
+			method: "/TrillianLog.QueueLeaf",
 			req:    &trillian.QueueLeafRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
@@ -268,7 +285,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "logWrite with charges",
-			method: "/trillian.TrillianLog/QueueLeaf",
+			method: "/TrillianLog.QueueLeaf",
 			req:    &trillian.QueueLeafRequest{LogId: logTree.TreeId, ChargeTo: charges},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Write, User: charge1},
@@ -280,7 +297,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "mapRead",
-			method: "/trillian.TrillianMap/GetLeaves",
+			method: "/TrillianMap.GetLeaves",
 			req:    &trillian.GetMapLeavesRequest{MapId: mapTree.TreeId, Index: [][]byte{{0x01}, {0x02}}},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: mapTree.TreeId},
@@ -290,7 +307,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "emptyBatchRequest",
-			method: "/trillian.TrillianLog/QueueLeaves",
+			method: "/TrillianLog.QueueLeaves",
 			req: &trillian.QueueLeavesRequest{
 				LogId:  logTree.TreeId,
 				Leaves: nil,
@@ -298,7 +315,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "batchLogLeavesRequest",
-			method: "/trillian.TrillianLog/QueueLeaves",
+			method: "/TrillianLog.QueueLeaves",
 			req: &trillian.QueueLeavesRequest{
 				LogId:  logTree.TreeId,
 				Leaves: []*trillian.LogLeaf{{}, {}, {}},
@@ -311,7 +328,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "batchSequencedLogLeavesRequest",
-			method: "/trillian.TrillianLog/AddSequencedLeaves",
+			method: "/TrillianLog.AddSequencedLeaves",
 			req: &trillian.AddSequencedLeavesRequest{
 				LogId:  preorderedTree.TreeId,
 				Leaves: []*trillian.LogLeaf{{}, {}, {}},
@@ -324,7 +341,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "batchLogLeavesRequest with charges",
-			method: "/trillian.TrillianLog/QueueLeaves",
+			method: "/TrillianLog.QueueLeaves",
 			req: &trillian.QueueLeavesRequest{
 				LogId:    logTree.TreeId,
 				Leaves:   []*trillian.LogLeaf{{}, {}, {}},
@@ -340,7 +357,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "batchMapLeavesRequest",
-			method: "/trillian.TrillianMap/SetLeaves",
+			method: "/TrillianMap.SetLeaves",
 			req: &trillian.SetMapLeavesRequest{
 				MapId:  mapTree.TreeId,
 				Leaves: []*trillian.MapLeaf{{}, {}, {}, {}, {}},
@@ -353,7 +370,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		},
 		{
 			desc:   "quotaError",
-			method: "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			method: "/TrillianLog.GetLatestSignedLogRoot",
 			req:    &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
@@ -366,7 +383,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		{
 			desc:   "quotaDryRunError",
 			dryRun: true,
-			method: "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			method: "/TrillianLog.GetLatestSignedLogRoot",
 			req:    &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
 				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
