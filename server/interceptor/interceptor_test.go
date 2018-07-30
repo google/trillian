@@ -38,6 +38,26 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
+func TestServiceName(t *testing.T) {
+	for _, tc := range []struct {
+		desc   string
+		method string
+		want   string
+	}{
+		{desc: "trillian", method: "/trillian.TrillianLog/QueueLeaf", want: "trillian.TrillianLog"},
+		{desc: "fullyqualified", method: "/some.package.service/method", want: "some.package.service"},
+		{desc: "unqualified", method: "/service.method", want: "service"},
+		{desc: "noleadingslash", method: "no.leading.slash/method"},
+		{desc: "malformed", method: "/package.service.method"},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got, want := serviceName(tc.method), tc.want; got != want {
+				t.Errorf("serviceName(%v): %v, want %v", tc.method, got, want)
+			}
+		})
+	}
+}
+
 func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
