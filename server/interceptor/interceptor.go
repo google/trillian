@@ -18,7 +18,7 @@ package interceptor
 import (
 	"context"
 	"fmt"
-	"strings"
+	"regexp"
 	"sync"
 	"time"
 
@@ -277,21 +277,20 @@ func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
 	return leaf == nil || leaf.Status == nil || leaf.Status.Code == int32(codes.OK)
 }
 
+var fullyQualifiedRE = regexp.MustCompile(`^/([\w\.]+)/(\w+)$`)
+var unqualifiedRE = regexp.MustCompile(`^/(\w+)\.(\w+)$`)
+
 // serviceName returns the fully qualified service name
 // "some.package.service" for "/some.package.service/method".
 // It returns the unqualified service name "service" for "/service.method".
 func serviceName(fullMethod string) string {
-	if !strings.HasPrefix(fullMethod, "/") {
-		return ""
+	if matches := fullyQualifiedRE.FindStringSubmatch(fullMethod); len(matches) == 3 {
+		return matches[1]
 	}
-	bySlash := strings.Split(fullMethod, "/")
-	// Fully qualified: "/some.pakcage.service/method"
-	if len(bySlash) == 3 {
-		return bySlash[1] // some.package.service
+	if matches := unqualifiedRE.FindStringSubmatch(fullMethod); len(matches) == 3 {
+		return matches[1]
 	}
-	// Unqualified: "/service.method"
-	byPeriod := strings.Split(bySlash[1], ".")
-	return byPeriod[0]
+	return ""
 }
 
 type rpcInfo struct {

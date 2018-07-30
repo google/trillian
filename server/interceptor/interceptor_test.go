@@ -40,16 +40,19 @@ import (
 
 func TestServiceName(t *testing.T) {
 	for _, tc := range []struct {
-		Desc       string
-		FullMethod string
-		Want       string
+		desc   string
+		method string
+		want   string
 	}{
-		{Desc: "grpc", FullMethod: "/trillian.TrillianLog/QueueLeaf", Want: "trillian.TrillianLog"},
-		{Desc: "unqualified", FullMethod: "/TrillianLog.QueueLeaf", Want: "TrillianLog"},
+		{desc: "trillian", method: "/trillian.TrillianLog/QueueLeaf", want: "trillian.TrillianLog"},
+		{desc: "fullyqualified", method: "/some.package.service/method", want: "some.package.service"},
+		{desc: "unqualified", method: "/service.method", want: "service"},
+		{desc: "noleadingslash", method: "no.leading.slash/method"},
+		{desc: "malformed", method: "/package.service.method"},
 	} {
-		t.Run(tc.Desc, func(t *testing.T) {
-			if got, want := serviceName(tc.FullMethod), tc.Want; got != want {
-				t.Errorf("serviceName(%v): %v, want %v", tc.FullMethod, got, want)
+		t.Run(tc.desc, func(t *testing.T) {
+			if got, want := serviceName(tc.method), tc.want; got != want {
+				t.Errorf("serviceName(%v): %v, want %v", tc.method, got, want)
 			}
 		})
 	}
