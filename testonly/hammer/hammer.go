@@ -616,7 +616,7 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 
 	rev := int64(0)
 	var index []byte
-	if contents == nil {
+	if contents.empty() {
 		// No contents so we can't choose a key
 		choice = MalformedKey
 	} else {
@@ -659,7 +659,7 @@ func (s *hammerState) setLeaves(ctx context.Context) error {
 leafloop:
 	for i := 0; i < n; i++ {
 		choice := choices[s.prng.Intn(len(choices))]
-		if contents == nil || contents.empty() {
+		if contents.empty() {
 			choice = CreateLeaf
 		}
 		switch choice {
@@ -719,7 +719,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
 
 	choice := choices[s.prng.Intn(len(choices))]
 	contents := s.prevContents.lastCopy()
-	if contents == nil || contents.empty() {
+	if contents.empty() {
 		choice = MalformedKey
 	}
 	switch choice {
