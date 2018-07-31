@@ -54,8 +54,7 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileNotSet(t *testing.T) {
 	defer conn.Close()
 
 	adminClient := trillian.NewTrillianAdminClient(conn)
-	_, err = adminClient.ListTrees(context.Background(), &trillian.ListTreesRequest{})
-	if err != nil {
+	if _, err = adminClient.ListTrees(context.Background(), &trillian.ListTreesRequest{}); err != nil {
 		t.Errorf("failed to request trees from the Admin Server: %v", err)
 	}
 }
