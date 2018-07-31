@@ -109,6 +109,9 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileSet(t *testing.T) {
 	// Set up the flag.
 	defer flagsaver.Save().Restore()
 	err = flag.Set("tls_cert_file", crtFile.Name())
+	if err != nil {
+		t.Errorf("Failed to set -tls_cert_file flag: %v", err)
+	}
 
 	dialOpts, err := NewClientDialOptionsFromFlags()
 	if err != nil {

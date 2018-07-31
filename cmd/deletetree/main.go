@@ -40,7 +40,7 @@ func main() {
 
 	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
 	if err != nil {
-		return nil, err
+		glog.Exitf("failed to determine dial options: %v", err)
 	}
 
 	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
