@@ -13,7 +13,6 @@ import (
 	plugin "github.com/golang/protobuf/protoc-gen-go/plugin"
 	"github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor"
 	gen "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/generator"
-	options "google.golang.org/genproto/googleapis/api/annotations"
 )
 
 var (
@@ -78,6 +77,9 @@ func (g *generator) Generate(targets []*descriptor.File) ([]*plugin.CodeGenerato
 			return nil, err
 		}
 		name := file.GetName()
+		if file.GoPkg.Path != "" {
+			name = fmt.Sprintf("%s/%s", file.GoPkg.Path, filepath.Base(name))
+		}
 		ext := filepath.Ext(name)
 		base := strings.TrimSuffix(name, ext)
 		output := fmt.Sprintf("%s.pb.gw.go", base)
@@ -100,7 +102,7 @@ func (g *generator) generate(file *descriptor.File) (string, error) {
 	for _, svc := range file.Services {
 		for _, m := range svc.Methods {
 			pkg := m.RequestType.File.GoPkg
-			if m.Options == nil || !proto.HasExtension(m.Options, options.E_Http) ||
+			if len(m.Bindings) == 0 ||
 				pkg == file.GoPkg || pkgSeen[pkg.Path] {
 				continue
 			}
