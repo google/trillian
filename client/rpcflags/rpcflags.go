@@ -16,7 +16,6 @@ package rpcflags
 
 import (
 	"flag"
-	"fmt"
 
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
@@ -39,7 +38,7 @@ func NewClientDialOptionsFromFlags() ([]grpc.DialOption, error) {
 	} else {
 		creds, err := credentials.NewClientTLSFromFile(*tlsCertFile, "")
 		if err != nil {
-			return nil, fmt.Errorf("failed to get credentials: %v. Please make sure that %s is the correct TLS certificate file", err, *tlsCertFile)
+			return nil, err
 		}
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
 	}

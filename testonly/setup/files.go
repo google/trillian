@@ -27,7 +27,7 @@ func TempFile(t *testing.T, prefix string) (*os.File, func()) {
 
 	file, err := ioutil.TempFile("", prefix)
 	if err != nil {
-		t.Fatalf("Failed to generate a fake audit log file: %v", err)
+		t.Fatalf("Failed to generate a temporary file: %v", err)
 	}
 
 	cleanup := func() {

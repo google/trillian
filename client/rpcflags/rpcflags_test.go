@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/pem"
 	"flag"
-	"strings"
+	"os"
 	"testing"
 
 	"github.com/google/trillian"
@@ -62,14 +62,17 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileNotSet(t *testing.T) {
 
 func TestNewClientDialOptionsFromFlagsWithTLSCertFileMissing(t *testing.T) {
 	defer flagsaver.Save().Restore()
-	err := flag.Set("tls_cert_file", "/a/missing/file")
-	if err != nil {
+	if err := flag.Set("tls_cert_file", "/a/missing/file"); err != nil {
 		t.Errorf("Failed to set flag: %v", err)
 	}
 
 	dialOpts, err := NewClientDialOptionsFromFlags()
-	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.Errorf("Expected to get an error due to the file not being found, instead got: %v", err)
+	if err == nil {
+		t.Errorf("Expected to get an error due to the file not being found")
+	}
+
+	if _, ok := err.(*os.PathError); !ok {
+		t.Errorf("Expected to get an os.PathError due to the file not being found, instead got: %v", err)
 	}
 
 	if dialOpts != nil {
@@ -96,7 +99,7 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileSet(t *testing.T) {
 	}
 
 	// Set up Trillian servers (with TLS enabled)
-	const numSequencers = 2
+	const numSequencers = 0 // we don't actually need any sequencers.
 	serverCreds := credentials.NewServerTLSFromCert(&tlsCert)
 	serverOpts := []grpc.ServerOption{grpc.Creds(serverCreds)}
 	clientOpts := []grpc.DialOption{grpc.WithTransportCredentials(clientCreds)}
@@ -127,8 +130,7 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileSet(t *testing.T) {
 	defer conn.Close()
 
 	adminClient := trillian.NewTrillianAdminClient(conn)
-	_, err = adminClient.ListTrees(context.Background(), &trillian.ListTreesRequest{})
-	if err != nil {
+	if _, err := adminClient.ListTrees(context.Background(), &trillian.ListTreesRequest{}); err != nil {
 		t.Errorf("failed to request trees from the Admin Server: %v", err)
 	}
 }

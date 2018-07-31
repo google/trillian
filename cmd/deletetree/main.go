@@ -40,18 +40,18 @@ func main() {
 
 	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
 	if err != nil {
-		glog.Exitf("failed to determine dial options: %v", err)
+		glog.Exitf("Failed to determine dial options: %v", err)
 	}
 
 	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
 	if err != nil {
-		glog.Exitf("failed to dial %v: %v", *adminServerAddr, err)
+		glog.Exitf("Failed to dial %v: %v", *adminServerAddr, err)
 	}
 	defer conn.Close()
 
 	a := trillian.NewTrillianAdminClient(conn)
 	_, err = a.DeleteTree(context.Background(), &trillian.DeleteTreeRequest{TreeId: *logID})
 	if err != nil {
-		glog.Exitf("delete failed: %v", err)
+		glog.Exitf("Delete failed: %v", err)
 	}
 }
