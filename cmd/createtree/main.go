@@ -39,6 +39,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
+	"github.com/google/trillian/client/rpcflags"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
@@ -76,7 +77,12 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 		return nil, err
 	}
 
-	conn, err := grpc.Dial(*adminServerAddr, grpc.WithInsecure())
+	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine dial options: %v", err)
+	}
+
+	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial %v: %v", *adminServerAddr, err)
 	}
