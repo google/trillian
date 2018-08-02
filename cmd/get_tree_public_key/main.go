@@ -33,7 +33,7 @@ import (
 
 var (
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
-	logID           = flag.Int64("log_id", 0, "Trillian LogID to delete")
+	logID           = flag.Int64("log_id", 0, "Trillian LogID to retrieve tree public key from")
 )
 
 func getPublicKeyPEM() (string, error) {
