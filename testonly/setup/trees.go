@@ -22,21 +22,20 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
-	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/testonly/integration"
+
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 )
 
-// CreateLog creats a Trillian log with for testing purposes
+// CreateLog creates a Trillian log with for testing purposes
 //
-// It optionally allows specifying an overrides argument to override some
-// properties of the tree to be created.
-func CreateLog(t *testing.T, logEnv *integration.LogEnv, maxRootDuration time.Duration) *trillian.Tree {
+// It requires the caller to specify a maxRootDuration for the Trillian tree,
+// which will be used as the interval after which a new signed root is produced
+// despite no submissions.
+func CreateLog(ctx context.Context, t *testing.T, logClient trillian.TrillianLogClient, adminClient trillian.TrillianAdminClient, maxRootDuration time.Duration) *trillian.Tree {
 	t.Helper()
-
-	ctx := context.Background()
 
 	privateKey, err := ptypes.MarshalAny(&keyspb.PrivateKey{
 		Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
@@ -62,7 +61,7 @@ func CreateLog(t *testing.T, logEnv *integration.LogEnv, maxRootDuration time.Du
 				Der: ktestonly.MustMarshalPublicPEMToDER(testonly.DemoPublicKey),
 			},
 		},
-	}, logEnv.Admin, nil, logEnv.Log)
+	}, adminClient, nil, logClient)
 
 	if err != nil {
 		t.Errorf("failed to create a new log: %v", err)

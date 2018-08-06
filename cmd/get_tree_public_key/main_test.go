@@ -40,7 +40,7 @@ func TestGetTreePublicKey(t *testing.T) {
 	defer logEnv.Close()
 
 	// Create a new Trillian log
-	log := setup.CreateLog(t, logEnv, 0*time.Millisecond)
+	log := setup.CreateLog(context.Background(), t, logEnv.Log, logEnv.Admin, 0*time.Millisecond)
 
 	// Set the flags.
 	defer flagsaver.Save().Restore()
