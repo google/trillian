@@ -200,13 +200,13 @@ func (s *subtreeWriter) RootHash() ([]byte, error) {
 // buildSubtree is the worker function which calculates the root hash.
 // The root chan will have had exactly one entry placed in it, and have been
 // subsequently closed when this method exits.
-func (s *subtreeWriter) buildSubtree(ctx context.Context) {
+func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 	defer close(s.root)
 	var root []byte
 	err := s.runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 		root = []byte{}
-		leaves := make([]HStar2LeafHash, 0, len(s.leafQueue))
-		nodesToStore := make([]storage.Node, 0, len(s.leafQueue)*2)
+		leaves := make([]HStar2LeafHash, 0, queueSize)
+		nodesToStore := make([]storage.Node, 0, queueSize*2)
 
 		for leaf := range s.leafQueue {
 			ih, err := leaf()
@@ -330,7 +330,7 @@ func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte
 
 	// TODO(al): probably shouldn't be spawning go routines willy-nilly like
 	// this, but it'll do for now.
-	go tree.buildSubtree(ctx)
+	go tree.buildSubtree(ctx, leafQueueSize(depths))
 	return &tree, nil
 }
 
