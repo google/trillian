@@ -19,13 +19,15 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian"
+	"github.com/google/trillian/client"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/testonly/setup"
 	"github.com/google/trillian/util/flagsaver"
 	"google.golang.org/grpc"
+
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 func TestGetTreePublicKey(t *testing.T) {
@@ -40,7 +42,12 @@ func TestGetTreePublicKey(t *testing.T) {
 	defer logEnv.Close()
 
 	// Create a new Trillian log
-	log := setup.CreateLog(context.Background(), t, logEnv.Log, logEnv.Admin, 0*time.Millisecond)
+	log, err := client.CreateAndInitTree(context.Background(), &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, logEnv.Admin, nil, logEnv.Log)
+	if err != nil {
+		t.Errorf("Failed to create test tree: %v", err)
+	}
 
 	// Set the flags.
 	defer flagsaver.Save().Restore()
@@ -53,7 +60,7 @@ func TestGetTreePublicKey(t *testing.T) {
 	}
 
 	// Check that the returned public key PEM is the one we expected.
-	expectedPublicKeyPEM := strings.TrimSpace(testonly.DemoPublicKey)
+	expectedPublicKeyPEM := strings.TrimSpace(stestonly.PublicKeyPEM)
 	if strings.TrimSpace(publicKeyPEM) != expectedPublicKeyPEM {
 		t.Errorf("Expected the public key PEM to equal:\n%s\nInstead got:\n%s", expectedPublicKeyPEM, publicKeyPEM)
 	}
