@@ -32,6 +32,7 @@ var (
 	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 
 	mysqlOnce            sync.Once
+	mysqlOnceErr         error
 	mySQLstorageInstance *mysqlProvider
 )
 
@@ -47,12 +48,10 @@ type mysqlProvider struct {
 }
 
 func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
-	var err error
-
 	mysqlOnce.Do(func() {
 		var db *sql.DB
-		db, err = mysql.OpenDB(*mySQLURI)
-		if err != nil {
+		db, mysqlOnceErr = mysql.OpenDB(*mySQLURI)
+		if mysqlOnceErr != nil {
 			return
 		}
 		mySQLstorageInstance = &mysqlProvider{
@@ -60,8 +59,8 @@ func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, erro
 			mf: mf,
 		}
 	})
-	if err != nil {
-		return nil, err
+	if mysqlOnceErr != nil {
+		return nil, mysqlOnceErr
 	}
 	return mySQLstorageInstance, nil
 }
