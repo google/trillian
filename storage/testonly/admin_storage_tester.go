@@ -58,7 +58,8 @@ Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
 sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
 S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
 -----END EC PRIVATE KEY-----`
-	publicKeyPEM = `
+	// PublicKeyPEM is the public key for: LogTree and PreorderedLogTree
+	PublicKeyPEM = `
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
 Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
@@ -101,7 +102,7 @@ var (
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
+			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
@@ -127,7 +128,7 @@ var (
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
+			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}

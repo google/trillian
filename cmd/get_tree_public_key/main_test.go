@@ -16,22 +16,18 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
-	ktestonly "github.com/google/trillian/crypto/keys/testonly"
-	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/integration"
+	"github.com/google/trillian/testonly/setup"
 	"github.com/google/trillian/util/flagsaver"
 	"google.golang.org/grpc"
+
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 func TestGetTreePublicKey(t *testing.T) {
@@ -46,12 +42,17 @@ func TestGetTreePublicKey(t *testing.T) {
 	defer logEnv.Close()
 
 	// Create a new Trillian log
-	log := createLog(t, logEnv)
+	log, err := client.CreateAndInitTree(context.Background(), &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, logEnv.Admin, nil, logEnv.Log)
+	if err != nil {
+		t.Errorf("Failed to create test tree: %v", err)
+	}
 
 	// Set the flags.
 	defer flagsaver.Save().Restore()
-	setFlag(t, "admin_server", logEnv.Address)
-	setFlag(t, "log_id", fmt.Sprint(log.TreeId))
+	setup.SetFlag(t, "admin_server", logEnv.Address)
+	setup.SetFlag(t, "log_id", fmt.Sprint(log.TreeId))
 
 	publicKeyPEM, err := getPublicKeyPEM()
 	if err != nil {
@@ -59,54 +60,8 @@ func TestGetTreePublicKey(t *testing.T) {
 	}
 
 	// Check that the returned public key PEM is the one we expected.
-	expectedPublicKeyPEM := strings.TrimSpace(testonly.DemoPublicKey)
+	expectedPublicKeyPEM := strings.TrimSpace(stestonly.PublicKeyPEM)
 	if strings.TrimSpace(publicKeyPEM) != expectedPublicKeyPEM {
 		t.Errorf("Expected the public key PEM to equal:\n%s\nInstead got:\n%s", expectedPublicKeyPEM, publicKeyPEM)
 	}
-}
-
-func setFlag(t *testing.T, name, value string) {
-	t.Helper()
-
-	if err := flag.Set(name, value); err != nil {
-		t.Errorf("failed to set the -%s flag: %v", name, err)
-	}
-}
-
-func createLog(t *testing.T, logEnv *integration.LogEnv) *trillian.Tree {
-	t.Helper()
-
-	ctx := context.Background()
-
-	privateKey, err := ptypes.MarshalAny(&keyspb.PrivateKey{
-		Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
-	})
-	if err != nil {
-		t.Errorf("failed to marshal private key as an any.Any proto: %v", err)
-	}
-
-	tree, err := client.CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
-		Tree: &trillian.Tree{
-			DisplayName:        "Test Log",
-			Description:        "This is a test log.",
-			TreeType:           trillian.TreeType_LOG,
-			TreeState:          trillian.TreeState_ACTIVE,
-			HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
-			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-			MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
-
-			// Explicitly set the public and private keys for the new tree.
-			PrivateKey: privateKey,
-			PublicKey: &keyspb.PublicKey{
-				Der: ktestonly.MustMarshalPublicPEMToDER(testonly.DemoPublicKey),
-			},
-		},
-	}, logEnv.Admin, nil, logEnv.Log)
-
-	if err != nil {
-		t.Errorf("failed to create a new log: %v", err)
-	}
-
-	return tree
 }
