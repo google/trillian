@@ -58,6 +58,8 @@ type testEnv struct {
 }
 
 func TestEmptyTreeInitialization(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
 	env := setupTestEnv(t)
 	defer env.cleanUp()
 
@@ -68,7 +70,6 @@ func TestEmptyTreeInitialization(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		// Set the flags.
-		defer flagsaver.Save().Restore()
 		setup.SetFlag(t, "server", env.address)
 		setup.SetFlag(t, "log_id", fmt.Sprint(env.treeID))
 		setup.SetFlag(t, "log_public_key", env.pubKeyPath)
@@ -109,6 +110,8 @@ func TestEmptyTreeInitialization(t *testing.T) {
 }
 
 func TestTreeRootUpdate(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
 	env := setupTestEnv(t)
 	defer env.cleanUp()
 
@@ -119,7 +122,6 @@ func TestTreeRootUpdate(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		// Set the flags.
-		defer flagsaver.Save().Restore()
 		setup.SetFlag(t, "server", env.address)
 		setup.SetFlag(t, "log_id", fmt.Sprint(env.treeID))
 		setup.SetFlag(t, "log_public_key", env.pubKeyPath)
