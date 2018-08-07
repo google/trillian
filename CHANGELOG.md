@@ -1,7 +1,5 @@
 # TRILLIAN Changelog
 
-Added support for MySQL 5.7 through MySQL 8. Dropping support for MySQL 5.6.
-
 ## v1.2.0 - Signer / Quota fixes. Error mapping fix. K8 improvements
 
 Published 2018-06-25 10:42:52 +0000 UTC
@@ -76,7 +74,7 @@ The gRPC Log and Map server APIs have new methods `InitLog` and `InitMap` which 
 
 The gRPC Log server API has new methods `AddSequencedLeaf` and `AddSequencedLeaves`. These are intended to support mirroring applications and are not yet implemented.
 
-Storage APIs have been added such as `ReadWriteTransaction` which allows the underlying storage to manage the transaction and optionally retry until success or timeout. This is a more natural fit for some types of storage API such as [CloudSpanner](https://cloud.google.com/spanner/docs/transactions) and possibly other environments with managed transactions. 
+Storage APIs have been added such as `ReadWriteTransaction` which allows the underlying storage to manage the transaction and optionally retry until success or timeout. This is a more natural fit for some types of storage API such as [CloudSpanner](https://cloud.google.com/spanner/docs/transactions) and possibly other environments with managed transactions.
 
 The older `BeginXXX` methods were removed from the APIs. It should be fairly easy to convert a custom storage implementation to the new API format as can be seen from the changes made to the MySQL storage.
 
@@ -116,7 +114,7 @@ Timestamps have been added to the log leaves in the MySQL database. Before upgra
 
 The above timestamps are used to export metrics via monitoring that give the merge delay for each tree that is in use. This is a good metric to use for alerting on.
 
-The Log and Map RPC servers now support TLS. 
+The Log and Map RPC servers now support TLS.
 
 AdminServer tests have been improved.
 
