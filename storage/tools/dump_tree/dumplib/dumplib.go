@@ -239,8 +239,9 @@ func Main(args Options) string {
 	leafHashesFlag = args.LeafHashes
 
 	glog.Info("Initializing memory log storage")
-	ls := memory.NewLogStorage(monitoring.InertMetricFactory{})
-	as := memory.NewAdminStorage(ls)
+	ts := memory.NewTreeStorage()
+	ls := memory.NewLogStorage(ts, monitoring.InertMetricFactory{})
+	as := memory.NewAdminStorage(ts)
 	tree, tSigner := createTree(as, ls)
 
 	seq := log.NewSequencer(rfc6962.DefaultHasher,

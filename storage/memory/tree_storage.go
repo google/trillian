@@ -77,22 +77,23 @@ func (t *tree) RUnlock() {
 	t.mu.RUnlock()
 }
 
-// memoryTreeStorage is shared between the memoryLog and (forthcoming) memoryMap-
+// TreeStorage is shared between the memoryLog and (forthcoming) memoryMap-
 // Storage implementations, and contains functionality which is common to both,
-type memoryTreeStorage struct {
+type TreeStorage struct {
 	// mu only protects access to the trees map.
 	mu    sync.RWMutex
 	trees map[int64]*tree
 }
 
-func newTreeStorage() *memoryTreeStorage {
-	return &memoryTreeStorage{
+// NewTreeStorage returns a new instance of the in-memory tree storage database.
+func NewTreeStorage() *TreeStorage {
+	return &TreeStorage{
 		trees: make(map[int64]*tree),
 	}
 }
 
 // getTree returns the tree associated with id, or nil if no such tree exists.
-func (m *memoryTreeStorage) getTree(id int64) *tree {
+func (m *TreeStorage) getTree(id int64) *tree {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.trees[id]
@@ -126,7 +127,7 @@ func newTree(t trillian.Tree) *tree {
 	return ret
 }
 
-func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, treeID int64, hashSizeBytes int, cache cache.SubtreeCache, readonly bool) (treeTX, error) {
+func (m *TreeStorage) beginTreeTX(ctx context.Context, treeID int64, hashSizeBytes int, cache cache.SubtreeCache, readonly bool) (treeTX, error) {
 	tree := m.getTree(treeID)
 	// Lock the tree for the duration of the TX.
 	// It will be unlocked by a call to Commit or Rollback.
@@ -153,7 +154,7 @@ func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, treeID int64, hashS
 type treeTX struct {
 	closed        bool
 	tx            *btree.BTree
-	ts            *memoryTreeStorage
+	ts            *TreeStorage
 	tree          *tree
 	treeID        int64
 	hashSizeBytes int

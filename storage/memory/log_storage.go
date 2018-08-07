@@ -79,21 +79,19 @@ func sthKey(treeID int64, timestamp uint64) btree.Item {
 }
 
 type memoryLogStorage struct {
-	*memoryTreeStorage
-	admin         storage.AdminStorage
+	*TreeStorage
 	metricFactory monitoring.MetricFactory
 }
 
 // NewLogStorage creates an in-memory LogStorage instance.
-func NewLogStorage(mf monitoring.MetricFactory) storage.LogStorage {
+func NewLogStorage(ts *TreeStorage, mf monitoring.MetricFactory) storage.LogStorage {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
 	ret := &memoryLogStorage{
-		memoryTreeStorage: newTreeStorage(),
-		metricFactory:     mf,
+		TreeStorage:   ts,
+		metricFactory: mf,
 	}
-	ret.admin = NewAdminStorage(ret)
 	return ret
 }
 
@@ -102,11 +100,11 @@ func (m *memoryLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 type readOnlyLogTX struct {
-	ms *memoryTreeStorage
+	ms *TreeStorage
 }
 
 func (m *memoryLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
-	return &readOnlyLogTX{m.memoryTreeStorage}, nil
+	return &readOnlyLogTX{m.TreeStorage}, nil
 }
 
 func (t *readOnlyLogTX) Commit() error {
@@ -142,7 +140,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 	}
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
-	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, tree.TreeId, hasher.Size(), stCache, readonly)
+	ttx, err := m.TreeStorage.beginTreeTX(ctx, tree.TreeId, hasher.Size(), stCache, readonly)
 	if err != nil {
 		return nil, err
 	}

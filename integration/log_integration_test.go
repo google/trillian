@@ -117,10 +117,11 @@ func TestInProcessLogIntegration(t *testing.T) {
 func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 	ctx := context.Background()
 	const numSequencers = 2
-	ms := memory.NewLogStorage(nil)
+	ts := memory.NewTreeStorage()
+	ms := memory.NewLogStorage(ts, nil)
 
 	reggie := extension.Registry{
-		AdminStorage: memory.NewAdminStorage(ms),
+		AdminStorage: memory.NewAdminStorage(ts),
 		LogStorage:   ms,
 		QuotaManager: quota.Noop(),
 	}
