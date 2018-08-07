@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -61,8 +62,10 @@ func TestEmptyTreeInitialization(t *testing.T) {
 	defer env.cleanUp()
 
 	var monitorErr error
-	done := false
+	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
+
+	wg.Add(1)
 	go func() {
 		// Set the flags.
 		defer flagsaver.Save().Restore()
@@ -73,7 +76,7 @@ func TestEmptyTreeInitialization(t *testing.T) {
 		setup.SetFlag(t, "database_uri", env.monitorDBPath)
 
 		monitorErr = runMonitor(ctx)
-		done = true
+		wg.Done()
 	}()
 
 	var err error
@@ -98,13 +101,7 @@ func TestEmptyTreeInitialization(t *testing.T) {
 	}
 
 	cancel()
-
-	testonly.WaitUntil(t, func() error {
-		if !done {
-			return fmt.Errorf("expected the monitor to have finished running")
-		}
-		return nil
-	})
+	wg.Wait()
 
 	if monitorErr != nil && !strings.Contains(monitorErr.Error(), context.Canceled.Error()) {
 		t.Fatalf("got unexpected error from the monitor: %v", monitorErr)
@@ -116,8 +113,10 @@ func TestTreeRootUpdate(t *testing.T) {
 	defer env.cleanUp()
 
 	var monitorErr error
-	done := false
+	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
+
+	wg.Add(1)
 	go func() {
 		// Set the flags.
 		defer flagsaver.Save().Restore()
@@ -128,7 +127,7 @@ func TestTreeRootUpdate(t *testing.T) {
 		setup.SetFlag(t, "database_uri", env.monitorDBPath)
 
 		monitorErr = runMonitor(ctx)
-		done = true
+		wg.Done()
 	}()
 
 	// Add a of new leaves, and wait for them to be indexed.
@@ -157,13 +156,7 @@ func TestTreeRootUpdate(t *testing.T) {
 	})
 
 	cancel()
-
-	testonly.WaitUntil(t, func() error {
-		if !done {
-			return fmt.Errorf("expected the monitor to have finished running")
-		}
-		return nil
-	})
+	wg.Wait()
 
 	if monitorErr != nil && !strings.Contains(monitorErr.Error(), context.Canceled.Error()) {
 		t.Fatalf("got unexpected error from the monitor: %v", monitorErr)
