@@ -44,6 +44,7 @@ var supportedDatabases = []string{
 	"sqlite3",
 }
 
+// Flags
 var (
 	serverAddr       = flag.String("server", "", "Address of the gRPC Trillian Server (host:port)")
 	logID            = flag.Int64("log_id", 0, "The ID of the Trillian log to be monitored")
@@ -57,21 +58,30 @@ var (
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
+// Errors
+var (
+	serverMissingErr       = errors.New("server is missing: use the -server flag to set it")
+	logIDMissingErr        = errors.New("log ID is missing: use the -log_id flag to set it")
+	publicKeyMissingErr    = errors.New("the Trillian log public key path is missing: use the -log_public_key flag to set it")
+	databaseMissingErr     = fmt.Errorf("database is missing: use the -database flag to set it to one of: %v", strings.Join(supportedDatabases, ", "))
+	unsupportedDatabaseErr = fmt.Errorf("selected database set by the -database flag is unsupported: use one of: %v", strings.Join(supportedDatabases, ", "))
+)
+
 func verifyFlags() error {
 	if *serverAddr == "" {
-		return errors.New("server is missing: use the -server flag to set it")
+		return serverMissingErr
 	}
 
 	if *logID == 0 {
-		return errors.New("log ID is missing: use the -log_id flag to set it")
+		return logIDMissingErr
 	}
 
 	if *logPublicKeyFile == "" {
-		return errors.New("the Trillian log public key path is missing: use the -log_public_key flag to set it")
+		return publicKeyMissingErr
 	}
 
 	if *database == "" {
-		return fmt.Errorf("database is missing: use the -database flag to set it to one of: %v", strings.Join(supportedDatabases, ", "))
+		return databaseMissingErr
 	}
 
 	databaseIsSupported := false
@@ -82,7 +92,7 @@ func verifyFlags() error {
 		}
 	}
 	if !databaseIsSupported {
-		return fmt.Errorf("selected database set by the -database flag is unsupported: use one of: %v", strings.Join(supportedDatabases, ", "))
+		return unsupportedDatabaseErr
 	}
 
 	return nil

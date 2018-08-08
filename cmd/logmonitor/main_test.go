@@ -165,6 +165,136 @@ func TestTreeRootUpdate(t *testing.T) {
 	}
 }
 
+func TestRunningWithAMissingServerFlag(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
+	env := setupTestEnv(t)
+	defer env.cleanUp()
+
+	// Set the flags, but leave out the -server flag.
+	setup.SetFlag(t, "log_id", fmt.Sprint(env.treeID))
+	setup.SetFlag(t, "log_public_key", env.pubKeyPath)
+	setup.SetFlag(t, "database", "sqlite3")
+	setup.SetFlag(t, "database_uri", env.monitorDBPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	monitorErr := runMonitor(ctx)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), serverMissingErr.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", serverMissingErr, monitorErr)
+	}
+}
+
+func TestRunningWithAMissingLogIDFlag(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
+	env := setupTestEnv(t)
+	defer env.cleanUp()
+
+	// Set the flags, but leave out the -log_id flag.
+	setup.SetFlag(t, "server", env.address)
+	setup.SetFlag(t, "log_public_key", env.pubKeyPath)
+	setup.SetFlag(t, "database", "sqlite3")
+	setup.SetFlag(t, "database_uri", env.monitorDBPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	monitorErr := runMonitor(ctx)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), logIDMissingErr.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", logIDMissingErr, monitorErr)
+	}
+}
+
+func TestRunningWithAMissingPublicKeyFlag(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
+	env := setupTestEnv(t)
+	defer env.cleanUp()
+
+	// Set the flags, but leave out the -log_public_key flag.
+	setup.SetFlag(t, "server", env.address)
+	setup.SetFlag(t, "log_id", fmt.Sprint(env.treeID))
+	setup.SetFlag(t, "database", "sqlite3")
+	setup.SetFlag(t, "database_uri", env.monitorDBPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	monitorErr := runMonitor(ctx)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), publicKeyMissingErr.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", publicKeyMissingErr, monitorErr)
+	}
+}
+
+func TestRunningWithAnEmptyDatabaseFlag(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
+	env := setupTestEnv(t)
+	defer env.cleanUp()
+
+	// Set the flags, but leave the -database flag empty. Notice that if we omit
+	// it, it will just default to sqlite3.
+	setup.SetFlag(t, "server", env.address)
+	setup.SetFlag(t, "log_id", fmt.Sprint(env.treeID))
+	setup.SetFlag(t, "log_public_key", env.pubKeyPath)
+	setup.SetFlag(t, "database", "")
+	setup.SetFlag(t, "database_uri", env.monitorDBPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	monitorErr := runMonitor(ctx)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), databaseMissingErr.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", databaseMissingErr, monitorErr)
+	}
+}
+
+func TestRunningWithAnUnsupportedDatabaseFlag(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
+	env := setupTestEnv(t)
+	defer env.cleanUp()
+
+	// Set the flags, but specify an unsupported database for -database
+	setup.SetFlag(t, "server", env.address)
+	setup.SetFlag(t, "log_id", fmt.Sprint(env.treeID))
+	setup.SetFlag(t, "log_public_key", env.pubKeyPath)
+	setup.SetFlag(t, "database", "UNSUPPORTED_DATABASE")
+	setup.SetFlag(t, "database_uri", env.monitorDBPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	monitorErr := runMonitor(ctx)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), unsupportedDatabaseErr.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", unsupportedDatabaseErr, monitorErr)
+	}
+}
+
+func TestContextTimingOut(t *testing.T) {
+	defer flagsaver.Save().Restore()
+
+	env := setupTestEnv(t)
+	defer env.cleanUp()
+
+	// Set the flags.
+	setup.SetFlag(t, "server", env.address)
+	setup.SetFlag(t, "log_id", fmt.Sprint(env.treeID))
+	setup.SetFlag(t, "log_public_key", env.pubKeyPath)
+	setup.SetFlag(t, "database", "sqlite3")
+	setup.SetFlag(t, "database_uri", env.monitorDBPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	monitorErr := runMonitor(ctx)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), context.DeadlineExceeded.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", unsupportedDatabaseErr, monitorErr)
+	}
+}
+
 func setupTestEnv(t *testing.T) testEnv {
 	// Set up Trillian servers
 	const numSequencers = 2
