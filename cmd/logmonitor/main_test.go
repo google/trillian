@@ -181,8 +181,8 @@ func TestRunningWithAMissingServerFlag(t *testing.T) {
 	defer cancel()
 
 	monitorErr := runMonitor(ctx)
-	if monitorErr == nil || !strings.Contains(monitorErr.Error(), serverMissingErr.Error()) {
-		t.Errorf("expected error to be %v, instead got %v", serverMissingErr, monitorErr)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), errServerMissing.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", errServerMissing, monitorErr)
 	}
 }
 
@@ -202,8 +202,8 @@ func TestRunningWithAMissingLogIDFlag(t *testing.T) {
 	defer cancel()
 
 	monitorErr := runMonitor(ctx)
-	if monitorErr == nil || !strings.Contains(monitorErr.Error(), logIDMissingErr.Error()) {
-		t.Errorf("expected error to be %v, instead got %v", logIDMissingErr, monitorErr)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), errLogIDMissing.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", errLogIDMissing, monitorErr)
 	}
 }
 
@@ -223,8 +223,8 @@ func TestRunningWithAMissingPublicKeyFlag(t *testing.T) {
 	defer cancel()
 
 	monitorErr := runMonitor(ctx)
-	if monitorErr == nil || !strings.Contains(monitorErr.Error(), publicKeyMissingErr.Error()) {
-		t.Errorf("expected error to be %v, instead got %v", publicKeyMissingErr, monitorErr)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), errPublicKeyMissing.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", errPublicKeyMissing, monitorErr)
 	}
 }
 
@@ -246,8 +246,8 @@ func TestRunningWithAnEmptyDatabaseFlag(t *testing.T) {
 	defer cancel()
 
 	monitorErr := runMonitor(ctx)
-	if monitorErr == nil || !strings.Contains(monitorErr.Error(), databaseMissingErr.Error()) {
-		t.Errorf("expected error to be %v, instead got %v", databaseMissingErr, monitorErr)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), errDatabaseMissing.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", errDatabaseMissing, monitorErr)
 	}
 }
 
@@ -268,8 +268,8 @@ func TestRunningWithAnUnsupportedDatabaseFlag(t *testing.T) {
 	defer cancel()
 
 	monitorErr := runMonitor(ctx)
-	if monitorErr == nil || !strings.Contains(monitorErr.Error(), unsupportedDatabaseErr.Error()) {
-		t.Errorf("expected error to be %v, instead got %v", unsupportedDatabaseErr, monitorErr)
+	if monitorErr == nil || !strings.Contains(monitorErr.Error(), errUnsupportedDatabase.Error()) {
+		t.Errorf("expected error to be %v, instead got %v", errUnsupportedDatabase, monitorErr)
 	}
 }
 
@@ -291,7 +291,7 @@ func TestContextTimingOut(t *testing.T) {
 
 	monitorErr := runMonitor(ctx)
 	if monitorErr == nil || !strings.Contains(monitorErr.Error(), context.DeadlineExceeded.Error()) {
-		t.Errorf("expected error to be %v, instead got %v", unsupportedDatabaseErr, monitorErr)
+		t.Errorf("expected error to be %v, instead got %v", errUnsupportedDatabase, monitorErr)
 	}
 }
 

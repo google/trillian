@@ -60,28 +60,28 @@ var (
 
 // Errors
 var (
-	serverMissingErr       = errors.New("server is missing: use the -server flag to set it")
-	logIDMissingErr        = errors.New("log ID is missing: use the -log_id flag to set it")
-	publicKeyMissingErr    = errors.New("the Trillian log public key path is missing: use the -log_public_key flag to set it")
-	databaseMissingErr     = fmt.Errorf("database is missing: use the -database flag to set it to one of: %v", strings.Join(supportedDatabases, ", "))
-	unsupportedDatabaseErr = fmt.Errorf("selected database set by the -database flag is unsupported: use one of: %v", strings.Join(supportedDatabases, ", "))
+	errServerMissing       = errors.New("server is missing: use the -server flag to set it")
+	errLogIDMissing        = errors.New("log ID is missing: use the -log_id flag to set it")
+	errPublicKeyMissing    = errors.New("the Trillian log public key path is missing: use the -log_public_key flag to set it")
+	errDatabaseMissing     = fmt.Errorf("database is missing: use the -database flag to set it to one of: %v", strings.Join(supportedDatabases, ", "))
+	errUnsupportedDatabase = fmt.Errorf("selected database set by the -database flag is unsupported: use one of: %v", strings.Join(supportedDatabases, ", "))
 )
 
 func verifyFlags() error {
 	if *serverAddr == "" {
-		return serverMissingErr
+		return errServerMissing
 	}
 
 	if *logID == 0 {
-		return logIDMissingErr
+		return errLogIDMissing
 	}
 
 	if *logPublicKeyFile == "" {
-		return publicKeyMissingErr
+		return errPublicKeyMissing
 	}
 
 	if *database == "" {
-		return databaseMissingErr
+		return errDatabaseMissing
 	}
 
 	databaseIsSupported := false
@@ -92,7 +92,7 @@ func verifyFlags() error {
 		}
 	}
 	if !databaseIsSupported {
-		return unsupportedDatabaseErr
+		return errUnsupportedDatabase
 	}
 
 	return nil
