@@ -34,7 +34,9 @@ import (
 var initialEmptyRoot TrustedLogRoot
 
 func init() {
-	// Set up initialEmptyRoot
+	// Set up initialEmptyRoot, which will get used when the database does not
+	// have an existing trusted log root (ie. the first time a tree is
+	// monitored).
 	emptyRoot := &types.LogRootV1{
 		TreeSize: 0,
 	}
