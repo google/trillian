@@ -179,8 +179,7 @@ func runMonitor(ctx context.Context) error {
 
 func main() {
 	defer glog.Flush()
-	err := runMonitor(context.Background())
-	if err != nil {
+	if err := runMonitor(context.Background()); err != nil {
 		glog.Exit(err)
 	}
 }
