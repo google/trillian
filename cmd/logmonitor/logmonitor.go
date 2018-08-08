@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/client"
+	"github.com/google/trillian/types"
 	"github.com/jinzhu/gorm"
 )
 
@@ -61,25 +62,35 @@ func (m *LogMonitor) Run(ctx context.Context) error {
 // periodicallyPersist periodically writes the latest root value to storage to
 // gracefully handle restarts and outages.
 func (m *LogMonitor) periodicallyPersist(ctx context.Context) {
-	latestPersistedRoot := m.logClient.GetRoot()
+	currentPersistedRoot := m.logClient.GetRoot()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(m.waitBetweenDBUpdates):
-			latestRoot := m.logClient.GetRoot()
-
-			if latestRoot.TimestampNanos <= latestPersistedRoot.TimestampNanos &&
-				latestRoot.TreeSize <= latestPersistedRoot.TreeSize {
-				continue
+			var ok bool
+			currentPersistedRoot, ok = m.persistLatestRoot(currentPersistedRoot)
+			if ok {
+				glog.Infof("Successfully saved new root for %d to the database", m.logID)
 			}
-
-			glog.Infof("Saving new root for %d to the database", m.logID)
-			if err := WriteRootFor(m.db, m.logID, latestRoot); err != nil {
-				glog.Errorf("Failed to write the root update to db for log %d: %v", m.logID, err)
-			}
-
-			latestPersistedRoot = latestRoot
 		}
 	}
+}
+
+// persistLatestRoot saves the latest verified root to the database.
+func (m *LogMonitor) persistLatestRoot(currentPersistedRoot *types.LogRootV1) (*types.LogRootV1, bool) {
+	latestRoot := m.logClient.GetRoot()
+
+	if latestRoot.TimestampNanos <= currentPersistedRoot.TimestampNanos &&
+		latestRoot.TreeSize <= currentPersistedRoot.TreeSize {
+		return currentPersistedRoot, false
+	}
+
+	glog.Infof("Saving new root for %d to the database", m.logID)
+	if err := WriteRootFor(m.db, m.logID, latestRoot); err != nil {
+		glog.Errorf("Failed to write the root update to db for log %d: %v", m.logID, err)
+		return currentPersistedRoot, false
+	}
+
+	return latestRoot, true
 }
