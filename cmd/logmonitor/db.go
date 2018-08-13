@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/golang/glog"
@@ -60,12 +61,36 @@ type TrustedLogRoot struct {
 
 // Open opens a new database connection
 func Open(database, databaseURI string) (*gorm.DB, error) {
-	db, err := gorm.Open(database, databaseURI)
+	uri, err := preprocessURIFor(database, databaseURI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process the database URI: %v", err)
+	}
+
+	db, err := gorm.Open(database, uri)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %v", err)
 	}
 
 	return db, nil
+}
+
+// preprocessURIFor does any necessary changes to the connection URI in order
+// to make sure the database connection behaves as expected.
+func preprocessURIFor(database, databaseURI string) (string, error) {
+	u, err := url.Parse(databaseURI)
+	if err != nil {
+		return "", fmt.Errorf("could not parse the database URI: %v", err)
+	}
+
+	if database == "mysql" {
+		// Make the go mysql driver's output type used for DATE and DATETIME values
+		// be time.Time instead of []byte.
+		q := u.Query()
+		q.Set("parseTime", "true")
+		u.RawQuery = q.Encode()
+	}
+
+	return u.String(), nil
 }
 
 // Setup ensures that the database tables are set up properly.
