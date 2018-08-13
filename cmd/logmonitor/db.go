@@ -114,6 +114,8 @@ func GetCurrentRootFor(db *gorm.DB, logID int64) (*types.LogRootV1, error) {
 
 	if trustedLogRoot.TreeSize == 0 {
 		glog.Warningf("Using an empty root for log %d", logID)
+	} else {
+		glog.Infof("Loaded a root for log %d with tree size = %d", logID, trustedLogRoot.TreeSize)
 	}
 
 	currentRoot := &types.LogRootV1{}

@@ -51,11 +51,11 @@ func (m *LogMonitor) Run(ctx context.Context) error {
 		}
 
 		// Wait for root updates.
-		_, err := m.logClient.WaitForRootUpdate(ctx)
+		newRoot, err := m.logClient.WaitForRootUpdate(ctx)
 		if err != nil {
 			return fmt.Errorf("root update failed: %v", err)
 		}
-		glog.Infof("Root updated for %d", m.logID)
+		glog.Infof("Root updated for %d: new tree size = %d", m.logID, newRoot.TreeSize)
 	}
 }
 
@@ -86,7 +86,7 @@ func (m *LogMonitor) persistLatestRoot(currentPersistedRoot *types.LogRootV1) (*
 		return currentPersistedRoot, false
 	}
 
-	glog.Infof("Saving new root for %d to the database", m.logID)
+	glog.Infof("Saving new root with tree size = %d for %d to the database", latestRoot.TreeSize, m.logID)
 	if err := WriteRootFor(m.db, m.logID, latestRoot); err != nil {
 		glog.Errorf("Failed to write the root update to db for log %d: %v", m.logID, err)
 		return currentPersistedRoot, false
