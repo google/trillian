@@ -15,10 +15,18 @@
 package server
 
 import (
+	"flag"
 	"testing"
+
+	"github.com/google/trillian/util/flagsaver"
 )
 
 func TestMySQLStorageProviderErrorPersistence(t *testing.T) {
+	defer flagsaver.Save().Restore()
+	if err := flag.Set("mysql_uri", ""); err != nil {
+		t.Errorf("Failed to set flag: %v", err)
+	}
+
 	// First call: This should fail due to the Database URL being empty.
 	_, err1 := NewStorageProvider("mysql", nil)
 	if err1 == nil {
