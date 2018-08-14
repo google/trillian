@@ -339,7 +339,7 @@ loop:
 		if runner == nil {
 			continue
 		}
-		glog.V(1).Infof("cancel election runner for %d", logID)
+		glog.V(1).Infof("cancel election runner for %s", logID)
 		runner.Cancel()
 	}
 	glog.Infof("wait for termination of election runners...")
