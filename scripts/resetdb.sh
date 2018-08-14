@@ -12,6 +12,11 @@ usage() {
   echo " - DB_PORT"
 }
 
+die() {
+  echo "$*" > /dev/stderr
+  exit 1
+}
+
 collect_vars() {
   # set unset environment variables to defaults
   [ -z ${DB_USER+x} ] && DB_USER="root"
@@ -57,11 +62,16 @@ main() {
   if [ -z ${REPLY+x} ] || [[ $REPLY =~ ^[Yy]$ ]]
   then
       echo "Resetting DB..."
-      mysql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${DB_NAME};"
-      mysql "${FLAGS[@]}" -e "CREATE DATABASE ${DB_NAME};"
-      mysql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${DB_NAME}@'localhost' IDENTIFIED BY 'zaphod';"
-      mysql "${FLAGS[@]}" -e "GRANT ALL ON ${DB_NAME}.* TO ${DB_NAME}@'localhost'"
-      mysql "${FLAGS[@]}" -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql
+      mysql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${DB_NAME};" || \
+        die "Error: Failed to drop database."
+      mysql "${FLAGS[@]}" -e "CREATE DATABASE ${DB_NAME};" || \
+        die "Error: Failed to create database."
+      mysql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${DB_NAME}@'localhost' IDENTIFIED BY 'zaphod';" || \
+        die "Error: Failed to create user."
+      mysql "${FLAGS[@]}" -e "GRANT ALL ON ${DB_NAME}.* TO ${DB_NAME}@'localhost'" || \
+        die "Error: Failed to grant user privileges."
+      mysql "${FLAGS[@]}" -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql || \
+        die "Error: Failed to create tables."
       echo "Reset Complete"
   fi
 }
