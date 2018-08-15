@@ -26,10 +26,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// CreateAndInitTree uses the adminClient and mapClient to create the tree
+// CreateAndInitTree uses the adminClient and logClient/mapClient to create the tree
 // described by req.
 // If req describes a MAP tree, then this function will also call the InitMap
 // function using mapClient.
+// If req describes a LOG tree, then this function will also call the InitLog
+// function using logClient.
 // Internally, the function will continue to retry failed requests until either
 // the tree is created (and if necessary, initialised) successfully, or ctx is
 // cancelled.
