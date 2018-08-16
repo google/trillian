@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -177,6 +178,42 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
+}
+
+func TestLogOperationManagerOperationLoopPassesIDs(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logID1 := int64(451)
+	logID2 := int64(145)
+
+	var logCount int64
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fakeStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{451: "LogID1", 145: "LogID2"})
+	registry := extension.Registry{
+		LogStorage:   fakeStorage,
+		AdminStorage: mockAdmin,
+	}
+
+	mockLogOp := NewMockLogOperation(ctrl)
+	infoMatcher := logOpInfoMatcher{50}
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
+		if atomic.AddInt64(&logCount, 1) == 2 {
+			cancel()
+		}
+	})
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
+		if atomic.AddInt64(&logCount, 1) == 2 {
+			cancel()
+		}
+	})
+
+	info := defaultLogOperationInfo(registry)
+	lom := NewLogOperationManager(info, mockLogOp)
+	lom.OperationLoop(ctx)
 }
 
 func TestHeldInfo(t *testing.T) {
