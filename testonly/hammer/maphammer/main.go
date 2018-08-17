@@ -43,7 +43,7 @@ import (
 )
 
 var (
-	mapIDs          = flag.String("map_ids", "", "Comma-separated list of map IDs to test")
+	mapIDs          = flag.String("map_ids", "", "Comma-separated list of map IDs to test; ephemeral tree used if empty")
 	rpcServer       = flag.String("rpc_server", "", "Server address:port")
 	adminServer     = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 	metricsEndpoint = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will not be exposed")
@@ -70,7 +70,8 @@ func main() {
 	defer glog.Flush()
 
 	if *mapIDs == "" {
-		glog.Exit("Test aborted as no map IDs provided (via --map_ids)")
+		glog.Info("No mapIDs provided so using a transient tree")
+		*mapIDs = "0"
 	}
 	if *seed == -1 {
 		*seed = time.Now().UTC().UnixNano() & 0xFFFFFFFF
@@ -141,7 +142,7 @@ func main() {
 	for _, m := range mIDs {
 		randSrc := rand.NewSource(*seed)
 		mapid, err := strconv.ParseInt(m, 10, 64)
-		if err != nil || mapid <= 0 {
+		if err != nil || mapid < 0 {
 			glog.Exitf("Invalid map ID %q", m)
 		}
 		wg.Add(1)

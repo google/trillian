@@ -151,7 +151,7 @@ func (hb *MapBias) invalid(ep MapEntrypointName, r *rand.Rand) bool {
 
 // MapConfig provides configuration for a stress/load test.
 type MapConfig struct {
-	MapID                int64
+	MapID                int64 // 0 to use an ephemeral tree
 	MetricFactory        monitoring.MetricFactory
 	Client               trillian.TrillianMapClient
 	Admin                trillian.TrillianAdminClient
@@ -177,6 +177,21 @@ func (c MapConfig) String() string {
 // HitMap performs load/stress operations according to given config.
 func HitMap(cfg MapConfig) error {
 	ctx := context.Background()
+
+	if cfg.MapID == 0 {
+		// No mapID provided, so create an ephemeral tree to test against.
+		var err error
+		cfg.MapID, err = makeNewMap(ctx, cfg.Admin, cfg.Client)
+		if err != nil {
+			return fmt.Errorf("failed to create ephemeral tree: %v", err)
+		}
+		glog.Infof("testing against ephemeral tree %d", cfg.MapID)
+		defer func() {
+			if err := destroyMap(ctx, cfg.Admin, cfg.MapID); err != nil {
+				glog.Errorf("failed to destroy map with treeID %d: %v", cfg.MapID, err)
+			}
+		}()
+	}
 
 	s, err := newHammerState(ctx, &cfg)
 	if err != nil {
