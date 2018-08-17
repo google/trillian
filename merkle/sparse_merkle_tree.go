@@ -380,6 +380,7 @@ func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) (
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
 func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, index []byte) ([][]byte, error) {
+	glog.V(2).Infof("InclusionProof: GetMerkleNodes(rev=%d, index=%x)", rev, index)
 	nid := storage.NewNodeIDFromHash(index)
 	sibs := nid.Siblings()
 	nodes, err := s.tx.GetMerkleNodes(ctx, rev, sibs)
@@ -388,7 +389,7 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 	}
 
 	nodeMap := make(map[string]*storage.Node)
-	glog.V(2).Infof("Got Nodes: ")
+	glog.V(2).Infof("InclusionProof: Got non-empty Nodes: ")
 	for _, n := range nodes {
 		n := n // need this or we'll end up with the same node hash repeated in the map
 		glog.V(2).Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.String()), n.Hash)
