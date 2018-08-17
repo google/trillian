@@ -80,7 +80,8 @@ install:
 
 
 before_script:
-  - yes | ./scripts/resetdb.sh
+  - ./scripts/resetdb.sh --force
+  - ./scripts/mysqlconnlimit.sh --force
 
 script:
   - set -e
