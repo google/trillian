@@ -102,7 +102,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	}
 
 	for nodeID.PrefixLenBits > 0 {
-		_, err := c.GetNodeHash(nodeID, m.GetSubtree)
+		_, err := c.getNodeHash(nodeID, m.GetSubtree)
 		if err != nil {
 			t.Fatalf("failed to get node hash: %v", err)
 		}
@@ -155,7 +155,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 			return ret, nil
 		})
 	if err != nil {
-		t.Errorf("GetNodeHash(_, _) = _, %v", err)
+		t.Errorf("getNodeHash(_, _) = _, %v", err)
 	}
 }
 
@@ -211,7 +211,7 @@ func TestCacheFlush(t *testing.T) {
 	// Read nodes which touch the subtrees we'll write to:
 	sibs := nodeID.Siblings()
 	for s := range sibs {
-		_, err := c.GetNodeHash(sibs[s], m.GetSubtree)
+		_, err := c.getNodeHash(sibs[s], m.GetSubtree)
 		if err != nil {
 			t.Fatalf("failed to get node hash: %v", err)
 		}
@@ -399,7 +399,7 @@ func TestIdempotentWrites(t *testing.T) {
 	// result in an actual write being flushed through to storage.
 	for i := 0; i < 10; i++ {
 		c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
-		_, err := c.GetNodeHash(nodeID, m.GetSubtree)
+		_, err := c.getNodeHash(nodeID, m.GetSubtree)
 		if err != nil {
 			t.Fatalf("%d: failed to get node hash: %v", i, err)
 		}
