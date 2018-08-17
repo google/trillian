@@ -1,0 +1,78 @@
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package hammer
+
+import (
+	"context"
+	"flag"
+	"math/rand"
+	"testing"
+	"time"
+
+	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/testonly/integration"
+
+	_ "github.com/google/trillian/merkle/coniks"    // register CONIKS_SHA512_256
+	_ "github.com/google/trillian/merkle/maphasher" // register TEST_MAP_HASHER
+)
+
+var operations = flag.Uint64("operations", 20, "Number of operations to perform")
+
+func TestInProcessMapHammer(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+	ctx := context.Background()
+	env, err := integration.NewMapEnv(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+
+	bias := MapBias{
+		Bias: map[MapEntrypointName]int{
+			GetLeavesName:    10,
+			GetLeavesRevName: 10,
+			SetLeavesName:    10,
+			GetSMRName:       10,
+			GetSMRRevName:    10,
+		},
+		InvalidChance: map[MapEntrypointName]int{
+			GetLeavesName:    10,
+			GetLeavesRevName: 10,
+			SetLeavesName:    10,
+			GetSMRName:       0,
+			GetSMRRevName:    10,
+		},
+	}
+
+	seed := time.Now().UTC().UnixNano() & 0xFFFFFFFF
+	cfg := MapConfig{
+		MapID:         0, // ephemeral tree
+		Client:        env.Map,
+		Admin:         env.Admin,
+		MetricFactory: monitoring.InertMetricFactory{},
+		RandSource:    rand.NewSource(seed),
+		EPBias:        bias,
+		LeafSize:      1000,
+		ExtraSize:     100,
+		MinLeaves:     800,
+		MaxLeaves:     1200,
+		Operations:    *operations,
+		NumCheckers:   1,
+	}
+	if err := HitMap(cfg); err != nil {
+		t.Fatalf("hammer failure: %v", err)
+	}
+}
