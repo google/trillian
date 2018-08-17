@@ -124,6 +124,14 @@ Are you sure? y
 > Reset Complete
 ```
 
+If you are working with the Trillian Map, you will probably need to increase
+the [MySQL maximum connection count](https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_max_connections):
+
+```bash
+% mysql -u root
+MySQL> SET GLOBAL max_connections = 1000;
+```
+
 ### Integration Tests
 
 Trillian includes an integration test suite to confirm basic end-to-end
