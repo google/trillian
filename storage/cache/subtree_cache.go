@@ -205,12 +205,12 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 
 	ret := make([]storage.Node, 0, len(ids))
 	for _, id := range ids {
-		h, err := s.GetNodeHash(
+		h, err := s.getNodeHash(
 			id,
 			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
-				glog.Warningf("Unexpectedly reading from within GetNodeHash(): %s", n.String())
+				glog.Warningf("Unexpectedly reading from within getNodeHash(): %s", n.String())
 				ret, err := getSubtrees([]storage.NodeID{n})
 				if err != nil || len(ret) == 0 {
 					return nil, err
@@ -234,8 +234,9 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 	return ret, nil
 }
 
-// GetNodeHash returns a single node hash from the cache.
-func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
+// getNodeHash returns a single node hash from the cache.
+func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
+	glog.V(3).Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.getNodeHashUnderLock(id, getSubtree)
@@ -264,7 +265,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 			}
 		}
 		if c.Prefix == nil {
-			panic(fmt.Errorf("GetNodeHash nil prefix on %v for id %v with px %#v", c, id.String(), px))
+			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %#v", c, id.String(), px))
 		}
 
 		s.subtrees[prefixKey] = c
