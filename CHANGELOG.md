@@ -1,5 +1,31 @@
 # TRILLIAN Changelog
 
+## v1.2.1 - Map race fixed. TLS client support. LogClient improvements
+
+Published 2018-08-20 10:31:00 +0000 UTC
+
+### Servers
+
+A race condition was fixed that affected sparse Merkle trees as served by the map server.
+
+### Utilities / Binaries
+
+The `maphammer` uses a consistent empty check, fixing spurious failures in some tests.
+
+The `createtree` etc. set of utilities now support TLS via the `-tls-cert-file` flag. This support is also available as a client module.
+
+### Log Client
+
+`GetAndVerifyInclusionAtIndex` no longer updates the clients root on every access as this was an unexpected side effect. Clients now have explicit control of when the root is updated by calling `UpdateRoot`.
+
+A root parameter is now required when log clients are constructed.
+
+### Other
+
+The Travis build script has been updated for newer versions of MySQL (5.7 through MySQL 8) and will no longer work with 5.6.
+
+Commit [f3eaa887163bb4d2ea4b4458cb4e7c5c2f346bc6](https://api.github.com/repos/google/trillian/commits/f3eaa887163bb4d2ea4b4458cb4e7c5c2f346bc6) Download [zip](https://api.github.com/repos/google/trillian/zipball/v1.2.1)
+
 ## v1.2.0 - Signer / Quota fixes. Error mapping fix. K8 improvements
 
 Published 2018-06-25 10:42:52 +0000 UTC
