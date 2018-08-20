@@ -256,6 +256,8 @@ func HitMap(cfg MapConfig) error {
 			glog.Infof("%d: error encountered: %v", cfg.MapID, e)
 		}
 	}
+	// Emit final statistics
+	glog.Info(s.String())
 	return firstErr
 }
 
