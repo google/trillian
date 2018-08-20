@@ -264,6 +264,8 @@ type hammerState struct {
 	cfg      *MapConfig
 	verifier *client.MapVerifier
 
+	start time.Time
+
 	// prng is not thread-safe and should only be used from the main hammer
 	// goroutine for reproducability.
 	prng *rand.Rand
@@ -313,6 +315,7 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 
 	return &hammerState{
 		cfg:      cfg,
+		start:    time.Now(),
 		prng:     rand.New(cfg.RandSource),
 		verifier: verifier,
 	}, nil
@@ -380,6 +383,7 @@ func (s *hammerState) label() string {
 }
 
 func (s *hammerState) String() string {
+	interval := time.Since(s.start)
 	details := ""
 	totalReqs := 0
 	totalInvalidReqs := 0
@@ -394,7 +398,7 @@ func (s *hammerState) String() string {
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
 	smr := s.previousSMR(0)
-	return fmt.Sprintf("%d: lastSMR.rev=%s ops: total=%d invalid=%d errs=%v%s", s.cfg.MapID, smrRev(smr), totalReqs, totalInvalidReqs, totalErrs, details)
+	return fmt.Sprintf("%d: lastSMR.rev=%s ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, smrRev(smr), totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
 
 func (s *hammerState) pushSMR(smr *trillian.SignedMapRoot) {
