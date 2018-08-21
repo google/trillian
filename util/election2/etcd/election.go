@@ -24,10 +24,10 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/concurrency"
 	"github.com/golang/glog"
-	"github.com/google/certificate-transparency-go/trillian/migrillian/election"
+	"github.com/google/trillian/util/election2"
 )
 
-// Election is an implementation of election.Election based on etcd.
+// Election is an implementation of election2.Election based on etcd.
 type Election struct {
 	resourceID string
 	instanceID string
@@ -119,7 +119,7 @@ func NewFactory(instanceID string, client *clientv3.Client, lockDir string) *Fac
 }
 
 // NewElection creates a specific Election instance.
-func (f *Factory) NewElection(ctx context.Context, resourceID string) (election.Election, error) {
+func (f *Factory) NewElection(ctx context.Context, resourceID string) (election2.Election, error) {
 	// TODO(pavelkalinnikov): Re-create the session if it expires.
 	// TODO(pavelkalinnikov): Share the same session between Election instances.
 	session, err := concurrency.NewSession(f.client)

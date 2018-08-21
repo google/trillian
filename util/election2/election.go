@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package election provides master election tools, and interfaces for plugging
-// in a custom underlying mechanism.
+// Package election2 provides master election tools, and interfaces for
+// plugging in a custom underlying mechanism.
 //
 // There are two important abstractions in this package: instance and resource.
 // - An instance is a single client of the library. An instance is represented
@@ -29,7 +29,7 @@
 // updates can race with the operation.
 //
 // TODO(pavelkalinnikov): Merge this package with util/election.
-package election
+package election2
 
 import "context"
 
