@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Package etcd provides an implementation of master election based on etcd.
+// TODO(pavelkalinnikov): Add tests.
 package etcd
 
 import (
