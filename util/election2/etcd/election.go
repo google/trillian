@@ -28,7 +28,7 @@ import (
 
 // Election is an implementation of election.Election based on etcd.
 type Election struct {
-	treeID     int64
+	resourceID string
 	instanceID string
 	lockFile   string
 
@@ -68,12 +68,12 @@ func (e *Election) Observe(ctx context.Context) (context.Context, error) {
 	go func() {
 		defer func() {
 			cancel()
-			glog.Infof("%d: canceled mastership context", e.treeID)
+			glog.Infof("%s: canceled mastership context", e.resourceID)
 		}()
 
 		for rsp := range ch {
 			if string(rsp.Kvs[0].Value) != e.instanceID {
-				glog.Warningf("%d: mastership overtaken", e.treeID)
+				glog.Warningf("%s: mastership overtaken", e.resourceID)
 				break
 			}
 		}
@@ -92,7 +92,7 @@ func (e *Election) Resign(ctx context.Context) error {
 // method should be called after Close.
 func (e *Election) Close(ctx context.Context) error {
 	if err := e.Resign(ctx); err != nil {
-		glog.Errorf("%d: Resign(): %v", e.treeID, err)
+		glog.Errorf("%s: Resign(): %v", e.resourceID, err)
 	}
 	// Session's Close revokes the underlying lease, which results in removing
 	// the election-related keys. This achieves the effect of resignation even if
@@ -118,18 +118,18 @@ func NewFactory(instanceID string, client *clientv3.Client, lockDir string) *Fac
 }
 
 // NewElection creates a specific Election instance.
-func (f *Factory) NewElection(ctx context.Context, treeID int64) (election.Election, error) {
+func (f *Factory) NewElection(ctx context.Context, resourceID string) (election.Election, error) {
 	// TODO(pavelkalinnikov): Re-create the session if it expires.
 	// TODO(pavelkalinnikov): Share the same session between Election instances.
 	session, err := concurrency.NewSession(f.client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd session: %v", err)
 	}
-	lockFile := fmt.Sprintf("%s/%d", strings.TrimRight(f.lockDir, "/"), treeID)
+	lockFile := fmt.Sprintf("%s/%s", strings.TrimRight(f.lockDir, "/"), resourceID)
 	election := concurrency.NewElection(session, lockFile)
 
 	el := Election{
-		treeID:     treeID,
+		resourceID: resourceID,
 		instanceID: f.instanceID,
 		lockFile:   lockFile,
 		client:     f.client,

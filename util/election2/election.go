@@ -63,7 +63,8 @@ type Election interface {
 	Close(ctx context.Context) error
 }
 
-// Factory encapsulates the creation of an Election instance for a treeID.
+// Factory encapsulates the creation of an Election instance for a resource
+// with the specified ID.
 type Factory interface {
-	NewElection(ctx context.Context, treeID int64) (Election, error)
+	NewElection(ctx context.Context, resourceID string) (Election, error)
 }

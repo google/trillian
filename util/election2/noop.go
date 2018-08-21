@@ -17,7 +17,7 @@ package election
 import "context"
 
 // NoopElection is a stub Election that always believes to be the master.
-type NoopElection int64
+type NoopElection string
 
 // Await returns immediately, as the instance is always the master.
 func (ne NoopElection) Await(ctx context.Context) error {
@@ -43,6 +43,6 @@ func (ne NoopElection) Close(ctx context.Context) error {
 type NoopFactory struct{}
 
 // NewElection creates a specific NoopElection instance.
-func (nf NoopFactory) NewElection(ctx context.Context, treeID int64) (Election, error) {
-	return NoopElection(treeID), nil
+func (nf NoopFactory) NewElection(ctx context.Context, resourceID string) (Election, error) {
+	return NoopElection(resourceID), nil
 }
