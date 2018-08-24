@@ -251,7 +251,7 @@ tree head issued by the Log, which we'll call the tree head **batch size**.
    (e.g. an hour's worth) into a new tree head.  This is more likely to produce
    large batch sizes, but is not guaranteed to (e.g. if submission rates are
    very low).
- - Logs that immediately issue inclusion proofs are likely to have smaller batch
+ - Logs that only issue inclusion proofs are more likely to have smaller batch
    sizes, either because they issue a new tree head per submission (batch size =
    1), or because the amount of batching possible while still responding to
    submissions quickly is small.
