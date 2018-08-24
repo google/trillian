@@ -32,9 +32,25 @@ Log, to illustrate the considerations involved:
 Two of these examples will turn out to be a good match for transparent Logging;
 the other, not so much.
 
+## Ecosystem
+
+The first fundamental question for designing a transparent Log is: **Why are you
+logging?**
+
+Understanding what the Log is intended to achieve allows you to check whether
+the transparent, append-only characteristics of the Log actually achieve those
+goals.   It also helps you to understand how much of a wider ecosystem &ndash;
+auditors, monitors, indexes &ndash; also needs to be built up around the Log.
+
+ - The
+   [rationale for Certificate Transparency](https://tools.ietf.org/html/rfc6962)
+   is to log "certificates as they are issued or observed, in a manner that
+   allows anyone to audit certificate authority activity and notice the issuance
+   of suspect certificates".
+
 ## Log Contents
 
-The most fundamental question for designing a transparent log is: **What are you
+The second fundamental question for designing a transparent Log is: **What are you
 logging?**
 
 Ideally, you will have a single sentence that answers this question, and answers
