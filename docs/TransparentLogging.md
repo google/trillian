@@ -181,17 +181,19 @@ Examples:
  - For a Pastebin Log, the admission criteria might merely be a size limit, or a
    UTF-8 encoding correctness check.
 
-These examples illustrate that good admission criteria typically include two key aspects:
+These examples illustrate that good admission criteria typically include two key
+aspects:
+
  - Structure: The submissions have to be of the correct format to be of interest
    (so that the submissions match the subject of the Log), and that format has
    to be machine-checkable (but need not be strict – see below).
  - Authentication: The submissions are signed by one of a limited number of
    private keys, so the signature can be checked with the corresponding public
-   key.  The Log is thus implicitly
-     - assuming that the holders of those private keys will not sign excessive
-       numbers of objects (and so allow the Log to be swamped)
+   key.  The Log is thus implicitly:
      - trusting the key holders not to sign anything that might be problematic
-       for the Log to host.
+       for the Log to host
+     - assuming that it will be able to keep up with the numbers of objects
+       signed with those private keys.
 
 For our examples:
  - A Certificate Transparency log requires entries to have X.509 structure, and
@@ -199,8 +201,8 @@ For our examples:
  - A Binary Transparency log requires entries to have the structure of an
    installable binary package, and vendor-signing key authentication.
  - A Pastebin log has little structural requirement and no authentication
-   requirement, and so is vulnerable to different attacks (swamping, uploading
-   illegal content etc.)
+   requirement, and so is much more vulnerable to different attacks (swamping,
+   uploading illegal content etc.)
 
 Finally, note that a transparent Log normally acts as an **observatory, not as a
 police officer**, in the overall ecosystem.  With this in mind, it's often
@@ -238,21 +240,21 @@ tree head issued by the Log, which we'll call the tree head **batch size**.
    1), or because the amount of batching possible while still responding to
    submissions quickly is small.
 
-The batch size per new tree head is important for privacy reasons: a small batch
-size, particularly a batch of size 1, means that a new signed tree head
+The batch size per new tree head may be important for privacy reasons: a small
+batch size, particularly a batch of size 1, means that a new signed tree head
 correlates directly with a single submission.  This in turn means that a user
 requesting proofs to/from that tree head, or gossiping that tree head, is likely
 to be interested in that specific entry in the Log.
 
-So, if privacy is a concern then:
+So, if privacy is a concern:
  - if submission rates are very low, then using inclusion promises with a large
-   batch size is most likely to preserve privacy
+   batch size is more likely to preserve privacy
  - if submission rates are very high, and some latency on submissions is
    acceptable, then just issuing inclusion proofs may be feasible.
 
-A new transparent Log should consider whether it requires both inclusion
-promises and proofs, or just the latter, based on assessing the concerns above
-together with other factors:
+A new transparent Log should consider whether it (and the surrounding ecosystem)
+requires both inclusion promises and proofs, or just the latter, based on
+assessing the concerns above together with other factors:
 
  - Inclusion promises allow more operational flexibility; a Log can continue to
    issue promises even if its Merkle tree storage is temporarily unavailable,
