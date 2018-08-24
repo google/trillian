@@ -47,10 +47,6 @@ const (
 )
 
 var (
-	maxRetryDuration = 60 * time.Second
-)
-
-var (
 	// Metrics are all per-map (label "mapid"), and per-entrypoint (label "ep").
 	once        sync.Once
 	reqs        monitoring.Counter   // mapid, ep => value
@@ -161,7 +157,8 @@ type MapConfig struct {
 	MinLeaves, MaxLeaves int
 	Operations           uint64
 	EmitInterval         time.Duration
-	IgnoreErrors         bool
+	RetryErrors          bool
+	OperationDeadline    time.Duration
 	// NumCheckers indicates how many separate inclusion checker goroutines
 	// to run.  Note that the behaviour of these checkers is not governed by
 	// RandSource.
@@ -170,8 +167,8 @@ type MapConfig struct {
 
 // String conforms with Stringer for MapConfig.
 func (c MapConfig) String() string {
-	return fmt.Sprintf("mapID:%d biases:{%v} #operations:%d emit every:%v ignoreErrors? %t",
-		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.IgnoreErrors)
+	return fmt.Sprintf("mapID:%d biases:{%v} #operations:%d emit every:%v retryErrors? %t",
+		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.RetryErrors)
 }
 
 // HitMap performs load/stress operations according to given config.
@@ -314,6 +311,9 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	if int(cfg.LeafSize) < minValueLen {
 		return nil, fmt.Errorf("invalid LeafSize %d is smaller than min %d", cfg.LeafSize, minValueLen)
 	}
+	if cfg.OperationDeadline == 0 {
+		cfg.OperationDeadline = 60 * time.Second
+	}
 
 	return &hammerState{
 		cfg:      cfg,
@@ -447,7 +447,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		rspLatency.Observe(time.Since(start).Seconds(), s.label(), string(ep))
 	}(time.Now())
 
-	deadline := time.Now().Add(maxRetryDuration)
+	deadline := time.Now().Add(s.cfg.OperationDeadline)
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 
@@ -469,7 +469,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 			done = true
 		default:
 			errs.Inc(s.label(), string(ep))
-			if s.cfg.IgnoreErrors {
+			if s.cfg.RetryErrors {
 				glog.Warningf("%d: op %v failed (will retry): %v", s.cfg.MapID, ep, err)
 			} else {
 				done = true
@@ -477,7 +477,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		}
 
 		if time.Now().After(deadline) {
-			glog.Warningf("%d: gave up retrying failed op %v after %v, returning last err %v", s.cfg.MapID, ep, maxRetryDuration, err)
+			glog.Warningf("%d: gave up on operation %v after %v, returning last err %v", s.cfg.MapID, ep, s.cfg.OperationDeadline, err)
 			done = true
 		}
 	}

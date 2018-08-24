@@ -55,6 +55,9 @@ var (
 	leafSize        = flag.Uint("leaf_size", 100, "Size of leaf values")
 	extraSize       = flag.Uint("extra_size", 100, "Size of leaf extra data")
 	checkers        = flag.Int("checkers", 0, "Number of checker goroutines to run")
+	retryErrors     = flag.Bool("retry_errors", false, "Whether to retry failed operations")
+	opDeadline      = flag.Duration("op_deadline", 60*time.Second, "How long to wait for operation success")
+	emitInterval    = flag.Duration("emit_interval", 0, "How often to output the Hammer state")
 )
 var (
 	getLeavesBias    = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
@@ -155,18 +158,21 @@ func main() {
 			glog.Exitf("Failed to create admin client conn: %v", err)
 		}
 		cfg := hammer.MapConfig{
-			MapID:         mapid,
-			Client:        trillian.NewTrillianMapClient(c),
-			Admin:         trillian.NewTrillianAdminClient(ac),
-			MetricFactory: mf,
-			RandSource:    randSrc,
-			EPBias:        bias,
-			LeafSize:      *leafSize,
-			ExtraSize:     *extraSize,
-			MinLeaves:     *minLeaves,
-			MaxLeaves:     *maxLeaves,
-			Operations:    *operations,
-			NumCheckers:   *checkers,
+			MapID:             mapid,
+			Client:            trillian.NewTrillianMapClient(c),
+			Admin:             trillian.NewTrillianAdminClient(ac),
+			MetricFactory:     mf,
+			RandSource:        randSrc,
+			EPBias:            bias,
+			LeafSize:          *leafSize,
+			ExtraSize:         *extraSize,
+			MinLeaves:         *minLeaves,
+			MaxLeaves:         *maxLeaves,
+			Operations:        *operations,
+			EmitInterval:      *emitInterval,
+			NumCheckers:       *checkers,
+			RetryErrors:       *retryErrors,
+			OperationDeadline: *opDeadline,
 		}
 		fmt.Printf("%v\n\n", cfg)
 		go func(cfg hammer.MapConfig) {
