@@ -111,7 +111,7 @@ func main() {
 			hammer.GetLeavesRevName: *invalidChance,
 			hammer.SetLeavesName:    *invalidChance,
 			hammer.GetSMRName:       0,
-			hammer.GetSMRRevName:    *getSMRRevBias,
+			hammer.GetSMRRevName:    *invalidChance,
 		},
 	}
 
