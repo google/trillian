@@ -428,12 +428,12 @@ func (s *hammerState) previousSMR(which int) *trillian.SignedMapRoot {
 	return s.smr[which]
 }
 
-func (s *hammerState) chooseOp() MapEntrypointName {
-	return s.cfg.EPBias.choose(s.prng)
+func (s *hammerState) chooseOp(prng *rand.Rand) MapEntrypointName {
+	return s.cfg.EPBias.choose(prng)
 }
 
-func (s *hammerState) chooseInvalid(ep MapEntrypointName) bool {
-	return s.cfg.EPBias.invalid(ep, s.prng)
+func (s *hammerState) chooseInvalid(ep MapEntrypointName, prng *rand.Rand) bool {
+	return s.cfg.EPBias.invalid(ep, prng)
 }
 
 func (s *hammerState) chooseLeafCount(prng *rand.Rand) int {
@@ -442,11 +442,11 @@ func (s *hammerState) chooseLeafCount(prng *rand.Rand) int {
 }
 
 func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
-	ep := s.chooseOp()
-	if s.chooseInvalid(ep) {
+	ep := s.chooseOp(s.prng)
+	if s.chooseInvalid(ep, s.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", s.cfg.MapID, ep)
 		invalidReqs.Inc(s.label(), string(ep))
-		return s.performInvalidOp(ctx, ep)
+		return s.performInvalidOp(ctx, ep, s.prng)
 	}
 
 	glog.V(3).Infof("%d: perform %s operation", s.cfg.MapID, ep)
@@ -461,7 +461,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	done := false
 	for !done {
 		reqs.Inc(s.label(), string(ep))
-		err = s.performOp(ctx, ep)
+		err = s.performOp(ctx, ep, s.prng)
 
 		switch err.(type) {
 		case nil:
@@ -491,33 +491,33 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	return err
 }
 
-func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName) error {
+func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
 	switch ep {
 	case GetLeavesName:
-		return s.getLeaves(ctx)
+		return s.getLeaves(ctx, prng)
 	case GetLeavesRevName:
-		return s.getLeavesRev(ctx)
+		return s.getLeavesRev(ctx, prng)
 	case SetLeavesName:
-		return s.setLeaves(ctx)
+		return s.setLeaves(ctx, prng)
 	case GetSMRName:
-		return s.getSMR(ctx)
+		return s.getSMR(ctx, prng)
 	case GetSMRRevName:
-		return s.getSMRRev(ctx)
+		return s.getSMRRev(ctx, prng)
 	default:
 		return fmt.Errorf("internal error: unknown entrypoint %s selected for valid request", ep)
 	}
 }
 
-func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName) error {
+func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
 	switch ep {
 	case GetLeavesName:
-		return s.getLeavesInvalid(ctx)
+		return s.getLeavesInvalid(ctx, prng)
 	case GetLeavesRevName:
-		return s.getLeavesRevInvalid(ctx)
+		return s.getLeavesRevInvalid(ctx, prng)
 	case SetLeavesName:
-		return s.setLeavesInvalid(ctx)
+		return s.setLeavesInvalid(ctx, prng)
 	case GetSMRRevName:
-		return s.getSMRRevInvalid(ctx)
+		return s.getSMRRevInvalid(ctx, prng)
 	case GetSMRName:
 		return fmt.Errorf("no invalid request possible for entrypoint %s", ep)
 	default:
@@ -525,12 +525,12 @@ func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName
 	}
 }
 
-func (s *hammerState) getLeaves(ctx context.Context) error {
-	return s.doGetLeaves(ctx, s.prng, true /*latest*/)
+func (s *hammerState) getLeaves(ctx context.Context, prng *rand.Rand) error {
+	return s.doGetLeaves(ctx, prng, true /*latest*/)
 }
 
-func (s *hammerState) getLeavesRev(ctx context.Context) error {
-	return s.doGetLeaves(ctx, s.prng, false /*latest*/)
+func (s *hammerState) getLeavesRev(ctx context.Context, prng *rand.Rand) error {
+	return s.doGetLeaves(ctx, prng, false /*latest*/)
 }
 
 func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest bool) error {
@@ -621,7 +621,7 @@ func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
 	fmt.Println("~~~~~~~~~~~~~")
 }
 
-func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
+func (s *hammerState) getLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
 	key := testonly.TransparentHash("..invalid-size")
 	req := trillian.GetMapLeavesRequest{
 		MapId: s.cfg.MapID,
@@ -635,12 +635,12 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	return nil
 }
 
-func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
+func (s *hammerState) getLeavesRevInvalid(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{MalformedKey, RevTooBig, RevIsNegative}
 
 	req := trillian.GetMapLeavesByRevisionRequest{MapId: s.cfg.MapID}
 	contents := s.prevContents.lastCopy()
-	choice := choices[s.prng.Intn(len(choices))]
+	choice := choices[prng.Intn(len(choices))]
 
 	rev := int64(0)
 	var index []byte
@@ -649,7 +649,7 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 		choice = MalformedKey
 	} else {
 		rev = contents.rev
-		index = contents.pickKey(s.prng)
+		index = contents.pickKey(prng)
 	}
 	switch choice {
 	case MalformedKey:
@@ -671,10 +671,10 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 	return nil
 }
 
-func (s *hammerState) setLeaves(ctx context.Context) error {
+func (s *hammerState) setLeaves(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
 
-	n := s.chooseLeafCount(s.prng)
+	n := s.chooseLeafCount(prng)
 	if n == 0 {
 		n = 1
 	}
@@ -686,7 +686,7 @@ func (s *hammerState) setLeaves(ctx context.Context) error {
 	}
 leafloop:
 	for i := 0; i < n; i++ {
-		choice := choices[s.prng.Intn(len(choices))]
+		choice := choices[prng.Intn(len(choices))]
 		if contents.empty() {
 			choice = CreateLeaf
 		}
@@ -701,7 +701,7 @@ leafloop:
 			})
 			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, key, string(value))
 		case UpdateLeaf, DeleteLeaf:
-			key := contents.pickKey(s.prng)
+			key := contents.pickKey(prng)
 			// Not allowed to have the same key more than once in the same request
 			for _, leaf := range leaves {
 				if bytes.Equal(leaf.Index, key) {
@@ -739,13 +739,13 @@ leafloop:
 	return nil
 }
 
-func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
+func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{MalformedKey, DuplicateKey}
 
 	var leaves []*trillian.MapLeaf
 	value := []byte("value-for-invalid-req")
 
-	choice := choices[s.prng.Intn(len(choices))]
+	choice := choices[prng.Intn(len(choices))]
 	contents := s.prevContents.lastCopy()
 	if contents.empty() {
 		choice = MalformedKey
@@ -755,7 +755,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
 		key := testonly.TransparentHash("..invalid-size")
 		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
 	case DuplicateKey:
-		key := contents.pickKey(s.prng)
+		key := contents.pickKey(prng)
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 	}
@@ -768,7 +768,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
 	return nil
 }
 
-func (s *hammerState) getSMR(ctx context.Context) error {
+func (s *hammerState) getSMR(ctx context.Context, prng *rand.Rand) error {
 	req := trillian.GetSignedMapRootRequest{MapId: s.cfg.MapID}
 	rsp, err := s.cfg.Client.GetSignedMapRoot(ctx, &req)
 	if err != nil {
@@ -787,8 +787,8 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 	return nil
 }
 
-func (s *hammerState) getSMRRev(ctx context.Context) error {
-	which := s.prng.Intn(smrCount)
+func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
+	which := prng.Intn(smrCount)
 	smr := s.previousSMR(which)
 	if smr == nil || len(smr.MapRoot) == 0 {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
@@ -817,7 +817,7 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 	return nil
 }
 
-func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
+func (s *hammerState) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{RevTooBig, RevIsNegative}
 
 	rev := latestRevision
@@ -826,7 +826,7 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 		rev = contents.rev
 	}
 
-	choice := choices[s.prng.Intn(len(choices))]
+	choice := choices[prng.Intn(len(choices))]
 
 	switch choice {
 	case RevTooBig:
