@@ -31,6 +31,7 @@ enum HashStrategy {
   TEST_MAP_HASHER = 2;
   OBJECT_RFC6962_SHA256 = 3;
   CONIKS_SHA512_256 = 4;
+  CONIKS_SHA256 = 5;
 }
 
 // Supported hash algorithms.
@@ -165,7 +166,7 @@ message TreeHead {
   reserved 5;
 
   // Deleted: old spannerpb.DigitallySigned
-  reserved 8; 
+  reserved 8;
   // signature holds the raw digital signature across the serialized log_root
   // (not present) represented by the data in this TreeHead.
   bytes signature = 10;

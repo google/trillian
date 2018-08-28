@@ -43,7 +43,7 @@ type ChargeTo struct {
 	//     the submitted chain.
 	//     This would have the effect of limiting the rate of submissions under
 	//     a given intermediate/root.
-	User                 []string `protobuf:"bytes,1,rep,name=user" json:"user,omitempty"`
+	User                 []string `protobuf:"bytes,1,rep,name=user,proto3" json:"user,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -81,9 +81,9 @@ func (m *ChargeTo) GetUser() []string {
 }
 
 type QueueLeafRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	Leaf                 *LogLeaf  `protobuf:"bytes,2,opt,name=leaf" json:"leaf,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,3,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	Leaf                 *LogLeaf  `protobuf:"bytes,2,opt,name=leaf,proto3" json:"leaf,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,3,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -135,7 +135,7 @@ func (m *QueueLeafRequest) GetChargeTo() *ChargeTo {
 }
 
 type QueueLeafResponse struct {
-	QueuedLeaf           *QueuedLogLeaf `protobuf:"bytes,2,opt,name=queued_leaf,json=queuedLeaf" json:"queued_leaf,omitempty"`
+	QueuedLeaf           *QueuedLogLeaf `protobuf:"bytes,2,opt,name=queued_leaf,json=queuedLeaf,proto3" json:"queued_leaf,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -173,9 +173,9 @@ func (m *QueueLeafResponse) GetQueuedLeaf() *QueuedLogLeaf {
 }
 
 type AddSequencedLeafRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	Leaf                 *LogLeaf  `protobuf:"bytes,2,opt,name=leaf" json:"leaf,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,3,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	Leaf                 *LogLeaf  `protobuf:"bytes,2,opt,name=leaf,proto3" json:"leaf,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,3,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -227,7 +227,7 @@ func (m *AddSequencedLeafRequest) GetChargeTo() *ChargeTo {
 }
 
 type AddSequencedLeafResponse struct {
-	Result               *QueuedLogLeaf `protobuf:"bytes,2,opt,name=result" json:"result,omitempty"`
+	Result               *QueuedLogLeaf `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -265,10 +265,10 @@ func (m *AddSequencedLeafResponse) GetResult() *QueuedLogLeaf {
 }
 
 type GetInclusionProofRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	LeafIndex            int64     `protobuf:"varint,2,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
-	TreeSize             int64     `protobuf:"varint,3,opt,name=tree_size,json=treeSize" json:"tree_size,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	LeafIndex            int64     `protobuf:"varint,2,opt,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
+	TreeSize             int64     `protobuf:"varint,3,opt,name=tree_size,json=treeSize,proto3" json:"tree_size,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -327,8 +327,8 @@ func (m *GetInclusionProofRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetInclusionProofResponse struct {
-	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof" json:"proof,omitempty"`
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -373,11 +373,11 @@ func (m *GetInclusionProofResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetInclusionProofByHashRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
 	LeafHash             []byte    `protobuf:"bytes,2,opt,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
-	TreeSize             int64     `protobuf:"varint,3,opt,name=tree_size,json=treeSize" json:"tree_size,omitempty"`
-	OrderBySequence      bool      `protobuf:"varint,4,opt,name=order_by_sequence,json=orderBySequence" json:"order_by_sequence,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,5,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	TreeSize             int64     `protobuf:"varint,3,opt,name=tree_size,json=treeSize,proto3" json:"tree_size,omitempty"`
+	OrderBySequence      bool      `protobuf:"varint,4,opt,name=order_by_sequence,json=orderBySequence,proto3" json:"order_by_sequence,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,5,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -445,8 +445,8 @@ func (m *GetInclusionProofByHashRequest) GetChargeTo() *ChargeTo {
 type GetInclusionProofByHashResponse struct {
 	// Logs can potentially contain leaves with duplicate hashes so it's possible
 	// for this to return multiple proofs.
-	Proof                []*Proof       `protobuf:"bytes,2,rep,name=proof" json:"proof,omitempty"`
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	Proof                []*Proof       `protobuf:"bytes,2,rep,name=proof,proto3" json:"proof,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -491,10 +491,10 @@ func (m *GetInclusionProofByHashResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetConsistencyProofRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	FirstTreeSize        int64     `protobuf:"varint,2,opt,name=first_tree_size,json=firstTreeSize" json:"first_tree_size,omitempty"`
-	SecondTreeSize       int64     `protobuf:"varint,3,opt,name=second_tree_size,json=secondTreeSize" json:"second_tree_size,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	FirstTreeSize        int64     `protobuf:"varint,2,opt,name=first_tree_size,json=firstTreeSize,proto3" json:"first_tree_size,omitempty"`
+	SecondTreeSize       int64     `protobuf:"varint,3,opt,name=second_tree_size,json=secondTreeSize,proto3" json:"second_tree_size,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -553,8 +553,8 @@ func (m *GetConsistencyProofRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetConsistencyProofResponse struct {
-	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof" json:"proof,omitempty"`
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -599,8 +599,8 @@ func (m *GetConsistencyProofResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetLatestSignedLogRootRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -645,7 +645,7 @@ func (m *GetLatestSignedLogRootRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetLatestSignedLogRootResponse struct {
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -683,8 +683,8 @@ func (m *GetLatestSignedLogRootResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetSequencedLeafCountRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -729,7 +729,7 @@ func (m *GetSequencedLeafCountRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetSequencedLeafCountResponse struct {
-	LeafCount            int64    `protobuf:"varint,2,opt,name=leaf_count,json=leafCount" json:"leaf_count,omitempty"`
+	LeafCount            int64    `protobuf:"varint,2,opt,name=leaf_count,json=leafCount,proto3" json:"leaf_count,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -767,10 +767,10 @@ func (m *GetSequencedLeafCountResponse) GetLeafCount() int64 {
 }
 
 type GetEntryAndProofRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	LeafIndex            int64     `protobuf:"varint,2,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
-	TreeSize             int64     `protobuf:"varint,3,opt,name=tree_size,json=treeSize" json:"tree_size,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	LeafIndex            int64     `protobuf:"varint,2,opt,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
+	TreeSize             int64     `protobuf:"varint,3,opt,name=tree_size,json=treeSize,proto3" json:"tree_size,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -829,9 +829,9 @@ func (m *GetEntryAndProofRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetEntryAndProofResponse struct {
-	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof" json:"proof,omitempty"`
-	Leaf                 *LogLeaf       `protobuf:"bytes,3,opt,name=leaf" json:"leaf,omitempty"`
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,4,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
+	Leaf                 *LogLeaf       `protobuf:"bytes,3,opt,name=leaf,proto3" json:"leaf,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,4,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -883,8 +883,8 @@ func (m *GetEntryAndProofResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type InitLogRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -929,7 +929,7 @@ func (m *InitLogRequest) GetChargeTo() *ChargeTo {
 }
 
 type InitLogResponse struct {
-	Created              *SignedLogRoot `protobuf:"bytes,1,opt,name=created" json:"created,omitempty"`
+	Created              *SignedLogRoot `protobuf:"bytes,1,opt,name=created,proto3" json:"created,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -967,9 +967,9 @@ func (m *InitLogResponse) GetCreated() *SignedLogRoot {
 }
 
 type QueueLeavesRequest struct {
-	LogId                int64      `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	Leaves               []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
-	ChargeTo             *ChargeTo  `protobuf:"bytes,3,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64      `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	Leaves               []*LogLeaf `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
+	ChargeTo             *ChargeTo  `protobuf:"bytes,3,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
 	XXX_sizecache        int32      `json:"-"`
@@ -1022,7 +1022,7 @@ func (m *QueueLeavesRequest) GetChargeTo() *ChargeTo {
 
 type QueueLeavesResponse struct {
 	// Same number and order as in the corresponding request.
-	QueuedLeaves         []*QueuedLogLeaf `protobuf:"bytes,2,rep,name=queued_leaves,json=queuedLeaves" json:"queued_leaves,omitempty"`
+	QueuedLeaves         []*QueuedLogLeaf `protobuf:"bytes,2,rep,name=queued_leaves,json=queuedLeaves,proto3" json:"queued_leaves,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
 	XXX_unrecognized     []byte           `json:"-"`
 	XXX_sizecache        int32            `json:"-"`
@@ -1060,9 +1060,9 @@ func (m *QueueLeavesResponse) GetQueuedLeaves() []*QueuedLogLeaf {
 }
 
 type AddSequencedLeavesRequest struct {
-	LogId                int64      `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	Leaves               []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
-	ChargeTo             *ChargeTo  `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64      `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	Leaves               []*LogLeaf `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
+	ChargeTo             *ChargeTo  `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
 	XXX_sizecache        int32      `json:"-"`
@@ -1115,7 +1115,7 @@ func (m *AddSequencedLeavesRequest) GetChargeTo() *ChargeTo {
 
 type AddSequencedLeavesResponse struct {
 	// Same number and order as in the corresponding request.
-	Results              []*QueuedLogLeaf `protobuf:"bytes,2,rep,name=results" json:"results,omitempty"`
+	Results              []*QueuedLogLeaf `protobuf:"bytes,2,rep,name=results,proto3" json:"results,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
 	XXX_unrecognized     []byte           `json:"-"`
 	XXX_sizecache        int32            `json:"-"`
@@ -1153,9 +1153,9 @@ func (m *AddSequencedLeavesResponse) GetResults() []*QueuedLogLeaf {
 }
 
 type GetLeavesByIndexRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	LeafIndex            []int64   `protobuf:"varint,2,rep,packed,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,5,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	LeafIndex            []int64   `protobuf:"varint,2,rep,packed,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,5,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1208,8 +1208,8 @@ func (m *GetLeavesByIndexRequest) GetChargeTo() *ChargeTo {
 
 type GetLeavesByIndexResponse struct {
 	// TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
-	Leaves               []*LogLeaf     `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	Leaves               []*LogLeaf     `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -1254,10 +1254,10 @@ func (m *GetLeavesByIndexResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetLeavesByRangeRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	StartIndex           int64     `protobuf:"varint,2,opt,name=start_index,json=startIndex" json:"start_index,omitempty"`
-	Count                int64     `protobuf:"varint,3,opt,name=count" json:"count,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	StartIndex           int64     `protobuf:"varint,2,opt,name=start_index,json=startIndex,proto3" json:"start_index,omitempty"`
+	Count                int64     `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,4,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1320,8 +1320,8 @@ type GetLeavesByRangeResponse struct {
 	// order. There may be fewer than `request.count` leaves returned, if the
 	// requested range extended beyond the size of the tree or if the server opted
 	// to return fewer leaves than requested.
-	Leaves               []*LogLeaf     `protobuf:"bytes,1,rep,name=leaves" json:"leaves,omitempty"`
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	Leaves               []*LogLeaf     `protobuf:"bytes,1,rep,name=leaves,proto3" json:"leaves,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -1366,10 +1366,10 @@ func (m *GetLeavesByRangeResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetLeavesByHashRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
 	LeafHash             [][]byte  `protobuf:"bytes,2,rep,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
-	OrderBySequence      bool      `protobuf:"varint,3,opt,name=order_by_sequence,json=orderBySequence" json:"order_by_sequence,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,5,opt,name=charge_to,json=chargeTo" json:"charge_to,omitempty"`
+	OrderBySequence      bool      `protobuf:"varint,3,opt,name=order_by_sequence,json=orderBySequence,proto3" json:"order_by_sequence,omitempty"`
+	ChargeTo             *ChargeTo `protobuf:"bytes,5,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -1429,8 +1429,8 @@ func (m *GetLeavesByHashRequest) GetChargeTo() *ChargeTo {
 
 type GetLeavesByHashResponse struct {
 	// TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
-	Leaves               []*LogLeaf     `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot" json:"signed_log_root,omitempty"`
+	Leaves               []*LogLeaf     `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
+	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -1481,7 +1481,7 @@ type QueuedLogLeaf struct {
 	//  - `google.rpc.OK`: the `leaf` data is the same as in the request.
 	//  - `google.rpc.ALREADY_EXISTS` or 'google.rpc.FAILED_PRECONDITION`: the
 	//    `leaf` is the conflicting one already in the log.
-	Leaf *LogLeaf `protobuf:"bytes,1,opt,name=leaf" json:"leaf,omitempty"`
+	Leaf *LogLeaf `protobuf:"bytes,1,opt,name=leaf,proto3" json:"leaf,omitempty"`
 	// The status of adding the leaf.
 	//  - `google.rpc.OK`: successfully added.
 	//  - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already
@@ -1489,7 +1489,7 @@ type QueuedLogLeaf struct {
 	//    mode, or `leaf_index` in the `PREORDERED_LOG`.
 	//  - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already
 	//    present in the log, e.g., same `leaf_index` but different `leaf_data`.
-	Status               *status.Status `protobuf:"bytes,2,opt,name=status" json:"status,omitempty"`
+	Status               *status.Status `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -1547,7 +1547,7 @@ type LogLeaf struct {
 	// The index of the leaf in the Merkle tree, i.e., the position of the
 	// corresponding entry in the log. For normal logs this value will be
 	// assigned by the LogSigner.
-	LeafIndex int64 `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
+	LeafIndex int64 `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
 	// The hash over the identity of this leaf. If empty, assumed to be the same
 	// as `merkle_leaf_hash`. It is a mechanism for the personality to provide a
 	// hint to Trillian that two leaves should be considered "duplicates" even
@@ -1572,10 +1572,10 @@ type LogLeaf struct {
 	// Output only. The time at which this leaf was passed to `QueueLeaves`.
 	// This value will be determined and set by the LogServer. Equals zero if
 	// the entry was submitted without queuing.
-	QueueTimestamp *timestamp.Timestamp `protobuf:"bytes,6,opt,name=queue_timestamp,json=queueTimestamp" json:"queue_timestamp,omitempty"`
+	QueueTimestamp *timestamp.Timestamp `protobuf:"bytes,6,opt,name=queue_timestamp,json=queueTimestamp,proto3" json:"queue_timestamp,omitempty"`
 	// Output only. The time at which this leaf was integrated into the tree.
 	// This value will be determined and set by the LogSigner.
-	IntegrateTimestamp   *timestamp.Timestamp `protobuf:"bytes,7,opt,name=integrate_timestamp,json=integrateTimestamp" json:"integrate_timestamp,omitempty"`
+	IntegrateTimestamp   *timestamp.Timestamp `protobuf:"bytes,7,opt,name=integrate_timestamp,json=integrateTimestamp,proto3" json:"integrate_timestamp,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_unrecognized     []byte               `json:"-"`
 	XXX_sizecache        int32                `json:"-"`
@@ -1656,7 +1656,7 @@ func (m *LogLeaf) GetIntegrateTimestamp() *timestamp.Timestamp {
 
 // A consistency or inclusion proof for a Merkle tree. Output only.
 type Proof struct {
-	LeafIndex            int64    `protobuf:"varint,1,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
+	LeafIndex            int64    `protobuf:"varint,1,opt,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
 	Hashes               [][]byte `protobuf:"bytes,3,rep,name=hashes,proto3" json:"hashes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -1923,8 +1923,7 @@ func (c *trillianLogClient) GetLeavesByHash(ctx context.Context, in *GetLeavesBy
 	return out, nil
 }
 
-// Server API for TrillianLog service
-
+// TrillianLogServer is the server API for TrillianLog service.
 type TrillianLogServer interface {
 	// Adds a single leaf to the queue.
 	QueueLeaf(context.Context, *QueueLeafRequest) (*QueueLeafResponse, error)

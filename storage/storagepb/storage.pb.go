@@ -22,7 +22,7 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 // As this is long-term we prefer not to use a Go specific format.
 type NodeIDProto struct {
 	Path                 []byte   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	PrefixLenBits        int32    `protobuf:"varint,2,opt,name=prefix_len_bits,json=prefixLenBits" json:"prefix_len_bits,omitempty"`
+	PrefixLenBits        int32    `protobuf:"varint,2,opt,name=prefix_len_bits,json=prefixLenBits,proto3" json:"prefix_len_bits,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -71,18 +71,18 @@ type SubtreeProto struct {
 	// subtree's prefix (must be a multiple of 8 bits)
 	Prefix []byte `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
 	// subtree's depth
-	Depth    int32  `protobuf:"varint,2,opt,name=depth" json:"depth,omitempty"`
+	Depth    int32  `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
 	RootHash []byte `protobuf:"bytes,3,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	// map of suffix (within subtree) to subtree-leaf node hash
-	Leaves map[string][]byte `protobuf:"bytes,4,rep,name=leaves" json:"leaves,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Leaves map[string][]byte `protobuf:"bytes,4,rep,name=leaves,proto3" json:"leaves,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Map of suffix (within subtree) to subtree-internal node hash.
 	// This structure is usually used in RAM as a cache, the internal nodes of
 	// the subtree are not generally stored. However internal nodes are stored for
 	// partially filled log subtrees.
-	InternalNodes map[string][]byte `protobuf:"bytes,5,rep,name=internal_nodes,json=internalNodes" json:"internal_nodes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	InternalNodes map[string][]byte `protobuf:"bytes,5,rep,name=internal_nodes,json=internalNodes,proto3" json:"internal_nodes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Used as a crosscheck on the internal node map by recording its expected size after
 	// loading and repopulation.
-	InternalNodeCount    uint32   `protobuf:"varint,6,opt,name=internal_node_count,json=internalNodeCount" json:"internal_node_count,omitempty"`
+	InternalNodeCount    uint32   `protobuf:"varint,6,opt,name=internal_node_count,json=internalNodeCount,proto3" json:"internal_node_count,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

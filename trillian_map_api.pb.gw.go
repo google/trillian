@@ -130,14 +130,14 @@ func RegisterTrillianMapHandlerFromEndpoint(ctx context.Context, mux *runtime.Se
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -151,8 +151,8 @@ func RegisterTrillianMapHandler(ctx context.Context, mux *runtime.ServeMux, conn
 	return RegisterTrillianMapHandlerClient(ctx, mux, NewTrillianMapClient(conn))
 }
 
-// RegisterTrillianMapHandler registers the http handlers for service TrillianMap to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "TrillianMapClient".
+// RegisterTrillianMapHandlerClient registers the http handlers for service TrillianMap
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "TrillianMapClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "TrillianMapClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "TrillianMapClient" to call the correct interceptors.

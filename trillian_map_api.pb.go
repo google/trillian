@@ -98,7 +98,7 @@ func (m *MapLeaf) GetExtraData() []byte {
 }
 
 type MapLeafInclusion struct {
-	Leaf                 *MapLeaf `protobuf:"bytes,1,opt,name=leaf" json:"leaf,omitempty"`
+	Leaf                 *MapLeaf `protobuf:"bytes,1,opt,name=leaf,proto3" json:"leaf,omitempty"`
 	Inclusion            [][]byte `protobuf:"bytes,2,rep,name=inclusion,proto3" json:"inclusion,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -144,7 +144,7 @@ func (m *MapLeafInclusion) GetInclusion() [][]byte {
 }
 
 type GetMapLeavesRequest struct {
-	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
+	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
 	Index                [][]byte `protobuf:"bytes,2,rep,name=index,proto3" json:"index,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -192,10 +192,10 @@ func (m *GetMapLeavesRequest) GetIndex() [][]byte {
 // This message replaces the current implementation of GetMapLeavesRequest
 // with the difference that revision must be >=0.
 type GetMapLeavesByRevisionRequest struct {
-	MapId int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
+	MapId int64    `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
 	Index [][]byte `protobuf:"bytes,2,rep,name=index,proto3" json:"index,omitempty"`
 	// revision >= 0.
-	Revision             int64    `protobuf:"varint,3,opt,name=revision" json:"revision,omitempty"`
+	Revision             int64    `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -247,8 +247,8 @@ func (m *GetMapLeavesByRevisionRequest) GetRevision() int64 {
 }
 
 type GetMapLeavesResponse struct {
-	MapLeafInclusion     []*MapLeafInclusion `protobuf:"bytes,2,rep,name=map_leaf_inclusion,json=mapLeafInclusion" json:"map_leaf_inclusion,omitempty"`
-	MapRoot              *SignedMapRoot      `protobuf:"bytes,3,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
+	MapLeafInclusion     []*MapLeafInclusion `protobuf:"bytes,2,rep,name=map_leaf_inclusion,json=mapLeafInclusion,proto3" json:"map_leaf_inclusion,omitempty"`
+	MapRoot              *SignedMapRoot      `protobuf:"bytes,3,opt,name=map_root,json=mapRoot,proto3" json:"map_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
 	XXX_unrecognized     []byte              `json:"-"`
 	XXX_sizecache        int32               `json:"-"`
@@ -293,9 +293,9 @@ func (m *GetMapLeavesResponse) GetMapRoot() *SignedMapRoot {
 }
 
 type SetMapLeavesRequest struct {
-	MapId int64 `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
+	MapId int64 `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
 	// The leaves being set must have unique Index values within the request.
-	Leaves               []*MapLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
+	Leaves               []*MapLeaf `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
 	Metadata             []byte     `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
@@ -348,7 +348,7 @@ func (m *SetMapLeavesRequest) GetMetadata() []byte {
 }
 
 type SetMapLeavesResponse struct {
-	MapRoot              *SignedMapRoot `protobuf:"bytes,2,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
+	MapRoot              *SignedMapRoot `protobuf:"bytes,2,opt,name=map_root,json=mapRoot,proto3" json:"map_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -386,7 +386,7 @@ func (m *SetMapLeavesResponse) GetMapRoot() *SignedMapRoot {
 }
 
 type GetSignedMapRootRequest struct {
-	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
+	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -424,8 +424,8 @@ func (m *GetSignedMapRootRequest) GetMapId() int64 {
 }
 
 type GetSignedMapRootByRevisionRequest struct {
-	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
-	Revision             int64    `protobuf:"varint,2,opt,name=revision" json:"revision,omitempty"`
+	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
+	Revision             int64    `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -470,7 +470,7 @@ func (m *GetSignedMapRootByRevisionRequest) GetRevision() int64 {
 }
 
 type GetSignedMapRootResponse struct {
-	MapRoot              *SignedMapRoot `protobuf:"bytes,2,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
+	MapRoot              *SignedMapRoot `protobuf:"bytes,2,opt,name=map_root,json=mapRoot,proto3" json:"map_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -508,7 +508,7 @@ func (m *GetSignedMapRootResponse) GetMapRoot() *SignedMapRoot {
 }
 
 type InitMapRequest struct {
-	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
+	MapId                int64    `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -546,7 +546,7 @@ func (m *InitMapRequest) GetMapId() int64 {
 }
 
 type InitMapResponse struct {
-	Created              *SignedMapRoot `protobuf:"bytes,1,opt,name=created" json:"created,omitempty"`
+	Created              *SignedMapRoot `protobuf:"bytes,1,opt,name=created,proto3" json:"created,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -685,8 +685,7 @@ func (c *trillianMapClient) InitMap(ctx context.Context, in *InitMapRequest, opt
 	return out, nil
 }
 
-// Server API for TrillianMap service
-
+// TrillianMapServer is the server API for TrillianMap service.
 type TrillianMapServer interface {
 	// GetLeaves returns an inclusion proof for each index requested.
 	// For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
