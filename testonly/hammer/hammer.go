@@ -458,10 +458,13 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 
+	seed := s.prng.Int63()
 	done := false
 	for !done {
+		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
+		prng := rand.New(rand.NewSource(seed))
 		reqs.Inc(s.label(), string(ep))
-		err = s.performOp(ctx, ep, s.prng)
+		err = s.performOp(ctx, ep, prng)
 
 		switch err.(type) {
 		case nil:
