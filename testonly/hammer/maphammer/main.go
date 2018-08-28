@@ -58,6 +58,7 @@ var (
 	retryErrors     = flag.Bool("retry_errors", false, "Whether to retry failed operations")
 	opDeadline      = flag.Duration("op_deadline", 60*time.Second, "How long to wait for operation success")
 	emitInterval    = flag.Duration("emit_interval", 0, "How often to output the Hammer state")
+	keepFailedTree  = flag.Bool("keep_failed_tree", false, "Whether to preserve ephemeral trees on failed run")
 )
 var (
 	getLeavesBias    = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
@@ -192,6 +193,7 @@ func main() {
 			NumCheckers:       *checkers,
 			RetryErrors:       *retryErrors,
 			OperationDeadline: *opDeadline,
+			KeepFailedTree:    *keepFailedTree,
 		}
 		fmt.Printf("%v\n\n", cfg)
 		wg.Add(1)
