@@ -163,6 +163,9 @@ type MapConfig struct {
 	// to run.  Note that the behaviour of these checkers is not governed by
 	// RandSource.
 	NumCheckers int
+	// KeepFailedTree indicates whether ephemeral trees should be left intact
+	// after a failed hammer run.
+	KeepFailedTree bool
 }
 
 // String conforms with Stringer for MapConfig.
@@ -174,6 +177,7 @@ func (c MapConfig) String() string {
 // HitMap performs load/stress operations according to given config.
 func HitMap(cfg MapConfig) error {
 	ctx := context.Background()
+	var firstErr error
 
 	if cfg.MapID == 0 {
 		// No mapID provided, so create an ephemeral tree to test against.
@@ -184,6 +188,10 @@ func HitMap(cfg MapConfig) error {
 		}
 		glog.Infof("testing against ephemeral tree %d", cfg.MapID)
 		defer func() {
+			if firstErr != nil && cfg.KeepFailedTree {
+				glog.Errorf("note: leaving ephemeral tree %d intact after error %v", cfg.MapID, firstErr)
+				return
+			}
 			if err := destroyMap(ctx, cfg.Admin, cfg.MapID); err != nil {
 				glog.Errorf("failed to destroy map with treeID %d: %v", cfg.MapID, err)
 			}
@@ -233,7 +241,6 @@ func HitMap(cfg MapConfig) error {
 
 	// Wait for first error, completion (which shows up as a nil error) or
 	// external cancellation.
-	var firstErr error
 	select {
 	case <-ctx.Done():
 		glog.Infof("%d: context canceled", cfg.MapID)
