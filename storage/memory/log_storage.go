@@ -17,6 +17,7 @@ package memory
 import (
 	"container/list"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -229,12 +230,15 @@ type logTreeTX struct {
 	slr  trillian.SignedLogRoot
 }
 
-func (t *logTreeTX) ReadRevision() int64 {
-	return int64(t.root.Revision)
+func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
+	return int64(t.root.Revision), nil
 }
 
-func (t *logTreeTX) WriteRevision() int64 {
-	return t.treeTX.writeRevision
+func (t *logTreeTX) WriteRevision(ctx context.Context) (int64, error) {
+	if t.treeTX.writeRevision < 0 {
+		return t.treeTX.writeRevision, errors.New("logTreeTX write revision not populated")
+	}
+	return t.treeTX.writeRevision, nil
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {

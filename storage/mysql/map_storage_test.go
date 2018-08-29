@@ -166,8 +166,9 @@ func TestMapReadWriteTransaction(t *testing.T) {
 				if err := mapRoot.UnmarshalBinary(root.MapRoot); err != nil {
 					t.Fatalf("UmarshalBinary(): %v", err)
 				}
-				if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
-					t.Errorf("WriteRevision() = %v, want = %v", got, want)
+				gotRev, _ := tx.WriteRevision(ctx)
+				if gotRev != test.wantTXRev {
+					t.Errorf("WriteRevision() = %v, want = %v", gotRev, test.wantTXRev)
 				}
 				if got, want := int64(mapRoot.Revision), test.wantRev; got != want {
 					t.Errorf("TreeRevision() = %v, want = %v", got, want)

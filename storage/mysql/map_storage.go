@@ -17,6 +17,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -161,12 +162,15 @@ type mapTreeTX struct {
 	readRevision int64
 }
 
-func (m *mapTreeTX) ReadRevision() int64 {
-	return int64(m.readRevision)
+func (m *mapTreeTX) ReadRevision(ctx context.Context) (int64, error) {
+	return int64(m.readRevision), nil
 }
 
-func (m *mapTreeTX) WriteRevision() int64 {
-	return m.treeTX.writeRevision
+func (m *mapTreeTX) WriteRevision(ctx context.Context) (int64, error) {
+	if m.treeTX.writeRevision < 0 {
+		return m.treeTX.writeRevision, errors.New("mapTreeTX write revision not populated")
+	}
+	return m.treeTX.writeRevision, nil
 }
 
 func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error {

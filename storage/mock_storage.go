@@ -522,15 +522,16 @@ func (mr *MockLogTreeTXMockRecorder) QueueLeaves(arg0, arg1, arg2 interface{}) *
 }
 
 // ReadRevision mocks base method
-func (m *MockLogTreeTX) ReadRevision() int64 {
-	ret := m.ctrl.Call(m, "ReadRevision")
+func (m *MockLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
+	ret := m.ctrl.Call(m, "ReadRevision", arg0)
 	ret0, _ := ret[0].(int64)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ReadRevision indicates an expected call of ReadRevision
-func (mr *MockLogTreeTXMockRecorder) ReadRevision() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockLogTreeTX)(nil).ReadRevision))
+func (mr *MockLogTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockLogTreeTX)(nil).ReadRevision), arg0)
 }
 
 // Rollback mocks base method
@@ -582,15 +583,16 @@ func (mr *MockLogTreeTXMockRecorder) UpdateSequencedLeaves(arg0, arg1 interface{
 }
 
 // WriteRevision mocks base method
-func (m *MockLogTreeTX) WriteRevision() int64 {
-	ret := m.ctrl.Call(m, "WriteRevision")
+func (m *MockLogTreeTX) WriteRevision(arg0 context.Context) (int64, error) {
+	ret := m.ctrl.Call(m, "WriteRevision", arg0)
 	ret0, _ := ret[0].(int64)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // WriteRevision indicates an expected call of WriteRevision
-func (mr *MockLogTreeTXMockRecorder) WriteRevision() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteRevision", reflect.TypeOf((*MockLogTreeTX)(nil).WriteRevision))
+func (mr *MockLogTreeTXMockRecorder) WriteRevision(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteRevision", reflect.TypeOf((*MockLogTreeTX)(nil).WriteRevision), arg0)
 }
 
 // MockMapStorage is a mock of MapStorage interface
@@ -778,15 +780,16 @@ func (mr *MockMapTreeTXMockRecorder) LatestSignedMapRoot(arg0 interface{}) *gomo
 }
 
 // ReadRevision mocks base method
-func (m *MockMapTreeTX) ReadRevision() int64 {
-	ret := m.ctrl.Call(m, "ReadRevision")
+func (m *MockMapTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
+	ret := m.ctrl.Call(m, "ReadRevision", arg0)
 	ret0, _ := ret[0].(int64)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ReadRevision indicates an expected call of ReadRevision
-func (mr *MockMapTreeTXMockRecorder) ReadRevision() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockMapTreeTX)(nil).ReadRevision))
+func (mr *MockMapTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockMapTreeTX)(nil).ReadRevision), arg0)
 }
 
 // Rollback mocks base method
@@ -838,15 +841,16 @@ func (mr *MockMapTreeTXMockRecorder) StoreSignedMapRoot(arg0, arg1 interface{}) 
 }
 
 // WriteRevision mocks base method
-func (m *MockMapTreeTX) WriteRevision() int64 {
-	ret := m.ctrl.Call(m, "WriteRevision")
+func (m *MockMapTreeTX) WriteRevision(arg0 context.Context) (int64, error) {
+	ret := m.ctrl.Call(m, "WriteRevision", arg0)
 	ret0, _ := ret[0].(int64)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // WriteRevision indicates an expected call of WriteRevision
-func (mr *MockMapTreeTXMockRecorder) WriteRevision() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteRevision", reflect.TypeOf((*MockMapTreeTX)(nil).WriteRevision))
+func (mr *MockMapTreeTXMockRecorder) WriteRevision(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteRevision", reflect.TypeOf((*MockMapTreeTX)(nil).WriteRevision), arg0)
 }
 
 // MockReadOnlyAdminTX is a mock of ReadOnlyAdminTX interface
@@ -1182,15 +1186,16 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{
 }
 
 // ReadRevision mocks base method
-func (m *MockReadOnlyLogTreeTX) ReadRevision() int64 {
-	ret := m.ctrl.Call(m, "ReadRevision")
+func (m *MockReadOnlyLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
+	ret := m.ctrl.Call(m, "ReadRevision", arg0)
 	ret0, _ := ret[0].(int64)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ReadRevision indicates an expected call of ReadRevision
-func (mr *MockReadOnlyLogTreeTXMockRecorder) ReadRevision() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).ReadRevision))
+func (mr *MockReadOnlyLogTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).ReadRevision), arg0)
 }
 
 // Rollback mocks base method
@@ -1317,15 +1322,16 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) LatestSignedMapRoot(arg0 interface{
 }
 
 // ReadRevision mocks base method
-func (m *MockReadOnlyMapTreeTX) ReadRevision() int64 {
-	ret := m.ctrl.Call(m, "ReadRevision")
+func (m *MockReadOnlyMapTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
+	ret := m.ctrl.Call(m, "ReadRevision", arg0)
 	ret0, _ := ret[0].(int64)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ReadRevision indicates an expected call of ReadRevision
-func (mr *MockReadOnlyMapTreeTXMockRecorder) ReadRevision() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).ReadRevision))
+func (mr *MockReadOnlyMapTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).ReadRevision), arg0)
 }
 
 // Rollback mocks base method

@@ -203,7 +203,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	fakeStorage := &stestonly.FakeLogStorage{}
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 
-	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
+	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(params.writeRevision, nil)
 	if params.beginFails {
 		fakeStorage.TXErr = errors.New("TX")
 	} else {
@@ -628,7 +628,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			logTX := storage.NewMockLogTreeTX(ctrl)
 			logTX.EXPECT().DequeueLeaves(any, any, any).Return(test.leaves, nil)
 			logTX.EXPECT().LatestSignedLogRoot(any).Return(*testSignedRoot16, nil)
-			logTX.EXPECT().WriteRevision().AnyTimes().Return(int64(testRoot16.Revision + 1))
+			logTX.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(int64(testRoot16.Revision+1), nil)
 			logTX.EXPECT().UpdateSequencedLeaves(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().SetMerkleNodes(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().StoreSignedLogRoot(any, any).AnyTimes().Return(nil)
