@@ -375,7 +375,11 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 
 	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
 	// against.
-	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, tx.ReadRevision(), 0, nodeFetches)
+	rev, err := tx.ReadRevision(ctx)
+	if err != nil {
+		return nil, err
+	}
+	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, rev, 0, nodeFetches)
 	if err != nil {
 		return nil, err
 	}
@@ -653,7 +657,11 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 		return trillian.Proof{}, err
 	}
 
-	return fetchNodesAndBuildProof(ctx, tx, hasher, tx.ReadRevision(), leafIndex, proofNodeIDs)
+	rev, err := tx.ReadRevision(ctx)
+	if err != nil {
+		return trillian.Proof{}, err
+	}
+	return fetchNodesAndBuildProof(ctx, tx, hasher, rev, leafIndex, proofNodeIDs)
 }
 
 func (t *TrillianLogRPCServer) getTreeAndHasher(

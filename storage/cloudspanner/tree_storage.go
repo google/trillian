@@ -306,22 +306,22 @@ func (t *treeTX) IsOpen() bool {
 
 // ReadRevision returns the tree revision at which the currently visible (taking
 // into account read-staleness) STH was stored.
-func (t *treeTX) ReadRevision() int64 {
-	sth, err := t.currentSTH(context.TODO())
+func (t *treeTX) ReadRevision(ctx context.Context) (int64, error) {
+	sth, err := t.currentSTH(ctx)
 	if err != nil {
-		panic(err)
+		return -1, err
 	}
-	return sth.TreeRevision
+	return sth.TreeRevision, nil
 }
 
 // WriteRevision returns the tree revision at which any tree-modifying
 // operations will write.
-func (t *treeTX) WriteRevision() int64 {
-	rev, err := t.writeRev(context.TODO())
+func (t *treeTX) WriteRevision(ctx context.Context) (int64, error) {
+	rev, err := t.writeRev(ctx)
 	if err != nil {
-		panic(err)
+		return -1, err
 	}
-	return rev
+	return rev, nil
 }
 
 // nodeIDToKey returns a []byte suitable for use as a primary key column for

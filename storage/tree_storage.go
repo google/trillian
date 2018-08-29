@@ -31,7 +31,7 @@ type ReadOnlyTreeTX interface {
 
 	// ReadRevision returns the tree revision that was current at the time this
 	// transaction was started.
-	ReadRevision() int64
+	ReadRevision(ctx context.Context) (int64, error)
 
 	// Commit attempts to commit any reads performed under this transaction.
 	Commit() error
@@ -65,7 +65,7 @@ type TreeWriter interface {
 	SetMerkleNodes(ctx context.Context, nodes []Node) error
 
 	// WriteRevision returns the tree revision that any writes through this TreeTX will be stored at.
-	WriteRevision() int64
+	WriteRevision(ctx context.Context) (int64, error)
 }
 
 // DatabaseChecker performs connectivity checks on the database.

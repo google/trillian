@@ -384,7 +384,10 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		// The schema should prevent multiple STHs being inserted with the same
 		// revision number so it should not be possible for colliding updates to
 		// commit.
-		newVersion := tx.WriteRevision()
+		newVersion, err := tx.WriteRevision(ctx)
+		if err != nil {
+			return err
+		}
 		if got, want := newVersion, int64(currentRoot.Revision)+1; got != want {
 			return fmt.Errorf("%v: got writeRevision of %v, but expected %v", tree.TreeId, got, want)
 		}

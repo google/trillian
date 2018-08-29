@@ -207,11 +207,15 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 	var newRoot *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
-		glog.V(2).Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
+		writeRev, err := tx.WriteRevision(ctx)
+		if err != nil {
+			return err
+		}
+		glog.V(2).Infof("%v: Writing at revision %v", mapID, writeRev)
 		smtWriter, err := merkle.NewSparseMerkleTreeWriter(
 			ctx,
 			req.MapId,
-			tx.WriteRevision(),
+			writeRev,
 			hasher, func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 				return t.registry.MapStorage.ReadWriteTransaction(ctx, tree, f)
 			})
@@ -253,7 +257,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return fmt.Errorf("CalculateRoot(): %v", err)
 		}
 
-		newRoot, err = t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, req.MapId, tx.WriteRevision(), req.Metadata)
+		newRoot, err = t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, req.MapId, writeRev, req.Metadata)
 		if err != nil {
 			return fmt.Errorf("makeSignedMapRoot(): %v", err)
 		}

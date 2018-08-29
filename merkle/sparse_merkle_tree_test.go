@@ -87,7 +87,7 @@ func runOnProducer(tx storage.MapTreeTX) func(context.Context, func(context.Cont
 
 func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, treeID, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
-	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
+	tx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(rev, nil)
 	tx.EXPECT().Close().MinTimes(1)
 	tree, err := NewSparseMerkleTreeWriter(ctx, treeID, rev, maphasher.Default, runOnProducer(tx))
 	if err != nil {
