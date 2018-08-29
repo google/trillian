@@ -48,7 +48,7 @@ func (mt *MasterTracker) Set(id string, val bool) {
 	defer mt.mu.Unlock()
 	existing, ok := mt.masterFor[id]
 	if ok && val == existing {
-		glog.Warningf("toggle masterFor[%d] from %v to %v!", id, existing, val)
+		glog.Warningf("toggle masterFor[%s] from %v to %v!", id, existing, val)
 	}
 	mt.masterFor[id] = val
 	if val && !existing {

@@ -881,7 +881,7 @@ func (tx *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 		ids = append(ids, id)
 		return nil
 	}); err != nil {
-		glog.Warning("GetActiveLogIDs: %v", err)
+		glog.Warningf("GetActiveLogIDs: %v", err)
 		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
 	}
 	return ids, nil
