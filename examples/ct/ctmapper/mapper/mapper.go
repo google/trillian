@@ -111,7 +111,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	domains := make(map[string]ctmapperpb.EntryList)
 	for _, entry := range logEntries {
 		if entry.Leaf.LeafType != ct.TimestampedEntryLeafType {
-			glog.Info("Skipping unknown entry type %v at %d", entry.Leaf.LeafType, entry.Index)
+			glog.Infof("Skipping unknown entry type %v at %d", entry.Leaf.LeafType, entry.Index)
 			continue
 		}
 		if entry.Index > mapperMetadata.HighestFullyCompletedSeq {
