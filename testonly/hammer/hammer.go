@@ -458,27 +458,33 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 
+	var firstErr error
 	seed := s.prng.Int63()
 	done := false
 	for !done {
 		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
 		prng := rand.New(rand.NewSource(seed))
 		reqs.Inc(s.label(), string(ep))
-		err = s.performOp(ctx, ep, prng)
+		err := s.performOp(ctx, ep, prng)
 
 		switch err.(type) {
 		case nil:
 			rsps.Inc(s.label(), string(ep))
+			firstErr = nil
 			done = true
 		case errSkip:
-			err = nil
+			firstErr = nil
 			done = true
 		case errInvariant:
 			// Ensure invariant failures are not ignorable.  They indicate a design assumption
 			// being broken or incorrect, so must be seen.
+			firstErr = err
 			done = true
 		default:
 			errs.Inc(s.label(), string(ep))
+			if firstErr == nil {
+				firstErr = err
+			}
 			if s.cfg.RetryErrors {
 				glog.Warningf("%d: op %v failed (will retry): %v", s.cfg.MapID, ep, err)
 			} else {
@@ -487,11 +493,11 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		}
 
 		if time.Now().After(deadline) {
-			glog.Warningf("%d: gave up on operation %v after %v, returning last err %v", s.cfg.MapID, ep, s.cfg.OperationDeadline, err)
+			glog.Warningf("%d: gave up on operation %v after %v, returning first err %v", s.cfg.MapID, ep, s.cfg.OperationDeadline, firstErr)
 			done = true
 		}
 	}
-	return err
+	return firstErr
 }
 
 func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
