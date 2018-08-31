@@ -21,6 +21,11 @@ services:
     build:
       context: ../..
       dockerfile: examples/deployment/docker/log_server/Dockerfile
+    entrypoint: [
+      "/trillian_log_server",
+      "--storage_system=mysql",
+      "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
+    ]
     restart: always # retry while mysql is starting up
     ports:
       - "8090:8090"
@@ -31,6 +36,11 @@ services:
     build:
       context: ../..
       dockerfile: examples/deployment/docker/log_signer/Dockerfile
+    entrypoint: [
+      "/trillian_log_signer",
+      "--storage_system=mysql",
+      "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
+    ]
     restart: always # retry while mysql is starting up
     ports:
       - "8092:8091"
