@@ -40,6 +40,7 @@ services:
       "/trillian_log_signer",
       "--storage_system=mysql",
       "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
+      "--force_master",
     ]
     restart: always # retry while mysql is starting up
     ports:
