@@ -56,6 +56,8 @@ type indexAndHash struct {
 	hash  []byte
 }
 
+type leafGenerator func() (*indexAndHash, error)
+
 // rootHashOrError represents a (sub-)tree root hash, or an error which
 // prevented the calculation from completing.
 // TODO(gdbelvin): represent an empty subtree with a nil hash?
@@ -94,9 +96,9 @@ type subtreeWriter struct {
 	// remainingDepths holds the levels below this subtree.
 	remainingDepths []int
 
-	// leafQueue is the work-queue containing leaves to be integrated into the
-	// subtree.
-	leafQueue chan func() (*indexAndHash, error)
+	// leafGeneratorQueue is the queue containing generators of leaves
+	// to be integrated into the subtree.
+	leafGeneratorQueue chan leafGenerator
 
 	// root is channel of size 1 from which the subtree root can be read once it
 	// has been calculated.
@@ -139,9 +141,9 @@ func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix
 		s.children[childPrefixStr] = subtree
 
 		// Since a new subtree worker is being created we'll add a future to
-		// to the leafQueue such that calculation of *this* subtree's root will
+		// to the leafGeneratorQueue such that calculation of *this* subtree's root will
 		// incorporate the newly calculated child subtree root.
-		s.leafQueue <- func() (*indexAndHash, error) {
+		s.leafGeneratorQueue <- func() (*indexAndHash, error) {
 			// RootHash blocks until the root is available (or it's errored out)
 			h, err := subtree.RootHash()
 			if err != nil {
@@ -176,7 +178,7 @@ func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) 
 		return subtree.SetLeaf(ctx, index, hash)
 
 	default: // depth == absSubtreeDepth:
-		s.leafQueue <- func() (*indexAndHash, error) {
+		s.leafGeneratorQueue <- func() (*indexAndHash, error) {
 			return &indexAndHash{index: index, hash: hash}, nil
 		}
 		return nil
@@ -184,9 +186,9 @@ func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) 
 }
 
 // CalculateRoot initiates the process of calculating the subtree root.
-// The leafQueue is closed.
+// The leafGeneratorQueue is closed.
 func (s *subtreeWriter) CalculateRoot() {
-	close(s.leafQueue)
+	close(s.leafGeneratorQueue)
 
 	for _, v := range s.children {
 		v.CalculateRoot()
@@ -210,8 +212,8 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		leaves := make([]HStar2LeafHash, 0, queueSize)
 		nodesToStore := make([]storage.Node, 0, queueSize*2)
 
-		for leaf := range s.leafQueue {
-			ih, err := leaf()
+		for leafGenerator := range s.leafGeneratorQueue {
+			ih, err := leafGenerator()
 			if err != nil {
 				return err
 			}
@@ -317,14 +319,14 @@ func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte
 		treeID:       treeID,
 		treeRevision: rev,
 		// TODO(al): figure out if we actually need these copies and remove it not.
-		prefix:          append(make([]byte, 0, len(prefix)), prefix...),
-		subtreeDepth:    depths[0],
-		remainingDepths: depths[1:],
-		leafQueue:       make(chan func() (*indexAndHash, error), leafQueueSize(depths)),
-		root:            make(chan rootHashOrError, 1),
-		children:        make(map[string]Subtree),
-		runTX:           runTX,
-		hasher:          h,
+		prefix:             append(make([]byte, 0, len(prefix)), prefix...),
+		subtreeDepth:       depths[0],
+		remainingDepths:    depths[1:],
+		leafGeneratorQueue: make(chan leafGenerator, leafQueueSize(depths)),
+		root:               make(chan rootHashOrError, 1),
+		children:           make(map[string]Subtree),
+		runTX:              runTX,
+		hasher:             h,
 	}
 
 	// TODO(al): probably shouldn't be spawning go routines willy-nilly like
