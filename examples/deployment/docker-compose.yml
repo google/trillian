@@ -31,7 +31,7 @@ services:
       - "8090:8090"
       - "8091:8091"
     depends_on:
-      - mysql
+      - trillian-db-seed
   trillian-log-signer:
     build:
       context: ../..
@@ -46,4 +46,5 @@ services:
     ports:
       - "8092:8091"
     depends_on:
-      - mysql
+      - trillian-db-seed
+
