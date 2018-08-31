@@ -82,9 +82,6 @@ type Subtree interface {
 	RootHash() ([]byte, error)
 }
 
-// getSubtreeFunc is essentially a factory method for getting child subtrees.
-type getSubtreeFunc func(ctx context.Context, prefix []byte) (Subtree, error)
-
 // subtreeWriter knows how to calculate and store nodes for a subtree.
 type subtreeWriter struct {
 	treeID int64
@@ -94,6 +91,8 @@ type subtreeWriter struct {
 
 	// subtreeDepth is the number of levels this subtree contains.
 	subtreeDepth int
+	// remainingDepths holds the levels below this subtree.
+	remainingDepths []int
 
 	// leafQueue is the work-queue containing leaves to be integrated into the
 	// subtree.
@@ -113,8 +112,11 @@ type subtreeWriter struct {
 	treeRevision int64
 
 	hasher hashers.MapHasher
+}
 
-	getSubtree getSubtreeFunc
+func (s *subtreeWriter) newChildSubtreeWriter(ctx context.Context, p []byte) (Subtree, error) {
+	myPrefix := bytes.Join([][]byte{s.prefix, p}, []byte{})
+	return newLocalSubtreeWriter(ctx, s.treeID, s.treeRevision, myPrefix, s.remainingDepths, s.runTX, s.hasher)
 }
 
 // getOrCreateChildSubtree returns, or creates and returns, a subtree for the
@@ -130,7 +132,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix
 	subtree := s.children[childPrefixStr]
 	var err error
 	if subtree == nil {
-		subtree, err = s.getSubtree(ctx, cp)
+		subtree, err = s.newChildSubtreeWriter(ctx, cp)
 		if err != nil {
 			return nil, err
 		}
@@ -315,17 +317,14 @@ func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte
 		treeID:       treeID,
 		treeRevision: rev,
 		// TODO(al): figure out if we actually need these copies and remove it not.
-		prefix:       append(make([]byte, 0, len(prefix)), prefix...),
-		subtreeDepth: depths[0],
-		leafQueue:    make(chan func() (*indexAndHash, error), leafQueueSize(depths)),
-		root:         make(chan rootHashOrError, 1),
-		children:     make(map[string]Subtree),
-		runTX:        runTX,
-		hasher:       h,
-		getSubtree: func(ctx context.Context, p []byte) (Subtree, error) {
-			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
-			return newLocalSubtreeWriter(ctx, treeID, rev, myPrefix, depths[1:], runTX, h)
-		},
+		prefix:          append(make([]byte, 0, len(prefix)), prefix...),
+		subtreeDepth:    depths[0],
+		remainingDepths: depths[1:],
+		leafQueue:       make(chan func() (*indexAndHash, error), leafQueueSize(depths)),
+		root:            make(chan rootHashOrError, 1),
+		children:        make(map[string]Subtree),
+		runTX:           runTX,
+		hasher:          h,
 	}
 
 	// TODO(al): probably shouldn't be spawning go routines willy-nilly like
