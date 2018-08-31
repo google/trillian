@@ -57,6 +57,7 @@ var (
 		trillian.HashStrategy_TEST_MAP_HASHER:       spannerpb.HashStrategy_TEST_MAP_HASHER,
 		trillian.HashStrategy_OBJECT_RFC6962_SHA256: spannerpb.HashStrategy_OBJECT_RFC6962_SHA256,
 		trillian.HashStrategy_CONIKS_SHA512_256:     spannerpb.HashStrategy_CONIKS_SHA512_256,
+		trillian.HashStrategy_CONIKS_SHA256:         spannerpb.HashStrategy_CONIKS_SHA256,
 	}
 	hashAlgMap = map[sigpb.DigitallySigned_HashAlgorithm]spannerpb.HashAlgorithm{
 		sigpb.DigitallySigned_SHA256: spannerpb.HashAlgorithm_SHA256,

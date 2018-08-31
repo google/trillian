@@ -32,10 +32,8 @@ func request_TrillianLog_QueueLeaf_0(ctx context.Context, marshaler runtime.Mars
 	var protoReq QueueLeafRequest
 	var metadata runtime.ServerMetadata
 
-	if req.ContentLength > 0 {
-		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-		}
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	var (
@@ -65,10 +63,8 @@ func request_TrillianLog_AddSequencedLeaf_0(ctx context.Context, marshaler runti
 	var protoReq AddSequencedLeafRequest
 	var metadata runtime.ServerMetadata
 
-	if req.ContentLength > 0 {
-		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-		}
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	var (
@@ -371,14 +367,14 @@ func RegisterTrillianLogHandlerFromEndpoint(ctx context.Context, mux *runtime.Se
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -392,8 +388,8 @@ func RegisterTrillianLogHandler(ctx context.Context, mux *runtime.ServeMux, conn
 	return RegisterTrillianLogHandlerClient(ctx, mux, NewTrillianLogClient(conn))
 }
 
-// RegisterTrillianLogHandler registers the http handlers for service TrillianLog to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "TrillianLogClient".
+// RegisterTrillianLogHandlerClient registers the http handlers for service TrillianLog
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "TrillianLogClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "TrillianLogClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "TrillianLogClient" to call the correct interceptors.

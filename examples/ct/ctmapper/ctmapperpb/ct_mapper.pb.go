@@ -26,7 +26,7 @@ type MapperMetadata struct {
 	SourceLogId []byte `protobuf:"bytes,1,opt,name=source_log_id,json=sourceLogId,proto3" json:"source_log_id,omitempty"`
 	// Log Index in the source log of the highest entry mapped
 	// in an earlier run.
-	HighestFullyCompletedSeq int64    `protobuf:"varint,2,opt,name=highest_fully_completed_seq,json=highestFullyCompletedSeq" json:"highest_fully_completed_seq,omitempty"`
+	HighestFullyCompletedSeq int64    `protobuf:"varint,2,opt,name=highest_fully_completed_seq,json=highestFullyCompletedSeq,proto3" json:"highest_fully_completed_seq,omitempty"`
 	XXX_NoUnkeyedLiteral     struct{} `json:"-"`
 	XXX_unrecognized         []byte   `json:"-"`
 	XXX_sizecache            int32    `json:"-"`
@@ -76,13 +76,13 @@ func (m *MapperMetadata) GetHighestFullyCompletedSeq() int64 {
 // reference a particular domain.
 type EntryList struct {
 	// The domain referenced by entries in the mapped CT Log.
-	Domain string `protobuf:"bytes,1,opt,name=domain" json:"domain,omitempty"`
+	Domain string `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
 	// All log indexes of mapped Log entries referencing domain in
 	// X.509 certs.
-	CertIndex []int64 `protobuf:"varint,2,rep,packed,name=cert_index,json=certIndex" json:"cert_index,omitempty"`
+	CertIndex []int64 `protobuf:"varint,2,rep,packed,name=cert_index,json=certIndex,proto3" json:"cert_index,omitempty"`
 	// All log indexes of mapped Log entries referencing domain in
 	// pre-certs.
-	PrecertIndex         []int64  `protobuf:"varint,3,rep,packed,name=precert_index,json=precertIndex" json:"precert_index,omitempty"`
+	PrecertIndex         []int64  `protobuf:"varint,3,rep,packed,name=precert_index,json=precertIndex,proto3" json:"precert_index,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

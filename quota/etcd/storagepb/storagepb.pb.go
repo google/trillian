@@ -57,9 +57,9 @@ func (Config_State) EnumDescriptor() ([]byte, []int) {
 // quotas/global/read/0 or quotas/trees/$id/read/0.
 type Bucket struct {
 	// Number of tokens left in the bucket.
-	Tokens int64 `protobuf:"varint,1,opt,name=tokens" json:"tokens,omitempty"`
+	Tokens int64 `protobuf:"varint,1,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	// Timestamp of the last time the bucket got replenished.
-	LastReplenishMillisSinceEpoch int64    `protobuf:"varint,2,opt,name=last_replenish_millis_since_epoch,json=lastReplenishMillisSinceEpoch" json:"last_replenish_millis_since_epoch,omitempty"`
+	LastReplenishMillisSinceEpoch int64    `protobuf:"varint,2,opt,name=last_replenish_millis_since_epoch,json=lastReplenishMillisSinceEpoch,proto3" json:"last_replenish_millis_since_epoch,omitempty"`
 	XXX_NoUnkeyedLiteral          struct{} `json:"-"`
 	XXX_unrecognized              []byte   `json:"-"`
 	XXX_sizecache                 int32    `json:"-"`
@@ -107,7 +107,7 @@ func (m *Bucket) GetLastReplenishMillisSinceEpoch() int64 {
 // Stored at quotas/configs.
 type Configs struct {
 	// Known quota configurations.
-	Configs              []*Config `protobuf:"bytes,1,rep,name=configs" json:"configs,omitempty"`
+	Configs              []*Config `protobuf:"bytes,1,rep,name=configs,proto3" json:"configs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -147,11 +147,11 @@ func (m *Configs) GetConfigs() []*Config {
 // Configuration of a quota.
 type Config struct {
 	// Name of the config, eg, “quotas/trees/1234/read/config”.
-	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// State of the config.
-	State Config_State `protobuf:"varint,2,opt,name=state,enum=storagepb.Config_State" json:"state,omitempty"`
+	State Config_State `protobuf:"varint,2,opt,name=state,proto3,enum=storagepb.Config_State" json:"state,omitempty"`
 	// Max number of tokens available for the config.
-	MaxTokens int64 `protobuf:"varint,3,opt,name=max_tokens,json=maxTokens" json:"max_tokens,omitempty"`
+	MaxTokens int64 `protobuf:"varint,3,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
 	// Replenishment strategy used by the config.
 	//
 	// Types that are valid to be assigned to ReplenishmentStrategy:
@@ -187,27 +187,6 @@ func (m *Config) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Config proto.InternalMessageInfo
 
-type isConfig_ReplenishmentStrategy interface {
-	isConfig_ReplenishmentStrategy()
-}
-
-type Config_SequencingBased struct {
-	SequencingBased *SequencingBasedStrategy `protobuf:"bytes,4,opt,name=sequencing_based,json=sequencingBased,oneof"`
-}
-type Config_TimeBased struct {
-	TimeBased *TimeBasedStrategy `protobuf:"bytes,5,opt,name=time_based,json=timeBased,oneof"`
-}
-
-func (*Config_SequencingBased) isConfig_ReplenishmentStrategy() {}
-func (*Config_TimeBased) isConfig_ReplenishmentStrategy()       {}
-
-func (m *Config) GetReplenishmentStrategy() isConfig_ReplenishmentStrategy {
-	if m != nil {
-		return m.ReplenishmentStrategy
-	}
-	return nil
-}
-
 func (m *Config) GetName() string {
 	if m != nil {
 		return m.Name
@@ -227,6 +206,29 @@ func (m *Config) GetMaxTokens() int64 {
 		return m.MaxTokens
 	}
 	return 0
+}
+
+type isConfig_ReplenishmentStrategy interface {
+	isConfig_ReplenishmentStrategy()
+}
+
+type Config_SequencingBased struct {
+	SequencingBased *SequencingBasedStrategy `protobuf:"bytes,4,opt,name=sequencing_based,json=sequencingBased,proto3,oneof"`
+}
+
+type Config_TimeBased struct {
+	TimeBased *TimeBasedStrategy `protobuf:"bytes,5,opt,name=time_based,json=timeBased,proto3,oneof"`
+}
+
+func (*Config_SequencingBased) isConfig_ReplenishmentStrategy() {}
+
+func (*Config_TimeBased) isConfig_ReplenishmentStrategy() {}
+
+func (m *Config) GetReplenishmentStrategy() isConfig_ReplenishmentStrategy {
+	if m != nil {
+		return m.ReplenishmentStrategy
+	}
+	return nil
 }
 
 func (m *Config) GetSequencingBased() *SequencingBasedStrategy {
@@ -351,9 +353,9 @@ var xxx_messageInfo_SequencingBasedStrategy proto.InternalMessageInfo
 // Time-based replenishment strategy settings.
 type TimeBasedStrategy struct {
 	// Number of tokens to replenish at every replenish_interval_seconds.
-	TokensToReplenish int64 `protobuf:"varint,1,opt,name=tokens_to_replenish,json=tokensToReplenish" json:"tokens_to_replenish,omitempty"`
+	TokensToReplenish int64 `protobuf:"varint,1,opt,name=tokens_to_replenish,json=tokensToReplenish,proto3" json:"tokens_to_replenish,omitempty"`
 	// Interval at which tokens_to_replenish get replenished.
-	ReplenishIntervalSeconds int64    `protobuf:"varint,2,opt,name=replenish_interval_seconds,json=replenishIntervalSeconds" json:"replenish_interval_seconds,omitempty"`
+	ReplenishIntervalSeconds int64    `protobuf:"varint,2,opt,name=replenish_interval_seconds,json=replenishIntervalSeconds,proto3" json:"replenish_interval_seconds,omitempty"`
 	XXX_NoUnkeyedLiteral     struct{} `json:"-"`
 	XXX_unrecognized         []byte   `json:"-"`
 	XXX_sizecache            int32    `json:"-"`

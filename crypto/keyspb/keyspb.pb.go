@@ -90,14 +90,16 @@ type isSpecification_Params interface {
 }
 
 type Specification_EcdsaParams struct {
-	EcdsaParams *Specification_ECDSA `protobuf:"bytes,1,opt,name=ecdsa_params,json=ecdsaParams,oneof"`
+	EcdsaParams *Specification_ECDSA `protobuf:"bytes,1,opt,name=ecdsa_params,json=ecdsaParams,proto3,oneof"`
 }
+
 type Specification_RsaParams struct {
-	RsaParams *Specification_RSA `protobuf:"bytes,2,opt,name=rsa_params,json=rsaParams,oneof"`
+	RsaParams *Specification_RSA `protobuf:"bytes,2,opt,name=rsa_params,json=rsaParams,proto3,oneof"`
 }
 
 func (*Specification_EcdsaParams) isSpecification_Params() {}
-func (*Specification_RsaParams) isSpecification_Params()   {}
+
+func (*Specification_RsaParams) isSpecification_Params() {}
 
 func (m *Specification) GetParams() isSpecification_Params {
 	if m != nil {
@@ -198,7 +200,7 @@ func _Specification_OneofSizer(msg proto.Message) (n int) {
 type Specification_ECDSA struct {
 	// The elliptic curve to use.
 	// Optional. If not set, the default curve will be used.
-	Curve                Specification_ECDSA_Curve `protobuf:"varint,1,opt,name=curve,enum=keyspb.Specification_ECDSA_Curve" json:"curve,omitempty"`
+	Curve                Specification_ECDSA_Curve `protobuf:"varint,1,opt,name=curve,proto3,enum=keyspb.Specification_ECDSA_Curve" json:"curve,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
 	XXX_unrecognized     []byte                    `json:"-"`
 	XXX_sizecache        int32                     `json:"-"`
@@ -240,7 +242,7 @@ type Specification_RSA struct {
 	// Size of the keys in bits. Must be sufficiently large to allow two primes
 	// to be generated.
 	// Optional. If not set, the key size will be chosen by Trillian.
-	Bits                 int32    `protobuf:"varint,1,opt,name=bits" json:"bits,omitempty"`
+	Bits                 int32    `protobuf:"varint,1,opt,name=bits,proto3" json:"bits,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -280,10 +282,10 @@ func (m *Specification_RSA) GetBits() int32 {
 // PEMKeyFile identifies a private key stored in a PEM-encoded file.
 type PEMKeyFile struct {
 	// File path of the private key.
-	Path string `protobuf:"bytes,1,opt,name=path" json:"path,omitempty"`
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	// Password for decrypting the private key.
 	// If empty, indicates that the private key is not encrypted.
-	Password             string   `protobuf:"bytes,2,opt,name=password" json:"password,omitempty"`
+	Password             string   `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -411,11 +413,11 @@ func (m *PublicKey) GetDer() []byte {
 // PKCS11Config identifies a private key accessed using PKCS #11.
 type PKCS11Config struct {
 	// The label of the PKCS#11 token.
-	TokenLabel string `protobuf:"bytes,1,opt,name=token_label,json=tokenLabel" json:"token_label,omitempty"`
+	TokenLabel string `protobuf:"bytes,1,opt,name=token_label,json=tokenLabel,proto3" json:"token_label,omitempty"`
 	// The PIN for the specific token.
-	Pin string `protobuf:"bytes,2,opt,name=pin" json:"pin,omitempty"`
+	Pin string `protobuf:"bytes,2,opt,name=pin,proto3" json:"pin,omitempty"`
 	// The PEM public key assosciated with the private key to be used.
-	PublicKey            string   `protobuf:"bytes,3,opt,name=public_key,json=publicKey" json:"public_key,omitempty"`
+	PublicKey            string   `protobuf:"bytes,3,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

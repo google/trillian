@@ -68,6 +68,9 @@ enum HashStrategy {
 
   // The CONIKS sparse tree hasher with SHA512_256 as the hash algorithm.
   CONIKS_SHA512_256 = 4;
+
+  // The CONIKS sparse tree hasher with SHA256 as the hash algorithm.
+  CONIKS_SHA256 = 5;
 }
 
 // State of the tree.

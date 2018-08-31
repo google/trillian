@@ -30,7 +30,7 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 // No filters or pagination options are provided.
 type ListTreesRequest struct {
 	// If true, deleted trees are included in the response.
-	ShowDeleted          bool     `protobuf:"varint,1,opt,name=show_deleted,json=showDeleted" json:"show_deleted,omitempty"`
+	ShowDeleted          bool     `protobuf:"varint,1,opt,name=show_deleted,json=showDeleted,proto3" json:"show_deleted,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -72,7 +72,7 @@ func (m *ListTreesRequest) GetShowDeleted() bool {
 // returned.
 type ListTreesResponse struct {
 	// Trees matching the list request filters.
-	Tree                 []*Tree  `protobuf:"bytes,1,rep,name=tree" json:"tree,omitempty"`
+	Tree                 []*Tree  `protobuf:"bytes,1,rep,name=tree,proto3" json:"tree,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -112,7 +112,7 @@ func (m *ListTreesResponse) GetTree() []*Tree {
 // GetTree request.
 type GetTreeRequest struct {
 	// ID of the tree to retrieve.
-	TreeId               int64    `protobuf:"varint,1,opt,name=tree_id,json=treeId" json:"tree_id,omitempty"`
+	TreeId               int64    `protobuf:"varint,1,opt,name=tree_id,json=treeId,proto3" json:"tree_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -152,10 +152,10 @@ func (m *GetTreeRequest) GetTreeId() int64 {
 // CreateTree request.
 type CreateTreeRequest struct {
 	// Tree to be created. See Tree and CreateTree for more details.
-	Tree *Tree `protobuf:"bytes,1,opt,name=tree" json:"tree,omitempty"`
+	Tree *Tree `protobuf:"bytes,1,opt,name=tree,proto3" json:"tree,omitempty"`
 	// Describes how the tree's private key should be generated.
 	// Only needs to be set if tree.private_key is not set.
-	KeySpec              *keyspb.Specification `protobuf:"bytes,2,opt,name=key_spec,json=keySpec" json:"key_spec,omitempty"`
+	KeySpec              *keyspb.Specification `protobuf:"bytes,2,opt,name=key_spec,json=keySpec,proto3" json:"key_spec,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -202,10 +202,10 @@ func (m *CreateTreeRequest) GetKeySpec() *keyspb.Specification {
 // UpdateTree request.
 type UpdateTreeRequest struct {
 	// Tree to be updated.
-	Tree *Tree `protobuf:"bytes,1,opt,name=tree" json:"tree,omitempty"`
+	Tree *Tree `protobuf:"bytes,1,opt,name=tree,proto3" json:"tree,omitempty"`
 	// Fields modified by the update request.
 	// For example: "tree_state", "display_name", "description".
-	UpdateMask           *field_mask.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask" json:"update_mask,omitempty"`
+	UpdateMask           *field_mask.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -252,7 +252,7 @@ func (m *UpdateTreeRequest) GetUpdateMask() *field_mask.FieldMask {
 // DeleteTree request.
 type DeleteTreeRequest struct {
 	// ID of the tree to delete.
-	TreeId               int64    `protobuf:"varint,1,opt,name=tree_id,json=treeId" json:"tree_id,omitempty"`
+	TreeId               int64    `protobuf:"varint,1,opt,name=tree_id,json=treeId,proto3" json:"tree_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -292,7 +292,7 @@ func (m *DeleteTreeRequest) GetTreeId() int64 {
 // UndeleteTree request.
 type UndeleteTreeRequest struct {
 	// ID of the tree to undelete.
-	TreeId               int64    `protobuf:"varint,1,opt,name=tree_id,json=treeId" json:"tree_id,omitempty"`
+	TreeId               int64    `protobuf:"varint,1,opt,name=tree_id,json=treeId,proto3" json:"tree_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -435,8 +435,7 @@ func (c *trillianAdminClient) UndeleteTree(ctx context.Context, in *UndeleteTree
 	return out, nil
 }
 
-// Server API for TrillianAdmin service
-
+// TrillianAdminServer is the server API for TrillianAdmin service.
 type TrillianAdminServer interface {
 	// Lists all trees the requester has access to.
 	ListTrees(context.Context, *ListTreesRequest) (*ListTreesResponse, error)

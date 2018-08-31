@@ -45,8 +45,7 @@ func NewTrillianLogSequencerClient(cc *grpc.ClientConn) TrillianLogSequencerClie
 	return &trillianLogSequencerClient{cc}
 }
 
-// Server API for TrillianLogSequencer service
-
+// TrillianLogSequencerServer is the server API for TrillianLogSequencer service.
 type TrillianLogSequencerServer interface {
 }
 

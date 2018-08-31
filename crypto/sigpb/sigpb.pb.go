@@ -85,9 +85,9 @@ func (DigitallySigned_SignatureAlgorithm) EnumDescriptor() ([]byte, []int) {
 // Protocol buffer encoding of the TLS DigitallySigned type, from RFC 5246 §4.7.
 type DigitallySigned struct {
 	// hash_algorithm contains the hash algorithm used.
-	HashAlgorithm DigitallySigned_HashAlgorithm `protobuf:"varint,1,opt,name=hash_algorithm,json=hashAlgorithm,enum=sigpb.DigitallySigned_HashAlgorithm" json:"hash_algorithm,omitempty"`
+	HashAlgorithm DigitallySigned_HashAlgorithm `protobuf:"varint,1,opt,name=hash_algorithm,json=hashAlgorithm,proto3,enum=sigpb.DigitallySigned_HashAlgorithm" json:"hash_algorithm,omitempty"`
 	// sig_algorithm contains the signing algorithm used.
-	SignatureAlgorithm DigitallySigned_SignatureAlgorithm `protobuf:"varint,2,opt,name=signature_algorithm,json=signatureAlgorithm,enum=sigpb.DigitallySigned_SignatureAlgorithm" json:"signature_algorithm,omitempty"`
+	SignatureAlgorithm DigitallySigned_SignatureAlgorithm `protobuf:"varint,2,opt,name=signature_algorithm,json=signatureAlgorithm,proto3,enum=sigpb.DigitallySigned_SignatureAlgorithm" json:"signature_algorithm,omitempty"`
 	// signature contains the object signature.
 	Signature            []byte   `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
