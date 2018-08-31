@@ -1,7 +1,7 @@
 variable "WHITELIST_CIDR" {
   description="Your IP block to whitelist access from"
 }
-variable "DB_PASSWORD" { }
+variable "MYSQL_ROOT_PASSWORD" { }
 
 provider "aws" {
   region     = "us-west-2"
@@ -13,7 +13,7 @@ resource "aws_rds_cluster" "trillian" {
   cluster_identifier      = "trillian"
   database_name           = "test"
   master_username         = "root"
-  master_password         = "${var.DB_PASSWORD}"
+  master_password         = "${var.MYSQL_ROOT_PASSWORD}"
   skip_final_snapshot     = true
   port                    = 3306
   vpc_security_group_ids  = ["${aws_security_group.trillian_db.id}"]
@@ -136,17 +136,19 @@ go get github.com/google/trillian/server/trillian_log_server
 
 # Setup the DB
 cd /go/src/github.com/google/trillian
-export DB_USER=root
-export DB_PASSWORD=${var.DB_PASSWORD}
-export DB_HOST=${aws_rds_cluster.trillian.endpoint}
-export DB_DATABASE=test
-./scripts/resetdb.sh --verbose --force -h $DB_HOST
+export MYSQL_ROOT_USER=root
+export MYSQL_ROOT_PASSWORD=${var.MYSQL_ROOT_PASSWORD}
+export MYSQL_HOST=${aws_rds_cluster.trillian.endpoint}
+export MYSQL_DATABASE=test
+export MYSQL_USER=test
+export MYSQL_PASSWORD=zaphod
+./scripts/resetdb.sh --verbose --force
 
 # Startup the Server
 RPC_PORT=8090
 HTTP_PORT=8091
 /go/bin/trillian_log_server \
-	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
+	--mysql_uri="${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST})/${MYSQL_DATABASE}" \
 	--rpc_endpoint="$HOST:$RPC_PORT" \
 	--http_endpoint="$HOST:$HTTP_PORT" \
 	--alsologtostderr

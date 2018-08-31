@@ -3,13 +3,23 @@
 set -e
 
 usage() {
-  echo "$0 [--force] [--verbose] ..."
-  echo "accepts environment variables:"
-  echo " - DB_NAME"
-  echo " - DB_USER"
-  echo " - DB_PASSWORD"
-  echo " - DB_HOST"
-  echo " - DB_PORT"
+  cat <<EOF
+$(basename $0) [--force] [--verbose] ...
+All unrecognised arguments will be passed through to the 'mysql' command.
+Accepts environment variables:
+- MYSQL_ROOT_USER: A user with sufficient rights to create/reset the Trillian
+  database (default: root).
+- MYSQL_ROOT_PASSWORD: The password for \$MYSQL_ROOT_USER (default: none).
+- MYSQL_HOST: The hostname of the MySQL server (default: localhost).
+- MYSQL_PORT: The port the MySQL server is listening on (default: 3306).
+- MYSQL_DATABASE: The name to give to the new Trillian user and database
+  (default: test).
+- MYSQL_USER: The name to give to the new Trillian user (default: test).
+- MYSQL_PASSWORD: The password to use for the new Trillian user
+  (default: zaphod).
+- MYSQL_USER_HOST: The host that the Trillian user will connect from; use '%' as
+  a wildcard (default: localhost).
+EOF
 }
 
 die() {
@@ -19,10 +29,13 @@ die() {
 
 collect_vars() {
   # set unset environment variables to defaults
-  [ -z ${DB_USER+x} ] && DB_USER="root"
-  [ -z ${DB_NAME+x} ] && DB_NAME="test"
-  [ -z ${DB_HOST+x} ] && DB_HOST="localhost"
-  [ -z ${DB_PORT+x} ] && DB_PORT="3306"
+  [ -z ${MYSQL_ROOT_USER+x} ] && MYSQL_ROOT_USER="root"
+  [ -z ${MYSQL_HOST+x} ] && MYSQL_HOST="localhost"
+  [ -z ${MYSQL_PORT+x} ] && MYSQL_PORT="3306"
+  [ -z ${MYSQL_DATABASE+x} ] && MYSQL_DATABASE="test"
+  [ -z ${MYSQL_USER+x} ] && MYSQL_USER="test"
+  [ -z ${MYSQL_PASSWORD+x} ] && MYSQL_PASSWORD="zaphod"
+  [ -z ${MYSQL_USER_HOST+x} ] && MYSQL_USER_HOST="localhost"
   FLAGS=()
 
   # handle flags
@@ -32,20 +45,21 @@ collect_vars() {
     case "$1" in
       --force) FORCE=true ;;
       --verbose) VERBOSE=true ;;
+      --help) usage; exit ;;
       *) FLAGS+=("$1")
     esac
     shift 1
   done
 
-  FLAGS+=(-u "${DB_USER}")
-  FLAGS+=(--host "${DB_HOST}")
-  FLAGS+=(--port "${DB_PORT}")
+  FLAGS+=(-u "${MYSQL_ROOT_USER}")
+  FLAGS+=(--host "${MYSQL_HOST}")
+  FLAGS+=(--port "${MYSQL_PORT}")
 
   # Optionally print flags (before appending password)
   [[ ${VERBOSE} = 'true' ]] && echo "- Using MySQL Flags: ${FLAGS[@]}"
 
   # append password if supplied
-  [ -z ${DB_PASSWORD+x} ] || FLAGS+=(-p"${DB_PASSWORD}")
+  [ -z ${MYSQL_ROOT_PASSWORD+x} ] || FLAGS+=(-p"${MYSQL_ROOT_PASSWORD}")
 }
 
 main() {
@@ -54,7 +68,7 @@ main() {
   readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 
   # what we're about to do
-  echo "Warning: about to destroy and reset database '${DB_NAME}'"
+  echo "Warning: about to destroy and reset database '${MYSQL_DATABASE}'"
 
   [[ ${FORCE} = true ]] || read -p "Are you sure? [Y/N]: " -n 1 -r
   echo # Print newline following the above prompt
@@ -62,16 +76,16 @@ main() {
   if [ -z ${REPLY+x} ] || [[ $REPLY =~ ^[Yy]$ ]]
   then
       echo "Resetting DB..."
-      mysql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${DB_NAME};" || \
-        die "Error: Failed to drop database '${DB_NAME}'."
-      mysql "${FLAGS[@]}" -e "CREATE DATABASE ${DB_NAME};" || \
-        die "Error: Failed to create database '${DB_NAME}'."
-      mysql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${DB_NAME}@'localhost' IDENTIFIED BY 'zaphod';" || \
-        die "Error: Failed to create user '${DB_NAME}'."
-      mysql "${FLAGS[@]}" -e "GRANT ALL ON ${DB_NAME}.* TO ${DB_NAME}@'localhost'" || \
-        die "Error: Failed to grant '${DB_NAME}' user all privileges on '${DB_NAME}'."
-      mysql "${FLAGS[@]}" -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql || \
-        die "Error: Failed to create tables in '${DB_NAME}' database."
+      mysql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${MYSQL_DATABASE};" || \
+        die "Error: Failed to drop database '${MYSQL_DATABASE}'."
+      mysql "${FLAGS[@]}" -e "CREATE DATABASE ${MYSQL_DATABASE};" || \
+        die "Error: Failed to create database '${MYSQL_DATABASE}'."
+      mysql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${MYSQL_USER}@'${MYSQL_USER_HOST}' IDENTIFIED BY '${MYSQL_PASSWORD}';" || \
+        die "Error: Failed to create user '${MYSQL_USER}@${MYSQL_USER_HOST}'."
+      mysql "${FLAGS[@]}" -e "GRANT ALL ON ${MYSQL_DATABASE}.* TO ${MYSQL_USER}@'${MYSQL_USER_HOST}'" || \
+        die "Error: Failed to grant '${MYSQL_USER}' user all privileges on '${MYSQL_DATABASE}'."
+      mysql "${FLAGS[@]}" -D ${MYSQL_DATABASE} < ${TRILLIAN_PATH}/storage/mysql/storage.sql || \
+        die "Error: Failed to create tables in '${MYSQL_DATABASE}' database."
       echo "Reset Complete"
   fi
 }
