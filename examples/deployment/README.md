@@ -29,7 +29,7 @@ schema and the trillian server.
 
 ```shell
 # Set a random password
-export DB_PASSWORD="$(openssl rand -hex 16)"
+export MYSQL_ROOT_PASSWORD="$(openssl rand -hex 16)"
 
 # Bring up services defined in this compose file.  This includes:
 # - local MySQL database
