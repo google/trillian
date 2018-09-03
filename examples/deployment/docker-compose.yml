@@ -27,6 +27,7 @@ services:
       "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
       "--rpc_endpoint=0.0.0.0:8090",
       "--http_endpoint=0.0.0.0:8091",
+      "--alsologtostderr",
     ]
     restart: always # retry while mysql is starting up
     ports:
@@ -45,6 +46,7 @@ services:
       "--rpc_endpoint=0.0.0.0:8090",
       "--http_endpoint=0.0.0.0:8091",
       "--force_master",
+      "--alsologtostderr",
     ]
     restart: always # retry while mysql is starting up
     ports:
