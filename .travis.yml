@@ -96,8 +96,7 @@ script:
       if [[ -n ${status} ]]; then
         echo "Regenerated files differ from checked-in versions: ${status}"
         git status
-        git diff
-        exit 1
+        git diff --exit-code
       fi
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
