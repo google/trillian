@@ -1,13 +1,14 @@
-Deploying Trillian
-==================
+# Deploying Trillian
 
-Want to deploy/use the Trillian General Transparency project in the cloud?  Here are some common ways of getting off the ground with Docker.
+Want to deploy/use the Trillian General Transparency project in the cloud? Here
+are some common ways of getting off the ground with Docker.
 
 ## Setup
 
 **Clone Source**
 
-Both build and example deployment files are stored within this repo.  For any of the below deployment methods, start here:
+Both build and example deployment files are stored within this repo. For any of
+the below deployment methods, start here:
 
 ```shell
 git clone https://github.com/google/trillian.git/
@@ -18,9 +19,13 @@ cd trillian
 
 **Run With Docker Compose**
 
-For simple deployments, running in a container is an easy way to get up and running with a local database.  To use Docker to run and interact with Trillian, start here:
+For simple deployments, running in a container is an easy way to get up and
+running with a local database. To use Docker to run and interact with Trillian,
+start here:
 
-Set a random password and bring up the services defined in the provided compose file.  This includes a local MySQL database, a one-shot container to create the schema and the trillian server:
+Set a random password and bring up the services defined in the provided compose
+file. This includes a local MySQL database, a one-shot container to create the
+schema and the trillian server:
 
 ```shell
 # Set a random password
@@ -41,7 +46,8 @@ curl localhost:8091/metrics
 
 ## Cloud Deployments
 
-For better persistence and performance you may want to run in your datacenter or a cloud.  Here are some simple cloud deployment templates:
+For better persistence and performance you may want to run in your datacenter or
+a cloud. Here are some simple cloud deployment templates:
 
 ### Run in GCP
 
@@ -49,7 +55,9 @@ TODO
 
 ### Run in AWS
 
-With a pair of AWS keys [accessible to Terraform](https://www.terraform.io/docs/providers/aws/), this template deploys a simple Trillian setup in AWS using EC2 and RDS MySQL.
+With a pair of AWS keys
+[accessible to Terraform](https://www.terraform.io/docs/providers/aws/), this
+template deploys a simple Trillian setup in AWS using EC2 and RDS MySQL.
 
 ```shell
 cd examples/deployment/aws/
