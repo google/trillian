@@ -63,15 +63,15 @@ main() {
   then
       echo "Resetting DB..."
       mysql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${DB_NAME};" || \
-        die "Error: Failed to drop database."
+        die "Error: Failed to drop database '${DB_NAME}'."
       mysql "${FLAGS[@]}" -e "CREATE DATABASE ${DB_NAME};" || \
-        die "Error: Failed to create database."
+        die "Error: Failed to create database '${DB_NAME}'."
       mysql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${DB_NAME}@'localhost' IDENTIFIED BY 'zaphod';" || \
-        die "Error: Failed to create user."
+        die "Error: Failed to create user '${DB_NAME}'."
       mysql "${FLAGS[@]}" -e "GRANT ALL ON ${DB_NAME}.* TO ${DB_NAME}@'localhost'" || \
-        die "Error: Failed to grant user privileges."
+        die "Error: Failed to grant '${DB_NAME}' user all privileges on '${DB_NAME}'."
       mysql "${FLAGS[@]}" -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql || \
-        die "Error: Failed to create tables."
+        die "Error: Failed to create tables in '${DB_NAME}' database."
       echo "Reset Complete"
   fi
 }
