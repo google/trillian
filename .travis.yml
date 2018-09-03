@@ -103,6 +103,23 @@ script:
       ./trillian/integration/integration_test.sh
       cd $HOME/gopath/src/github.com/google/trillian
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
+  - |
+      MYSQL_ROOT_PASSWORD="zaphod" \
+        docker-compose -f examples/deployment/docker-compose.yml up --build -d
+      # Wait until /healthz returns HTTP 200 and the text "ok", or fail after 60
+      # seconds. That should be long enough for the server to start.
+      health=$(wget --retry-connrefused --timeout 60 --output-document - \
+        http://127.0.0.1:8091/healthz)
+      health_exitcode=$?
+      if [[ ${health_exitcode} = 0 ]]; then
+        echo "Health: ${health}"
+      fi
+      if [[ ${health_exitcode} != 0 || "${health}" != "ok" ]]; then
+        echo "Docker logs:"
+        docker-compose -f examples/deployment/docker-compose.yml logs
+        travis_terminate 1
+      fi
+      docker-compose -f examples/deployment/docker-compose.yml down
   - set +e
 
 after_success:
