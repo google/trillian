@@ -89,15 +89,10 @@ script:
   - export GO_TEST_TIMEOUT=20m
   - ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
   - |
-      # Check re-generation didn't change anything
-      # Skip protoc-generated files (.pb.go) because protoc is not deterministic
-      # when generating file descriptors.
-      status=$(git status --porcelain | grep -v .pb.go | grep -v _string.go) || :
-      if [[ -n ${status} ]]; then
-        echo "Regenerated files differ from checked-in versions: ${status}"
-        git status
-        git diff --exit-code
-      fi
+      # Check re-generation didn't change anything. Skip protoc-generated files
+      # because protoc is not deterministic when generating file descriptors.
+      echo "Checking that generated files are the same as checked-in versions."
+      git diff -- ':!*.pb.go' ':!*_string.go' --exit-code
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
         export ETCD_DIR="${GOPATH}/bin"
