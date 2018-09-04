@@ -67,7 +67,6 @@ main() {
 
   readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 
-  # what we're about to do
   echo "Warning: about to destroy and reset database '${MYSQL_DATABASE}'"
 
   [[ ${FORCE} = true ]] || read -p "Are you sure? [Y/N]: " -n 1 -r
