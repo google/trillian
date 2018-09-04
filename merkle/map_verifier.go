@@ -88,7 +88,7 @@ func VerifyMapInclusionProof(treeID int64, index, leaf, expectedRoot []byte, pro
 	}
 
 	if got, want := runningHash, expectedRoot; !bytes.Equal(got, want) {
-		return fmt.Errorf("calculated root: %x, want \n%x", got, want)
+		return fmt.Errorf("calculated root: %x, want: %x", got, want)
 	}
 	return nil
 }

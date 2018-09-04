@@ -470,6 +470,9 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		switch err.(type) {
 		case nil:
 			rsps.Inc(s.label(), string(ep))
+			if firstErr != nil {
+				glog.Warningf("%d: retry of op %v succeeded, previous error: %v", s.cfg.MapID, ep, firstErr)
+			}
 			firstErr = nil
 			done = true
 		case errSkip:
@@ -604,11 +607,11 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 
 	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to verify root: %v", err)
 	}
 	for _, inc := range rsp.MapLeafInclusion {
 		if err := s.verifier.VerifyMapLeafInclusionHash(root.RootHash, inc); err != nil {
-			return err
+			return fmt.Errorf("failed to verify inclusion proof for Index=%x: %v", inc.Leaf.Index, err)
 		}
 	}
 
