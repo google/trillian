@@ -8,7 +8,7 @@ are some common ways of getting off the ground with Docker.
 **Clone Source**
 
 Both build and example deployment files are stored within this repo. For any of
-the below deployment methods, start here:
+the below deployment methods, start by cloning the repo.
 
 ```shell
 git clone https://github.com/google/trillian.git/
@@ -21,11 +21,11 @@ cd trillian
 
 For simple deployments, running in a container is an easy way to get up and
 running with a local database. To use Docker to run and interact with Trillian,
-start here:
+start here.
 
 Set a random password and bring up the services defined in the provided compose
 file. This includes a local MySQL database, a one-shot container to create the
-schema and the trillian server:
+schema and the trillian server.
 
 ```shell
 # Set a random password
@@ -38,7 +38,7 @@ export DB_PASSWORD="$(openssl rand -hex 16)"
 docker-compose -f examples/deployment/docker-compose.yml up
 ```
 
-Verify that your local installation is working by checking the metrics endpoint:
+Verify that your local installation is working by checking the metrics endpoint.
 
 ```shell
 curl localhost:8091/metrics
@@ -47,7 +47,7 @@ curl localhost:8091/metrics
 ## Cloud Deployments
 
 For better persistence and performance you may want to run in your datacenter or
-a cloud. Here are some simple cloud deployment templates:
+a cloud.
 
 ### Run in GCP
 
