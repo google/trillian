@@ -64,6 +64,8 @@ var (
 	tracingPercent   = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
+
+	useSingleTransaction = flag.Bool("single_transaction", false, "Experimental: use a single transaction when updating the map")
 )
 
 func main() {
@@ -132,7 +134,10 @@ func main() {
 			return nil
 		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
-			mapServer := server.NewTrillianMapServer(registry)
+			mapServer := server.NewTrillianMapServer(registry,
+				server.TrillianMapServerOptions{
+					UseSingleTransaction: *useSingleTransaction,
+				})
 			if err := mapServer.IsHealthy(); err != nil {
 				return err
 			}

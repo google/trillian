@@ -217,7 +217,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			req.MapId,
 			writeRev,
 			hasher, func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-				return t.registry.MapStorage.ReadWriteTransaction(ctx, tree, f)
+				return f(ctx, tx)
+				//return t.registry.MapStorage.ReadWriteTransaction(ctx, tree, f)
 			})
 		if err != nil {
 			return err
