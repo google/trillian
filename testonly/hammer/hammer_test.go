@@ -29,12 +29,15 @@ import (
 	_ "github.com/google/trillian/merkle/maphasher" // register TEST_MAP_HASHER
 )
 
-var operations = flag.Uint64("operations", 20, "Number of operations to perform")
+var (
+	operations = flag.Uint64("operations", 20, "Number of operations to perform")
+	singleTX   = flag.Bool("single_transaction", false, "Experimental: whether to use a single transaction when updating the map")
+)
 
 func TestInProcessMapHammer(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	env, err := integration.NewMapEnv(ctx)
+	env, err := integration.NewMapEnv(ctx, *singleTX)
 	if err != nil {
 		t.Fatal(err)
 	}
