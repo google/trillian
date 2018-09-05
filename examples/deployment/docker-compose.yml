@@ -17,6 +17,8 @@ services:
       - MYSQL_PASSWORD=zaphod
       - MYSQL_USER_HOST=%
     command: ./wait-for-it.sh -t 0 mysql:3306 -- ./scripts/resetdb.sh --verbose --force
+    depends_on:
+      - mysql
   trillian-log-server:
     build:
       context: ../..
