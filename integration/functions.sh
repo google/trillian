@@ -289,6 +289,7 @@ map_prep_test() {
     ./trillian_map_server \
       --rpc_endpoint="localhost:${port}" \
       --http_endpoint="localhost:${http}" \
+      --single_transaction=true \
       --alsologtostderr \
       &
     pid=$!
