@@ -104,8 +104,7 @@ script:
       cd $HOME/gopath/src/github.com/google/trillian
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
   - |
-      MYSQL_ROOT_PASSWORD="zaphod" \
-        docker-compose -f examples/deployment/docker-compose.yml up --build -d
+      docker-compose -f examples/deployment/docker-compose.yml up --build -d
       # Wait until /healthz returns HTTP 200 and the text "ok", or fail after 60
       # seconds. That should be long enough for the server to start.
       health=$(wget --retry-connrefused --timeout 60 --output-document - \
