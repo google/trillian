@@ -27,7 +27,10 @@ import (
 	_ "github.com/google/trillian/merkle/maphasher"
 )
 
-var server = flag.String("map_rpc_server", "", "Server address:port")
+var (
+	server   = flag.String("map_rpc_server", "", "Server address:port")
+	singleTX = flag.Bool("single_transaction", false, "Experimental: whether to update the map in a single transaction")
+)
 
 func TestMapIntegration(t *testing.T) {
 
@@ -38,7 +41,7 @@ func TestMapIntegration(t *testing.T) {
 		if !testdb.MySQLAvailable() {
 			t.Skip("Skipping map integration test, MySQL not available")
 		}
-		env, err = integration.NewMapEnv(ctx)
+		env, err = integration.NewMapEnv(ctx, *singleTX)
 	} else {
 		env, err = integration.NewMapEnvFromConn(*server)
 	}

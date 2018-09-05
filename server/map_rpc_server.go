@@ -46,14 +46,23 @@ var (
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify
 // any tree.
 
+// TrillianMapServerOptions allows various options to be provided when creating
+// a new TrillianMapServer.
+type TrillianMapServerOptions struct {
+	// UseSingleTransaction specifies whether updates to a map should be
+	// attempted within a single transaction.
+	UseSingleTransaction bool
+}
+
 // TrillianMapServer implements the RPC API defined in the proto
 type TrillianMapServer struct {
 	registry extension.Registry
+	opts     TrillianMapServerOptions
 }
 
 // NewTrillianMapServer creates a new RPC server backed by registry
-func NewTrillianMapServer(registry extension.Registry) *TrillianMapServer {
-	return &TrillianMapServer{registry}
+func NewTrillianMapServer(registry extension.Registry, opts TrillianMapServerOptions) *TrillianMapServer {
+	return &TrillianMapServer{registry, opts}
 }
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
@@ -205,6 +214,12 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 	ctx = trees.NewContext(ctx, tree)
 
+	if t.opts.UseSingleTransaction {
+		glog.Infof("EXP: Using experimental single-transaction mode")
+	}
+
+	txRolledUp := 0
+
 	var newRoot *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 		writeRev, err := tx.WriteRevision(ctx)
@@ -217,8 +232,12 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			req.MapId,
 			writeRev,
 			hasher, func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-				return f(ctx, tx)
-				//return t.registry.MapStorage.ReadWriteTransaction(ctx, tree, f)
+				if t.opts.UseSingleTransaction {
+					glog.V(1).Infof("EXP: using single tx")
+					txRolledUp++
+					return f(ctx, tx)
+				}
+				return t.registry.MapStorage.ReadWriteTransaction(ctx, tree, f)
 			})
 		if err != nil {
 			return err
@@ -251,6 +270,10 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			}); err != nil {
 				return err
 			}
+		}
+
+		if t.opts.UseSingleTransaction {
+			glog.Infof("EXP: rolled %d transactions up into single commit", txRolledUp)
 		}
 
 		rootHash, err := smtWriter.CalculateRoot()
