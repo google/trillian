@@ -3,14 +3,14 @@ services:
   mysql:
     image: mariadb:10.1
     environment:
-      - MYSQL_ROOT_PASSWORD
+      - MYSQL_ROOT_PASSWORD=zaphod
   trillian-db-seed:
     build:
       context: ../..
       dockerfile: ./examples/deployment/docker/db_client/Dockerfile
     environment:
       - MYSQL_ROOT_USER=root
-      - MYSQL_ROOT_PASSWORD
+      - MYSQL_ROOT_PASSWORD=zaphod
       - MYSQL_HOST=mysql
       - MYSQL_DATABASE=test
       - MYSQL_USER=test
