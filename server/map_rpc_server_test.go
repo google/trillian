@@ -44,6 +44,8 @@ func TestIsHealthy(t *testing.T) {
 		{"unhealthy", errors.New("DB not happy")},
 	}
 
+	opts := TrillianMapServerOptions{}
+
 	for _, test := range tests {
 		fakeStorage := storage.NewMockMapStorage(ctrl)
 		fakeStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
@@ -51,7 +53,7 @@ func TestIsHealthy(t *testing.T) {
 		server := NewTrillianMapServer(extension.Registry{
 			AdminStorage: fakeAdminStorageForMap(ctrl, 1, mapID1),
 			MapStorage:   fakeStorage,
-		})
+		}, opts)
 
 		wantErr := test.accessibleErr != nil
 		err := server.IsHealthy()
@@ -98,7 +100,7 @@ func TestInitMap(t *testing.T) {
 			server := NewTrillianMapServer(extension.Registry{
 				AdminStorage: fakeAdminStorageForMap(ctrl, 2, mapID1),
 				MapStorage:   fakeStorage,
-			})
+			}, TrillianMapServerOptions{})
 
 			c, err := server.InitMap(ctx, &trillian.InitMapRequest{
 				MapId: mapID1,
@@ -138,7 +140,7 @@ func TestGetSignedMapRoot_NotInitialised(t *testing.T) {
 	server := NewTrillianMapServer(extension.Registry{
 		MapStorage:   fakeStorage,
 		AdminStorage: fakeAdmin,
-	})
+	}, TrillianMapServerOptions{})
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
 	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
@@ -206,7 +208,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			server := NewTrillianMapServer(extension.Registry{
 				AdminStorage: adminStorage,
 				MapStorage:   fakeStorage,
-			})
+			}, TrillianMapServerOptions{})
 
 			smrResp, err := server.GetSignedMapRoot(ctx, test.req)
 
@@ -237,7 +239,7 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 	server := NewTrillianMapServer(extension.Registry{
 		MapStorage:   fakeStorage,
 		AdminStorage: adminStorage,
-	})
+	}, TrillianMapServerOptions{})
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
 	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
@@ -315,7 +317,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			server := NewTrillianMapServer(extension.Registry{
 				AdminStorage: adminStorage,
 				MapStorage:   fakeStorage,
-			})
+			}, TrillianMapServerOptions{})
 
 			smrResp, err := server.GetSignedMapRootByRevision(ctx, test.req)
 

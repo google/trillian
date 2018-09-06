@@ -67,7 +67,7 @@ func NewMapEnvFromConn(addr string) (*MapEnv, error) {
 }
 
 // NewMapEnv creates a fresh DB, map server, and client.
-func NewMapEnv(ctx context.Context) (*MapEnv, error) {
+func NewMapEnv(ctx context.Context, singleTX bool) (*MapEnv, error) {
 	if !testdb.MySQLAvailable() {
 		return nil, errors.New("no MySQL available")
 	}
@@ -87,7 +87,7 @@ func NewMapEnv(ctx context.Context) (*MapEnv, error) {
 		},
 	}
 
-	ret, err := NewMapEnvWithRegistry(registry)
+	ret, err := NewMapEnvWithRegistry(registry, singleTX)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -98,7 +98,9 @@ func NewMapEnv(ctx context.Context) (*MapEnv, error) {
 
 // NewMapEnvWithRegistry uses the passed in Registry to create a map server and
 // client.
-func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
+// If singleTX is set, the map will attempt to use a single transaction when
+// updating the map data.
+func NewMapEnvWithRegistry(registry extension.Registry, singleTX bool) (*MapEnv, error) {
 	addr, lis, err := listen()
 	if err != nil {
 		return nil, err
@@ -113,7 +115,7 @@ func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
 			ti.UnaryInterceptor,
 		)),
 	)
-	mapServer := server.NewTrillianMapServer(registry)
+	mapServer := server.NewTrillianMapServer(registry, server.TrillianMapServerOptions{UseSingleTransaction: singleTX})
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
 	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry, nil /* allowedTreeTypes */))
 	go grpcServer.Serve(lis)
