@@ -424,5 +424,9 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 	// Wait for the workers to consume all of the logIDs.
 	wg.Wait()
 	d := util.SecondsSince(e.info.TimeSource, startBatch)
-	glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, failCount, itemCount)
+	if itemCount > 0 {
+		glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, failCount, itemCount)
+	} else {
+		glog.V(1).Infof("Group run completed in %.2f seconds: no items to process", d)
+	}
 }
