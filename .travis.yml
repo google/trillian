@@ -118,6 +118,11 @@ script:
         docker-compose -f examples/deployment/docker-compose.yml logs
         travis_terminate 1
       fi
+      if ! ./integration/log_integration_test.sh 127.0.0.1:8090; then
+        echo "Docker logs:"
+        docker-compose -f examples/deployment/docker-compose.yml logs
+        travis_terminate 1
+      fi
       docker-compose -f examples/deployment/docker-compose.yml down
   - set +e
 
