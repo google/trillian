@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/trillian"
@@ -62,7 +63,10 @@ type TrillianMapServer struct {
 
 // NewTrillianMapServer creates a new RPC server backed by registry
 func NewTrillianMapServer(registry extension.Registry, opts TrillianMapServerOptions) *TrillianMapServer {
-	return &TrillianMapServer{registry, opts}
+	if opts.UseSingleTransaction {
+		glog.Warning("Using experimental single-transaction mode for map server.")
+	}
+	return &TrillianMapServer{registry: registry, opts: opts}
 }
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
@@ -214,11 +218,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	if t.opts.UseSingleTransaction {
-		glog.Infof("EXP: Using experimental single-transaction mode")
-	}
-
-	txRolledUp := 0
+	txRolledUp := uint64(0)
 
 	var newRoot *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
@@ -233,8 +233,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			writeRev,
 			hasher, func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 				if t.opts.UseSingleTransaction {
-					glog.V(1).Infof("EXP: using single tx")
-					txRolledUp++
+					glog.V(1).Infof("Using enclosing tx for subtree operation %d", atomic.LoadUint64(&txRolledUp))
+					atomic.AddUint64(&txRolledUp, 1)
 					return f(ctx, tx)
 				}
 				return t.registry.MapStorage.ReadWriteTransaction(ctx, tree, f)
@@ -273,7 +273,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 
 		if t.opts.UseSingleTransaction {
-			glog.Infof("EXP: rolled %d transactions up into single commit", txRolledUp)
+			glog.V(1).Infof("Rolled %d transactions up into single commit", atomic.LoadUint64(&txRolledUp))
 		}
 
 		rootHash, err := smtWriter.CalculateRoot()
