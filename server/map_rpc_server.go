@@ -148,14 +148,10 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 			found++
 		} else {
 			// Empty leaf for proof of non-existence.
-			leafHash, err := hasher.HashLeaf(mapID, index, nil)
-			if err != nil {
-				return nil, fmt.Errorf("HashLeaf(nil): %v", err)
-			}
 			leaf = &trillian.MapLeaf{
 				Index:     index,
 				LeafValue: nil,
-				LeafHash:  leafHash,
+				LeafHash:  nil, // equivalent to hasher.HashEmpty(mapID, index, 0)
 			}
 		}
 
@@ -246,12 +242,6 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		for _, l := range req.Leaves {
 			if err := checkIndexSize(l.Index, hasher); err != nil {
 				return err
-			}
-			if l.LeafValue == nil {
-				// Leaves are empty by default. Do not allow clients to store
-				// empty leaf values as this messes up the calculation of empty
-				// branches.
-				continue
 			}
 			leafHash, err := hasher.HashLeaf(mapID, l.Index, l.LeafValue)
 			if err != nil {
