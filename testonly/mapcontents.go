@@ -17,6 +17,7 @@ package testonly
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/hashers"
 )
 
 // ErrInvariant indicates that an invariant check failed, with details in msg.
@@ -125,6 +127,114 @@ func (m *MapContents) UpdatedWith(rev uint64, leaves []*trillian.MapLeaf) *MapCo
 	}
 
 	return &result
+}
+
+type bitString struct {
+	data   [sha256.Size]byte
+	bitLen int
+}
+
+var topBitsMask = map[int]byte{0: 0x00, 1: 0x80, 2: 0xc0, 3: 0xe0, 4: 0xf0, 5: 0xf8, 6: 0xfc, 7: 0xfe}
+
+func truncateToNBits(in bitString, bitLen int) bitString {
+	if bitLen > in.bitLen {
+		panic(fmt.Sprintf("truncating %d bits to %d bits!", in.bitLen, bitLen))
+	}
+	// Wipe bits so hashing/comparison works.
+	byteCount := (bitLen + 7) / 8 // includes partial bytes
+	result := bitString{bitLen: bitLen}
+	copy(result.data[:], in.data[:byteCount])
+
+	topBitsToKeep := (bitLen % 8)
+
+	if topBitsToKeep > 0 {
+		mask := topBitsMask[topBitsToKeep]
+		result.data[byteCount-1] &= mask
+	}
+	return result
+}
+
+func extendByABit(in bitString, bitValue int) bitString {
+	result := bitString{data: in.data, bitLen: in.bitLen + 1}
+	index := in.bitLen / 8
+	mask := byte(1 << (7 - uint(in.bitLen%8)))
+	if bitValue == 0 {
+		mask = ^mask
+		result.data[index] &= mask
+	} else {
+		result.data[index] |= mask
+	}
+	return result
+}
+
+// RootHash performs a slow and simple calculation of the root hash for a sparse
+// Merkle tree with the given leaf contents.
+func (m *MapContents) RootHash(treeID int64, hasher hashers.MapHasher) ([]byte, error) {
+	// Watch out for completely empty trees
+	if m == nil || len(m.data) == 0 {
+		return hasher.HashEmpty(treeID, []byte{}, hasher.BitLen()), nil
+	}
+	// First do the leaves, as they're special.
+	curBitLen := hasher.BitLen()
+	curHeight := 0
+	curHashes := make(map[bitString][]byte)
+	for k, v := range m.data {
+		prefixKey := bitString{bitLen: curBitLen}
+		copy(prefixKey.data[:], k[:])
+		var err error
+		curHashes[prefixKey], err = hasher.HashLeaf(treeID, k[:], []byte(v))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for curBitLen > 0 {
+		curBitLen--
+		curHeight++
+		nextHashes := make(map[bitString][]byte)
+		for k := range curHashes {
+			// If k is an index with bit pattern xyzw, the parent node will have an
+			// index with bit pattern xyz (one bit shorter).
+			shorterK := truncateToNBits(k, curBitLen)
+			if _, ok := nextHashes[shorterK]; ok {
+				// We may have both xyz0 and xyz1 in curHashes, in which case
+				// we will see the shortened form xyz twice.  This is the second
+				// time around.
+				continue
+			}
+			// Look up both possible extensions of the shortened form; at least
+			// one (k itself) should be in curHashes.
+			shorterKWith0 := extendByABit(shorterK, 0)
+			shorterKWith1 := extendByABit(shorterK, 1)
+			hL, okL := curHashes[shorterKWith0]
+			hR, okR := curHashes[shorterKWith1]
+			if !okL && !okR {
+				panic(fmt.Sprintf("neither child non-empty for parent of k=%x/%d!", k.data, k.bitLen))
+			}
+			// Either extension may be absent from curHashes, which implies it has
+			// the default hash value for the current level.
+			if !okL {
+				hL = hasher.HashEmpty(treeID, shorterKWith0.data[:], curHeight-1)
+			}
+			if !okR {
+				hR = hasher.HashEmpty(treeID, shorterKWith1.data[:], curHeight-1)
+			}
+			nextHashes[shorterK] = hasher.HashChildren(hL, hR)
+		}
+		curHashes = nextHashes
+	}
+
+	// At the end of the process we should be left with a single key {data: []byte{}, bitLen: 0}
+	// and the root hash is the corresponding value.
+	if len(curHashes) != 1 {
+		return nil, fmt.Errorf("reached top of tree but not a single hash (%d)", len(curHashes))
+	}
+	root := bitString{bitLen: 0}
+	rootHash, ok := curHashes[root]
+	if !ok {
+		return nil, errors.New("missing entry for root hash")
+	}
+	return rootHash, nil
 }
 
 // How many copies of map contents to hold on to.
