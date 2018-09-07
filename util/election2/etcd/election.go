@@ -51,6 +51,7 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 	// by WithMastership will reliably terminate).
 	cctx, cancel := context.WithCancel(ctx)
 	ch := e.election.Observe(cctx)
+	etcdRev := e.election.Rev() // The revision at which e became the master.
 
 	// Verify mastership before returning context.
 	select {
@@ -58,7 +59,7 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 		cancel()
 		return nil, ctx.Err()
 	case rsp, ok := <-ch:
-		if !ok || string(rsp.Kvs[0].Value) != e.instanceID {
+		if !ok || rsp.Kvs[0].CreateRevision != etcdRev {
 			// Mastership has been overtaken in the meantime, or not capturead at all.
 			cancel()
 			return cctx, nil
@@ -74,8 +75,9 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 		}()
 
 		for rsp := range ch {
-			if string(rsp.Kvs[0].Value) != e.instanceID {
-				glog.Warningf("%s: mastership overtaken", e.resourceID)
+			if rsp.Kvs[0].CreateRevision != etcdRev {
+				conquerorID := string(rsp.Kvs[0].Value)
+				glog.Warningf("%s: mastership overtaken by %s", e.resourceID, conquerorID)
 				break
 			}
 		}
