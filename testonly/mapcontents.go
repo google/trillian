@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hammer
+package testonly
 
 import (
 	"bytes"
@@ -26,24 +26,44 @@ import (
 	"github.com/google/trillian"
 )
 
-// mapContents is a complete copy of the map's contents at a particular revision.
-type mapContents struct {
-	data map[mapKey]string
-	rev  int64
+// ErrInvariant indicates that an invariant check failed, with details in msg.
+type ErrInvariant struct {
+	msg string
 }
+
+func (e ErrInvariant) Error() string {
+	return fmt.Sprintf("Invariant check failed: %v", e.msg)
+}
+
+// MapContents is a complete copy of the map's contents at a particular revision.
+type MapContents struct {
+	Rev  int64
+	data map[mapKey]string
+}
+
 type mapKey [sha256.Size]byte
 
-func (m *mapContents) empty() bool {
+func (m *MapContents) String() string {
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("rev: %d data:", m.Rev))
+	for k, v := range m.data {
+		buf.WriteString(fmt.Sprintf(" k: %x v: %q,", k, v))
+	}
+	return buf.String()
+}
+
+// Empty indicates if the contents are empty.
+func (m *MapContents) Empty() bool {
 	if m == nil {
 		return true
 	}
 	return len(m.data) == 0
 }
 
-// pickKey randomly selects a key that already exists in a given copy of the
+// PickKey randomly selects a key that already exists in a given copy of the
 // map's contents. Assumes that the copy is non-empty.
-func (m *mapContents) pickKey(prng *rand.Rand) []byte {
-	if m.empty() {
+func (m *MapContents) PickKey(prng *rand.Rand) []byte {
+	if m.Empty() {
 		panic("internal error: can't pick a key, map data is empty!")
 	}
 
@@ -59,9 +79,9 @@ func (m *mapContents) pickKey(prng *rand.Rand) []byte {
 	return keys[choice][:]
 }
 
-// checkContents compares information returned from the Map against a local copy
+// CheckContents compares information returned from the Map against a local copy
 // of the map's contents.
-func (m *mapContents) checkContents(leafInclusions []*trillian.MapLeafInclusion, extraSize uint) error {
+func (m *MapContents) CheckContents(leafInclusions []*trillian.MapLeafInclusion, extraSize uint) error {
 	for _, inc := range leafInclusions {
 		leaf := inc.Leaf
 		var key mapKey
@@ -71,7 +91,7 @@ func (m *mapContents) checkContents(leafInclusions []*trillian.MapLeafInclusion,
 			if string(leaf.LeafValue) != value {
 				return fmt.Errorf("got leaf[%v].LeafValue=%q, want %q", key, leaf.LeafValue, value)
 			}
-			if want := extraDataForValue(leaf.LeafValue, extraSize); !bytes.Equal(leaf.ExtraData, want) {
+			if want := ExtraDataForValue(leaf.LeafValue, extraSize); !bytes.Equal(leaf.ExtraData, want) {
 				return fmt.Errorf("got leaf[%v].ExtraData=%q, want %q", key, leaf.ExtraData, want)
 			}
 		} else {
@@ -83,11 +103,11 @@ func (m *mapContents) checkContents(leafInclusions []*trillian.MapLeafInclusion,
 	return nil
 }
 
-// updatedWith returns a new mapContents object that has been updated to include the
+// UpdatedWith returns a new MapContents object that has been updated to include the
 // given leaves and revision.  A nil receiver object is allowed.
-func (m *mapContents) updatedWith(rev uint64, leaves []*trillian.MapLeaf) *mapContents {
+func (m *MapContents) UpdatedWith(rev uint64, leaves []*trillian.MapLeaf) *MapContents {
 	// Start from previous map contents
-	result := mapContents{rev: int64(rev), data: make(map[mapKey]string)}
+	result := MapContents{Rev: int64(rev), data: make(map[mapKey]string)}
 	if m != nil {
 		for k, v := range m.data {
 			result.data[k] = v
@@ -110,33 +130,36 @@ func (m *mapContents) updatedWith(rev uint64, leaves []*trillian.MapLeaf) *mapCo
 // How many copies of map contents to hold on to.
 const copyCount = 10
 
-type versionedMapContents struct {
+// VersionedMapContents holds a collection of copies of a Map's
+// contents across different revisions.
+type VersionedMapContents struct {
 	mu sync.RWMutex
 
 	// contents holds copies of the map at different revisions,
 	// from later to earlier (so [0] is the most recent).
-	contents [copyCount]*mapContents
+	contents [copyCount]*MapContents
 }
 
-func (p *versionedMapContents) empty() bool {
-	return p.lastCopy() == nil
+// Empty indicates whether the most recent map contents are empty.
+func (p *VersionedMapContents) Empty() bool {
+	return p.LastCopy() == nil
 }
 
-// prevCopy returns the specified copy of the map's contents.
-func (p *versionedMapContents) prevCopy(which int) *mapContents {
+// PrevCopy returns the specified copy of the map's contents.
+func (p *VersionedMapContents) PrevCopy(which int) *MapContents {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.contents[which]
 }
 
-// lastCopy returns the most recent copy of the map's contents.
-func (p *versionedMapContents) lastCopy() *mapContents {
-	return p.prevCopy(0)
+// LastCopy returns the most recent copy of the map's contents.
+func (p *VersionedMapContents) LastCopy() *MapContents {
+	return p.PrevCopy(0)
 }
 
-// pickCopy returns a previous copy of the map's contents, returning
-// nil if there are no local copies.
-func (p *versionedMapContents) pickCopy(prng *rand.Rand) *mapContents {
+// PickCopy returns a previous copy of the map's contents at random,
+// returning nil if there are no local copies.
+func (p *VersionedMapContents) PickCopy(prng *rand.Rand) *MapContents {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	// Count the number of filled copies.
@@ -154,43 +177,49 @@ func (p *versionedMapContents) pickCopy(prng *rand.Rand) *mapContents {
 	return p.contents[choice]
 }
 
-func (p *versionedMapContents) updateContentsWith(rev uint64, leaves []*trillian.MapLeaf) error {
+// UpdateContentsWith stores a new copy of the Map's contents, updating the
+// most recent copy with the given leaves.  Returns the updated contents.
+func (p *VersionedMapContents) UpdateContentsWith(rev uint64, leaves []*trillian.MapLeaf) (*MapContents, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	// Sanity check on rev being +ve and monotone increasing.
 	if rev < 1 {
-		return errInvariant{fmt.Sprintf("got rev %d, want >=1 when trying to update hammer state with contents", rev)}
+		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want >=1 when trying to update hammer state with contents", rev)}
 	}
-	if p.contents[0] != nil && int64(rev) <= p.contents[0].rev {
-		return errInvariant{fmt.Sprintf("got rev %d, want >%d when trying to update hammer state with new contents", rev, p.contents[0].rev)}
+	if p.contents[0] != nil && int64(rev) <= p.contents[0].Rev {
+		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want >%d when trying to update hammer state with new contents", rev, p.contents[0].Rev)}
 	}
 
 	// Shuffle earlier contents along.
 	for i := copyCount - 1; i > 0; i-- {
 		p.contents[i] = p.contents[i-1]
 	}
-	p.contents[0] = p.contents[1].updatedWith(rev, leaves)
+	p.contents[0] = p.contents[1].UpdatedWith(rev, leaves)
 
 	if glog.V(3) {
 		p.dumpLockedContents()
 	}
-	return nil
+	return p.contents[0], nil
 }
 
 // dumpLockedContents shows the local copies of the map's contents; it should be called with p.mu held.
-func (p *versionedMapContents) dumpLockedContents() {
+func (p *VersionedMapContents) dumpLockedContents() {
 	fmt.Println("Contents\n~~~~~~~~")
 	for i, c := range p.contents {
 		if c == nil {
 			break
 		}
 		fmt.Printf(" slot #%d\n", i)
-		fmt.Printf("  revision: %d\n", c.rev)
-		fmt.Println("  data:")
-		for k, v := range c.data {
-			fmt.Printf("   k: %s v: %v\n", string(k[:]), v)
-		}
+		fmt.Printf("   %s\n", c)
 	}
 	fmt.Println("~~~~~~~~")
+}
+
+// ExtraDataForValue builds a deterministic value for the extra data to be associated
+// with a given value.
+func ExtraDataForValue(value []byte, sz uint) []byte {
+	result := make([]byte, sz)
+	copy(result, "extra-"+string(value))
+	return result
 }

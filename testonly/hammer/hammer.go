@@ -72,15 +72,6 @@ func (e errSkip) Error() string {
 	return "test operation skipped"
 }
 
-// errInvariant indicates that an invariant check failed, with details in msg.
-type errInvariant struct {
-	msg string
-}
-
-func (e errInvariant) Error() string {
-	return fmt.Sprintf("Invariant check failed: %v", e.msg)
-}
-
 // MapEntrypointName identifies a Map RPC entrypoint
 type MapEntrypointName string
 
@@ -277,7 +268,7 @@ type hammerState struct {
 	prng *rand.Rand
 
 	// copies of earlier contents of the map
-	prevContents versionedMapContents
+	prevContents testonly.VersionedMapContents
 
 	mu sync.RWMutex // Protects everything below
 
@@ -381,12 +372,6 @@ func (s *hammerState) nextValue() []byte {
 	return result
 }
 
-func extraDataForValue(value []byte, sz uint) []byte {
-	result := make([]byte, sz)
-	copy(result, "extra-"+string(value))
-	return result
-}
-
 func (s *hammerState) label() string {
 	return strconv.FormatInt(s.cfg.MapID, 10)
 }
@@ -478,7 +463,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		case errSkip:
 			firstErr = nil
 			done = true
-		case errInvariant:
+		case testonly.ErrInvariant:
 			// Ensure invariant failures are not ignorable.  They indicate a design assumption
 			// being broken or incorrect, so must be seen.
 			firstErr = err
@@ -548,28 +533,28 @@ func (s *hammerState) getLeavesRev(ctx context.Context, prng *rand.Rand) error {
 func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest bool) error {
 	choices := []Choice{ExistingKey, NonexistentKey}
 
-	if s.prevContents.empty() {
+	if s.prevContents.Empty() {
 		glog.V(3).Infof("%d: skipping get-leaves as no data yet", s.cfg.MapID)
 		return errSkip{}
 	}
-	var contents *mapContents
+	var contents *testonly.MapContents
 	if latest {
-		contents = s.prevContents.lastCopy()
+		contents = s.prevContents.LastCopy()
 	} else {
-		contents = s.prevContents.pickCopy(prng)
+		contents = s.prevContents.PickCopy(prng)
 	}
 
 	n := s.chooseLeafCount(prng) // can be zero
 	indices := make([][]byte, n)
 	for i := 0; i < n; i++ {
 		choice := choices[prng.Intn(len(choices))]
-		if contents.empty() {
+		if contents.Empty() {
 			choice = NonexistentKey
 		}
 		switch choice {
 		case ExistingKey:
 			// No duplicate removal, so we can end up asking for same key twice in the same request.
-			key := contents.pickKey(prng)
+			key := contents.PickKey(prng)
 			indices[i] = key
 		case NonexistentKey:
 			indices[i] = testonly.TransparentHash("non-existent-key")
@@ -592,7 +577,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		label += "-rev"
 		req := &trillian.GetMapLeavesByRevisionRequest{
 			MapId:    s.cfg.MapID,
-			Revision: int64(contents.rev),
+			Revision: int64(contents.Rev),
 			Index:    indices,
 		}
 		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
@@ -615,7 +600,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		}
 	}
 
-	if err := contents.checkContents(rsp.MapLeafInclusion, s.cfg.ExtraSize); err != nil {
+	if err := contents.CheckContents(rsp.MapLeafInclusion, s.cfg.ExtraSize); err != nil {
 		return fmt.Errorf("incorrect contents of %s(): %v", label, err)
 	}
 	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
@@ -625,8 +610,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
 	fmt.Println("Rsp key-vals:")
 	for _, inc := range incls {
-		var key mapKey
-		copy(key[:], inc.Leaf.Index)
+		key := inc.Leaf.Index
 		leafVal := inc.Leaf.LeafValue
 		fmt.Printf("k: %v -> v: %v\n", string(key[:]), string(leafVal))
 	}
@@ -651,17 +635,17 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context, prng *rand.Rand) 
 	choices := []Choice{MalformedKey, RevTooBig, RevIsNegative}
 
 	req := trillian.GetMapLeavesByRevisionRequest{MapId: s.cfg.MapID}
-	contents := s.prevContents.lastCopy()
+	contents := s.prevContents.LastCopy()
 	choice := choices[prng.Intn(len(choices))]
 
 	rev := int64(0)
 	var index []byte
-	if contents.empty() {
+	if contents.Empty() {
 		// No contents so we can't choose a key
 		choice = MalformedKey
 	} else {
-		rev = contents.rev
-		index = contents.pickKey(prng)
+		rev = contents.Rev
+		index = contents.PickKey(prng)
 	}
 	switch choice {
 	case MalformedKey:
@@ -691,15 +675,15 @@ func (s *hammerState) setLeaves(ctx context.Context, prng *rand.Rand) error {
 		n = 1
 	}
 	leaves := make([]*trillian.MapLeaf, 0, n)
-	contents := s.prevContents.lastCopy()
+	contents := s.prevContents.LastCopy()
 	rev := int64(0)
 	if contents != nil {
-		rev = contents.rev
+		rev = contents.Rev
 	}
 leafloop:
 	for i := 0; i < n; i++ {
 		choice := choices[prng.Intn(len(choices))]
-		if contents.empty() {
+		if contents.Empty() {
 			choice = CreateLeaf
 		}
 		switch choice {
@@ -709,11 +693,11 @@ leafloop:
 			leaves = append(leaves, &trillian.MapLeaf{
 				Index:     testonly.TransparentHash(key),
 				LeafValue: value,
-				ExtraData: extraDataForValue(value, s.cfg.ExtraSize),
+				ExtraData: testonly.ExtraDataForValue(value, s.cfg.ExtraSize),
 			})
 			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, key, string(value))
 		case UpdateLeaf, DeleteLeaf:
-			key := contents.pickKey(prng)
+			key := contents.PickKey(prng)
 			// Not allowed to have the same key more than once in the same request
 			for _, leaf := range leaves {
 				if bytes.Equal(leaf.Index, key) {
@@ -723,7 +707,7 @@ leafloop:
 			var value, extra []byte
 			if choice == UpdateLeaf {
 				value = s.nextValue()
-				extra = extraDataForValue(value, s.cfg.ExtraSize)
+				extra = testonly.ExtraDataForValue(value, s.cfg.ExtraSize)
 			}
 			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
 			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", s.cfg.MapID, choice, dehash(key), string(value), string(extra))
@@ -744,7 +728,7 @@ leafloop:
 	}
 
 	s.pushSMR(rsp.MapRoot)
-	if err := s.prevContents.updateContentsWith(root.Revision, leaves); err != nil {
+	if _, err := s.prevContents.UpdateContentsWith(root.Revision, leaves); err != nil {
 		return err
 	}
 	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
@@ -758,8 +742,8 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 	value := []byte("value-for-invalid-req")
 
 	choice := choices[prng.Intn(len(choices))]
-	contents := s.prevContents.lastCopy()
-	if contents.empty() {
+	contents := s.prevContents.LastCopy()
+	if contents.Empty() {
 		choice = MalformedKey
 	}
 	switch choice {
@@ -767,7 +751,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 		key := testonly.TransparentHash("..invalid-size")
 		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
 	case DuplicateKey:
-		key := contents.pickKey(prng)
+		key := contents.PickKey(prng)
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 	}
@@ -833,9 +817,9 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) err
 	choices := []Choice{RevTooBig, RevIsNegative}
 
 	rev := latestRevision
-	contents := s.prevContents.lastCopy()
+	contents := s.prevContents.LastCopy()
 	if contents != nil {
-		rev = contents.rev
+		rev = contents.Rev
 	}
 
 	choice := choices[prng.Intn(len(choices))]
