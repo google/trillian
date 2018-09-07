@@ -51,7 +51,9 @@ a cloud.
 
 ### Run in GCP
 
-TODO
+There is a good
+[Medium post by Daz Wilkin](https://medium.com/google-cloud/trillian-on-google-cloud-platform-621a37f2431c)
+that describes the steps to run Trillian on Google Cloud Platform.
 
 ### Run in AWS
 
