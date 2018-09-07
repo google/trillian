@@ -728,8 +728,16 @@ leafloop:
 	}
 
 	s.pushSMR(rsp.MapRoot)
-	if _, err := s.prevContents.UpdateContentsWith(root.Revision, leaves); err != nil {
+	newContents, err := s.prevContents.UpdateContentsWith(root.Revision, leaves)
+	if err != nil {
 		return err
+	}
+	wantRootHash, err := newContents.RootHash(s.cfg.MapID, s.verifier.Hasher)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(root.RootHash, wantRootHash) {
+		return fmt.Errorf("failed to check root hash: got %x, want %x", root.RootHash, wantRootHash)
 	}
 	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
