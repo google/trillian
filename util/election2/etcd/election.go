@@ -52,6 +52,7 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 	cctx, cancel := context.WithCancel(ctx)
 	ch := e.election.Observe(cctx)
 
+	// Verify mastership before returning context.
 	select {
 	case <-ctx.Done():
 		cancel()
