@@ -29,21 +29,18 @@ func init() {
 
 type memProvider struct {
 	mf monitoring.MetricFactory
-	ls storage.LogStorage
-	as storage.AdminStorage
+	ts *memory.TreeStorage
 }
 
 func newMemoryStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
-	ls := memory.NewLogStorage(mf)
 	return &memProvider{
 		mf: mf,
-		ls: ls,
-		as: memory.NewAdminStorage(ls),
+		ts: memory.NewTreeStorage(),
 	}, nil
 }
 
 func (s *memProvider) LogStorage() storage.LogStorage {
-	return s.ls
+	return memory.NewLogStorage(s.ts, s.mf)
 }
 
 func (s *memProvider) MapStorage() storage.MapStorage {
@@ -51,7 +48,7 @@ func (s *memProvider) MapStorage() storage.MapStorage {
 }
 
 func (s *memProvider) AdminStorage() storage.AdminStorage {
-	return s.as
+	return memory.NewAdminStorage(s.ts)
 }
 
 func (s *memProvider) Close() error {
