@@ -24,8 +24,8 @@ func (ne NoopElection) Await(ctx context.Context) error {
 	return nil
 }
 
-// Observe returns the passed in context as a mastership context.
-func (ne NoopElection) Observe(ctx context.Context) (context.Context, error) {
+// WithMastership returns the passed in context as a mastership context.
+func (ne NoopElection) WithMastership(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 

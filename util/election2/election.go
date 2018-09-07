@@ -43,25 +43,25 @@ type Election interface {
 	// might be useful to retry in case of an error.
 	Await(ctx context.Context) error
 
-	// Observe returns a "mastership context" which remains active until the
-	// instance stops being the master, or the passed in context is canceled. If
-	// the instance is not the master during this call, returns an already
-	// canceled context. In particular, this will happen if Observe is called
-	// without a preceding Await.
+	// WithMastership returns a "mastership context" which remains active until
+	// the instance stops being the master, or the passed in context is canceled.
+	// If the instance is not the master during this call, returns an already
+	// canceled context. In particular, this will happen if WithMastership is
+	// called without a preceding Await.
 	//
 	// The resources used for maintaining the mastership context are released
 	// when the latter gets canceled. This happens when the instance loses
 	// mastership, calls Resign, an error occurs in mastership monitoring, or the
-	// context passed in to Observe is explicitly canceled.
-	Observe(ctx context.Context) (context.Context, error)
+	// context passed in to WithMastership is explicitly canceled.
+	WithMastership(ctx context.Context) (context.Context, error)
 
 	// Resign releases mastership for this instance. The instance can be elected
 	// again using Await. Idempotent, might be useful to retry if fails.
 	//
 	// Note: Resign does not guarantee immediate cancelation of the context
-	// returned from Observe. However, the latter will happen *eventually* if
+	// returned from WithMastership. However, the latter will happen *eventually* if
 	// resigning is successful. The caller can force mastership context
-	// cancelation by explicitly canceling the context passed in to Observe.
+	// cancelation by explicitly canceling the context passed in to WithMastership.
 	//
 	// The caller is advised to tear down mastership-related work before invoking
 	// Resign to have best protection against double-master situations.

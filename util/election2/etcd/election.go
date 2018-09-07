@@ -43,12 +43,12 @@ func (e *Election) Await(ctx context.Context) error {
 	return e.election.Campaign(ctx, e.instanceID)
 }
 
-// Observe returns a "mastership context" which remains active until the
+// WithMastership returns a "mastership context" which remains active until the
 // instance stops being the master, or the passed in context is canceled.
-func (e *Election) Observe(ctx context.Context) (context.Context, error) {
+func (e *Election) WithMastership(ctx context.Context) (context.Context, error) {
 	// Get a channel for notifications of election status (using the cancelable
 	// context so that the monitoring goroutine below and the goroutine started
-	// by Observe will reliably terminate).
+	// by WithMastership will reliably terminate).
 	cctx, cancel := context.WithCancel(ctx)
 	ch := e.election.Observe(cctx)
 
