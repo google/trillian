@@ -179,6 +179,8 @@ log_prep_test() {
     http=$(pick_unused_port ${port})
     echo "Starting Log signer, HTTP on localhost:${http}"
     ./trillian_log_signer ${ETCD_OPTS} ${pkcs11_opts} ${logsigner_opts} \
+      --sequencer_interval="1s" \
+      --batch_size=500 \
       --rpc_endpoint="localhost:${port}" \
       --http_endpoint="localhost:${http}" \
       --num_sequencers 2 \
