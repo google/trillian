@@ -39,9 +39,15 @@ type MapHasher interface {
 	// A height of 0 indicates an empty leaf. The maximum height is Size*8.
 	// TODO(gbelvin) fully define index.
 	HashEmpty(treeID int64, index []byte, height int) []byte
-	// HashLeaf computes the hash of a leaf that exists.
+	// HashLeaf computes the hash of a leaf that exists.  This method
+	// is *not* used for computing the hash of a leaf that does not exist
+	// (instead, HashEmpty(treeID, index, 0) is used), as the hash value
+	// can be different between:
+	//  - a leaf that is unset
+	//  - a leaf that has been explicitly set, including set to []byte{}.
 	HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error)
-	// HashChildren computes interior nodes.
+	// HashChildren computes interior nodes, when at least one of the child
+	// subtrees is non-empty.
 	HashChildren(l, r []byte) []byte
 	// Size is the number of bytes in the underlying hash function.
 	// TODO(gbelvin): Replace Size() with BitLength().
