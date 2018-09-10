@@ -105,16 +105,25 @@ func verifyGetMapLeavesResponse(mapVerifier *client.MapVerifier, getResp *trilli
 		return err
 	}
 	for _, incl := range getResp.GetMapLeafInclusion() {
-		leaf := incl.GetLeaf().GetLeafValue()
+		value := incl.GetLeaf().GetLeafValue()
 		index := incl.GetLeaf().GetIndex()
 		leafHash := incl.GetLeaf().GetLeafHash()
 
-		wantLeafHash, err := mapVerifier.Hasher.HashLeaf(mapVerifier.MapID, index, leaf)
+		wantLeafHash, err := mapVerifier.Hasher.HashLeaf(mapVerifier.MapID, index, value)
 		if err != nil {
 			return err
 		}
-		if got, want := leafHash, wantLeafHash; !bytes.Equal(got, want) {
-			return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
+		if !bytes.Equal(leafHash, wantLeafHash) {
+			if len(value) == 0 {
+				// The leaf value is empty; if this is because it has never been set then its
+				// hash value is nominally HashEmpty(index, 0), which is represented as nil
+				// on the API.
+				if len(leafHash) != 0 {
+					return fmt.Errorf("leaf.LeafHash for %s = %x, want %x or nil", value, leafHash, wantLeafHash)
+				}
+			} else {
+				return fmt.Errorf("leaf.LeafHash for %s = %x, want %x", value, leafHash, wantLeafHash)
+			}
 		}
 		if err := mapVerifier.VerifyMapLeafInclusion(getResp.GetMapRoot(), incl); err != nil {
 			return fmt.Errorf("VerifyMapLeafInclusion(%x): %v", index, err)

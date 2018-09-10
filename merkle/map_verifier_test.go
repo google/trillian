@@ -17,6 +17,7 @@ package merkle
 import (
 	"testing"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/testonly"
@@ -34,7 +35,7 @@ func TestConiksHasherTestVectors(t *testing.T) {
 		index  []byte
 		proof  [][]byte
 		root   []byte
-		leaf   []byte
+		value  []byte
 		treeID int64
 	}{
 		{
@@ -57,13 +58,14 @@ func TestConiksHasherTestVectors(t *testing.T) {
 			desc:   "One item, exists proof",
 			index:  h2b("6e39bd1b2aec80f29204d63b9aff74b17cc0255b8e9d6a8fc4c069cfefc01ce9"),
 			proof:  make([][]byte, 256),
-			leaf:   h2b("1290010a4030393264343162666564666665666639376261313963653430356165633433383631333766373435376439303234633537663361333439366630303938366538124c080410031a463044022064cf8e276381a5fc993e471e29463dbebf99b7e361a389024a92c3cb0fa1571402200bb9af4bd2e61fa5e2ea46cd1e653ee0f264703293d4ddd6bc88fc2cde5049181a206e39bd1b2aec80f29204d63b9aff74b17cc0255b8e9d6a8fc4c069cfefc01ce932200f30aff51b696d25d423f0d0fa208efe6038d83133cdc58b8d68f9d30e029efc3a5d0a5b3059301306072a8648ce3d020106082a8648ce3d03010703420004fb154e7698647e912d97b385f280b2bd6c37d5d57886719b5c33db74594bd6799aca19eac847d1757365a414f653d857712c6588a235ac7ac02450f1de772db442201b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"),
+			value:  h2b("1290010a4030393264343162666564666665666639376261313963653430356165633433383631333766373435376439303234633537663361333439366630303938366538124c080410031a463044022064cf8e276381a5fc993e471e29463dbebf99b7e361a389024a92c3cb0fa1571402200bb9af4bd2e61fa5e2ea46cd1e653ee0f264703293d4ddd6bc88fc2cde5049181a206e39bd1b2aec80f29204d63b9aff74b17cc0255b8e9d6a8fc4c069cfefc01ce932200f30aff51b696d25d423f0d0fa208efe6038d83133cdc58b8d68f9d30e029efc3a5d0a5b3059301306072a8648ce3d020106082a8648ce3d03010703420004fb154e7698647e912d97b385f280b2bd6c37d5d57886719b5c33db74594bd6799aca19eac847d1757365a414f653d857712c6588a235ac7ac02450f1de772db442201b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"),
 			root:   h2b("9986cc7a6ede7443a877cb8b971bb4cf8628ba30f41a002f6eb231fd093bb49f"),
 			treeID: 6099875953263526152,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			if err := VerifyMapInclusionProof(tc.treeID, tc.index, tc.leaf, tc.root, tc.proof, h); err != nil {
+			leaf := trillian.MapLeaf{Index: tc.index, LeafValue: tc.value, LeafHash: nil}
+			if err := VerifyMapInclusionProof(tc.treeID, &leaf, tc.root, tc.proof, h); err != nil {
 				t.Errorf("VerifyMapInclusionProof failed: %v", err)
 			}
 		})
@@ -143,7 +145,8 @@ func TestMapHasherTestVectors(t *testing.T) {
 		{"short proof", tv.Index, tv.Value, tv.ExpectedRoot, [][]byte{[]byte("shorty")}, false},
 		{"excess proof", tv.Index, tv.Value, tv.ExpectedRoot, make([][]byte, h.Size()*8+1), false},
 	} {
-		err := VerifyMapInclusionProof(treeID, tc.index, tc.leaf, tc.root, tc.proof, h)
+		leaf := trillian.MapLeaf{Index: tc.index, LeafValue: tc.leaf}
+		err := VerifyMapInclusionProof(treeID, &leaf, tc.root, tc.proof, h)
 		if got := err == nil; got != tc.want {
 			t.Errorf("%v: VerifyMapInclusionProof(): %v, want %v", tc.desc, err, tc.want)
 		}

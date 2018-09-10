@@ -79,10 +79,7 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 
 // VerifyMapLeafInclusionHash verifies a MapLeafInclusion response against a root hash.
 func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *trillian.MapLeafInclusion) error {
-	index := leafProof.GetLeaf().GetIndex()
-	leaf := leafProof.GetLeaf().GetLeafValue()
-	proof := leafProof.GetInclusion()
-	return merkle.VerifyMapInclusionProof(m.MapID, index, leaf, rootHash, proof, m.Hasher)
+	return merkle.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
