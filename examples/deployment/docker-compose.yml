@@ -23,8 +23,9 @@ services:
     build:
       context: ../..
       dockerfile: examples/deployment/docker/log_server/Dockerfile
-    entrypoint: [
-      "/trillian_log_server",
+      args:
+        - GOFLAGS
+    command: [
       "--storage_system=mysql",
       "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
       "--rpc_endpoint=0.0.0.0:8090",
@@ -41,8 +42,9 @@ services:
     build:
       context: ../..
       dockerfile: examples/deployment/docker/log_signer/Dockerfile
-    entrypoint: [
-      "/trillian_log_signer",
+      args:
+        - GOFLAGS
+    command: [
       "--storage_system=mysql",
       "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
       "--rpc_endpoint=0.0.0.0:8090",
