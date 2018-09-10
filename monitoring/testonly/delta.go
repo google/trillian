@@ -15,30 +15,45 @@
 package testonly
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/google/trillian/monitoring"
 )
 
-// CounterSnapshot records the values of a counter at a specific point in time.
+// CounterSnapshot records the value of a counter at a specific point in time.
 type CounterSnapshot struct {
 	c      monitoring.Counter
 	values map[string]float64
 }
 
-// SnapshotCounter records the current values of a counter.
-// It will only record values associated with the given labels.
-func SnapshotCounter(c monitoring.Counter, labels ...string) CounterSnapshot {
+// NewCounterSnapshot creates a CounterSnapshot that can record values from a
+// counter and later report the delta between those recorded values and the
+// current values.
+func NewCounterSnapshot(c monitoring.Counter) CounterSnapshot {
 	s := CounterSnapshot{
 		c:      c,
-		values: make(map[string]float64, len(labels)),
-	}
-	for _, l := range labels {
-		s.values[l] = c.Value(l)
+		values: make(map[string]float64),
 	}
 	return s
 }
 
+// Record stores the current value of the counter.
+func (s CounterSnapshot) Record(labels ...string) {
+	s.values[keyForLabels(labels...)] = s.c.Value(labels...)
+}
+
 // Delta returns the difference between the current value of a counter and its
-// value when the snapshot was created.
-func (s CounterSnapshot) Delta(label string) float64 {
-	return s.c.Value(label) - s.values[label]
+// value when Record() was last called.
+func (s CounterSnapshot) Delta(labels ...string) float64 {
+	if oldValue, ok := s.values[keyForLabels(labels...)]; ok {
+		return s.c.Value(labels...) - oldValue
+	}
+	// This is a testonly utility so it is reasonable to panic when misused.
+	panic(fmt.Sprintf("No snapshot found for %v", labels))
+}
+
+func keyForLabels(labels ...string) string {
+	// Assumes that no label contains the '|' character.
+	return strings.Join(labels, "|")
 }
