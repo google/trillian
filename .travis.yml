@@ -104,26 +104,12 @@ script:
       cd $HOME/gopath/src/github.com/google/trillian
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
   - |
-      docker-compose -f examples/deployment/docker-compose.yml up --build -d
-      # Wait until /healthz returns HTTP 200 and the text "ok", or fail after 60
-      # seconds. That should be long enough for the server to start.
-      health=$(wget --retry-connrefused --timeout 60 --output-document - \
-        http://127.0.0.1:8091/healthz)
-      health_exitcode=$?
-      if [[ ${health_exitcode} = 0 ]]; then
-        echo "Health: ${health}"
+      # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
+      # support is enabled. This requires running softhsm in a Docker container.
+      # See https://github.com/rolandshoemaker/docker-hsm for an example.
+      if ! $WITH_PKCS11; then
+        ./integration/docker_compose_integration_test.sh
       fi
-      if [[ ${health_exitcode} != 0 || "${health}" != "ok" ]]; then
-        echo "Docker logs:"
-        docker-compose -f examples/deployment/docker-compose.yml logs
-        travis_terminate 1
-      fi
-      if ! ./integration/log_integration_test.sh 127.0.0.1:8090; then
-        echo "Docker logs:"
-        docker-compose -f examples/deployment/docker-compose.yml logs
-        travis_terminate 1
-      fi
-      docker-compose -f examples/deployment/docker-compose.yml down
   - set +e
 
 after_success:
