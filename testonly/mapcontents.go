@@ -119,11 +119,7 @@ func (m *MapContents) UpdatedWith(rev uint64, leaves []*trillian.MapLeaf) *MapCo
 	for _, leaf := range leaves {
 		var k mapKey
 		copy(k[:], leaf.Index)
-		if leaf.LeafValue != nil {
-			result.data[k] = string(leaf.LeafValue)
-		} else {
-			delete(result.data, k)
-		}
+		result.data[k] = string(leaf.LeafValue)
 	}
 
 	return &result
@@ -329,6 +325,11 @@ func (p *VersionedMapContents) dumpLockedContents() {
 // ExtraDataForValue builds a deterministic value for the extra data to be associated
 // with a given value.
 func ExtraDataForValue(value []byte, sz uint) []byte {
+	if len(value) == 0 {
+		// Always use empty extra data for an empty value, to prevent confusion between
+		// a never-been-set key and a set-then-cleared key.
+		return nil
+	}
 	result := make([]byte, sz)
 	copy(result, "extra-"+string(value))
 	return result
