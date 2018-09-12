@@ -35,6 +35,13 @@ type MapLeaf struct {
 	Index []byte `protobuf:"bytes,1,opt,name=index,proto3" json:"index,omitempty"`
 	// leaf_hash is the tree hash of leaf_value.  This does not need to be set
 	// on SetMapLeavesRequest; the server will fill it in.
+	// For an empty leaf (len(leaf_value)==0), there may be two possible values
+	// for this hash:
+	//  - If the leaf has never been set, it counts as an empty subtree and
+	//    a nil value is used.
+	//  - If the leaf has been explicitly set to a zero-length entry, it no
+	//    longer counts as empty and the value of hasher.HashLeaf(index, nil)
+	//    will be used.
 	LeafHash []byte `protobuf:"bytes,2,opt,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
 	// leaf_value is the data the tree commits to.
 	LeafValue []byte `protobuf:"bytes,3,opt,name=leaf_value,json=leafValue,proto3" json:"leaf_value,omitempty"`
@@ -98,7 +105,14 @@ func (m *MapLeaf) GetExtraData() []byte {
 }
 
 type MapLeafInclusion struct {
-	Leaf                 *MapLeaf `protobuf:"bytes,1,opt,name=leaf,proto3" json:"leaf,omitempty"`
+	Leaf *MapLeaf `protobuf:"bytes,1,opt,name=leaf,proto3" json:"leaf,omitempty"`
+	// inclusion holds the inclusion proof for this leaf in the map root. It
+	// holds one entry for each level of the tree; combining each of these in
+	// turn with the leaf's hash (according to the tree's hash strategy)
+	// reproduces the root hash.  A nil entry for a particular level indicates
+	// that the node in question has an empty subtree beneath it (and so its
+	// associated hash value is hasher.HashEmpty(index, height) rather than
+	// hasher.HashChildren(l_hash, r_hash)).
 	Inclusion            [][]byte `protobuf:"bytes,2,rep,name=inclusion,proto3" json:"inclusion,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
