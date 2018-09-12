@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/testonly"
 )
 
 const (
@@ -30,6 +31,8 @@ const (
 	treeID          = int64(0)
 )
 
+var h2b = testonly.MustHexDecode
+
 func TestEmptyRoot(t *testing.T) {
 	emptyRoot, err := base64.StdEncoding.DecodeString(emptyMapRootB64)
 	if err != nil {
@@ -38,6 +41,27 @@ func TestEmptyRoot(t *testing.T) {
 	mh := New(crypto.SHA256)
 	if got, want := mh.HashEmpty(treeID, nil, mh.BitLen()), emptyRoot; !bytes.Equal(got, want) {
 		t.Fatalf("HashEmpty(0): %x, want %x", got, want)
+	}
+}
+
+func TestHashLeaf(t *testing.T) {
+	tests := []struct {
+		index, value, want []byte
+	}{
+		{[]byte{0x00}, nil, h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
+		{[]byte{0x00}, []byte(""), h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
+		{[]byte{0x01}, []byte(""), h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
+		{[]byte{0x01}, []byte("foo"), h2b("1d2039fa7971f4bf01a1c20cb2a3fe7af46865ca9cd9b840c2063df8fec4ff75")},
+	}
+	for _, test := range tests {
+		got, err := Default.HashLeaf(6962, test.index, test.value)
+		if err != nil {
+			t.Errorf("HashLeaf(%x)=_,%v; want _,nil", test.value, err)
+			continue
+		}
+		if !bytes.Equal(got, test.want) {
+			t.Errorf("HashLeaf(%x)=%x; want %x", test.value, got, test.want)
+		}
 	}
 }
 
