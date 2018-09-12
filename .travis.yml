@@ -64,13 +64,12 @@ install:
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go get ${GOFLAGS} -d -t ./...
+  - go get -d -t github.com/google/certificate-transparency-go/...
+  - go get github.com/alecthomas/gometalinter
   - go get github.com/golang/protobuf/proto
   - go get github.com/golang/protobuf/protoc-gen-go
+  - go get github.com/golang/mock/mockgen
   - go get golang.org/x/tools/cmd/stringer
-  - go get github.com/google/certificate-transparency-go
-  - go get -d -t github.com/google/certificate-transparency-go/...
-  - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
-  - go get github.com/alecthomas/gometalinter
   - gometalinter --install
   # install vendored protoc-gen-grpc-gateway binary
   - go install ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
