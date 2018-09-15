@@ -41,6 +41,9 @@ type RPCStatsInterceptor struct {
 // NewRPCStatsInterceptor creates a new RPCStatsInterceptor for the given application/component, with
 // a specified time source.
 func NewRPCStatsInterceptor(timeSource util.TimeSource, prefix string, mf MetricFactory) *RPCStatsInterceptor {
+	if mf == nil {
+		mf = InertMetricFactory{}
+	}
 	interceptor := RPCStatsInterceptor{
 		prefix:            prefix,
 		timeSource:        timeSource,
