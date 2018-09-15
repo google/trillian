@@ -19,10 +19,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"runtime/debug"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -30,7 +32,10 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var maxConns = flag.Int("max_db_conns", 1000, "Maximum connections to the database")
 
 // These statements are fixed
 const (
@@ -82,6 +87,21 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	// Limit the number of open connections to the database, and periodically
+	// report the currently-open connections as a Prometheus gauge.
+	db.SetMaxOpenConns(*maxConns)
+	openConnGauge := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "db_open_connections",
+			Help: "Currently open connections to the database",
+		})
+
+	go func() {
+		for {
+			openConnGauge.Set(float64(db.Stats().OpenConnections))
+			time.Sleep(5 * time.Second)
+		}
+	}()
 	return db, nil
 }
 
