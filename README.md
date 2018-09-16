@@ -60,7 +60,7 @@ Support
 -------
 
 - Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
-- Slack: https://gtrillian.slack.com/ ([invitation](https://join.slack.com/t/gtrillian/shared_invite/enQtNDEwNjc4MTM2MTYwLTA3MjRlMjRjNmIwOGVlMmI5ZWZmOWYxN2E5ZGZkNTQyMGM1NDdhMzQwNjg1OWEzNjVjODY1YzRiNjRlYmY0YWI) - ask on the mailing list if expired)
+- Slack: https://gtrillian.slack.com/ ([invitation](https://join.slack.com/t/gtrillian/shared_invite/enQtNDM3NTE3NjA4NDcwLWQ1ZjU3NzVkYmVlMDU0MDVhNWI4NDEwNzQ4MDE4NGFmMThmM2U5YTU2OWVjOGNmOWYxYTAzOWE4MDRhNzJkNDI))
 
 Using the Code
 --------------
