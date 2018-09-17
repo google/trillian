@@ -46,7 +46,8 @@ var (
 	value2 = []byte("value-0002")
 )
 
-type mapInfo struct {
+// MapInfo describes an in-progress integration test.
+type MapInfo struct {
 	cl       trillian.TrillianMapClient
 	id       int64
 	tree     *trillian.Tree
@@ -54,8 +55,24 @@ type mapInfo struct {
 	contents *testonly.MapContents
 }
 
+// New builds a MapInfo to track the progress of an integration test run.
+func New(cl trillian.TrillianMapClient, tree *trillian.Tree) (*MapInfo, error) {
+	verifier, err := client.NewMapVerifierFromTree(tree)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create map verifier: %v", err)
+	}
+	return &MapInfo{
+		cl:       cl,
+		id:       tree.TreeId,
+		tree:     tree,
+		verifier: verifier,
+		contents: &testonly.MapContents{},
+	}, nil
+}
+
+// RunIntegration runs a simple Map integration test.
 // nolint: gocyclo
-func (mi *mapInfo) runIntegration(ctx context.Context) error {
+func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	fmt.Printf("%d: ================ Revision 0 ==================\n", mi.id)
 	// Map should be empty at revision 0.
 	fmt.Printf("%d: Get SMR\n", mi.id)
@@ -198,7 +215,7 @@ func (mi *mapInfo) runIntegration(ctx context.Context) error {
 	return nil
 }
 
-func (mi *mapInfo) checkMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
+func (mi *MapInfo) checkMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
 	root, err := mi.verifier.VerifySignedMapRoot(smr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify SMR: %v", err)
@@ -219,7 +236,7 @@ func (mi *mapInfo) checkMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, 
 
 // expectEmptyValues retrieves the current map values for a set of keys, and check that
 // all of the corresponding values are empty.
-func (mi *mapInfo) expectEmptyValues(ctx context.Context, keys ...[]byte) error {
+func (mi *MapInfo) expectEmptyValues(ctx context.Context, keys ...[]byte) error {
 	fmt.Printf("%d: GetLeaves(keys=%x)\n", mi.id, keys)
 	leavesRsp, err := mi.cl.GetLeaves(ctx, &trillian.GetMapLeavesRequest{MapId: mi.id, Index: keys})
 	if err != nil {
@@ -251,7 +268,7 @@ func (mi *mapInfo) expectEmptyValues(ctx context.Context, keys ...[]byte) error 
 
 // expectValue retrieves the current map value for a particular key and checks that the
 // associated LeafValue is the specified value.
-func (mi *mapInfo) expectValue(ctx context.Context, key, want []byte) error {
+func (mi *MapInfo) expectValue(ctx context.Context, key, want []byte) error {
 	fmt.Printf("%d: GetLeaves(key=%x)\n", mi.id, key)
 	leavesRsp, err := mi.cl.GetLeaves(ctx, &trillian.GetMapLeavesRequest{MapId: mi.id, Index: [][]byte{key}})
 	if err != nil {
@@ -262,7 +279,7 @@ func (mi *mapInfo) expectValue(ctx context.Context, key, want []byte) error {
 
 // expectValueAtRev retrieves the current map value for a particular key and checks that the
 // associated LeafValue is the specified value.
-func (mi *mapInfo) expectValueAtRev(ctx context.Context, rev int64, key, want []byte) error {
+func (mi *MapInfo) expectValueAtRev(ctx context.Context, rev int64, key, want []byte) error {
 	fmt.Printf("%d: GetLeavesAtRevision(rev=%d, key=%x)\n", mi.id, rev, key)
 	leavesRsp, err := mi.cl.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{MapId: mi.id, Revision: rev, Index: [][]byte{key}})
 	if err != nil {
@@ -272,7 +289,7 @@ func (mi *mapInfo) expectValueAtRev(ctx context.Context, rev int64, key, want []
 }
 
 // checkSingleLeaf response checks a response has exactly the leaf info expected.
-func (mi *mapInfo) checkSingleLeafResponse(rsp *trillian.GetMapLeavesResponse, key, want []byte) error {
+func (mi *MapInfo) checkSingleLeafResponse(rsp *trillian.GetMapLeavesResponse, key, want []byte) error {
 	root, err := mi.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
 		return fmt.Errorf("failed to verify SMR in get-map-leaves-rsp: %v", err)
