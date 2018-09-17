@@ -20,13 +20,17 @@ import (
 	"github.com/coreos/etcd/clientv3"
 )
 
-// NewClient returns an etcd client connecting to the passed in servers'
+// NewClient returns an etcd Client connecting to the passed in servers'
 // endpoints, with the specified dialing timeout.
 //
-// TODO(pavelkalinnikov): Remove this function, and create Client directly. At
-// the moment we can't do this as there are external repos depending on this
-// package, and it's not clear how they could import etcd package vendored into
-// this repo. Maybe go modules could help when we switch to Go 1.11+.
+// The return type belongs to etcd package in Trillian vendor/ directory, which
+// allows external clients/codebases to build an object that matches the
+// Trillian internal implementation (a clientv3.Client built from a different
+// codebase/location, even if it's the same code, wouldn't have the required
+// matching type).
+//
+// TODO(pavelkalinnikov): Remove this when there is a way to compatibly import
+// the same version of etcd in external codebases. Could Go modules help?
 func NewClient(endpoints []string, dialTimeout time.Duration) (*clientv3.Client, error) {
 	return clientv3.New(clientv3.Config{
 		Endpoints:   endpoints,
