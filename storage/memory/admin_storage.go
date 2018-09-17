@@ -105,12 +105,12 @@ func (t *adminTX) Close() error {
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
 	tree := t.ms.getTree(treeID)
-	tree.RLock()
-	defer tree.RUnlock()
-
 	if tree == nil {
 		return nil, fmt.Errorf("no such treeID %d", treeID)
 	}
+	tree.RLock()
+	defer tree.RUnlock()
+
 	return tree.meta, nil
 }
 
