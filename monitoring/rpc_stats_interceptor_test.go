@@ -178,3 +178,12 @@ func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 		t.Errorf("stats.ReqSuccessLatency.Info=%v,%v; want %v,%v", count, sum, wantCount, wantSum)
 	}
 }
+
+func TestCanInitializeNilMetricFactory(t *testing.T) {
+	ts := util.IncrementingFakeTimeSource{
+		BaseTime:   fakeTime,
+		Increments: []time.Duration{},
+	}
+	monitoring.NewRPCStatsInterceptor(&ts, "test_nil_metric_factory", nil)
+	// Should reach here without throwing an exception
+}
