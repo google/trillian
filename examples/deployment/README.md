@@ -51,9 +51,12 @@ a cloud.
 
 ### Run in GCP
 
-There is a good
-[Medium post by Daz Wilkin](https://medium.com/google-cloud/trillian-on-google-cloud-platform-621a37f2431c)
-that describes the steps to run Trillian on Google Cloud Platform.
+Trillian can be deployed on Google Cloud Platform using
+[Kubernetes](https://kubernetes.io/). We provide
+[instructions](kubernetes/README.md),
+[scripts and configuration files](kubernetes/) for performing a deployment.
+[Daz Wilkin has written a Medium post](https://medium.com/google-cloud/trillian-on-google-cloud-platform-621a37f2431c)
+based on these instructions that illustrates the steps required.
 
 ### Run in AWS
 
