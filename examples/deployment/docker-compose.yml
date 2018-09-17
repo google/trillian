@@ -1,24 +1,15 @@
 version: '3'
 services:
   mysql:
-    image: mariadb:10.1
-    environment:
-      - MYSQL_ROOT_PASSWORD=zaphod
-  trillian-db-seed:
     build:
       context: ../..
-      dockerfile: ./examples/deployment/docker/db_client/Dockerfile
+      dockerfile: ./examples/deployment/docker/db_server/Dockerfile
     environment:
-      - MYSQL_ROOT_USER=root
       - MYSQL_ROOT_PASSWORD=zaphod
-      - MYSQL_HOST=mysql
       - MYSQL_DATABASE=test
       - MYSQL_USER=test
       - MYSQL_PASSWORD=zaphod
-      - MYSQL_USER_HOST=%
-    command: ./wait-for-it.sh -t 0 mysql:3306 -- ./scripts/resetdb.sh --verbose --force
-    depends_on:
-      - mysql
+    restart: always # keep the MySQL server running
   trillian-log-server:
     build:
       context: ../..
@@ -37,7 +28,7 @@ services:
       - "8090:8090"
       - "8091:8091"
     depends_on:
-      - trillian-db-seed
+      - mysql
   trillian-log-signer:
     build:
       context: ../..
@@ -56,5 +47,5 @@ services:
     ports:
       - "8092:8091"
     depends_on:
-      - trillian-db-seed
+      - mysql
 
