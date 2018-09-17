@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package integration
+package integration_test
 
 import (
 	"context"
@@ -21,9 +21,9 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
+	"github.com/google/trillian/integration"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/testonly/integration"
+	tintegration "github.com/google/trillian/testonly/integration"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -34,7 +34,7 @@ var singleTX = flag.Bool("single_transaction", false, "Experimental: whether to 
 func TestInProcessMapIntegration(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	env, err := integration.NewMapEnv(ctx, *singleTX)
+	env, err := tintegration.NewMapEnv(ctx, *singleTX)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,19 +44,12 @@ func TestInProcessMapIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
-
-	verifier, err := client.NewMapVerifierFromTree(tree)
+	info, err := integration.New(env.Map, tree)
 	if err != nil {
-		t.Fatalf("Failed to create map verifier: %v", err)
+		t.Fatalf("Failed to create mapInfo for test: %v", err)
 	}
-	info := mapInfo{
-		cl:       env.Map,
-		id:       tree.TreeId,
-		tree:     tree,
-		verifier: verifier,
-		contents: &testonly.MapContents{},
-	}
-	if err := info.runIntegration(ctx); err != nil {
+
+	if err := info.RunIntegration(ctx); err != nil {
 		t.Fatalf("[%d] map integration test failed: %v", tree.TreeId, err)
 	}
 }

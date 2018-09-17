@@ -54,8 +54,23 @@ type mapInfo struct {
 	contents *testonly.MapContents
 }
 
+// New builds a mapInfo to track the progress of an integration test run.
+func New(cl trillian.TrillianMapClient, tree *trillian.Tree) (*mapInfo, error) {
+	verifier, err := client.NewMapVerifierFromTree(tree)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create map verifier: %v", err)
+	}
+	return &mapInfo{
+		cl:       cl,
+		id:       tree.TreeId,
+		tree:     tree,
+		verifier: verifier,
+		contents: &testonly.MapContents{},
+	}, nil
+}
+
 // nolint: gocyclo
-func (mi *mapInfo) runIntegration(ctx context.Context) error {
+func (mi *mapInfo) RunIntegration(ctx context.Context) error {
 	fmt.Printf("%d: ================ Revision 0 ==================\n", mi.id)
 	// Map should be empty at revision 0.
 	fmt.Printf("%d: Get SMR\n", mi.id)
