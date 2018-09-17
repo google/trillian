@@ -46,7 +46,7 @@ func TestInProcessMapIntegration(t *testing.T) {
 	}
 	info, err := integration.New(env.Map, tree)
 	if err != nil {
-		t.Fatalf("Failed to create mapInfo for test: %v", err)
+		t.Fatalf("Failed to create MapInfo for test: %v", err)
 	}
 
 	if err := info.RunIntegration(ctx); err != nil {
