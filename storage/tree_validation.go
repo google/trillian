@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	maxDisplayNameLength = 20
+	maxDisplayNameLength = 64
 	maxDescriptionLength = 200
 )
 
