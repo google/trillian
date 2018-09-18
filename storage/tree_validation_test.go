@@ -79,15 +79,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidSignatureAlgorithm := newTree()
 	invalidSignatureAlgorithm.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
 
-	invalidDisplayName := newTree()
-	invalidDisplayName.DisplayName = "A Very Long Display Name That Clearly Won't Fit But At Least Mentions Llamas Somewhere"
-
-	invalidDescription := newTree()
-	invalidDescription.Description = `
-		A Very Long Description That Clearly Won't Fit, Also Mentions Llamas, For Some Reason Has Only Capitalized Words And Keeps Repeating Itself.
-		A Very Long Description That Clearly Won't Fit, Also Mentions Llamas, For Some Reason Has Only Capitalized Words And Keeps Repeating Itself.
-		`
-
 	unsupportedPrivateKey := newTree()
 	unsupportedPrivateKey.PrivateKey.TypeUrl = "urn://unknown-type"
 
@@ -172,16 +163,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidSignatureAlgorithm",
 			tree:    invalidSignatureAlgorithm,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidDisplayName",
-			tree:    invalidDisplayName,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidDescription",
-			tree:    invalidDescription,
 			wantErr: true,
 		},
 		{
