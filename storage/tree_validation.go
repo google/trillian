@@ -28,11 +28,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	maxDisplayNameLength = 20
-	maxDescriptionLength = 200
-)
-
 // ValidateTreeForCreation returns nil if tree is valid for insertion, error
 // otherwise.
 // See the documentation on trillian.Tree for reference on which values are
@@ -121,13 +116,8 @@ func ValidateTreeForUpdate(ctx context.Context, storedTree, newTree *trillian.Tr
 }
 
 func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
-	switch {
-	case tree.TreeState == trillian.TreeState_UNKNOWN_TREE_STATE:
+	if tree.TreeState == trillian.TreeState_UNKNOWN_TREE_STATE {
 		return status.Errorf(codes.InvalidArgument, "invalid tree_state: %v", tree.TreeState)
-	case len(tree.DisplayName) > maxDisplayNameLength:
-		return status.Errorf(codes.InvalidArgument, "display_name too big, max length is %v: %v", maxDisplayNameLength, tree.DisplayName)
-	case len(tree.Description) > maxDescriptionLength:
-		return status.Errorf(codes.InvalidArgument, "description too big, max length is %v: %v", maxDescriptionLength, tree.Description)
 	}
 	if duration, err := ptypes.Duration(tree.MaxRootDuration); err != nil {
 		return status.Errorf(codes.InvalidArgument, "max_root_duration malformed: %v", tree.MaxRootDuration)
