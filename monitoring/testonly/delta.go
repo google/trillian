@@ -15,45 +15,34 @@
 package testonly
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/google/trillian/monitoring"
 )
 
-// CounterSnapshot records the value of a counter at a specific point in time.
+// CounterSnapshot records the latest value from a time series in a counter.
+// This value can then be compared with future values. Note that a counter can
+// contain many time series, but a CounterSnapshot will track only one.
+// A CounterSnapshot is useful in tests because counters do not reset between
+// test cases, and so their absolute value is not amenable to testing. Instead,
+// the delta between the value at the start and end of the test should be used.
 type CounterSnapshot struct {
 	c      monitoring.Counter
-	values map[string]float64
+	labels []string
+	value  float64
 }
 
-// NewCounterSnapshot creates a CounterSnapshot that can record values from a
-// counter and later report the delta between those recorded values and the
-// current values.
-func NewCounterSnapshot(c monitoring.Counter) CounterSnapshot {
-	s := CounterSnapshot{
+// NewCounterSnapshot records the latest value of a time series in c identified
+// by the given labels. This value can be compared to future values to determine
+// how it has changed over time.
+func NewCounterSnapshot(c monitoring.Counter, labels ...string) CounterSnapshot {
+	return CounterSnapshot{
 		c:      c,
-		values: make(map[string]float64),
+		labels: labels,
+		value:  c.Value(labels...),
 	}
-	return s
 }
 
-// Record stores the current value of the counter.
-func (s CounterSnapshot) Record(labels ...string) {
-	s.values[keyForLabels(labels...)] = s.c.Value(labels...)
-}
-
-// Delta returns the difference between the current value of a counter and its
-// value when Record() was last called.
-func (s CounterSnapshot) Delta(labels ...string) float64 {
-	if oldValue, ok := s.values[keyForLabels(labels...)]; ok {
-		return s.c.Value(labels...) - oldValue
-	}
-	// This is a testonly utility so it is reasonable to panic when misused.
-	panic(fmt.Sprintf("No snapshot found for %v", labels))
-}
-
-func keyForLabels(labels ...string) string {
-	// Assumes that no label contains the '|' character.
-	return strings.Join(labels, "|")
+// Delta returns the difference between the latest value of the time series
+// and the value when the CounterSnapshot was created.
+func (s CounterSnapshot) Delta() float64 {
+	return s.c.Value(s.labels...) - s.value
 }

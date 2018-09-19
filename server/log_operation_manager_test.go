@@ -201,29 +201,27 @@ func TestLogOperationManagerExecutePassError(t *testing.T) {
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Return(1, nil)
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Return(0, errors.New("test error"))
 
-	runsSnapshot := testonly.NewCounterSnapshot(signingRuns)
-	runsSnapshot.Record(logID1Label)
-	runsSnapshot.Record(logID2Label)
-	failedRunsSnapshot := testonly.NewCounterSnapshot(failedSigningRuns)
-	failedRunsSnapshot.Record(logID1Label)
-	failedRunsSnapshot.Record(logID2Label)
+	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
+	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
+	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
+	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
 
 	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 	lom.OperationSingle(ctx)
 
 	// Check that logID1 has 1 successful signing run, 0 failed.
-	if want, got := 1, int(runsSnapshot.Delta(logID1Label)); want != got {
+	if want, got := 1, int(log1SigningRuns.Delta()); want != got {
 		t.Errorf("want signingRuns[logID1] == %d, got %d", want, got)
 	}
-	if want, got := 0, int(failedRunsSnapshot.Delta(logID1Label)); want != got {
-		t.Errorf("want failedSigningRuns[logID1] == %d, got %d", want, got)
-	}
-	// Check that logID2 has 0 successful signing runs, 1 failed.
-	if want, got := 0, int(runsSnapshot.Delta(logID2Label)); want != got {
+	if want, got := 0, int(log1FailedSigningRuns.Delta()); want != got {
 		t.Errorf("want signingRuns[logID2] == %d, got %d", want, got)
 	}
-	if want, got := 1, int(failedRunsSnapshot.Delta(logID2Label)); want != got {
+	// Check that logID2 has 0 successful signing runs, 1 failed.
+	if want, got := 0, int(log2SigningRuns.Delta()); want != got {
+		t.Errorf("want failedSigningRuns[logID1] == %d, got %d", want, got)
+	}
+	if want, got := 1, int(log2FailedSigningRuns.Delta()); want != got {
 		t.Errorf("want failedSigningRuns[logID2] == %d, got %d", want, got)
 	}
 }
@@ -301,29 +299,27 @@ func TestLogOperationManagerOperationLoopExecutePassError(t *testing.T) {
 		return 0, errors.New("test error")
 	})
 
-	runsSnapshot := testonly.NewCounterSnapshot(signingRuns)
-	runsSnapshot.Record(logID1Label)
-	runsSnapshot.Record(logID2Label)
-	failedRunsSnapshot := testonly.NewCounterSnapshot(failedSigningRuns)
-	failedRunsSnapshot.Record(logID1Label)
-	failedRunsSnapshot.Record(logID2Label)
+	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
+	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
+	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
+	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
 
 	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 	lom.OperationLoop(ctx)
 
 	// Check that logID1 has 1 successful signing run, 0 failed.
-	if want, got := 1, int(runsSnapshot.Delta(logID1Label)); want != got {
+	if want, got := 1, int(log1SigningRuns.Delta()); want != got {
 		t.Errorf("want signingRuns[logID1] == %d, got %d", want, got)
 	}
-	if want, got := 0, int(failedRunsSnapshot.Delta(logID1Label)); want != got {
-		t.Errorf("want failedSigningRuns[logID1] == %d, got %d", want, got)
-	}
-	// Check that logID2 has 0 successful signing runs, 1 failed.
-	if want, got := 0, int(runsSnapshot.Delta(logID2Label)); want != got {
+	if want, got := 0, int(log1FailedSigningRuns.Delta()); want != got {
 		t.Errorf("want signingRuns[logID2] == %d, got %d", want, got)
 	}
-	if want, got := 1, int(failedRunsSnapshot.Delta(logID2Label)); want != got {
+	// Check that logID2 has 0 successful signing runs, 1 failed.
+	if want, got := 0, int(log2SigningRuns.Delta()); want != got {
+		t.Errorf("want failedSigningRuns[logID1] == %d, got %d", want, got)
+	}
+	if want, got := 1, int(log2FailedSigningRuns.Delta()); want != got {
 		t.Errorf("want failedSigningRuns[logID2] == %d, got %d", want, got)
 	}
 }
