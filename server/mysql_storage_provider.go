@@ -56,7 +56,9 @@ func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, erro
 		if err != nil {
 			return
 		}
-		db.SetMaxOpenConns(*maxConns)
+		if *maxConns > 0 {
+			db.SetMaxOpenConns(*maxConns)
+		}
 		mySQLstorageInstance = &mysqlProvider{
 			db: db,
 			mf: mf,
