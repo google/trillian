@@ -15,15 +15,14 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
-
-	tpb "github.com/google/trillian"
-	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 func TestGetLatestMapRoot(t *testing.T) {
@@ -35,7 +34,7 @@ func TestGetLatestMapRoot(t *testing.T) {
 	}
 	defer env.Close()
 	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.MapTree},
+		&trillian.CreateTreeRequest{Tree: testonly.MapTree},
 		env.Admin, env.Map, nil)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
@@ -64,10 +63,10 @@ func TestGetLeavesAtRevision(t *testing.T) {
 	}
 	defer env.Close()
 	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.MapTree},
+		&trillian.CreateTreeRequest{Tree: testonly.MapTree},
 		env.Admin, env.Map, nil)
 	if err != nil {
-		t.Fatalf("Failed to create log: %v", err)
+		t.Fatalf("Failed to create map: %v", err)
 	}
 
 	client, err := NewMapClientFromTree(env.Map, tree)
@@ -76,9 +75,9 @@ func TestGetLeavesAtRevision(t *testing.T) {
 	}
 
 	index := []byte("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-	if _, err := env.Map.SetLeaves(ctx, &tpb.SetMapLeavesRequest{
+	if _, err := env.Map.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 		MapId: client.MapID,
-		Leaves: []*tpb.MapLeaf{
+		Leaves: []*trillian.MapLeaf{
 			{
 				Index:     index,
 				LeafValue: []byte("A"),
@@ -87,12 +86,17 @@ func TestGetLeavesAtRevision(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SetLeaves(): %v", err)
 	}
-
-	root, err := client.GetAndVerifyLatestMapRoot(ctx)
+	leaves, err := client.GetAndVerifyMapLeaves(ctx, [][]byte{index})
 	if err != nil {
-		t.Fatalf("GetAndVerifyLatestMapRoot(): %v", err)
-	}
-	if _, err := client.GetAndVerifyMapLeavesAtRevision(ctx, root, [][]byte{index}); err != nil {
 		t.Fatalf("GetAndVerifyMapLeavesAtRevision(): %v", err)
+	}
+	if got := len(leaves); got != 1 {
+		t.Errorf("len(leaves): %v, want 1", got)
+	}
+	if got, want := leaves[0].LeafValue, []byte("A"); !bytes.Equal(got, want) {
+		t.Errorf("LeafValue: %v, want %v", got, want)
+	}
+	if got, want := leaves[0].Index, index; !bytes.Equal(got, want) {
+		t.Errorf("LeafIndex: %v, want %v", got, want)
 	}
 }

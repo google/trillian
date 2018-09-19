@@ -17,7 +17,7 @@ package client
 import (
 	"context"
 
-	tpb "github.com/google/trillian"
+	"github.com/google/trillian"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,11 +27,11 @@ import (
 type MapClient struct {
 	*MapVerifier
 	MapID int64
-	Conn  tpb.TrillianMapClient
+	Conn  trillian.TrillianMapClient
 }
 
 // NewMapClientFromTree returns a verifying map client.
-func NewMapClientFromTree(client tpb.TrillianMapClient, config *tpb.Tree) (*MapClient, error) {
+func NewMapClientFromTree(client trillian.TrillianMapClient, config *trillian.Tree) (*MapClient, error) {
 	verifier, err := NewMapVerifierFromTree(config)
 	if err != nil {
 		return nil, err
@@ -45,33 +45,37 @@ func NewMapClientFromTree(client tpb.TrillianMapClient, config *tpb.Tree) (*MapC
 
 // GetAndVerifyLatestMapRoot verifies and returns the latest map root.
 func (c *MapClient) GetAndVerifyLatestMapRoot(ctx context.Context) (*types.MapRootV1, error) {
-	rootResp, err := c.Conn.GetSignedMapRoot(ctx, &tpb.GetSignedMapRootRequest{MapId: c.MapID})
+	rootResp, err := c.Conn.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: c.MapID})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "GetSignedMapRoot(%v): %v", c.MapID, err)
+		return nil, status.Errorf(status.Code(err), "GetSignedMapRoot(%v): %v", c.MapID, err)
 	}
 	mapRoot, err := c.VerifySignedMapRoot(rootResp.GetMapRoot())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(): %v", err)
+		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", c.MapID, err)
 	}
 	return mapRoot, nil
 }
 
-// GetAndVerifyMapLeavesAtRevision verifies and returns the requested map leaves.
-func (c *MapClient) GetAndVerifyMapLeavesAtRevision(ctx context.Context, mapRoot *types.MapRootV1, indexes [][]byte) ([]*tpb.MapLeaf, error) {
-	getResp, err := c.Conn.GetLeaves(ctx, &tpb.GetMapLeavesRequest{
+// GetAndVerifyMapLeaves verifies and returns the requested map leaves.
+func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte) ([]*trillian.MapLeaf, error) {
+	getResp, err := c.Conn.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 		MapId: c.MapID,
 		Index: indexes,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "tmap.GetLeaves(): %v", err)
+		return nil, status.Errorf(status.Code(err), "map.GetLeaves(): %v", err)
 	}
 	if got, want := len(getResp.MapLeafInclusion), len(indexes); got != want {
-		return nil, status.Errorf(codes.Internal, "got %v leaves, want %v", got, want)
+		return nil, status.Errorf(status.Code(err), "got %v leaves, want %v", got, want)
 	}
-	leaves := make([]*tpb.MapLeaf, 0, len(getResp.MapLeafInclusion))
+	mapRoot, err := c.VerifySignedMapRoot(getResp.GetMapRoot())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", c.MapID, err)
+	}
+	leaves := make([]*trillian.MapLeaf, 0, len(getResp.MapLeafInclusion))
 	for _, m := range getResp.MapLeafInclusion {
 		if err := c.VerifyMapLeafInclusionHash(mapRoot.RootHash, m); err != nil {
-			return nil, status.Errorf(codes.Internal, "map: VerifyMapLeafInclusion(): %v", err)
+			return nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
 		}
 		leaves = append(leaves, m.Leaf)
 	}
