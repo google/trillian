@@ -79,6 +79,26 @@ func sthKey(treeID int64, timestamp uint64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/sth/%020d", treeID, timestamp)}
 }
 
+// getActiveLogIDs returns the IDs of all logs that are currently in a state
+// that requires sequencing (e.g. ACTIVE, DRAINING).
+func getActiveLogIDs(trees map[int64]*tree) []int64 {
+	var ret []int64
+	for id, tree := range trees {
+		if tree.meta.GetDeleted() {
+			continue
+		}
+
+		switch tree.meta.GetTreeType() {
+		case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
+			switch tree.meta.GetTreeState() {
+			case trillian.TreeState_ACTIVE, trillian.TreeState_DRAINING:
+				ret = append(ret, id)
+			}
+		}
+	}
+	return ret
+}
+
 type memoryLogStorage struct {
 	*TreeStorage
 	metricFactory monitoring.MetricFactory
@@ -124,21 +144,7 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	t.ms.mu.RLock()
 	defer t.ms.mu.RUnlock()
 
-	ret := make([]int64, 0, len(t.ms.trees))
-	for id, tree := range t.ms.trees {
-		if tree.meta.GetDeleted() {
-			continue
-		}
-
-		switch tree.meta.TreeType {
-		case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
-			switch tree.meta.TreeState {
-			case trillian.TreeState_ACTIVE, trillian.TreeState_DRAINING:
-				ret = append(ret, id)
-			}
-		}
-	}
-	return ret, nil
+	return getActiveLogIDs(t.ms.trees), nil
 }
 
 func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree, readonly bool) (storage.LogTreeTX, error) {
@@ -410,27 +416,8 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	return nil
 }
 
-func (t *logTreeTX) getActiveLogIDs(ctx context.Context) ([]int64, error) {
-	var ret []int64
-	for id, tree := range t.ts.trees {
-		if tree.meta.GetDeleted() {
-			continue
-		}
-
-		switch tree.meta.TreeType {
-		case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
-			switch tree.meta.TreeState {
-			case trillian.TreeState_ACTIVE, trillian.TreeState_DRAINING:
-				ret = append(ret, id)
-			}
-		}
-	}
-	return ret, nil
-}
-
-// GetActiveLogIDs returns a list of the IDs of all configured logs
 func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	return t.getActiveLogIDs(ctx)
+	return getActiveLogIDs(t.ts.trees), nil
 }
 
 func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.CountByLogID, error) {
