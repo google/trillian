@@ -30,7 +30,7 @@ import (
 
 var (
 	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	maxConns = flag.Int("max_db_conns", 1000, "Maximum connections to the database")
+	maxConns = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
 
 	mysqlOnce            sync.Once
 	mySQLstorageInstance *mysqlProvider
