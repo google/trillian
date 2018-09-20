@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS tree_control(
 
 CREATE TABLE IF NOT EXISTS subtree(
   tree_id               BIGINT NOT NULL,
-  subtree_id            BIT VARYING(255) NOT NULL,
+  subtree_id            BYTEA NOT NULL,
   nodes                 BYTEA NOT NULL,
   subtree_revision      INTEGER NOT NULL, 
   PRIMARY KEY(tree_id, subtree_id, subtree_revision),
@@ -57,8 +57,8 @@ CREATE TABLE IF NOT EXISTS tree_head(
   tree_id                BIGINT NOT NULL,
   tree_head_timestamp    BIGINT,
   tree_size              BIGINT,
-  root_hash              BIT VARYING(255) NOT NULL,
-  root_signature         BIT VARYING(1024) NOT NULL,
+  root_hash              BYTEA NOT NULL,
+  root_signature         BYTEA NOT NULL,
   tree_revision          BIGINT,
   PRIMARY KEY(tree_id, tree_head_timestamp),
   FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE
@@ -79,16 +79,16 @@ CREATE UNIQUE INDEX TreeHeadRevisionIdx
 -- are allowed they will all reference this row.
 CREATE TABLE IF NOT EXISTS leaf_data(
   tree_id               BIGINT NOT NULL,
-  -- This is a personality specific has of some subset of the leaf data.
+  -- This is a personality specific hash of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
-  leaf_identity_hash     BIT VARYING(255) NOT NULL,
+  leaf_identity_hash     BYTEA NOT NULL,
   -- This is the data stored in the leaf for example in CT it contains a DER encoded
   -- X.509 certificate but is application dependent
   leaf_value            BYTEA NOT NULL,
   -- This is extra data that the application can associate with the leaf should it wish to.
   -- This data is not included in signing and hashing.
-  extra_dta            BYTEA,
+  extra_data            BYTEA,
   -- The timestamp from when this leaf data was first queued for inclusion.
   queue_timestamp_nanos  BIGINT NOT NULL,
   PRIMARY KEY(tree_id, leaf_identity_hash),
@@ -107,10 +107,10 @@ CREATE TABLE IF NOT EXISTS sequenced_leaf_data(
   -- This is a personality specific has of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
-  leaf_identity_hash        BIT VARYING(255) NOT NULL,
+  leaf_identity_hash        BYTEA NOT NULL,
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
-  merkle_leaf_hash          BIT VARYING(255) NOT NULL,
+  merkle_leaf_hash          BYTEA NOT NULL,
   integrate_timestamp_nanos BIGINT NOT NULL,
   PRIMARY KEY(tree_id, sequence_number),
   FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE,
@@ -125,14 +125,14 @@ CREATE TABLE IF NOT EXISTS unsequenced(
   -- This is a personality specific hash of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
-  leaf_identity_hash    BIT VARYING(255) NOT NULL,
+  leaf_identity_hash    BYTEA NOT NULL,
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
-  merkle_leaf_hash      BIT VARYING(255) NOT NULL,
+  merkle_leaf_hash      BYTEA NOT NULL,
   queue_timestamp_nanos BIGINT NOT NULL,
   -- This is a SHA256 hash of the TreeID, LeafIdentityHash and QueueTimestampNanos. It is used
   -- for batched deletes from the table when trillian_log_server and trillian_log_signer are
   -- built with the batched_queue tag.
-  queue_id              BIT VARYING(32) DEFAULT NULL UNIQUE,
+  queue_id              BYTEA DEFAULT NULL UNIQUE,
   PRIMARY KEY (tree_id, bucket, queue_timestamp_nanos, leaf_identity_hash)
 );
