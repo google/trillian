@@ -201,6 +201,7 @@ func TestLogOperationManagerExecutePassError(t *testing.T) {
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Return(1, nil)
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Return(0, errors.New("test error"))
 
+	// Do not run this test in parallel with any other that affects the signingRuns or failedSigningRuns counters.
 	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
 	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
 	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
@@ -299,6 +300,7 @@ func TestLogOperationManagerOperationLoopExecutePassError(t *testing.T) {
 		return 0, errors.New("test error")
 	})
 
+	// Do not run this test in parallel with any other that affects the signingRuns or failedSigningRuns counters.
 	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
 	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
 	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)

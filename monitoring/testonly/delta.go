@@ -24,6 +24,8 @@ import (
 // A CounterSnapshot is useful in tests because counters do not reset between
 // test cases, and so their absolute value is not amenable to testing. Instead,
 // the delta between the value at the start and end of the test should be used.
+// This assumes that multiple tests that all affect the counter are not run in
+// parallel.
 type CounterSnapshot struct {
 	c      monitoring.Counter
 	labels []string
