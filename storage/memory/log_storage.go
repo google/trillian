@@ -125,8 +125,18 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	defer t.ms.mu.RUnlock()
 
 	ret := make([]int64, 0, len(t.ms.trees))
-	for k := range t.ms.trees {
-		ret = append(ret, k)
+	for id, tree := range t.ms.trees {
+		if tree.meta.GetDeleted() {
+			continue
+		}
+
+		switch tree.meta.TreeType {
+		case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
+			switch tree.meta.TreeState {
+			case trillian.TreeState_ACTIVE, trillian.TreeState_DRAINING:
+				ret = append(ret, id)
+			}
+		}
 	}
 	return ret, nil
 }
@@ -402,8 +412,18 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 
 func (t *logTreeTX) getActiveLogIDs(ctx context.Context) ([]int64, error) {
 	var ret []int64
-	for k := range t.ts.trees {
-		ret = append(ret, k)
+	for id, tree := range t.ts.trees {
+		if tree.meta.GetDeleted() {
+			continue
+		}
+
+		switch tree.meta.TreeType {
+		case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
+			switch tree.meta.TreeState {
+			case trillian.TreeState_ACTIVE, trillian.TreeState_DRAINING:
+				ret = append(ret, id)
+			}
+		}
 	}
 	return ret, nil
 }
