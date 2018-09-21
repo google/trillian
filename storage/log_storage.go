@@ -86,15 +86,17 @@ type LogTreeTX interface {
 	// considered duplicate if their leaf.LeafIdentityHash matches.
 	QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error)
 
-	// DequeueLeaves returns between [0, limit] leaves to be added to the tree.
+	// DequeueLeaves returns between [0, limit] leaves to be integrated to the
+	// tree.
 	//
 	// For LOG trees:
 	// - The leaves are taken from the queue.
 	// - If the Tx is rolled back, they become available for dequeueing again.
 	//
 	// For PREORDERED_LOG trees:
-	// - The leaves are taken from the yet-unsigned part of the sequenced entries,
-	//   i.e. immediately following the currend SignedLogRoot tree size.
+	// - The leaves are taken from the head of as yet un-integrated part of the
+	//   sequenced entries, immediately following the current SignedLogRoot tree
+	//   size.
 	// - The operation is a no-op with regards to the sequenced entries.
 	//
 	// Leaves queued more recently than the cutoff time will not be returned.
