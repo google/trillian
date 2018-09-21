@@ -60,12 +60,13 @@ CREATE TABLE IF NOT EXISTS tree_head(
   root_hash              BYTEA NOT NULL,
   root_signature         BYTEA NOT NULL,
   tree_revision          BIGINT,
-  PRIMARY KEY(tree_id, tree_head_timestamp),
+  PRIMARY KEY(tree_id, tree_revision),
   FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX TreeHeadRevisionIdx
-  ON tree_head(tree_id, tree_revision);
+-- TODO(vishal) benchmark this to see if it's a suitable replacement for not
+-- having a DESC scan on the primary key
+CREATE UNIQUE INDEX TreeHeadRevisionIdx ON tree_head(tree_id, tree_revision DESC);
 
 -- ---------------------------------------------
 -- Log specific stuff here
