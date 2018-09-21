@@ -287,12 +287,13 @@ func (s *logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLe
 type preorderedLogSequencingTask sequencingTaskData
 
 func (s *preorderedLogSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
-	// TODO(pavelkalinnikov): Measure latency.
+	start := s.timeSource.Now()
 	leaves, err := s.tx.GetLeavesByRange(ctx, s.treeSize, int64(limit))
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to load sequenced leaves: %v", s.label, err)
 		return nil, err
 	}
+	seqDequeueLatency.Observe(util.SecondsSince(s.timeSource, start), s.label)
 	return leaves, nil
 }
 
