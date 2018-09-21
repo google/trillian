@@ -288,7 +288,7 @@ type preorderedLogSequencingTask sequencingTaskData
 
 func (s *preorderedLogSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
 	start := s.timeSource.Now()
-	leaves, err := s.tx.GetLeavesByRange(ctx, s.treeSize, int64(limit))
+	leaves, err := s.tx.DequeueLeaves(ctx, limit, cutoff)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to load sequenced leaves: %v", s.label, err)
 		return nil, err

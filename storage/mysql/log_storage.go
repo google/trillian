@@ -341,6 +341,12 @@ func (t *logTreeTX) WriteRevision(ctx context.Context) (int64, error) {
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
+	if t.treeType == trillian.TreeType_PREORDERED_LOG {
+		// TODO(pavelkalinnikov): Optimize this by fetching only the required
+		// fields of LogLeaf. We can avoid joining with LeafData table here.
+		return t.GetLeavesByRange(ctx, t.slr.TreeSize, int64(limit))
+	}
+
 	start := time.Now()
 	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
 	if err != nil {
