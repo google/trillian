@@ -344,7 +344,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	if t.treeType == trillian.TreeType_PREORDERED_LOG {
 		// TODO(pavelkalinnikov): Optimize this by fetching only the required
 		// fields of LogLeaf. We can avoid joining with LeafData table here.
-		return t.GetLeavesByRange(ctx, t.slr.TreeSize, int64(limit))
+		return t.GetLeavesByRange(ctx, int64(t.root.TreeSize), int64(limit))
 	}
 
 	start := time.Now()
