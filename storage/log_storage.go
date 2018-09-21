@@ -75,6 +75,7 @@ type LogTreeTX interface {
 
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
 	StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error
+
 	// QueueLeaves enqueues leaves for later integration into the tree.
 	// If error is nil, the returned slice of leaves will be the same size as the
 	// input, and each entry will hold:
@@ -84,11 +85,30 @@ type LogTreeTX interface {
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
 	QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error)
-	// DequeueLeaves will return between [0, limit] leaves from the queue.
-	// Leaves which have been dequeued within a Rolled-back Tx will become available for dequeing again.
-	// Leaves queued more recently than the cutoff time will not be returned. This allows for
-	// guard intervals to be configured.
-	DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error)
+
+	// DequeueLeaves returns between [0, limit] leaves to be integrated to the
+	// tree.
+	//
+	// For LOG trees:
+	// - The leaves are taken from the queue.
+	// - If the Tx is rolled back, they become available for dequeueing again.
+	//
+	// For PREORDERED_LOG trees:
+	// - The leaves are taken from the head of as yet un-integrated part of the
+	//   sequenced entries, immediately following the current SignedLogRoot tree
+	//   size.
+	// - The operation is a no-op with regards to the sequenced entries.
+	//
+	// Leaves queued more recently than the cutoff time will not be returned.
+	// This allows for guard intervals to be configured, and (in case of
+	// PREORDERED_LOG trees) avoiding contention between log signer and writers
+	// appending new entries.
+	//
+	// This method is not required to return fully populated LogLeaf structures,
+	// but it *must* include MerkleLeafHash, QueueTimestamp, and LeafIndex (for
+	// PREORDERED_LOG trees). Storage implementations might apply optimizations
+	// employing this property. Consult the call sites of this method to be sure.
+	DequeueLeaves(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error)
 
 	// TODO(pavelkalinnikov): Comment properly.
 	AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
