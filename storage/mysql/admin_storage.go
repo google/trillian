@@ -24,10 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -161,7 +158,7 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 	defer stmt.Close()
 
 	// GetTree is an entry point for most RPCs, let's provide somewhat nicer error messages.
-	tree, err := readTree(stmt.QueryRowContext(ctx, treeID))
+	tree, err := storage.ReadTree(stmt.QueryRowContext(ctx, treeID))
 	switch {
 	case err == sql.ErrNoRows:
 		// ErrNoRows doesn't provide useful information, so we don't forward it.
@@ -170,120 +167,6 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 		return nil, fmt.Errorf("error reading tree %v: %v", treeID, err)
 	}
 	return tree, nil
-}
-
-// There's no common interface between sql.Row and sql.Rows(!), so we have to
-// define one.
-type row interface {
-	Scan(dest ...interface{}) error
-}
-
-func readTree(row row) (*trillian.Tree, error) {
-	tree := &trillian.Tree{}
-
-	// Enums and Datetimes need an extra conversion step
-	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm string
-	var createMillis, updateMillis, maxRootDurationMillis int64
-	var displayName, description sql.NullString
-	var privateKey, publicKey []byte
-	var deleted sql.NullBool
-	var deleteMillis sql.NullInt64
-	err := row.Scan(
-		&tree.TreeId,
-		&treeState,
-		&treeType,
-		&hashStrategy,
-		&hashAlgorithm,
-		&signatureAlgorithm,
-		&displayName,
-		&description,
-		&createMillis,
-		&updateMillis,
-		&privateKey,
-		&publicKey,
-		&maxRootDurationMillis,
-		&deleted,
-		&deleteMillis,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	setNullStringIfValid(displayName, &tree.DisplayName)
-	setNullStringIfValid(description, &tree.Description)
-
-	// Convert all things!
-	if ts, ok := trillian.TreeState_value[treeState]; ok {
-		tree.TreeState = trillian.TreeState(ts)
-	} else {
-		return nil, fmt.Errorf("unknown TreeState: %v", treeState)
-	}
-	if tt, ok := trillian.TreeType_value[treeType]; ok {
-		tree.TreeType = trillian.TreeType(tt)
-	} else {
-		return nil, fmt.Errorf("unknown TreeType: %v", treeType)
-	}
-	if hs, ok := trillian.HashStrategy_value[hashStrategy]; ok {
-		tree.HashStrategy = trillian.HashStrategy(hs)
-	} else {
-		return nil, fmt.Errorf("unknown HashStrategy: %v", hashStrategy)
-	}
-	if ha, ok := spb.DigitallySigned_HashAlgorithm_value[hashAlgorithm]; ok {
-		tree.HashAlgorithm = spb.DigitallySigned_HashAlgorithm(ha)
-	} else {
-		return nil, fmt.Errorf("unknown HashAlgorithm: %v", hashAlgorithm)
-	}
-	if sa, ok := spb.DigitallySigned_SignatureAlgorithm_value[signatureAlgorithm]; ok {
-		tree.SignatureAlgorithm = spb.DigitallySigned_SignatureAlgorithm(sa)
-	} else {
-		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", signatureAlgorithm)
-	}
-
-	// Let's make sure we didn't mismatch any of the casts above
-	ok := tree.TreeState.String() == treeState
-	ok = ok && tree.TreeType.String() == treeType
-	ok = ok && tree.HashStrategy.String() == hashStrategy
-	ok = ok && tree.HashAlgorithm.String() == hashAlgorithm
-	ok = ok && tree.SignatureAlgorithm.String() == signatureAlgorithm
-	if !ok {
-		return nil, fmt.Errorf(
-			"mismatched enum: tree = %v, enums = [%v, %v, %v, %v, %v]",
-			tree,
-			treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm)
-	}
-
-	tree.CreateTime, err = ptypes.TimestampProto(fromMillisSinceEpoch(createMillis))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse create time: %v", err)
-	}
-	tree.UpdateTime, err = ptypes.TimestampProto(fromMillisSinceEpoch(updateMillis))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse update time: %v", err)
-	}
-	tree.MaxRootDuration = ptypes.DurationProto(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
-
-	tree.PrivateKey = &any.Any{}
-	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
-		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
-	}
-	tree.PublicKey = &keyspb.PublicKey{Der: publicKey}
-
-	tree.Deleted = deleted.Valid && deleted.Bool
-	if tree.Deleted && deleteMillis.Valid {
-		tree.DeleteTime, err = ptypes.TimestampProto(fromMillisSinceEpoch(deleteMillis.Int64))
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse delete time: %v", err)
-		}
-	}
-
-	return tree, nil
-}
-
-// setNullStringIfValid assigns src to dest if src is Valid.
-func setNullStringIfValid(src sql.NullString, dest *string) {
-	if src.Valid {
-		*dest = src.String
-	}
 }
 
 func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
@@ -337,7 +220,7 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 	defer rows.Close()
 	trees := []*trillian.Tree{}
 	for rows.Next() {
-		tree, err := readTree(rows)
+		tree, err := storage.ReadTree(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +233,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if err := storage.ValidateTreeForCreation(ctx, tree); err != nil {
 		return nil, err
 	}
-	if err := validateStorageSettings(tree); err != nil {
+	if err := storage.ValidateStorageSettings(tree); err != nil {
 		return nil, err
 	}
 
@@ -360,8 +243,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 
 	// Use the time truncated-to-millis throughout, as that's what's stored.
-	nowMillis := toMillisSinceEpoch(time.Now())
-	now := fromMillisSinceEpoch(nowMillis)
+	nowMillis := storage.ToMillisSinceEpoch(time.Now())
+	now := storage.FromMillisSinceEpoch(nowMillis)
 
 	newTree := *tree
 	newTree.TreeId = id
@@ -471,7 +354,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if err := storage.ValidateTreeForUpdate(ctx, &beforeUpdate, tree); err != nil {
 		return nil, err
 	}
-	if err := validateStorageSettings(tree); err != nil {
+	if err := storage.ValidateStorageSettings(tree); err != nil {
 		return nil, err
 	}
 
@@ -479,8 +362,8 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	// ensure all entries in SequencedLeafData are integrated.
 
 	// Use the time truncated-to-millis throughout, as that's what's stored.
-	nowMillis := toMillisSinceEpoch(time.Now())
-	now := fromMillisSinceEpoch(nowMillis)
+	nowMillis := storage.ToMillisSinceEpoch(time.Now())
+	now := storage.FromMillisSinceEpoch(nowMillis)
 	tree.UpdateTime, err = ptypes.TimestampProto(now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build update time: %v", err)
@@ -518,7 +401,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 }
 
 func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	return t.updateDeleted(ctx, treeID, true /* deleted */, toMillisSinceEpoch(time.Now()) /* deleteTimeMillis */)
+	return t.updateDeleted(ctx, treeID, true /* deleted */, storage.ToMillisSinceEpoch(time.Now()) /* deleteTimeMillis */)
 }
 
 func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
@@ -567,23 +450,6 @@ func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted 
 		return status.Errorf(codes.FailedPrecondition, "tree %v is not soft deleted", treeID)
 	case !wantDeleted && deleted:
 		return status.Errorf(codes.FailedPrecondition, "tree %v already soft deleted", treeID)
-	}
-	return nil
-}
-
-func toMillisSinceEpoch(t time.Time) int64 {
-	return t.UnixNano() / 1000000
-}
-
-func fromMillisSinceEpoch(ts int64) time.Time {
-	secs := int64(ts / 1000)
-	msecs := int64(ts % 1000)
-	return time.Unix(secs, msecs*1000000)
-}
-
-func validateStorageSettings(tree *trillian.Tree) error {
-	if tree.StorageSettings != nil {
-		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)
 	}
 	return nil
 }
