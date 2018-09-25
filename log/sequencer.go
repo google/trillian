@@ -451,7 +451,6 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return err
 		}
 		seqStoreRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
-		stageStart = s.timeSource.Now()
 
 		return nil
 	})
