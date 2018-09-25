@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	pgConnStr         = flag.String("pg_uri", "user=postgres dbname=test port=5432 sslmode=disable", "Connection URI for Postgres database")
+	pgConnStr         = flag.String("pg_uri", "user=postgres dbname=test port=5432 sslmode=disable", "Connection string for Postgres database")
 	pgOnce            sync.Once
 	pgStorageInstance *pgProvider
 )
