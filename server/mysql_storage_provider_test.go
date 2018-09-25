@@ -40,6 +40,6 @@ func TestMySQLStorageProviderErrorPersistence(t *testing.T) {
 	}
 
 	if err2 != err1 {
-		t.Fatalf("Expected second call to 'server.NewStorageProvider' to fail with %s, instead got: %s", err1, err2)
+		t.Fatalf("Expected second call to 'server.NewStorageProvider' to fail with %q, instead got: %q", err1, err2)
 	}
 }
