@@ -22,8 +22,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgres"
