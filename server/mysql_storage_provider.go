@@ -33,6 +33,7 @@ var (
 	maxConns = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
 
 	mysqlOnce            sync.Once
+	mysqlOnceErr         error
 	mySQLstorageInstance *mysqlProvider
 )
 
@@ -48,12 +49,10 @@ type mysqlProvider struct {
 }
 
 func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
-	var err error
-
 	mysqlOnce.Do(func() {
 		var db *sql.DB
-		db, err = mysql.OpenDB(*mySQLURI)
-		if err != nil {
+		db, mysqlOnceErr = mysql.OpenDB(*mySQLURI)
+		if mysqlOnceErr != nil {
 			return
 		}
 		if *maxConns > 0 {
@@ -64,8 +63,8 @@ func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, erro
 			mf: mf,
 		}
 	})
-	if err != nil {
-		return nil, err
+	if mysqlOnceErr != nil {
+		return nil, mysqlOnceErr
 	}
 	return mySQLstorageInstance, nil
 }
