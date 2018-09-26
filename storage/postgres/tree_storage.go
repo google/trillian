@@ -20,11 +20,11 @@ import (
 	"github.com/golang/glog"
 )
 
-// OpenDB opens a database connection for all MySQL-based storage implementations.
-func OpenDB(dbURL string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", dbURL)
+// OpenDB opens a database connection for all PG-based storage implementations.
+func OpenDB(connStr string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		// Don't log uri as it could contain credentials
+		// Don't log conn str as it could contain credentials
 		glog.Warningf("Could not open Postgres database, check config: %s", err)
 		return nil, err
 	}

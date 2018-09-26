@@ -79,8 +79,8 @@ const (
 )
 
 var (
-	// ErrNotImplemented is an error indicating a function's implementation has not been completed
-	ErrNotImplemented = errors.New("not implemented")
+	// errNotImplemented is an error indicating a function's implementation has not been completed
+	errNotImplemented = errors.New("not implemented")
 )
 
 // NewAdminStorage returns a storage.AdminStorage implementation
@@ -188,18 +188,18 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 }
 
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, error) {
 	if err := storage.ValidateTreeForCreation(ctx, tree); err != nil {
 		return nil, err
 	}
-	if err := storage.ValidateStorageSettings(tree); err != nil {
+	if err := validateStorageSettings(tree); err != nil {
 		return nil, err
 	}
 
@@ -278,17 +278,24 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 }
 
 func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
-	return ErrNotImplemented
+	return errNotImplemented
+}
+
+func validateStorageSettings(tree *trillian.Tree) error {
+	if tree.StorageSettings != nil {
+		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)
+	}
+	return nil
 }

@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -28,17 +29,18 @@ import (
 
 	"github.com/google/trillian/testonly"
 
-	_ "github.com/lib/pq" // mysql driver
+	_ "github.com/lib/pq" // pg driver
 )
 
 var (
 	trillianSQL = testonly.RelativeToPackage("../storage.sql")
-	dataSource  = "database=test sslmode=disable"
+	pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
+	dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
 )
 
 // PGAvailable indicates whether a default PG database is available.
 func PGAvailable() bool {
-	db, err := sql.Open("postgres", dataSource)
+	db, err := sql.Open("postgres", getConnStr(*dbName))
 	if err != nil {
 		log.Printf("sql.Open(): %v", err)
 		return false
@@ -53,7 +55,7 @@ func PGAvailable() bool {
 
 // newEmptyDB creates a new, empty database.
 func newEmptyDB(ctx context.Context) (*sql.DB, error) {
-	db, err := sql.Open("postgres", dataSource)
+	db, err := sql.Open("postgres", getConnStr(*dbName))
 	if err != nil {
 		return nil, err
 	}
@@ -66,10 +68,8 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 		return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
 
-	connStr := fmt.Sprintf("%s database=%s", dataSource, name)
-
 	db.Close()
-	db, err = sql.Open("postgres", connStr)
+	db, err = sql.Open("postgres", getConnStr(name))
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +103,8 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
 	return db, nil
 }
 
+// sanitize tries to remove empty lines and comments from a sql script
+// to prevent them from being executed
 func sanitize(script string) string {
 	buf := &bytes.Buffer{}
 	for _, line := range strings.Split(string(script), "\n") {
@@ -116,10 +118,14 @@ func sanitize(script string) string {
 	return buf.String()
 }
 
-// SkipIfNoPG is a test helper that skips tests that require a local PG.
-func SkipIfNoPG(t *testing.T) {
+// skipIfNoPG is a test helper that skips tests that require a local PG.
+func skipIfNoPG(t *testing.T) {
 	t.Helper()
 	if !PGAvailable() {
 		t.Skip("Skipping test as PG not available")
 	}
+}
+
+func getConnStr(name string) string {
+	return fmt.Sprintf("database=%s %s", name, *pgOpts)
 }

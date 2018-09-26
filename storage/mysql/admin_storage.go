@@ -233,7 +233,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if err := storage.ValidateTreeForCreation(ctx, tree); err != nil {
 		return nil, err
 	}
-	if err := storage.ValidateStorageSettings(tree); err != nil {
+	if err := validateStorageSettings(tree); err != nil {
 		return nil, err
 	}
 
@@ -354,7 +354,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if err := storage.ValidateTreeForUpdate(ctx, &beforeUpdate, tree); err != nil {
 		return nil, err
 	}
-	if err := storage.ValidateStorageSettings(tree); err != nil {
+	if err := validateStorageSettings(tree); err != nil {
 		return nil, err
 	}
 
@@ -450,6 +450,13 @@ func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted 
 		return status.Errorf(codes.FailedPrecondition, "tree %v is not soft deleted", treeID)
 	case !wantDeleted && deleted:
 		return status.Errorf(codes.FailedPrecondition, "tree %v already soft deleted", treeID)
+	}
+	return nil
+}
+
+func validateStorageSettings(tree *trillian.Tree) error {
+	if tree.StorageSettings != nil {
+		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)
 	}
 	return nil
 }

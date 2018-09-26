@@ -38,7 +38,7 @@ const selectTreeControlByID = "SELECT signing_enabled, sequencing_enabled, seque
 
 func TestPgAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
-		cleanTestDB(DB)
+		cleanTestDB(DB, t)
 		return postgres.NewAdminStorage(DB)
 	}}
 	tester.TestCreateTree(t)
@@ -46,7 +46,7 @@ func TestPgAdminStorage(t *testing.T) {
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
-	cleanTestDB(DB)
+	cleanTestDB(DB, t)
 	s := postgres.NewAdminStorage(DB)
 	ctx := context.Background()
 
@@ -69,7 +69,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestCreateTreeInvalidStates(t *testing.T) {
-	cleanTestDB(DB)
+	cleanTestDB(DB, t)
 	s := postgres.NewAdminStorage(DB)
 	ctx := context.Background()
 
@@ -84,10 +84,11 @@ func TestCreateTreeInvalidStates(t *testing.T) {
 	}
 }
 
-func cleanTestDB(db *sql.DB) {
+func cleanTestDB(db *sql.DB, t *testing.T) {
+	t.Helper()
 	for _, table := range allTables {
 		if _, err := db.ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
-			panic(fmt.Sprintf("Failed to delete rows in %s: %v", table, err))
+			t.Fatal(fmt.Sprintf("Failed to delete rows in %s: %v", table, err))
 		}
 	}
 }
@@ -107,7 +108,6 @@ func TestMain(m *testing.M) {
 	}
 	DB = openTestDBOrDie()
 	defer DB.Close()
-	cleanTestDB(DB)
 	ec := m.Run()
 	os.Exit(ec)
 }

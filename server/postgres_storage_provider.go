@@ -24,13 +24,14 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgres"
 
-	// Load MySQL driver
+	// Load PG driver
 	_ "github.com/lib/pq"
 )
 
 var (
-	pgConnStr         = flag.String("pg_uri", "user=postgres dbname=test port=5432 sslmode=disable", "Connection string for Postgres database")
+	pgConnStr         = flag.String("pg_conn_str", "user=postgres dbname=test port=5432 sslmode=disable", "Connection string for Postgres database")
 	pgOnce            sync.Once
+	pgOnceErr         error
 	pgStorageInstance *pgProvider
 )
 
@@ -46,12 +47,10 @@ type pgProvider struct {
 }
 
 func newPGProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
-	var err error
-
 	pgOnce.Do(func() {
 		var db *sql.DB
-		db, err = postgres.OpenDB(*pgConnStr)
-		if err != nil {
+		db, pgOnceErr = postgres.OpenDB(*pgConnStr)
+		if pgOnceErr != nil {
 			return
 		}
 
@@ -60,8 +59,8 @@ func newPGProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
 			mf: mf,
 		}
 	})
-	if err != nil {
-		return nil, err
+	if pgOnceErr != nil {
+		return nil, pgOnceErr
 	}
 	return pgStorageInstance, nil
 }

@@ -17,7 +17,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
-	time "time"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -32,11 +32,9 @@ func ToMillisSinceEpoch(t time.Time) int64 {
 	return t.UnixNano() / 1000000
 }
 
-// FromMillisSinceEpoch converts an UNIX typestamp to a time struct
+// FromMillisSinceEpoch converts
 func FromMillisSinceEpoch(ts int64) time.Time {
-	secs := int64(ts / 1000)
-	msecs := int64(ts % 1000)
-	return time.Unix(secs, msecs*1000000)
+	return time.Unix(0, ts*1000000)
 }
 
 // SetNullStringIfValid assigns src to dest if src is Valid.
@@ -46,15 +44,7 @@ func SetNullStringIfValid(src sql.NullString, dest *string) {
 	}
 }
 
-// ValidateStorageSettings checks for storage settings and returns an error if they exist
-func ValidateStorageSettings(tree *trillian.Tree) error {
-	if tree.StorageSettings != nil {
-		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)
-	}
-	return nil
-}
-
-// Row defines a common interface between sql.Row and sql.Rows(!), so we have to
+// Row defines a common interface between sql.Row and sql.Rows(!)
 type Row interface {
 	Scan(dest ...interface{}) error
 }
