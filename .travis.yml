@@ -68,11 +68,10 @@ install:
   - go get github.com/alecthomas/gometalinter
   - go get github.com/golang/protobuf/proto
   - go get github.com/golang/protobuf/protoc-gen-go
+  - go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
   - go get github.com/golang/mock/mockgen
   - go get golang.org/x/tools/cmd/stringer
   - gometalinter --install
-  # install vendored protoc-gen-grpc-gateway binary
-  - go install ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
   # install vendored etcd binary
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
