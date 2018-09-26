@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/google/trillian/testonly"
@@ -116,14 +115,6 @@ func sanitize(script string) string {
 		buf.WriteString("\n")
 	}
 	return buf.String()
-}
-
-// skipIfNoPG is a test helper that skips tests that require a local PG.
-func skipIfNoPG(t *testing.T) {
-	t.Helper()
-	if !PGAvailable() {
-		t.Skip("Skipping test as PG not available")
-	}
 }
 
 func getConnStr(name string) string {
