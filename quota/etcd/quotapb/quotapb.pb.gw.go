@@ -32,10 +32,8 @@ func request_Quota_CreateConfig_0(ctx context.Context, marshaler runtime.Marshal
 	var protoReq CreateConfigRequest
 	var metadata runtime.ServerMetadata
 
-	if req.ContentLength > 0 {
-		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-		}
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	var (
@@ -136,10 +134,8 @@ func request_Quota_UpdateConfig_0(ctx context.Context, marshaler runtime.Marshal
 	var protoReq UpdateConfigRequest
 	var metadata runtime.ServerMetadata
 
-	if req.ContentLength > 0 {
-		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-		}
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	var (
@@ -175,14 +171,14 @@ func RegisterQuotaHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux
 	defer func() {
 		if err != nil {
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 			return
 		}
 		go func() {
 			<-ctx.Done()
 			if cerr := conn.Close(); cerr != nil {
-				grpclog.Printf("Failed to close conn to %s: %v", endpoint, cerr)
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
 			}
 		}()
 	}()
@@ -196,8 +192,8 @@ func RegisterQuotaHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc
 	return RegisterQuotaHandlerClient(ctx, mux, NewQuotaClient(conn))
 }
 
-// RegisterQuotaHandler registers the http handlers for service Quota to "mux".
-// The handlers forward requests to the grpc endpoint over the given implementation of "QuotaClient".
+// RegisterQuotaHandlerClient registers the http handlers for service Quota
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "QuotaClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "QuotaClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "QuotaClient" to call the correct interceptors.

@@ -3,12 +3,14 @@
 
 package quotapb
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import empty "github.com/golang/protobuf/ptypes/empty"
-import _ "google.golang.org/genproto/googleapis/api/annotations"
-import field_mask "google.golang.org/genproto/protobuf/field_mask"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	empty "github.com/golang/protobuf/ptypes/empty"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
+	field_mask "google.golang.org/genproto/protobuf/field_mask"
+	math "math"
+)
 
 import (
 	context "golang.org/x/net/context"
@@ -43,6 +45,7 @@ var Config_State_name = map[int32]string{
 	1: "ENABLED",
 	2: "DISABLED",
 }
+
 var Config_State_value = map[string]int32{
 	"UNKNOWN_CONFIG_STATE": 0,
 	"ENABLED":              1,
@@ -52,8 +55,9 @@ var Config_State_value = map[string]int32{
 func (x Config_State) String() string {
 	return proto.EnumName(Config_State_name, int32(x))
 }
+
 func (Config_State) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{0, 0}
+	return fileDescriptor_7358794d7f8089dd, []int{0, 0}
 }
 
 // Possible views for ListConfig.
@@ -70,6 +74,7 @@ var ListConfigsRequest_ListView_name = map[int32]string{
 	0: "BASIC",
 	1: "FULL",
 }
+
 var ListConfigsRequest_ListView_value = map[string]int32{
 	"BASIC": 0,
 	"FULL":  1,
@@ -78,8 +83,9 @@ var ListConfigsRequest_ListView_value = map[string]int32{
 func (x ListConfigsRequest_ListView) String() string {
 	return proto.EnumName(ListConfigsRequest_ListView_name, int32(x))
 }
+
 func (ListConfigsRequest_ListView) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{6, 0}
+	return fileDescriptor_7358794d7f8089dd, []int{6, 0}
 }
 
 // Configuration of a quota.
@@ -104,11 +110,11 @@ func (ListConfigsRequest_ListView) EnumDescriptor() ([]byte, []int) {
 type Config struct {
 	// Name of the config, eg, “quotas/trees/1234/read/config”.
 	// Readonly.
-	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// State of the config.
-	State Config_State `protobuf:"varint,2,opt,name=state,enum=quotapb.Config_State" json:"state,omitempty"`
+	State Config_State `protobuf:"varint,2,opt,name=state,proto3,enum=quotapb.Config_State" json:"state,omitempty"`
 	// Max number of tokens available for the config.
-	MaxTokens int64 `protobuf:"varint,3,opt,name=max_tokens,json=maxTokens" json:"max_tokens,omitempty"`
+	MaxTokens int64 `protobuf:"varint,3,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
 	// Replenishment strategy used by the config.
 	//
 	// Types that are valid to be assigned to ReplenishmentStrategy:
@@ -119,7 +125,7 @@ type Config struct {
 	// May be higher than max_tokens for DISABLED configs, which are considered to
 	// have "infinite" tokens.
 	// Readonly.
-	CurrentTokens        int64    `protobuf:"varint,6,opt,name=current_tokens,json=currentTokens" json:"current_tokens,omitempty"`
+	CurrentTokens        int64    `protobuf:"varint,6,opt,name=current_tokens,json=currentTokens,proto3" json:"current_tokens,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -129,16 +135,17 @@ func (m *Config) Reset()         { *m = Config{} }
 func (m *Config) String() string { return proto.CompactTextString(m) }
 func (*Config) ProtoMessage()    {}
 func (*Config) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{0}
+	return fileDescriptor_7358794d7f8089dd, []int{0}
 }
+
 func (m *Config) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Config.Unmarshal(m, b)
 }
 func (m *Config) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Config.Marshal(b, m, deterministic)
 }
-func (dst *Config) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Config.Merge(dst, src)
+func (m *Config) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Config.Merge(m, src)
 }
 func (m *Config) XXX_Size() int {
 	return xxx_messageInfo_Config.Size(m)
@@ -148,27 +155,6 @@ func (m *Config) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_Config proto.InternalMessageInfo
-
-type isConfig_ReplenishmentStrategy interface {
-	isConfig_ReplenishmentStrategy()
-}
-
-type Config_SequencingBased struct {
-	SequencingBased *SequencingBasedStrategy `protobuf:"bytes,4,opt,name=sequencing_based,json=sequencingBased,oneof"`
-}
-type Config_TimeBased struct {
-	TimeBased *TimeBasedStrategy `protobuf:"bytes,5,opt,name=time_based,json=timeBased,oneof"`
-}
-
-func (*Config_SequencingBased) isConfig_ReplenishmentStrategy() {}
-func (*Config_TimeBased) isConfig_ReplenishmentStrategy()       {}
-
-func (m *Config) GetReplenishmentStrategy() isConfig_ReplenishmentStrategy {
-	if m != nil {
-		return m.ReplenishmentStrategy
-	}
-	return nil
-}
 
 func (m *Config) GetName() string {
 	if m != nil {
@@ -189,6 +175,29 @@ func (m *Config) GetMaxTokens() int64 {
 		return m.MaxTokens
 	}
 	return 0
+}
+
+type isConfig_ReplenishmentStrategy interface {
+	isConfig_ReplenishmentStrategy()
+}
+
+type Config_SequencingBased struct {
+	SequencingBased *SequencingBasedStrategy `protobuf:"bytes,4,opt,name=sequencing_based,json=sequencingBased,proto3,oneof"`
+}
+
+type Config_TimeBased struct {
+	TimeBased *TimeBasedStrategy `protobuf:"bytes,5,opt,name=time_based,json=timeBased,proto3,oneof"`
+}
+
+func (*Config_SequencingBased) isConfig_ReplenishmentStrategy() {}
+
+func (*Config_TimeBased) isConfig_ReplenishmentStrategy() {}
+
+func (m *Config) GetReplenishmentStrategy() isConfig_ReplenishmentStrategy {
+	if m != nil {
+		return m.ReplenishmentStrategy
+	}
+	return nil
 }
 
 func (m *Config) GetSequencingBased() *SequencingBasedStrategy {
@@ -300,16 +309,17 @@ func (m *SequencingBasedStrategy) Reset()         { *m = SequencingBasedStrategy
 func (m *SequencingBasedStrategy) String() string { return proto.CompactTextString(m) }
 func (*SequencingBasedStrategy) ProtoMessage()    {}
 func (*SequencingBasedStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{1}
+	return fileDescriptor_7358794d7f8089dd, []int{1}
 }
+
 func (m *SequencingBasedStrategy) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SequencingBasedStrategy.Unmarshal(m, b)
 }
 func (m *SequencingBasedStrategy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SequencingBasedStrategy.Marshal(b, m, deterministic)
 }
-func (dst *SequencingBasedStrategy) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SequencingBasedStrategy.Merge(dst, src)
+func (m *SequencingBasedStrategy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SequencingBasedStrategy.Merge(m, src)
 }
 func (m *SequencingBasedStrategy) XXX_Size() int {
 	return xxx_messageInfo_SequencingBasedStrategy.Size(m)
@@ -323,9 +333,9 @@ var xxx_messageInfo_SequencingBasedStrategy proto.InternalMessageInfo
 // Time-based replenishment strategy settings.
 type TimeBasedStrategy struct {
 	// Number of tokens to replenish at every replenish_interval_seconds.
-	TokensToReplenish int64 `protobuf:"varint,1,opt,name=tokens_to_replenish,json=tokensToReplenish" json:"tokens_to_replenish,omitempty"`
+	TokensToReplenish int64 `protobuf:"varint,1,opt,name=tokens_to_replenish,json=tokensToReplenish,proto3" json:"tokens_to_replenish,omitempty"`
 	// Interval at which tokens_to_replenish get replenished.
-	ReplenishIntervalSeconds int64    `protobuf:"varint,2,opt,name=replenish_interval_seconds,json=replenishIntervalSeconds" json:"replenish_interval_seconds,omitempty"`
+	ReplenishIntervalSeconds int64    `protobuf:"varint,2,opt,name=replenish_interval_seconds,json=replenishIntervalSeconds,proto3" json:"replenish_interval_seconds,omitempty"`
 	XXX_NoUnkeyedLiteral     struct{} `json:"-"`
 	XXX_unrecognized         []byte   `json:"-"`
 	XXX_sizecache            int32    `json:"-"`
@@ -335,16 +345,17 @@ func (m *TimeBasedStrategy) Reset()         { *m = TimeBasedStrategy{} }
 func (m *TimeBasedStrategy) String() string { return proto.CompactTextString(m) }
 func (*TimeBasedStrategy) ProtoMessage()    {}
 func (*TimeBasedStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{2}
+	return fileDescriptor_7358794d7f8089dd, []int{2}
 }
+
 func (m *TimeBasedStrategy) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TimeBasedStrategy.Unmarshal(m, b)
 }
 func (m *TimeBasedStrategy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TimeBasedStrategy.Marshal(b, m, deterministic)
 }
-func (dst *TimeBasedStrategy) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TimeBasedStrategy.Merge(dst, src)
+func (m *TimeBasedStrategy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TimeBasedStrategy.Merge(m, src)
 }
 func (m *TimeBasedStrategy) XXX_Size() int {
 	return xxx_messageInfo_TimeBasedStrategy.Size(m)
@@ -374,9 +385,9 @@ type CreateConfigRequest struct {
 	// Name of the config to create.
 	// For example, "quotas/global/read/config" (global/read quota) or
 	// "quotas/trees/1234/write/config" (write quota for tree 1234).
-	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Config to be created.
-	Config               *Config  `protobuf:"bytes,2,opt,name=config" json:"config,omitempty"`
+	Config               *Config  `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -386,16 +397,17 @@ func (m *CreateConfigRequest) Reset()         { *m = CreateConfigRequest{} }
 func (m *CreateConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateConfigRequest) ProtoMessage()    {}
 func (*CreateConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{3}
+	return fileDescriptor_7358794d7f8089dd, []int{3}
 }
+
 func (m *CreateConfigRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateConfigRequest.Unmarshal(m, b)
 }
 func (m *CreateConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CreateConfigRequest.Marshal(b, m, deterministic)
 }
-func (dst *CreateConfigRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CreateConfigRequest.Merge(dst, src)
+func (m *CreateConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateConfigRequest.Merge(m, src)
 }
 func (m *CreateConfigRequest) XXX_Size() int {
 	return xxx_messageInfo_CreateConfigRequest.Size(m)
@@ -423,7 +435,7 @@ func (m *CreateConfigRequest) GetConfig() *Config {
 // DeleteConfig request.
 type DeleteConfigRequest struct {
 	// Name of the config to delete.
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -433,16 +445,17 @@ func (m *DeleteConfigRequest) Reset()         { *m = DeleteConfigRequest{} }
 func (m *DeleteConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*DeleteConfigRequest) ProtoMessage()    {}
 func (*DeleteConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{4}
+	return fileDescriptor_7358794d7f8089dd, []int{4}
 }
+
 func (m *DeleteConfigRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeleteConfigRequest.Unmarshal(m, b)
 }
 func (m *DeleteConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DeleteConfigRequest.Marshal(b, m, deterministic)
 }
-func (dst *DeleteConfigRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DeleteConfigRequest.Merge(dst, src)
+func (m *DeleteConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteConfigRequest.Merge(m, src)
 }
 func (m *DeleteConfigRequest) XXX_Size() int {
 	return xxx_messageInfo_DeleteConfigRequest.Size(m)
@@ -464,7 +477,7 @@ func (m *DeleteConfigRequest) GetName() string {
 type GetConfigRequest struct {
 	// Name of the config to retrieve.
 	// For example, "quotas/global/read/config".
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -474,16 +487,17 @@ func (m *GetConfigRequest) Reset()         { *m = GetConfigRequest{} }
 func (m *GetConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*GetConfigRequest) ProtoMessage()    {}
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{5}
+	return fileDescriptor_7358794d7f8089dd, []int{5}
 }
+
 func (m *GetConfigRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetConfigRequest.Unmarshal(m, b)
 }
 func (m *GetConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetConfigRequest.Marshal(b, m, deterministic)
 }
-func (dst *GetConfigRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetConfigRequest.Merge(dst, src)
+func (m *GetConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetConfigRequest.Merge(m, src)
 }
 func (m *GetConfigRequest) XXX_Size() int {
 	return xxx_messageInfo_GetConfigRequest.Size(m)
@@ -509,9 +523,9 @@ type ListConfigsRequest struct {
 	// that component. For example:
 	// - "quotas/global/-/config" (both read and write global quotas)
 	// - "quotas/trees/-/-/config" (all tree quotas)
-	Names []string `protobuf:"bytes,1,rep,name=names" json:"names,omitempty"`
+	Names []string `protobuf:"bytes,1,rep,name=names,proto3" json:"names,omitempty"`
 	// View specifies how much data to return.
-	View                 ListConfigsRequest_ListView `protobuf:"varint,2,opt,name=view,enum=quotapb.ListConfigsRequest_ListView" json:"view,omitempty"`
+	View                 ListConfigsRequest_ListView `protobuf:"varint,2,opt,name=view,proto3,enum=quotapb.ListConfigsRequest_ListView" json:"view,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                    `json:"-"`
 	XXX_unrecognized     []byte                      `json:"-"`
 	XXX_sizecache        int32                       `json:"-"`
@@ -521,16 +535,17 @@ func (m *ListConfigsRequest) Reset()         { *m = ListConfigsRequest{} }
 func (m *ListConfigsRequest) String() string { return proto.CompactTextString(m) }
 func (*ListConfigsRequest) ProtoMessage()    {}
 func (*ListConfigsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{6}
+	return fileDescriptor_7358794d7f8089dd, []int{6}
 }
+
 func (m *ListConfigsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListConfigsRequest.Unmarshal(m, b)
 }
 func (m *ListConfigsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ListConfigsRequest.Marshal(b, m, deterministic)
 }
-func (dst *ListConfigsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ListConfigsRequest.Merge(dst, src)
+func (m *ListConfigsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListConfigsRequest.Merge(m, src)
 }
 func (m *ListConfigsRequest) XXX_Size() int {
 	return xxx_messageInfo_ListConfigsRequest.Size(m)
@@ -558,7 +573,7 @@ func (m *ListConfigsRequest) GetView() ListConfigsRequest_ListView {
 // ListConfig response.
 type ListConfigsResponse struct {
 	// Configs matching the request filter.
-	Configs              []*Config `protobuf:"bytes,1,rep,name=configs" json:"configs,omitempty"`
+	Configs              []*Config `protobuf:"bytes,1,rep,name=configs,proto3" json:"configs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
@@ -568,16 +583,17 @@ func (m *ListConfigsResponse) Reset()         { *m = ListConfigsResponse{} }
 func (m *ListConfigsResponse) String() string { return proto.CompactTextString(m) }
 func (*ListConfigsResponse) ProtoMessage()    {}
 func (*ListConfigsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{7}
+	return fileDescriptor_7358794d7f8089dd, []int{7}
 }
+
 func (m *ListConfigsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListConfigsResponse.Unmarshal(m, b)
 }
 func (m *ListConfigsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ListConfigsResponse.Marshal(b, m, deterministic)
 }
-func (dst *ListConfigsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ListConfigsResponse.Merge(dst, src)
+func (m *ListConfigsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListConfigsResponse.Merge(m, src)
 }
 func (m *ListConfigsResponse) XXX_Size() int {
 	return xxx_messageInfo_ListConfigsResponse.Size(m)
@@ -614,16 +630,16 @@ func (m *ListConfigsResponse) GetConfigs() []*Config {
 // requests (name and reset_quota = true) are allowed.
 type UpdateConfigRequest struct {
 	// Name of the config to update.
-	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Config to update. Only the fields specified by update_mask need to be
 	// filled.
-	Config *Config `protobuf:"bytes,2,opt,name=config" json:"config,omitempty"`
+	Config *Config `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	// Fields modified by the update request.
 	// For example: "state" or "max_tokens".
-	UpdateMask *field_mask.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask" json:"update_mask,omitempty"`
+	UpdateMask *field_mask.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	// If true the updated quota is reset, regardless of the update's contents.
 	// A reset quota is replenished to its maximum number of tokens.
-	ResetQuota           bool     `protobuf:"varint,4,opt,name=reset_quota,json=resetQuota" json:"reset_quota,omitempty"`
+	ResetQuota           bool     `protobuf:"varint,4,opt,name=reset_quota,json=resetQuota,proto3" json:"reset_quota,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -633,16 +649,17 @@ func (m *UpdateConfigRequest) Reset()         { *m = UpdateConfigRequest{} }
 func (m *UpdateConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*UpdateConfigRequest) ProtoMessage()    {}
 func (*UpdateConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_quotapb_e21da34a69faec1d, []int{8}
+	return fileDescriptor_7358794d7f8089dd, []int{8}
 }
+
 func (m *UpdateConfigRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UpdateConfigRequest.Unmarshal(m, b)
 }
 func (m *UpdateConfigRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UpdateConfigRequest.Marshal(b, m, deterministic)
 }
-func (dst *UpdateConfigRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UpdateConfigRequest.Merge(dst, src)
+func (m *UpdateConfigRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateConfigRequest.Merge(m, src)
 }
 func (m *UpdateConfigRequest) XXX_Size() int {
 	return xxx_messageInfo_UpdateConfigRequest.Size(m)
@@ -682,6 +699,8 @@ func (m *UpdateConfigRequest) GetResetQuota() bool {
 }
 
 func init() {
+	proto.RegisterEnum("quotapb.Config_State", Config_State_name, Config_State_value)
+	proto.RegisterEnum("quotapb.ListConfigsRequest_ListView", ListConfigsRequest_ListView_name, ListConfigsRequest_ListView_value)
 	proto.RegisterType((*Config)(nil), "quotapb.Config")
 	proto.RegisterType((*SequencingBasedStrategy)(nil), "quotapb.SequencingBasedStrategy")
 	proto.RegisterType((*TimeBasedStrategy)(nil), "quotapb.TimeBasedStrategy")
@@ -691,8 +710,6 @@ func init() {
 	proto.RegisterType((*ListConfigsRequest)(nil), "quotapb.ListConfigsRequest")
 	proto.RegisterType((*ListConfigsResponse)(nil), "quotapb.ListConfigsResponse")
 	proto.RegisterType((*UpdateConfigRequest)(nil), "quotapb.UpdateConfigRequest")
-	proto.RegisterEnum("quotapb.Config_State", Config_State_name, Config_State_value)
-	proto.RegisterEnum("quotapb.ListConfigsRequest_ListView", ListConfigsRequest_ListView_name, ListConfigsRequest_ListView_value)
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -773,8 +790,7 @@ func (c *quotaClient) UpdateConfig(ctx context.Context, in *UpdateConfigRequest,
 	return out, nil
 }
 
-// Server API for Quota service
-
+// QuotaServer is the server API for Quota service.
 type QuotaServer interface {
 	// Creates a new quota.
 	CreateConfig(context.Context, *CreateConfigRequest) (*Config, error)
@@ -912,9 +928,9 @@ var _Quota_serviceDesc = grpc.ServiceDesc{
 	Metadata: "quotapb.proto",
 }
 
-func init() { proto.RegisterFile("quotapb.proto", fileDescriptor_quotapb_e21da34a69faec1d) }
+func init() { proto.RegisterFile("quotapb.proto", fileDescriptor_7358794d7f8089dd) }
 
-var fileDescriptor_quotapb_e21da34a69faec1d = []byte{
+var fileDescriptor_7358794d7f8089dd = []byte{
 	// 759 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0xdd, 0x4e, 0x13, 0x41,
 	0x18, 0x65, 0xfb, 0x47, 0xfb, 0x95, 0x9f, 0x32, 0x45, 0x58, 0x0a, 0x86, 0xcd, 0x46, 0xb4, 0x94,

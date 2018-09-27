@@ -3,9 +3,11 @@
 
 package ctmapperpb
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -36,16 +38,17 @@ func (m *MapperMetadata) Reset()         { *m = MapperMetadata{} }
 func (m *MapperMetadata) String() string { return proto.CompactTextString(m) }
 func (*MapperMetadata) ProtoMessage()    {}
 func (*MapperMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ct_mapper_ad97a32d3668de12, []int{0}
+	return fileDescriptor_61875a7d99c9dac1, []int{0}
 }
+
 func (m *MapperMetadata) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapperMetadata.Unmarshal(m, b)
 }
 func (m *MapperMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MapperMetadata.Marshal(b, m, deterministic)
 }
-func (dst *MapperMetadata) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MapperMetadata.Merge(dst, src)
+func (m *MapperMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MapperMetadata.Merge(m, src)
 }
 func (m *MapperMetadata) XXX_Size() int {
 	return xxx_messageInfo_MapperMetadata.Size(m)
@@ -92,16 +95,17 @@ func (m *EntryList) Reset()         { *m = EntryList{} }
 func (m *EntryList) String() string { return proto.CompactTextString(m) }
 func (*EntryList) ProtoMessage()    {}
 func (*EntryList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ct_mapper_ad97a32d3668de12, []int{1}
+	return fileDescriptor_61875a7d99c9dac1, []int{1}
 }
+
 func (m *EntryList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EntryList.Unmarshal(m, b)
 }
 func (m *EntryList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_EntryList.Marshal(b, m, deterministic)
 }
-func (dst *EntryList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EntryList.Merge(dst, src)
+func (m *EntryList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_EntryList.Merge(m, src)
 }
 func (m *EntryList) XXX_Size() int {
 	return xxx_messageInfo_EntryList.Size(m)
@@ -138,9 +142,9 @@ func init() {
 	proto.RegisterType((*EntryList)(nil), "ctmapperpb.EntryList")
 }
 
-func init() { proto.RegisterFile("ct_mapper.proto", fileDescriptor_ct_mapper_ad97a32d3668de12) }
+func init() { proto.RegisterFile("ct_mapper.proto", fileDescriptor_61875a7d99c9dac1) }
 
-var fileDescriptor_ct_mapper_ad97a32d3668de12 = []byte{
+var fileDescriptor_61875a7d99c9dac1 = []byte{
 	// 215 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4c, 0xcf, 0xc1, 0x4b, 0xc3, 0x30,
 	0x14, 0xc7, 0x71, 0xba, 0xc2, 0xa0, 0xcf, 0x4d, 0x21, 0x07, 0x09, 0x88, 0x50, 0xea, 0xa5, 0x27,
