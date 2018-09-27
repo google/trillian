@@ -3,9 +3,11 @@
 
 package storagepb
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -32,16 +34,17 @@ func (m *NodeIDProto) Reset()         { *m = NodeIDProto{} }
 func (m *NodeIDProto) String() string { return proto.CompactTextString(m) }
 func (*NodeIDProto) ProtoMessage()    {}
 func (*NodeIDProto) Descriptor() ([]byte, []int) {
-	return fileDescriptor_storage_4abc7144f770b7da, []int{0}
+	return fileDescriptor_0d2c4ccf1453ffdb, []int{0}
 }
+
 func (m *NodeIDProto) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NodeIDProto.Unmarshal(m, b)
 }
 func (m *NodeIDProto) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_NodeIDProto.Marshal(b, m, deterministic)
 }
-func (dst *NodeIDProto) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NodeIDProto.Merge(dst, src)
+func (m *NodeIDProto) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NodeIDProto.Merge(m, src)
 }
 func (m *NodeIDProto) XXX_Size() int {
 	return xxx_messageInfo_NodeIDProto.Size(m)
@@ -92,16 +95,17 @@ func (m *SubtreeProto) Reset()         { *m = SubtreeProto{} }
 func (m *SubtreeProto) String() string { return proto.CompactTextString(m) }
 func (*SubtreeProto) ProtoMessage()    {}
 func (*SubtreeProto) Descriptor() ([]byte, []int) {
-	return fileDescriptor_storage_4abc7144f770b7da, []int{1}
+	return fileDescriptor_0d2c4ccf1453ffdb, []int{1}
 }
+
 func (m *SubtreeProto) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SubtreeProto.Unmarshal(m, b)
 }
 func (m *SubtreeProto) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SubtreeProto.Marshal(b, m, deterministic)
 }
-func (dst *SubtreeProto) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SubtreeProto.Merge(dst, src)
+func (m *SubtreeProto) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubtreeProto.Merge(m, src)
 }
 func (m *SubtreeProto) XXX_Size() int {
 	return xxx_messageInfo_SubtreeProto.Size(m)
@@ -161,9 +165,9 @@ func init() {
 	proto.RegisterMapType((map[string][]byte)(nil), "storagepb.SubtreeProto.LeavesEntry")
 }
 
-func init() { proto.RegisterFile("storage.proto", fileDescriptor_storage_4abc7144f770b7da) }
+func init() { proto.RegisterFile("storage.proto", fileDescriptor_0d2c4ccf1453ffdb) }
 
-var fileDescriptor_storage_4abc7144f770b7da = []byte{
+var fileDescriptor_0d2c4ccf1453ffdb = []byte{
 	// 308 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x91, 0x4d, 0x4b, 0xc3, 0x40,
 	0x10, 0x86, 0x49, 0xd3, 0x06, 0x3b, 0x6d, 0xfc, 0x58, 0x45, 0x96, 0x7a, 0x09, 0x15, 0x24, 0x78,
