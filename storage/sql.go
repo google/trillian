@@ -112,11 +112,11 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	}
 
 	// Let's make sure we didn't mismatch any of the casts above
-	ok := tree.TreeState.String() == treeState
-	ok = ok && tree.TreeType.String() == treeType
-	ok = ok && tree.HashStrategy.String() == hashStrategy
-	ok = ok && tree.HashAlgorithm.String() == hashAlgorithm
-	ok = ok && tree.SignatureAlgorithm.String() == signatureAlgorithm
+	ok := tree.TreeState.String() == treeState &&
+		tree.TreeType.String() == treeType &&
+		tree.HashStrategy.String() == hashStrategy &&
+		tree.HashAlgorithm.String() == hashAlgorithm &&
+		tree.SignatureAlgorithm.String() == signatureAlgorithm
 	if !ok {
 		return nil, fmt.Errorf(
 			"mismatched enum: tree = %v, enums = [%v, %v, %v, %v, %v]",
