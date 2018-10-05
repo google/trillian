@@ -27,7 +27,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/monitoring/testonly"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
@@ -172,59 +171,13 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Return(1, nil)
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Return(0, nil)
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher)
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher)
 
 	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
-}
-
-func TestLogOperationManagerExecutePassError(t *testing.T) {
-	ctx := context.Background()
-	logID1 := int64(451)
-	logID2 := int64(145)
-	logID1Label := strconv.FormatInt(logID1, 10)
-	logID2Label := strconv.FormatInt(logID2, 10)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fakeStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{451: "LogID1", 145: "LogID2"})
-	registry := extension.Registry{
-		LogStorage:   fakeStorage,
-		AdminStorage: mockAdmin,
-	}
-
-	mockLogOp := NewMockLogOperation(ctrl)
-	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Return(1, nil)
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Return(0, errors.New("test error"))
-
-	// Do not run this test in parallel with any other that affects the signingRuns or failedSigningRuns counters.
-	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
-	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
-	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
-	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
-
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
-	lom.OperationSingle(ctx)
-
-	// Check that logID1 has 1 successful signing run, 0 failed.
-	if want, got := 1, int(log1SigningRuns.Delta()); want != got {
-		t.Errorf("want signingRuns[logID1] == %d, got %d", want, got)
-	}
-	if want, got := 0, int(log1FailedSigningRuns.Delta()); want != got {
-		t.Errorf("want signingRuns[logID2] == %d, got %d", want, got)
-	}
-	// Check that logID2 has 0 successful signing runs, 1 failed.
-	if want, got := 0, int(log2SigningRuns.Delta()); want != got {
-		t.Errorf("want failedSigningRuns[logID1] == %d, got %d", want, got)
-	}
-	if want, got := 1, int(log2FailedSigningRuns.Delta()); want != got {
-		t.Errorf("want failedSigningRuns[logID2] == %d, got %d", want, got)
-	}
 }
 
 func TestLogOperationManagerOperationLoopPassesIDs(t *testing.T) {
@@ -247,83 +200,20 @@ func TestLogOperationManagerOperationLoopPassesIDs(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
-		return 1, nil
 	})
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
-		return 0, nil
 	})
 
 	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 	lom.OperationLoop(ctx)
-}
-
-func TestLogOperationManagerOperationLoopExecutePassError(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	logID1 := int64(451)
-	logID2 := int64(145)
-	logID1Label := strconv.FormatInt(logID1, 10)
-	logID2Label := strconv.FormatInt(logID2, 10)
-
-	var logCount int64
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fakeStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{451: "LogID1", 145: "LogID2"})
-	registry := extension.Registry{
-		LogStorage:   fakeStorage,
-		AdminStorage: mockAdmin,
-	}
-
-	mockLogOp := NewMockLogOperation(ctrl)
-	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
-		if atomic.AddInt64(&logCount, 1) == 2 {
-			cancel()
-		}
-		return 1, nil
-	})
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
-		if atomic.AddInt64(&logCount, 1) == 2 {
-			cancel()
-		}
-		return 0, errors.New("test error")
-	})
-
-	// Do not run this test in parallel with any other that affects the signingRuns or failedSigningRuns counters.
-	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
-	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
-	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
-	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
-
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
-	lom.OperationLoop(ctx)
-
-	// Check that logID1 has 1 successful signing run, 0 failed.
-	if want, got := 1, int(log1SigningRuns.Delta()); want != got {
-		t.Errorf("want signingRuns[logID1] == %d, got %d", want, got)
-	}
-	if want, got := 0, int(log1FailedSigningRuns.Delta()); want != got {
-		t.Errorf("want signingRuns[logID2] == %d, got %d", want, got)
-	}
-	// Check that logID2 has 0 successful signing runs, 1 failed.
-	if want, got := 0, int(log2SigningRuns.Delta()); want != got {
-		t.Errorf("want failedSigningRuns[logID1] == %d, got %d", want, got)
-	}
-	if want, got := 1, int(log2FailedSigningRuns.Delta()); want != got {
-		t.Errorf("want failedSigningRuns[logID2] == %d, got %d", want, got)
-	}
 }
 
 func TestHeldInfo(t *testing.T) {
