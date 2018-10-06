@@ -247,18 +247,16 @@ func TestLogOperationManagerOperationLoopPassesIDs(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
-		return 1, nil
-	})
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
+	}).Return(1, nil)
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
-		return 0, nil
-	})
+	}).Return(0, nil)
 
 	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
@@ -287,18 +285,16 @@ func TestLogOperationManagerOperationLoopExecutePassError(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
-		return 1, nil
-	})
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).DoAndReturn(func(_ context.Context, _ int64, _ *LogOperationInfo) (int, error) {
+	}).Return(1, nil)
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
-		return 0, errors.New("test error")
-	})
+	}).Return(0, errors.New("test error"))
 
 	// Do not run this test in parallel with any other that affects the signingRuns or failedSigningRuns counters.
 	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
