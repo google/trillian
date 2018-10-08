@@ -318,7 +318,7 @@ TODO: add description of distribution: how many instances run, how distributed,
 how synchronized (master election), mention use of transactions as a fallback
 (in case of errors in master election).
 
-![Map components](docs/MapDesign.png)
+![Map components](docs/images/MapDesign.png)
 
 ### Log Mode
 
@@ -340,7 +340,7 @@ In Log mode, Trillian includes an additional Signer component; this component
 periodically processes pending queued items and adds them to the Merkle tree,
 creating a new signed tree head as a result.
 
-![Log components](docs/LogDesign.png)
+![Log components](docs/images/LogDesign.png)
 
 
 TODO: add description of distribution: how many instances run, how distributed etc.
