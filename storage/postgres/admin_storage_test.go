@@ -22,7 +22,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
@@ -37,6 +36,9 @@ var DB *sql.DB
 const selectTreeControlByID = "SELECT signing_enabled, sequencing_enabled, sequence_interval_seconds FROM tree_control WHERE tree_id = $1"
 
 func TestPgAdminStorage(t *testing.T) {
+	if DB == nil {
+		t.Skip("Postgres not available")
+	}
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
 		cleanTestDB(DB, t)
 		return postgres.NewAdminStorage(DB)
@@ -46,6 +48,10 @@ func TestPgAdminStorage(t *testing.T) {
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
+	if DB == nil {
+		t.Skip("Postgres not available")
+	}
+
 	cleanTestDB(DB, t)
 	s := postgres.NewAdminStorage(DB)
 	ctx := context.Background()
@@ -69,6 +75,10 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestCreateTreeInvalidStates(t *testing.T) {
+	if DB == nil {
+		t.Skip("Postgres not available")
+	}
+
 	cleanTestDB(DB, t)
 	s := postgres.NewAdminStorage(DB)
 	ctx := context.Background()
@@ -102,12 +112,9 @@ func openTestDBOrDie() *sql.DB {
 }
 func TestMain(m *testing.M) {
 	flag.Parse()
-	if !testdb.PGAvailable() {
-		glog.Errorf("PG not available, skipping all PG storage tests")
-		return
+	if testdb.PGAvailable() {
+		DB = openTestDBOrDie()
+		defer DB.Close()
 	}
-	DB = openTestDBOrDie()
-	defer DB.Close()
-	ec := m.Run()
-	os.Exit(ec)
+	os.Exit(m.Run())
 }
