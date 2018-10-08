@@ -9,7 +9,7 @@ concepts involved. The API for this is defined in `storage/tree_storage.go`. Rel
 the `storage/storagepb` package.
 
 The model provides a versioned view of the tree. Each transaction that modifies the tree results
-in a new revision. Revision numbers increase monotonically as the tree is mutated. 
+in a new revision. Revision numbers increase monotonically as the tree is mutated.
 
 ### NodeIDs
 
@@ -49,7 +49,7 @@ suitable for a general purpose tree.
 
 Subtrees are keyed by the `NodeID` of the root (effectively a path prefix) and contain the
 intermediate nodes for that subtree, identified by their suffix. These are actually stored in a
-proto map where the key is the suffix path. 
+proto map where the key is the suffix path.
 
 Subtrees are versioned to support the access model for nodes described above. Node addresses within
 the model are distinct because the path to a subtree must be unique.
@@ -148,14 +148,14 @@ API.
 
 When log storage is intialized and its tree is not empty the existing state is loaded into a
 `compact_merkle_tree`. This can be done efficiently and only requires a few node accesses to
-restore the tree state by reading intermediate hashes at each tree level. 
+restore the tree state by reading intermediate hashes at each tree level.
 
 As a crosscheck the root hash of the compact tree is compared against the current log root. If it
 does not match then the log is corrupt and cannot be used.
 
 ### Writing Leaves and Sequencing
 
-In the current RDBMS storage implementation log clients queue new leaves to the log, and a 
+In the current RDBMS storage implementation log clients queue new leaves to the log, and a
 `LeafData` record is created. Further writes to the Merkle Tree are coordinated by the sequencer,
 which adds leaves to the tree. The sequencer is responsible for ordering the leaves and creating
 the `SequencedLeafData` row linking the leaf and its sequence number. Queued submissions that have
@@ -171,7 +171,7 @@ snapshots directly available from storage.
 
 As an optimization intermediate nodes with only a left child are not stored. There is more detail
 on how this affects access to tree paths in the file `merkle/merkle_paths.go`. This differs from
-the 
+the
 [Certificate Transparency C++](https://github.com/google/certificate-transparency/blob/master/cpp/merkletree/merkle_tree.h)
 in-memory tree implementation. In summary the code must handle cases where there is no right
 sibling of the rightmost node in a level.
@@ -195,13 +195,13 @@ leaf index followed by formatting and marshaling the data to be returned to the 
 
 #### Serving Proofs
 
-API requests for proofs involve more work but both inclusion and consistency proofs follow the 
+API requests for proofs involve more work but both inclusion and consistency proofs follow the
 same pattern.
 
-Path calculations in the tree need to be based on a particular tree revision. It is possible to 
+Path calculations in the tree need to be based on a particular tree revision. It is possible to
 use any tree revision that corresponds to a tree at least as large as the tree that the proof is
-for. We currently use the most recent tree revision number for all proof node calculation / 
-fetches. This is useful as we already have it available from when the transaction was initialized. 
+for. We currently use the most recent tree revision number for all proof node calculation /
+fetches. This is useful as we already have it available from when the transaction was initialized.
 
 There is no guarantee that we have the exact tree size snapshot available for any particular
 request so we're already prepared to pay the cost of some hash recomputation, as described further
@@ -215,12 +215,12 @@ path calculation cannot reference or recompute an internal node that did not exi
 size 50 so the huge current tree size is irrelevant to serving this proof.
 
 The tree path for the proof is calculated for a tree size using an algorithm based on the
-reference implementation of RFC 6962. The output of this is an ordered slice of `NodeIDs` that must 
-be fetched from storage and a set of flags indicating required hash recomputations. After a 
+reference implementation of RFC 6962. The output of this is an ordered slice of `NodeIDs` that must
+be fetched from storage and a set of flags indicating required hash recomputations. After a
 successful read the hashes are extracted from the nodes, rehashed if necessary and returned to
 the client.
 
-Recomputation is needed because we don't necessarily store snapshots on disk for every tree size. 
+Recomputation is needed because we don't necessarily store snapshots on disk for every tree size.
 To serve proofs at a version intermediate between two stored versions it can be necessary to
 recompute hashes on the rightmost path. This requires extra nodes to be fetched but is bounded
 by the depth of the tree so this never becomes unmanageable.
@@ -234,7 +234,7 @@ diagrams:
 
 Assume that only the size 8 tree is stored. When the tree of size eight is queried for an
 inclusion proof of leaf 'e' to the older root at size 7 the proof cannot be directly constructed
-from the node hashes as they are represented in storage at the later point. 
+from the node hashes as they are represented in storage at the later point.
 
 The value of node 'z' differs from the prior state, which got overwritten when the internal node ‘t’
 was added at size 8. This hash value 'z' at size 7 is needed to construct the proof so it must
@@ -249,8 +249,9 @@ size of the tree and therefore the shape of the right hand path at that size.
 NOTE: Initial outline documentation. A more complete documentation for maps will follow later.
 
 Maps are instances of a sparse Merkle tree where most of the nodes are not present. For more
-details on how this assists an implementation see the 
-[Revocation Transparency](https://github.com/google/trillian/blob/master/docs/RevocationTransparency.pdf) document.
+details on how this assists an implementation see the
+[Revocation Transparency](https://github.com/google/trillian/blob/master/docs/papers/RevocationTransparency.pdf)
+document.
 
 There are two major differences in the way map storage uses the tree storage from a log to
 represent its sparse Merkle tree.
@@ -262,8 +263,8 @@ depth 8 (see previous diagrams) from the root down to the leaf nodes for as many
 are needed. For example a path of 17 bits will traverse three subtrees of depth 8.
 
 In a map all the paths from root to leaf are effectively 256 bits long. When these are passed to
-storage the top part of the tree (currently 80 bits) is stored as a set of depth 8 subtrees. 
-Below this point the remainder use a single subtree strata, where the nodes are expected to be 
+storage the top part of the tree (currently 80 bits) is stored as a set of depth 8 subtrees.
+Below this point the remainder use a single subtree strata, where the nodes are expected to be
 extremely sparse.
 
 The second main difference is that the tree uses the HStar2 algorithm. This requires a different
