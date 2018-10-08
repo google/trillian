@@ -655,7 +655,7 @@ TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
 
 ### TrillianLog
 Provides access to a Verifiable Log data structure as defined in the
-[Verifiable Data Structures](docs/VerifiableDataStructures.pdf) paper.
+[Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) paper.
 
 The API supports adding new entries to be integrated into the log&#39;s tree. It
 does not provide arbitrary tree modifications. Additionally, it has read

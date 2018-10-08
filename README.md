@@ -29,7 +29,7 @@ Overview
 --------
 
 Trillian is an implementation of the concepts described in the
-[Verifiable Data Structures](docs/VerifiableDataStructures.pdf) white paper,
+[Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) white paper,
 which in turn is an extension and generalisation of the ideas which underpin
 [Certificate Transparency](https://certificate-transparency.org).
 
@@ -371,10 +371,10 @@ indeed a valid certificate that chains to an accepted root.
 
 One useful application for Trillian in Map mode is to provide a verifiable
 log-derived map (VLDM), as described in the
-[Verifiable Data Structures](docs/VerifiableDataStructures.pdf) white paper
-(which uses the term 'log-backed map').  To do this, a VLDM personality would
-monitor the additions of entries to a Log, potentially external, and would write
-some kind of corresponding key:value data to a Trillian Map.
+[Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) white
+paper (which uses the term 'log-backed map').  To do this, a VLDM personality
+would monitor the additions of entries to a Log, potentially external, and would
+write some kind of corresponding key:value data to a Trillian Map.
 
 Clients of the VLDM are then able to verify that the entries in the Map they are
 shown are also seen by anyone auditing the Log for correct operation, which in
@@ -385,8 +385,8 @@ transparency Log and builds a corresponding Map from domain names to the set of
 certificates associated with that domain.
 
 The following table summarizes properties of data structures laid in the
-[Verifiable Data Structures](docs/VerifiableDataStructures.pdf) white paper.
-“Efficiently” means that a client can and should perform this validation
+[Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) white
+paper. f“Efficiently” means that a client can and should perform this validation
 themselves.  “Full audit” means that to validate correctly, a client would need
 to download the entire dataset, and is something that in practice we expect a
 small number of dedicated auditors to perform, rather than being done by each
