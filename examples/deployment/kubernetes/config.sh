@@ -1,5 +1,9 @@
-export PROJECT_NAME=trillian-opensource-ci
-export CLUSTER_NAME=trillian-opensource-ci
-export REGION=us-central1
-export ZONE=${REGION}-a
+export PROJECT_NAME=trillian-ct-log
+export CLUSTER_NAME=trillian
+export REGION=us-east4
+export MASTER_ZONE="${REGION}-a"
+export NODE_LOCATIONS="${REGION}-a,${REGION}-b,${REGION}-c"
 export CONFIGMAP=trillian-cloudspanner.yaml
+
+export POOLSIZE=2
+export MACHINE_TYPE="n1-standard-4"

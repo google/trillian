@@ -17,8 +17,6 @@ spec:
       - name: google-cloud-key
         secret:
           secretName: trillian-key
-      nodeSelector:
-        cloud.google.com/gke-nodepool: signer-pool
       restartPolicy: Always
       containers:
       - args: [
