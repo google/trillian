@@ -51,7 +51,7 @@ gcloud container clusters create "${CLUSTER_NAME}" --machine-type "${MACHINE_TYP
 gcloud container clusters get-credentials "${CLUSTER_NAME}"
 
 # Create spanner instance & DB
-gcloud spanner instances create trillian-spanner --description "Trillian Spanner instance" --nodes=5 --config="regional-${REGION}"
+gcloud spanner instances create trillian-spanner --description "Trillian Spanner instance" --nodes=1 --config="regional-${REGION}"
 gcloud spanner databases create trillian-db --instance trillian-spanner --ddl="$(cat ${DIR}/../../../storage/cloudspanner/spanner.sdl | grep -v '^--.*$')"
 
 # Create service account
