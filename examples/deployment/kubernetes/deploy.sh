@@ -7,8 +7,8 @@ function checkEnv() {
   if [ -z ${PROJECT_NAME+x} ] ||
      [ -z ${CLUSTER_NAME+x} ] ||
      [ -z ${MASTER_ZONE+x} ] ||
-     [ -z ${CONFIG_MAP+x} ]; then
-    echo "You must either pass an argument which is a config file, or set all the required environment variables"
+     [ -z ${CONFIGMAP+x} ]; then
+    echo "You must either pass an argument which is a config file, or set all the required environment variables" >&2
     exit 1
   fi
 }
@@ -69,10 +69,3 @@ envsubst < ${DIR}/trillian-log-signer-deployment.yaml | kubectl apply -f -
 envsubst < ${DIR}/trillian-log-signer-service.yaml | kubectl apply -f -
 kubectl set image deployment/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_NAME}/log_server:${IMAGE_TAG}
 kubectl set image deployment/trillian-logsigner-deployment trillian-log-signer=gcr.io/${PROJECT_NAME}/log_signer:${IMAGE_TAG}
-
-# TODO(al): Create trees
-# curl -X POST ${LOG_URL}/v1beta1/trees -d '{ "tree":{ "tree_state":"ACTIVE", "tree_type":"LOG", "hash_strategy":"RFC6962_SHA256", "signature_algorithm":"ECDSA", "max_root_duration":"0", "hash_algorithm":"SHA256" }, "key_spec":{ "ecdsa_params":{ "curve":"P256" } } }'
-#  ... tree_id: ....
-# curl -X POST ${LOG_URL}/v1beta1/logs/${tree_id}:init
-#
-# curl -X POST ${MAP_URL}/v1beta1/trees -d '{ "tree":{ "tree_state":"ACTIVE", "tree_type":"MAP", "hash_strategy":"CONIKS_SHA512_256", "signature_algorithm":"ECDSA", "max_root_duration":"0", "hash_algorithm":"SHA256" }, "key_spec":{ "ecdsa_params":{ "curve":"P256" } } }'

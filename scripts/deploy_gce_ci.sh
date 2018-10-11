@@ -13,4 +13,4 @@ export MASTER_ZONE=us-central1-a
 export CONFIGMAP=${DIR}/examples/kubernetes/trillian-opensource-ci.yaml
 export IMAGE_TAG=${TRAVIS_COMMIT}
 
-./examples/kubernetes/deploy.sh
+${DIR}/../examples/kubernetes/deploy.sh
