@@ -30,10 +30,10 @@ Process
    It should take about 5 to 10 minutes to finish and must complete without
    error.
 1. Now you can deploy the Trillian services.
-   Run: `./deploy.sh`
+   Run: `./deploy.sh config.sh`
    This will build the Trillian Docker images, tag them, and create/update the
    Kubernetes deployment.
-1. To update a running deployment, simply re-run `./deploy.sh` at any time.
+1. To update a running deployment, simply re-run `./deploy.sh config.sh` at any time.
 
 Next steps
 ----------
