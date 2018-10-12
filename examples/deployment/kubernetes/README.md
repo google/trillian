@@ -50,12 +50,39 @@ curl -X POST ${LOG_URL}/v1beta1/logs/${tree_id}:init
 
 ```
 
-The easiest way to do this is probably to use `kubectl exec <name of one of the logserver pods> -ti -- /bin/bash` to get a shell on a logserver Pod, and use curl from there.
+The easiest way to do this is to port-forward one of the logserver pods to your local workstation `kubectl port-forward <name of one of the logserver pods> 8091:8091` and use curl to access the API endpoint:
 
-(Use `kubectl get pods` to retrieve a list of all the Pods.)
+1. Grab the name of 0th logserver pod:
+```
+LOG_POD=$(\
+  kubectl get pods \
+  --selector=io.kompose.service=trillian-log \
+  --output=jsonpath='{.items[0].metadata.name}')
+```
+1. Port forward this pod's port `8091` to your local workstation (we're using `8091` locally too):
+```
+kubectl port-forward ${LOG_POD} 8091:8091
+```
+1. Create a Trillian tree:
+```
+RESPONSE=$(curl \
+--silent \
+--request POST \
+http://localhost:8091/v1beta1/trees \
+--data '{ "tree":{ "tree_state":"ACTIVE", "tree_type":"LOG", "hash_strategy":"RFC6962_SHA256", "signature_algorithm":"ECDSA", "max_root_duration":"0", "hash_algorithm":"SHA256" }, "key_spec":{ "ecdsa_params":{ "curve":"P256" } } }')
+TREE_ID=$(echo ${RESPONSE} | jq --raw-output .tree_id)
+echo ${RESPONSE}
 
-**NOTE: none of the Trillian APIs are exposed to the internet with this config,
-this is intentional since the only access to Trillian should be via a
+```
+1. Initialize it:
+```
+curl \
+--request POST \
+http://localhost:8091/v1beta1/logs/${TREE_ID}:init
+```
+
+**NOTE: none of the Trillian APIs is exposed to the Internet with this config.
+This is intentional since the only access to Trillian should be via a 
 personality layer.**
 
 Next, you may wish to deploy the [Certificate Transparency personality](https://github.com/google/certificate-transparency-go/tree/master/trillian).
