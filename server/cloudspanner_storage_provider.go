@@ -46,6 +46,7 @@ var (
 
 	csMu              sync.RWMutex
 	csStorageInstance *cloudSpannerProvider
+	warnOnce          sync.Once
 )
 
 func init() {
@@ -55,14 +56,16 @@ func init() {
 }
 
 func warn() {
-	w := `H4sIAAAAAAAA/4xUsW7rMAzc8xUE2lE41B2sWlzsZ3TwoKEIgkQZ64mLsxga8vUPlG3FrZ2Hd1Ng3onHE5UDPQOEmVnwjCGhjyLC8RLcPgfhIvmwot8/CaHF9CMdOthdGmKvdSQQET85TqxJtKzjgnd4mYaFilDIlmhsnKql977mZSqzYcLy5K/zCUX66sbtNOAwteTXiVph5m4nigGzzUH7e3+a3XIRf5PFyhQQEV6UXLeY8nL292gyujlMIlIbdcUwet9ieBx/snWIOXkievPenyOMiDjnjOHj+MMJhjZfFBFpHF+AcQkGpr9f1nz02YoKcPXed5nvjHG2DGtB//7gGwHCq69HIPMBGa7hIYi3mPlOBOhf/Z8eMBmAdNVjZKlCFuiQgK19Y1YKrXDT5KWX7ohVC+cArnUKwGAF/rwvk6CrVhJ1DuDDF9igfVtEuFf8U2M0MXW4wf28pBy/4yOuOaLZw2+Qa76m5PpSFy+5N0usbnyr66+AjY7cx3eKz5VHrZpFlqL6nJa82+gI/H3Vh+TKm9Fmib7I5GXSvcStTQrndxwIw4dQvpak00DGpKvbnVgIxXk4kD31oLnTSkgkxchmJ01Vnj7lQLZFXrV532bpfqLJbTzqfygXrLHkh/CoP5Hq13DXJYuV3fD/DcRbm+5f7s1tvNj/RLBD9T6vNbi9dYpT05QTKsV1B+Ut4m8AAAD///IJ0vhIBgAA`
+	warnOnce.Do(func() {
+		w := `H4sIAAAAAAAA/4xUsW7rMAzc8xUE2lE41B2sWlzsZ3TwoKEIgkQZ64mLsxga8vUPlG3FrZ2Hd1Ng3onHE5UDPQOEmVnwjCGhjyLC8RLcPgfhIvmwot8/CaHF9CMdOthdGmKvdSQQET85TqxJtKzjgnd4mYaFilDIlmhsnKql977mZSqzYcLy5K/zCUX66sbtNOAwteTXiVph5m4nigGzzUH7e3+a3XIRf5PFyhQQEV6UXLeY8nL292gyujlMIlIbdcUwet9ieBx/snWIOXkievPenyOMiDjnjOHj+MMJhjZfFBFpHF+AcQkGpr9f1nz02YoKcPXed5nvjHG2DGtB//7gGwHCq69HIPMBGa7hIYi3mPlOBOhf/Z8eMBmAdNVjZKlCFuiQgK19Y1YKrXDT5KWX7ohVC+cArnUKwGAF/rwvk6CrVhJ1DuDDF9igfVtEuFf8U2M0MXW4wf28pBy/4yOuOaLZw2+Qa76m5PpSFy+5N0usbnyr66+AjY7cx3eKz5VHrZpFlqL6nJa82+gI/H3Vh+TKm9Fmib7I5GXSvcStTQrndxwIw4dQvpak00DGpKvbnVgIxXk4kD31oLnTSkgkxchmJ01Vnj7lQLZFXrV532bpfqLJbTzqfygXrLHkh/CoP5Hq13DXJYuV3fD/DcRbm+5f7s1tvNj/RLBD9T6vNbi9dYpT05QTKsV1B+Ut4m8AAAD///IJ0vhIBgAA`
 
-	wd, _ := base64.StdEncoding.DecodeString(w)
-	b := bytes.NewReader(wd)
-	r, _ := gzip.NewReader(b)
-	r.Close()
-	t, _ := ioutil.ReadAll(r)
-	glog.Warningf("WARNING\n%s\nCloudspanner is an experimental storage implementation, and only supports Logs currently.", string(t))
+		wd, _ := base64.StdEncoding.DecodeString(w)
+		b := bytes.NewReader(wd)
+		r, _ := gzip.NewReader(b)
+		r.Close()
+		t, _ := ioutil.ReadAll(r)
+		glog.Warningf("WARNING\n%s\nCloudspanner is an experimental storage implementation, and only supports Logs currently.", string(t))
+	})
 }
 
 type cloudSpannerProvider struct {
