@@ -10,7 +10,7 @@ export PROJECT_NAME=trillian-opensource-ci
 export CLUSTER_NAME=trillian-opensource-ci
 export REGION=us-central1
 export MASTER_ZONE=us-central1-a
-export CONFIGMAP=${DIR}/examples/kubernetes/trillian-opensource-ci.yaml
+export CONFIGMAP=${DIR}/../examples/deployment/kubernetes/trillian-opensource-ci.yaml
 export IMAGE_TAG=${TRAVIS_COMMIT}
 
-${DIR}/../examples/kubernetes/deploy.sh
+${DIR}/../examples/deployment/kubernetes/deploy.sh
