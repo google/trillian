@@ -17,8 +17,6 @@ spec:
       - name: google-cloud-key
         secret:
           secretName: trillian-key
-      nodeSelector:
-        cloud.google.com/gke-nodepool: signer-pool
       restartPolicy: Always
       containers:
       - args: [
@@ -44,7 +42,7 @@ spec:
         imagePullPolicy: Always
         resources:
           limits:
-            cpu: "1.5"
+            cpu: "1"
           requests:
             cpu: "1"
         livenessProbe:

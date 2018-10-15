@@ -17,8 +17,6 @@ spec:
         secret:
           secretName: trillian-key
       restartPolicy: Always
-      nodeSelector:
-        cloud.google.com/gke-nodepool: logserver-pool
       containers:
       - name: trillian-logserver
         args: [

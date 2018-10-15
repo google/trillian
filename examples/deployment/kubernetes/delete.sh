@@ -23,7 +23,7 @@ fi
 
 # Connect to gcloud
 gcloud config set project ${PROJECT_NAME}
-gcloud config set compute/zone ${ZONE}
+gcloud config set compute/zone ${MASTER_ZONE}
 
 # Delete cluster & node pools
 gcloud beta container clusters delete ${CLUSTER_NAME} --quiet

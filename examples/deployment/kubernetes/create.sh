@@ -22,13 +22,22 @@ if ! jq --help > /dev/null; then
   exit 1
 fi
 
+echo "Creating new Trillian deployment"
+echo "  Project name: ${PROJECT_NAME}"
+echo "  Cluster name: ${CLUSTER_NAME}"
+echo "  Region:       ${REGION}"
+echo "  Node Locs:    ${NODE_LOCATIONS}"
+echo "  Config:       ${CONFIGMAP}"
+echo "  Pool:         ${POOLSIZE} * ${MACHINE_TYPE}"
+echo
+
 # Uncomment this to create a GCE project from scratch, or you can create it
 # manually through the web UI.
 # gcloud projects create ${PROJECT_NAME}
 
 # Connect to gcloud
 gcloud config set project "${PROJECT_NAME}"
-gcloud config set compute/zone "${ZONE}"
+gcloud config set compute/zone ${MASTER_ZONE}
 gcloud config set container/cluster "${CLUSTER_NAME}"
 
 # Ensure Kubernetes Engine (container) and Cloud Spanner (spanner) services are enabled
@@ -36,15 +45,13 @@ for SERVICE in container spanner; do
   gcloud services enable ${SERVICE}.googleapis.com --project=${PROJECT_NAME}
 done
 
-# Create cluster & node pools
-gcloud container clusters create "${CLUSTER_NAME}" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "2" --enable-autorepair --enable-autoupgrade
-gcloud container node-pools create "logserver-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "4" --enable-autorepair --enable-autoupgrade
-gcloud container node-pools create "signer-pool" --machine-type "n1-standard-2" --image-type "COS" --num-nodes "1" --enable-autorepair --enable-autoupgrade
-gcloud container node-pools create "ctfe-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "4" --enable-autorepair --enable-autoupgrade
+# Create cluster
+# TODO(https://github.com/google/trillian/issues/1183): Add support for priorities and preemption when Kubernetes 1.11 is GA.
+gcloud container clusters create "${CLUSTER_NAME}" --machine-type "${MACHINE_TYPE}" --image-type "COS" --num-nodes "${POOLSIZE}" --enable-autorepair --enable-autoupgrade --node-locations="${NODE_LOCATIONS}"
 gcloud container clusters get-credentials "${CLUSTER_NAME}"
 
 # Create spanner instance & DB
-gcloud spanner instances create trillian-spanner --description "Trillian Spanner instance" --nodes=5 --config="regional-${REGION}"
+gcloud spanner instances create trillian-spanner --description "Trillian Spanner instance" --nodes=1 --config="regional-${REGION}"
 gcloud spanner databases create trillian-db --instance trillian-spanner --ddl="$(cat ${DIR}/../../../storage/cloudspanner/spanner.sdl | grep -v '^--.*$')"
 
 # Create service account
