@@ -49,11 +49,11 @@ type MapStorageOptions struct {
 
 // NewMapStorage initialises and returns a new MapStorage.
 func NewMapStorage(ctx context.Context, client *spanner.Client) storage.MapStorage {
-	return NewMapStorageWithOpts(ctx, client, MapStorageOptions{})
+	return NewMapStorageWithOpts(client, MapStorageOptions{})
 }
 
 // NewMapStorageWithOpts initialises and returns a new MapStorage using options.
-func NewMapStorageWithOpts(ctx context.Context, client *spanner.Client, opts MapStorageOptions) storage.MapStorage {
+func NewMapStorageWithOpts(client *spanner.Client, opts MapStorageOptions) storage.MapStorage {
 	ret := &mapStorage{
 		ts:   newTreeStorageWithOpts(client, opts.TreeStorageOptions),
 		opts: opts,

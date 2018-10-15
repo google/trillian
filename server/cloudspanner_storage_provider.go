@@ -119,7 +119,11 @@ func (s *cloudSpannerProvider) LogStorage() storage.LogStorage {
 
 func (s *cloudSpannerProvider) MapStorage() storage.MapStorage {
 	warn()
-	return nil
+	opts := cloudspanner.MapStorageOptions{}
+	if *csReadOnlyStaleness > 0 {
+		opts.ReadOnlyStaleness = *csReadOnlyStaleness
+	}
+	return cloudspanner.NewMapStorageWithOpts(s.client, opts)
 }
 
 func (s *cloudSpannerProvider) AdminStorage() storage.AdminStorage {
