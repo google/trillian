@@ -25,7 +25,12 @@ fi
 
 export LOG_URL=TODO
 export MAP_URL=TODO
-export IMAGE_TAG=${IMAGE_TAG:-$(git rev-parse HEAD)}
+
+# if IMAGE_TAG is unset, we'll create one using the git HEAD hash, with an
+# optional "-dirty" suffix if any objects have been modified.
+GIT_HASH=$(git rev-parse HEAD)
+GIT_DIRTY=$(git diff --quiet || echo '-dirty')
+export IMAGE_TAG=${IMAGE_TAG:-${GIT_HASH}${GIT_DIRTY}}
 
 # Connect to gcloud
 gcloud --quiet config set project ${PROJECT_NAME}
