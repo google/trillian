@@ -7,10 +7,10 @@ live here. Interfaces and types are defined at the top level package.
 
 Currently, there are two usable storage implementation for logs:
    * MySQL/MariaDB in the [mysql/](mysql) package.
-   * Cloudspanner in the [cloudspanner](cloudspanner) package.
+   * Cloud Spanner in the [cloudspanner](cloudspanner) package.
 
 The MySQL / MariaDB implementation includes support for Maps. This has not yet
-been implemented by Cloudspanner. There may be other storage implementations
+been implemented by Cloud Spanner. There may be other storage implementations
 available from third parties.
 
 These implementations are under development and are not yet ready for use.
