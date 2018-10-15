@@ -115,11 +115,6 @@ func (ms *mapStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) 
 }
 
 func (ms *mapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
-	return ms.readWriteTransactionNew(ctx, tree, f)
-}
-
-// readWriteTransactionNew uses the spanner.RunInTransaction pattern to execute f.
-func (ms *mapStorage) readWriteTransactionNew(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
 	_, err := ms.ts.client.ReadWriteTransaction(ctx, func(ctx context.Context, stx *spanner.ReadWriteTransaction) error {
 		tx, err := ms.begin(ctx, tree, false /* readonly */, stx)
 		if err != nil {
@@ -236,8 +231,7 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMap
 			sth.Metadata,
 		})
 
-	stx.BufferWrite([]*spanner.Mutation{m})
-	return nil
+	return stx.BufferWrite([]*spanner.Mutation{m})
 }
 
 // Set sets the leaf with the specified index to value.
@@ -267,8 +261,7 @@ func (tx *mapTX) Set(ctx context.Context, index []byte, value trillian.MapLeaf) 
 		[]string{colTreeID, colLeafIndex, colMapRevision, colLeafHash, colLeafValue, colExtraData},
 		[]interface{}{tx.treeID, index, writeRev, value.LeafHash, leafValue, value.ExtraData})
 
-	stx.BufferWrite([]*spanner.Mutation{m})
-	return nil
+	return stx.BufferWrite([]*spanner.Mutation{m})
 }
 
 // getMapLeaf fetches and returns the MapLeaf stored at the specified index and
