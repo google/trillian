@@ -33,7 +33,7 @@ collect_vars() {
   FLAGS+=(--host "${PG_HOST}")
   FLAGS+=(--port "${PG_PORT}")
 
-    # handle flags
+  # handle flags
   FORCE=false
   while [[ $# -gt 0 ]]; do
     case "$1" in
