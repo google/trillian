@@ -23,9 +23,6 @@ else
 fi
 
 
-export LOG_URL=TODO
-export MAP_URL=TODO
-
 # if IMAGE_TAG is unset, we'll create one using the git HEAD hash, with an
 # optional "-dirty" suffix if any objects have been modified.
 GIT_HASH=$(git rev-parse HEAD)
@@ -45,22 +42,13 @@ gcloud auth configure-docker
 go get github.com/google/trillian/...
 cd $GOPATH/src/github.com/google/trillian
 
-echo "Building docker images..."
-docker build --quiet -f examples/deployment/docker/log_server/Dockerfile -t gcr.io/$PROJECT_NAME/log_server:$IMAGE_TAG .
-docker build --quiet -f examples/deployment/docker/log_signer/Dockerfile -t gcr.io/$PROJECT_NAME/log_signer:$IMAGE_TAG .
-# TODO(al): when cloudspanner supports maps:
-# docker build -f examples/deployment/docker/map_server/Dockerfile -t us.gcr.io/$PROJECT_NAME/map_server:$TAG .
-
-echo "Pushing docker images..."
-gcloud docker -- push gcr.io/${PROJECT_NAME}/log_server:${IMAGE_TAG}
-gcloud docker -- push gcr.io/${PROJECT_NAME}/log_signer:${IMAGE_TAG}
-
-echo "Tagging docker images..."
-gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME}/log_server:${IMAGE_TAG} gcr.io/${PROJECT_NAME}/log_server:latest
-gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME}/log_signer:${IMAGE_TAG} gcr.io/${PROJECT_NAME}/log_signer:latest
-
-# TODO(al): when cloudspanner supports maps:
-# gcloud docker -- push "us.gcr.io/${PROJECT_NAME}/map_server:${TAG}"
+echo "Building and pushing docker images:"
+for thing in log_server log_signer map_server; do
+  echo "  - ${thing}"
+  docker build --quiet -f examples/deployment/docker/${thing}/Dockerfile -t gcr.io/$PROJECT_NAME/${thing}:$IMAGE_TAG .
+  gcloud docker -- push gcr.io/${PROJECT_NAME}/${thing}:${IMAGE_TAG}
+  gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME}/${thing}:${IMAGE_TAG} gcr.io/${PROJECT_NAME}/${thing}:latest
+done
 
 echo "Updating jobs..."
 # Prepare configmap:
@@ -72,5 +60,11 @@ envsubst < ${DIR}/trillian-log-deployment.yaml | kubectl apply -f -
 envsubst < ${DIR}/trillian-log-service.yaml | kubectl apply -f -
 envsubst < ${DIR}/trillian-log-signer-deployment.yaml | kubectl apply -f -
 envsubst < ${DIR}/trillian-log-signer-service.yaml | kubectl apply -f -
+envsubst < ${DIR}/trillian-map-deployment.yaml | kubectl apply -f -
+envsubst < ${DIR}/trillian-map-service.yaml | kubectl apply -f -
 kubectl set image deployment/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_NAME}/log_server:${IMAGE_TAG}
 kubectl set image deployment/trillian-logsigner-deployment trillian-log-signer=gcr.io/${PROJECT_NAME}/log_signer:${IMAGE_TAG}
+kubectl set image deployment/trillian-mapserver-deployment trillian-mapserver=gcr.io/${PROJECT_NAME}/map_server:${IMAGE_TAG}
+
+kubectl get all
+kubectl get services
