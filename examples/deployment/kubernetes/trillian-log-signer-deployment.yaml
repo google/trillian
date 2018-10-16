@@ -79,4 +79,3 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-status: {}
