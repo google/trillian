@@ -1,9 +1,26 @@
 # Storage layer
 
-The interface, various concrete implementations, and any associated components live here.
-Currently, there is only one storage implementation:
-   * MySQL/MariaDB, which lives in [mysql/](mysql).
+## Package Layout
 
+The interface, various concrete implementations, and any associated components
+live here. Interfaces and types are defined at the top level package.
+
+Currently, there are two usable storage implementation for logs:
+   * MySQL/MariaDB in the [mysql/](mysql) package.
+   * Cloud Spanner in the [cloudspanner](cloudspanner) package.
+
+The MySQL / MariaDB implementation includes support for Maps. This has not yet
+been implemented by Cloud Spanner. There may be other storage implementations
+available from third parties.
+
+These implementations are under development and are not yet ready for use.
+   * Postgres, in the [postgres](postgres) package.
+
+These implementations are for test purposes only and should not be used by real
+applications:
+   * In-memory Storage, in the [memory](memory) package.
+
+## Notes and Caveats
 
 The design is such that both `LogStorage` and `MapStorage` models reuse a
 shared `TreeStorage` model which can store arbitrary nodes in a tree.
@@ -58,7 +75,8 @@ requests nodes from disk which are associated with the given `NodeID` and whose
 
 Currently there's no mechanism to safely garbage collect obsolete nodes so
 storage grows without bound. This will be addressed at some point in the
-future.
+future for Map trees. Log trees don't need garbage collection as they're
+required to preserve a full history.
 
 ### Updates to the tree
 
