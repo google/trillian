@@ -66,7 +66,7 @@ spec:
           - --source=logserver:http://localhost:8091/metrics
           - --pod-id=$(POD_NAME)
           - --namespace-id=$(POD_NAMESPACE)
-          - --metrics-resolution=5s
+          - --metrics-resolution=60s
         resources:
           limits:
             cpu: 20m
