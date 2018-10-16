@@ -5,7 +5,7 @@ set -e
 usage() {
   cat <<EOF
 $(basename $0) [--force] [--verbose] ...
-All unrecognised arguments will be passed through to the 'postgres' command.
+All unrecognised arguments will be passed through to the 'psql' command.
 Accepts environment variables:
 - POSTGRES_ROOT_USER: A user with sufficient rights to create/reset the Trillian
   database (default: `postgres`).
@@ -47,7 +47,7 @@ collect_vars() {
 
 main() {
   collect_vars "$@"
-  
+
   readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 
   echo "Warning: about to destroy and reset database '${POSTGRES_DB}'"
