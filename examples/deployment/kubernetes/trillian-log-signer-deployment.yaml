@@ -69,7 +69,7 @@ spec:
           - --source=logsigner:http://localhost:8091/metrics
           - --pod-id=$(POD_NAME)
           - --namespace-id=$(POD_NAMESPACE)
-          - --metrics-resolution=5s
+          - --metrics-resolution=60s
         env:
           - name: POD_NAME
             valueFrom:
