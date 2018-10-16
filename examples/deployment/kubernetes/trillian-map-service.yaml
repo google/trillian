@@ -1,21 +1,17 @@
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    kompose.cmd: kompose convert
-    kompose.version: 1.3.0 (HEAD)
-  creationTimestamp: null
   labels:
-    io.kompose.service: trillian-map
-  name: trillian-map
+    io.kompose.service: trillian-map-service
+  name: trillian-map-service
 spec:
-  type: LoadBalancer
+  clusterIP: None
   ports:
-  - name: "8093"
-    port: 8093
+  - name: grpclb
+    port: 8090
     targetPort: 8090
-  - name: "8094"
-    port: 8094
+  - name: metrics
+    port: 8091
     targetPort: 8091
   selector:
     io.kompose.service: trillian-map
