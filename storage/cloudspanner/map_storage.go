@@ -211,6 +211,7 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMap
 		Signature:    root.Signature,
 	}
 
+	// TODO(al): consider replacing these with InsertStruct throughout.
 	m := spanner.Insert(
 		treeHeadTbl,
 		[]string{
@@ -338,10 +339,10 @@ func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]t
 // An error will be returned if there is a problem with the underlying storage.
 func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error) {
 	query := spanner.NewStatement(
-		"SELECT t.TreeID, t.TimestampNanos, t.TreeSize, t.RootHash, t.RootSignature, t.TreeRevision, t.TreeMetadata FROM TreeHeads t" +
-			"   WHERE t.TreeID = @tree_id" +
-			"		AND t.TreeRevision = @tree_rev" +
-			"   LIMIT 1")
+		`SELECT t.TreeID, t.TimestampNanos, t.TreeSize, t.RootHash, t.RootSignature, t.TreeRevision, t.TreeMetadata FROM TreeHeads t
+				WHERE t.TreeID = @tree_id
+				AND t.TreeRevision = @tree_rev
+				LIMIT 1`)
 	query.Params["tree_id"] = tx.treeID
 	query.Params["tree_rev"] = revision
 
