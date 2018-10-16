@@ -20,4 +20,8 @@ var (
 	// Log trees are dense and so each individual stratum cannot over-commit on
 	// storage.
 	defLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+
+	// defMapStrata describes the default set of subtree depths for use by
+	// Maps.
+	defMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 )
