@@ -361,6 +361,9 @@ func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian
 		return trillian.SignedMapRoot{}, err
 	}
 	if th == nil {
+		if revision == 0 {
+			return trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit
+		}
 		return trillian.SignedMapRoot{}, status.Errorf(codes.NotFound, "map root %v not found", revision)
 	}
 	return sthToSMR(th)
