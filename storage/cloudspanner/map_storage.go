@@ -217,7 +217,6 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMap
 		[]string{
 			"TreeID",
 			"TimestampNanos",
-			"TreeSize",
 			"RootHash",
 			"RootSignature",
 			"TreeRevision",
