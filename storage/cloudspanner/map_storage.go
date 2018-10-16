@@ -212,11 +212,13 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMap
 	}
 
 	// TODO(al): consider replacing these with InsertStruct throughout.
+	// TODO(al): consider making TreeSize nullable.
 	m := spanner.Insert(
 		treeHeadTbl,
 		[]string{
 			"TreeID",
 			"TimestampNanos",
+			"TreeSize",
 			"RootHash",
 			"RootSignature",
 			"TreeRevision",
@@ -225,6 +227,7 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMap
 		[]interface{}{
 			int64(tx.treeID),
 			int64(sth.TsNanos),
+			0,
 			sth.RootHash,
 			sth.Signature,
 			writeRev,
