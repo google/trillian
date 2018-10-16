@@ -224,7 +224,14 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 
 	held := l.tracker.Held()
 	heldIDs := make([]int64, 0, len(allIDs))
+	sort.Strings(allStringIDs)
 	for _, s := range held {
+		// Skip IDs of the logs that are not active. For example, they might have
+		// been deleted or FROZEN. Note that we still hold mastership in this case.
+		// TODO(pavelkalinnikov): Resign mastership for the skipped logs.
+		if i := sort.SearchStrings(allStringIDs, s); i >= len(allStringIDs) || allStringIDs[i] != s {
+			continue
+		}
 		id, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse logID %v as int64", s)
