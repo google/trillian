@@ -25,8 +25,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgres"
 	"github.com/google/trillian/storage/postgres/testdb"
@@ -159,7 +159,7 @@ func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
 	s := postgres.NewAdminStorage(DB)
 	ctx := context.Background()
 
-	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
+	settings, err := ptypes.MarshalAny(&empty.Empty{})
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
@@ -216,7 +216,13 @@ func openTestDBOrDie() *sql.DB {
 }
 
 func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
-	stmt, err := db.PrepareContext(ctx, "UPDATE trees SET display_name = NULL, description = NULL WHERE tree_id = $1")
+	stmt, err := db.PrepareContext(ctx, `
+	UPDATE trees SET
+		display_name = NULL,
+		description = NULL,
+		deleted = NULL,
+		delete_time_millis = NULL
+	WHERE tree_id = $1`)
 	if err != nil {
 		return err
 	}

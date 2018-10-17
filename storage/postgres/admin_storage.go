@@ -213,13 +213,18 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 		return nil, err
 	}
 	defer stmt.Close()
+
 	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	trees := []*trillian.Tree{}
 	for rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
 		tree, err := storage.ReadTree(rows)
 		if err != nil {
 			return nil, err
@@ -252,6 +257,9 @@ func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64
 	treeIDs := []int64{}
 	var treeID int64
 	for rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
 		if err := rows.Scan(&treeID); err != nil {
 			return nil, err
 		}
@@ -362,7 +370,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	now := storage.FromMillisSinceEpoch(nowMillis)
 	tree.UpdateTime, err = ptypes.TimestampProto(now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build update time: %v", err)
+		return nil, fmt.Errorf("failed to build tree.UpdateTime: %v", err)
 	}
 	rootDuration, err := ptypes.Duration(tree.MaxRootDuration)
 	if err != nil {
