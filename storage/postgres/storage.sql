@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS trees (
   max_root_duration_millis BIGINT NOT NULL, 
   private_key              BYTEA NOT NULL, 
   public_key               BYTEA NOT NULL, 
-  deleted                  BOOLEAN, 
+  deleted                  BOOLEAN NOT NULL DEFAULT FALSE,
   delete_time_millis       BIGINT, 
   PRIMARY KEY(tree_id) 
 ); 

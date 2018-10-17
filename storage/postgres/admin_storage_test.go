@@ -220,7 +220,6 @@ func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
 	UPDATE trees SET
 		display_name = NULL,
 		description = NULL,
-		deleted = NULL,
 		delete_time_millis = NULL
 	WHERE tree_id = $1`)
 	if err != nil {

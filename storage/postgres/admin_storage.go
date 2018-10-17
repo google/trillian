@@ -52,7 +52,7 @@ const (
 		delete_time_millis
 	FROM trees`
 
-	nonDeletedWhere       = " WHERE (deleted is NULL OR deleted = false)"
+	nonDeletedWhere       = " WHERE deleted = false"
 	selectNonDeletedTrees = selectTrees + nonDeletedWhere
 
 	selectTreeIDs           = "SELECT tree_id FROM trees"
