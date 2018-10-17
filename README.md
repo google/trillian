@@ -1,5 +1,4 @@
-Trillian: General Transparency
-==============================
+# Trillian: General Transparency
 
 [![Build Status](https://travis-ci.org/google/trillian.svg?branch=master)](https://travis-ci.org/google/trillian)
 [![Go Report Card](https://goreportcard.com/badge/github.com/google/trillian)](https://goreportcard.com/report/github.com/google/trillian)
@@ -17,16 +16,15 @@ Trillian: General Transparency
      - [Running Codebase Checks](#running-codebase-checks)
  - [Design](#design)
      - [Design Overview](#design-overview)
-     - [Map Mode](#map-mode)
-     - [Log Mode](#log-mode)
      - [Personalities](#personalities)
+     - [Log Mode](#log-mode)
+     - [Map Mode](#map-mode)
  - [Use Cases](#use-cases)
      - [Certificate Transparency Log](#certificate-transparency-log)
-     - [Verifiable Log-Derived Map](#verifiable-log-derived-map)
+     - [Verifiable Log-Backed Map](#verifiable-log-backed-map)
 
 
-Overview
---------
+## Overview
 
 Trillian is an implementation of the concepts described in the
 [Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) white paper,
@@ -42,32 +40,38 @@ modes:
    [Certificate Transparency](https://certificate-transparency.org) logs.  In
    this mode, the Merkle tree is effectively filled up from the left, giving a
    *dense* Merkle tree.
- - A **Map** mode that allows transparent storage of arbitrary key:value pairs.
-   In this mode, the key's hash is used to designate a particular leaf of a deep
-   Merkle tree, giving a *sparse* Merkle tree.  (A Trillian Map is an *unordered*
-   map; it does not allow enumeration of the Map's keys.)
+ - An experimental **Map** mode that allows transparent storage of arbitrary
+   key:value pairs derived from the contents of a source Log; this is also known
+   as a **log-backed map**.  In this mode, the key's hash is used to designate a
+   particular leaf of a deep Merkle tree &ndash; sufficiently deep that filled
+   leaves are vastly outnumbered by unfilled leaves, giving a *sparse* Merkle
+   tree.  (A Trillian Map is an *unordered* map; it does not allow enumeration
+   of the Map's keys.)
 
 Note that Trillian requires particular applications to provide their own
 [personalities](#personalities) on top of the core transparent data store
-functionality; example code for a certificate transparency log and for a
-[log-derived map](#verifiable-log-derived-map) are included to help with this.
+functionality.
 
-The code for the CT personality has now been moved to a separate repository and
-can be obtained from
-[certificate-transparency-go](https://github.com/google/certificate-transparency-go).
+[Certificate Transparency (CT)](https://tools.ietf.org/html/rfc6962)
+is the most well-known and widely deployed transparency application, and a
+implementation of CT as a Trillian personality is available in the
+[certificate-transparency-go repo](https://github.com/google/certificate-transparency-go/blob/master/trillian).
 
-Support
--------
+Other examples of Trillian personalities are available in the
+[trillian-examples](https://github.com/google/trillian-examples) repo.
+
+
+## Support
 
 - Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
 - Slack: https://gtrillian.slack.com/ ([invitation](https://join.slack.com/t/gtrillian/shared_invite/enQtNDM3NTE3NjA4NDcwLWQ1ZjU3NzVkYmVlMDU0MDVhNWI4NDEwNzQ4MDE4NGFmMThmM2U5YTU2OWVjOGNmOWYxYTAzOWE4MDRhNzJkNDI))
 
-Using the Code
---------------
 
-**WARNING**: The Trillian codebase is still under development but is now being
-used in production by several organizations. We will try to avoid any
-further incompatible code and schema changes but cannot guarantee that they
+## Using the Code
+
+**WARNING**: The Trillian codebase is still under development, but the Log mode
+is now being used in production by several organizations. We will try to avoid
+any further incompatible code and schema changes but cannot guarantee that they
 will never be necessary.
 
 To build and test Trillian you need:
@@ -104,6 +108,7 @@ go get -u -v all
 The repository also includes multi-process integration tests, described in the
 [Integration Tests](#integration-tests) section below.
 
+
 ### MySQL Setup
 
 To run Trillian's integration tests you need to have an instance of MySQL
@@ -125,7 +130,8 @@ Are you sure? y
 ```
 
 If you are working with the Trillian Map, you will probably need to increase
-the [MySQL maximum connection count](https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_max_connections):
+the
+[MySQL maximum connection count](https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_max_connections):
 
 ```bash
 % mysql -u root
@@ -143,15 +149,14 @@ functionality, which can be run with:
 
 This runs two multi-process tests:
 
- - A [test](integration/map_integration_test.go) that starts a Trillian server
-   in Map mode, sets various key:value pairs and checks they can be retrieved.
  - A [test](integration/log_integration_test.go) that starts a Trillian server
    in Log mode, together with a signer, logs many leaves, and checks they are
    integrated correctly.
+ - A [test](integration/map_integration_test.go) that starts a Trillian server
+   in Map mode, sets various key:value pairs and checks they can be retrieved.
 
 
-Working on the Code
--------------------
+## Working on the Code
 
 Developers who want to make changes to the Trillian codebase need some
 additional dependencies and tools, described in the following sections.  The
@@ -177,6 +182,7 @@ Re-generating mock or protobuffer files is only needed if you're changing
 the original files; if you do, you'll need to install the prerequisites:
 
   - `mockgen` tool from https://github.com/golang/mock
+  - `stringer` tool from https://golang.org/x/tools/cmd/stringer
   - `protoc`, [Go support for protoc](https://github.com/golang/protobuf) and
      [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) (see
      documentation linked from the
@@ -239,8 +245,8 @@ gometalinter --install
 gometalinter --config=gometalinter.json ./...
 ```
 
-Design
-------
+
+## Design
 
 ### Design Overview
 
@@ -252,7 +258,7 @@ that the cryptographic properties of the tree are preserved along the way.
 
 The Trillian service is multi-tenanted &ndash; a single Trillian installation
 can support multiple Merkle trees in parallel, distinguished by their `TreeId`
-&ndash; and operates in one of two modes:
+&ndash; and each tree operates in one of two modes:
 
  - **Log** mode: an append-only collection of items.
  - **Map** mode: a collection of key:value pairs.
@@ -269,7 +275,7 @@ to the particular application of the transparent store; this is known as a
 
 The primary purpose of a personality is to implement **admission criteria** for
 the store, so that only particular types of data are added to the store. For
-example, a certificate transparency log only accepts data items that are valid
+example, a Certificate Transparency log only accepts data items that are valid
 certificates; a "CT Log" personality would police this, so that the Trillian
 service can process all incoming data blindly.
 
@@ -286,39 +292,6 @@ separate from Trillian.  In particular, if the personality does not
 completely trust Trillian, it needs to store the various things that
 Trillian signs in order to be able to detect problems (and so the
 personality effectively also acts as a monitor for Trillian).
-
-### Map Mode
-
-Trillian in Map mode can be thought of as providing a key:value store, together
-with cryptographic transparency guarantees for that data.
-
-When running in Map mode, Trillian provides a straightforward gRPC API with the
-following available operations:
-
- - `GetSignedMapRoot` returns information about the current root of the Merkle
-   tree representing the Map, including a revision (see below), hash value,
-   timestamp and signature.
- - `GetLeaves` returns leaf information for a specified set of key values,
-   optionally as of a particular revision.  The returned leaf information also
-   includes inclusion proof data.
- - `SetLeaves` requests inclusion of specified key:value pairs into the Map;
-   these will appear as the next revision of the Map.
-
-(Documentation may be out-of-date; please check the protocol buffer
-[message definitions](trillian_map_api.proto) for the definitive current map API.)
-
-Each `SetLeaves` request includes a batch of updates to the Map; once all of
-these updates have been applied, the Map has a new **revision**, with a new tree
-head for that revision.  To allow historical queries, the API allows queries
-of the Map as of a particular revision.
-
-TODO: add description of per-personality Mappers
-
-TODO: add description of distribution: how many instances run, how distributed,
-how synchronized (master election), mention use of transactions as a fallback
-(in case of errors in master election).
-
-![Map components](docs/images/MapDesign.png)
 
 ### Log Mode
 
@@ -342,18 +315,61 @@ creating a new signed tree head as a result.
 
 ![Log components](docs/images/LogDesign.png)
 
+(Note that each of the components in this diagram can be
+[distributed](https://github.com/google/certificate-transparency-go/blob/master/trillian/docs/ManualDeployment.md#distribution),
+for scalability and resilience.)
 
-TODO: add description of distribution: how many instances run, how distributed etc.
+
+### Map Mode
+
+**WARNING**: Trillian Map mode is experimental and under development; it should
+not be relied on for a production service (yet).
+
+Trillian in Map mode can be thought of as providing a key:value store for
+values derived from a data source (normally a Trillian Log), together with
+cryptographic transparency guarantees for that data.
+
+When running in Map mode, Trillian provides a straightforward gRPC API with the
+following available operations:
+
+ - `SetLeaves` requests inclusion of specified key:value pairs into the Map;
+   these will appear as the next **revision** of the Map, with a new tree head
+   for that revision.
+ - `GetSignedMapRoot` returns information about the current root of the Merkle
+   tree representing the Map, including a revision , hash value, timestamp and
+   signature.
+     - A variant allows queries of the tree root at a specified historical
+       revision.
+ - `GetLeaves` returns leaf information for a specified set of key values,
+   optionally as of a particular revision.  The returned leaf information also
+   includes inclusion proof data.
+
+![Map components](docs/images/MapDesign.png)
+
 
 ### Logged Map
 
-As it currently stands, it is not possible to reliably monitor or audit a
+As a stand-alone component, it is not possible to reliably monitor or audit a
 Trillian Map instance; key:value pairs can be modified and subsequently reset
 without anyone noticing.
 
 A future plan to deal with this is to create a *Logged Map*, which combines a
 Trillian Map with a Trillian Log so that all published revisions of the Map
 have their signed tree head data appended to the corresponding Map.
+
+The mapping between the source Log data and the key:value data stored in the
+Map is application-specific, and so is implemented as a Trillian personality.
+This allows for wide flexibility in the mapping function:
+
+ - The simplest example is a Log that holds a journal of pending mutations to
+   the key:value data; the mapping function here simply applies a batch of
+   mutations.
+ - A more sophisticated example might log entries that are independently of
+   interest (e.g. Web PKI certificates) and apply a more complex mapping
+   function (e.g. map from domain name to public key for the domains covered by
+   a certificate).
+
+![Log-Backed Map](docs/images/LogBackedMapDesign.png)
 
 
 Use Cases
@@ -362,46 +378,47 @@ Use Cases
 ### Certificate Transparency Log
 
 The most obvious application for Trillian in Log mode is to provide a
-certificate transparency (RFC 6962) Log.  To do this, the CT Log personality
+Certificate Transparency (RFC 6962) Log.  To do this, the CT Log personality
 needs to include all of the certificate-specific processing &ndash; in
 particular, checking that an item that has been suggested for inclusion is
 indeed a valid certificate that chains to an accepted root.
 
-### Verifiable Log-Derived Map
+### Verifiable Log-Backed Map
 
 One useful application for Trillian in Map mode is to provide a verifiable
-log-derived map (VLDM), as described in the
+log-backed map, as described in the
 [Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) white
-paper (which uses the term 'log-backed map').  To do this, a VLDM personality
+paper (which uses the term 'log-backed map').  To do this, a mapper personality
 would monitor the additions of entries to a Log, potentially external, and would
 write some kind of corresponding key:value data to a Trillian Map.
 
-Clients of the VLDM are then able to verify that the entries in the Map they are
-shown are also seen by anyone auditing the Log for correct operation, which in
-turn allows the client to trust the key/value pairs returned by the Map.
+Clients of the log-backed map are then able to verify that the entries in the
+Map they are shown are also seen by anyone auditing the Log for correct
+operation, which in turn allows the client to trust the key/value pairs
+returned by the Map.
 
-A concrete example of this might be a VLDM that monitors a certificate
-transparency Log and builds a corresponding Map from domain names to the set of
-certificates associated with that domain.
+A concrete example of this might be a log-backed map that monitors a
+Certificate Transparency Log and builds a corresponding Map from domain names
+to the set of certificates associated with that domain.
 
 The following table summarizes properties of data structures laid in the
 [Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) white
-paper. f“Efficiently” means that a client can and should perform this validation
-themselves.  “Full audit” means that to validate correctly, a client would need
+paper. "Efficiently" means that a client can and should perform this validation
+themselves.  "Full audit" means that to validate correctly, a client would need
 to download the entire dataset, and is something that in practice we expect a
 small number of dedicated auditors to perform, rather than being done by each
 client.
 
 
-|                                          |  Verifiable Log        |  Verifiable Map        |  Verifiable Log-Derived Map |
-| ---------------------------------------- | ---------------------- | ---------------------- |---------------------------- |
-| Prove inclusion of value                 |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently           |
-| Prove non-inclusion of value             |  Impractical           |  Yes, efficiently      |  Yes, efficiently           |
-| Retrieve provable value for key          |  Impractical           |  Yes, efficiently      |  Yes, efficiently           |
-| Retrieve provable current value for key  |  Impractical           |  No                    |  Yes, efficiently           |
-| Prove append-only                        |  Yes, efficiently      |  No                    |  Yes, efficiently [1].      |
-| Enumerate all entries                    |  Yes, by full audit    |  Yes, by full audit    |  Yes, by full audit         |
-| Prove correct operation                  |  Yes, efficiently      |  No                    |  Yes, by full audit         |
-| Enable detection of split-view           |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently           |
+|                                          |  Verifiable Log        |  Verifiable Map        |  Verifiable Log-Backed Map |
+| ---------------------------------------- | ---------------------- | ---------------------- |--------------------------- |
+| Prove inclusion of value                 |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently          |
+| Prove non-inclusion of value             |  Impractical           |  Yes, efficiently      |  Yes, efficiently          |
+| Retrieve provable value for key          |  Impractical           |  Yes, efficiently      |  Yes, efficiently          |
+| Retrieve provable current value for key  |  Impractical           |  No                    |  Yes, efficiently          |
+| Prove append-only                        |  Yes, efficiently      |  No                    |  Yes, efficiently [1].     |
+| Enumerate all entries                    |  Yes, by full audit    |  Yes, by full audit    |  Yes, by full audit        |
+| Prove correct operation                  |  Yes, efficiently      |  No                    |  Yes, by full audit        |
+| Enable detection of split-view           |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently          |
 
 - [1] -- although full audit is required to verify complete correct operation
