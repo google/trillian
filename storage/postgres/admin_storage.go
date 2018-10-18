@@ -222,14 +222,14 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 
 	trees := []*trillian.Tree{}
 	for rows.Next() {
-		if err := rows.Err(); err != nil {
-			return nil, err
-		}
 		tree, err := storage.ReadTree(rows)
 		if err != nil {
 			return nil, err
 		}
 		trees = append(trees, tree)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return trees, nil
 }
@@ -257,13 +257,13 @@ func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64
 	treeIDs := []int64{}
 	var treeID int64
 	for rows.Next() {
-		if err := rows.Err(); err != nil {
-			return nil, err
-		}
 		if err := rows.Scan(&treeID); err != nil {
 			return nil, err
 		}
 		treeIDs = append(treeIDs, treeID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return treeIDs, nil
 }
@@ -442,18 +442,18 @@ func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool,
 }
 
 func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted bool) error {
-	var nullDeleted sql.NullBool
-	switch err := tx.QueryRowContext(ctx, selectDeletedSQL, treeID).Scan(&nullDeleted); {
+	var deleted *bool
+	switch err := tx.QueryRowContext(ctx, selectDeletedSQL, treeID).Scan(&deleted); {
 	case err == sql.ErrNoRows:
 		return status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
 		return err
 	}
 
-	switch deleted := nullDeleted.Valid && nullDeleted.Bool; {
-	case wantDeleted && !deleted:
+	switch d := *deleted; {
+	case wantDeleted && !d:
 		return status.Errorf(codes.FailedPrecondition, "tree %v is not soft deleted", treeID)
-	case !wantDeleted && deleted:
+	case !wantDeleted && d:
 		return status.Errorf(codes.FailedPrecondition, "tree %v already soft deleted", treeID)
 	}
 	return nil
