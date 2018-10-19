@@ -27,7 +27,7 @@ if ! envsubst --help > /dev/null; then
 fi
 
 echo "Creating new Trillian deployment"
-echo "  Project name: ${PROJECT_NAME}"
+echo "  Project name: ${PROJECT_ID}"
 echo "  Cluster name: ${CLUSTER_NAME}"
 echo "  Region:       ${REGION}"
 echo "  Node Locs:    ${NODE_LOCATIONS}"
@@ -37,16 +37,16 @@ echo
 
 # Uncomment this to create a GCE project from scratch, or you can create it
 # manually through the web UI.
-# gcloud projects create ${PROJECT_NAME}
+# gcloud projects create ${PROJECT_ID}
 
 # Connect to gcloud
-gcloud config set project "${PROJECT_NAME}"
+gcloud config set project "${PROJECT_ID}"
 gcloud config set compute/zone ${MASTER_ZONE}
 gcloud config set container/cluster "${CLUSTER_NAME}"
 
 # Ensure Kubernetes Engine (container) and Cloud Spanner (spanner) services are enabled
 for SERVICE in container spanner; do
-  gcloud services enable ${SERVICE}.googleapis.com --project=${PROJECT_NAME}
+  gcloud services enable ${SERVICE}.googleapis.com --project=${PROJECT_ID}
 done
 
 # Create cluster
@@ -61,12 +61,12 @@ gcloud spanner databases create trillian-db --instance trillian-spanner --ddl="$
 # Create service account
 gcloud iam service-accounts create trillian --display-name "Trillian service account"
 # Get the service account key and push it into a Kubernetes secret:
-gcloud iam service-accounts keys create /dev/stdout --iam-account="trillian@${PROJECT_NAME}.iam.gserviceaccount.com" |
+gcloud iam service-accounts keys create /dev/stdout --iam-account="trillian@${PROJECT_ID}.iam.gserviceaccount.com" |
   kubectl create secret generic trillian-key --from-file=key.json=/dev/stdin
 # Update roles
 for ROLE in spanner.databaseUser logging.logWriter monitoring.metricWriter; do
-  gcloud projects add-iam-policy-binding "${PROJECT_NAME}" \
-    --member "serviceAccount:trillian@${PROJECT_NAME}.iam.gserviceaccount.com" \
+  gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+    --member "serviceAccount:trillian@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role "roles/${ROLE}"
 done
 

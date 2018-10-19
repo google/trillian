@@ -7,7 +7,7 @@ metadata:
   name: deploy-config
   namespace: default
 data:
-  CLOUD_PROJECT: ${PROJECT_NAME}
+  CLOUD_PROJECT: ${PROJECT_ID}
   # Update this with your DB connection string:
   STORAGE_FLAG: --mysql_uri=test:zaphod@tcp(db:3306)/test
   STORAGE_SYSTEM: mysql

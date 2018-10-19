@@ -22,7 +22,7 @@ if ! jq --help > /dev/null; then
 fi
 
 # Connect to gcloud
-gcloud config set project ${PROJECT_NAME}
+gcloud config set project ${PROJECT_ID}
 gcloud config set compute/zone ${MASTER_ZONE}
 
 # Delete cluster & node pools
@@ -32,9 +32,9 @@ gcloud beta container clusters delete ${CLUSTER_NAME} --quiet
 gcloud spanner instances delete trillian-spanner --quiet
 
 # Delete service account and key(s)
-gcloud iam service-accounts delete trillian@${PROJECT_NAME}.iam.gserviceaccount.com --quiet
+gcloud iam service-accounts delete trillian@${PROJECT_ID}.iam.gserviceaccount.com --quiet
 
 # Remove roles
 for ROLE in spanner.databaseUser logging.logWriter monitoring.metricWriter; do 
-  gcloud projects remove-iam-policy-binding "${PROJECT_NAME}" --member "serviceAccount:trillian@${PROJECT_NAME}.iam.gserviceaccount.com" --role "roles/${ROLE}"
+  gcloud projects remove-iam-policy-binding "${PROJECT_ID}" --member "serviceAccount:trillian@${PROJECT_ID}.iam.gserviceaccount.com" --role "roles/${ROLE}"
 done
