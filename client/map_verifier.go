@@ -24,6 +24,8 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -85,4 +87,27 @@ func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *tri
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
 func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
 	return tcrypto.VerifySignedMapRoot(m.PubKey, m.SigHash, smr)
+}
+
+// VerifyMapLeavesResponse verifies the responses of GetMapLeaves and GetMapLeavesByRevision.
+// To accept any map revision, pass -1 as revision.
+func (m *MapVerifier) VerifyMapLeavesResponse(indexes [][]byte, revision int64, resp *trillian.GetMapLeavesResponse) ([]*trillian.MapLeaf, error) {
+	if got, want := len(resp.MapLeafInclusion), len(indexes); got != want {
+		return nil, status.Errorf(codes.Internal, "got %v leaves, want %v", got, want)
+	}
+	mapRoot, err := m.VerifySignedMapRoot(resp.GetMapRoot())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", m.MapID, err)
+	}
+	if revision != -1 && int64(mapRoot.Revision) != revision {
+		return nil, status.Errorf(codes.Internal, "got map revision %v, want %v", mapRoot.Revision, revision)
+	}
+	leaves := make([]*trillian.MapLeaf, 0, len(resp.MapLeafInclusion))
+	for _, i := range resp.MapLeafInclusion {
+		if err := m.VerifyMapLeafInclusionHash(mapRoot.RootHash, i); err != nil {
+			return nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
+		}
+		leaves = append(leaves, i.Leaf)
+	}
+	return leaves, nil
 }

@@ -65,21 +65,7 @@ func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte)
 	if err != nil {
 		return nil, status.Errorf(status.Code(err), "map.GetLeaves(): %v", err)
 	}
-	if got, want := len(getResp.MapLeafInclusion), len(indexes); got != want {
-		return nil, status.Errorf(status.Code(err), "got %v leaves, want %v", got, want)
-	}
-	mapRoot, err := c.VerifySignedMapRoot(getResp.GetMapRoot())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", c.MapID, err)
-	}
-	leaves := make([]*trillian.MapLeaf, 0, len(getResp.MapLeafInclusion))
-	for _, m := range getResp.MapLeafInclusion {
-		if err := c.VerifyMapLeafInclusionHash(mapRoot.RootHash, m); err != nil {
-			return nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
-		}
-		leaves = append(leaves, m.Leaf)
-	}
-	return leaves, nil
+	return c.VerifyMapLeavesResponse(indexes, -1, getResp)
 }
 
 // GetAndVerifyMapLeavesByRevision verifies and returns the requested map leaves at a specific revision.
@@ -92,22 +78,5 @@ func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revisio
 	if err != nil {
 		return nil, status.Errorf(status.Code(err), "map.GetLeaves(): %v", err)
 	}
-	if got, want := len(getResp.MapLeafInclusion), len(indexes); got != want {
-		return nil, status.Errorf(status.Code(err), "got %v leaves, want %v", got, want)
-	}
-	mapRoot, err := c.VerifySignedMapRoot(getResp.GetMapRoot())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", c.MapID, err)
-	}
-	if int64(mapRoot.Revision) != revision {
-		return nil, status.Errorf(codes.Internal, "got map revision %v, want %v", mapRoot.Revision, revision)
-	}
-	leaves := make([]*trillian.MapLeaf, 0, len(getResp.MapLeafInclusion))
-	for _, m := range getResp.MapLeafInclusion {
-		if err := c.VerifyMapLeafInclusionHash(mapRoot.RootHash, m); err != nil {
-			return nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
-		}
-		leaves = append(leaves, m.Leaf)
-	}
-	return leaves, nil
+	return c.VerifyMapLeavesResponse(indexes, revision, getResp)
 }
