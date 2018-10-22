@@ -42,6 +42,7 @@ while getopts "ht:" opt; do
   esac
 done
 
-gcloud docker -- build -t "$tag" .
-gcloud docker -- push "$tag"
+gcloud auth configure-docker
+docker build -t "$tag" .
+docker push "$tag"
 
