@@ -42,8 +42,12 @@ gcloud auth configure-docker
 go get github.com/google/trillian/...
 cd $GOPATH/src/github.com/google/trillian
 
-echo "Building and pushing docker images:"
-for thing in log_server log_signer map_server; do
+images="log_server log_signer"
+if ${RUN_MAP}; then
+  images+=" map_server"
+fi
+echo "Building and pushing docker images: ${images}"
+for thing in ${images}; do
   echo "  - ${thing}"
   docker build --quiet -f examples/deployment/docker/${thing}/Dockerfile -t gcr.io/$PROJECT_ID/${thing}:$IMAGE_TAG .
   docker push gcr.io/${PROJECT_ID}/${thing}:${IMAGE_TAG}
@@ -56,15 +60,21 @@ kubectl delete configmap deploy-config || true
 envsubst < ${CONFIGMAP} | kubectl create -f -
 
 # Launch with kubernetes
-envsubst < ${DIR}/trillian-log-deployment.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-log-service.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-log-signer-deployment.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-log-signer-service.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-map-deployment.yaml | kubectl apply -f -
-envsubst < ${DIR}/trillian-map-service.yaml | kubectl apply -f -
+kubeconfigs="trillian-log-deployment.yaml trillian-log-service.yaml trillian-log-signer-deployment.yaml trillian-log-signer-service.yaml"
+if ${RUN_MAP}; then
+  kubeconfigs+=" trillian-map-deployment.yaml trillian-map-service.yaml"
+fi
+for thing in ${kubeconfigs}; do
+  echo ${thing}
+  envsubst < ${DIR}/${thing} | kubectl apply -f -
+don
+
+echo "Setting images..."
 kubectl set image deployment.apps/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_ID}/log_server:${IMAGE_TAG}
 kubectl set image deployment.apps/trillian-logsigner-deployment trillian-log-signer=gcr.io/${PROJECT_ID}/log_signer:${IMAGE_TAG}
-kubectl set image deployment.apps/trillian-mapserver-deployment trillian-mapserver=gcr.io/${PROJECT_ID}/map_server:${IMAGE_TAG}
+if ${RUN_MAP}; then
+  kubectl set image deployment.apps/trillian-mapserver-deployment trillian-mapserver=gcr.io/${PROJECT_ID}/map_server:${IMAGE_TAG}
+fi
 
 kubectl get all
 kubectl get services
