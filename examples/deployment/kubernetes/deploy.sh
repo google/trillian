@@ -67,7 +67,7 @@ fi
 for thing in ${kubeconfigs}; do
   echo ${thing}
   envsubst < ${DIR}/${thing} | kubectl apply -f -
-don
+done
 
 echo "Setting images..."
 kubectl set image deployment.apps/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_ID}/log_server:${IMAGE_TAG}
