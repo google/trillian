@@ -46,7 +46,7 @@ echo "Building and pushing docker images:"
 for thing in log_server log_signer map_server; do
   echo "  - ${thing}"
   docker build --quiet -f examples/deployment/docker/${thing}/Dockerfile -t gcr.io/$PROJECT_NAME/${thing}:$IMAGE_TAG .
-  gcloud docker -- push gcr.io/${PROJECT_NAME}/${thing}:${IMAGE_TAG}
+  docker push gcr.io/${PROJECT_NAME}/${thing}:${IMAGE_TAG}
   gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME}/${thing}:${IMAGE_TAG} gcr.io/${PROJECT_NAME}/${thing}:latest
 done
 
@@ -62,9 +62,9 @@ envsubst < ${DIR}/trillian-log-signer-deployment.yaml | kubectl apply -f -
 envsubst < ${DIR}/trillian-log-signer-service.yaml | kubectl apply -f -
 envsubst < ${DIR}/trillian-map-deployment.yaml | kubectl apply -f -
 envsubst < ${DIR}/trillian-map-service.yaml | kubectl apply -f -
-kubectl set image deployment/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_NAME}/log_server:${IMAGE_TAG}
-kubectl set image deployment/trillian-logsigner-deployment trillian-log-signer=gcr.io/${PROJECT_NAME}/log_signer:${IMAGE_TAG}
-kubectl set image deployment/trillian-mapserver-deployment trillian-mapserver=gcr.io/${PROJECT_NAME}/map_server:${IMAGE_TAG}
+kubectl set image deployment.apps/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_NAME}/log_server:${IMAGE_TAG}
+kubectl set image deployment.apps/trillian-logsigner-deployment trillian-log-signer=gcr.io/${PROJECT_NAME}/log_signer:${IMAGE_TAG}
+kubectl set image deployment.apps/trillian-mapserver-deployment trillian-mapserver=gcr.io/${PROJECT_NAME}/map_server:${IMAGE_TAG}
 
 kubectl get all
 kubectl get services

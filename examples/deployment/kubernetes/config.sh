@@ -1,6 +1,6 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export PROJECT_NAME=trillian-ct-log
+export PROJECT_NAME=key-transparency
 export CLUSTER_NAME=trillian
 export REGION=us-east4
 export MASTER_ZONE="${REGION}-a"

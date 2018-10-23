@@ -20,7 +20,7 @@ usage=$(cat <<EOF
 Usage: $(basename $0) [-t tag]
 
 Builds and pushes the image in this directory to a container repository.
-By default, the image will be tagged with "$tag" and
+By default, the image will be tagged with ${tag} and
 pushed to the Google Cloud container repository.
 EOF
 )
@@ -42,6 +42,7 @@ while getopts "ht:" opt; do
   esac
 done
 
-gcloud docker -- build -t "$tag" .
-gcloud docker -- push "$tag"
+gcloud auth configure-docker
+docker build -t ${tag} .
+docker push ${tag}
 

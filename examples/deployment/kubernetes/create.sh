@@ -21,6 +21,10 @@ if ! jq --help > /dev/null; then
   echo "Please install the jq command"
   exit 1
 fi
+if ! envsubst --help > /dev/null; then
+  echo "Please install the envsubt command"
+  exit 1
+fi
 
 echo "Creating new Trillian deployment"
 echo "  Project name: ${PROJECT_NAME}"
