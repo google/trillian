@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS LeafData(
   ExtraData            LONGBLOB,
   -- The timestamp from when this leaf data was first queued for inclusion.
   QueueTimestampNanos  BIGINT NOT NULL,
+  -- The raw signature that the log uses as a commitment to this leaf.
+  Signature            VARBINARY(1024),
   PRIMARY KEY(TreeId, LeafIdentityHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );

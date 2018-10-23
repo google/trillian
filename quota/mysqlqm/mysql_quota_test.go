@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
@@ -329,7 +330,11 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 	}
 	hasher := hasherFn.New()
 
-	leaves := []*trillian.LogLeaf{}
+	nowPB, err := ptypes.TimestampProto(time.Now())
+	if err != nil {
+		return err
+	}
+	leaves := []*trillian.QueuedLogLeaf{}
 	for i := 0; i < num; i++ {
 		value := []byte(fmt.Sprintf("leaf-%v", firstID+i))
 		hasher.Reset()
@@ -337,17 +342,19 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 			return err
 		}
 		hash := hasher.Sum(nil)
-		leaves = append(leaves, &trillian.LogLeaf{
+		leaf := trillian.LogLeaf{
 			MerkleLeafHash:   hash,
 			LeafValue:        value,
 			ExtraData:        []byte("extra data"),
 			LeafIdentityHash: hash,
-		})
+			QueueTimestamp:   nowPB,
+		}
+		leaves = append(leaves, &trillian.QueuedLogLeaf{Leaf: &leaf})
 	}
 
 	ls := mysql.NewLogStorage(db, nil)
 	return ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		_, err := tx.QueueLeaves(ctx, leaves, time.Now())
+		_, err := tx.QueueLeaves(ctx, leaves)
 		return err
 	})
 }

@@ -44,6 +44,7 @@ CREATE TABLE LeafData(
   LeafValue           BYTES(MAX) NOT NULL,
   ExtraData           BYTES(MAX),
   QueueTimestampNanos INT64 NOT NULL,
+  Signature           BYTES(1024),
 ) PRIMARY KEY(TreeID, LeafIdentityHash);
 
 CREATE TABLE SequencedLeafData(

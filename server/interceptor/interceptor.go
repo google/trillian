@@ -16,6 +16,7 @@
 package interceptor
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -29,7 +30,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"go.opencensus.io/trace"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

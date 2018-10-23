@@ -28,7 +28,7 @@ type LogHasher interface {
 	HashLeaf(leaf []byte) ([]byte, error)
 	// HashChildren computes interior nodes.
 	HashChildren(l, r []byte) []byte
-	// Size is the number of bits in the underlying hash function.
+	// Size is the number of bytes in the underlying hash function.
 	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int
 }

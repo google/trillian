@@ -16,6 +16,7 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -26,7 +27,6 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
-	"golang.org/x/net/context"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

@@ -37,16 +37,18 @@ import (
 	"github.com/google/trillian/testonly/hammer"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+
+	_ "github.com/google/trillian/merkle/coniks"    // register CONIKS_SHA512_256
+	_ "github.com/google/trillian/merkle/maphasher" // register TEST_MAP_HASHER
 )
 
 var (
 	mapIDs          = flag.String("map_ids", "", "Comma-separated list of map IDs to test")
 	rpcServer       = flag.String("rpc_server", "", "Server address:port")
+	adminServer     = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 	metricsEndpoint = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will not be exposed")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	operations      = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
-	// TODO(phad): remove flag '--check_signatures' when downstream dependencies no longer require it.
-	checkSignatures = flag.Bool("check_signatures", true, "If false SignedMapHead signatures will be ignored")
 )
 var (
 	getLeavesBias    = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
@@ -126,17 +128,21 @@ func main() {
 			glog.Exitf("Invalid map ID %q", m)
 		}
 		wg.Add(1)
-		client, err := grpc.Dial(*rpcServer, grpc.WithInsecure())
+		c, err := grpc.Dial(*rpcServer, grpc.WithInsecure())
 		if err != nil {
-			glog.Exitf("Failed to create client: %v", err)
+			glog.Exitf("Failed to create map client conn: %v", err)
+		}
+		ac, err := grpc.Dial(*adminServer, grpc.WithInsecure())
+		if err != nil {
+			glog.Exitf("Failed to create admin client conn: %v", err)
 		}
 		cfg := hammer.MapConfig{
-			MapID:           mapid,
-			Client:          trillian.NewTrillianMapClient(client),
-			MetricFactory:   mf,
-			EPBias:          bias,
-			Operations:      *operations,
-			CheckSignatures: *checkSignatures,
+			MapID:         mapid,
+			Client:        trillian.NewTrillianMapClient(c),
+			Admin:         trillian.NewTrillianAdminClient(ac),
+			MetricFactory: mf,
+			EPBias:        bias,
+			Operations:    *operations,
 		}
 		fmt.Printf("%v\n\n", cfg)
 		go func(cfg hammer.MapConfig) {

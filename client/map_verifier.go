@@ -57,7 +57,7 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 
 	sigHash, err := trees.Hash(config)
 	if err != nil {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
+		return nil, fmt.Errorf("client: NewMapVerifierFromTree(): Failed parsing Map signature hash: %v", err)
 	}
 
 	return &MapVerifier{
@@ -68,16 +68,21 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	}, nil
 }
 
-// VerifyMapLeafInclusion verifies a MapLeafInclusion response.
+// VerifyMapLeafInclusion verifies a MapLeafInclusion response against a signed map root.
 func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafProof *trillian.MapLeafInclusion) error {
-	index := leafProof.GetLeaf().GetIndex()
-	leaf := leafProof.GetLeaf().GetLeafValue()
-	proof := leafProof.GetInclusion()
 	root, err := m.VerifySignedMapRoot(smr)
 	if err != nil {
 		return err
 	}
-	return merkle.VerifyMapInclusionProof(m.MapID, index, leaf, root.RootHash, proof, m.Hasher)
+	return m.VerifyMapLeafInclusionHash(root.RootHash, leafProof)
+}
+
+// VerifyMapLeafInclusionHash verifies a MapLeafInclusion response against a root hash.
+func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *trillian.MapLeafInclusion) error {
+	index := leafProof.GetLeaf().GetIndex()
+	leaf := leafProof.GetLeaf().GetLeafValue()
+	proof := leafProof.GetInclusion()
+	return merkle.VerifyMapInclusionProof(m.MapID, index, leaf, rootHash, proof, m.Hasher)
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.

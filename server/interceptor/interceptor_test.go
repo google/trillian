@@ -15,6 +15,7 @@
 package interceptor
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -29,7 +30,6 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/trees"
 	"github.com/kylelemons/godebug/pretty"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

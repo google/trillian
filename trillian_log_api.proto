@@ -304,6 +304,9 @@ message QueuedLogLeaf {
     //  - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already
     //    present in the log, e.g., same `leaf_index` but different `leaf_data`.
     google.rpc.Status status = 2;
+
+    // Signed commitment from the log to incorporate this leaf.
+    SignedEntryTimestamp signed_entry_timestamp = 3;
 }
 
 // A leaf of the log's Merkle tree, corresponds to a single log entry. Each leaf

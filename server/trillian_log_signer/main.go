@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -32,7 +33,6 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/net/context"
 
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
@@ -92,6 +92,7 @@ func main() {
 	if err != nil {
 		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
 	}
+	defer client.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go util.AwaitSignal(cancel)

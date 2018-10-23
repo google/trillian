@@ -125,6 +125,7 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		Description:        *description,
 		MaxRootDuration:    ptypes.DurationProto(*maxRootDuration),
 	}}
+	glog.Infof("Creating tree %+v", ctr.Tree)
 
 	if *privateKeyFormat != "" {
 		pk, err := keys.New(*privateKeyFormat)

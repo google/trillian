@@ -75,14 +75,15 @@ type LogTreeTX interface {
 
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
 	StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error
-	// QueueLeaves enqueues leaves for later integration into the tree.
-	// If error is nil, the returned slice of leaves will be the same size as the
+	// QueueLeaves enqueues leaves and their signatures for later integration into the tree.
+	// If error is nil, the returned slice of queued leaves will be the same size as the
 	// input, and each entry will hold:
-	//  - the existing leaf entry if a duplicate has been submitted
-	//  - nil otherwise.
+	//  - the existing leaf entry if a duplicate has been submitted, with Status set
+	//    to codes.AlreadyExists
+	//  - the submitted leaf entry otherwise.
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
-	QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error)
+	QueueLeaves(ctx context.Context, qLeaves []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error)
 	// DequeueLeaves will return between [0, limit] leaves from the queue.
 	// Leaves which have been dequeued within a Rolled-back Tx will become available for dequeing again.
 	// Leaves queued more recently than the cutoff time will not be returned. This allows for
@@ -124,21 +125,16 @@ type LogStorage interface {
 	// retry with a new transaction, and f MUST NOT keep state across calls.
 	ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f LogTXFunc) error
 
-	// QueueLeaves enqueues leaves for later integration into the tree.
-	// If error is nil, the returned slice of leaves will be the same size as the
-	// input, and each entry will hold a passed-in leaf struct and a Status
-	// representing the outcome for that particular leaf:
-	//  * a status of OK indicates that the leaf was successfully queued.
-	//  * a status of AlreadyExists indicates that the leaf was a duplicate, in this case
-	//    the returned leaf data is that of the original.
-	// Other status values may be returned in error cases.
+	// QueueLeaves enqueues leaves and their signatures for later integration into the tree.
+	// If error is nil, the returned slice of queued leaves will be the same size as the
+	// input, and each entry will hold:
+	//  - the existing leaf entry if a duplicate has been submitted, with Status set
+	//    to codes.AlreadyExists
+	//  - the submitted leaf entry otherwise, with Status set to OK.
 	//
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
-	//
-	// Note that in contrast to LogTX.QueueLeaves, implementations of this func must not return
-	// slices with nil values.
-	QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
+	QueueLeaves(ctx context.Context, tree *trillian.Tree, qLeaves []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error)
 
 	// AddSequencedLeaves stores the `leaves` and associates them with the log
 	// positions according to their `LeafIndex` field. The indices must be

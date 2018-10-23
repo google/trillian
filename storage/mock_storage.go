@@ -295,16 +295,16 @@ func (mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 }
 
 // QueueLeaves mocks base method
-func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2, arg3)
+func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // QueueLeaves indicates an expected call of QueueLeaves
-func (mr *MockLogStorageMockRecorder) QueueLeaves(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogStorage)(nil).QueueLeaves), arg0, arg1, arg2, arg3)
+func (mr *MockLogStorageMockRecorder) QueueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogStorage)(nil).QueueLeaves), arg0, arg1, arg2)
 }
 
 // ReadWriteTransaction mocks base method
@@ -509,16 +509,16 @@ func (mr *MockLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomo
 }
 
 // QueueLeaves mocks base method
-func (m *MockLogTreeTX) QueueLeaves(arg0 context.Context, arg1 []*trillian.LogLeaf, arg2 time.Time) ([]*trillian.LogLeaf, error) {
-	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]*trillian.LogLeaf)
+func (m *MockLogTreeTX) QueueLeaves(arg0 context.Context, arg1 []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1)
+	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // QueueLeaves indicates an expected call of QueueLeaves
-func (mr *MockLogTreeTXMockRecorder) QueueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).QueueLeaves), arg0, arg1, arg2)
+func (mr *MockLogTreeTXMockRecorder) QueueLeaves(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).QueueLeaves), arg0, arg1)
 }
 
 // ReadRevision mocks base method

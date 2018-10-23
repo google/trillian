@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
@@ -42,10 +43,11 @@ import (
 func newTestLeaf(data []byte, extra []byte, index int64) *trillian.LogLeaf {
 	hash, _ := th.HashLeaf(data)
 	return &trillian.LogLeaf{
-		MerkleLeafHash: hash,
-		LeafValue:      data,
-		ExtraData:      extra,
-		LeafIndex:      index,
+		MerkleLeafHash:   hash,
+		LeafIdentityHash: hash,
+		LeafValue:        data,
+		ExtraData:        extra,
+		LeafIndex:        index,
 	}
 }
 
@@ -407,8 +409,8 @@ func TestQueueLeaves(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.QueuedLogLeaf{okQueuedLeaf(leaf1)}, nil)
-	mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).After(c1).Return([]*trillian.QueuedLogLeaf{dupeQueuedLeaf(leaf1)}, nil)
+	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, gomock.Any()).Return([]*trillian.QueuedLogLeaf{okQueuedLeaf(leaf1)}, nil)
+	mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, gomock.Any()).After(c1).Return([]*trillian.QueuedLogLeaf{dupeQueuedLeaf(leaf1)}, nil)
 
 	registry := extension.Registry{
 		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: queueRequest0.LogId, numSnapshots: 2}),
@@ -448,6 +450,8 @@ func TestQueueLeaves(t *testing.T) {
 		}
 		t.Errorf("QueueLeaves().Status=%v,nil; want %v,nil", sc, code.Code_ALREADY_EXISTS)
 	}
+	// Queued leaf will have a timestamp, so update before comparing.
+	queueRequest0.Leaves[0].QueueTimestamp, _ = ptypes.TimestampProto(fakeTime)
 	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
 		diff := pretty.Compare(queueRequest0.Leaves[0], queuedLeaf.Leaf)
 		t.Errorf("post-QueueLeaves() diff:\n%v", diff)

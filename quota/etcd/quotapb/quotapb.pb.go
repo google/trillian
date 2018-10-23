@@ -117,7 +117,7 @@ func (ListConfigsRequest_ListView) EnumDescriptor() ([]byte, []int) {
 // disabled or non-existing quota is considered infinite by the quota system.
 // (Disabling is handy if you plan to re-enable a quota later on.)
 type Config struct {
-	// Name of the config, eg, “quotas/trees/1234/read/config”.
+	// Name of the config, eg, "quotas/trees/1234/read/config".
 	// Readonly.
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	// State of the config.
