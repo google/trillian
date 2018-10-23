@@ -22,7 +22,7 @@ Process
 -------
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 1. Create a new project
-1. Edit the [config.sh](config.sh) file, set `PROJECT_NAME` to the name of your
+1. Edit the [config.sh](config.sh) file, set `PROJECT_ID` to the name of your
    project
 1. Run: `./create.sh`.
    This script will create the Kubernetes cluster, node pools, and Spanner
