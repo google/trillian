@@ -80,11 +80,6 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 		KeyHint:          s.KeyHint,
 		LogRoot:          logRoot,
 		LogRootSignature: signature,
-		// TODO(gbelvin): Remove deprecated fields
-		TimestampNanos: int64(r.TimestampNanos),
-		RootHash:       r.RootHash,
-		TreeSize:       int64(r.TreeSize),
-		TreeRevision:   int64(r.Revision),
 	}, nil
 }
 

@@ -214,13 +214,13 @@ message SignedEntryTimestamp {
 // SignedLogRoot represents a commitment by a Log to a particular tree.
 message SignedLogRoot {
   // Deprecated: TimestampNanos moved to LogRoot.
-  int64 timestamp_nanos = 1;
+  reserved 1;
   // Deprecated: RootHash moved to LogRoot.
-  bytes root_hash = 2;
+  reserved 2;
   // Deprecated: TreeSize moved to LogRoot.
-  int64 tree_size = 3;
+  reserved 3;
   // Deprecated: TreeRevision moved to LogRoot.
-  int64 tree_revision = 6;
+  reserved 6;
 
   // Deleted: Signature replaced by LogRootSignature.
   reserved 4;
