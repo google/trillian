@@ -19,6 +19,9 @@ import (
 	"context"
 	"math/rand"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Backoff specifies the parameters of the backoff algorithm. Works correctly
@@ -58,7 +61,7 @@ func (b *Backoff) Reset() {
 }
 
 // Retry calls a function until it succeeds or the context is done.
-// It will backoff if the function returns an error.
+// It will backoff if the function returns a retryable error.
 // Once the context is done, retries will end and the most recent error will be returned.
 // Backoff is not reset by this function.
 func (b *Backoff) Retry(ctx context.Context, f func() error) error {
@@ -67,9 +70,9 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 		return ctx.Err()
 	}
 
-	// Try calling f until it doesn't return an error or ctx is done.
+	// Try calling f while the error is retryable and ctx is not done.
 	for {
-		if err := f(); err != nil {
+		if err := f(); IsRetryable(err) {
 			select {
 			case <-time.After(b.Duration()):
 				continue
@@ -78,5 +81,45 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 			}
 		}
 		return nil
+	}
+}
+
+// IsRetryable returns true unless the error is explicitly not retriable per
+// https://godoc.org/google.golang.org/grpc/codes.
+func IsRetryable(err error) bool {
+	switch code := status.Code(err); code {
+
+	// Errors that should not be retried:
+	case codes.OK, // Success = done.
+		codes.InvalidArgument,    // Retrying won't fix an invalid argument.
+		codes.PermissionDenied,   // Retrying won't fix a permission denied error.
+		codes.Unauthenticated,    // Retrying won't fix an unauthenticated error.
+		codes.FailedPrecondition, // Client must wait until the system has been fixed.
+		codes.Unimplemented,      // Retrying won't fix this.
+		codes.Internal,           // Something is very broken.
+		codes.DataLoss,           // Something is very broken.
+		codes.AlreadyExists,      // Retrying won't change this.
+		codes.Canceled:           // The client canceled: stop the retry loop.
+		return false
+
+	// Cases that are debatable:
+	case codes.OutOfRange, // Might be retryable if the server does a lot of work.
+		codes.NotFound: // Retrying might help, but not rapidly.
+		return false
+
+	// Debatable cases. Retry to preserve existing behavior.
+	case codes.DeadlineExceeded, // The client or the server expired a timeout.
+		codes.ResourceExhausted, // Retry with backoff.
+		codes.Unknown:           // Catch-all error code.
+		return true
+
+	// Errors that are explicitly retryable:
+	case codes.Unavailable, // Client can just retry the call.
+		codes.Aborted: // Client can retry the read-modify-write function.
+		return true
+
+	// Retry for all unknown errors to preserve existing behavior.
+	default:
+		return true
 	}
 }
