@@ -84,10 +84,8 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 	}
 }
 
-// IsRetryable returns false if the error code indicates
-// an error that is explicitly not retriable per
+// IsRetryable returns true unless the error is explicitly not retriable per
 // https://godoc.org/google.golang.org/grpc/codes.
-// All other codes and non-grpc errors return true.
 func IsRetryable(err error) bool {
 	switch code := status.Code(err); code {
 
@@ -109,18 +107,18 @@ func IsRetryable(err error) bool {
 		codes.NotFound: // Retrying might help, but not rapidly.
 		return false
 
-	// Debatable cases that preserve existing behavior:
+	// Debatable cases. Retry to preserve existing behavior.
 	case codes.DeadlineExceeded, // The client or the server expired a timeout.
 		codes.ResourceExhausted, // Retry with backoff.
 		codes.Unknown:           // Catch-all error code.
 		return true
 
 	// Errors that are explicitly retryable:
-	case codes.Unavailable, // Client can just retry the call
+	case codes.Unavailable, // Client can just retry the call.
 		codes.Aborted: // Client can retry the read-modify-write function.
 		return true
 
-	// Preserve existing behavior
+	// Retry for all unknown errors to preserve existing behavior.
 	default:
 		return true
 	}
