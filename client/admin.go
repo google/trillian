@@ -54,15 +54,16 @@ func CreateAndInitTree(
 		glog.Info("CreateTree...")
 		var err error
 		tree, err = adminClient.CreateTree(ctx, req)
-		if err != nil {
-			if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
-				glog.Errorf("Admin server unavailable: %v", err)
-				return err
-			}
+		switch code := status.Code(err); code {
+		case codes.Unavailable:
+			glog.Errorf("Admin server unavailable: %v", err)
+			return err
+		case codes.OK:
+			return nil
+		default:
 			glog.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
 			return err
 		}
-		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -98,24 +99,24 @@ func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.Trilli
 	}
 
 	err := b.Retry(ctx, func() error {
-		glog.Infof("Initialising Map %x...", tree.TreeId)
+		glog.Infof("Initialising Map %v...", tree.TreeId)
 		req := &trillian.InitMapRequest{MapId: tree.TreeId}
 		resp, err := mapClient.InitMap(ctx, req)
-		if err != nil {
-			switch s, ok := status.FromError(err); {
-			case ok && s.Code() == codes.Unavailable:
-				glog.Errorf("Map server unavailable: %v", err)
-				return err
-			case ok && s.Code() == codes.AlreadyExists:
-				glog.Warningf("Bizarrely, the just-created Map (%x) is already initialised!: %v", tree.TreeId, err)
-				return err
-			}
+		switch code := status.Code(err); code {
+		case codes.Unavailable:
+			glog.Errorf("Map server unavailable: %v", err)
+			return err
+		case codes.AlreadyExists:
+			glog.Warningf("Bizarrely, the just-created Map (%v) is already initialised!: %v", tree.TreeId, err)
+			return err
+		case codes.OK:
+			glog.Infof("Initialised Map (%v) with new SignedMapRoot:\n%+v", tree.TreeId, resp.Created)
+
+			return nil
+		default:
 			glog.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
 			return err
 		}
-		glog.Infof("Initialised Map (%x) with new SignedMapRoot:\n%+v", tree.TreeId, resp.Created)
-
-		return nil
 	})
 	if err != nil {
 		return err
@@ -147,24 +148,24 @@ func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.Trilli
 	}
 
 	err := b.Retry(ctx, func() error {
-		glog.Infof("Initialising Log %x...", tree.TreeId)
+		glog.Infof("Initialising Log %v...", tree.TreeId)
 		req := &trillian.InitLogRequest{LogId: tree.TreeId}
 		resp, err := logClient.InitLog(ctx, req)
-		if err != nil {
-			switch s, ok := status.FromError(err); {
-			case ok && s.Code() == codes.Unavailable:
-				glog.Errorf("Log server unavailable: %v", err)
-				return err
-			case ok && s.Code() == codes.AlreadyExists:
-				glog.Warningf("Bizarrely, the just-created Log (%x) is already initialised!: %v", tree.TreeId, err)
-				return err
-			}
+		switch code := status.Code(err); code {
+		case codes.Unavailable:
+			glog.Errorf("Log server unavailable: %v", err)
+			return err
+		case codes.AlreadyExists:
+			glog.Warningf("Bizarrely, the just-created Log (%v) is already initialised!: %v", tree.TreeId, err)
+			return err
+		case codes.OK:
+			glog.Infof("Initialised Log (%v) with new SignedTreeHead:\n%+v",
+				tree.TreeId, resp.Created)
+			return nil
+		default:
 			glog.Errorf("failed to InitLog(%+v): %T %v", req, err, err)
 			return err
 		}
-		glog.Infof("Initialised Log (%x) with new SignedTreeHead:\n%+v", tree.TreeId, resp.Created)
-
-		return nil
 	})
 	if err != nil {
 		return err
