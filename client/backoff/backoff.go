@@ -64,7 +64,7 @@ func (b *Backoff) Reset() {
 // It will backoff if the function returns a retryable error.
 // Once the context is done, retries will end and the most recent error will be returned.
 // Backoff is not reset by this function.
-func (b *Backoff) Retry(ctx context.Context, f func() error) error {
+func (b *Backoff) Retry(ctx context.Context, f func() error, retryableCodes ...codes.Code) error {
 	// If the context is already done, don't make any attempts to call f.
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -72,45 +72,32 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 
 	// Try calling f while the error is retryable and ctx is not done.
 	for {
-		if err := f(); IsRetryable(err) {
-			select {
-			case <-time.After(b.Duration()):
-				continue
-			case <-ctx.Done():
-				return err
-			}
+		if err := f(); !IsRetryable(err, retryableCodes...) {
+			return err
 		}
-		return nil
+		select {
+		case <-time.After(b.Duration()):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 
-// IsRetryable returns true unless the error is explicitly not retriable per
-// https://godoc.org/google.golang.org/grpc/codes.
-func IsRetryable(err error) bool {
-	switch code := status.Code(err); code {
+// IsRetryable returns false unless the error is explicitly retriable per
+// https://godoc.org/google.golang.org/grpc/codes,
+// or if the error codes is in retriableCodes.
+func IsRetryable(err error, retryableCodes ...codes.Code) bool {
+	code := status.Code(err)
+	for _, c := range retryableCodes {
+		if code == c {
+			return true
+		}
+	}
 
-	// Errors that should not be retried:
-	case codes.OK, // Success = done.
-		codes.InvalidArgument,    // Retrying won't fix an invalid argument.
-		codes.PermissionDenied,   // Retrying won't fix a permission denied error.
-		codes.Unauthenticated,    // Retrying won't fix an unauthenticated error.
-		codes.FailedPrecondition, // Client must wait until the system has been fixed.
-		codes.Unimplemented,      // Retrying won't fix this.
-		codes.Internal,           // Something is very broken.
-		codes.DataLoss,           // Something is very broken.
-		codes.AlreadyExists,      // Retrying won't change this.
-		codes.Canceled:           // The client canceled: stop the retry loop.
-		return false
-
-	// Cases that are debatable:
-	case codes.OutOfRange, // Might be retryable if the server does a lot of work.
-		codes.NotFound: // Retrying might help, but not rapidly.
-		return false
-
-	// Debatable cases. Retry to preserve existing behavior.
+	switch code {
+	// Debatable cases:
 	case codes.DeadlineExceeded, // The client or the server expired a timeout.
-		codes.ResourceExhausted, // Retry with backoff.
-		codes.Unknown:           // Catch-all error code.
+		codes.ResourceExhausted: // Retry with backoff.
 		return true
 
 	// Errors that are explicitly retryable:
@@ -118,8 +105,8 @@ func IsRetryable(err error) bool {
 		codes.Aborted: // Client can retry the read-modify-write function.
 		return true
 
-	// Retry for all unknown errors to preserve existing behavior.
+	// Don't retry for all other errors.
 	default:
-		return true
+		return false
 	}
 }
