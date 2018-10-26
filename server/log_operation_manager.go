@@ -258,8 +258,9 @@ func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, activeI
 		if l.info.Registry.SetProcessStatus != nil {
 			l.info.Registry.SetProcessStatus(heldInfo)
 		}
+	} else {
+		glog.V(1).Info(msg)
 	}
-	glog.V(1).Info(msg)
 }
 
 func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
@@ -267,8 +268,8 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to list active log IDs: %v", err)
 	}
-	// Skip IDs of the logs that are not active (for example, deleted or FROZEN
-	// ones). Note that we might still hold mastership for some of them.
+	// Find the logs we are master for, skipping those logs that are not active,
+	// e.g. deleted or FROZEN ones.
 	// TODO(pavelkalinnikov): Resign mastership for the inactive logs.
 	logIDs, err := l.masterFor(ctx, activeIDs)
 	if err != nil {
