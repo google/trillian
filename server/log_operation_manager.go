@@ -125,11 +125,12 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 	}
 }
 
-// getLogIDs returns the current set of active log IDs, whether we are master for them or not.
-func (l *LogOperationManager) getLogIDs(ctx context.Context) ([]int64, error) {
+// getActiveLogIDs returns IDs of all currently active logs, regardless of
+// mastership status.
+func (l *LogOperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error) {
 	tx, err := l.info.Registry.LogStorage.Snapshot(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tx for retrieving logIDs: %v", err)
+		return nil, fmt.Errorf("failed to create transaction: %v", err)
 	}
 	defer tx.Close()
 
@@ -139,7 +140,7 @@ func (l *LogOperationManager) getLogIDs(ctx context.Context) ([]int64, error) {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit getting logs: %v", err)
+		return nil, fmt.Errorf("failed to commit: %v", err)
 	}
 	return logIDs, nil
 }
@@ -181,6 +182,9 @@ func (l *LogOperationManager) heldInfo(ctx context.Context, logIDs []int64) stri
 	return result
 }
 
+// masterFor returns the list of log IDs among allIDs that this instance is
+// master for. Note that the instance may hold mastership for logs that are not
+// listed in allIDs, but such logs are skipped.
 func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int64, error) {
 	if l.info.Registry.ElectionFactory == nil {
 		return allIDs, nil
@@ -201,7 +205,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 		})
 	}
 
-	// Synchronize the set of configured log IDs with those we are tracking mastership for.
+	// Synchronize the set of log IDs with those we are tracking mastership for.
 	for _, logID := range allStringIDs {
 		knownLogs.Set(1, logID)
 		if l.electionRunner[logID] != nil {
@@ -224,7 +228,12 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 
 	held := l.tracker.Held()
 	heldIDs := make([]int64, 0, len(allIDs))
+	sort.Strings(allStringIDs)
 	for _, s := range held {
+		// Skip the log if it is not present in allIDs.
+		if i := sort.SearchStrings(allStringIDs, s); i >= len(allStringIDs) || allStringIDs[i] != s {
+			continue
+		}
 		id, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse logID %v as int64", s)
@@ -232,35 +241,41 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 		heldIDs = append(heldIDs, id)
 	}
 
-	glog.V(1).Infof("acting as master for %d / %d: %s", len(held), len(allIDs), l.tracker)
 	return heldIDs, nil
 }
 
-func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, allIDs []int64) {
+// updateHeldIDs updates the process status with the number/list of logs that
+// the instance holds mastership for.
+func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, activeIDs []int64) {
 	l.heldMutex.Lock()
 	defer l.heldMutex.Unlock()
+	heldInfo := l.heldInfo(ctx, logIDs)
+	msg := fmt.Sprintf("Acting as master for %d / %d active logs: %s", len(logIDs), len(activeIDs), heldInfo)
 	if !reflect.DeepEqual(logIDs, l.lastHeld) {
 		l.lastHeld = make([]int64, len(logIDs))
 		copy(l.lastHeld, logIDs)
-		heldInfo := l.heldInfo(ctx, logIDs)
-		glog.Infof("now acting as master for %d / %d, %s", len(logIDs), len(allIDs), heldInfo)
+		glog.Info(msg)
 		if l.info.Registry.SetProcessStatus != nil {
 			l.info.Registry.SetProcessStatus(heldInfo)
 		}
+	} else {
+		glog.V(1).Info(msg)
 	}
 }
 
 func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
-	allIDs, err := l.getLogIDs(ctx)
+	activeIDs, err := l.getActiveLogIDs(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve full list of log IDs: %v", err)
+		return fmt.Errorf("failed to list active log IDs: %v", err)
 	}
-	logIDs, err := l.masterFor(ctx, allIDs)
+	// Find the logs we are master for, skipping those logs that are not active,
+	// e.g. deleted or FROZEN ones.
+	// TODO(pavelkalinnikov): Resign mastership for the inactive logs.
+	logIDs, err := l.masterFor(ctx, activeIDs)
 	if err != nil {
 		return fmt.Errorf("failed to determine log IDs we're master for: %v", err)
 	}
-	l.updateHeldIDs(ctx, logIDs, allIDs)
-	glog.V(1).Infof("Beginning run for %v active log(s)", len(logIDs))
+	l.updateHeldIDs(ctx, logIDs, activeIDs)
 
 	// TODO(pavelkalinnikov): Run executor once instead of doing it on each pass.
 	// This will be also needed when factoring out per-log operation loop.
