@@ -64,7 +64,7 @@ func (b *Backoff) Reset() {
 // It will backoff if the function returns a retryable error.
 // Once the context is done, retries will end and the most recent error will be returned.
 // Backoff is not reset by this function.
-func (b *Backoff) Retry(ctx context.Context, f func() error, retryableCodes ...codes.Code) error {
+func (b *Backoff) Retry(ctx context.Context, f func() error, retry ...codes.Code) error {
 	// If the context is already done, don't make any attempts to call f.
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -72,7 +72,7 @@ func (b *Backoff) Retry(ctx context.Context, f func() error, retryableCodes ...c
 
 	// Try calling f while the error is retryable and ctx is not done.
 	for {
-		if err := f(); !IsRetryable(err, retryableCodes...) {
+		if err := f(); !IsRetryable(err, retry...) {
 			return err
 		}
 		select {
@@ -87,7 +87,8 @@ func (b *Backoff) Retry(ctx context.Context, f func() error, retryableCodes ...c
 // https://godoc.org/google.golang.org/grpc/codes,
 // or if the error codes is in retry. codes.OK is not retryable.
 func IsRetryable(err error, retry ...codes.Code) bool {
-	switch code := status.Code(err); code {
+	code := status.Code(err)
+	switch code {
 	// Fast path.
 	case codes.OK:
 		return false
@@ -101,14 +102,13 @@ func IsRetryable(err error, retry ...codes.Code) bool {
 	case codes.Unavailable, // Client can just retry the call.
 		codes.Aborted: // Client can retry the read-modify-write function.
 		return true
-
-	default:
-		for _, c := range retry {
-			if code == c {
-				return true
-			}
-		}
-		// Don't retry for all other errors.
-		return false
 	}
+
+	for _, c := range retry {
+		if code == c {
+			return true
+		}
+	}
+	// Don't retry for all other errors.
+	return false
 }
