@@ -30,6 +30,8 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util/flagsaver"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
@@ -111,7 +113,7 @@ func TestCreateTree(t *testing.T) {
 		},
 		{
 			desc:      "createErr",
-			createErr: errors.New("create tree failed"),
+			createErr: status.Errorf(codes.Unavailable, "create tree failed"),
 			wantErr:   true,
 		},
 		{
@@ -121,7 +123,7 @@ func TestCreateTree(t *testing.T) {
 				*treeType = nonDefaultTree.TreeType.String()
 			},
 			wantTree: defaultTree,
-			initErr:  errors.New("log init failed"),
+			initErr:  status.Errorf(codes.Unavailable, "log init failed"),
 			wantErr:  true,
 		},
 		{
@@ -131,7 +133,7 @@ func TestCreateTree(t *testing.T) {
 				*treeType = nonDefaultTree.TreeType.String()
 			},
 			wantTree: &nonDefaultTree,
-			initErr:  errors.New("map init failed"),
+			initErr:  status.Errorf(codes.Unavailable, "map init failed"),
 			wantErr:  true,
 		},
 	})

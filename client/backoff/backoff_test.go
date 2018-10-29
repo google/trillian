@@ -16,9 +16,11 @@ package backoff
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	_ "github.com/golang/glog"
 )
@@ -120,7 +122,7 @@ func TestRetry(t *testing.T) {
 			f: func() error {
 				callCount++
 				if callCount == 1 {
-					return errors.New("error")
+					return status.Errorf(codes.Unavailable, "error")
 				}
 				return nil
 			},
@@ -133,7 +135,7 @@ func TestRetry(t *testing.T) {
 				// being cancelled.
 				if ctx.Err() == nil {
 					cancel()
-					return errors.New("error")
+					return status.Errorf(codes.Unavailable, "error")
 				}
 				return nil
 			},

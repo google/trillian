@@ -129,7 +129,7 @@ func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.Trilli
 				Revision: 0,
 			})
 		return err
-	})
+	}, codes.FailedPrecondition)
 }
 
 // InitLog initialises a freshly created Log tree.
@@ -175,5 +175,5 @@ func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.Trilli
 		_, err := logClient.GetLatestSignedLogRoot(ctx,
 			&trillian.GetLatestSignedLogRootRequest{LogId: tree.TreeId})
 		return err
-	})
+	}, codes.FailedPrecondition)
 }
