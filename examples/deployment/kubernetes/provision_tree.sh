@@ -25,11 +25,6 @@ sleep 3
 echo "Creating tree..."
 # TODO(al): use cmd/createtree instead.
 TREE=$(curl -sb -X POST ${LOG_URL}/v1beta1/trees -d '{ "tree":{ "tree_state":"ACTIVE", "tree_type":"LOG", "hash_strategy":"RFC6962_SHA256", "signature_algorithm":"ECDSA", "max_root_duration":"0", "hash_algorithm":"SHA256" }, "key_spec":{ "ecdsa_params":{ "curve":"P256" } } }')
-if [ $? -ne 0 ]; then
-  echo "Failed to create tree:"
-  echo ${TREE}
-  exit 1
-fi
 
 echo $TREE
 
