@@ -38,13 +38,13 @@ func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 // populateLogSubtreeNodes re-creates a Log subtree's InternalNodes from the
 // subtree Leaves map.
 //
-// This uses the CompactMerkleTree to repopulate internal nodes, and so will
+// This uses the compact Merkle tree to repopulate internal nodes, and so will
 // handle imperfect (but left-hand dense) subtrees. Note that we only rebuild internal
 // nodes when the subtree is fully populated. For an explanation of why see the comments
 // below for PrepareLogSubtreeWrite.
 func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
-		cmt := compact.NewCompactMerkleTree(hasher)
+		cmt := compact.NewTree(hasher)
 		if st.Depth < 1 {
 			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
 		}

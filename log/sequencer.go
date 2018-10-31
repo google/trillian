@@ -132,8 +132,8 @@ func NewSequencer(
 
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
 // would be more efficient but requires refactoring.
-func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.CompactMerkleTree, error) {
-	mt, err := compact.NewCompactMerkleTreeWithState(s.hasher, int64(root.TreeSize), func(depth int, index int64) ([]byte, error) {
+func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
+	mt, err := compact.NewTreeWithState(s.hasher, int64(root.TreeSize), func(depth int, index int64) ([]byte, error) {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 		if err != nil {
 			glog.Warningf("%x: Failed to create nodeID: %v", s.signer.KeyHint, err)
@@ -148,7 +148,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 
 		// We expect to get exactly one node here
 		if nodes == nil || len(nodes) != 1 {
-			return nil, fmt.Errorf("%x: Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %v@%v", s.signer.KeyHint, nodes, nodeID.String(), root.Revision)
+			return nil, fmt.Errorf("%x: Did not retrieve one node while loading compact Merkle tree, got %#v for ID %v@%v", s.signer.KeyHint, nodes, nodeID.String(), root.Revision)
 		}
 
 		return nodes[0].Hash, nil
@@ -168,7 +168,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 	return targetNodes, nil
 }
 
-func (s Sequencer) updateCompactTree(mt *compact.CompactMerkleTree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, error) {
+func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, error) {
 	nodeMap := make(map[string]storage.Node)
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
@@ -220,9 +220,9 @@ func (s Sequencer) updateCompactTree(mt *compact.CompactMerkleTree, leaves []*tr
 	return nodeMap, nil
 }
 
-func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot *types.LogRootV1, tx storage.LogTreeTX) (*compact.CompactMerkleTree, error) {
+func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot *types.LogRootV1, tx storage.LogTreeTX) (*compact.Tree, error) {
 	if currentRoot.TreeSize == 0 {
-		return compact.NewCompactMerkleTree(s.hasher), nil
+		return compact.NewTree(s.hasher), nil
 	}
 
 	// Initialize the compact tree state to match the latest root in the database

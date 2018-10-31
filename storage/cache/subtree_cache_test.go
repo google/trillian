@@ -247,7 +247,7 @@ func TestCacheFlush(t *testing.T) {
 
 func TestRepopulateLogSubtree(t *testing.T) {
 	populateTheThing := populateLogSubtreeNodes(rfc6962.DefaultHasher)
-	cmt := compact.NewCompactMerkleTree(rfc6962.DefaultHasher)
+	cmt := compact.NewTree(rfc6962.DefaultHasher)
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),

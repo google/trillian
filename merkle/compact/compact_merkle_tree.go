@@ -35,9 +35,9 @@ func (r RootHashMismatchError) Error() string {
 	return fmt.Sprintf("root hash mismatch got: %v expected: %v", r.ActualHash, r.ExpectedHash)
 }
 
-// CompactMerkleTree is a compact Merkle tree representation.
+// Tree is a compact Merkle tree representation.
 // Uses log(n) nodes to represent the current on-disk tree.
-type CompactMerkleTree struct {
+type Tree struct {
 	hasher hashers.LogHasher
 	root   []byte
 	// the list of "dangling" left-hand nodes, NOTE: index 0 is the leaf, not the root.
@@ -50,19 +50,19 @@ func isPerfectTree(x int64) bool {
 }
 
 // GetNodeFunc is a function prototype which can look up particular nodes within a non-compact Merkle tree.
-// Used by the CompactMerkleTree to populate itself with correct state when starting up with a non-empty tree.
+// Used by the compact Tree to populate itself with correct state when starting up with a non-empty tree.
 type GetNodeFunc func(depth int, index int64) ([]byte, error)
 
-// NewCompactMerkleTreeWithState creates a new CompactMerkleTree for the passed in |size|.
+// NewTreeWithState creates a new compact Tree for the passed in |size|.
 // This can fail if the nodes required to recreate the tree state cannot be fetched or the calculated
 // root hash after population does not match the value we expect.
 // |f| will be called a number of times with the co-ordinates of internal MerkleTree nodes whose hash values are
-// required to initialize the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
-// of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
-func NewCompactMerkleTreeWithState(hasher hashers.LogHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
+// required to initialize the internal state of the compact Tree.  |expectedRoot| is the known-good tree root
+// of the tree at |size|, and is used to verify the correct initial state of the compact Tree after initialisation.
+func NewTreeWithState(hasher hashers.LogHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*Tree, error) {
 	sizeBits := bits.Len64(uint64(size))
 
-	r := CompactMerkleTree{
+	r := Tree{
 		hasher: hasher,
 		nodes:  make([][]byte, sizeBits),
 		root:   hasher.EmptyRoot(),
@@ -100,9 +100,9 @@ func NewCompactMerkleTreeWithState(hasher hashers.LogHasher, size int64, f GetNo
 	return &r, nil
 }
 
-// NewCompactMerkleTree creates a new CompactMerkleTree with size zero. This always succeeds.
-func NewCompactMerkleTree(hasher hashers.LogHasher) *CompactMerkleTree {
-	r := CompactMerkleTree{
+// NewTree creates a new compact Tree with size zero. This always succeeds.
+func NewTree(hasher hashers.LogHasher) *Tree {
+	r := Tree{
 		hasher: hasher,
 		root:   hasher.EmptyRoot(),
 		nodes:  make([][]byte, 0),
@@ -112,12 +112,12 @@ func NewCompactMerkleTree(hasher hashers.LogHasher) *CompactMerkleTree {
 }
 
 // CurrentRoot returns the current root hash.
-func (c CompactMerkleTree) CurrentRoot() []byte {
+func (c Tree) CurrentRoot() []byte {
 	return c.root
 }
 
-// DumpNodes logs the internal state of the CompactMerkleTree, and is used for debugging.
-func (c CompactMerkleTree) DumpNodes() {
+// DumpNodes logs the internal state of the compact Tree, and is used for debugging.
+func (c Tree) DumpNodes() {
 	log.Infof("Tree Nodes @ %d", c.size)
 	mask := int64(1)
 	numBits := bits.Len64(uint64(c.size))
@@ -133,7 +133,7 @@ func (c CompactMerkleTree) DumpNodes() {
 
 type setNodeFunc func(depth int, index int64, hash []byte) error
 
-func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) error {
+func (c *Tree) recalculateRoot(f setNodeFunc) error {
 	if c.size == 0 {
 		return nil
 	}
@@ -165,7 +165,7 @@ func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) error {
 
 // AddLeaf calculates the leafhash of |data| and appends it to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
+func (c *Tree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
 	h, err := c.hasher.HashLeaf(data)
 	if err != nil {
 		return 0, nil, err
@@ -179,7 +179,7 @@ func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, 
 
 // AddLeafHash adds the specified |leafHash| to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
+func (c *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 	defer func() {
 		c.size++
 		// TODO(al): do this lazily
@@ -246,12 +246,12 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, 
 }
 
 // Size returns the current size of the tree, that is, the number of leaves ever added to the tree.
-func (c CompactMerkleTree) Size() int64 {
+func (c Tree) Size() int64 {
 	return c.size
 }
 
 // Hashes returns a copy of the set of node hashes that comprise the compact representation of the tree.
-func (c CompactMerkleTree) Hashes() [][]byte {
+func (c Tree) Hashes() [][]byte {
 	if isPerfectTree(c.size) {
 		return nil
 	}
@@ -261,7 +261,7 @@ func (c CompactMerkleTree) Hashes() [][]byte {
 }
 
 // Depth returns the number of levels in the tree.
-func (c CompactMerkleTree) Depth() int {
+func (c Tree) Depth() int {
 	if c.size == 0 {
 		return 0
 	}
