@@ -183,6 +183,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 	defer func() {
 		t.size++
 		// TODO(al): do this lazily
+		// TODO(pavelkalinnikov): Handle recalculateRoot errors.
 		t.recalculateRoot(f)
 	}()
 
