@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package merkle
+package compact
 
 import (
 	"bytes"
@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
@@ -201,7 +202,7 @@ func nodeKey(d int, i int64) (string, error) {
 }
 
 func TestCompactVsFullTree(t *testing.T) {
-	imt := NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	imt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	nodes := make(map[string][]byte)
 
 	for i := int64(0); i < 1024; i++ {

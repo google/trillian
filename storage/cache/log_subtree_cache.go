@@ -17,7 +17,7 @@ package cache
 import (
 	"fmt"
 
-	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
@@ -44,7 +44,7 @@ func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 // below for PrepareLogSubtreeWrite.
 func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
-		cmt := merkle.NewCompactMerkleTree(hasher)
+		cmt := compact.NewCompactMerkleTree(hasher)
 		if st.Depth < 1 {
 			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
 		}
