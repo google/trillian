@@ -112,18 +112,18 @@ func NewTree(hasher hashers.LogHasher) *Tree {
 }
 
 // CurrentRoot returns the current root hash.
-func (c Tree) CurrentRoot() []byte {
-	return c.root
+func (t *Tree) CurrentRoot() []byte {
+	return t.root
 }
 
 // DumpNodes logs the internal state of the compact Tree, and is used for debugging.
-func (c Tree) DumpNodes() {
-	log.Infof("Tree Nodes @ %d", c.size)
+func (t *Tree) DumpNodes() {
+	log.Infof("Tree Nodes @ %d", t.size)
 	mask := int64(1)
-	numBits := bits.Len64(uint64(c.size))
+	numBits := bits.Len64(uint64(t.size))
 	for bit := 0; bit < numBits; bit++ {
-		if c.size&mask != 0 {
-			log.Infof("%d:  %s", bit, base64.StdEncoding.EncodeToString(c.nodes[bit][:]))
+		if t.size&mask != 0 {
+			log.Infof("%d:  %s", bit, base64.StdEncoding.EncodeToString(t.nodes[bit][:]))
 		} else {
 			log.Infof("%d:  -", bit)
 		}
@@ -133,25 +133,25 @@ func (c Tree) DumpNodes() {
 
 type setNodeFunc func(depth int, index int64, hash []byte) error
 
-func (c *Tree) recalculateRoot(f setNodeFunc) error {
-	if c.size == 0 {
+func (t *Tree) recalculateRoot(f setNodeFunc) error {
+	if t.size == 0 {
 		return nil
 	}
 
-	index := c.size
+	index := t.size
 
 	var newRoot []byte
 	first := true
 	mask := int64(1)
-	numBits := bits.Len64(uint64(c.size))
+	numBits := bits.Len64(uint64(t.size))
 	for bit := 0; bit < numBits; bit++ {
 		index >>= 1
-		if c.size&mask != 0 {
+		if t.size&mask != 0 {
 			if first {
-				newRoot = c.nodes[bit]
+				newRoot = t.nodes[bit]
 				first = false
 			} else {
-				newRoot = c.hasher.HashChildren(c.nodes[bit], newRoot)
+				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
 				if err := f(bit+1, index, newRoot); err != nil {
 					return err
 				}
@@ -159,18 +159,18 @@ func (c *Tree) recalculateRoot(f setNodeFunc) error {
 		}
 		mask <<= 1
 	}
-	c.root = newRoot
+	t.root = newRoot
 	return nil
 }
 
 // AddLeaf calculates the leafhash of |data| and appends it to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *Tree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
-	h, err := c.hasher.HashLeaf(data)
+func (t *Tree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
+	h, err := t.hasher.HashLeaf(data)
 	if err != nil {
 		return 0, nil, err
 	}
-	seq, err := c.AddLeafHash(h, f)
+	seq, err := t.AddLeafHash(h, f)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -179,23 +179,23 @@ func (c *Tree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
 
 // AddLeafHash adds the specified |leafHash| to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
+func (t *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 	defer func() {
-		c.size++
+		t.size++
 		// TODO(al): do this lazily
-		c.recalculateRoot(f)
+		t.recalculateRoot(f)
 	}()
 
-	assignedSeq := c.size
+	assignedSeq := t.size
 	index := assignedSeq
 
 	if err := f(0, index, leafHash); err != nil {
 		return 0, err
 	}
 
-	if c.size == 0 {
+	if t.size == 0 {
 		// new tree
-		c.nodes = append(c.nodes, leafHash)
+		t.nodes = append(t.nodes, leafHash)
 		return assignedSeq, nil
 	}
 
@@ -203,11 +203,11 @@ func (c *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 	hash := leafHash
 	bit := 0
 	// Iterate over the bits in our tree size
-	for t := c.size; t > 0; t >>= 1 {
+	for mask := t.size; mask > 0; mask >>= 1 {
 		index >>= 1
-		if t&1 == 0 {
+		if mask&1 == 0 {
 			// Just store the running hash here; we're done.
-			c.nodes[bit] = hash
+			t.nodes[bit] = hash
 			// Don't re-write the leaf hash node (we've done it above already)
 			if bit > 0 {
 				// Store the leaf hash node
@@ -218,23 +218,23 @@ func (c *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
-		hash = c.hasher.HashChildren(c.nodes[bit], hash)
+		hash = t.hasher.HashChildren(t.nodes[bit], hash)
 		// Store the resulting parent hash.
 		if err := f(bit+1, index, hash); err != nil {
 			return 0, err
 		}
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
-		c.nodes[bit] = nil
+		t.nodes[bit] = nil
 		// Figure out if we're done:
-		if bit+1 >= len(c.nodes) {
+		if bit+1 >= len(t.nodes) {
 			// If we're extending the node list then add a new entry with our
 			// running hash, and we're done.
-			c.nodes = append(c.nodes, hash)
+			t.nodes = append(t.nodes, hash)
 			return assignedSeq, nil
-		} else if t&0x02 == 0 {
+		} else if mask&0x02 == 0 {
 			// If the node above us is unused at this tree size, then store our
 			// running hash there, and we're done.
-			c.nodes[bit+1] = hash
+			t.nodes[bit+1] = hash
 			return assignedSeq, nil
 		}
 		// Otherwise, go around again.
@@ -246,24 +246,24 @@ func (c *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 }
 
 // Size returns the current size of the tree, that is, the number of leaves ever added to the tree.
-func (c Tree) Size() int64 {
-	return c.size
+func (t *Tree) Size() int64 {
+	return t.size
 }
 
 // Hashes returns a copy of the set of node hashes that comprise the compact representation of the tree.
-func (c Tree) Hashes() [][]byte {
-	if isPerfectTree(c.size) {
+func (t *Tree) Hashes() [][]byte {
+	if isPerfectTree(t.size) {
 		return nil
 	}
-	n := make([][]byte, len(c.nodes))
-	copy(n, c.nodes)
+	n := make([][]byte, len(t.nodes))
+	copy(n, t.nodes)
 	return n
 }
 
 // Depth returns the number of levels in the tree.
-func (c Tree) Depth() int {
-	if c.size == 0 {
+func (t *Tree) Depth() int {
+	if t.size == 0 {
 		return 0
 	}
-	return bits.Len64(uint64(c.size - 1))
+	return bits.Len64(uint64(t.size - 1))
 }
