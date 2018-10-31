@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
@@ -247,7 +247,7 @@ func TestCacheFlush(t *testing.T) {
 
 func TestRepopulateLogSubtree(t *testing.T) {
 	populateTheThing := populateLogSubtreeNodes(rfc6962.DefaultHasher)
-	cmt := merkle.NewCompactMerkleTree(rfc6962.DefaultHasher)
+	cmt := compact.NewTree(rfc6962.DefaultHasher)
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package merkle
+package compact
 
 import (
 	"bytes"
@@ -23,15 +23,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
 
-func checkUnusedNodesInvariant(c *CompactMerkleTree) error {
+func checkUnusedNodesInvariant(c *Tree) error {
 	// The structure of this invariant check mirrors the structure in
-	// NewCompactMerkleTreeWithState in which only the nodes which
+	// NewTreeWithState in which only the nodes which
 	// should be present for a tree of given size are fetched from the
 	// backing store via GetNodeFunc.
 	size := c.size
@@ -73,7 +74,7 @@ func TestAddingLeaves(t *testing.T) {
 	// api-visible calculation of root & size.
 	{
 		// First tree, add nodes one-by-one
-		tree := NewCompactMerkleTree(rfc6962.DefaultHasher)
+		tree := NewTree(rfc6962.DefaultHasher)
 		if got, want := tree.Size(), int64(0); got != want {
 			t.Errorf("Size()=%d, want %d", got, want)
 		}
@@ -102,7 +103,7 @@ func TestAddingLeaves(t *testing.T) {
 
 	{
 		// Second tree, add nodes all at once
-		tree := NewCompactMerkleTree(rfc6962.DefaultHasher)
+		tree := NewTree(rfc6962.DefaultHasher)
 		for i := 0; i < 8; i++ {
 			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
 				return nil
@@ -124,7 +125,7 @@ func TestAddingLeaves(t *testing.T) {
 
 	{
 		// Third tree, add nodes in two chunks
-		tree := NewCompactMerkleTree(rfc6962.DefaultHasher)
+		tree := NewTree(rfc6962.DefaultHasher)
 		for i := 0; i < 3; i++ {
 			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
 				return nil
@@ -174,7 +175,7 @@ func fixedHashGetNodeFunc(int, int64) ([]byte, error) {
 }
 
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
-	_, err := NewCompactMerkleTreeWithState(rfc6962.DefaultHasher, 237, failingGetNodeFunc, []byte("notimportant"))
+	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, failingGetNodeFunc, []byte("notimportant"))
 
 	if err == nil || !strings.Contains(err.Error(), "bang") {
 		t.Errorf("Did not return correctly on failed node fetch: %v", err)
@@ -184,7 +185,7 @@ func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
 	// data
-	_, err := NewCompactMerkleTreeWithState(rfc6962.DefaultHasher, 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
+	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
 	_, ok := err.(RootHashMismatchError)
 
 	if err == nil || !ok {
@@ -201,11 +202,11 @@ func nodeKey(d int, i int64) (string, error) {
 }
 
 func TestCompactVsFullTree(t *testing.T) {
-	imt := NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	imt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	nodes := make(map[string][]byte)
 
 	for i := int64(0); i < 1024; i++ {
-		cmt, err := NewCompactMerkleTreeWithState(
+		cmt, err := NewTreeWithState(
 			rfc6962.DefaultHasher,
 			imt.LeafCount(),
 			func(depth int, index int64) ([]byte, error) {
@@ -282,7 +283,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 	b64e := func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
 
 	for _, test := range tests {
-		tree := NewCompactMerkleTree(rfc6962.DefaultHasher)
+		tree := NewTree(rfc6962.DefaultHasher)
 		for i := int64(0); i < test.size; i++ {
 			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
 			tree.AddLeaf(l, func(int, int64, []byte) error {

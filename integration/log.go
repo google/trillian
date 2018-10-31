@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/types"
 )
@@ -518,7 +519,7 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*merkle.InMemoryMerkleTree, error) {
 	// Build the same tree with two different Merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
-	compactTree := merkle.NewCompactMerkleTree(rfc6962.DefaultHasher)
+	compactTree := compact.NewTree(rfc6962.DefaultHasher)
 	merkleTree := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.

@@ -41,7 +41,7 @@ func MerkleTreeLeafTestRootHashes() [][]byte {
 		MustHexDecode("5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328")}
 }
 
-// CompactMerkleTreeLeafTestNodeHashes returns the CompactMerkleTree.node state
+// CompactMerkleTreeLeafTestNodeHashes returns the compact Tree.node state
 // that must result after each of the leaf additions returned by
 // MerkleTreeLeafTestInputs(), as described above.
 func CompactMerkleTreeLeafTestNodeHashes() [][][]byte {
