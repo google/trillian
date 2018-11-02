@@ -30,36 +30,23 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 )
 
-func checkUnusedNodesInvariant(c *Tree) error {
-	// The structure of this invariant check mirrors the structure in
-	// NewTreeWithState in which only the nodes which
-	// should be present for a tree of given size are fetched from the
-	// backing store via GetNodeFunc.
-	size := c.size
+// This check ensures that the compact Merkle tree contains the correct set of
+// nodes, i.e. the node on level i is present iff i-th bit of tree size is 1.
+func checkUnusedNodesInvariant(t *Tree) error {
+	size := t.size
 	sizeBits := bits.Len64(uint64(size))
-	if isPerfectTree(size) {
-		for i, n := range c.nodes {
-			expectNil := i != sizeBits-1
-			if expectNil && n != nil {
-				return fmt.Errorf("perfect Tree size %d has non-nil node at index %d, wanted nil", size, i)
+	if got, want := len(t.nodes), sizeBits; got != want {
+		return fmt.Errorf("nodes mismatch: have %v nodes, want %v", got, want)
+	}
+	for level := 0; level < sizeBits; level++ {
+		if size&1 == 1 {
+			if t.nodes[level] == nil {
+				return fmt.Errorf("missing node at level %d", level)
 			}
-			if !expectNil && n == nil {
-				return fmt.Errorf("perfect Tree size %d has nil node at index %d, wanted non-nil", size, i)
-			}
+		} else if t.nodes[level] != nil {
+			return fmt.Errorf("unexpected node at level %d", level)
 		}
-	} else {
-		for depth := 0; depth < sizeBits; depth++ {
-			if size&1 == 1 {
-				if c.nodes[depth] == nil {
-					return fmt.Errorf("imperfect Tree size %d has nil node at index %d, wanted non-nil", c.size, depth)
-				}
-			} else {
-				if c.nodes[depth] != nil {
-					return fmt.Errorf("imperfect Tree size %d has non-nil node at index %d, wanted nil", c.size, depth)
-				}
-			}
-			size >>= 1
-		}
+		size >>= 1
 	}
 	return nil
 }
