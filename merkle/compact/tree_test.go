@@ -88,9 +88,11 @@ func TestAddingLeaves(t *testing.T) {
 			idx := 0
 			for _, br := range tc.breaks {
 				for ; idx < br; idx++ {
-					tree.AddLeaf(inputs[idx], func(int, int64, []byte) error {
+					if _, _, err := tree.AddLeaf(inputs[idx], func(int, int64, []byte) error {
 						return nil
-					})
+					}); err != nil {
+						t.Fatalf("AddLeaf: %v", err)
+					}
 					if err := checkUnusedNodesInvariant(tree); err != nil {
 						t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 					}
