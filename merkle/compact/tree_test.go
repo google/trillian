@@ -56,98 +56,51 @@ func TestAddingLeaves(t *testing.T) {
 	roots := testonly.MerkleTreeLeafTestRootHashes()
 	hashes := testonly.CompactMerkleTreeLeafTestNodeHashes()
 
-	// We test the "same" thing 3 different ways this is to ensure than any lazy
-	// update strategy being employed by the implementation doesn't affect the
-	// api-visible calculation of root & size.
-	{
-		// First tree, add nodes one-by-one
-		tree := NewTree(rfc6962.DefaultHasher)
-		if got, want := tree.Size(), int64(0); got != want {
-			t.Errorf("Size()=%d, want %d", got, want)
-		}
-		if got, want := tree.CurrentRoot(), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
-			t.Errorf("CurrentRoot()=%x, want %x", got, want)
-		}
-
-		for i := 0; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
-				return nil
-			})
-			if err := checkUnusedNodesInvariant(tree); err != nil {
-				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
+	// Test the "same" thing in different ways, to ensure than any lazy update
+	// strategy being employed by the implementation doesn't affect the
+	// API-visible calculation of root & size.
+	for _, tc := range []struct {
+		desc   string
+		breaks []int
+	}{
+		{desc: "one-by-one", breaks: []int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
+		{desc: "one-by-one-no-zero", breaks: []int{1, 2, 3, 4, 5, 6, 7, 8}},
+		{desc: "all-at-once", breaks: []int{8}},
+		{desc: "all-at-once-zero", breaks: []int{0, 8}},
+		{desc: "two-chunks", breaks: []int{3, 8}},
+		{desc: "two-chunks-zero", breaks: []int{0, 3, 8}},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			tree := NewTree(rfc6962.DefaultHasher)
+			idx := 0
+			for _, br := range tc.breaks {
+				for ; idx < br; idx++ {
+					if _, _, err := tree.AddLeaf(inputs[idx], func(int, int64, []byte) error {
+						return nil
+					}); err != nil {
+						t.Fatalf("AddLeaf: %v", err)
+					}
+					if err := checkUnusedNodesInvariant(tree); err != nil {
+						t.Fatalf("UnusedNodesInvariant check failed: %v", err)
+					}
+				}
+				if got, want := tree.Size(), int64(br); got != want {
+					t.Errorf("Size()=%d, want %d", got, want)
+				}
+				if br > 0 {
+					if got, want := tree.CurrentRoot(), roots[br-1]; !bytes.Equal(got, want) {
+						t.Errorf("CurrentRoot()=%v, want %v", got, want)
+					}
+					if diff := pretty.Compare(tree.Hashes(), hashes[br-1]); diff != "" {
+						t.Errorf("post-Hashes() diff:\n%v", diff)
+					}
+				} else {
+					if got, want := tree.CurrentRoot(), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
+						t.Errorf("CurrentRoot()=%x, want %x (empty)", got, want)
+					}
+				}
 			}
-			if got, want := tree.Size(), int64(i+1); got != want {
-				t.Errorf("Size()=%d, want %d", got, want)
-			}
-			if got, want := tree.CurrentRoot(), roots[i]; !bytes.Equal(got, want) {
-				t.Errorf("CurrentRoot()=%v, want %v", got, want)
-			}
-			if diff := pretty.Compare(tree.Hashes(), hashes[i]); diff != "" {
-				t.Errorf("post-Hashes() diff:\n%v", diff)
-			}
-		}
-	}
-
-	{
-		// Second tree, add nodes all at once
-		tree := NewTree(rfc6962.DefaultHasher)
-		for i := 0; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
-				return nil
-			})
-			if err := checkUnusedNodesInvariant(tree); err != nil {
-				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
-			}
-		}
-		if got, want := tree.Size(), int64(8); got != want {
-			t.Errorf("Size()=%d, want %d", got, want)
-		}
-		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
-			t.Errorf("CurrentRoot()=%v, want %v", got, want)
-		}
-		if diff := pretty.Compare(tree.Hashes(), hashes[7]); diff != "" {
-			t.Errorf("post-Hashes() diff:\n%v", diff)
-		}
-	}
-
-	{
-		// Third tree, add nodes in two chunks
-		tree := NewTree(rfc6962.DefaultHasher)
-		for i := 0; i < 3; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
-				return nil
-			})
-			if err := checkUnusedNodesInvariant(tree); err != nil {
-				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
-			}
-		}
-		if got, want := tree.Size(), int64(3); got != want {
-			t.Errorf("Size()=%d, want %d", got, want)
-		}
-		if got, want := tree.CurrentRoot(), roots[2]; !bytes.Equal(got, want) {
-			t.Errorf("CurrentRoot()=%v, want %v", got, want)
-		}
-		if diff := pretty.Compare(tree.Hashes(), hashes[2]); diff != "" {
-			t.Errorf("post-Hashes() diff:\n%v", diff)
-		}
-
-		for i := 3; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
-				return nil
-			})
-			if err := checkUnusedNodesInvariant(tree); err != nil {
-				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
-			}
-		}
-		if got, want := tree.Size(), int64(8); got != want {
-			t.Errorf("Size()=%d, want %d", got, want)
-		}
-		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
-			t.Errorf("CurrentRoot()=%v, want %v", got, want)
-		}
-		if diff := pretty.Compare(tree.Hashes(), hashes[7]); diff != "" {
-			t.Errorf("post-Hashes() diff:\n%v", diff)
-		}
+		})
 	}
 }
 
