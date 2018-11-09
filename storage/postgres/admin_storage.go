@@ -17,7 +17,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -52,6 +51,13 @@ const (
 		deleted,
 		delete_time_millis
 	FROM trees`
+
+	nonDeletedWhere       = " WHERE deleted = false"
+	selectNonDeletedTrees = selectTrees + nonDeletedWhere
+
+	selectTreeIDs           = "SELECT tree_id FROM trees"
+	selectNonDeletedTreeIDs = selectTreeIDs + nonDeletedWhere
+
 	selectTreeByID = selectTrees + " WHERE tree_id = $1"
 
 	insertSQL = `INSERT INTO trees(
@@ -76,11 +82,18 @@ const (
 		sequencing_enabled,
 		sequence_interval_seconds)
 	VALUES($1, $2, $3, $4)`
-)
 
-var (
-	// errNotImplemented is an error indicating a function's implementation has not been completed
-	errNotImplemented = errors.New("not implemented")
+	updateTreeSQL = `UPDATE trees SET tree_state = $1, tree_type = $2, display_name = $3, 
+		description = $4, update_time_millis = $5, max_root_duration_millis = $6, private_key = $7
+		WHERE tree_id = $8`
+
+	softDeleteSQL = "UPDATE trees SET deleted = $1, delete_time_millis = $2 WHERE tree_id = $3"
+
+	selectDeletedSQL = "SELECT deleted FROM trees WHERE tree_id = $1"
+
+	deleteFromTreeControlSQL = "DELETE FROM tree_control WHERE tree_id = $1"
+
+	deleteFromTreesSQL = "DELETE FROM trees WHERE tree_id = $1"
 )
 
 // NewAdminStorage returns a storage.AdminStorage implementation
@@ -188,11 +201,71 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 }
 
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
-	return nil, errNotImplemented
+	var query string
+	if includeDeleted {
+		query = selectTrees
+	} else {
+		query = selectNonDeletedTrees
+	}
+
+	stmt, err := t.tx.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	trees := []*trillian.Tree{}
+	for rows.Next() {
+		tree, err := storage.ReadTree(rows)
+		if err != nil {
+			return nil, err
+		}
+		trees = append(trees, tree)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return trees, nil
 }
 
 func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
-	return nil, errNotImplemented
+	var query string
+	if includeDeleted {
+		query = selectTreeIDs
+	} else {
+		query = selectNonDeletedTreeIDs
+	}
+
+	stmt, err := t.tx.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	treeIDs := []int64{}
+	var treeID int64
+	for rows.Next() {
+		if err := rows.Scan(&treeID); err != nil {
+			return nil, err
+		}
+		treeIDs = append(treeIDs, treeID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return treeIDs, nil
 }
 
 func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, error) {
@@ -278,19 +351,112 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 }
 
 func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+	tree, err := t.GetTree(ctx, treeID)
+	if err != nil {
+		return nil, err
+	}
+
+	beforeUpdate := *tree
+	updateFunc(tree)
+	if err := storage.ValidateTreeForUpdate(ctx, &beforeUpdate, tree); err != nil {
+		return nil, err
+	}
+	if err := validateStorageSettings(tree); err != nil {
+		return nil, err
+	}
+
+	// Use the time truncated-to-millis throughout, as that's what's stored.
+	nowMillis := storage.ToMillisSinceEpoch(time.Now())
+	now := storage.FromMillisSinceEpoch(nowMillis)
+	tree.UpdateTime, err = ptypes.TimestampProto(now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build tree.UpdateTime: %v", err)
+	}
+	rootDuration, err := ptypes.Duration(tree.MaxRootDuration)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse MaxRootDuration: %v", err)
+	}
+
+	privateKey, err := proto.Marshal(tree.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
+	}
+
+	stmt, err := t.tx.PrepareContext(ctx, updateTreeSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	if _, err = stmt.ExecContext(
+		ctx,
+		tree.TreeState.String(),
+		tree.TreeType.String(),
+		tree.DisplayName,
+		tree.Description,
+		nowMillis,
+		rootDuration/time.Millisecond,
+		privateKey,
+		tree.TreeId); err != nil {
+		return nil, err
+	}
+
+	return tree, nil
 }
 
 func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+	return t.updateDeleted(ctx, treeID, true /* deleted */, storage.ToMillisSinceEpoch(time.Now()) /* deleteTimeMillis */)
 }
 
 func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+	return t.updateDeleted(ctx, treeID, false /* deleted */, nil /* deleteTimeMillis */)
 }
 
 func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
-	return errNotImplemented
+	if err := validateDeleted(ctx, t.tx, treeID, true /* wantDeleted */); err != nil {
+		return err
+	}
+
+	if _, err := t.tx.ExecContext(ctx, deleteFromTreeControlSQL, treeID); err != nil {
+		return err
+	}
+	_, err := t.tx.ExecContext(ctx, deleteFromTreesSQL, treeID)
+	return err
+}
+
+// updateDeleted updates the Deleted and DeleteTimeMillis fields of the specified tree.
+// deleteTimeMillis must be either an int64 (in millis since epoch) or nil.
+func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool, deleteTimeMillis interface{}) (*trillian.Tree, error) {
+	if err := validateDeleted(ctx, t.tx, treeID, !deleted); err != nil {
+		return nil, err
+	}
+	if _, err := t.tx.ExecContext(
+		ctx,
+		softDeleteSQL,
+		deleted,
+		deleteTimeMillis,
+		treeID); err != nil {
+		return nil, err
+	}
+	return t.GetTree(ctx, treeID)
+}
+
+func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted bool) error {
+	var deleted *bool
+	switch err := tx.QueryRowContext(ctx, selectDeletedSQL, treeID).Scan(&deleted); {
+	case err == sql.ErrNoRows:
+		return status.Errorf(codes.NotFound, "tree %v not found", treeID)
+	case err != nil:
+		return err
+	}
+
+	switch d := *deleted; {
+	case wantDeleted && !d:
+		return status.Errorf(codes.FailedPrecondition, "tree %v is not soft deleted", treeID)
+	case !wantDeleted && d:
+		return status.Errorf(codes.FailedPrecondition, "tree %v already soft deleted", treeID)
+	}
+	return nil
 }
 
 func validateStorageSettings(tree *trillian.Tree) error {

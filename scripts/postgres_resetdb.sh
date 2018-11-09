@@ -32,6 +32,17 @@ collect_vars() {
   FLAGS+=(-U "${PG_ROOT_USER}")
   FLAGS+=(--host "${PG_HOST}")
   FLAGS+=(--port "${PG_PORT}")
+
+  # handle flags
+  FORCE=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) FORCE=true ;;
+      --help) usage; exit ;;
+      *) FLAGS+=("$1")
+    esac
+    shift 1
+  done
 }
 
 main() {
