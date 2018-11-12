@@ -120,3 +120,13 @@ func sanitize(script string) string {
 func getConnStr(name string) string {
 	return fmt.Sprintf("database=%s %s", name, *pgOpts)
 }
+
+// OpenTestDBOrDie attempts to return a connection to a new postgres
+// test database and fails if unable to do so
+func OpenTestDBOrDie() *sql.DB {
+	db, err := NewTrillianDB(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
