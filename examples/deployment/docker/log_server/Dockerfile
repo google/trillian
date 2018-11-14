@@ -8,8 +8,6 @@ RUN go get ${GOFLAGS} ./server/trillian_log_server
 
 FROM gcr.io/distroless/base
 
-LABEL maintainer="Trillian Team <email@address.com>"
-
 COPY --from=build /go/bin/trillian_log_server /
 
 ENTRYPOINT ["/trillian_log_server"]
