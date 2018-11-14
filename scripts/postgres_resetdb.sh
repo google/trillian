@@ -11,8 +11,7 @@ Accepts environment variables:
   database (default: `postgres`).
 - POSTGRES_HOST: The hostname of the PG server (default: localhost).
 - POSTGRES_PORT: The port the PG server is listening on (default: 5432).
-- POSTGRES_DB: The name to give to the new Trillian user and database
-  (default: test).
+- POSTGRES_DB: The name to give to the new Trillian database (default: test).
 EOF
 }
 
