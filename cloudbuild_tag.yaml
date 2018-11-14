@@ -1,4 +1,12 @@
 steps:
+- id: build_db_server
+  name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --file=examples/deployment/docker/db_server/Dockerfile
+  - --tag=gcr.io/${PROJECT_ID}/db_server:${TAG_NAME}
+  - .
+  waitFor: ["-"]
 - id: build_log_server
   name: gcr.io/cloud-builders/docker
   args:
@@ -24,6 +32,7 @@ steps:
   - .
   waitFor: ["-"]
 images:
+- gcr.io/${PROJECT_ID}/db_server:${TAG_NAME}
 - gcr.io/${PROJECT_ID}/log_server:${TAG_NAME}
 - gcr.io/${PROJECT_ID}/log_signer:${TAG_NAME}
 - gcr.io/${PROJECT_ID}/map_server:${TAG_NAME}
