@@ -34,15 +34,15 @@ const selectTreeControlByID = "SELECT signing_enabled, sequencing_enabled, seque
 
 func TestPgAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
-		cleanTestDB(DB, t)
-		return NewAdminStorage(DB)
+		cleanTestDB(db, t)
+		return NewAdminStorage(db)
 	}}
 	tester.RunAllTests(t)
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
@@ -53,7 +53,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	// Check if TreeControl is correctly written.
 	var signingEnabled, sequencingEnabled bool
 	var sequenceIntervalSeconds int
-	if err := DB.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
+	if err := db.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
 		t.Fatalf("Failed to read TreeControl: %v", err)
 	}
 	// We don't mind about specific values, defaults change, but let's check
@@ -64,8 +64,8 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestCreateTreeInvalidStates(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	states := []trillian.TreeState{trillian.TreeState_DRAINING, trillian.TreeState_FROZEN}
@@ -80,8 +80,8 @@ func TestCreateTreeInvalidStates(t *testing.T) {
 }
 
 func TestAdminTX_TreeWithNulls(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	// Setup: create a tree and set all nullable columns to null.
@@ -93,7 +93,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	}
 	treeID := tree.TreeId
 
-	if err := setNulls(ctx, DB, treeID); err != nil {
+	if err := setNulls(ctx, db, treeID); err != nil {
 		t.Fatalf("setNulls() = %v, want = nil", err)
 	}
 
@@ -149,8 +149,8 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 }
 
 func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	settings, err := ptypes.MarshalAny(&empty.Empty{})

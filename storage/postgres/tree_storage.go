@@ -35,18 +35,18 @@ const (
 	placeholderSQL        = "<placeholder>"
 	insertSubtreeMultiSQL = `INSERT INTO subtree(tree_id, subtree_id, nodes, subtree_revision) ` + placeholderSQL
 	selectSubtreeSQL      = `
- SELECT x.subtree_id, x.max_revision, subtree.nodes
- FROM (
- 	SELECT n.subtree_id, max(n.subtree_revision) AS max_revision
-	FROM subtree n
-	WHERE n.subtree_id IN (` + placeholderSQL + `) AND
-	 n.tree_id = ? AND n.subtree_revision <= ?
-	GROUP BY n.subtree_id
- ) AS x
- INNER JOIN subtree 
- ON subtree.subtree_id = x.subtree_id 
- AND subtree.subtree_revision = x.max_revision 
- AND subtree.tree_id = ?`
+		SELECT x.subtree_id, x.max_revision, subtree.nodes
+		FROM (
+			SELECT n.subtree_id, max(n.subtree_revision) AS max_revision
+			FROM subtree n
+			WHERE n.subtree_id IN (` + placeholderSQL + `) AND
+			n.tree_id = ? AND n.subtree_revision <= ?
+			GROUP BY n.subtree_id
+		) AS x
+		INNER JOIN subtree
+		ON subtree.subtree_id = x.subtree_id
+		AND subtree.subtree_revision = x.max_revision
+		AND subtree.tree_id = ?`
 )
 
 // pgTreeStorage contains the pgLogStorage implementation
@@ -341,12 +341,11 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	stx := t.tx.StmtContext(ctx, tmpl)
 	defer stx.Close()
 
-	r, err := stx.ExecContext(ctx, args...)
+	_, err = stx.ExecContext(ctx, args...)
 	if err != nil {
 		glog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}
-	_, _ = r.RowsAffected()
 	return nil
 }
 

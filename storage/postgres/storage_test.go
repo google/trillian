@@ -14,25 +14,32 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage/postgres/testdb"
 )
 
-var DB *sql.DB
+// db is shared throughout all postgres tests
+var db *sql.DB
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+	ec := 0
+	defer func() { os.Exit(ec) }()
 	if !testdb.PGAvailable() {
 		glog.Errorf("PG not available, skipping all PG storage tests")
+		ec = 1
 		return
 	}
-	DB = testdb.OpenTestDBOrDie()
-	defer DB.Close()
-	ec := m.Run()
-	os.Exit(ec)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*30))
+	defer cancel()
+	db = testdb.OpenTestDBOrDie(ctx)
+	defer db.Close()
+	ec = m.Run()
 }

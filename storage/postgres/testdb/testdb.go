@@ -103,7 +103,7 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
 }
 
 // sanitize tries to remove empty lines and comments from a sql script
-// to prevent them from being executed
+// to prevent them from being executed.
 func sanitize(script string) string {
 	buf := &bytes.Buffer{}
 	for _, line := range strings.Split(string(script), "\n") {
@@ -122,9 +122,9 @@ func getConnStr(name string) string {
 }
 
 // OpenTestDBOrDie attempts to return a connection to a new postgres
-// test database and fails if unable to do so
-func OpenTestDBOrDie() *sql.DB {
-	db, err := NewTrillianDB(context.TODO())
+// test database and fails if unable to do so.
+func OpenTestDBOrDie(ctx context.Context) *sql.DB {
+	db, err := NewTrillianDB(ctx)
 	if err != nil {
 		panic(err)
 	}

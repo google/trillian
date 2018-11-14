@@ -62,6 +62,32 @@ func TestExpandPlaceholderSQL(t *testing.T) {
 				"VALUES($1, $2, $3, $4),($5, $6, $7, $8)",
 				1),
 		},
+		{
+			input: &statementSkeleton{
+				sql:               selectSubtreeSQL,
+				firstInsertion:    "%s",
+				firstPlaceholders: 1,
+				restInsertion:     "%s",
+				restPlaceholders:  1,
+				num:               5,
+			},
+			expected: strings.Replace(selectSubtreeSQL, placeholderSQL, "$1,$2,$3,$4,$5", 1),
+		},
+		{
+			input: &statementSkeleton{
+				sql:               insertSubtreeMultiSQL,
+				firstInsertion:    "VALUES(%s, %s, %s, %s)",
+				firstPlaceholders: 4,
+				restInsertion:     "(%s, %s, %s, %s)",
+				restPlaceholders:  4,
+				num:               5,
+			},
+			expected: strings.Replace(
+				insertSubtreeMultiSQL,
+				placeholderSQL,
+				"VALUES($1, $2, $3, $4),($5, $6, $7, $8),($9, $10, $11, $12),($13, $14, $15, $16),($17, $18, $19, $20)",
+				1),
+		},
 	}
 
 	for _, tc := range testCases {
