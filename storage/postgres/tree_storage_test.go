@@ -24,6 +24,9 @@ type expandTestcase struct {
 	expected string
 }
 
+// This test exists to prevent gometalinter from failing
+// unused functions.
+// TODO(vishal): remove this once the rest of the storage code is complete.
 func TestInitializes(t *testing.T) {
 	_ = &statementSkeleton{}
 	arbitraryStorage := newTreeStorage(nil)

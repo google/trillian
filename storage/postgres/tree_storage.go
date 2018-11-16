@@ -49,7 +49,7 @@ const (
 		AND subtree.tree_id = ?`
 )
 
-// pgTreeStorage contains the pgLogStorage implementation
+// pgTreeStorage contains the pgLogStorage implementation.
 type pgTreeStorage struct {
 	db *sql.DB
 
@@ -65,7 +65,7 @@ type pgTreeStorage struct {
 func OpenDB(connStr string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		// Don't log conn str as it could contain credentials
+		// Don't log conn str as it could contain credentials.
 		glog.Warningf("Could not open Postgres database, check config: %s", err)
 		return nil, err
 	}
@@ -80,24 +80,24 @@ func newTreeStorage(db *sql.DB) *pgTreeStorage {
 	}
 }
 
-// statementSkeleton contains the structure of a query to create
+// statementSkeleton contains the structure of a query to create.
 type statementSkeleton struct {
-	// sql is the main query with an embedded placeholder
+	// sql is the main query with an embedded placeholder.
 	sql string
 	// firstInsertion is the first sql query that should be inserted
-	// in place of the placeholder
+	// in place of the placeholder.
 	firstInsertion string
 	// firstPlaceholders is the number of variables in the firstInsertion.
-	// Used for string interpolation
+	// Used for string interpolation.
 	firstPlaceholders int
 	// restInsertion is the remaining sql query that should be repeated following
-	// the first insertion
+	// the first insertion.
 	restInsertion string
 	// restPlaceholders is the number of variables in a single restInsertion.
-	// Used for string interpolation
+	// Used for string interpolation.
 	restPlaceholders int
 	// num is the total repetitions (firstInsertion + restInsertion * num - 1) that
-	// should be inserted
+	// should be inserted.
 	num int
 }
 
@@ -231,7 +231,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 
 	args := make([]interface{}, 0, len(nodeIDs)+3)
 
-	// populate args with nodeIDs
+	// populate args with nodeIDs.
 	for _, nodeID := range nodeIDs {
 		if nodeID.PrefixLenBits%8 != 0 {
 			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
@@ -255,7 +255,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	defer rows.Close()
 
 	if rows.Err() != nil {
-		// Nothing from the DB
+		// Nothing from the DB.
 		glog.Warningf("Nothing from DB: %s", rows.Err())
 		return nil, rows.Err()
 	}
