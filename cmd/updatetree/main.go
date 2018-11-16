@@ -43,6 +43,8 @@ var (
 	rpcDeadline     = flag.Duration("rpc_deadline", time.Second*10, "Deadline for RPC requests")
 	treeID          = flag.Int64("tree_id", 0, "The ID of the tree to be set updated")
 	treeState       = flag.String("tree_state", "", "If set the tree state will be updated")
+	treeType        = flag.String("tree_type", "", "If set the tree type will be updated")
+	printTree       = flag.Bool("print", false, "Print the resulting tree")
 )
 
 // TODO(Martin2112): Pass everything needed into this and don't refer to flags.
@@ -51,27 +53,40 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")
 	}
 
-	m := proto.EnumValueMap("trillian.TreeState")
-	if m == nil {
-		return nil, fmt.Errorf("can't find enum value map for states")
-	}
-	newState, ok := m[*treeState]
-	if !ok {
-		return nil, fmt.Errorf("invalid tree state: %v", *treeState)
+	tree := &trillian.Tree{TreeId: *treeID}
+	paths := make([]string, 0)
+
+	if len(*treeState) > 0 {
+		m := proto.EnumValueMap("trillian.TreeState")
+		if m == nil {
+			return nil, fmt.Errorf("can't find enum value map for states")
+		}
+		newState, ok := m[*treeState]
+		if !ok {
+			return nil, fmt.Errorf("invalid tree state: %v", *treeState)
+		}
+		tree.TreeState = trillian.TreeState(newState)
+		paths = append(paths, "tree_state")
 	}
 
-	// We only want to update the state of the tree, which means we need a field
-	// mask on the request.
-	treeStateMask := &field_mask.FieldMask{
-		Paths: []string{"tree_state"},
+	if len(*treeType) > 0 {
+		m := proto.EnumValueMap("trillian.TreeType")
+		if m == nil {
+			return nil, fmt.Errorf("can't find enum value map for types")
+		}
+		newType, ok := m[*treeType]
+		if !ok {
+			return nil, fmt.Errorf("invalid tree type: %v", *treeType)
+		}
+		tree.TreeType = trillian.TreeType(newType)
+		paths = append(paths, "tree_type")
 	}
 
+	// We only want to update certain fields of the tree, which means we
+	// need a field mask on the request.
 	req := &trillian.UpdateTreeRequest{
-		Tree: &trillian.Tree{
-			TreeId:    *treeID,
-			TreeState: trillian.TreeState(newState),
-		},
-		UpdateMask: treeStateMask,
+		Tree:       tree,
+		UpdateMask: &field_mask.FieldMask{Paths: paths},
 	}
 
 	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
@@ -114,5 +129,9 @@ func main() {
 	// DO NOT change the output format, scripts are meant to depend on it.
 	// If you really want to change it, provide an output_format flag and
 	// keep the default as-is.
-	fmt.Println(tree.TreeState)
+	if *printTree {
+		fmt.Println(proto.MarshalTextString(tree))
+	} else {
+		fmt.Println(tree.TreeState)
+	}
 }
