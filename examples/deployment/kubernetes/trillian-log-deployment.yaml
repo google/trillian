@@ -33,7 +33,7 @@ spec:
         envFrom:
           - configMapRef:
               name: deploy-config
-        image: gcr.io/${PROJECT_ID}/log_server:latest
+        image: gcr.io/${PROJECT_ID}/log_server:${IMAGE_TAG}
         imagePullPolicy: Always
         resources:
           limits:
