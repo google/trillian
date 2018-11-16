@@ -16,6 +16,7 @@ package backoff
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -141,6 +142,20 @@ func TestRetry(t *testing.T) {
 					return nil
 				}
 			}(),
+		},
+		{
+			name: "explicitly retry and fail",
+			f: func() func() error {
+				var callCount int
+				return func() error {
+					callCount++
+					if callCount < 10 {
+						return Retry(fmt.Errorf("attempt %d", callCount))
+					}
+					return errors.New("failed 10 times")
+				}
+			}(),
+			wantErr: true,
 		},
 		{
 			name: "func that takes too long to succeed",
