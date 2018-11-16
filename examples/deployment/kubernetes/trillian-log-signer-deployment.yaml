@@ -38,7 +38,7 @@ spec:
           - configMapRef:
               name: deploy-config
         # Update this with the name of your project:
-        image: gcr.io/${PROJECT_ID}/log_signer:latest
+        image: gcr.io/${PROJECT_ID}/log_signer:${IMAGE_TAG}
         imagePullPolicy: Always
         resources:
           limits:

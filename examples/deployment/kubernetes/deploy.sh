@@ -69,12 +69,5 @@ for thing in ${kubeconfigs}; do
   envsubst < ${DIR}/${thing} | kubectl apply -f -
 done
 
-echo "Setting images..."
-kubectl set image deployment.apps/trillian-logserver-deployment trillian-logserver=gcr.io/${PROJECT_ID}/log_server:${IMAGE_TAG}
-kubectl set image deployment.apps/trillian-logsigner-deployment trillian-log-signer=gcr.io/${PROJECT_ID}/log_signer:${IMAGE_TAG}
-if ${RUN_MAP}; then
-  kubectl set image deployment.apps/trillian-mapserver-deployment trillian-mapserver=gcr.io/${PROJECT_ID}/map_server:${IMAGE_TAG}
-fi
-
 kubectl get all
 kubectl get services
