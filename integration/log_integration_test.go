@@ -57,22 +57,22 @@ func TestLiveLogIntegration(t *testing.T) {
 
 	// Initialize and connect to log server
 	params := TestParameters{
-		treeID:              *treeIDFlag,
-		checkLogEmpty:       *checkLogEmptyFlag,
-		queueLeaves:         *queueLeavesFlag,
-		awaitSequencing:     *awaitSequencingFlag,
-		startLeaf:           *startLeafFlag,
-		leafCount:           *numLeavesFlag,
-		queueBatchSize:      *queueBatchSizeFlag,
-		sequencerBatchSize:  *sequencerBatchSizeFlag,
-		readBatchSize:       *readBatchSizeFlag,
-		sequencingWaitTotal: *waitForSequencingFlag,
-		sequencingPollWait:  *waitBetweenQueueChecksFlag,
-		rpcRequestDeadline:  *rpcRequestDeadlineFlag,
-		customLeafPrefix:    *customLeafPrefixFlag,
+		TreeID:              *treeIDFlag,
+		CheckLogEmpty:       *checkLogEmptyFlag,
+		QueueLeaves:         *queueLeavesFlag,
+		AwaitSequencing:     *awaitSequencingFlag,
+		StartLeaf:           *startLeafFlag,
+		LeafCount:           *numLeavesFlag,
+		QueueBatchSize:      *queueBatchSizeFlag,
+		SequencerBatchSize:  *sequencerBatchSizeFlag,
+		ReadBatchSize:       *readBatchSizeFlag,
+		SequencingWaitTotal: *waitForSequencingFlag,
+		SequencingPollWait:  *waitBetweenQueueChecksFlag,
+		RPCRequestDeadline:  *rpcRequestDeadlineFlag,
+		CustomLeafPrefix:    *customLeafPrefixFlag,
 	}
-	if params.startLeaf < 0 || params.leafCount <= 0 {
-		t.Fatalf("Start leaf index must be >= 0 (%d) and number of leaves must be > 0 (%d)", params.startLeaf, params.leafCount)
+	if params.StartLeaf < 0 || params.LeafCount <= 0 {
+		t.Fatalf("Start leaf index must be >= 0 (%d) and number of leaves must be > 0 (%d)", params.StartLeaf, params.LeafCount)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -140,7 +140,7 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 	}
 
 	params := DefaultTestParameters(tree.TreeId)
-	params.uniqueLeaves = 10
+	params.UniqueLeaves = 10
 	if err := RunLogIntegration(env.Log, params); err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
