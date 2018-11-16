@@ -24,6 +24,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// RetriableError explicitly instructs Backoff to retry.
+type RetriableError string
+
+// Error returns string representation of the retriable error.
+func (re RetriableError) Error() string {
+	return string(re)
+}
+
+// Retry wraps an error into a RetriableError.
+func Retry(err error) RetriableError {
+	return RetriableError(err.Error())
+}
+
 // Backoff specifies the parameters of the backoff algorithm. Works correctly
 // if 0 < Min <= Max <= 2^62 (nanosec), and Factor >= 1.
 type Backoff struct {
@@ -109,6 +122,8 @@ func IsRetryable(err error, retry ...codes.Code) bool {
 			return true
 		}
 	}
-	// Don't retry for all other errors.
-	return false
+
+	// Don't retry for all other errors, unless it is a RetriableError.
+	_, ok := err.(RetriableError)
+	return ok
 }

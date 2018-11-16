@@ -16,6 +16,7 @@ package backoff
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -101,8 +102,6 @@ func TestRetry(t *testing.T) {
 		Factor: 2,
 	}
 
-	// callCount is used by some test funcs to count how many times they've been called.
-	var callCount int
 	// ctx used by Retry(), declared here to that test.ctxFunc can set it.
 	var ctx context.Context
 	var cancel context.CancelFunc
@@ -119,13 +118,29 @@ func TestRetry(t *testing.T) {
 		},
 		{
 			name: "func that succeeds on second attempt",
-			f: func() error {
-				callCount++
-				if callCount == 1 {
-					return status.Errorf(codes.Unavailable, "error")
+			f: func() func() error {
+				var callCount int
+				return func() error {
+					callCount++
+					if callCount == 1 {
+						return status.Errorf(codes.Unavailable, "error")
+					}
+					return nil
 				}
-				return nil
-			},
+			}(),
+		},
+		{
+			name: "explicitly retry",
+			f: func() func() error {
+				var callCount int
+				return func() error {
+					callCount++
+					if callCount < 10 {
+						return Retry(fmt.Errorf("attempt %d", callCount))
+					}
+					return nil
+				}
+			}(),
 		},
 		{
 			name: "func that takes too long to succeed",
@@ -159,7 +174,6 @@ func TestRetry(t *testing.T) {
 			ctx, cancel = context.WithCancel(context.Background())
 		}
 
-		callCount = 0
 		err := b.Retry(ctx, test.f)
 		cancel()
 		if gotErr := err != nil; gotErr != test.wantErr {
