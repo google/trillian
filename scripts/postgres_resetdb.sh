@@ -14,7 +14,7 @@ Accepts environment variables:
 - POSTGRES_DB: The name to give to the new Trillian database (default: test).
 - POSTGRES_USER: The name to give to the new Trillian user (default: test).
 - POSTGRES_PASSWORD: The password to use for the new Trillian user
-  (default: zaphod).
+  (default: zaphod). Note: the password cannot contain single quotes.
 EOF
 }
 
@@ -69,15 +69,13 @@ main() {
       psql "${FLAGS[@]}" -d ${POSTGRES_DB} -f ${TRILLIAN_PATH}/storage/postgres/storage.sql || \
         die "Error: Failed to create tables in '${POSTGRES_DB}' database."
       if ! psql "${FLAGS[@]}" -t -c "SELECT 1 FROM pg_user WHERE usename = '${POSTGRES_USER}'" | grep -q 1; then
-        psql "${FLAGS[@]}" -c "CREATE USER ${POSTGRES_USER} WITH PASSWORD '${POSTGRES_PASSWORD}';" || \
+        psql "${FLAGS[@]}" -c "CREATE USER ${POSTGRES_USER} WITH PASSWORD '${POSTGRES_PASSWORD}' CREATEDB;" || \
           die "Error: Failed to create user '${POSTGRES_USER}'."
       fi
       psql "${FLAGS[@]}" -d ${POSTGRES_DB} -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${POSTGRES_USER};" || \
         die "Error: Failed to grant '${POSTGRES_USER}' user all privileges on tables in '${POSTGRES_DB}'."
       psql "${FLAGS[@]}" -d ${POSTGRES_DB} -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${POSTGRES_USER};" || \
-        die "Error: Failed to grant '${POSTGRES_USER}' user all privileges on tables in '${POSTGRES_DB}'."
-      psql "${FLAGS[@]}" -d ${POSTGRES_DB} -c "ALTER ROLE ${POSTGRES_USER} WITH SUPERUSER;" || \
-        die "Error: Failed to give '${POSTGRES_USER}' superuser credentials in '${POSTGRES_DB}'."
+        die "Error: Failed to grant '${POSTGRES_USER}' user all privileges on sequences in '${POSTGRES_DB}'."
       echo "Reset Complete"
   fi
 }
