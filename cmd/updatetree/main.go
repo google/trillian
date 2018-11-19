@@ -126,12 +126,11 @@ func main() {
 		glog.Exitf("Failed to update tree: %v", err)
 	}
 
-	// DO NOT change the output format, scripts are meant to depend on it.
-	// If you really want to change it, provide an output_format flag and
-	// keep the default as-is.
 	if *printTree {
 		fmt.Println(proto.MarshalTextString(tree))
 	} else {
+		// DO NOT change the default output format, some scripts depend on it. If
+		// you really want to change it, hide the new format behind a flag.
 		fmt.Println(tree.TreeState)
 	}
 }
