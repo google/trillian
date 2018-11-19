@@ -121,9 +121,9 @@ func getConnStr(name string) string {
 	return fmt.Sprintf("database=%s %s", name, *pgOpts)
 }
 
-// OpenTestDBOrDie attempts to return a connection to a new postgres
+// NewTrillianDBOrDie attempts to return a connection to a new postgres
 // test database and fails if unable to do so.
-func OpenTestDBOrDie(ctx context.Context) *sql.DB {
+func NewTrillianDBOrDie(ctx context.Context) *sql.DB {
 	db, err := NewTrillianDB(ctx)
 	if err != nil {
 		panic(err)

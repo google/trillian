@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*30))
 	defer cancel()
-	db = testdb.OpenTestDBOrDie(ctx)
+	db = testdb.NewTrillianDBOrDie(ctx)
 	defer db.Close()
 	ec = m.Run()
 }

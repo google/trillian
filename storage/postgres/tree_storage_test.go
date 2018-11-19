@@ -94,7 +94,11 @@ func TestExpandPlaceholderSQL(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		if res := expandPlaceholderSQL(tc.input); res != tc.expected {
+		res, err := expandPlaceholderSQL(tc.input)
+		if err != nil {
+			t.Fatalf("Error while expanding placeholder sql: %v", err)
+		}
+		if tc.expected != res {
 			t.Fatalf("Expected %v but got %v", tc.expected, res)
 		}
 	}

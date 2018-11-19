@@ -103,9 +103,9 @@ type statementSkeleton struct {
 
 // expandPlaceholderSQL expands an sql statement by adding a specified number of '%s'
 // placeholder slots. At most one placeholder will be expanded.
-func expandPlaceholderSQL(skeleton *statementSkeleton) string {
+func expandPlaceholderSQL(skeleton *statementSkeleton) (string, error) {
 	if skeleton.num <= 0 {
-		panic(fmt.Errorf("trying to expand SQL placeholder with <= 0 parameters: %s", skeleton.sql))
+		return "", fmt.Errorf("trying to expand SQL placeholder with <= 0 parameters: %s", skeleton.sql)
 	}
 
 	restCount := skeleton.num - 1
@@ -120,7 +120,7 @@ func expandPlaceholderSQL(skeleton *statementSkeleton) string {
 	remainingInsertion := strings.Repeat(","+skeleton.restInsertion, restCount)
 	toInsertBuilder.WriteString(fmt.Sprintf(remainingInsertion, totalArray[skeleton.firstPlaceholders:]...))
 
-	return strings.Replace(skeleton.sql, placeholderSQL, toInsertBuilder.String(), 1)
+	return strings.Replace(skeleton.sql, placeholderSQL, toInsertBuilder.String(), 1), nil
 }
 
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
@@ -137,7 +137,12 @@ func (p *pgTreeStorage) getStmt(ctx context.Context, skeleton *statementSkeleton
 		p.statements[skeleton.sql] = make(map[int]*sql.Stmt)
 	}
 
-	s, err := p.db.PrepareContext(ctx, expandPlaceholderSQL(skeleton))
+	statement, err := expandPlaceholderSQL(skeleton)
+	if err != nil {
+		glog.Warningf("Failed to expand placeholder sql: %v", skeleton)
+		return nil, err
+	}
+	s, err := p.db.PrepareContext(ctx, statement)
 
 	if err != nil {
 		glog.Warningf("Failed to prepare statement %d: %s", skeleton.num, err)
