@@ -17,14 +17,11 @@ package backoff
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	_ "github.com/golang/glog"
 )
 
 func TestBackoff(t *testing.T) {
@@ -137,7 +134,7 @@ func TestRetry(t *testing.T) {
 				return func() error {
 					callCount++
 					if callCount < 10 {
-						return Retry(fmt.Errorf("attempt %d", callCount))
+						return RetriableErrorf("attempt %d", callCount)
 					}
 					return nil
 				}
@@ -150,7 +147,7 @@ func TestRetry(t *testing.T) {
 				return func() error {
 					callCount++
 					if callCount < 10 {
-						return Retry(fmt.Errorf("attempt %d", callCount))
+						return RetriableErrorf("attempt %d", callCount)
 					}
 					return errors.New("failed 10 times")
 				}
