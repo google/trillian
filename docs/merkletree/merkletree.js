@@ -1,6 +1,3 @@
-// This is our SVG drawing area.
-const draw = SVG('drawing').size('100%', '70%');
-
 const colors = {
   regularNode: '#f1f3f4',
   regularNodeStroke: '#bdc1c6',
@@ -13,6 +10,22 @@ const colors = {
 
 // Controls the relative layer depth of nodes at different levels.
 const levelPower = 1.3;
+
+// This is our SVG drawing area.
+var draw = null;
+
+// Whether to render the node key.
+var renderKey = true;
+
+/**
+ * Initialises the SVG drawing area.
+ *
+ * @param {bool} key Whether to render the node key.
+ */
+function init(element, key) {
+  renderKey = key
+  draw = SVG(element).size('100%', '70%');
+}
 
 /**
  * Renders the node type key.
@@ -59,16 +72,21 @@ function largestPowerOfTwo(n) {
     }
     t = c;
   }
-  console.log('That\'s a large tree you\'ve got there, mister.');
+  console.log('That\'s a large tree you\'ve got there, mister.', n);
   return 0;
 }
 
 /**
  * Constructs a new Tree instance.
+ * @param {string} baseID Tree ID.
  */
-function Tree() {
+function Tree(id) {
   this.leaves = [];
   this.layerSizes = [];
+  if (!id) {
+    id = "";
+  }
+  this.baseID=id;
 }
 
 /**
@@ -78,9 +96,10 @@ function Tree() {
  * @return {object} The node.
  */
 Tree.prototype._defaultStroke = function(n, height) {
+  t = this;
   return n.stroke({
     color: colors.regularNodeStroke,
-    width: new SVG.Number((height+1)/(200*tree.numLevels)).to('%'),
+    width: new SVG.Number((height+1)/(200*t.numLevels)).to('%'),
   });
 };
 
@@ -131,8 +150,9 @@ Tree.prototype.showInclusionProof = function(index) {
  * @return {number} A formatted node identifier for the given coordinates.
  */
 Tree.prototype._nodeID = function(height, index) {
-  return height + '-' + index;
+  return this.baseID + '-' + height + '-' + index;
 };
+
 
 /**
  * Calculates the inclusion proof for the given leaf index, and applies f2 to
@@ -377,6 +397,8 @@ Tree.prototype._renderSubtree = function(c, prefix, lx, rx, n, height) {
  * Renders the tree into SVG on the page.
  */
 Tree.prototype.render = function() {
+  this.update();
+
   this.layerHeight = new SVG.Number('100%')
       .divide(Math.pow(this.numLevels+1.5, levelPower+0.1)).to('%');
   this._renderSubtree(draw, 0, new SVG.Number('0%'), new SVG.Number('100%'),
@@ -384,7 +406,7 @@ Tree.prototype.render = function() {
 };
 
 /**
- * Updates the tree for the new set of leaves.
+ * Updates the tree for the new /set of leaves.
  */
 Tree.prototype.update = function() {
   this.numLeaves = this.leaves.length;
@@ -404,20 +426,29 @@ Tree.prototype.update = function() {
 };
 
 /**
+ * Sets the tree to a given number of leaves.
+ * @param {number} n Number of leaves.
+ */
+Tree.prototype.setSize = function(n) {
+  for (let i=0; i < n; i++) {
+    this.addLeaf('hi');
+  }
+}
+
+/**
  * Updates the tree with a new size.
  */
 function update() {
   this.tree = new Tree();
   oldConsistencyProof = null;
   oldInclusionProofIndex = null;
-  for (let i=0; i < document.getElementById('treeSize').value; i++) {
-    tree.addLeaf('hi');
-  }
- 
-  tree.update();
+
+  this.tree.setSize(document.getElementById('treeSize').value);
 
   draw.clear();
-  drawKey();
+  if (renderKey) {
+    drawKey();
+  }
   tree.render();
 }
 
@@ -444,4 +475,3 @@ function updateInclusion() {
     tree.showInclusionProof(c);
   }
 }
-
