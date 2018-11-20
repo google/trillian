@@ -17,7 +17,6 @@ package backoff
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -137,7 +136,7 @@ func TestRetry(t *testing.T) {
 				return func() error {
 					callCount++
 					if callCount < 10 {
-						return Retry(fmt.Errorf("attempt %d", callCount))
+						return RetriableErrorf("attempt %d", callCount)
 					}
 					return nil
 				}
@@ -150,7 +149,7 @@ func TestRetry(t *testing.T) {
 				return func() error {
 					callCount++
 					if callCount < 10 {
-						return Retry(fmt.Errorf("attempt %d", callCount))
+						return RetriableErrorf("attempt %d", callCount)
 					}
 					return errors.New("failed 10 times")
 				}

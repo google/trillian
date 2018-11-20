@@ -17,6 +17,7 @@ package backoff
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -32,9 +33,9 @@ func (re RetriableError) Error() string {
 	return string(re)
 }
 
-// Retry wraps an error into a RetriableError.
-func Retry(err error) RetriableError {
-	return RetriableError(err.Error())
+// RetriableErrorf wraps a formatted string into a RetriableError.
+func RetriableErrorf(format string, a ...interface{}) error {
+	return RetriableError(fmt.Sprintf(format, a...))
 }
 
 // Backoff specifies the parameters of the backoff algorithm. Works correctly
