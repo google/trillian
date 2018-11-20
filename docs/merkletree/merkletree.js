@@ -12,18 +12,19 @@ const colors = {
 const levelPower = 1.3;
 
 // This is our SVG drawing area.
-var draw = null;
+let draw = null;
 
 // Whether to render the node key.
-var renderKey = true;
+let renderKey = true;
 
 /**
  * Initialises the SVG drawing area.
  *
+ * @param {string} element HTML element id to use for drawing.
  * @param {bool} key Whether to render the node key.
  */
 function init(element, key) {
-  renderKey = key
+  renderKey = key;
   draw = SVG(element).size('100%', '70%');
 }
 
@@ -78,13 +79,13 @@ function largestPowerOfTwo(n) {
 
 /**
  * Constructs a new Tree instance.
- * @param {string} baseID Tree ID.
+ * @param {string} id Tree base-ID.
  */
 function Tree(id) {
   this.leaves = [];
   this.layerSizes = [];
   if (!id) {
-    id = "";
+    id = '';
   }
   this.baseID=id;
 }
@@ -139,7 +140,7 @@ Tree.prototype.showInclusionProof = function(index) {
   const f2 = function(n, h) {
     n.fill(colors.inclusionProof);
   };
-  const effective = this._dropAddressToFloatAddress(0,index);
+  const effective = this._dropAddressToFloatAddress(0, index);
   this._inclusionProof(effective.height, effective.index, f1, f2);
   oldInclusionProofIndex = index;
 };
@@ -299,7 +300,7 @@ Tree.prototype._consistencyProof = function(fromSize, f) {
     height += 1;
   }
 
-  let effective = this._dropAddressToFloatAddress(height, index);
+  const effective = this._dropAddressToFloatAddress(height, index);
   if (index != 0) {
     f(SVG.get(this._nodeID(effective.height, effective.index)),
         effective.height+1);
@@ -433,7 +434,7 @@ Tree.prototype.setSize = function(n) {
   for (let i=0; i < n; i++) {
     this.addLeaf('hi');
   }
-}
+};
 
 /**
  * Updates the tree with a new size.
