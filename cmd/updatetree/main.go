@@ -82,6 +82,10 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 		paths = append(paths, "tree_type")
 	}
 
+	if len(paths) == 0 {
+		return nil, errors.New("nothing to change")
+	}
+
 	// We only want to update certain fields of the tree, which means we
 	// need a field mask on the request.
 	req := &trillian.UpdateTreeRequest{
