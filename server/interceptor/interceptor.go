@@ -111,7 +111,7 @@ func initMetrics(mf monitoring.MetricFactory) {
 	requestCounter = mf.NewCounter(
 		"interceptor_request_count",
 		"Total number of intercepted requests",
-		monitoring.TreeIDLabel)
+		monitoring.TreeIDLabel, "quota_user")
 	requestDeniedCounter = mf.NewCounter(
 		"interceptor_request_denied_count",
 		"Number of requests by denied, labeled according to the reason for denial",
@@ -168,7 +168,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 		return ctx, err
 	}
 	tp.info = info
-	requestCounter.Inc(fmt.Sprint(info.treeID))
+	requestCounter.Inc(fmt.Sprint(info.treeID), info.quotaUsers)
 
 	// TODO(codingllama): Add auth interception
 
