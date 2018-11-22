@@ -1,0 +1,36 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
+<style>
+  body {
+    font-family: 'Roboto', serif;
+    font-size: 14px;
+  }
+</style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/2.6.6/svg.min.js"></script>
+    <script src="merkletree.js" type="application/javascript"></script>
+  </head>
+
+  <body onload="init('drawing', true); update(); updateConsistency(); updateInclusion()" >
+    <h2>Merkletree Fiddler</h2>
+      You can enter numbers directly into the form below to update the Merkle
+      tree, or you can <b>mouse-over</b> leaf nodes to show the inclusion proof
+      and <b>click</b> on them to show a consistency proof from a tree which
+      includes that leaf at its highest entry.</br></br>
+    <div id="drawing"></div>
+    <div>
+      <h3>Controls</h3>
+      <table>
+        <tr>
+          <td>TreeSize</td><td><input type="text" id="treeSize" onChange="update()" value="80" /></td>
+        </tr>
+        <tr>
+          <td>Inclusion proof for</td><td><input type="text" id="inclusionIndex" onChange="updateInclusion()" /></td>
+        </tr>
+        <tr>
+          <td>ConsistencyProofFrom</td><td><input type="text" id="consistencyFrom" onChange="updateConsistency()" value="70" /></td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>
