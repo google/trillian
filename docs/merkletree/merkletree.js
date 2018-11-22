@@ -19,7 +19,6 @@ let renderKey = true;
 
 /**
  * Initialises the SVG drawing area.
- *
  * @param {string} element HTML element id to use for drawing.
  * @param {bool} key Whether to render the node key.
  */

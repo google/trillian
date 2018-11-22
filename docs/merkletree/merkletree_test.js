@@ -48,7 +48,7 @@ function initTest(name) {
   t.appendChild(h);
   const d = document.createElement('div');
   d.id=t.id+'_tree';
-  d.style='margin: 4px;';
+  d.style='margin: 4px; width: 400px';
   t.appendChild(d);
   const l = document.createElement('div');
   l.id=t.id+'_log';
