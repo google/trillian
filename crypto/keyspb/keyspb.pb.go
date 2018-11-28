@@ -18,7 +18,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // The supported elliptic curves.
 type Specification_ECDSA_Curve int32
@@ -127,81 +127,15 @@ func (m *Specification) GetRsaParams() *Specification_RSA {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Specification) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Specification_OneofMarshaler, _Specification_OneofUnmarshaler, _Specification_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Specification) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Specification_EcdsaParams)(nil),
 		(*Specification_RsaParams)(nil),
 	}
 }
 
-func _Specification_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Specification)
-	// params
-	switch x := m.Params.(type) {
-	case *Specification_EcdsaParams:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.EcdsaParams); err != nil {
-			return err
-		}
-	case *Specification_RsaParams:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.RsaParams); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Specification.Params has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Specification_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Specification)
-	switch tag {
-	case 1: // params.ecdsa_params
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Specification_ECDSA)
-		err := b.DecodeMessage(msg)
-		m.Params = &Specification_EcdsaParams{msg}
-		return true, err
-	case 2: // params.rsa_params
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Specification_RSA)
-		err := b.DecodeMessage(msg)
-		m.Params = &Specification_RsaParams{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Specification_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Specification)
-	// params
-	switch x := m.Params.(type) {
-	case *Specification_EcdsaParams:
-		s := proto.Size(x.EcdsaParams)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Specification_RsaParams:
-		s := proto.Size(x.RsaParams)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
-}
-
-// / ECDSA defines parameters for an ECDSA key.
+/// ECDSA defines parameters for an ECDSA key.
 type Specification_ECDSA struct {
 	// The elliptic curve to use.
 	// Optional. If not set, the default curve will be used.

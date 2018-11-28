@@ -20,7 +20,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // Possible states of a quota configuration.
 type Config_State int32
@@ -250,78 +250,12 @@ func (m *Config) GetTimeBased() *TimeBasedStrategy {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Config) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Config_OneofMarshaler, _Config_OneofUnmarshaler, _Config_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Config) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Config_SequencingBased)(nil),
 		(*Config_TimeBased)(nil),
 	}
-}
-
-func _Config_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Config)
-	// replenishment_strategy
-	switch x := m.ReplenishmentStrategy.(type) {
-	case *Config_SequencingBased:
-		b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.SequencingBased); err != nil {
-			return err
-		}
-	case *Config_TimeBased:
-		b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.TimeBased); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Config.ReplenishmentStrategy has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Config_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Config)
-	switch tag {
-	case 4: // replenishment_strategy.sequencing_based
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SequencingBasedStrategy)
-		err := b.DecodeMessage(msg)
-		m.ReplenishmentStrategy = &Config_SequencingBased{msg}
-		return true, err
-	case 5: // replenishment_strategy.time_based
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(TimeBasedStrategy)
-		err := b.DecodeMessage(msg)
-		m.ReplenishmentStrategy = &Config_TimeBased{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Config_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Config)
-	// replenishment_strategy
-	switch x := m.ReplenishmentStrategy.(type) {
-	case *Config_SequencingBased:
-		s := proto.Size(x.SequencingBased)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Config_TimeBased:
-		s := proto.Size(x.TimeBased)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // Sequencing-based replenishment strategy settings.

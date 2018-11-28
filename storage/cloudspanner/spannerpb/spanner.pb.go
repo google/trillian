@@ -19,7 +19,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // State of the Tree.
 // Mirrors trillian.TreeState.
@@ -505,78 +505,12 @@ func (m *TreeInfo) GetDeleteTimeNanos() int64 {
 	return 0
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*TreeInfo) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _TreeInfo_OneofMarshaler, _TreeInfo_OneofUnmarshaler, _TreeInfo_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*TreeInfo) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*TreeInfo_LogStorageConfig)(nil),
 		(*TreeInfo_MapStorageConfig)(nil),
 	}
-}
-
-func _TreeInfo_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*TreeInfo)
-	// storage_config
-	switch x := m.StorageConfig.(type) {
-	case *TreeInfo_LogStorageConfig:
-		b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.LogStorageConfig); err != nil {
-			return err
-		}
-	case *TreeInfo_MapStorageConfig:
-		b.EncodeVarint(7<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.MapStorageConfig); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("TreeInfo.StorageConfig has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _TreeInfo_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*TreeInfo)
-	switch tag {
-	case 6: // storage_config.log_storage_config
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(LogStorageConfig)
-		err := b.DecodeMessage(msg)
-		m.StorageConfig = &TreeInfo_LogStorageConfig{msg}
-		return true, err
-	case 7: // storage_config.map_storage_config
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(MapStorageConfig)
-		err := b.DecodeMessage(msg)
-		m.StorageConfig = &TreeInfo_MapStorageConfig{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _TreeInfo_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*TreeInfo)
-	// storage_config
-	switch x := m.StorageConfig.(type) {
-	case *TreeInfo_LogStorageConfig:
-		s := proto.Size(x.LogStorageConfig)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *TreeInfo_MapStorageConfig:
-		s := proto.Size(x.MapStorageConfig)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // TreeHead is the storage format for Trillian's commitment to a particular
