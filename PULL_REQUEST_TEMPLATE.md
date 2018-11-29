@@ -6,4 +6,4 @@
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
 
 - [ ] I have added any relevant notes to the [release notes](https://github.com/google/trillian/releases)
-- [ ] I have updated documentation accordingly.
+- [ ] I have updated [documentation](docs/) accordingly.
