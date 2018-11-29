@@ -93,7 +93,7 @@ script:
       # Check re-generation didn't change anything. Skip protoc-generated files
       # because protoc is not deterministic when generating file descriptors.
       echo "Checking that generated files are the same as checked-in versions."
-      git diff -- ':!*.pb.go' ':!*_string.go' --exit-code
+      git diff --exit-code -- ':!*.pb.go' ':!*_string.go'
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
         export ETCD_DIR="${GOPATH}/bin"
