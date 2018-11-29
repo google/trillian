@@ -154,6 +154,8 @@ testing and experimental purposes:
 docker-compose -f examples/deployment/docker-compose.yml up
 ```
 
+Docker Compose v3.1 or higher is required.
+
 The Terraform, Kubernetes and Docker configuration files, as well as various
 scripts, all now use the same, consistently-named environment variables for
 MySQL-related data (e.g. `MYSQL_DATABASE`). The variable names are based on
