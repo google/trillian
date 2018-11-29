@@ -22,5 +22,5 @@
 - [ ] I have added tests to cover my changes.
 - [ ] I have added any relevant notes to the [release notes](https://github.com/google/trillian/releases)
 - [ ] I have updated documentation accordingly.
-- [ ] I have read the **CONTRIBUTING** document.
+- [ ] I have read the [CONTRIBUTING](CONTRIBUTING.md) document.
 - [ ] All new and existing tests passed.
