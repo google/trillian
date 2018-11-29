@@ -1,5 +1,17 @@
 # TRILLIAN Changelog
 
+## HEAD
+
+Not yet released; provisionally v2.0.0 (may change).
+
+### Storage API change
+
+The internal storage API is modified so that the ReadOnlyTreeTX.ReadRevision and TreeWriter.WriteRevision entrypoints take a context.Context parameter and return an optional error.
+
+### Maphammer improvements
+
+The maphammer test tool for the experimental Trillian Map has been enhanced.
+
 ## v1.2.1 - Map race fixed. TLS client support. LogClient improvements
 
 Published 2018-08-20 10:31:00 +0000 UTC
