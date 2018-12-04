@@ -271,39 +271,29 @@ In either case, Trillian's key transparency property is that cryptographic
 proofs of inclusion/consistency are available for data items added to the
 service.
 
-A [separate document](docs/TransparentLogging.md) discusses design
-considerations for transparent Logs as a whole.
 
 ### Personalities
 
-The Trillian service expects to be paired with additional code that is specific
-to the particular application of the transparent store; this is known as a
-*personality*.
+To build a complete transparent application, the Trillian core service needs
+to be paired with additional code, known as a *personality*, that provides
+functionality that is specific to the particular application.
 
-The primary purpose of a personality is to implement **admission criteria** for
-the store, so that only particular types of data are added to the store. For
-example, a Certificate Transparency log only accepts data items that are valid
-certificates; a "CT Log" personality would police this, so that the Trillian
-service can process all incoming data blindly.
+In particular, the personality is responsible for:
 
-A personality may also perform **canonicalization** on incoming data, to
-convert equivalent formulations of the same underlying data to a single
-canonical format, avoiding needless duplication.  For example, keys in
-JSON dictionaries could be sorted, or Unicode string data could be
-normalised.  One particularly important form of canonicalization is
-**de-duplication** of data that is logged with a timestamp: a particular piece
-of data gets a timestamp associated with it when it is first logged, and
-subsequent attempts to log the same data do not create new entries in the
-underlying Merkle tree.
+ * **Admission Criteria** &ndash; ensuring that submissions comply with the
+   overall purpose of the application.
+ * **Canonicalization** &ndash; ensuring that equivalent versions of the same
+   data get the same canonical identifier, so they can be de-duplicated by
+   the Trillian core service.
+ * **External Interface** &ndash; providing an API for external users,
+   including any practical constraints (ACLs, load-balancing, DoS protection,
+   etc.)
 
-The per-application personality is also responsible for providing an
-externally-visible interface, typically over HTTP[S].
-
-Note that a personality may need to implement its own data store,
-separate from Trillian.  In particular, if the personality does not
-completely trust Trillian, it needs to store the various things that
-Trillian signs in order to be able to detect problems (and so the
-personality effectively also acts as a monitor for Trillian).
+This is
+[described in more detail in a separate document](docs/Personalities.md).
+General
+[design considerations for transparent Log applications](docs/TransparentLogging.md)
+are also discussed seperately.
 
 ### Log Mode
 
@@ -323,9 +313,9 @@ similar to those available for Certificate Transparency logs
  - `GetInclusionProof`, `GetInclusionProofByHash` and `GetConsistencyProof`
     return inclusion and consistency proof data.
 
-In Log mode, Trillian includes an additional Signer component; this component
-periodically processes pending queued items and adds them to the Merkle tree,
-creating a new signed tree head as a result.
+In Log mode (whether normal or pre-ordered), Trillian includes an additional
+Signer component; this component periodically processes pending items and
+adds them to the Merkle tree, creating a new signed tree head as a result.
 
 ![Log components](docs/images/LogDesign.png)
 
