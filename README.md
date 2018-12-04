@@ -260,12 +260,19 @@ The Trillian service is multi-tenanted &ndash; a single Trillian installation
 can support multiple Merkle trees in parallel, distinguished by their `TreeId`
 &ndash; and each tree operates in one of two modes:
 
- - **Log** mode: an append-only collection of items.
+ - **Log** mode: an append-only collection of items; this has two sub-modes:
+   - normal Log mode, where the Trillian service assigns sequence numbers to
+     new tree entries as they arrive
+   - 'preordered' Log mode, where the unique sequence number for entries in
+     the Merkle tree is externally specified
  - **Map** mode: a collection of key:value pairs.
 
 In either case, Trillian's key transparency property is that cryptographic
 proofs of inclusion/consistency are available for data items added to the
 service.
+
+A [separate document](docs/TransparentLogging.md) discusses design
+considerations for transparent Logs as a whole.
 
 ### Personalities
 
@@ -281,8 +288,13 @@ service can process all incoming data blindly.
 
 A personality may also perform **canonicalization** on incoming data, to
 convert equivalent formulations of the same underlying data to a single
-canonical format, avoiding needless duplication.  (For example, keys in
-JSON dictionaries could be sorted, or Unicode string data could be normalised.)
+canonical format, avoiding needless duplication.  For example, keys in
+JSON dictionaries could be sorted, or Unicode string data could be
+normalised.  One particularly important form of canonicalization is
+**de-duplication** of data that is logged with a timestamp: a particular piece
+of data gets a timestamp associated with it when it is first logged, and
+subsequent attempts to log the same data do not create new entries in the
+underlying Merkle tree.
 
 The per-application personality is also responsible for providing an
 externally-visible interface, typically over HTTP[S].
@@ -306,6 +318,8 @@ similar to those available for Certificate Transparency logs
    information for particular leaves, specified either by their hash value or
    index in the log.
  - `QueueLeaves` requests inclusion of specified items into the log.
+     - For a pre-ordered log, `AddSequencedLeaves` requests the inclusion of
+       specified items into the log at specified places in the tree.
  - `GetInclusionProof`, `GetInclusionProofByHash` and `GetConsistencyProof`
     return inclusion and consistency proof data.
 
