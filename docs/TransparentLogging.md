@@ -1,5 +1,14 @@
 # Transparent Logging: A Guide
 
+ - [Introduction](#introduction)
+   - [Running Examples](#running-examples)
+ - [Ecosystem](#ecosystem)
+ - [Log Contents](#log-contents)
+   - [Leaf Hashing](#leaf-hashing)
+   - [Leaf Size / Accessibility](#leaf-size--accessibility)
+ - [Admission Control](#admission-control)
+ - [Inclusion Proofs vs. Promises](#inclusion-proofs-vs-promises)
+
 ## Introduction
 
 The [Trillian project](https://github.com/google/trilllian) generalizes the
