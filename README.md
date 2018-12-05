@@ -43,7 +43,7 @@ modes:
  - An experimental **Map** mode that allows transparent storage of arbitrary
    key:value pairs derived from the contents of a source Log; this is also known
    as a **log-backed map**.  In this mode, the key's hash is used to designate a
-   particular leaf of a deep Merkle tree &ndash; sufficiently deep that filled
+   particular leaf of a deep Merkle tree – sufficiently deep that filled
    leaves are vastly outnumbered by unfilled leaves, giving a *sparse* Merkle
    tree.  (A Trillian Map is an *unordered* map; it does not allow enumeration
    of the Map's keys.)
@@ -256,9 +256,9 @@ this service receives get/set requests over gRPC and retrieves the corresponding
 Merkle tree data from a separate storage layer (currently using MySQL), ensuring
 that the cryptographic properties of the tree are preserved along the way.
 
-The Trillian service is multi-tenanted &ndash; a single Trillian installation
-can support multiple Merkle trees in parallel, distinguished by their `TreeId`
-&ndash; and each tree operates in one of two modes:
+The Trillian service is multi-tenanted – a single Trillian installation can
+support multiple Merkle trees in parallel, distinguished by their `TreeId` – and
+each tree operates in one of two modes:
 
  - **Log** mode: an append-only collection of items; this has two sub-modes:
    - normal Log mode, where the Trillian service assigns sequence numbers to
@@ -280,12 +280,12 @@ functionality that is specific to the particular application.
 
 In particular, the personality is responsible for:
 
- * **Admission Criteria** &ndash; ensuring that submissions comply with the
+ * **Admission Criteria** – ensuring that submissions comply with the
    overall purpose of the application.
- * **Canonicalization** &ndash; ensuring that equivalent versions of the same
+ * **Canonicalization** – ensuring that equivalent versions of the same
    data get the same canonical identifier, so they can be de-duplicated by
    the Trillian core service.
- * **External Interface** &ndash; providing an API for external users,
+ * **External Interface** – providing an API for external users,
    including any practical constraints (ACLs, load-balancing, DoS protection,
    etc.)
 
@@ -383,9 +383,9 @@ Use Cases
 
 The most obvious application for Trillian in Log mode is to provide a
 Certificate Transparency (RFC 6962) Log.  To do this, the CT Log personality
-needs to include all of the certificate-specific processing &ndash; in
-particular, checking that an item that has been suggested for inclusion is
-indeed a valid certificate that chains to an accepted root.
+needs to include all of the certificate-specific processing – in particular,
+checking that an item that has been suggested for inclusion is indeed a valid
+certificate that chains to an accepted root.
 
 ### Verifiable Log-Backed Map
 
