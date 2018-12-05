@@ -48,8 +48,8 @@ logging?**
 
 Understanding what the Log is intended to achieve allows you to check whether
 the transparent, append-only characteristics of the Log actually achieve those
-goals.   It also helps you to understand how much of a wider ecosystem &ndash;
-auditors, monitors, indexes &ndash; also needs to be built up around the Log.
+goals.  It also helps you to understand how much of a wider ecosystem –
+auditors, monitors, indexes – also needs to be built up around the Log.
 
  - The
    [rationale for Certificate Transparency](https://tools.ietf.org/html/rfc6962)

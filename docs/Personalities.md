@@ -93,7 +93,7 @@ the Trillian service?
 
 If the personality maintains a store of the signed log roots provided by
 Trillian, it can then use this to audit failure cases and assign blame
-appropriately &ndash; effectively acting as a monitor for Trillian.
+appropriately – effectively acting as a monitor for Trillian.
 
 
 ## Practical Responsibilities
@@ -104,7 +104,7 @@ In many environments the personality provides an externally-visible API.
 The design of such an API depends on the application, but key points to
 consider include:
 
- - **syntax** &ndash; the mechanism used to access the API, where possibilities
+ - **syntax** – the mechanism used to access the API, where possibilities
    include:
    - HTTPS + JSON: A web-based interface has the advantage of being
      accessible using standard tools, ranging from
@@ -119,7 +119,7 @@ consider include:
      [continuous streaming](https://grpc.io/docs/guides/concepts.html#server-streaming-rpc)
      of data).
 
- - **semantics** &ndash; the set of primitives and data structures exposed by
+ - **semantics** – the set of primitives and data structures exposed by
    the API, for example:
    - What submission formats are accepted?
    - What cryptographic promises/guarantees does the personality generate?
@@ -158,8 +158,8 @@ A typical use case for this is to add a `ChargeTo.User` string that identifies
 an external requestor, so traffic from a single source can be limited without
 affecting other users.
 
-However, the user quota system can also be used for more flexible limits
-&ndash; for example, by applying limits to particular authentication keys.
+However, the user quota system can also be used for more flexible limits – for
+example, by applying limits to particular authentication keys.
 
 
 ### Monitoring
@@ -201,7 +201,7 @@ In terms of [practical responsibilities](#practical-responsibilities):
    specified by [RFC 6962](https://tools.ietf.org/html/rfc6962), in both syntax
    and semantics.  The CTFE personality is configured with private key material
    for each CT Log instance, and uses this to generate those API data
-   structures that are signed &ndash; the Signed Tree Head (STH) and Signed
+   structures that are signed – the Signed Tree Head (STH) and Signed
    Certificate Timestamp (SCT).
  - The CTFE personality does not require storage independent of the core Merkle
    tree.  The chain of certificates used to validate the original submission of
@@ -220,8 +220,8 @@ In terms of [practical responsibilities](#practical-responsibilities):
 
 Users of individual transparent Logs are theoretically susceptible to a
 *split-view* attack, where a Log prevents a different view of its Merkle tree
-to different users &ndash; each user's view of the tree is internally
-consistent, but differs between users.
+to different users – each user's view of the tree is internally consistent, but
+differs between users.
 
 A *gossip protocol* is a key mechanism to prevent this: different observers of
 a transparent Log share their views of the Log, allowing cross-comparison and
@@ -262,8 +262,8 @@ In terms of [practical responsibilities](#practical-responsibilities):
    analogous to that specified by
    [RFC 6962](https://tools.ietf.org/html/rfc6962), in both syntax and
    semantics.  The Hub personality is configured with private key material for
-   each Hub instance, and uses this to generate signed API data structures
-   &ndash; the Signed Tree Head (STH) and Signed Gossip Timestamp (SGT).
+   each Hub instance, and uses this to generate signed API data structures – the
+   Signed Tree Head (STH) and Signed Gossip Timestamp (SGT).
  - The Hub personality does not require storage independent of the core Merkle
    tree, and the `ExtraData` field is not (currently) used.
  - The Hub personality can be configured to charge API requests to per-user
