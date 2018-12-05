@@ -12,43 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres_test
+package postgres
 
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
-	"os"
 	"testing"
 
-	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/postgres"
-	"github.com/google/trillian/storage/postgres/testdb"
 	"github.com/google/trillian/storage/testonly"
 )
 
 var allTables = []string{"unsequenced", "tree_head", "sequenced_leaf_data", "leaf_data", "subtree", "tree_control", "trees"}
-var DB *sql.DB
 
 const selectTreeControlByID = "SELECT signing_enabled, sequencing_enabled, sequence_interval_seconds FROM tree_control WHERE tree_id = $1"
 
 func TestPgAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
-		cleanTestDB(DB, t)
-		return postgres.NewAdminStorage(DB)
+		cleanTestDB(db, t)
+		return NewAdminStorage(db)
 	}}
 	tester.RunAllTests(t)
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := postgres.NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
@@ -59,7 +53,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	// Check if TreeControl is correctly written.
 	var signingEnabled, sequencingEnabled bool
 	var sequenceIntervalSeconds int
-	if err := DB.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
+	if err := db.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
 		t.Fatalf("Failed to read TreeControl: %v", err)
 	}
 	// We don't mind about specific values, defaults change, but let's check
@@ -70,8 +64,8 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestCreateTreeInvalidStates(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := postgres.NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	states := []trillian.TreeState{trillian.TreeState_DRAINING, trillian.TreeState_FROZEN}
@@ -86,8 +80,8 @@ func TestCreateTreeInvalidStates(t *testing.T) {
 }
 
 func TestAdminTX_TreeWithNulls(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := postgres.NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	// Setup: create a tree and set all nullable columns to null.
@@ -99,7 +93,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	}
 	treeID := tree.TreeId
 
-	if err := setNulls(ctx, DB, treeID); err != nil {
+	if err := setNulls(ctx, db, treeID); err != nil {
 		t.Fatalf("setNulls() = %v, want = nil", err)
 	}
 
@@ -155,8 +149,8 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 }
 
 func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
-	cleanTestDB(DB, t)
-	s := postgres.NewAdminStorage(DB)
+	cleanTestDB(db, t)
+	s := NewAdminStorage(db)
 	ctx := context.Background()
 
 	settings, err := ptypes.MarshalAny(&empty.Empty{})
@@ -207,14 +201,6 @@ func cleanTestDB(db *sql.DB, t *testing.T) {
 	}
 }
 
-func openTestDBOrDie() *sql.DB {
-	db, err := testdb.NewTrillianDB(context.TODO())
-	if err != nil {
-		panic(err)
-	}
-	return db
-}
-
 func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
 	stmt, err := db.PrepareContext(ctx, `
 	UPDATE trees SET
@@ -228,16 +214,4 @@ func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
 	defer stmt.Close()
 	_, err = stmt.ExecContext(ctx, treeID)
 	return err
-}
-
-func TestMain(m *testing.M) {
-	flag.Parse()
-	if !testdb.PGAvailable() {
-		glog.Errorf("PG not available, skipping all PG storage tests")
-		return
-	}
-	DB = openTestDBOrDie()
-	defer DB.Close()
-	ec := m.Run()
-	os.Exit(ec)
 }
