@@ -851,7 +851,7 @@ MapLeaf represents the data behind Map leaves.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | index | [bytes](#bytes) |  | index is the location of this leaf. All indexes for a given Map must contain a constant number of bits. These are not numeric indices. Note that this is typically derived using a hash and thus the length of all indices in the map will match the number of bits in the hash function. Map entries do not have a well defined ordering and it&#39;s not possible to sequentially iterate over them. |
-| leaf_hash | [bytes](#bytes) |  | leaf_hash is the tree hash of leaf_value. This does not need to be set on SetMapLeavesRequest; the server will fill it in. |
+| leaf_hash | [bytes](#bytes) |  | leaf_hash is the tree hash of leaf_value. This does not need to be set on SetMapLeavesRequest; the server will fill it in. For an empty leaf (len(leaf_value)==0), there may be two possible values for this hash: - If the leaf has never been set, it counts as an empty subtree and a nil value is used. - If the leaf has been explicitly set to a zero-length entry, it no longer counts as empty and the value of hasher.HashLeaf(index, nil) will be used. |
 | leaf_value | [bytes](#bytes) |  | leaf_value is the data the tree commits to. |
 | extra_data | [bytes](#bytes) |  | extra_data holds related contextual data, but is not covered by any hash. |
 
@@ -869,7 +869,7 @@ MapLeaf represents the data behind Map leaves.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | leaf | [MapLeaf](#trillian.MapLeaf) |  |  |
-| inclusion | [bytes](#bytes) | repeated |  |
+| inclusion | [bytes](#bytes) | repeated | inclusion holds the inclusion proof for this leaf in the map root. It holds one entry for each level of the tree; combining each of these in turn with the leaf&#39;s hash (according to the tree&#39;s hash strategy) reproduces the root hash. A nil entry for a particular level indicates that the node in question has an empty subtree beneath it (and so its associated hash value is hasher.HashEmpty(index, height) rather than hasher.HashChildren(l_hash, r_hash)). |
 
 
 
@@ -887,6 +887,7 @@ MapLeaf represents the data behind Map leaves.
 | map_id | [int64](#int64) |  |  |
 | leaves | [MapLeaf](#trillian.MapLeaf) | repeated | The leaves being set must have unique Index values within the request. |
 | metadata | [bytes](#bytes) |  |  |
+| revision | [int64](#int64) |  | The map revision to associate the leaves with. The request will fail if this revision already exists, or revision &lt; 0. If revision = 0 then the leaves will be written to the latest revision. |
 
 
 
