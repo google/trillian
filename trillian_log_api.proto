@@ -33,109 +33,115 @@ import "trillian.proto";
 // does not provide arbitrary tree modifications. Additionally, it has read
 // operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 service TrillianLog {
-    // Adds a single leaf to the queue.
-    rpc QueueLeaf (QueueLeafRequest) returns (QueueLeafResponse) {
-      option (google.api.http) = {
-        post: "/v1beta1/logs/{log_id}/leaves"
-        body: "*"
-      };
-    }
+  // Adds a single leaf to the queue.
+  rpc QueueLeaf(QueueLeafRequest) returns (QueueLeafResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/logs/{log_id}/leaves"
+      body: "*"
+    };
+  }
 
-    // Adds a single leaf with an assigned sequence number.
-    // Warning: This RPC is under development, don't use it.
-    rpc AddSequencedLeaf (AddSequencedLeafRequest) returns (AddSequencedLeafResponse) {
-      option (google.api.http) = {
-        post: "/v1beta1/logs/{log_id}/leaves:sequenced"
-        body: "*"
-      };
-    }
+  // Adds a single leaf with an assigned sequence number.
+  // Warning: This RPC is under development, don't use it.
+  rpc AddSequencedLeaf(AddSequencedLeafRequest)
+      returns (AddSequencedLeafResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/logs/{log_id}/leaves:sequenced"
+      body: "*"
+    };
+  }
 
-    //
-    // No direct equivalent at the storage level.
-    //
+  //
+  // No direct equivalent at the storage level.
+  //
 
-    // Returns inclusion proof for a leaf with a given index in a given tree.
-    rpc GetInclusionProof (GetInclusionProofRequest) returns (GetInclusionProofResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
-      };
-    }
-    // Returns inclusion proof for a leaf with a given identity hash in a given
-    // tree.
-    rpc GetInclusionProofByHash (GetInclusionProofByHashRequest) returns (GetInclusionProofByHashResponse) {
-       option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves:inclusion_by_hash"
-       };
-    }
-    // Returns consistency proof between two versions of a given tree.
-    rpc GetConsistencyProof (GetConsistencyProofRequest) returns (GetConsistencyProofResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}:consistency_proof"
-      };
-    }
+  // Returns inclusion proof for a leaf with a given index in a given tree.
+  rpc GetInclusionProof(GetInclusionProofRequest)
+      returns (GetInclusionProofResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
+    };
+  }
+  // Returns inclusion proof for a leaf with a given identity hash in a given
+  // tree.
+  rpc GetInclusionProofByHash(GetInclusionProofByHashRequest)
+      returns (GetInclusionProofByHashResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/logs/{log_id}/leaves:inclusion_by_hash"
+    };
+  }
+  // Returns consistency proof between two versions of a given tree.
+  rpc GetConsistencyProof(GetConsistencyProofRequest)
+      returns (GetConsistencyProofResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/logs/{log_id}:consistency_proof"
+    };
+  }
 
-    // Returns the latest signed log root for a given tree. Corresponds to the
-    // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
-    rpc GetLatestSignedLogRoot (GetLatestSignedLogRootRequest) returns (GetLatestSignedLogRootResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/roots:latest"
-      };
-    }
+  // Returns the latest signed log root for a given tree. Corresponds to the
+  // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
+  rpc GetLatestSignedLogRoot(GetLatestSignedLogRootRequest)
+      returns (GetLatestSignedLogRootResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/logs/{log_id}/roots:latest"
+    };
+  }
 
-    // Returns the total number of leaves that have been integrated into the
-    // given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
-    // storage interface.
-    // DO NOT USE - FOR DEBUGGING/TEST ONLY
-    rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
-      };
-    }
+  // Returns the total number of leaves that have been integrated into the
+  // given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
+  // storage interface.
+  // DO NOT USE - FOR DEBUGGING/TEST ONLY
+  rpc GetSequencedLeafCount(GetSequencedLeafCountRequest)
+      returns (GetSequencedLeafCountResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
+    };
+  }
 
-    // Returns log entry and the corresponding inclusion proof for a given leaf
-    // index in a given tree. If the requested tree is unavailable but the leaf is in scope
-    // for the current tree, return a proof in that tree instead.
-    rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
-      };
-    }
+  // Returns log entry and the corresponding inclusion proof for a given leaf
+  // index in a given tree. If the requested tree is unavailable but the leaf is
+  // in scope for the current tree, return a proof in that tree instead.
+  rpc GetEntryAndProof(GetEntryAndProofRequest)
+      returns (GetEntryAndProofResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
+    };
+  }
 
-    //
-    // Initialisation APIs.
-    //
+  //
+  // Initialisation APIs.
+  //
 
-    rpc InitLog (InitLogRequest) returns (InitLogResponse) {
-      option (google.api.http) = {
-        post: "/v1beta1/logs/{log_id}:init"
-      };
-    }
+  rpc InitLog(InitLogRequest) returns (InitLogResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/logs/{log_id}:init"
+    };
+  }
 
-    //
-    // Batch APIs. Correspond to `storage.ReadOnlyLogTreeTX` batch queries.
-    //
+  //
+  // Batch APIs. Correspond to `storage.ReadOnlyLogTreeTX` batch queries.
+  //
 
-    // Adds a batch of leaves to the queue.
-    rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
-    }
+  // Adds a batch of leaves to the queue.
+  rpc QueueLeaves(QueueLeavesRequest) returns (QueueLeavesResponse) {}
 
-    // Stores leaves from the provided batch and associates them with the log
-    // positions according to the `LeafIndex` field. The indices must be
-    // contiguous.
-    //
-    // Warning: This RPC is under development, don't use it.
-    rpc AddSequencedLeaves (AddSequencedLeavesRequest) returns (AddSequencedLeavesResponse) {
-    }
+  // Stores leaves from the provided batch and associates them with the log
+  // positions according to the `LeafIndex` field. The indices must be
+  // contiguous.
+  //
+  // Warning: This RPC is under development, don't use it.
+  rpc AddSequencedLeaves(AddSequencedLeavesRequest)
+      returns (AddSequencedLeavesResponse) {}
 
-    // Returns a batch of leaves located in the provided positions.
-    rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
-    }
-    // Returns a batch of leaves in a sequential range.
-    rpc GetLeavesByRange (GetLeavesByRangeRequest) returns (GetLeavesByRangeResponse) {
-    }
-    // Returns a batch of leaves by their `merkle_leaf_hash` values.
-    rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
-    }
+  // Returns a batch of leaves located in the provided positions.
+  rpc GetLeavesByIndex(GetLeavesByIndexRequest)
+      returns (GetLeavesByIndexResponse) {}
+  // Returns a batch of leaves in a sequential range.
+  rpc GetLeavesByRange(GetLeavesByRangeRequest)
+      returns (GetLeavesByRangeResponse) {}
+  // Returns a batch of leaves by their `merkle_leaf_hash` values.
+  rpc GetLeavesByHash(GetLeavesByHashRequest)
+      returns (GetLeavesByHashResponse) {}
 }
 
 // ChargeTo describes the user(s) associated with the request whose quota should
@@ -159,238 +165,239 @@ message ChargeTo {
 }
 
 message QueueLeafRequest {
-    int64 log_id = 1;
-    LogLeaf leaf = 2;
-    ChargeTo charge_to = 3;
+  int64 log_id = 1;
+  LogLeaf leaf = 2;
+  ChargeTo charge_to = 3;
 }
 
 message QueueLeafResponse {
-    QueuedLogLeaf queued_leaf = 2;
+  QueuedLogLeaf queued_leaf = 2;
 }
 
 message AddSequencedLeafRequest {
-    int64 log_id = 1;
-    LogLeaf leaf = 2;
-    ChargeTo charge_to = 3;
+  int64 log_id = 1;
+  LogLeaf leaf = 2;
+  ChargeTo charge_to = 3;
 }
 
 message AddSequencedLeafResponse {
-    QueuedLogLeaf result = 2;
+  QueuedLogLeaf result = 2;
 }
 
 message GetInclusionProofRequest {
-    int64 log_id = 1;
-    int64 leaf_index = 2;
-    int64 tree_size = 3;
-    ChargeTo charge_to = 4;
+  int64 log_id = 1;
+  int64 leaf_index = 2;
+  int64 tree_size = 3;
+  ChargeTo charge_to = 4;
 }
 
 message GetInclusionProofResponse {
-    Proof proof = 2;
-    SignedLogRoot signed_log_root = 3;
+  Proof proof = 2;
+  SignedLogRoot signed_log_root = 3;
 }
 
 message GetInclusionProofByHashRequest {
-    int64 log_id = 1;
-    bytes leaf_hash = 2;
-    int64 tree_size = 3;
-    bool order_by_sequence = 4;
-    ChargeTo charge_to = 5;
+  int64 log_id = 1;
+  bytes leaf_hash = 2;
+  int64 tree_size = 3;
+  bool order_by_sequence = 4;
+  ChargeTo charge_to = 5;
 }
 
 message GetInclusionProofByHashResponse {
-    // Logs can potentially contain leaves with duplicate hashes so it's possible
-    // for this to return multiple proofs.
-    repeated Proof proof = 2;
-    SignedLogRoot signed_log_root = 3;
+  // Logs can potentially contain leaves with duplicate hashes so it's possible
+  // for this to return multiple proofs.
+  repeated Proof proof = 2;
+  SignedLogRoot signed_log_root = 3;
 }
 
 message GetConsistencyProofRequest {
-    int64 log_id = 1;
-    int64 first_tree_size = 2;
-    int64 second_tree_size = 3;
-    ChargeTo charge_to = 4;
+  int64 log_id = 1;
+  int64 first_tree_size = 2;
+  int64 second_tree_size = 3;
+  ChargeTo charge_to = 4;
 }
 
 message GetConsistencyProofResponse {
-    Proof proof = 2;
-    SignedLogRoot signed_log_root = 3;
+  Proof proof = 2;
+  SignedLogRoot signed_log_root = 3;
 }
 
 message GetLatestSignedLogRootRequest {
-    int64 log_id = 1;
-    ChargeTo charge_to = 2;
+  int64 log_id = 1;
+  ChargeTo charge_to = 2;
 }
 
 message GetLatestSignedLogRootResponse {
-    SignedLogRoot signed_log_root = 2;
+  SignedLogRoot signed_log_root = 2;
 }
 
 message GetSequencedLeafCountRequest {
-    int64 log_id = 1;
-    ChargeTo charge_to = 2;
+  int64 log_id = 1;
+  ChargeTo charge_to = 2;
 }
 
 message GetSequencedLeafCountResponse {
-    int64 leaf_count = 2;
+  int64 leaf_count = 2;
 }
 
 message GetEntryAndProofRequest {
-    int64 log_id = 1;
-    int64 leaf_index = 2;
-    int64 tree_size = 3;
-    ChargeTo charge_to = 4;
+  int64 log_id = 1;
+  int64 leaf_index = 2;
+  int64 tree_size = 3;
+  ChargeTo charge_to = 4;
 }
 
 message GetEntryAndProofResponse {
-    Proof proof = 2;
-    LogLeaf leaf = 3;
-    SignedLogRoot signed_log_root = 4;
+  Proof proof = 2;
+  LogLeaf leaf = 3;
+  SignedLogRoot signed_log_root = 4;
 }
 
 message InitLogRequest {
-    int64 log_id = 1;
-    ChargeTo charge_to = 2;
+  int64 log_id = 1;
+  ChargeTo charge_to = 2;
 }
 
 message InitLogResponse {
-    SignedLogRoot created = 1;
+  SignedLogRoot created = 1;
 }
 
 message QueueLeavesRequest {
-    int64 log_id = 1;
-    repeated LogLeaf leaves = 2;
-    ChargeTo charge_to = 3;
+  int64 log_id = 1;
+  repeated LogLeaf leaves = 2;
+  ChargeTo charge_to = 3;
 }
 
 message QueueLeavesResponse {
-    // Same number and order as in the corresponding request.
-    repeated QueuedLogLeaf queued_leaves = 2;
+  // Same number and order as in the corresponding request.
+  repeated QueuedLogLeaf queued_leaves = 2;
 }
 
 message AddSequencedLeavesRequest {
-    int64 log_id = 1;
-    repeated LogLeaf leaves = 2;
-    ChargeTo charge_to = 4;
+  int64 log_id = 1;
+  repeated LogLeaf leaves = 2;
+  ChargeTo charge_to = 4;
 }
 
 message AddSequencedLeavesResponse {
-    // Same number and order as in the corresponding request.
-    repeated QueuedLogLeaf results = 2;
+  // Same number and order as in the corresponding request.
+  repeated QueuedLogLeaf results = 2;
 }
 
 message GetLeavesByIndexRequest {
-    int64 log_id = 1;
-    repeated int64 leaf_index = 2;
-    ChargeTo charge_to = 5;
+  int64 log_id = 1;
+  repeated int64 leaf_index = 2;
+  ChargeTo charge_to = 5;
 }
 
 message GetLeavesByIndexResponse {
-    // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
-    repeated LogLeaf leaves = 2;
-    SignedLogRoot signed_log_root = 3;
+  // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
+  repeated LogLeaf leaves = 2;
+  SignedLogRoot signed_log_root = 3;
 }
 
 message GetLeavesByRangeRequest {
-    int64 log_id = 1;
-    int64 start_index = 2;
-    int64 count = 3;
-    ChargeTo charge_to = 4;
+  int64 log_id = 1;
+  int64 start_index = 2;
+  int64 count = 3;
+  ChargeTo charge_to = 4;
 }
 
 message GetLeavesByRangeResponse {
-    // Returned log leaves starting from the `start_index` of the request, in
-    // order. There may be fewer than `request.count` leaves returned, if the
-    // requested range extended beyond the size of the tree or if the server opted
-    // to return fewer leaves than requested.
-    repeated LogLeaf leaves = 1;
-    SignedLogRoot signed_log_root = 2;
+  // Returned log leaves starting from the `start_index` of the request, in
+  // order. There may be fewer than `request.count` leaves returned, if the
+  // requested range extended beyond the size of the tree or if the server opted
+  // to return fewer leaves than requested.
+  repeated LogLeaf leaves = 1;
+  SignedLogRoot signed_log_root = 2;
 }
 
 message GetLeavesByHashRequest {
-    int64 log_id = 1;
-    repeated bytes leaf_hash = 2;
-    bool order_by_sequence = 3;
-    ChargeTo charge_to = 5;
+  int64 log_id = 1;
+  repeated bytes leaf_hash = 2;
+  bool order_by_sequence = 3;
+  ChargeTo charge_to = 5;
 }
 
 message GetLeavesByHashResponse {
-    // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
-    repeated LogLeaf leaves = 2;
-    SignedLogRoot signed_log_root = 3;
+  // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
+  repeated LogLeaf leaves = 2;
+  SignedLogRoot signed_log_root = 3;
 }
 
 // A result of submitting an entry to the log. Output only.
 // TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
 message QueuedLogLeaf {
-    // The leaf as it was stored by Trillian. Empty unless `status.code` is:
-    //  - `google.rpc.OK`: the `leaf` data is the same as in the request.
-    //  - `google.rpc.ALREADY_EXISTS` or 'google.rpc.FAILED_PRECONDITION`: the
-    //    `leaf` is the conflicting one already in the log.
-    LogLeaf leaf = 1;
+  // The leaf as it was stored by Trillian. Empty unless `status.code` is:
+  //  - `google.rpc.OK`: the `leaf` data is the same as in the request.
+  //  - `google.rpc.ALREADY_EXISTS` or 'google.rpc.FAILED_PRECONDITION`: the
+  //    `leaf` is the conflicting one already in the log.
+  LogLeaf leaf = 1;
 
-    // The status of adding the leaf.
-    //  - `google.rpc.OK`: successfully added.
-    //  - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already
-    //    existing one. Either `leaf_identity_hash` is the same in the `LOG`
-    //    mode, or `leaf_index` in the `PREORDERED_LOG`.
-    //  - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already
-    //    present in the log, e.g., same `leaf_index` but different `leaf_data`.
-    google.rpc.Status status = 2;
+  // The status of adding the leaf.
+  //  - `google.rpc.OK`: successfully added.
+  //  - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already
+  //    existing one. Either `leaf_identity_hash` is the same in the `LOG`
+  //    mode, or `leaf_index` in the `PREORDERED_LOG`.
+  //  - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already
+  //    present in the log, e.g., same `leaf_index` but different `leaf_data`.
+  google.rpc.Status status = 2;
 }
 
 // A leaf of the log's Merkle tree, corresponds to a single log entry. Each leaf
 // has a unique `leaf_index` in the scope of this tree.
 message LogLeaf {
-    // Output only. The hash over `leaf_data`.
-    bytes merkle_leaf_hash = 1;
+  // Output only. The hash over `leaf_data`.
+  bytes merkle_leaf_hash = 1;
 
-    // Required. The arbitrary data associated with this log entry. Validity of
-    // this field is governed by the call site (personality).
-    bytes leaf_value = 2;
-    // The arbitrary metadata, e.g., a timestamp.
-    bytes extra_data = 3;
+  // Required. The arbitrary data associated with this log entry. Validity of
+  // this field is governed by the call site (personality).
+  bytes leaf_value = 2;
+  // The arbitrary metadata, e.g., a timestamp.
+  bytes extra_data = 3;
 
-    // Output only in `LOG` mode. Required in `PREORDERED_LOG` mode.
-    // The index of the leaf in the Merkle tree, i.e., the position of the
-    // corresponding entry in the log. For normal logs this value will be
-    // assigned by the LogSigner.
-    int64 leaf_index = 4;
+  // Output only in `LOG` mode. Required in `PREORDERED_LOG` mode.
+  // The index of the leaf in the Merkle tree, i.e., the position of the
+  // corresponding entry in the log. For normal logs this value will be
+  // assigned by the LogSigner.
+  int64 leaf_index = 4;
 
-    // The hash over the identity of this leaf. If empty, assumed to be the same
-    // as `merkle_leaf_hash`. It is a mechanism for the personality to provide a
-    // hint to Trillian that two leaves should be considered "duplicates" even
-    // though their `leaf_value`s differ.
-    //
-    // E.g., in a CT personality multiple `add-chain` calls for an identical
-    // certificate would produce differing `leaf_data` bytes (due to the
-    // presence of SCT elements), with just this information Trillian would be
-    // unable to determine that. Within the context of the CT personality, these
-    // entries are dupes, so it sets `leaf_identity_hash` to `H(cert)`, which
-    // allows Trillian to detect the duplicates.
-    //
-    // Continuing the CT example, for a CT mirror personality (which must allow
-    // dupes since the source log could contain them), the part of the
-    // personality which fetches and submits the entries might set
-    // `leaf_identity_hash` to `H(leaf_index||cert)`.
-    // TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing
-    // identity hash dupes in `PREORDERED_LOG` mode, for it can later be
-    // upgraded to `LOG` which will need to correctly detect duplicates with
-    // older entries when new ones get queued.
-    bytes leaf_identity_hash = 5;
+  // The hash over the identity of this leaf. If empty, assumed to be the same
+  // as `merkle_leaf_hash`. It is a mechanism for the personality to provide a
+  // hint to Trillian that two leaves should be considered "duplicates" even
+  // though their `leaf_value`s differ.
+  //
+  // E.g., in a CT personality multiple `add-chain` calls for an identical
+  // certificate would produce differing `leaf_data` bytes (due to the
+  // presence of SCT elements), with just this information Trillian would be
+  // unable to determine that. Within the context of the CT personality, these
+  // entries are dupes, so it sets `leaf_identity_hash` to `H(cert)`, which
+  // allows Trillian to detect the duplicates.
+  //
+  // Continuing the CT example, for a CT mirror personality (which must allow
+  // dupes since the source log could contain them), the part of the
+  // personality which fetches and submits the entries might set
+  // `leaf_identity_hash` to `H(leaf_index||cert)`.
+  // TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing
+  // identity hash dupes in `PREORDERED_LOG` mode, for it can later be
+  // upgraded to `LOG` which will need to correctly detect duplicates with
+  // older entries when new ones get queued.
+  bytes leaf_identity_hash = 5;
 
-    // Output only. The time at which this leaf was passed to `QueueLeaves`.
-    // This value will be determined and set by the LogServer. Equals zero if
-    // the entry was submitted without queuing.
-    google.protobuf.Timestamp queue_timestamp = 6;
-    // Output only. The time at which this leaf was integrated into the tree.
-    // This value will be determined and set by the LogSigner.
-    google.protobuf.Timestamp integrate_timestamp = 7;
+  // Output only. The time at which this leaf was passed to `QueueLeaves`.
+  // This value will be determined and set by the LogServer. Equals zero if
+  // the entry was submitted without queuing.
+  google.protobuf.Timestamp queue_timestamp = 6;
+  // Output only. The time at which this leaf was integrated into the tree.
+  // This value will be determined and set by the LogSigner.
+  google.protobuf.Timestamp integrate_timestamp = 7;
 }
 
 // A consistency or inclusion proof for a Merkle tree. Output only.
 message Proof {
-    int64 leaf_index = 1;
-    reserved 2; // Contained internal node details, no longer provided to clients.
-    repeated bytes hashes = 3;
+  int64 leaf_index = 1;
+  // Contained internal node details, no longer provided to clients.
+  reserved 2;
+  repeated bytes hashes = 3;
 }

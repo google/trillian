@@ -22,6 +22,4 @@ option java_outer_classname = "TrillianLogSequencerApiProto";
 option java_package = "com.google.trillian.proto";
 
 // The API supports sequencing in the Trillian Log Sequencer.
-service TrillianLogSequencer {
-}
-
+service TrillianLogSequencer {}

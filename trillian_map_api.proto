@@ -124,26 +124,31 @@ message InitMapResponse {
 // defined in the Verifiable Data Structures paper.
 service TrillianMap {
   // GetLeaves returns an inclusion proof for each index requested.
-  // For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
-  rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
-  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns(GetMapLeavesResponse) {}
-  // SetLeaves sets the values for the provided leaves, and returns the new map root if successful.
-  // Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request),
-  // the API user is required to retry the request before performing a different SetLeaves request.
-  rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
-  rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/maps/{map_id}/roots:latest"
-      };
+  // For indexes that do not exist, the inclusion proof will use nil for the
+  // empty leaf value.
+  rpc GetLeaves(GetMapLeavesRequest) returns (GetMapLeavesResponse) {}
+  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest)
+      returns (GetMapLeavesResponse) {}
+  // SetLeaves sets the values for the provided leaves, and returns the new map
+  // root if successful. Note that if a SetLeaves request fails for a
+  // server-side reason (i.e. not an invalid request), the API user is required
+  // to retry the request before performing a different SetLeaves request.
+  rpc SetLeaves(SetMapLeavesRequest) returns (SetMapLeavesResponse) {}
+  rpc GetSignedMapRoot(GetSignedMapRootRequest)
+      returns (GetSignedMapRootResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/maps/{map_id}/roots:latest"
+    };
   }
-  rpc GetSignedMapRootByRevision(GetSignedMapRootByRevisionRequest) returns(GetSignedMapRootResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/maps/{map_id}/roots/{revision}"
-      };
+  rpc GetSignedMapRootByRevision(GetSignedMapRootByRevisionRequest)
+      returns (GetSignedMapRootResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/maps/{map_id}/roots/{revision}"
+    };
   }
-  rpc InitMap(InitMapRequest) returns(InitMapResponse) {
-      option (google.api.http) = {
-        post: "/v1beta1/maps/{map_id}:init"
+  rpc InitMap(InitMapRequest) returns (InitMapResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/maps/{map_id}:init"
     };
   }
 }

@@ -80,8 +80,7 @@ message LogStorageConfig {
 
 // MapStorageConfig holds settings which tune the storage implementation for
 // a given map tree.
-message MapStorageConfig {
-}
+message MapStorageConfig {}
 
 // TreeInfo stores information about a Trillian tree.
 message TreeInfo {

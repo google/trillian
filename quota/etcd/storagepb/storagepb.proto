@@ -14,14 +14,14 @@
 
 syntax = "proto3";
 
-// Package storagepb contains definitions for quota storage protos, which are recorded in etcd.
+// Package storagepb contains definitions for quota storage protos, which are
+// recorded in etcd.
 package storagepb;
 
 // Data contained in a quota bucket.
 // Stored at each each quota's zero bucket. For example,
 // quotas/global/read/0 or quotas/trees/$id/read/0.
 message Bucket {
-
   // Number of tokens left in the bucket.
   int64 tokens = 1;
 
@@ -32,14 +32,12 @@ message Bucket {
 // Configuration for all quotas.
 // Stored at quotas/configs.
 message Configs {
-
   // Known quota configurations.
   repeated Config configs = 1;
 }
 
 // Configuration of a quota.
 message Config {
-
   // Possible states of a quota configuration.
   enum State {
     // Unknown quota state. Invalid.
@@ -63,7 +61,6 @@ message Config {
 
   // Replenishment strategy used by the config.
   oneof replenishment_strategy {
-
     // Sequencing-based replenishment settings.
     SequencingBasedStrategy sequencing_based = 4;
 
@@ -77,7 +74,6 @@ message SequencingBasedStrategy {}
 
 // Time-based replenishment strategy settings.
 message TimeBasedStrategy {
-
   // Number of tokens to replenish at every replenish_interval_seconds.
   int64 tokens_to_replenish = 1;
 

@@ -27,21 +27,19 @@ import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-
 // LogRootFormat specifies the fields that are covered by the
 // SignedLogRoot signature, as well as their ordering and formats.
 enum LogRootFormat {
-   LOG_ROOT_FORMAT_UNKNOWN = 0;
-   LOG_ROOT_FORMAT_V1 = 1;
+  LOG_ROOT_FORMAT_UNKNOWN = 0;
+  LOG_ROOT_FORMAT_V1 = 1;
 }
 
 // MapRootFormat specifies the fields that are covered by the
 // SignedMapRoot signature, as well as their ordering and formats.
 enum MapRootFormat {
-   MAP_ROOT_FORMAT_UNKNOWN = 0;
-   MAP_ROOT_FORMAT_V1 = 1;
+  MAP_ROOT_FORMAT_UNKNOWN = 0;
+  MAP_ROOT_FORMAT_V1 = 1;
 }
-
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
@@ -150,8 +148,8 @@ message Tree {
   // Readonly.
   sigpb.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
 
-  reserved 18; // Signature cipher suite (removed)
-  reserved 7;  // DuplicatePolicy (removed)
+  reserved 18;  // Signature cipher suite (removed)
+  reserved 7;   // DuplicatePolicy (removed)
 
   // Display name of the tree.
   // Optional.
@@ -263,13 +261,13 @@ message SignedLogRoot {
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 message SignedMapRoot {
-  reserved 1; // Deprecated: Was timestamp_nanos. Use map_root.
-  reserved 2; // Deprecated: Was root_hash. Use map_root.
-  reserved 3; // Deprecated: Was MapperMetadata. Use map_root.
-  reserved 5; // Deprecated: Was map_id. Use signature.
-  reserved 6; // Deprecated: Was map_revision. Use map_root.
-  reserved 7; // Deprecated: Was metadata Any. Use map_root.
-  reserved 8; // Deprecated: Was metadata bytes. Use map_root.
+  reserved 1;  // Deprecated: Was timestamp_nanos. Use map_root.
+  reserved 2;  // Deprecated: Was root_hash. Use map_root.
+  reserved 3;  // Deprecated: Was MapperMetadata. Use map_root.
+  reserved 5;  // Deprecated: Was map_id. Use signature.
+  reserved 6;  // Deprecated: Was map_revision. Use map_root.
+  reserved 7;  // Deprecated: Was metadata Any. Use map_root.
+  reserved 8;  // Deprecated: Was metadata bytes. Use map_root.
 
   // map_root holds the TLS-serialization of the following structure (described
   // in RFC5246 notation): Clients should validate signature with

@@ -83,10 +83,10 @@ message UndeleteTreeRequest {
 // Allows creation and management of Trillian trees (both log and map trees).
 service TrillianAdmin {
   // Lists all trees the requester has access to.
-  rpc ListTrees(ListTreesRequest) returns(ListTreesResponse) {}
+  rpc ListTrees(ListTreesRequest) returns (ListTreesResponse) {}
 
   // Retrieves a tree by ID.
-  rpc GetTree(GetTreeRequest) returns(Tree) {
+  rpc GetTree(GetTreeRequest) returns (Tree) {
     option (google.api.http) = {
       get: "/v1beta1/trees/{tree_id=*}"
     };
@@ -96,7 +96,7 @@ service TrillianAdmin {
   // System-generated fields are not required and will be ignored if present,
   // e.g.: tree_id, create_time and update_time.
   // Returns the created tree, with all system-generated fields assigned.
-  rpc CreateTree(CreateTreeRequest) returns(Tree) {
+  rpc CreateTree(CreateTreeRequest) returns (Tree) {
     option (google.api.http) = {
       post: "/v1beta1/trees"
       body: "*"
@@ -105,7 +105,7 @@ service TrillianAdmin {
 
   // Updates a tree.
   // See Tree for details. Readonly fields cannot be updated.
-  rpc UpdateTree(UpdateTreeRequest) returns(Tree) {
+  rpc UpdateTree(UpdateTreeRequest) returns (Tree) {
     option (google.api.http) = {
       patch: "/v1beta1/trees/{tree.tree_id=*}"
       body: "*"
@@ -115,7 +115,7 @@ service TrillianAdmin {
   // Soft-deletes a tree.
   // A soft-deleted tree may be undeleted for a certain period, after which
   // it'll be permanently deleted.
-  rpc DeleteTree(DeleteTreeRequest) returns(Tree) {
+  rpc DeleteTree(DeleteTreeRequest) returns (Tree) {
     option (google.api.http) = {
       delete: "/v1beta1/trees/{tree_id=*}"
     };
@@ -124,7 +124,7 @@ service TrillianAdmin {
   // Undeletes a soft-deleted a tree.
   // A soft-deleted tree may be undeleted for a certain period, after which
   // it'll be permanently deleted.
-  rpc UndeleteTree(UndeleteTreeRequest) returns(Tree) {
+  rpc UndeleteTree(UndeleteTreeRequest) returns (Tree) {
     option (google.api.http) = {
       delete: "/v1beta1/trees/{tree_id=*}:undelete"
     };
