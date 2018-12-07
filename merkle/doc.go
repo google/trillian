@@ -14,13 +14,3 @@
 
 // Package merkle provides Merkle tree manipulation functions.
 package merkle
-
-// parent returns the index of the parent node in the parent level of the tree.
-func parent(leafIndex int64) int64 {
-	return leafIndex >> 1
-}
-
-// isRightChild returns true if the node is a right child.
-func isRightChild(leafIndex int64) bool {
-	return leafIndex&1 == 1
-}
