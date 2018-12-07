@@ -316,8 +316,9 @@ type SetMapLeavesRequest struct {
 	Leaves   []*MapLeaf `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
 	Metadata []byte     `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// The map revision to associate the leaves with. The request will fail if
-	// this revision already exists, or revision < 0. If revision = 0 then the
-	// leaves will be written to the latest revision.
+	// this revision already exists, does not match the current write revision, or
+	// is negative. If revision = 0 then the leaves will be written to the current
+	// write revision.
 	Revision             int64    `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
