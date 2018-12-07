@@ -64,7 +64,6 @@ message Config {
 
   // Replenishment strategy used by the config.
   oneof replenishment_strategy {
-
     // Sequencing-based replenishment settings.
     SequencingBasedStrategy sequencing_based = 4;
 
