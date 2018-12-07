@@ -34,22 +34,12 @@ import "trillian.proto";
 // operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 service TrillianLog {
   // Adds a single leaf to the queue.
-  rpc QueueLeaf(QueueLeafRequest) returns (QueueLeafResponse) {
-    option (google.api.http) = {
-      post: "/v1beta1/logs/{log_id}/leaves"
-      body: "*"
-    };
-  }
+  rpc QueueLeaf(QueueLeafRequest) returns (QueueLeafResponse) {}
 
   // Adds a single leaf with an assigned sequence number.
   // Warning: This RPC is under development, don't use it.
   rpc AddSequencedLeaf(AddSequencedLeafRequest)
-      returns (AddSequencedLeafResponse) {
-    option (google.api.http) = {
-      post: "/v1beta1/logs/{log_id}/leaves:sequenced"
-      body: "*"
-    };
-  }
+      returns (AddSequencedLeafResponse) {}
 
   //
   // No direct equivalent at the storage level.
@@ -57,66 +47,40 @@ service TrillianLog {
 
   // Returns inclusion proof for a leaf with a given index in a given tree.
   rpc GetInclusionProof(GetInclusionProofRequest)
-      returns (GetInclusionProofResponse) {
-    option (google.api.http) = {
-      get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
-    };
-  }
+      returns (GetInclusionProofResponse) {}
+
   // Returns inclusion proof for a leaf with a given identity hash in a given
   // tree.
   rpc GetInclusionProofByHash(GetInclusionProofByHashRequest)
-      returns (GetInclusionProofByHashResponse) {
-    option (google.api.http) = {
-      get: "/v1beta1/logs/{log_id}/leaves:inclusion_by_hash"
-    };
-  }
+      returns (GetInclusionProofByHashResponse) {}
+
   // Returns consistency proof between two versions of a given tree.
   rpc GetConsistencyProof(GetConsistencyProofRequest)
-      returns (GetConsistencyProofResponse) {
-    option (google.api.http) = {
-      get: "/v1beta1/logs/{log_id}:consistency_proof"
-    };
-  }
+      returns (GetConsistencyProofResponse) {}
 
   // Returns the latest signed log root for a given tree. Corresponds to the
   // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
   rpc GetLatestSignedLogRoot(GetLatestSignedLogRootRequest)
-      returns (GetLatestSignedLogRootResponse) {
-    option (google.api.http) = {
-      get: "/v1beta1/logs/{log_id}/roots:latest"
-    };
-  }
+      returns (GetLatestSignedLogRootResponse) {}
 
   // Returns the total number of leaves that have been integrated into the
   // given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
   // storage interface.
   // DO NOT USE - FOR DEBUGGING/TEST ONLY
   rpc GetSequencedLeafCount(GetSequencedLeafCountRequest)
-      returns (GetSequencedLeafCountResponse) {
-    option (google.api.http) = {
-      get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
-    };
-  }
+      returns (GetSequencedLeafCountResponse) {}
 
   // Returns log entry and the corresponding inclusion proof for a given leaf
   // index in a given tree. If the requested tree is unavailable but the leaf is
   // in scope for the current tree, return a proof in that tree instead.
   rpc GetEntryAndProof(GetEntryAndProofRequest)
-      returns (GetEntryAndProofResponse) {
-    option (google.api.http) = {
-      get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
-    };
-  }
+      returns (GetEntryAndProofResponse) {}
 
   //
   // Initialisation APIs.
   //
 
-  rpc InitLog(InitLogRequest) returns (InitLogResponse) {
-    option (google.api.http) = {
-      post: "/v1beta1/logs/{log_id}:init"
-    };
-  }
+  rpc InitLog(InitLogRequest) returns (InitLogResponse) {}
 
   //
   // Batch APIs. Correspond to `storage.ReadOnlyLogTreeTX` batch queries.
@@ -136,9 +100,11 @@ service TrillianLog {
   // Returns a batch of leaves located in the provided positions.
   rpc GetLeavesByIndex(GetLeavesByIndexRequest)
       returns (GetLeavesByIndexResponse) {}
+
   // Returns a batch of leaves in a sequential range.
   rpc GetLeavesByRange(GetLeavesByRangeRequest)
       returns (GetLeavesByRangeResponse) {}
+
   // Returns a batch of leaves by their `merkle_leaf_hash` values.
   rpc GetLeavesByHash(GetLeavesByHashRequest)
       returns (GetLeavesByHashResponse) {}

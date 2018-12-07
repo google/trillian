@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
 	tpb "github.com/google/trillian"
@@ -48,7 +47,7 @@ import (
 
 var (
 	rpcEndpoint              = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
-	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
+	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics (host:port, empty means disabled)")
 	tlsCertFile              = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile               = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
 	sequencerIntervalFlag    = flag.Duration("sequencer_interval", 100*time.Millisecond, "Time between each sequencing pass through all logs")
@@ -168,10 +167,6 @@ func main() {
 		StatsPrefix:  "logsigner",
 		DBClose:      sp.Close,
 		Registry:     registry,
-		RegisterHandlerFn: func(_ context.Context, _ *runtime.ServeMux, _ string, _ []grpc.DialOption) error {
-			// No HTTP APIs are being exported.
-			return nil
-		},
 		RegisterServerFn: func(s *grpc.Server, _ extension.Registry) error {
 			tpb.RegisterTrillianLogSequencerServer(s, &struct{}{})
 			return nil

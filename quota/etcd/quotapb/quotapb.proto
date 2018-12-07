@@ -185,34 +185,18 @@ message UpdateConfigRequest {
 // Allows creation and management of quotas.
 service Quota {
   // Creates a new quota.
-  rpc CreateConfig(CreateConfigRequest) returns (Config) {
-    option (google.api.http) = {
-      post: "/v1beta1/{name=quotas/**/config}"
-      body: "*"
-    };
-  }
+  rpc CreateConfig(CreateConfigRequest) returns (Config) {}
 
   // Deletes an existing quota. Non-existing quotas are considered infinite by
   // the quota system.
-  rpc DeleteConfig(DeleteConfigRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v1beta1/{name=quotas/**/config}";
-  }
+  rpc DeleteConfig(DeleteConfigRequest) returns (google.protobuf.Empty) {}
 
   // Retrieves a quota by name.
-  rpc GetConfig(GetConfigRequest) returns (Config) {
-    option (google.api.http).get = "/v1beta1/{name=quotas/**/config}";
-  }
+  rpc GetConfig(GetConfigRequest) returns (Config) {}
 
   // Lists quotas according to the specified criteria.
-  rpc ListConfigs(ListConfigsRequest) returns (ListConfigsResponse) {
-    option (google.api.http).get = "/v1beta1/quotas";
-  }
+  rpc ListConfigs(ListConfigsRequest) returns (ListConfigsResponse) {}
 
   // Updates a quota.
-  rpc UpdateConfig(UpdateConfigRequest) returns (Config) {
-    option (google.api.http) = {
-      patch: "/v1beta1/{name=quotas/**/config}"
-      body: "*"
-    };
-  }
+  rpc UpdateConfig(UpdateConfigRequest) returns (Config) {}
 }
