@@ -527,3 +527,13 @@ func (mt *InMemoryMerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int
 
 	return append(proof, path...)
 }
+
+// parent returns the index of the parent node in the parent level of the tree.
+func parent(index int64) int64 {
+	return index >> 1
+}
+
+// isRightChild returns true if the node is a right child.
+func isRightChild(index int64) bool {
+	return index&1 == 1
+}
