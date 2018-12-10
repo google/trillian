@@ -49,12 +49,20 @@ type TestTable []NamedTestFn
 var AllTests = TestTable{
 	{"MapRevisionZero", RunMapRevisionZero},
 	{"MapRevisionInvalid", RunMapRevisionInvalid},
+	{"SetLeavesRevision", RunSetLeavesRevision},
 	{"LeafHistory", RunLeafHistory},
 	{"Inclusion", RunInclusion},
 	{"InclusionBatch", RunInclusionBatch},
 }
 
-var h2b = testonly.MustHexDecode
+var (
+	h2b    = testonly.MustHexDecode
+	index0 = h2b("0000000000000000000000000000000000000000000000000000000000000000")
+	index1 = h2b("0000000000000000000000000000000000000000000000000000000000000001")
+	index2 = h2b("0000000000000000000000000000000000000000000000000000000000000002")
+	index3 = h2b("0000000000000000000000000000000000000000000000000000000000000003")
+	indexF = h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+)
 
 // createBatchLeaves produces n unique map leaves.
 func createBatchLeaves(batch, n int) []*trillian.MapLeaf {
@@ -220,7 +228,6 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 
 // RunMapRevisionInvalid performs checks on Map APIs where revision takes illegal values.
 func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
-	const indexHex = "0000000000000000000000000000000000000000000000000000000000000001"
 	for _, tc := range []struct {
 		desc         string
 		HashStrategy []trillian.HashStrategy
@@ -236,15 +243,15 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
 			set: [][]*trillian.MapLeaf{
 				{}, // Advance revision without changing anything.
-				{{Index: h2b(indexHex), LeafValue: []byte("A")}},
+				{{Index: index1, LeafValue: []byte("A")}},
 			},
 			get: []struct {
 				index    []byte
 				revision int64
 				wantErr  bool
 			}{
-				{index: h2b(indexHex), revision: -1, wantErr: true},
-				{index: h2b(indexHex), revision: 0, wantErr: false},
+				{index: index1, revision: -1, wantErr: true},
+				{index: index1, revision: 0, wantErr: false},
 			},
 		},
 	} {
@@ -278,6 +285,132 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 	}
 }
 
+// RunSetLeavesRevision checks Map SetLeaves API with revision parameter used.
+// TODO(pavelkalinnikov): Merge RunMapRevisionInvalid into this test.
+func RunSetLeavesRevision(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
+	type batch struct {
+		leaves  []*trillian.MapLeaf
+		rev     int64
+		wantErr bool
+	}
+	for _, tc := range []struct {
+		desc string
+		sets []batch
+		gets []batch
+	}{
+		{
+			desc: "no_revision",
+			sets: []batch{
+				{}, // Advance revision without changing anything.
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}},
+			},
+			gets: []batch{
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: nil}}, rev: 0},
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: nil}}, rev: 1},
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 2},
+				{leaves: []*trillian.MapLeaf{{Index: index1}}, rev: 10, wantErr: true},
+			},
+		},
+		{
+			desc: "use_revision",
+			sets: []batch{
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 1},
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("B")}}, rev: 1, wantErr: true},
+				{rev: 2}, // Advance revision without changing anything.
+				{
+					leaves: []*trillian.MapLeaf{
+						{Index: index0, LeafValue: []byte("X")},
+						{Index: indexF, LeafValue: []byte("Y")},
+					},
+					rev: 3,
+				},
+				{leaves: []*trillian.MapLeaf{{Index: indexF, LeafValue: []byte("O")}}, rev: 1, wantErr: true},
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("S")}}, rev: 10, wantErr: true},
+			},
+			gets: []batch{
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: nil}}, rev: 0},
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 1},
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 2},
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 3},
+				{leaves: []*trillian.MapLeaf{{Index: index1}}, rev: 4, wantErr: true},
+				{leaves: []*trillian.MapLeaf{{Index: index1}}, rev: 10, wantErr: true},
+				{leaves: []*trillian.MapLeaf{{Index: indexF, LeafValue: []byte("Y")}, {Index: index0, LeafValue: []byte("X")}}, rev: 3},
+			},
+		},
+		{
+			desc: "use_revision_and_no_revision",
+			sets: []batch{
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 1},
+				{leaves: []*trillian.MapLeaf{{Index: index2, LeafValue: []byte("B")}}},
+				{leaves: []*trillian.MapLeaf{{Index: index3, LeafValue: []byte("C")}}, rev: 3},
+				{leaves: []*trillian.MapLeaf{{Index: index2, LeafValue: []byte("BB")}}},
+			},
+			gets: []batch{
+				{
+					leaves: []*trillian.MapLeaf{
+						{Index: index1, LeafValue: []byte("A")},
+						{Index: index2, LeafValue: []byte("B")},
+						{Index: index3, LeafValue: nil},
+					},
+					rev: 2,
+				},
+				{
+					leaves: []*trillian.MapLeaf{
+						{Index: index1, LeafValue: []byte("A")},
+						{Index: index2, LeafValue: []byte("BB")},
+						{Index: index3, LeafValue: []byte("C")},
+					},
+					rev: 4,
+				},
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_CONIKS_SHA256)
+			if err != nil {
+				t.Fatalf("newTreeWithHasher: %v", err)
+			}
+			for _, b := range tc.sets {
+				_, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+					MapId:    tree.TreeId,
+					Leaves:   b.leaves,
+					Revision: b.rev,
+				})
+				if got, want := err != nil, b.wantErr; got != want {
+					t.Errorf("SetLeaves(%+v): %v, wantErr=%v", b, err, want)
+				}
+			}
+
+			for _, b := range tc.gets {
+				indices := make([][]byte, len(b.leaves))
+				for i, leaf := range b.leaves {
+					indices[i] = leaf.Index
+				}
+				rsp, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
+					MapId:    tree.TreeId,
+					Index:    indices,
+					Revision: b.rev,
+				})
+				if got, want := err != nil, b.wantErr; got != want {
+					t.Errorf("GetLeavesByRevision(%d): %v, wantErr=%v", b.rev, err, want)
+				}
+				if err != nil {
+					continue
+				}
+				if got, want := len(rsp.MapLeafInclusion), len(b.leaves); got != want {
+					t.Fatalf("GetLeavesByRevision(%d) returned %d leaves, want %d", b.rev, got, want)
+				}
+				for i, leaf := range b.leaves {
+					got := rsp.MapLeafInclusion[i].Leaf
+					if !bytes.Equal(got.LeafValue, leaf.LeafValue) {
+						t.Errorf("Got leaf %+v, want %+v", got, leaf)
+					}
+				}
+			}
+		})
+	}
+}
+
 // RunLeafHistory performs checks on Trillian Map leaf updates under a variety of Hash Strategies.
 func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	for _, tc := range []struct {
@@ -296,14 +429,14 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 			set: [][]*trillian.MapLeaf{
 				{}, // Advance revision without changing anything.
 				{
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+					{Index: index0, LeafValue: []byte("A")},
 				},
 				{}, // Advance revision without changing anything.
 				{
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("B")},
+					{Index: index0, LeafValue: []byte("B")},
 				},
 				{
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("C")},
+					{Index: index0, LeafValue: []byte("C")},
 				},
 			},
 			get: []struct {
@@ -311,12 +444,12 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 				Index     []byte
 				LeafValue []byte
 			}{
-				{revision: 1, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: nil},         // Empty to empty root.
-				{revision: 2, Index: []byte("doesnotexist...................."), LeafValue: nil},                                      // Empty to first root, through empty branch.
-				{revision: 2, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")}, // Value to first root.
-				{revision: 3, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-				{revision: 4, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("B")},
-				{revision: 5, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("C")},
+				{revision: 1, Index: index0, LeafValue: nil},                                     // Empty to empty root.
+				{revision: 2, Index: []byte("doesnotexist...................."), LeafValue: nil}, // Empty to first root, through empty branch.
+				{revision: 2, Index: index0, LeafValue: []byte("A")},                             // Value to first root.
+				{revision: 3, Index: index0, LeafValue: []byte("A")},
+				{revision: 4, Index: index0, LeafValue: []byte("B")},
+				{revision: 5, Index: index0, LeafValue: []byte("C")},
 			},
 		},
 	} {
@@ -381,24 +514,24 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 			desc:         "single",
 			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
 			leaves: []*trillian.MapLeaf{
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{Index: index0, LeafValue: []byte("A")},
 			},
 		},
 		{
 			desc:         "multi",
 			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
 			leaves: []*trillian.MapLeaf{
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000003"), LeafValue: nil},
+				{Index: index0, LeafValue: []byte("A")},
+				{Index: index1, LeafValue: []byte("B")},
+				{Index: index2, LeafValue: []byte("C")},
+				{Index: index3, LeafValue: nil},
 			},
 		},
 		{
 			desc:         "across subtrees",
 			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
 			leaves: []*trillian.MapLeaf{
-				{Index: h2b("0000000000000180000000000000000000000000000000000000000000000000"), LeafValue: []byte("Z")},
+				{Index: index0, LeafValue: []byte("Z")},
 			},
 		},
 	} {

@@ -33,7 +33,6 @@ var (
 )
 
 func TestMapIntegration(t *testing.T) {
-
 	ctx := context.Background()
 	var env *integration.MapEnv
 	var err error

@@ -222,6 +222,9 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err != nil {
 			return err
 		}
+		if rev := req.Revision; rev != 0 && writeRev != rev {
+			return status.Errorf(codes.FailedPrecondition, "can't write to revision %v", rev)
+		}
 		glog.V(2).Infof("%v: Writing at revision %v", mapID, writeRev)
 		smtWriter, err := merkle.NewSparseMerkleTreeWriter(
 			ctx,

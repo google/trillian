@@ -47,7 +47,7 @@ type MapEnv struct {
 	grpcServer *grpc.Server
 	clientConn *grpc.ClientConn
 
-	// Public fields
+	// Trillian API clients.
 	Map   trillian.TrillianMapClient
 	Admin trillian.TrillianAdminClient
 }
@@ -146,6 +146,7 @@ func (env *MapEnv) Close() {
 		env.grpcServer.GracefulStop()
 	}
 	if env.DB != nil {
+		// TODO(pavelkalinnikov): Drop the database.
 		env.DB.Close()
 	}
 }
