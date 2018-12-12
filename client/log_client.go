@@ -357,6 +357,15 @@ func (c *LogClient) AddSequencedLeaf(ctx context.Context, data []byte, index int
 	return err
 }
 
+// AddSequencedLeaves adds any number of pre-sequenced leaves to the log.
+func (c *LogClient) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
+	_, err := c.client.AddSequencedLeaves(ctx, &trillian.AddSequencedLeavesRequest{
+		LogId:  c.LogID,
+		Leaves: leaves,
+	})
+	return err
+}
+
 // QueueLeaf adds a leaf to a Trillian log without blocking.
 // AlreadyExists is considered a success case by this function.
 func (c *LogClient) QueueLeaf(ctx context.Context, data []byte) error {
