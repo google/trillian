@@ -1,24 +1,24 @@
-package election2
+package election
 
 import (
 	"context"
 	"errors"
 	"sync"
 
-	"github.com/google/trillian/util/election"
+	"github.com/google/trillian/util/election2"
 )
 
-// ElectionAdapter implements legacy election interface using election2.
+// ElectionAdapter implements legacy MasterElection interface using election2.
 // TODO(pavelkalinnikov): Drop it together with the legacy interface.
 type ElectionAdapter struct {
-	e      Election
+	e      election2.Election
 	mu     sync.RWMutex
 	cancel context.CancelFunc
 	done   <-chan struct{}
 }
 
 // NewAdapter returns an adapter to the old election interface.
-func NewAdapter(e Election) election.MasterElection {
+func NewAdapter(e election2.Election) MasterElection {
 	return &ElectionAdapter{e: e}
 }
 
