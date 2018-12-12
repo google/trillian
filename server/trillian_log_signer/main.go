@@ -31,6 +31,8 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
+	"github.com/google/trillian/util/election2"
+	etcdelect "github.com/google/trillian/util/election2/etcd"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -109,13 +111,13 @@ func main() {
 
 	hostname, _ := os.Hostname()
 	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
-	var electionFactory election.Factory
+	var electionFactory election2.Factory
 	switch {
 	case *forceMaster:
 		glog.Warning("**** Acting as master for all logs ****")
-		electionFactory = election.NoopFactory{InstanceID: instanceID}
+		electionFactory = election2.NoopFactory{}
 	case client != nil:
-		electionFactory = etcd.NewElectionFactory(instanceID, client, *lockDir)
+		electionFactory = etcdelect.NewFactory(instanceID, client, *lockDir)
 	default:
 		glog.Exit("Either --force_master or --etcd_servers must be supplied")
 	}

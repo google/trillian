@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
-	"github.com/google/trillian/util/election/stub"
+	to "github.com/google/trillian/util/election2/testonly"
 )
 
 func TestConfigResignDelay(t *testing.T) {
@@ -59,91 +59,101 @@ func TestConfigResignDelay(t *testing.T) {
 // TODO(pavelkalinnikov): Reduce flakiness risk in this test by making fewer
 // time assumptions.
 func TestElectionRunnerRun(t *testing.T) {
-	fakeTimeSource := clock.NewFake(time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC))
-	cfg := election.RunnerConfig{TimeSource: fakeTimeSource}
-	var tests = []struct {
-		desc       string
-		election   *stub.MasterElection
-		lostMaster bool
-		wantMaster bool
-	}{
-		// Basic cases
-		{
-			desc:     "IsNotMaster",
-			election: stub.NewMasterElection(false, nil),
-		},
-		{
-			desc:       "IsMaster",
-			election:   stub.NewMasterElection(true, nil),
-			wantMaster: true,
-		},
-		{
-			desc:       "LostMaster",
-			election:   stub.NewMasterElection(true, nil),
-			lostMaster: true,
-			wantMaster: false,
-		},
-		// Error cases
-		{
-			desc: "ErrorOnStart",
-			election: stub.NewMasterElection(false,
-				&stub.Errors{Start: errors.New("on start")}),
-		},
-		{
-			desc: "ErrorOnWait",
-			election: stub.NewMasterElection(false,
-				&stub.Errors{Wait: errors.New("on wait")}),
-		},
-		{
-			desc: "ErrorOnIsMaster",
-			election: stub.NewMasterElection(true,
-				&stub.Errors{IsMaster: errors.New("on IsMaster")}),
-			wantMaster: true,
-		},
-		{
-			desc: "ErrorOnResign",
-			election: stub.NewMasterElection(true,
-				&stub.Errors{Resign: errors.New("resignation failure")}),
-			wantMaster: true,
-		},
-	}
 	const logID = "6962"
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			var wg sync.WaitGroup
+	checkMaster := func(t *testing.T, held []string, wantMaster bool) {
+		t.Helper()
+		if got := (len(held) > 0 && held[0] == logID); got != wantMaster {
+			t.Errorf("holding: %v: master=%v, want %v", held, got, wantMaster)
+		}
+	}
+
+	for _, tc := range []struct {
+		desc       string
+		errs       to.Errs
+		isMaster   bool
+		wantMaster bool
+		loseMaster bool
+		resign     bool
+	}{
+		// Basic cases.
+		{desc: "not-master"},
+		{desc: "is-master", isMaster: true, wantMaster: true},
+		{desc: "lose-master", isMaster: true, wantMaster: true, loseMaster: true},
+		{desc: "resign", isMaster: true, wantMaster: true, resign: true},
+		// Error cases.
+		{desc: "err-await", errs: to.Errs{Await: errors.New("ErrAwait")}},
+		{desc: "err-mctx", errs: to.Errs{WithMastership: errors.New("ErrMastership")}},
+		{
+			desc:     "err-mctx-after-master",
+			isMaster: true,
+			errs:     to.Errs{WithMastership: errors.New("ErrMastership")},
+		},
+		{desc: "err-resign", errs: to.Errs{Resign: errors.New("ErrResign")}},
+		{
+			desc:       "err-resign-after-master",
+			isMaster:   true,
+			wantMaster: true,
+			errs:       to.Errs{Resign: errors.New("ErrResign")},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-			startTime := time.Now()
-			fakeTimeSource := clock.NewFake(startTime)
+			e := to.NewElection()
+			d := to.NewDecorator(e)
+			d.Update(tc.errs)
+			d.BlockAwait(!tc.isMaster)
 
-			el := test.election
+			start := time.Now()
+			ts := clock.NewFake(start)
 			tracker := election.NewMasterTracker([]string{logID}, nil)
-			er := election.NewRunner(logID, &cfg, tracker, nil, el)
+			cfg := election.RunnerConfig{TimeSource: ts}
+			er := election.NewRunner(logID, &cfg, tracker, nil, d)
 			resignations := make(chan election.Resignation, 100)
+
+			var wg sync.WaitGroup
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				er.Run(ctx, resignations)
 			}()
-			time.Sleep((3 * election.MinPreElectionPause) / 2)
-			if test.lostMaster {
-				el.Update(false, nil)
+
+			// TODO(pavelkalinnikov): This Sleep is necessary to let Run create a
+			// Timer *before* we modify the time. To reduce risk of flakes,
+			// FakeTimeSource should expose timer creation to this test.
+			time.Sleep(100 * time.Millisecond)
+			checkMaster(t, tracker.Held(), false)
+
+			ts.Set(start.Add(election.MinPreElectionPause))
+			time.Sleep(100 * time.Millisecond) // Now it *can* become the master.
+			checkMaster(t, tracker.Held(), tc.wantMaster)
+
+			if tc.loseMaster {
+				d.BlockAwait(true)
+				if err := e.Resign(ctx); err != nil {
+					t.Errorf("Lose mastership: %v", err)
+				}
+				wg.Wait() // Runner exits on unexpected mastership loss.
+				checkMaster(t, tracker.Held(), false)
 			}
 
-			// Advance fake time so that shouldResign() triggers too.
-			fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
-			time.Sleep(election.MinMasterCheckInterval)
-			for len(resignations) > 0 {
-				r := <-resignations
-				r.Execute(ctx)
+			if tc.resign {
+				d.BlockAwait(true)
+				// Advance fake time so that resignation triggers too, if still master.
+				ts.Set(start.Add(24 * 60 * time.Hour))
+				time.Sleep(100 * time.Millisecond)
+				for len(resignations) > 0 {
+					r := <-resignations
+					r.Execute(ctx)
+				}
+				time.Sleep(100 * time.Millisecond)
 			}
 
-			cancel()
-			wg.Wait()
-			held := tracker.Held()
-			if got := (len(held) > 0 && held[0] == logID); got != test.wantMaster {
-				t.Errorf("held=%v => master=%v; want %v", held, got, test.wantMaster)
-			}
+			checkMaster(t, tracker.Held(), tc.wantMaster && !tc.loseMaster && !tc.resign)
+			cancel()  // If Runner is still running, it should stop now.
+			wg.Wait() // Wait until it stops.
+			checkMaster(t, tracker.Held(), false)
 		})
 	}
 }

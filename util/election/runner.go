@@ -16,20 +16,21 @@ package election
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/util/clock"
+	"github.com/google/trillian/util/election2"
 )
 
 // Minimum values for configuration intervals.
-// TODO(pavelkalinnikov): These params are specific to the application and
-// Election implementation, so shouldn't be here.
+// TODO(pavelkalinnikov): These parameters are specific to the application, so
+// shouldn't be here.
 const (
-	MinPreElectionPause    = 10 * time.Millisecond
-	MinMasterCheckInterval = 50 * time.Millisecond
-	MinMasterHoldInterval  = 10 * time.Second
+	MinPreElectionPause   = 10 * time.Millisecond
+	MinMasterHoldInterval = 10 * time.Second
 )
 
 // RunnerConfig describes the parameters for an election Runner.
@@ -37,10 +38,6 @@ type RunnerConfig struct {
 	// PreElectionPause is the maximum interval to wait before starting a
 	// mastership election for a particular log.
 	PreElectionPause time.Duration
-	// MasterCheckInterval is the interval between checks that we still
-	// hold mastership for a log.
-	// TODO(pavelkalinnikov): Remove it when we switch to election2.
-	MasterCheckInterval time.Duration
 	// MasterHoldInterval is the minimum interval to hold mastership for.
 	MasterHoldInterval time.Duration
 	// MasterHoldJitter is the maximum addition to MasterHoldInterval.
@@ -64,9 +61,6 @@ func fixupRunnerConfig(cfg *RunnerConfig) {
 	if cfg.PreElectionPause < MinPreElectionPause {
 		cfg.PreElectionPause = MinPreElectionPause
 	}
-	if cfg.MasterCheckInterval < MinMasterCheckInterval {
-		cfg.MasterCheckInterval = MinMasterCheckInterval
-	}
 	if cfg.MasterHoldInterval < MinMasterHoldInterval {
 		cfg.MasterHoldInterval = MinMasterHoldInterval
 	}
@@ -85,13 +79,13 @@ type Runner struct {
 	id       string
 	cfg      *RunnerConfig
 	tracker  *MasterTracker
-	election MasterElection
+	election election2.Election
 }
 
 // NewRunner builds a new election Runner instance with the given configuration.  On calling
 // Run(), the provided election will be continuously monitored and mastership changes will
 // be notified to the provided MasterTracker instance.
-func NewRunner(id string, cfg *RunnerConfig, tracker *MasterTracker, cancel context.CancelFunc, el MasterElection) *Runner {
+func NewRunner(id string, cfg *RunnerConfig, tracker *MasterTracker, cancel context.CancelFunc, el election2.Election) *Runner {
 	fixupRunnerConfig(cfg)
 	return &Runner{
 		Cancel:   cancel,
@@ -105,62 +99,59 @@ func NewRunner(id string, cfg *RunnerConfig, tracker *MasterTracker, cancel cont
 // Run performs a continuous election process. It runs continuously until the
 // context is canceled or an internal error is encountered.
 func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
-	// Pause for a random interval so that if multiple instances start at the same
-	// time there is less of a thundering herd.
+	// Pause for a random interval so that if multiple instances start at the
+	// same time there is less of a thundering herd.
 	pause := rand.Int63n(er.cfg.PreElectionPause.Nanoseconds())
-	if err := clock.SleepContext(ctx, time.Duration(pause)); err != nil {
-		return
+	if err := clock.SleepSource(ctx, time.Duration(pause), er.cfg.TimeSource); err != nil {
+		return // The context has been canceled during the sleep.
 	}
 
 	glog.V(1).Infof("%s: start election-monitoring loop ", er.id)
-	if err := er.election.Start(ctx); err != nil {
-		glog.Errorf("%s: election.Start() failed: %v", er.id, err)
-		return
-	}
-	defer func(ctx context.Context, er *Runner) {
+	defer func() {
 		glog.Infof("%s: shutdown election-monitoring loop", er.id)
-		er.election.Close(ctx)
-	}(ctx, er)
+		if err := er.election.Close(ctx); err != nil {
+			glog.Warningf("%s: election.Close: %v", er.id, err)
+		}
+	}()
 
 	for {
-		glog.V(1).Infof("%s: When I left you, I was but the learner", er.id)
-		if err := er.election.WaitForMastership(ctx); err != nil {
-			glog.Errorf("%s: er.election.WaitForMastership() failed: %v", er.id, err)
-			return
-		}
-		glog.V(1).Infof("%s: Now, I am the master", er.id)
-		er.tracker.Set(er.id, true)
-		masterSince := er.cfg.TimeSource.Now()
-		masterUntil := masterSince.Add(er.cfg.ResignDelay())
-
-		// While-master loop
-		for {
-			if err := clock.SleepContext(ctx, er.cfg.MasterCheckInterval); err != nil {
-				glog.Infof("%s: termination requested", er.id)
-				return
-			}
-			master, err := er.election.IsMaster(ctx)
-			if err != nil {
-				glog.Errorf("%s: failed to check mastership status", er.id)
-				break
-			}
-			if !master {
-				glog.Errorf("%s: no longer the master!", er.id)
-				er.tracker.Set(er.id, false)
-				break
-			}
-			if er.cfg.TimeSource.Now().After(masterUntil) {
-				glog.Infof("%s: queue up resignation of mastership", er.id)
-				er.tracker.Set(er.id, false)
-
-				done := make(chan bool)
-				r := Resignation{ID: er.id, er: er, done: done}
-				pending <- r
-				<-done // block until acted on
-				break  // no longer master
-			}
+		if err := er.beMaster(ctx, pending); err != nil {
+			glog.Errorf("%s: %v", er.id, err)
+			break
 		}
 	}
+}
+
+func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) error {
+	glog.V(1).Infof("%s: When I left you, I was but the learner", er.id)
+	if err := er.election.Await(ctx); err != nil {
+		return fmt.Errorf("election.Await() failed: %v", err)
+	}
+	glog.V(1).Infof("%s: Now, I am the master", er.id)
+	er.tracker.Set(er.id, true)
+	defer er.tracker.Set(er.id, false)
+
+	mctx, err := er.election.WithMastership(ctx)
+	if err != nil {
+		return fmt.Errorf("election.WithMastership() failed: %v", err)
+	}
+
+	timer := er.cfg.TimeSource.NewTimer(er.cfg.ResignDelay())
+	defer timer.Stop()
+
+	select {
+	case <-mctx.Done(): // Mastership context is canceled.
+		glog.Errorf("%s: no longer the master!", er.id)
+		return mctx.Err()
+
+	case <-timer.Chan():
+		glog.Infof("%s: queue up resignation of mastership", er.id)
+		done := make(chan struct{})
+		r := Resignation{ID: er.id, er: er, done: done}
+		pending <- r
+		<-done // Block until acted on.
+	}
+	return nil
 }
 
 // Resignation indicates that a master should explicitly resign mastership, by invoking
@@ -168,17 +159,14 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 type Resignation struct {
 	ID   string
 	er   *Runner
-	done chan<- bool
+	done chan<- struct{}
 }
 
 // Execute performs the pending deliberate resignation for an election runner.
 func (r *Resignation) Execute(ctx context.Context) {
+	defer close(r.done)
 	glog.Infof("%s: deliberately resigning mastership", r.er.id)
 	if err := r.er.election.Resign(ctx); err != nil {
 		glog.Errorf("%s: failed to resign mastership: %v", r.er.id, err)
 	}
-	if err := r.er.election.Start(ctx); err != nil {
-		glog.Errorf("%s: failed to restart election: %v", r.er.id, err)
-	}
-	r.done <- true
 }

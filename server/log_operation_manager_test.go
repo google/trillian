@@ -30,8 +30,8 @@ import (
 	"github.com/google/trillian/monitoring/testonly"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
-	"github.com/google/trillian/util/election"
-	"github.com/google/trillian/util/election/stub"
+	"github.com/google/trillian/util/election2"
+	eto "github.com/google/trillian/util/election2/testonly"
 )
 
 func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
@@ -358,12 +358,12 @@ func TestMasterFor(t *testing.T) {
 
 	var tests = []struct {
 		desc    string
-		factory election.Factory
+		factory election2.Factory
 		want1   []int64
 		want2   []int64
 	}{
 		{desc: "no-factory", factory: nil, want1: firstIDs, want2: allIDs},
-		{desc: "noop-factory", factory: election.NoopFactory{InstanceID: "test"}, want1: firstIDs, want2: allIDs},
+		{desc: "noop-factory", factory: election2.NoopFactory{}, want1: firstIDs, want2: allIDs},
 		{desc: "master-for-even", factory: masterForEvenFactory{}, want1: []int64{2, 4}, want2: []int64{2, 4, 6}},
 		{desc: "failure-factory", factory: failureFactory{}, want1: nil, want2: nil},
 	}
@@ -380,14 +380,14 @@ func TestMasterFor(t *testing.T) {
 
 			// Check mastership twice, to give the election threads a chance to get started and report.
 			lom.masterFor(testCtx, firstIDs)
-			time.Sleep(2 * election.MinMasterCheckInterval)
+			time.Sleep(100 * time.Millisecond)
 			logIDs, err := lom.masterFor(testCtx, firstIDs)
 			if !reflect.DeepEqual(logIDs, test.want1) {
 				t.Fatalf("masterFor(factory=%T)=%v,%v; want %v,_", test.factory, logIDs, err, test.want1)
 			}
 			// Now add extra IDs and re-check.
 			lom.masterFor(testCtx, allIDs)
-			time.Sleep(2 * election.MinMasterCheckInterval)
+			time.Sleep(100 * time.Millisecond)
 			logIDs, err = lom.masterFor(testCtx, allIDs)
 			if !reflect.DeepEqual(logIDs, test.want2) {
 				t.Fatalf("masterFor(factory=%T)=%v,%v; want %v,_", test.factory, logIDs, err, test.want2)
@@ -398,17 +398,19 @@ func TestMasterFor(t *testing.T) {
 
 type masterForEvenFactory struct{}
 
-func (m masterForEvenFactory) NewElection(ctx context.Context, treeID string) (election.MasterElection, error) {
+func (m masterForEvenFactory) NewElection(ctx context.Context, treeID string) (election2.Election, error) {
 	id, err := strconv.ParseInt(treeID, 10, 64)
 	if err != nil {
 		return nil, err
 	}
 	isMaster := (id % 2) == 0
-	return stub.NewMasterElection(isMaster, nil), nil
+	d := eto.NewDecorator(eto.NewElection())
+	d.BlockAwait(!isMaster)
+	return d, nil
 }
 
 type failureFactory struct{}
 
-func (ff failureFactory) NewElection(ctx context.Context, treeID string) (election.MasterElection, error) {
+func (ff failureFactory) NewElection(ctx context.Context, treeID string) (election2.Election, error) {
 	return nil, errors.New("injected failure")
 }
