@@ -21,7 +21,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/util/election"
+	"github.com/google/trillian/util/election2"
 )
 
 // Registry defines all extension points available in Trillian.
@@ -34,8 +34,8 @@ type Registry struct {
 	storage.LogStorage
 	// MapStorage is the storage implementation to use for persisting maps.
 	storage.MapStorage
-	// ElectionFactory provides MasterElection instances for each tree.
-	ElectionFactory election.Factory
+	// ElectionFactory provides Election instances for each tree.
+	ElectionFactory election2.Factory
 	// QuotaManager provides rate limiting capabilities for Trillian.
 	QuotaManager quota.Manager
 	// MetricFactory provides metrics for monitoring.

@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
+	"github.com/google/trillian/util/election2"
 )
 
 const logIDLabel = "logid"
@@ -218,7 +219,8 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 			cancel()
 			return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
 		}
-		l.electionRunner[logID] = election.NewRunner(logID, &l.info.ElectionConfig, l.tracker, cancel, el)
+		adapt := election2.NewAdapter(el)
+		l.electionRunner[logID] = election.NewRunner(logID, &l.info.ElectionConfig, l.tracker, cancel, adapt)
 		l.runnerWG.Add(1)
 		go func(r *election.Runner) {
 			defer l.runnerWG.Done()

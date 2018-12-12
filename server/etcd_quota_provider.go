@@ -48,7 +48,7 @@ func newEtcdQuotaManager() (quota.Manager, error) {
 	if *EtcdServers == "" {
 		return nil, fmt.Errorf("Can't create etcd quotamanager - etcd_servers flag is unset")
 	}
-	client, err := etcd.NewClient(*EtcdServers)
+	client, err := etcd.NewClientFromString(*EtcdServers)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to etcd at %v: %v", *EtcdServers, err)
 	}

@@ -21,14 +21,29 @@ import (
 	"github.com/coreos/etcd/clientv3"
 )
 
-// NewClient returns an etcd client, or nil if servers is empty.
-// The servers parameter should be a comma-separated list of etcd server URIs.
-func NewClient(servers string) (*clientv3.Client, error) {
+// NewClient returns an etcd Client connecting to the passed in servers'
+// endpoints, with the specified dialing timeout.
+//
+// The return type belongs to etcd package in Trillian vendor/ directory, which
+// allows external clients/codebases to build an object that matches the
+// Trillian internal implementation (a clientv3.Client built from a different
+// codebase/location, even if it's the same code, wouldn't have the required
+// matching type).
+//
+// TODO(pavelkalinnikov): Remove this when there is a way to compatibly import
+// the same version of etcd in external codebases. Could Go modules help?
+func NewClient(endpoints []string, dialTimeout time.Duration) (*clientv3.Client, error) {
+	return clientv3.New(clientv3.Config{
+		Endpoints:   endpoints,
+		DialTimeout: dialTimeout,
+	})
+}
+
+// NewClientFromString returns an etcd client, or nil if servers is empty.
+// The servers parameter must be a comma-separated list of etcd server URIs.
+func NewClientFromString(servers string) (*clientv3.Client, error) {
 	if servers == "" {
 		return nil, nil
 	}
-	return clientv3.New(clientv3.Config{
-		Endpoints:   strings.Split(servers, ","),
-		DialTimeout: 5 * time.Second,
-	})
+	return NewClient(strings.Split(servers, ","), 5*time.Second)
 }

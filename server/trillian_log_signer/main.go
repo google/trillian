@@ -30,6 +30,8 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/election"
+	"github.com/google/trillian/util/election2"
+	etcdelect "github.com/google/trillian/util/election2/etcd"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -41,6 +43,7 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+
 	// Load hashers
 	_ "github.com/google/trillian/merkle/objhasher"
 	_ "github.com/google/trillian/merkle/rfc6962"
@@ -93,7 +96,7 @@ func main() {
 	}
 	defer sp.Close()
 
-	client, err := etcd.NewClient(*server.EtcdServers)
+	client, err := etcd.NewClientFromString(*server.EtcdServers)
 	if err != nil {
 		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
 	}
@@ -107,13 +110,13 @@ func main() {
 
 	hostname, _ := os.Hostname()
 	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
-	var electionFactory election.Factory
+	var electionFactory election2.Factory
 	switch {
 	case *forceMaster:
 		glog.Warning("**** Acting as master for all logs ****")
-		electionFactory = election.NoopFactory{InstanceID: instanceID}
+		electionFactory = election2.NoopFactory{}
 	case client != nil:
-		electionFactory = etcd.NewElectionFactory(instanceID, client, *lockDir)
+		electionFactory = etcdelect.NewFactory(instanceID, client, *lockDir)
 	default:
 		glog.Exit("Either --force_master or --etcd_servers must be supplied")
 	}
