@@ -74,7 +74,7 @@ var (
 	globalWrite = cfgs.Configs[1]
 	userRead    = cfgs.Configs[2]
 
-	fixedTimeSource = clock.NewFakeTimeSource(time.Now())
+	fixedTimeSource = clock.NewFake(time.Now())
 
 	// client is an etcd client.
 	// Initialized by TestMain().
@@ -495,7 +495,7 @@ func TestQuotaStorage_DisabledConfig(t *testing.T) {
 }
 
 func TestQuotaStorage_Get(t *testing.T) {
-	fakeTime := clock.NewFakeTimeSource(time.Now())
+	fakeTime := clock.NewFake(time.Now())
 	setupTimeSource(fakeTime)
 
 	tests := []struct {
@@ -619,7 +619,7 @@ func TestQuotaStorage_GetErrors(t *testing.T) {
 }
 
 func TestQuotaStorage_Peek(t *testing.T) {
-	fakeTime := clock.NewFakeTimeSource(time.Now())
+	fakeTime := clock.NewFake(time.Now())
 	defer setupTimeSource(fakeTime)()
 
 	tests := []struct {
@@ -669,7 +669,7 @@ func TestQuotaStorage_Peek(t *testing.T) {
 }
 
 func TestQuotaStorage_Put(t *testing.T) {
-	fakeTime := clock.NewFakeTimeSource(time.Now())
+	fakeTime := clock.NewFake(time.Now())
 	defer setupTimeSource(fakeTime)()
 
 	tests := []struct {

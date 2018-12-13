@@ -255,7 +255,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFakeTimeSource(fakeTimeForTest), fakeStorage, signer, nil, qm)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFake(fakeTimeForTest), fakeStorage, signer, nil, qm)
 	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 
@@ -552,7 +552,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 
 	// Needed to create a signer
 	hasher := rfc6962.DefaultHasher
-	ts := clock.NewFakeTimeSource(fakeTimeForTest)
+	ts := clock.NewFake(fakeTimeForTest)
 	signer := tcrypto.NewSigner(0, cryptoSigner, crypto.SHA256)
 
 	// Needed for IntegrateBatch calls

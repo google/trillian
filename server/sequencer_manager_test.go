@@ -42,7 +42,7 @@ import (
 
 // Arbitrary time for use in tests
 var fakeTime = time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC)
-var fakeTimeSource = clock.NewFakeTimeSource(fakeTime)
+var fakeTimeSource = clock.NewFake(fakeTime)
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)

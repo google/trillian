@@ -62,8 +62,8 @@ type FakeTimeSource struct {
 	nextID int
 }
 
-// NewFakeTimeSource creates a FakeTimeSource instance.
-func NewFakeTimeSource(t time.Time) *FakeTimeSource {
+// NewFake creates a FakeTimeSource instance.
+func NewFake(t time.Time) *FakeTimeSource {
 	timers := make(map[int]*fakeTimer)
 	return &FakeTimeSource{now: t, timers: timers}
 }
