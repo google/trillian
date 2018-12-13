@@ -17,10 +17,13 @@ package util
 import (
 	"sync"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // TimeSource can provide the current time, or be replaced by a mock in tests to return
 // specific values.
+// TODO(pavelkalinnikov): Make a separate package for time types.
 type TimeSource interface {
 	// Now returns the current time in real implementations or a suitable value in others
 	Now() time.Time
@@ -124,5 +127,6 @@ func (a *IncrementingFakeTimeSource) Now() time.Time {
 
 // NewTimer creates a timer with the specified delay. Not implemented.
 func (a *IncrementingFakeTimeSource) NewTimer(d time.Duration) Timer {
-	panic("NewTimer: not implemented")
+	glog.Exitf("IncrementingFakeTimeSource.NewTimer is not implemented")
+	return nil
 }
