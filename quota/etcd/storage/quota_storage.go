@@ -147,7 +147,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 			switch {
 			case prev == nil || prev.State == storagepb.Config_DISABLED || reset: // new bucket
 				bucket := &storagepb.Bucket{
-					Tokens: cfg.MaxTokens,
+					Tokens:                        cfg.MaxTokens,
 					LastReplenishMillisSinceEpoch: now.UnixNano() / 1e6,
 				}
 				pb, err := proto.Marshal(bucket)
@@ -276,7 +276,7 @@ func (qs *QuotaStorage) Reset(ctx context.Context, names []string) error {
 	now := timeSource.Now()
 	return qs.forNames(ctx, names, defaultMode, func(s concurrency.STM, name string, cfg *storagepb.Config) error {
 		bucket := &storagepb.Bucket{
-			Tokens: cfg.MaxTokens,
+			Tokens:                        cfg.MaxTokens,
 			LastReplenishMillisSinceEpoch: now.UnixNano() / 1e6,
 		}
 		pb, err := proto.Marshal(bucket)

@@ -596,8 +596,8 @@ func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
-			false, /* snapshot */
+			nil,                       /* keygen */
+			false,                     /* snapshot */
 			test.wantCode == codes.OK, /* shouldCommit */
 			false /* commitErr */)
 		s := setup.server
@@ -810,8 +810,8 @@ func TestServer_DeleteTreeErrors(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
-			false, /* snapshot */
+			nil,                   /* keygen */
+			false,                 /* snapshot */
 			test.deleteErr == nil, /* shouldCommit */
 			test.commitErr /* commitErr */)
 		req := &trillian.DeleteTreeRequest{TreeId: 10}
@@ -897,8 +897,8 @@ func TestServer_UndeleteTreeErrors(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
-			false, /* snapshot */
+			nil,                     /* keygen */
+			false,                   /* snapshot */
 			test.undeleteErr == nil, /* shouldCommit */
 			test.commitErr /* commitErr */)
 		req := &trillian.UndeleteTreeRequest{TreeId: 10}
