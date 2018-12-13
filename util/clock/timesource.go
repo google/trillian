@@ -28,7 +28,6 @@ var System TimeSource = systemTimeSource{}
 
 // TimeSource can provide the current time, or be replaced by a mock in tests
 // to return specific values.
-// TODO(pavelkalinnikov): Make a separate package for time types.
 type TimeSource interface {
 	// Now returns the current time as seen by this TimeSource.
 	Now() time.Time
