@@ -358,7 +358,16 @@ func (c *LogClient) AddSequencedLeaf(ctx context.Context, data []byte, index int
 }
 
 // AddSequencedLeaves adds any number of pre-sequenced leaves to the log.
-func (c *LogClient) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
+func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int64][]byte) error {
+	leaves := make([]*trillian.LogLeaf, 0, len(dataByIndex))
+	for index, data := range dataByIndex {
+		leaf, err := c.BuildLeaf(data)
+		if err != nil {
+			return err
+		}
+		leaf.LeafIndex = index
+		leaves = append(leaves, leaf)
+	}
 	_, err := c.client.AddSequencedLeaves(ctx, &trillian.AddSequencedLeavesRequest{
 		LogId:  c.LogID,
 		Leaves: leaves,
