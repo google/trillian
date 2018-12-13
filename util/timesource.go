@@ -122,6 +122,7 @@ func (a *IncrementingFakeTimeSource) Now() time.Time {
 	return adjustedTime
 }
 
+// NewTimer creates a timer with the specified delay. Not implemented.
 func (a *IncrementingFakeTimeSource) NewTimer(d time.Duration) Timer {
 	panic("NewTimer: not implemented")
 }
