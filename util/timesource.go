@@ -17,13 +17,18 @@ package util
 import (
 	"sync"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // TimeSource can provide the current time, or be replaced by a mock in tests to return
 // specific values.
+// TODO(pavelkalinnikov): Make a separate package for time types.
 type TimeSource interface {
 	// Now returns the current time in real implementations or a suitable value in others
 	Now() time.Time
+	// NewTimer creates a timer that fires after the specified duration.
+	NewTimer(d time.Duration) Timer
 }
 
 // SecondsSince returns the time in seconds elapsed since t until now, as
@@ -40,31 +45,65 @@ func (s SystemTimeSource) Now() time.Time {
 	return time.Now()
 }
 
-// FakeTimeSource provides a time that can be any arbitrarily set value for use in tests.
-// It should not be used in production code.
+// NewTimer returns a real timer.
+func (s SystemTimeSource) NewTimer(d time.Duration) Timer {
+	return systemTimer{time.NewTimer(d)}
+}
+
+// FakeTimeSource provides time that can be arbitrarily set. For tests only.
 type FakeTimeSource struct {
-	// fakeTime is the value that this fake time source will return.
-	mu       sync.Mutex
-	fakeTime time.Time
+	mu     sync.RWMutex
+	now    time.Time
+	timers map[int]*fakeTimer
+	nextID int
 }
 
-// NewFakeTimeSource creates a FakeTimeSource instance
+// NewFakeTimeSource creates a FakeTimeSource instance.
 func NewFakeTimeSource(t time.Time) *FakeTimeSource {
-	return &FakeTimeSource{fakeTime: t}
+	timers := make(map[int]*fakeTimer)
+	return &FakeTimeSource{now: t, timers: timers}
 }
 
-// Now returns the time value this instance contains
+// Now returns the time value this instance contains.
 func (f *FakeTimeSource) Now() time.Time {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.now
+}
+
+// NewTimer returns a fake Timer.
+func (f *FakeTimeSource) NewTimer(d time.Duration) Timer {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.fakeTime
+	id := f.nextID
+	f.nextID++
+	timer := newFakeTimer(f, id, f.now.Add(d))
+	f.timers[id] = timer
+	return timer
 }
 
-// Set gives the time that this instance will report
+// unsubscribe removes the Timer with the specified ID if it exists, and
+// returns the existence bit.
+func (f *FakeTimeSource) unsubscribe(id int) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.timers[id]
+	if ok {
+		delete(f.timers, id)
+	}
+	return ok
+}
+
+// Set updates the time that this instance will report.
 func (f *FakeTimeSource) Set(t time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.fakeTime = t
+	f.now = t
+	for id, timer := range f.timers {
+		if timer.tryFire(t) {
+			delete(f.timers, id)
+		}
+	}
 }
 
 // IncrementingFakeTimeSource takes a base time and several increments, which will be applied to
@@ -84,4 +123,10 @@ func (a *IncrementingFakeTimeSource) Now() time.Time {
 	a.NextIncrement++
 
 	return adjustedTime
+}
+
+// NewTimer creates a timer with the specified delay. Not implemented.
+func (a *IncrementingFakeTimeSource) NewTimer(d time.Duration) Timer {
+	glog.Exitf("IncrementingFakeTimeSource.NewTimer is not implemented")
+	return nil
 }
