@@ -36,7 +36,7 @@ func (t systemTimer) Chan() <-chan time.Time {
 }
 
 // fakeTimer implements Timer interface for testing. Event firing is controlled
-// by the FakeTimeSource which creates and owns fakeTimer instances.
+// by FakeTimeSource which creates and owns fakeTimer instances.
 type fakeTimer struct {
 	ts   *FakeTimeSource
 	id   int
