@@ -54,6 +54,7 @@ before_install:
   - sudo service mysql start
 
 install:
+  # install protoc
   - mkdir ../protoc
   - |
     (
@@ -64,16 +65,22 @@ install:
   - export PATH="$(pwd)/../protoc/bin:$PATH"
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
+  # install gometalinter: https://github.com/alecthomas/gometalinter#installing
+  - mkdir ../gometalinter
+  - |
+    (
+      cd ../gometalinter
+      curl -L https://raw.githubusercontent.com/alecthomas/gometalinter/master/scripts/install.sh | sh
+    )
+  - export PATH="$(pwd)/../gometalinter/bin:$PATH"
   - go get ${GOFLAGS} -d -t ./...
   - go get -d -t github.com/google/certificate-transparency-go/...
-  - go get github.com/alecthomas/gometalinter
   - go get github.com/golang/protobuf/proto
   - go get github.com/golang/protobuf/protoc-gen-go
   - go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
   - go get github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
   - go get github.com/golang/mock/mockgen
   - go get golang.org/x/tools/cmd/stringer
-  - gometalinter --install
   # install vendored etcd binary
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
