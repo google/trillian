@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package clock contains time utilities, and types that allow mocking system
+// time in tests.
 package clock
 
 import (
