@@ -363,7 +363,7 @@ func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int6
 	for index, data := range dataByIndex {
 		leaf, err := c.BuildLeaf(data)
 		if err != nil {
-			return err
+			return fmt.Errorf("error building leaf %x: %v", index, err)
 		}
 		leaf.LeafIndex = index
 		leaves = append(leaves, leaf)
