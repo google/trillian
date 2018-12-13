@@ -110,28 +110,24 @@ func (f *FakeTimeSource) Set(t time.Time) {
 	}
 }
 
-// IncrementingFakeTimeSource takes a base time and several increments, which
-// will be applied to the base time each time Now() is called. The first call
-// will return the base time + zeroth increment. If called more times than
-// provided for then it will panic. Does not require that increments increase
-// monotonically.
-type IncrementingFakeTimeSource struct {
-	BaseTime      time.Time
-	Increments    []time.Duration
-	NextIncrement int
+// PredefinedFake is a TimeSource that returns a predefined set of times
+// computed as base time + delays[i]. Delays don't have to be monotonic.
+type PredefinedFake struct {
+	Base   time.Time
+	Delays []time.Duration
+	Next   int
 }
 
-// Now returns the current time according to this time source, which depends on
-// how many times this method has already been invoked.
-func (a *IncrementingFakeTimeSource) Now() time.Time {
-	adjustedTime := a.BaseTime.Add(a.Increments[a.NextIncrement])
-	a.NextIncrement++
-
+// Now returns the current time, which depends on how many times this method
+// has already been invoked. Must not be called more than len(delays) times.
+func (p *PredefinedFake) Now() time.Time {
+	adjustedTime := p.Base.Add(p.Delays[p.Next])
+	p.Next++
 	return adjustedTime
 }
 
 // NewTimer creates a timer with the specified delay. Not implemented.
-func (a *IncrementingFakeTimeSource) NewTimer(d time.Duration) Timer {
-	glog.Exitf("IncrementingFakeTimeSource.NewTimer is not implemented")
+func (p *PredefinedFake) NewTimer(d time.Duration) Timer {
+	glog.Exitf("PredefinedFake.NewTimer is not implemented")
 	return nil
 }
