@@ -62,7 +62,7 @@ func fixupRunnerConfig(cfg *RunnerConfig) {
 		cfg.ResignOdds = 1
 	}
 	if cfg.TimeSource == nil {
-		cfg.TimeSource = clock.SystemTimeSource{}
+		cfg.TimeSource = clock.System
 	}
 }
 

@@ -23,6 +23,9 @@ import (
 	"github.com/golang/glog"
 )
 
+// System is a default TimeSource that provides system time.
+var System TimeSource = systemTimeSource{}
+
 // TimeSource can provide the current time, or be replaced by a mock in tests
 // to return specific values.
 // TODO(pavelkalinnikov): Make a separate package for time types.
@@ -39,16 +42,16 @@ func SecondsSince(ts TimeSource, t time.Time) float64 {
 	return ts.Now().Sub(t).Seconds()
 }
 
-// SystemTimeSource provides the current system local time.
-type SystemTimeSource struct{}
+// systemTimeSource provides the current system local time.
+type systemTimeSource struct{}
 
 // Now returns the true current local time.
-func (s SystemTimeSource) Now() time.Time {
+func (s systemTimeSource) Now() time.Time {
 	return time.Now()
 }
 
 // NewTimer returns a real timer.
-func (s SystemTimeSource) NewTimer(d time.Duration) Timer {
+func (s systemTimeSource) NewTimer(d time.Duration) Timer {
 	return systemTimer{time.NewTimer(d)}
 }
 

@@ -48,7 +48,7 @@ var (
 	batchSize       = 50
 	// SequencerInterval is the time between runs of the sequencer.
 	SequencerInterval = 500 * time.Millisecond
-	timeSource        = clock.SystemTimeSource{}
+	timeSource        = clock.System
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.

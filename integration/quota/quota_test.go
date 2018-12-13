@@ -235,7 +235,7 @@ func newTestServer(registry extension.Registry) (*testServer, error) {
 		)),
 	)
 	trillian.RegisterTrillianAdminServer(s.server, admin.New(registry, nil /* allowedTreeTypes */))
-	trillian.RegisterTrillianLogServer(s.server, server.NewTrillianLogRPCServer(registry, clock.SystemTimeSource{}))
+	trillian.RegisterTrillianLogServer(s.server, server.NewTrillianLogRPCServer(registry, clock.System))
 
 	var err error
 	s.lis, err = net.Listen("tcp", "127.0.0.1:0")

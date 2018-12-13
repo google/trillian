@@ -245,7 +245,7 @@ func Main(args Options) string {
 	tree, tSigner := createTree(as, ls)
 
 	seq := log.NewSequencer(rfc6962.DefaultHasher,
-		clock.SystemTimeSource{},
+		clock.System,
 		ls,
 		tSigner,
 		nil,

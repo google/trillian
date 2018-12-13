@@ -149,8 +149,7 @@ func main() {
 			return nil
 		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
-			ts := clock.SystemTimeSource{}
-			logServer := server.NewTrillianLogRPCServer(registry, ts)
+			logServer := server.NewTrillianLogRPCServer(registry, clock.System)
 			if err := logServer.IsHealthy(); err != nil {
 				return err
 			}

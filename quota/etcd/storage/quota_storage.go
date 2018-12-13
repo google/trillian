@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	timeSource clock.TimeSource = &clock.SystemTimeSource{}
+	timeSource = clock.System
 
 	globalPattern *regexp.Regexp
 	treesPattern  *regexp.Regexp

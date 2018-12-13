@@ -193,8 +193,7 @@ func (m *Main) Run(ctx context.Context) error {
 
 // newGRPCServer starts a new Trillian gRPC server.
 func (m *Main) newGRPCServer() (*grpc.Server, error) {
-	ts := clock.SystemTimeSource{}
-	stats := monitoring.NewRPCStatsInterceptor(ts, m.StatsPrefix, m.Registry.MetricFactory)
+	stats := monitoring.NewRPCStatsInterceptor(clock.System, m.StatsPrefix, m.Registry.MetricFactory)
 	ti := interceptor.New(m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
 
 	serverOpts := []grpc.ServerOption{

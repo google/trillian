@@ -150,13 +150,13 @@ func main() {
 		BatchSize:   *batchSizeFlag,
 		NumWorkers:  *numSeqFlag,
 		RunInterval: *sequencerIntervalFlag,
-		TimeSource:  clock.SystemTimeSource{},
+		TimeSource:  clock.System,
 		ElectionConfig: election.RunnerConfig{
 			PreElectionPause:    *preElectionPause,
 			MasterCheckInterval: *masterCheckInterval,
 			MasterHoldInterval:  *masterHoldInterval,
 			ResignOdds:          *resignOdds,
-			TimeSource:          clock.SystemTimeSource{},
+			TimeSource:          clock.System,
 		},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)

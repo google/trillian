@@ -374,7 +374,7 @@ func TestMasterFor(t *testing.T) {
 			registry := extension.Registry{ElectionFactory: test.factory}
 			info := LogOperationInfo{
 				Registry:   registry,
-				TimeSource: clock.SystemTimeSource{},
+				TimeSource: clock.System,
 			}
 			lom := NewLogOperationManager(info, nil)
 
