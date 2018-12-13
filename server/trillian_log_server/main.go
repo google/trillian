@@ -33,7 +33,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -44,6 +44,7 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+
 	// Load hashers
 	_ "github.com/google/trillian/merkle/objhasher"
 	_ "github.com/google/trillian/merkle/rfc6962"
@@ -148,7 +149,7 @@ func main() {
 			return nil
 		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
-			ts := util.SystemTimeSource{}
+			ts := clock.SystemTimeSource{}
 			logServer := server.NewTrillianLogRPCServer(registry, ts)
 			if err := logServer.IsHealthy(); err != nil {
 				return err

@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election/stub"
 )
@@ -42,7 +42,7 @@ func TestShouldResign(t *testing.T) {
 		{hold: 10 * time.Second, odds: -1, wantHold: 10 * time.Second, wantProb: 1.0},
 	}
 	for _, test := range tests {
-		fakeTimeSource := util.FakeTimeSource{}
+		fakeTimeSource := clock.FakeTimeSource{}
 		cfg := election.RunnerConfig{
 			MasterHoldInterval: test.hold,
 			ResignOdds:         test.odds,
@@ -83,7 +83,7 @@ func TestShouldResign(t *testing.T) {
 // TODO(pavelkalinnikov): Reduce flakiness risk in this test by making fewer
 // time assumptions.
 func TestElectionRunnerRun(t *testing.T) {
-	fakeTimeSource := util.NewFakeTimeSource(time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC))
+	fakeTimeSource := clock.NewFakeTimeSource(time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC))
 	cfg := election.RunnerConfig{TimeSource: fakeTimeSource}
 	var tests = []struct {
 		desc       string
@@ -138,7 +138,7 @@ func TestElectionRunnerRun(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
 			startTime := time.Now()
-			fakeTimeSource := util.NewFakeTimeSource(startTime)
+			fakeTimeSource := clock.NewFakeTimeSource(startTime)
 
 			el := test.election
 			tracker := election.NewMasterTracker([]string{logID}, nil)

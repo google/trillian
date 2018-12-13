@@ -28,7 +28,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 )
 
@@ -76,7 +76,7 @@ type LogOperationInfo struct {
 	// BatchSize is the processing batch size to be passed to tasks run by this manager
 	BatchSize int
 	// TimeSource should be used by the LogOperation to allow mocking for tests.
-	TimeSource util.TimeSource
+	TimeSource clock.TimeSource
 
 	// The following parameters govern the overall scheduling of LogOperations
 	// by a LogOperationManager.
@@ -339,7 +339,7 @@ loop:
 		wait := l.info.RunInterval - duration
 		if wait > 0 {
 			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
-			if err := util.SleepContext(ctx, wait); err != nil {
+			if err := clock.SleepContext(ctx, wait); err != nil {
 				glog.Infof("Log operation manager shutting down")
 				break loop
 			}
@@ -420,7 +420,7 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 				// This indicates signing activity is proceeding on the logID.
 				signingRuns.Inc(label)
 				if count > 0 {
-					d := util.SecondsSince(e.info.TimeSource, start)
+					d := clock.SecondsSince(e.info.TimeSource, start)
 					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
 					// This allows an operator to determine that the queue is empty for a
 					// particular log if signing runs are succeeding but nothing is being
@@ -438,7 +438,7 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 
 	// Wait for the workers to consume all of the logIDs.
 	wg.Wait()
-	d := util.SecondsSince(e.info.TimeSource, startBatch)
+	d := clock.SecondsSince(e.info.TimeSource, startBatch)
 	if itemCount > 0 {
 		glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, failCount, itemCount)
 	} else {
