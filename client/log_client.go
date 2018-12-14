@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -358,10 +359,24 @@ func (c *LogClient) AddSequencedLeaf(ctx context.Context, data []byte, index int
 }
 
 // AddSequencedLeaves adds any number of pre-sequenced leaves to the log.
+// Indexes must be contiguous.
 func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int64][]byte) error {
+	if len(dataByIndex) == 0 {
+		return nil
+	}
 	leaves := make([]*trillian.LogLeaf, 0, len(dataByIndex))
-	for index, data := range dataByIndex {
-		leaf, err := c.BuildLeaf(data)
+	indexes := make([]int64, 0, len(dataByIndex))
+	for index := range dataByIndex {
+		indexes = append(indexes, index)
+	}
+	sort.Slice(indexes, func(a, b int) bool { return indexes[a] < indexes[b] })
+
+	for i, index := range indexes {
+		// Check index continuity.
+		if want := indexes[0] + int64(i); index != want {
+			return fmt.Errorf("missing index in contiugous index range. got: %v, want: %v", index, want)
+		}
+		leaf, err := c.BuildLeaf(dataByIndex[index])
 		if err != nil {
 			return fmt.Errorf("error building leaf %x: %v", index, err)
 		}

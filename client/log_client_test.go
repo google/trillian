@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
@@ -308,5 +309,28 @@ func TestUpdateRoot(t *testing.T) {
 	}
 	if got, want := root.TreeSize, before; got <= want {
 		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
+	}
+}
+
+func TestAddSequencedLeaves(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		desc        string
+		dataByIndex map[int64][]byte
+		wantErr     bool
+	}{
+		{desc: "empty", dataByIndex: nil},
+		{desc: "non-contiguous", dataByIndex: map[int64][]byte{
+			0: []byte("A"),
+			2: []byte("C"),
+		}, wantErr: true},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			c := &LogClient{LogVerifier: &LogVerifier{Hasher: rfc6962.DefaultHasher}}
+			err := c.AddSequencedLeaves(ctx, tc.dataByIndex)
+			if gotErr := err != nil; gotErr != tc.wantErr {
+				t.Errorf("AddSequencedLeaves(): %v, wantErr: %v", err, tc.wantErr)
+			}
+		})
 	}
 }
