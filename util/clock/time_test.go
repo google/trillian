@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package clock
 
 import (
 	"context"
@@ -36,22 +36,6 @@ var (
 	}
 )
 
-func TestSleep(t *testing.T) {
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%v:%v", tc.dur, tc.timeout), func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
-			if tc.cancel {
-				cancel()
-			} else {
-				defer cancel()
-			}
-			if got, want := Sleep(ctx.Done(), tc.dur), (tc.wantErr == nil); got != want {
-				t.Errorf("Sleep() returned %v, want %v", got, want)
-			}
-		})
-	}
-}
-
 func TestSleepContext(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("%v:%v", tc.dur, tc.timeout), func(t *testing.T) {
@@ -63,6 +47,38 @@ func TestSleepContext(t *testing.T) {
 			}
 			if got, want := SleepContext(ctx, tc.dur), tc.wantErr; got != want {
 				t.Errorf("SleepContext() returned %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestSleepSource(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%v:%v", tc.dur, tc.timeout), func(t *testing.T) {
+			base := time.Now()
+			ts := NewFake(base)
+			ctx, cancel := context.WithCancel(context.Background())
+			if tc.cancel {
+				cancel()
+			} else {
+				defer cancel()
+			}
+			go func() {
+				// Give SleepSource some time to block.
+				time.Sleep(50 * time.Millisecond)
+				if tc.dur < tc.timeout {
+					ts.Set(base.Add(tc.dur))
+				} else {
+					ts.Set(base.Add(tc.timeout))
+					cancel()
+				}
+			}()
+			want := tc.wantErr
+			if want == context.DeadlineExceeded {
+				want = context.Canceled
+			}
+			if got := SleepSource(ctx, tc.dur, ts); got != want {
+				t.Errorf("SleepSource() returned %v, want %v", got, want)
 			}
 		})
 	}

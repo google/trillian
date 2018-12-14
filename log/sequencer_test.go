@@ -31,7 +31,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 
 	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -255,7 +255,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(rfc6962.DefaultHasher, util.NewFakeTimeSource(fakeTimeForTest), fakeStorage, signer, nil, qm)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFake(fakeTimeForTest), fakeStorage, signer, nil, qm)
 	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 
@@ -552,7 +552,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 
 	// Needed to create a signer
 	hasher := rfc6962.DefaultHasher
-	ts := util.NewFakeTimeSource(fakeTimeForTest)
+	ts := clock.NewFake(fakeTimeForTest)
 	signer := tcrypto.NewSigner(0, cryptoSigner, crypto.SHA256)
 
 	// Needed for IntegrateBatch calls

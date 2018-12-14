@@ -38,7 +38,7 @@ import (
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/testonly/integration/etcd"
 	"github.com/google/trillian/trees"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -235,7 +235,7 @@ func newTestServer(registry extension.Registry) (*testServer, error) {
 		)),
 	)
 	trillian.RegisterTrillianAdminServer(s.server, admin.New(registry, nil /* allowedTreeTypes */))
-	trillian.RegisterTrillianLogServer(s.server, server.NewTrillianLogRPCServer(registry, util.SystemTimeSource{}))
+	trillian.RegisterTrillianLogServer(s.server, server.NewTrillianLogRPCServer(registry, clock.System))
 
 	var err error
 	s.lis, err = net.Listen("tcp", "127.0.0.1:0")

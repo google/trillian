@@ -29,7 +29,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring/testonly"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election2"
 	"github.com/google/trillian/util/election2/stub"
@@ -375,7 +375,7 @@ func TestMasterFor(t *testing.T) {
 			registry := extension.Registry{ElectionFactory: test.factory}
 			info := LogOperationInfo{
 				Registry:   registry,
-				TimeSource: util.SystemTimeSource{},
+				TimeSource: clock.System,
 			}
 			lom := NewLogOperationManager(info, nil)
 

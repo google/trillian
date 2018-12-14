@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election2"
 	etcdelect "github.com/google/trillian/util/election2/etcd"
@@ -151,13 +152,13 @@ func main() {
 		BatchSize:   *batchSizeFlag,
 		NumWorkers:  *numSeqFlag,
 		RunInterval: *sequencerIntervalFlag,
-		TimeSource:  util.SystemTimeSource{},
+		TimeSource:  clock.System,
 		ElectionConfig: election.RunnerConfig{
 			PreElectionPause:    *preElectionPause,
 			MasterCheckInterval: *masterCheckInterval,
 			MasterHoldInterval:  *masterHoldInterval,
 			ResignOdds:          *resignOdds,
-			TimeSource:          util.SystemTimeSource{},
+			TimeSource:          clock.System,
 		},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)

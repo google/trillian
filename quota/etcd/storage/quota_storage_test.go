@@ -27,7 +27,7 @@ import (
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/testonly/integration/etcd"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -74,7 +74,7 @@ var (
 	globalWrite = cfgs.Configs[1]
 	userRead    = cfgs.Configs[2]
 
-	fixedTimeSource = util.NewFakeTimeSource(time.Now())
+	fixedTimeSource = clock.NewFake(time.Now())
 
 	// client is an etcd client.
 	// Initialized by TestMain().
@@ -495,7 +495,7 @@ func TestQuotaStorage_DisabledConfig(t *testing.T) {
 }
 
 func TestQuotaStorage_Get(t *testing.T) {
-	fakeTime := util.NewFakeTimeSource(time.Now())
+	fakeTime := clock.NewFake(time.Now())
 	setupTimeSource(fakeTime)
 
 	tests := []struct {
@@ -619,7 +619,7 @@ func TestQuotaStorage_GetErrors(t *testing.T) {
 }
 
 func TestQuotaStorage_Peek(t *testing.T) {
-	fakeTime := util.NewFakeTimeSource(time.Now())
+	fakeTime := clock.NewFake(time.Now())
 	defer setupTimeSource(fakeTime)()
 
 	tests := []struct {
@@ -669,7 +669,7 @@ func TestQuotaStorage_Peek(t *testing.T) {
 }
 
 func TestQuotaStorage_Put(t *testing.T) {
-	fakeTime := util.NewFakeTimeSource(time.Now())
+	fakeTime := clock.NewFake(time.Now())
 	defer setupTimeSource(fakeTime)()
 
 	tests := []struct {
@@ -928,7 +928,7 @@ func peekAndDiff(ctx context.Context, qs *QuotaStorage, want map[string]int64) e
 // setupTimeSource prepares timeSource for tests.
 // A cleanup function that restores timeSource to its initial value is returned and should be
 // defer-called.
-func setupTimeSource(ts util.TimeSource) func() {
+func setupTimeSource(ts clock.TimeSource) func() {
 	prevTimeSource := timeSource
 	timeSource = ts
 	return func() { timeSource = prevTimeSource }

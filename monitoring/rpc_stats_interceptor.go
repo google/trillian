@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 )
@@ -30,7 +30,7 @@ const traceSpanRoot = "github.com/google/trillian/monitoring.RPCStatsInterceptor
 // RPCStatsInterceptor provides a gRPC interceptor that records statistics about the RPCs passing through it.
 type RPCStatsInterceptor struct {
 	prefix            string
-	timeSource        util.TimeSource
+	timeSource        clock.TimeSource
 	ReqCount          Counter
 	ReqSuccessCount   Counter
 	ReqSuccessLatency Histogram
@@ -40,7 +40,7 @@ type RPCStatsInterceptor struct {
 
 // NewRPCStatsInterceptor creates a new RPCStatsInterceptor for the given application/component, with
 // a specified time source.
-func NewRPCStatsInterceptor(timeSource util.TimeSource, prefix string, mf MetricFactory) *RPCStatsInterceptor {
+func NewRPCStatsInterceptor(timeSource clock.TimeSource, prefix string, mf MetricFactory) *RPCStatsInterceptor {
 	if mf == nil {
 		mf = InertMetricFactory{}
 	}
@@ -61,7 +61,7 @@ func prefixedName(prefix, name string) string {
 }
 
 func (r *RPCStatsInterceptor) recordFailureLatency(labels []string, startTime time.Time) {
-	latency := util.SecondsSince(r.timeSource, startTime)
+	latency := clock.SecondsSince(r.timeSource, startTime)
 	r.ReqErrorCount.Inc(labels...)
 	r.ReqErrorLatency.Observe(latency, labels...)
 }
@@ -96,7 +96,7 @@ func (r *RPCStatsInterceptor) Interceptor() grpc.UnaryServerInterceptor {
 		if err != nil {
 			r.recordFailureLatency(labels, startTime)
 		} else {
-			latency := util.SecondsSince(r.timeSource, startTime)
+			latency := clock.SecondsSince(r.timeSource, startTime)
 			r.ReqSuccessCount.Inc(labels...)
 			r.ReqSuccessLatency.Observe(latency, labels...)
 		}

@@ -34,7 +34,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 
 	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -42,7 +42,7 @@ import (
 
 // Arbitrary time for use in tests
 var fakeTime = time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC)
-var fakeTimeSource = util.NewFakeTimeSource(fakeTime)
+var fakeTimeSource = clock.NewFake(fakeTime)
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)

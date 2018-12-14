@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"google.golang.org/grpc"
 )
 
@@ -51,16 +51,16 @@ func TestSingleRequests(t *testing.T) {
 		name       string
 		method     string
 		handler    recordingUnaryHandler
-		timeSource util.IncrementingFakeTimeSource
+		timeSource clock.PredefinedFake
 	}{
 		// This is an OK request with 500ms latency
 		{
 			name:    "ok_request",
 			method:  "getmethod",
 			handler: recordingUnaryHandler{req: "OK", err: nil},
-			timeSource: util.IncrementingFakeTimeSource{
-				BaseTime:   fakeTime,
-				Increments: []time.Duration{0, time.Millisecond * 500},
+			timeSource: clock.PredefinedFake{
+				Base:   fakeTime,
+				Delays: []time.Duration{0, time.Millisecond * 500},
 			},
 		},
 		// This is an errored request with 3000ms latency
@@ -68,9 +68,9 @@ func TestSingleRequests(t *testing.T) {
 			name:    "error_request",
 			method:  "setmethod",
 			handler: recordingUnaryHandler{err: errors.New("bang")},
-			timeSource: util.IncrementingFakeTimeSource{
-				BaseTime:   fakeTime,
-				Increments: []time.Duration{0, time.Millisecond * 3000},
+			timeSource: clock.PredefinedFake{
+				Base:   fakeTime,
+				Delays: []time.Duration{0, time.Millisecond * 3000},
 			},
 		},
 	}
@@ -92,7 +92,7 @@ func TestSingleRequests(t *testing.T) {
 		if got, want := stats.ReqCount.Value(test.method), 1.0; got != want {
 			t.Errorf("stats.ReqCount=%v; want %v", got, want)
 		}
-		wantLatency := test.timeSource.Increments[1].Seconds()
+		wantLatency := test.timeSource.Delays[1].Seconds()
 		wantErrors := 0.0
 		wantSuccess := 0.0
 		if test.handler.err == nil {
@@ -122,9 +122,9 @@ func TestSingleRequests(t *testing.T) {
 
 func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 	// We're going to make 3 requests so set up the time source appropriately
-	ts := util.IncrementingFakeTimeSource{
-		BaseTime: fakeTime,
-		Increments: []time.Duration{
+	ts := clock.PredefinedFake{
+		Base: fakeTime,
+		Delays: []time.Duration{
 			0,
 			time.Millisecond * 500,
 			0,
@@ -151,9 +151,9 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 
 func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 	// We're going to make 3 requests so set up the time source appropriately
-	ts := util.IncrementingFakeTimeSource{
-		BaseTime: fakeTime,
-		Increments: []time.Duration{
+	ts := clock.PredefinedFake{
+		Base: fakeTime,
+		Delays: []time.Duration{
 			0,
 			time.Millisecond * 427,
 			0,
@@ -180,9 +180,9 @@ func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 }
 
 func TestCanInitializeNilMetricFactory(t *testing.T) {
-	ts := util.IncrementingFakeTimeSource{
-		BaseTime:   fakeTime,
-		Increments: []time.Duration{},
+	ts := clock.PredefinedFake{
+		Base:   fakeTime,
+		Delays: []time.Duration{},
 	}
 	monitoring.NewRPCStatsInterceptor(&ts, "test_nil_metric_factory", nil)
 	// Should reach here without throwing an exception

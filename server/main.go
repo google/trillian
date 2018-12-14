@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
@@ -192,8 +193,7 @@ func (m *Main) Run(ctx context.Context) error {
 
 // newGRPCServer starts a new Trillian gRPC server.
 func (m *Main) newGRPCServer() (*grpc.Server, error) {
-	ts := util.SystemTimeSource{}
-	stats := monitoring.NewRPCStatsInterceptor(ts, m.StatsPrefix, m.Registry.MetricFactory)
+	stats := monitoring.NewRPCStatsInterceptor(clock.System, m.StatsPrefix, m.Registry.MetricFactory)
 	ti := interceptor.New(m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
 
 	serverOpts := []grpc.ServerOption{

@@ -37,7 +37,7 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 
 	_ "github.com/go-sql-driver/mysql"                   // Load MySQL driver
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
@@ -48,7 +48,7 @@ var (
 	batchSize       = 50
 	// SequencerInterval is the time between runs of the sequencer.
 	SequencerInterval = 500 * time.Millisecond
-	timeSource        = util.SystemTimeSource{}
+	timeSource        = clock.System
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.

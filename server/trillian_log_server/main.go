@@ -33,7 +33,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -149,8 +149,7 @@ func main() {
 			return nil
 		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
-			ts := util.SystemTimeSource{}
-			logServer := server.NewTrillianLogRPCServer(registry, ts)
+			logServer := server.NewTrillianLogRPCServer(registry, clock.System)
 			if err := logServer.IsHealthy(); err != nil {
 				return err
 			}
