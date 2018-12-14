@@ -28,7 +28,7 @@ func SleepContext(ctx context.Context, d time.Duration) error {
 	return nil
 }
 
-// SleepContext sleeps for at least the specified duration, as measured by the
+// SleepSource sleeps for at least the specified duration, as measured by the
 // TimeSource. Returns ctx.Err() iff the context is done before the deadline.
 func SleepSource(ctx context.Context, d time.Duration, s TimeSource) error {
 	if !sleepImpl(ctx.Done(), d, s) {
