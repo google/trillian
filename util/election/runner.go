@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 )
 
 // Minimum values for configuration intervals.
@@ -44,7 +44,7 @@ type RunnerConfig struct {
 	// check interval, as the N for 1-in-N.
 	ResignOdds int
 
-	TimeSource util.TimeSource
+	TimeSource clock.TimeSource
 }
 
 // fixupRunnerConfig ensures operation parameters have required minimum values.
@@ -62,7 +62,7 @@ func fixupRunnerConfig(cfg *RunnerConfig) {
 		cfg.ResignOdds = 1
 	}
 	if cfg.TimeSource == nil {
-		cfg.TimeSource = util.SystemTimeSource{}
+		cfg.TimeSource = clock.System
 	}
 }
 
@@ -96,7 +96,7 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 	// Pause for a random interval so that if multiple instances start at the same
 	// time there is less of a thundering herd.
 	pause := rand.Int63n(er.cfg.PreElectionPause.Nanoseconds())
-	if err := util.SleepContext(ctx, time.Duration(pause)); err != nil {
+	if err := clock.SleepContext(ctx, time.Duration(pause)); err != nil {
 		return
 	}
 
@@ -122,7 +122,7 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 
 		// While-master loop
 		for {
-			if err := util.SleepContext(ctx, er.cfg.MasterCheckInterval); err != nil {
+			if err := clock.SleepContext(ctx, er.cfg.MasterCheckInterval); err != nil {
 				glog.Infof("%s: termination requested", er.id)
 				return
 			}

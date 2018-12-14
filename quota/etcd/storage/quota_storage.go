@@ -29,7 +29,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	timeSource util.TimeSource = &util.SystemTimeSource{}
+	timeSource = clock.System
 
 	globalPattern *regexp.Regexp
 	treesPattern  *regexp.Regexp

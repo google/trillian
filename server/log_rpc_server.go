@@ -27,7 +27,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -52,12 +52,12 @@ var (
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
 	registry    extension.Registry
-	timeSource  util.TimeSource
+	timeSource  clock.TimeSource
 	leafCounter monitoring.Counter
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
-func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSource) *TrillianLogRPCServer {
+func NewTrillianLogRPCServer(registry extension.Registry, timeSource clock.TimeSource) *TrillianLogRPCServer {
 	mf := registry.MetricFactory
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}

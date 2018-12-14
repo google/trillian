@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+// Package clock contains time utilities, and types that allow mocking system
+// time in tests.
+package clock
 
 import (
 	"sync"
@@ -21,11 +23,13 @@ import (
 	"github.com/golang/glog"
 )
 
-// TimeSource can provide the current time, or be replaced by a mock in tests to return
-// specific values.
-// TODO(pavelkalinnikov): Make a separate package for time types.
+// System is a default TimeSource that provides system time.
+var System TimeSource = systemTimeSource{}
+
+// TimeSource can provide the current time, or be replaced by a mock in tests
+// to return specific values.
 type TimeSource interface {
-	// Now returns the current time in real implementations or a suitable value in others
+	// Now returns the current time as seen by this TimeSource.
 	Now() time.Time
 	// NewTimer creates a timer that fires after the specified duration.
 	NewTimer(d time.Duration) Timer
@@ -37,16 +41,16 @@ func SecondsSince(ts TimeSource, t time.Time) float64 {
 	return ts.Now().Sub(t).Seconds()
 }
 
-// SystemTimeSource provides the current system local time
-type SystemTimeSource struct{}
+// systemTimeSource provides the current system local time.
+type systemTimeSource struct{}
 
 // Now returns the true current local time.
-func (s SystemTimeSource) Now() time.Time {
+func (s systemTimeSource) Now() time.Time {
 	return time.Now()
 }
 
 // NewTimer returns a real timer.
-func (s SystemTimeSource) NewTimer(d time.Duration) Timer {
+func (s systemTimeSource) NewTimer(d time.Duration) Timer {
 	return systemTimer{time.NewTimer(d)}
 }
 
@@ -58,8 +62,8 @@ type FakeTimeSource struct {
 	nextID int
 }
 
-// NewFakeTimeSource creates a FakeTimeSource instance.
-func NewFakeTimeSource(t time.Time) *FakeTimeSource {
+// NewFake creates a FakeTimeSource instance.
+func NewFake(t time.Time) *FakeTimeSource {
 	timers := make(map[int]*fakeTimer)
 	return &FakeTimeSource{now: t, timers: timers}
 }
@@ -106,27 +110,24 @@ func (f *FakeTimeSource) Set(t time.Time) {
 	}
 }
 
-// IncrementingFakeTimeSource takes a base time and several increments, which will be applied to
-// the base time each time Now() is called. The first call will return the base time + zeroth
-// increment. If called more times than provided for then it will panic. Does not require that
-// increments increase monotonically.
-type IncrementingFakeTimeSource struct {
-	BaseTime      time.Time
-	Increments    []time.Duration
-	NextIncrement int
+// PredefinedFake is a TimeSource that returns a predefined set of times
+// computed as base time + delays[i]. Delays don't have to be monotonic.
+type PredefinedFake struct {
+	Base   time.Time
+	Delays []time.Duration
+	Next   int
 }
 
-// Now returns the current time according to this time source, which depends on how many times
-// this method has already been invoked.
-func (a *IncrementingFakeTimeSource) Now() time.Time {
-	adjustedTime := a.BaseTime.Add(a.Increments[a.NextIncrement])
-	a.NextIncrement++
-
+// Now returns the current time, which depends on how many times this method
+// has already been invoked. Must not be called more than len(delays) times.
+func (p *PredefinedFake) Now() time.Time {
+	adjustedTime := p.Base.Add(p.Delays[p.Next])
+	p.Next++
 	return adjustedTime
 }
 
 // NewTimer creates a timer with the specified delay. Not implemented.
-func (a *IncrementingFakeTimeSource) NewTimer(d time.Duration) Timer {
-	glog.Exitf("IncrementingFakeTimeSource.NewTimer is not implemented")
+func (p *PredefinedFake) NewTimer(d time.Duration) Timer {
+	glog.Exitf("PredefinedFake.NewTimer is not implemented")
 	return nil
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -41,6 +42,7 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+
 	// Load hashers
 	_ "github.com/google/trillian/merkle/objhasher"
 	_ "github.com/google/trillian/merkle/rfc6962"
@@ -148,13 +150,13 @@ func main() {
 		BatchSize:   *batchSizeFlag,
 		NumWorkers:  *numSeqFlag,
 		RunInterval: *sequencerIntervalFlag,
-		TimeSource:  util.SystemTimeSource{},
+		TimeSource:  clock.System,
 		ElectionConfig: election.RunnerConfig{
 			PreElectionPause:    *preElectionPause,
 			MasterCheckInterval: *masterCheckInterval,
 			MasterHoldInterval:  *masterHoldInterval,
 			ResignOdds:          *resignOdds,
-			TimeSource:          util.SystemTimeSource{},
+			TimeSource:          clock.System,
 		},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)

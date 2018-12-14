@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 )
 
@@ -90,7 +90,7 @@ func (e *MasterElection) WaitForMastership(ctx context.Context) error {
 		if is || err != nil {
 			return err
 		}
-		if err := util.SleepContext(ctx, 5*time.Millisecond); err != nil {
+		if err := clock.SleepContext(ctx, 5*time.Millisecond); err != nil {
 			return err
 		}
 	}

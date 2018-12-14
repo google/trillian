@@ -49,7 +49,7 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
-	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/clock"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -245,7 +245,7 @@ func Main(args Options) string {
 	tree, tSigner := createTree(as, ls)
 
 	seq := log.NewSequencer(rfc6962.DefaultHasher,
-		util.SystemTimeSource{},
+		clock.System,
 		ls,
 		tSigner,
 		nil,

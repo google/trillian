@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package clock
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ func checkNotFiring(t *testing.T, timer Timer) {
 
 func TestFakeTimerFiresOnce(t *testing.T) {
 	base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
-	ts := NewFakeTimeSource(base)
+	ts := NewFake(base)
 	timer := ts.NewTimer(10 * time.Millisecond)
 
 	checkNotFiring(t, timer)
@@ -51,7 +51,7 @@ func TestFakeTimerFiresOnce(t *testing.T) {
 
 func TestFakeTimerStopBeforeFire(t *testing.T) {
 	base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
-	ts := NewFakeTimeSource(base)
+	ts := NewFake(base)
 	timer := ts.NewTimer(10 * time.Millisecond)
 
 	checkNotFiring(t, timer)
@@ -68,7 +68,7 @@ func TestFakeTimerStopAfterFire(t *testing.T) {
 	for _, drain := range []bool{false, true} {
 		t.Run(fmt.Sprintf("drain:%v", drain), func(t *testing.T) {
 			base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
-			ts := NewFakeTimeSource(base)
+			ts := NewFake(base)
 			timer := ts.NewTimer(10 * time.Millisecond)
 			ts.Set(base.Add(20 * time.Millisecond)) // Triggers the event.
 			if drain {
@@ -83,7 +83,7 @@ func TestFakeTimerStopAfterFire(t *testing.T) {
 
 func TestManyFakeTimers(t *testing.T) {
 	base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
-	ts := NewFakeTimeSource(base)
+	ts := NewFake(base)
 	var timers []Timer
 	var times []time.Time
 	for i := 1; i <= 10; i++ {
