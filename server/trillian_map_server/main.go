@@ -41,6 +41,7 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+
 	// Load hashers
 	_ "github.com/google/trillian/merkle/coniks"
 	_ "github.com/google/trillian/merkle/maphasher"
@@ -94,7 +95,7 @@ func main() {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
 
-	client, err := etcd.NewClient(*server.EtcdServers)
+	client, err := etcd.NewClientFromString(*server.EtcdServers)
 	if err != nil {
 		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
 	}
