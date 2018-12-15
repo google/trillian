@@ -50,10 +50,16 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 	// context so that the monitoring goroutine below and the goroutine started
 	// by WithMastership will reliably terminate).
 	cctx, cancel := context.WithCancel(ctx)
-	ch := e.election.Observe(cctx)
 	etcdRev := e.election.Rev() // The revision at which e became the master.
+	if etcdRev == 0 {
+		// Not even tried to become the master. Return a canceled context.
+		cancel()
+		return cctx, nil
+	}
 
-	// Verify mastership before returning context.
+	// Was the master once, so watch for latest mastership updates.
+	ch := e.election.Observe(cctx)
+	// Verify that we are still the master, before returning context.
 	select {
 	case <-ctx.Done():
 		cancel()
