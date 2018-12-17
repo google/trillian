@@ -95,7 +95,7 @@ func (e *Election) Resign(ctx context.Context) error {
 // Close resigns and permanently stops participating in election. No other
 // method should be called after Close.
 func (e *Election) Close(ctx context.Context) error {
-	if err := e.Resign(ctx); err != nil {
+	if err := e.Resign(ctx); err != nil && err != concurrency.ErrElectionNotLeader {
 		glog.Errorf("%s: Resign(): %v", e.resourceID, err)
 	}
 	// Session's Close revokes the underlying lease, which results in removing
