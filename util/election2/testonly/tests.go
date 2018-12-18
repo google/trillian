@@ -180,11 +180,7 @@ func runElectionResign(t *testing.T, f election2.Factory) {
 				t.Fatalf("WithMastership(): %v", err)
 			}
 			if got, want := d.Resign(ctx), tc.wantErr; got != want {
-				if tc.beMaster {
-					t.Errorf("Resign(): %v, want %v", got, want)
-				}
-				// Otherwise the implementation might return some error indicating that
-				// we can't resign if not the master.
+				t.Errorf("Resign(): %v, want %v", got, want)
 			}
 			if tc.beMaster && tc.wantErr == nil {
 				checkDone(mctx, t, 200*time.Millisecond)
