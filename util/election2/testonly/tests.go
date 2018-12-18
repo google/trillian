@@ -43,7 +43,7 @@ type NamedTest struct {
 // checkNotDone ensures that the context is not done for some time.
 func checkNotDone(ctx context.Context, t *testing.T) {
 	t.Helper()
-	if err := clock.SleepContext(ctx, 10*time.Millisecond); err != nil {
+	if err := clock.SleepContext(ctx, 100*time.Millisecond); err != nil {
 		t.Error("unexpected context cancelation")
 	}
 }
@@ -78,7 +78,7 @@ func runElectionAwait(t *testing.T, f election2.Factory) {
 		{desc: "error", err: awaitErr, wantErr: awaitErr},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			e, err := f.NewElection(ctx, tc.desc)
 			if err != nil {
@@ -90,6 +90,9 @@ func runElectionAwait(t *testing.T, f election2.Factory) {
 
 			if tc.cancel {
 				cancel()
+			} else if tc.block {
+				ctx, cancel = context.WithTimeout(ctx, 100*time.Millisecond)
+				defer cancel()
 			}
 			if got, want := d.Await(ctx), tc.wantErr; got != want {
 				t.Errorf("Await(): %v, want %v", got, want)
@@ -183,7 +186,7 @@ func runElectionResign(t *testing.T, f election2.Factory) {
 				t.Errorf("Resign(): %v, want %v", got, want)
 			}
 			if tc.beMaster && tc.wantErr == nil {
-				checkDone(mctx, t, 200*time.Millisecond)
+				checkDone(mctx, t, 1*time.Second)
 			} else if tc.beMaster {
 				checkNotDone(mctx, t)
 			} else {
@@ -237,7 +240,7 @@ func runElectionClose(t *testing.T, f election2.Factory) {
 				t.Errorf("Close(): %v, want %v", got, want)
 			}
 			if tc.beMaster && tc.wantErr == nil {
-				checkDone(mctx, t, 200*time.Millisecond)
+				checkDone(mctx, t, 1*time.Second)
 			} else if tc.beMaster {
 				checkNotDone(mctx, t)
 			} else {
@@ -275,6 +278,6 @@ func runElectionLoop(t *testing.T, f election2.Factory) {
 		if err := d.Resign(ctx); err != nil {
 			t.Errorf("Resign(): %v", err)
 		}
-		checkDone(mctx, t, 200*time.Millisecond) // The mastership context should close.
+		checkDone(mctx, t, 1*time.Second) // The mastership context should close.
 	}
 }
