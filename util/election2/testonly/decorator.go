@@ -80,7 +80,9 @@ func (d *Decorator) Await(ctx context.Context) error {
 
 // WithMastership returns a mastership context.
 func (d *Decorator) WithMastership(ctx context.Context) (context.Context, error) {
-	if err := d.connect(ctx, &d.errs.WithMastership); err != nil {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if err := d.errs.WithMastership; err != nil {
 		return nil, err
 	}
 	return d.e.WithMastership(ctx)
@@ -88,7 +90,9 @@ func (d *Decorator) WithMastership(ctx context.Context) (context.Context, error)
 
 // Resign releases mastership for this instance.
 func (d *Decorator) Resign(ctx context.Context) error {
-	if err := d.connect(ctx, &d.errs.Resign); err != nil {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if err := d.errs.Resign; err != nil {
 		return err
 	}
 	return d.e.Resign(ctx)
@@ -96,17 +100,10 @@ func (d *Decorator) Resign(ctx context.Context) error {
 
 // Close permanently stops participating in election.
 func (d *Decorator) Close(ctx context.Context) error {
-	if err := d.connect(ctx, &d.errs.Close); err != nil {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if err := d.errs.Close; err != nil {
 		return err
 	}
 	return d.e.Close(ctx)
-}
-
-func (d *Decorator) connect(ctx context.Context, err *error) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if *err != nil {
-		return *err
-	}
-	return nil
 }
