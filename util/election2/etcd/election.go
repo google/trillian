@@ -99,7 +99,10 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 // again using Await. Idempotent, might be useful to retry if fails.
 func (e *Election) Resign(ctx context.Context) error {
 	// Trigger Observe callers to see the update, and cancel mastership contexts.
-	if err := e.election.Proclaim(ctx, resignID); err != nil {
+	err := e.election.Proclaim(ctx, resignID)
+	if err == concurrency.ErrElectionNotLeader {
+		return nil // Resigning if not master is a no-op.
+	} else if err != nil {
 		return err
 	}
 	return e.election.Resign(ctx)
