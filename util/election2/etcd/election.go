@@ -27,6 +27,8 @@ import (
 	"github.com/google/trillian/util/election2"
 )
 
+const resignID = "<resign>"
+
 // Election is an implementation of election2.Election based on etcd.
 type Election struct {
 	resourceID string
@@ -65,8 +67,9 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 		cancel()
 		return nil, ctx.Err()
 	case rsp, ok := <-ch:
-		if !ok || rsp.Kvs[0].CreateRevision != etcdRev {
-			// Mastership has been overtaken in the meantime, or not capturead at all.
+		kv := rsp.Kvs[0]
+		if !ok || kv.CreateRevision != etcdRev || string(kv.Value) == resignID {
+			// Mastership has been overtaken, released, or not capturead at all.
 			cancel()
 			return cctx, nil
 		}
@@ -81,9 +84,15 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 		}()
 
 		for rsp := range ch {
-			if rsp.Kvs[0].CreateRevision != etcdRev {
-				conquerorID := string(rsp.Kvs[0].Value)
+			kv := rsp.Kvs[0]
+			if kv.CreateRevision != etcdRev {
+				conquerorID := string(kv.Value)
+				// TODO(pavelkalinnikov): conquerorID can be resignID too. Serialize a
+				// protobuf with all mastership details instead of ID string.
 				glog.Warningf("%s: mastership overtaken by %s", e.resourceID, conquerorID)
+				break
+			} else if string(kv.Value) == resignID {
+				glog.Infof("%s: canceling context due to resignation", e.resourceID)
 				break
 			}
 		}
@@ -95,6 +104,13 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 // Resign releases mastership for this instance. The instance can be elected
 // again using Await. Idempotent, might be useful to retry if fails.
 func (e *Election) Resign(ctx context.Context) error {
+	// Trigger Observe callers to see the update, and cancel mastership contexts.
+	err := e.election.Proclaim(ctx, resignID)
+	if err == concurrency.ErrElectionNotLeader {
+		return nil // Resigning if not master is a no-op.
+	} else if err != nil {
+		return err
+	}
 	return e.election.Resign(ctx)
 }
 
