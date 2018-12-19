@@ -69,7 +69,10 @@ var (
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
-	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
+	masterHoldJitter    = flag.Duration("master_hold_jitter", 60*time.Second, "Maximal random addition to --master_hold_interval")
+
+	// TODO(pavelkalinnikov): Remove this flag.
+	resignOdds = flag.Int("resign_odds", 10, "Deprecated: Chance of resigning mastership after each check, the N in 1-in-N")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -155,7 +158,7 @@ func main() {
 			PreElectionPause:    *preElectionPause,
 			MasterCheckInterval: *masterCheckInterval,
 			MasterHoldInterval:  *masterHoldInterval,
-			ResignOdds:          *resignOdds,
+			MasterHoldJitter:    *masterHoldJitter,
 			TimeSource:          clock.System,
 		},
 	}
