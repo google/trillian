@@ -71,9 +71,6 @@ var (
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
 	masterHoldJitter    = flag.Duration("master_hold_jitter", 60*time.Second, "Maximal random addition to --master_hold_interval")
 
-	// TODO(pavelkalinnikov): Remove this flag.
-	resignOdds = flag.Int("resign_odds", 10, "Deprecated: Chance of resigning mastership after each check, the N in 1-in-N")
-
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
