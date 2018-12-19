@@ -14,6 +14,11 @@ an optional error.
 
 The maphammer test tool for the experimental Trillian Map has been enhanced.
 
+### Master election refactoring
+
+The `--resign_odds` flag in `logsigner` is deprecated, in favor of a more
+generic `--master_hold_jitter` flag.
+
 ### Other
 
 The `TimeSource` type (and other time utils) moved to a separate `util/clock`
