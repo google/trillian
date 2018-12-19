@@ -16,8 +16,9 @@ The maphammer test tool for the experimental Trillian Map has been enhanced.
 
 ### Master election refactoring
 
-The `--resign_odds` flag in `logsigner` is deprecated, in favor of a more
-generic `--master_hold_jitter` flag.
+The `--resign_odds` flag in `logsigner` is removed, in favor of a more generic
+`--master_hold_jitter` flag. Operators using this flag are advised to set the
+jitter to `master_check_interval * resign_odds * 2` to achieve similar behavior.
 
 ### Other
 
