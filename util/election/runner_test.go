@@ -17,7 +17,7 @@ package election_test
 import (
 	"context"
 	"errors"
-	"math"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -27,56 +27,32 @@ import (
 	"github.com/google/trillian/util/election/stub"
 )
 
-func TestShouldResign(t *testing.T) {
-	startTime := time.Date(1970, 9, 19, 12, 00, 00, 00, time.UTC)
-	var tests = []struct {
-		hold     time.Duration
-		odds     int
-		wantHold time.Duration
-		wantProb float64
+func TestConfigResignDelay(t *testing.T) {
+	const checks = 1000
+	for _, tc := range []struct {
+		hold    time.Duration
+		jitter  time.Duration
+		wantMax time.Duration
 	}{
-		{hold: 12 * time.Second, odds: 10, wantHold: 12 * time.Second, wantProb: 0.1},
-		{hold: time.Second, odds: 10, wantHold: 10 * time.Second, wantProb: 0.1},
-		{hold: 10 * time.Second, odds: 0, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: 1, wantHold: 10 * time.Second, wantProb: 1.0},
-		{hold: 10 * time.Second, odds: -1, wantHold: 10 * time.Second, wantProb: 1.0},
-	}
-	for _, test := range tests {
-		fakeTimeSource := clock.NewFake(time.Time{})
-		cfg := election.RunnerConfig{
-			MasterHoldInterval: test.hold,
-			ResignOdds:         test.odds,
-			TimeSource:         fakeTimeSource,
-		}
-		er := election.NewRunner("6962", &cfg, nil, nil, nil)
-
-		holdChecks := int64(10)
-		holdNanos := test.wantHold.Nanoseconds() / holdChecks
-	timeslot:
-		for i := int64(-1); i < holdChecks; i++ {
-			gapNanos := time.Duration(i * holdNanos)
-			fakeTimeSource.Set(startTime.Add(gapNanos))
-			for j := 0; j < 100; j++ {
-				if er.ShouldResign(startTime) {
-					t.Errorf("shouldResign(hold=%v,odds=%v @ start+%v)=true; want false", test.hold, test.odds, gapNanos)
-					continue timeslot
+		{hold: 12 * time.Second, jitter: -1 * time.Second, wantMax: 12 * time.Second},
+		{hold: 12 * time.Second, jitter: 0, wantMax: 12 * time.Second},
+		{hold: 12 * time.Second, jitter: 5 * time.Second, wantMax: 17 * time.Second},
+		{hold: 0, jitter: 0, wantMax: 0},
+		{hold: 0, jitter: 500 * time.Millisecond, wantMax: 500 * time.Millisecond},
+		{hold: 1 * time.Hour, jitter: 10 * time.Minute, wantMax: 70 * time.Minute},
+	} {
+		t.Run(fmt.Sprintf("%v:%v", tc.hold, tc.jitter), func(t *testing.T) {
+			cfg := election.RunnerConfig{
+				MasterHoldInterval: tc.hold,
+				MasterHoldJitter:   tc.jitter,
+			}
+			for i := 0; i < checks; i++ {
+				d := cfg.ResignDelay()
+				if min, max := tc.hold, tc.wantMax; d < min || d > max {
+					t.Fatalf("ResignDelay(): %v, want between %v and %v", d, min, max)
 				}
 			}
-		}
-
-		fakeTimeSource.Set(startTime.Add(test.wantHold).Add(time.Nanosecond))
-		iterations := 10000
-		count := 0
-		for i := 0; i < iterations; i++ {
-			if er.ShouldResign(startTime) {
-				count++
-			}
-		}
-		got := float64(count) / float64(iterations)
-		deltaFraction := math.Abs(got-test.wantProb) / test.wantProb
-		if deltaFraction > 0.05 {
-			t.Errorf("P(shouldResign(hold=%v,odds=%v))=%f; want ~%f", test.hold, test.odds, got, test.wantProb)
-		}
+		})
 	}
 }
 

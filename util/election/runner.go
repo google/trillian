@@ -24,6 +24,8 @@ import (
 )
 
 // Minimum values for configuration intervals.
+// TODO(pavelkalinnikov): These params are specific to the application and
+// Election implementation, so shouldn't be here.
 const (
 	MinPreElectionPause    = 10 * time.Millisecond
 	MinMasterCheckInterval = 50 * time.Millisecond
@@ -37,14 +39,24 @@ type RunnerConfig struct {
 	PreElectionPause time.Duration
 	// MasterCheckInterval is the interval between checks that we still
 	// hold mastership for a log.
+	// TODO(pavelkalinnikov): Remove it when we switch to election2.
 	MasterCheckInterval time.Duration
 	// MasterHoldInterval is the minimum interval to hold mastership for.
 	MasterHoldInterval time.Duration
-	// ResignOdds gives the chance of resigning mastership after each
-	// check interval, as the N for 1-in-N.
-	ResignOdds int
+	// MasterHoldJitter is the maximum addition to MasterHoldInterval.
+	MasterHoldJitter time.Duration
 
 	TimeSource clock.TimeSource
+}
+
+// ResignDelay returns a randomized delay of how long to keep mastership for.
+func (cfg *RunnerConfig) ResignDelay() time.Duration {
+	delay := cfg.MasterHoldInterval
+	if cfg.MasterHoldJitter <= 0 {
+		return delay
+	}
+	add := rand.Int63n(int64(cfg.MasterHoldJitter))
+	return delay + time.Duration(add)
 }
 
 // fixupRunnerConfig ensures operation parameters have required minimum values.
@@ -58,8 +70,8 @@ func fixupRunnerConfig(cfg *RunnerConfig) {
 	if cfg.MasterHoldInterval < MinMasterHoldInterval {
 		cfg.MasterHoldInterval = MinMasterHoldInterval
 	}
-	if cfg.ResignOdds < 1 {
-		cfg.ResignOdds = 1
+	if cfg.MasterHoldJitter < 0 {
+		cfg.MasterHoldJitter = 0
 	}
 	if cfg.TimeSource == nil {
 		cfg.TimeSource = clock.System
@@ -119,6 +131,7 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 		glog.V(1).Infof("%s: Now, I am the master", er.id)
 		er.tracker.Set(er.id, true)
 		masterSince := er.cfg.TimeSource.Now()
+		masterUntil := masterSince.Add(er.cfg.ResignDelay())
 
 		// While-master loop
 		for {
@@ -136,7 +149,7 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 				er.tracker.Set(er.id, false)
 				break
 			}
-			if er.ShouldResign(masterSince) {
+			if er.cfg.TimeSource.Now().After(masterUntil) {
 				glog.Infof("%s: queue up resignation of mastership", er.id)
 				er.tracker.Set(er.id, false)
 
@@ -148,22 +161,6 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 			}
 		}
 	}
-}
-
-// ShouldResign randomly decides whether this runner should resign mastership.
-func (er *Runner) ShouldResign(masterSince time.Time) bool {
-	now := er.cfg.TimeSource.Now()
-	duration := now.Sub(masterSince)
-	if duration < er.cfg.MasterHoldInterval {
-		// Always hold onto mastership for a minimum interval to prevent churn.
-		return false
-	}
-	// Roll the bones.
-	odds := er.cfg.ResignOdds
-	if odds <= 0 {
-		return true
-	}
-	return rand.Intn(er.cfg.ResignOdds) == 0
 }
 
 // Resignation indicates that a master should explicitly resign mastership, by invoking
