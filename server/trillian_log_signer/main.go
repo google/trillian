@@ -68,10 +68,9 @@ var (
 		"Increase factor for tokens replenished by sequencing-based quotas (1 means a 1:1 relationship between sequenced leaves and replenished tokens)."+
 			"Only effective for --quota_system=etcd.")
 
-	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
-	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
-	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
-	masterHoldJitter    = flag.Duration("master_hold_jitter", 120*time.Second, "Maximal random addition to --master_hold_interval")
+	preElectionPause   = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
+	masterHoldInterval = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
+	masterHoldJitter   = flag.Duration("master_hold_jitter", 120*time.Second, "Maximal random addition to --master_hold_interval")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -154,11 +153,10 @@ func main() {
 		RunInterval: *sequencerIntervalFlag,
 		TimeSource:  clock.System,
 		ElectionConfig: election.RunnerConfig{
-			PreElectionPause:    *preElectionPause,
-			MasterCheckInterval: *masterCheckInterval,
-			MasterHoldInterval:  *masterHoldInterval,
-			MasterHoldJitter:    *masterHoldJitter,
-			TimeSource:          clock.System,
+			PreElectionPause:   *preElectionPause,
+			MasterHoldInterval: *masterHoldInterval,
+			MasterHoldJitter:   *masterHoldJitter,
+			TimeSource:         clock.System,
 		},
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
