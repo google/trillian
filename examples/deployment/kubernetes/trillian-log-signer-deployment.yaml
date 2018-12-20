@@ -31,7 +31,7 @@ spec:
         "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
         "--batch_size=$(SIGNER_BATCH_SIZE)",
         "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
-        "--resign_odds=$(SIGNER_RESIGN_ODDS)",
+        "--master_hold_jitter=$(SIGNER_MASTER_HOLD_JITTER)",
         "--alsologtostderr"
         ]
         envFrom:
