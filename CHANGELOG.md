@@ -20,6 +20,10 @@ The `--resign_odds` flag in `logsigner` is removed, in favor of a more generic
 `--master_hold_jitter` flag. Operators using this flag are advised to set the
 jitter to `master_check_interval * resign_odds * 2` to achieve similar behavior.
 
+`logsigner` switched to using a new master election interface contained in
+`util/election2` package. The interfaces in `util/election/election.go` file are
+deprecated.
+
 ### Other
 
 The `TimeSource` type (and other time utils) moved to a separate `util/clock`

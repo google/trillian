@@ -21,6 +21,9 @@ import (
 	"errors"
 )
 
+// TODO(pavelkalinnikov): Remove interfaces in this file, and their
+// implementations, after election2 supports GetCurrentMaster method.
+
 // MasterElection provides operations for determining if a local instance is
 // the current master for a particular election.
 type MasterElection interface {
