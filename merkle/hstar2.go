@@ -115,19 +115,39 @@ func (s *HStar2) hStar2b(depth, maxDepth int, values []HStar2LeafHash, offset *b
 	split := new(big.Int).Lsh(smtOne, uint(bitsLeft-1))
 	split.Add(split, offset)
 	i := sort.Search(len(values), func(i int) bool { return values[i].Index.Cmp(split) >= 0 })
-	lhs, err := s.hStar2b(depth+1, maxDepth, values[:i], offset, get, set)
-	if err != nil {
-		return nil, err
+	lhsFuture := s.hStar2bFuture(depth+1, maxDepth, values[:i], offset, get, set)
+	rhsFuture := s.hStar2bFuture(depth+1, maxDepth, values[i:], split, get, set)
+
+	lhs := <-lhsFuture
+	rhs := <-rhsFuture
+	if lhs.err != nil {
+		return nil, lhs.err
 	}
-	rhs, err := s.hStar2b(depth+1, maxDepth, values[i:], split, get, set)
-	if err != nil {
-		return nil, err
+	if rhs.err != nil {
+		return nil, rhs.err
 	}
 	h := s.hasher.HashChildren(lhs, rhs)
 	if err := s.set(offset, depth, h, set); err != nil {
 		return nil, err
 	}
 	return h, nil
+}
+
+type futureBranch chan branch
+type branch struct {
+	value []byte
+	err   error
+}
+
+func (s *HStar2) hStar2bFuture(depth, maxDepth int, values []HStar2LeafHash, offset *big.Int,
+	get SparseGetNodeFunc, set SparseSetNodeFunc) futureBranch {
+	c := make(futureBranch)
+	go func() {
+		defer close(c)
+		value, err := s.hStar2b(depth, maxDepth, values, offset, get, set)
+		c <- branch{value, err}
+	}()
+	return c
 }
 
 // get attempts to use getter. If getter fails, returns the HashEmpty value.
