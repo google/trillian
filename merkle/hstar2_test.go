@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/google/trillian/merkle/hashers"
@@ -105,6 +106,7 @@ func TestHStar2GetSet(t *testing.T) {
 	// Node cache is shared between tree builds and in effect plays the role of
 	// the TreeStorage layer.
 	cache := make(map[string][]byte)
+	var cacheMu sync.RWMutex
 	hasher := maphasher.Default
 
 	for i, x := range simpleTestVector {
@@ -119,9 +121,13 @@ func TestHStar2GetSet(t *testing.T) {
 		}
 		root, err := s.HStar2Nodes(nil, s.hasher.BitLen(), values,
 			func(depth int, index *big.Int) ([]byte, error) {
+				cacheMu.RLock()
+				defer cacheMu.RUnlock()
 				return cache[fmt.Sprintf("%x/%d", index, depth)], nil
 			},
 			func(depth int, index *big.Int, hash []byte) error {
+				cacheMu.Lock()
+				defer cacheMu.Unlock()
 				cache[fmt.Sprintf("%x/%d", index, depth)] = hash
 				return nil
 			})

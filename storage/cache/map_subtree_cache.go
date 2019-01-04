@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
@@ -39,6 +40,7 @@ func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher)
 func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
+		var internalNodesMu sync.Mutex
 		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
 			sfx, err := storage.ParseSuffix(k64)
@@ -72,6 +74,8 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 					}
 					glog.Infof("PopulateMapSubtreeNodes.Set(%x, %d) suffix: %x: %x", index.Bytes(), depth, b, h)
 				}
+				internalNodesMu.Lock()
+				defer internalNodesMu.Unlock()
 				st.InternalNodes[sfxKey] = h
 				return nil
 			})

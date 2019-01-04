@@ -211,6 +211,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		root = []byte{}
 		leaves := make([]HStar2LeafHash, 0, queueSize)
 		nodesToStore := make([]storage.Node, 0, queueSize*2)
+		var nodesMu sync.Mutex
 
 		// sibs will hold the list of sibling node IDs for all nodes we'll end up
 		// wanting to write - we'll use this to prewarm the subtree cache.
@@ -271,6 +272,8 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 				glog.V(4).Infof("buildSubtree.set(%x, %v) nid: %x, %v : %x",
 					index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits, h)
+				nodesMu.Lock()
+				defer nodesMu.Unlock()
 				nodesToStore = append(nodesToStore,
 					storage.Node{
 						NodeID:       nodeID,
