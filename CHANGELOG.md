@@ -4,6 +4,15 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Parallel Algorithms
+
+* The HStar2 algorithm for reading and writing to the map now processes each
+  subtree concurrently.
+
+### Default MaxSQLConnections Limit
+The default limit on the maximum number of concurrent mysql connections has been
+changed from unlimited to 1024. See ./scripts/mysqlconnlimit.sh
+
 ### Add Profiling Flags to Binaries
 
 The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
