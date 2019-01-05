@@ -33,4 +33,7 @@ linters:
     - misspell
     - govet
     - depguard
+    - deadcode
+    - ineffassign
+    - varcheck
     # - license
