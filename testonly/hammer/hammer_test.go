@@ -35,7 +35,11 @@ var (
 )
 
 func TestInProcessMapHammer(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("Hammer is not a short test")
+	}
 	testdb.SkipIfNoMySQL(t)
+
 	ctx := context.Background()
 	env, err := integration.NewMapEnv(ctx, *singleTX)
 	if err != nil {

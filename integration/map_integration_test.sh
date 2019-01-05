@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/functions.sh
 
@@ -18,7 +19,7 @@ fi
 echo "Running test"
 cd "${INTEGRATION_DIR}"
 set +e
-go test \
+go test ${GOFLAGS} ${GOFLAGS:+-short} \
   -timeout=${GO_TEST_TIMEOUT:-5m} \
   ./maptest  --map_rpc_server="${TRILLIAN_SERVER}"
 RESULT=$?
