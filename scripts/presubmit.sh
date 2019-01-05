@@ -67,16 +67,16 @@ main() {
   cd "$(dirname "$0")"  # at scripts/
   cd ..  # at top level
 
+  go_srcs="$(find . -name '*.go' | \
+    grep -v vendor/ | \
+    grep -v mock_ | \
+    grep -v .pb.go | \
+    grep -v .pb.gw.go | \
+    grep -v _string.go | \
+    tr '\n' ' ')"
+
   if [[ "$fix" -eq 1 ]]; then
     check_pkg goimports golang.org/x/tools/cmd/goimports || exit 1
-
-    local go_srcs="$(find . -name '*.go' | \
-      grep -v vendor/ | \
-      grep -v mock_ | \
-      grep -v .pb.go | \
-      grep -v .pb.gw.go | \
-      grep -v _string.go | \
-      tr '\n' ' ')"
 
     echo 'running gofmt'
     gofmt -s -w ${go_srcs}
@@ -122,6 +122,8 @@ main() {
 
     echo 'running golangci-lint'
     golangci-lint run
+    echo 'checking license headers'
+    ./scripts/check_license.sh ${go_srcs}
   fi
 
   if [[ "${run_generate}" -eq 1 ]]; then
