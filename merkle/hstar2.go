@@ -116,15 +116,14 @@ func (s *HStar2) hStar2b(depth, maxDepth int, values []HStar2LeafHash, offset *b
 	split.Add(split, offset)
 	i := sort.Search(len(values), func(i int) bool { return values[i].Index.Cmp(split) >= 0 })
 	lhsFuture := s.hStar2bFuture(depth+1, maxDepth, values[:i], offset, get, set)
-	rhsFuture := s.hStar2bFuture(depth+1, maxDepth, values[i:], split, get, set)
+	rhs, err := s.hStar2b(depth+1, maxDepth, values[i:], split, get, set)
+	if err != nil {
+		return nil, err
+	}
 
 	lhs := <-lhsFuture
-	rhs := <-rhsFuture
 	if lhs.err != nil {
 		return nil, lhs.err
-	}
-	if rhs.err != nil {
-		return nil, rhs.err
 	}
 	h := s.hasher.HashChildren(lhs, rhs)
 	if err := s.set(offset, depth, h, set); err != nil {
