@@ -15,6 +15,12 @@ linters-settings:
   gocyclo:
     # minimal code complexity to report, 30 by default (but we recommend 10-20)
     min-complexity: 25
+  depguard:
+    list-type: blacklist
+    packages:
+      - golang.org/x/net/context
+      - github.com/gogo/protobuf/proto
+      - github.com/google/certificate-transparency-go/trillian
 
 linters:
   disable-all: true
@@ -26,5 +32,5 @@ linters:
     - megacheck
     - misspell
     - govet
+    - depguard
     # - license
-    # - unforked
