@@ -235,7 +235,11 @@ and tests over the codebase.
 
 ```bash
 # Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
-go get github.com/golangci/golangci-lint
+```
+go get github.com/golangci/golangci-lint/cmd/golangci-lint
+cd $(go env GOPATH)/src/github.com/golangci/golangci-lint/cmd/golangci-lint
+go install -ldflags "-X 'main.version=$(git describe --tags)' -X 'main.commit=$(git rev-parse --short HEAD)' -X 'main.date=$(date)'"
+```
 
 # Run code generation, build, test and linters
 ./scripts/presubmit.sh
