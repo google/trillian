@@ -24,7 +24,7 @@ type expandTestcase struct {
 	expected string
 }
 
-// This test exists to prevent gometalinter from failing
+// This test exists to prevent golangci-lint from failing
 // unused functions.
 // TODO(vishal): remove this once the rest of the storage code is complete.
 func TestInitializes(t *testing.T) {

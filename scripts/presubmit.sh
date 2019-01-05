@@ -10,31 +10,6 @@
 #   GO_TEST_TIMEOUT: timeout for 'go test'. Optional (defaults to 5m).
 set -eu
 
-
-# Retries running a command N times, with exponential backoff between failures.
-#
-# Usage:
-#   retry N command ...args
-retry() {
-  local retries=$1
-  shift
-
-  local count=0
-  until "$@"; do
-    local exit=$?
-    local wait=$((2 ** $count))
-    local count=$(($count + 1))
-    if [ $count -lt $retries ]; then
-      echo "Attempt $count/$retries: $1 exited $exit, retrying in $wait seconds..."
-      sleep $wait
-    else
-      echo "Attempt $count/$retries: $1 exited $exit, no more retries left."
-      return $exit
-    fi
-  done
-  return 0
-}
-
 check_pkg() {
   local cmd="$1"
   local pkg="$2"
@@ -142,11 +117,11 @@ main() {
   fi
 
   if [[ "${run_lint}" -eq 1 ]]; then
-    check_cmd gometalinter \
-      'have you installed github.com/alecthomas/gometalinter?' || exit 1
+    check_cmd golangci-lint \
+      'have you installed github.com/golangci/golangci-lint?' || exit 1
 
-    echo 'running gometalinter'
-    retry 5 gometalinter --config=gometalinter.json --deadline=2m ./...
+    echo 'running golangci-lint'
+    golangci-lint run
   fi
 
   if [[ "${run_generate}" -eq 1 ]]; then

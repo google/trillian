@@ -234,15 +234,14 @@ The [`scripts/presubmit.sh`](scripts/presubmit.sh) script runs various tools
 and tests over the codebase.
 
 ```bash
-# Install gometalinter and all linters
-go get -u github.com/alecthomas/gometalinter
-gometalinter --install
+# Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
+go get github.com/golangci/golangci-lint
 
 # Run code generation, build, test and linters
 ./scripts/presubmit.sh
 
 # Or just run the linters alone:
-gometalinter --config=gometalinter.json ./...
+golangci-lint run
 ```
 
 
