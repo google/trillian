@@ -36,6 +36,8 @@ require (
 	github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7 // indirect
 	github.com/prometheus/client_golang v0.9.2
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
+	github.com/pseudomuto/protoc-gen-doc v1.1.0 // indirect
+	github.com/pseudomuto/protokit v0.1.0 // indirect
 	github.com/sirupsen/logrus v1.3.0 // indirect
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect

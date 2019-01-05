@@ -22,5 +22,6 @@ import (
 	_ "github.com/golang/mock/gomock"
 	_ "github.com/golang/protobuf/protoc-gen-go"
 	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
+	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 	_ "golang.org/x/tools/cmd/stringer"
 )
