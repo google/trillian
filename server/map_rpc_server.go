@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -100,6 +101,12 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
 	}
+	for _, index := range indices {
+		if err := checkIndexSize(index, hasher); err != nil {
+			return nil, err
+		}
+	}
+
 	ctx = trees.NewContext(ctx, tree)
 
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
@@ -128,45 +135,51 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	if err := mapRoot.UnmarshalBinary(root.MapRoot); err != nil {
 		return nil, err
 	}
+	revision = int64(mapRoot.Revision)
 
-	smtReader := merkle.NewSparseMerkleTreeReader(int64(mapRoot.Revision), hasher, tx)
-
-	inclusions := make([]*trillian.MapLeafInclusion, 0, len(indices))
-	found := 0
-	for _, index := range indices {
-		if err := checkIndexSize(index, hasher); err != nil {
-			return nil, err
-		}
-		// Fetch the leaf if it exists.
-		leaves, err := tx.Get(ctx, int64(mapRoot.Revision), [][]byte{index})
-		if err != nil {
-			return nil, fmt.Errorf("could not fetch leaf %x: %v", index, err)
-		}
-		var leaf *trillian.MapLeaf
-		if len(leaves) == 1 {
-			leaf = &leaves[0]
-			found++
-		} else {
-			// Empty leaf for proof of non-existence.
-			leaf = &trillian.MapLeaf{
-				Index:     index,
-				LeafValue: nil,
-				LeafHash:  nil, // equivalent to hasher.HashEmpty(mapID, index, 0)
-			}
-		}
-
-		// Fetch the proof regardless of whether the leaf exists.
-		proof, err := smtReader.InclusionProof(ctx, int64(mapRoot.Revision), index)
-		if err != nil {
-			return nil, fmt.Errorf("could not get inclusion proof for leaf %x: %v", index, err)
-		}
-
-		inclusions = append(inclusions, &trillian.MapLeafInclusion{
-			Leaf:      leaf,
-			Inclusion: proof,
-		})
+	leaves, err := tx.Get(ctx, revision, indices)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch leaves: %v", err)
 	}
-	glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), found)
+	leavesByIndex := make(map[string]*trillian.MapLeaf)
+	for i, l := range leaves {
+		leavesByIndex[string(l.Index)] = &leaves[i]
+	}
+	glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), len(leaves))
+
+	// Add empty leaf values for indices that were not returned.
+	for _, index := range indices {
+		if _, ok := leavesByIndex[string(index)]; !ok {
+			leavesByIndex[string(index)] = &trillian.MapLeaf{Index: index}
+		}
+	}
+
+	// Fetch inclusion proofs in parallel.
+	smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
+	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
+	errs := make(chan error, len(indices))
+	var wg sync.WaitGroup
+	wg.Add(len(indices))
+	for i, index := range indices {
+		// TODO(gbelvin): Replace with a batch inclusion proof reader.
+		go func(i int, index []byte) {
+			defer wg.Done()
+			l := leavesByIndex[string(index)]
+			proof, err := smtReader.InclusionProof(ctx, revision, l.Index)
+			if err != nil {
+				errs <- fmt.Errorf("could not get inclusion proof for leaf %x: %v", l.Index, err)
+				return
+			}
+			inclusions[i] = &trillian.MapLeafInclusion{
+				Leaf:      l,
+				Inclusion: proof,
+			}
+		}(i, index)
+	}
+	wg.Wait()
+	if len(errs) != 0 {
+		return nil, <-errs // Only return the first error.
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("could not commit db transaction: %v", err)
