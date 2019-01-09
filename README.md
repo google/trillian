@@ -233,12 +233,12 @@ git subtree add --squash --prefix=vendor/github.com/orgname/xyzzy/ vendor-xyzzy 
 The [`scripts/presubmit.sh`](scripts/presubmit.sh) script runs various tools
 and tests over the codebase.
 
-```bash
 # Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
-```
-go get github.com/golangci/golangci-lint/cmd/golangci-lint
+```bash
+go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 cd $(go env GOPATH)/src/github.com/golangci/golangci-lint/cmd/golangci-lint
 go install -ldflags "-X 'main.version=$(git describe --tags)' -X 'main.commit=$(git rev-parse --short HEAD)' -X 'main.date=$(date)'"
+cd -
 ```
 
 # Run code generation, build, test and linters

@@ -7,7 +7,7 @@ Not yet released; provisionally v2.0.0 (may change).
 ### Linting toolchain migration
 
 gometalinter has been replaced with golangci-lint for improved performance and
-go module support.
+Go module support.
 
 ### Storage API change
 
