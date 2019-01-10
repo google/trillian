@@ -481,7 +481,7 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 	// rather than doing that we'll make a note of all the unexpected IDs here
 	// instead, and we can then print them out later on.
 	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).AnyTimes().Do(
-		func(rev int64, a []storage.NodeID) {
+		func(_ context.Context, rev int64, a []storage.NodeID) {
 			if a == nil {
 				return
 			}
