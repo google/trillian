@@ -2,7 +2,28 @@ substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
   _CONFIG_MAP: examples/deployment/kubernetes/trillian-opensource-ci.yaml
+  _MYSQL_TAG: "5.7"
 steps:
+- id: pull_mysql
+  name : gcr.io/cloud-builders/docker
+  args:
+  - pull
+  - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
+- id: tag_mysql
+  name: gcr.io/cloud-builders/docker
+  args:
+  - tag
+  - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
+  - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
+  waitFor:
+  - pull_mysql
+- id: push_mysql
+  name: gcr.io/cloud-builders/docker
+  args:
+  - push
+  - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
+  waitFor:
+  - tag_mysql
 - id: build_db_server
   name: gcr.io/cloud-builders/docker
   args:
@@ -10,7 +31,8 @@ steps:
   - --file=examples/deployment/docker/db_server/Dockerfile
   - --tag=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
   - .
-  waitFor: ["-"]
+  waitFor:
+  - push_mysql
 - id: build_log_server
   name: gcr.io/cloud-builders/docker
   args:
