@@ -585,7 +585,10 @@ func TestSparseMerkleTreeWriterFetchesMultipleLeaves(t *testing.T) {
 }
 
 func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
-	//t.Skip("Disabled: BigBatch takes too long")
+	if testing.Short() {
+		t.Skip("BigBatch test is not short")
+	}
+
 	ctx := context.Background()
 
 	mockCtrl := gomock.NewController(t)
