@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-set -x
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/functions.sh
 
