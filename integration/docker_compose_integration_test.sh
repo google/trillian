@@ -17,7 +17,7 @@ docker_compose_up() {
     echo "Health: ${health}"
   fi
 
-  if [[ ${health_exitcode} != 0 && "${health}" != "ok" ]]; then
+  if [[ ${health_exitcode} != 0 || "${health}" != "ok" ]]; then
     return 1
   fi
   return 0
