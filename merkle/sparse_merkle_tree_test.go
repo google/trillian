@@ -473,7 +473,10 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 
 		state, ok := reads[ids[0].String()]
 		reads[ids[0].String()] = "met"
-		return ok && state == "unmet"
+
+		// Allow re-reads of the same nodes too (state=="met") - this is due to
+		// cache warming:
+		return ok && (state == "unmet" || state == "met")
 	}}).AnyTimes().Return([]storage.Node{}, nil)
 
 	// Now add a general catch-all for any unexpected calls. If we don't do this
@@ -582,7 +585,7 @@ func TestSparseMerkleTreeWriterFetchesMultipleLeaves(t *testing.T) {
 }
 
 func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
-	t.Skip("Disabled: BigBatch takes too long")
+	//t.Skip("Disabled: BigBatch takes too long")
 	ctx := context.Background()
 
 	mockCtrl := gomock.NewController(t)
