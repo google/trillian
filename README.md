@@ -233,16 +233,22 @@ git subtree add --squash --prefix=vendor/github.com/orgname/xyzzy/ vendor-xyzzy 
 The [`scripts/presubmit.sh`](scripts/presubmit.sh) script runs various tools
 and tests over the codebase.
 
+#### Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
 ```bash
-# Install gometalinter and all linters
-go get -u github.com/alecthomas/gometalinter
-gometalinter --install
+go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+cd $GOPATH/src/github.com/golangci/golangci-lint/cmd/golangci-lint
+go install -ldflags "-X 'main.version=$(git describe --tags)' -X 'main.commit=$(git rev-parse --short HEAD)' -X 'main.date=$(date)'"
+cd -
+```
 
-# Run code generation, build, test and linters
+#### Run code generation, build, test and linters
+```bash
 ./scripts/presubmit.sh
+```
 
-# Or just run the linters alone:
-gometalinter --config=gometalinter.json ./...
+#### Or just run the linters alone
+```bash
+golangci-lint run
 ```
 
 

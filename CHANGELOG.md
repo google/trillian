@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Linting toolchain migration
+
+gometalinter has been replaced with golangci-lint for improved performance and
+Go module support.
+
 ### Storage API change
 
 The internal storage API is modified so that the ReadOnlyTreeTX.ReadRevision and
