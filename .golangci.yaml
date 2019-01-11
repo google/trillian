@@ -27,4 +27,5 @@ linters:
     - deadcode
     - ineffassign
     - varcheck
-    # - license
+    # TODO(gbelvin): write license linter and commit to upstream. 
+    # ./scripts/check_license.sh is run by ./scripts/presubmit.sh
