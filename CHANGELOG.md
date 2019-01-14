@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Fix Operation Loop Hang
+
+Resolved a bug that would hide errors and cause the `OperationLoop` to hang
+until process exit if any error occured.
+
 ### Linting toolchain migration
 
 gometalinter has been replaced with golangci-lint for improved performance and
