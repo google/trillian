@@ -38,9 +38,15 @@ gcloud --quiet container clusters get-credentials ${CLUSTER_NAME}
 # Configure Docker to use gcloud credentials with Google Container Registry
 gcloud auth configure-docker
 
+<<<<<<< HEAD
 # Get Trillian
 go get github.com/google/trillian/...
 cd $GOPATH/src/github.com/google/trillian
+=======
+# Push docker images
+docker push gcr.io/${PROJECT_NAME}/log_server:${TAG}
+docker push gcr.io/${PROJECT_NAME}/log_signer:${TAG}
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
 
 images="log_server log_signer"
 if ${RUN_MAP}; then
@@ -60,6 +66,7 @@ kubectl delete configmap deploy-config || true
 envsubst < ${CONFIGMAP} | kubectl create -f -
 
 # Launch with kubernetes
+<<<<<<< HEAD
 kubeconfigs="trillian-log-deployment.yaml trillian-log-service.yaml trillian-log-signer-deployment.yaml trillian-log-signer-service.yaml"
 if ${RUN_MAP}; then
   kubeconfigs+=" trillian-map-deployment.yaml trillian-map-service.yaml"
@@ -69,5 +76,11 @@ for thing in ${kubeconfigs}; do
   envsubst < ${DIR}/${thing} | kubectl apply -f -
 done
 
+=======
+envsubst < examples/deployment/kubernetes/trillian-log-server-deployment.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-log-server-service.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-log-signer-deployment.yaml | kubectl apply -f -
+envsubst < examples/deployment/kubernetes/trillian-log-signer-service.yaml | kubectl apply -f -
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
 kubectl get all
 kubectl get services

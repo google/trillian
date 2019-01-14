@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     io.kompose.service: trillian-log-signer
-  name: trillian-logsigner-deployment
+  name: trillian-log-signer
 spec:
   replicas: 2
   strategy: {}
@@ -17,6 +17,7 @@ spec:
       - name: google-cloud-key
         secret:
           secretName: trillian-key
+<<<<<<< HEAD
       restartPolicy: Always
       containers:
       - args: [
@@ -33,13 +34,39 @@ spec:
         "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
         "--master_hold_jitter=$(SIGNER_MASTER_HOLD_JITTER)",
         "--alsologtostderr"
+=======
+      nodeSelector:
+        cloud.google.com/gke-nodepool: logsigner-pool
+      restartPolicy: Always
+      containers:
+      - name: trillian-log-signer
+        image: gcr.io/${PROJECT_NAME}/log_signer:${TAG}
+        imagePullPolicy: Always
+        args: [
+          "$(STORAGE_FLAG)",
+          "--storage_system=$(STORAGE_SYSTEM)",
+          "--etcd_servers=trillian-etcd-cluster-client:2379",
+          "--quota_system=etcd",
+          "--etcd_http_service=trillian-logsigner-http",
+          "--http_endpoint=0.0.0.0:8091",
+          "--sequencer_guard_window=1s",
+          "--sequencer_interval=$(SIGNER_INTERVAL)",
+          "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
+          "--batch_size=$(SIGNER_BATCH_SIZE)",
+          "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
+          "--resign_odds=$(SIGNER_RESIGN_ODDS)",
+          "--alsologtostderr"
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
         ]
         envFrom:
           - configMapRef:
               name: deploy-config
+<<<<<<< HEAD
         # Update this with the name of your project:
         image: gcr.io/${PROJECT_ID}/log_signer:${IMAGE_TAG}
         imagePullPolicy: Always
+=======
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
         resources:
           limits:
             cpu: "1"
@@ -52,7 +79,6 @@ spec:
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 5
-        name: trillian-log-signer
         ports:
         - containerPort: 8091
         volumeMounts:

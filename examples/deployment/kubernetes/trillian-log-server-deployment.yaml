@@ -2,15 +2,15 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    io.kompose.service: trillian-log
-  name: trillian-logserver-deployment
+    io.kompose.service: trillian-log-server
+  name: trillian-log-server
 spec:
   replicas: 4
   strategy: {}
   template:
     metadata:
       labels:
-        io.kompose.service: trillian-log
+        io.kompose.service: trillian-log-server
     spec:
       volumes:
       - name: google-cloud-key
@@ -18,7 +18,9 @@ spec:
           secretName: trillian-key
       restartPolicy: Always
       containers:
-      - name: trillian-logserver
+      - name: trillian-log-server
+        image: gcr.io/${PROJECT_NAME}/log_server:${TAG}
+        imagePullPolicy: Always
         args: [
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
@@ -33,8 +35,11 @@ spec:
         envFrom:
           - configMapRef:
               name: deploy-config
+<<<<<<< HEAD:examples/deployment/kubernetes/trillian-log-deployment.yaml
         image: gcr.io/${PROJECT_ID}/log_server:${IMAGE_TAG}
         imagePullPolicy: Always
+=======
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500:examples/deployment/kubernetes/trillian-log-server-deployment.yaml
         resources:
           limits:
             cpu: "1.0"

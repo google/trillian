@@ -49,9 +49,11 @@ for SERVICE in container spanner; do
   gcloud services enable ${SERVICE}.googleapis.com --project=${PROJECT_ID}
 done
 
-# Create cluster
-# TODO(https://github.com/google/trillian/issues/1183): Add support for priorities and preemption when Kubernetes 1.11 is GA.
-gcloud container clusters create "${CLUSTER_NAME}" --machine-type "${MACHINE_TYPE}" --image-type "COS" --num-nodes "${POOLSIZE}" --enable-autorepair --enable-autoupgrade --node-locations="${NODE_LOCATIONS}"
+# Create cluster & node pools
+gcloud container clusters create "${CLUSTER_NAME}" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "2" --enable-autorepair --enable-autoupgrade
+gcloud container node-pools create "logserver-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "4" --enable-autorepair --enable-autoupgrade
+gcloud container node-pools create "logsigner-pool" --machine-type "n1-standard-2" --image-type "COS" --num-nodes "2" --enable-autorepair --enable-autoupgrade
+gcloud container node-pools create "ctfe-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "4" --enable-autorepair --enable-autoupgrade
 gcloud container clusters get-credentials "${CLUSTER_NAME}"
 
 # Create spanner instance & DB
@@ -70,6 +72,12 @@ for ROLE in spanner.databaseUser logging.logWriter monitoring.metricWriter; do
     --role "roles/${ROLE}"
 done
 
+# Wait for cluster provisioning to complete by awaiting completion of its operations
+# Need to block on these because the kubectls will fail until the cluster (and node pools) stabilize
+for OPERATION in $(gcloud container operations list --format="value(name)"); do
+  gcloud container operations wait ${OPERATION}
+done
+
 # Bring up etcd cluster
 # Work-around for etcd-operator role on GKE.
 COREACCOUNT=$(gcloud config config-helper --format=json | jq -r '.configuration.properties.core.account')
@@ -81,7 +89,7 @@ kubectl apply -f ${DIR}/etcd-deployment.yaml
 kubectl apply -f ${DIR}/etcd-service.yaml
 
 # TODO(al): wait for this properly somehow
-sleep 30
+sleep 30s
 
 # TODO(al): have to wait before doing this?
 kubectl apply -f ${DIR}/etcd-cluster.yaml

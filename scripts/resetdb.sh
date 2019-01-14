@@ -51,15 +51,25 @@ collect_vars() {
     shift 1
   done
 
+<<<<<<< HEAD
   FLAGS+=(-u "${MYSQL_ROOT_USER}")
   FLAGS+=(--host "${MYSQL_HOST}")
   FLAGS+=(--port "${MYSQL_PORT}")
+=======
+  FLAGS+=(--user="${DB_USER}")
+  FLAGS+=(--host="${DB_HOST}")
+  FLAGS+=(--port="${DB_PORT}")
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
 
   # Optionally print flags (before appending password)
   [[ ${VERBOSE} = 'true' ]] && echo "- Using MySQL Flags: ${FLAGS[@]}"
 
   # append password if supplied
+<<<<<<< HEAD
   [ -z ${MYSQL_ROOT_PASSWORD+x} ] || FLAGS+=(-p"${MYSQL_ROOT_PASSWORD}")
+=======
+  [ -z ${DB_PASSWORD+x} ] || FLAGS+=(--password="${DB_PASSWORD}")
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
 }
 
 main() {

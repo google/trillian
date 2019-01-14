@@ -27,7 +27,7 @@ spec:
           value: "yes"
         - name: MYSQL_USER
           value: test
-        image: gcr.io/${PROJECT_ID}/db_server:latest
+        image: gcr.io/${PROJECT_NAME}/db:${TAG}
         name: db
         resources: {}
       restartPolicy: Always

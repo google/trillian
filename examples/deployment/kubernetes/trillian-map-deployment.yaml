@@ -18,6 +18,7 @@ spec:
           secretName: trillian-key
       restartPolicy: Always
       containers:
+<<<<<<< HEAD
       - name: trillian-mapserver
         args: [
         "$(STORAGE_FLAG)",
@@ -37,13 +38,29 @@ spec:
         resources:
           limits:
             cpu: "1.0"
+=======
+      - name: trillian-map
+        image: gcr.io/${PROJECT_NAME}/map_server:${TAG}
+        imagePullPolicy: Always
+        command:
+        - /go/bin/trillian_map_server
+        - --mysql_uri=test:zaphod@tcp(db:3306)/test
+        - --rpc_endpoint=0.0.0.0:8090
+        - --http_endpoint=0.0.0.0:8091
+        - --alsologtostderr
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
         livenessProbe:
           httpGet:
             path: /healthz
             port: 8091
           failureThreshold: 3
           periodSeconds: 30
+<<<<<<< HEAD
           timeoutSeconds: 5
+=======
+          timeoutSeconds: 30
+
+>>>>>>> 8e4c86bfbbfbee4ad65c3d03808814051323d500
         ports:
         - containerPort: 8090
           name: rpc
