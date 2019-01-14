@@ -212,12 +212,16 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		leaves := make([]HStar2LeafHash, 0, queueSize)
 		nodesToStore := make([]storage.Node, 0, queueSize*2)
 
+		// sibs will hold the list of sibling node IDs for all nodes we'll end up
+		// wanting to write - we'll use this to prewarm the subtree cache.
+		var sibs []storage.NodeID
 		for leafGenerator := range s.leafGeneratorQueue {
 			ih, err := leafGenerator()
 			if err != nil {
 				return err
 			}
 			nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.Suffix{}, s.hasher.BitLen())
+			sibs = append(sibs, nodeID.Siblings()...)
 
 			leaves = append(leaves, HStar2LeafHash{
 				Index:    nodeID.BigInt(),
@@ -229,6 +233,10 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					Hash:         ih.hash,
 					NodeRevision: s.treeRevision,
 				})
+		}
+		// Prewarm the cache:
+		if _, err := tx.GetMerkleNodes(ctx, s.treeRevision, sibs); err != nil {
+			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
 
 		// calculate new root, and intermediate nodes:

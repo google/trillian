@@ -31,6 +31,10 @@ The `--master_check_interval` flag is removed from `logsigner`.
 `util/election2` package. The interfaces in `util/election/election.go` file are
 deprecated.
 
+### Performance
+
+The performance of `SetLeaves` requests on the Map has been slightly improved.
+
 ### Other
 
 The `TimeSource` type (and other time utils) moved to a separate `util/clock`

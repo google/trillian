@@ -255,6 +255,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return err
 		}
 
+		hkv := make([]merkle.HashKeyValue, 0, len(req.Leaves))
 		for _, l := range req.Leaves {
 			if err := checkIndexSize(l.Index, hasher); err != nil {
 				return err
@@ -268,14 +269,13 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			if err = tx.Set(ctx, l.Index, *l); err != nil {
 				return err
 			}
-			if err = smtWriter.SetLeaves(ctx, []merkle.HashKeyValue{
-				{
-					HashedKey:   l.Index,
-					HashedValue: l.LeafHash,
-				},
-			}); err != nil {
-				return err
-			}
+			hkv = append(hkv, merkle.HashKeyValue{
+				HashedKey:   l.Index,
+				HashedValue: l.LeafHash,
+			})
+		}
+		if err = smtWriter.SetLeaves(ctx, hkv); err != nil {
+			return err
 		}
 
 		if t.opts.UseSingleTransaction {
