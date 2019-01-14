@@ -307,8 +307,8 @@ loop:
 		// TODO(alcutter): want a child context with deadline here?
 		start := l.info.TimeSource.Now()
 		if err := l.getLogsAndExecutePass(ctx); err != nil {
-			// Suppress the error if ctx is done (ok==false) as we're exiting.
-			if _, ok := <-ctx.Done(); ok {
+			// Suppress the error if ctx is done (ctx.Err != nil) as we're exiting.
+			if ctx.Err() != nil {
 				glog.Errorf("failed to execute operation on logs: %v", err)
 			}
 		}
