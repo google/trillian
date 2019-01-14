@@ -235,14 +235,13 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 				})
 		}
 		// Prewarm the cache:
-		var err error
-		_, err = tx.GetMerkleNodes(ctx, s.treeRevision, sibs)
-		if err != nil {
+		if _, err := tx.GetMerkleNodes(ctx, s.treeRevision, sibs); err != nil {
 			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
 
 		// calculate new root, and intermediate nodes:
 		hs2 := NewHStar2(s.treeID, s.hasher)
+		var err error
 		root, err = hs2.HStar2Nodes(s.prefix, s.subtreeDepth, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
