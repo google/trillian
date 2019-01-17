@@ -66,7 +66,7 @@ type mySQLMapStorage struct {
 func NewMapStorage(db *sql.DB) storage.MapStorage {
 	return &mySQLMapStorage{
 		admin:            NewAdminStorage(db),
-		mySQLTreeStorage: newTreeStorage(db),
+		mySQLTreeStorage: newTreeStorage(db, TreeStorageOptions{}),
 	}
 }
 

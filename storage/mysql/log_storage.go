@@ -137,15 +137,21 @@ type mySQLLogStorage struct {
 	metricFactory monitoring.MetricFactory
 }
 
+// LogStorageOptions holds tuning parameters and experimental settings for
+// the MySQL log storage code.
+type LogStorageOptions struct {
+	TreeStorageOptions
+}
+
 // NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
-func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
+func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory, opts LogStorageOptions) storage.LogStorage {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),
-		mySQLTreeStorage: newTreeStorage(db),
+		mySQLTreeStorage: newTreeStorage(db, opts.TreeStorageOptions),
 		metricFactory:    mf,
 	}
 }

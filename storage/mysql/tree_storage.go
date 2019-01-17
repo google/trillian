@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -52,7 +53,12 @@ const (
  ON Subtree.SubtreeId = x.SubtreeId 
  AND Subtree.SubtreeRevision = x.MaxRevision 
  AND Subtree.TreeId = ?`
-	placeholderSQL = "<placeholder>"
+	placeholderSQL         = "<placeholder>"
+	selectSingleSubtreeSQL = `
+	SELECT SubtreeRevision, Nodes FROM Subtree 
+      WHERE SubTreeId = ?
+      ORDER BY SubtreeRevision DESC
+  `
 )
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
@@ -66,6 +72,15 @@ type mySQLTreeStorage struct {
 	// in the query to the statement that should be used.
 	statementMutex sync.Mutex
 	statements     map[string]map[int]*sql.Stmt
+	opts           TreeStorageOptions
+}
+
+// TreeStorageOptions holds tuning parameters or experimental settings for
+// the MySQL tree storage code.
+type TreeStorageOptions struct {
+	// If set will avoid using a large complex JOIN query to fetch subtrees
+	// and use a scanning approach similar to the CloudSpanner implementation.
+	FetchSingleSubtrees bool
 }
 
 // OpenDB opens a database connection for all MySQL-based storage implementations.
@@ -85,10 +100,11 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
+func newTreeStorage(db *sql.DB, opts TreeStorageOptions) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
 		db:         db,
 		statements: make(map[string]map[int]*sql.Stmt),
+		opts:       opts,
 	}
 }
 
@@ -186,6 +202,9 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	if t.ts.opts.FetchSingleSubtrees {
+		return t.getSubtreesSingly(ctx, treeRevision, nodeIDs)
+	}
 	glog.V(4).Infof("getSubtrees(")
 	if len(nodeIDs) == 0 {
 		return nil, nil
@@ -260,6 +279,92 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 				}
 				glog.Infof("     %x: %x", b, v)
 			}
+		}
+	}
+
+	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
+	// this method) will re-populate it.
+	return ret, nil
+}
+
+// This code will fetch subtrees one at a time scanning by descending revision.
+// We know that it is unlikely that there will be many rows to examine to find
+// the correct one. This ought to perform better than the current approach
+// of joining to find exactly the right rows because it should be a more
+// direct query using an index.
+func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	glog.V(4).Infof("getSubtreesSingly(")
+	if len(nodeIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, err := t.ts.db.Prepare(selectSingleSubtreeSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	// Go through each requested nodeID in turn. Then scan for a revision that
+	// meets our requirements.
+	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
+	for _, nodeID := range nodeIDs {
+		if nodeID.PrefixLenBits%8 != 0 {
+			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+		}
+
+		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
+		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
+
+		rows, err := stmt.QueryContext(ctx, nodeIDBytes)
+		if err != nil {
+			glog.Warningf("Failed to get merkle subtrees: %s", err)
+			return nil, err
+		}
+		defer rows.Close()
+		if rows.Err() != nil {
+			// Nothing from the DB
+			glog.Warningf("Nothing from DB: %s", rows.Err())
+			return nil, rows.Err()
+		}
+
+		found := false
+		for rows.Next() {
+			var subtreeRev int64
+			var nodesRaw []byte
+			if err := rows.Scan(&subtreeRev, &nodesRaw); err != nil {
+				glog.Warningf("Failed to scan merkle subtree: %s", err)
+				return nil, err
+			}
+			if subtreeRev <= treeRevision {
+				var subtree storagepb.SubtreeProto
+				if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
+					glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
+					return nil, err
+				}
+				if subtree.Prefix == nil {
+					subtree.Prefix = []byte{}
+				}
+				ret = append(ret, &subtree)
+				if glog.V(4) {
+					glog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
+						nodeIDBytes, subtree.Prefix, subtree.Depth)
+					for k, v := range subtree.Leaves {
+						b, err := base64.StdEncoding.DecodeString(k)
+						if err != nil {
+							glog.Errorf("base64.DecodeString(%v): %v", k, err)
+						}
+						glog.Infof("     %x: %x", b, v)
+					}
+				}
+				found = true
+				break
+			}
+		}
+		// Shouldn't be possible to get here without having found a suitable
+		// revision.
+		if !found {
+			glog.Warningf("Failed to find a suitable tree revision")
+			return nil, fmt.Errorf("no revision found for nodeID %s", hex.EncodeToString(nodeIDBytes))
 		}
 	}
 

@@ -29,8 +29,9 @@ import (
 )
 
 var (
-	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	maxConns = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
+	mySQLURI    = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	maxConns    = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
+	singleFetch = flag.Bool("mysql_fetch_single_subtrees", false, "If true enables experiment to fetch subtrees avoiding a big JOIN")
 
 	mysqlOnce            sync.Once
 	mysqlOnceErr         error
@@ -70,7 +71,11 @@ func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, erro
 }
 
 func (s *mysqlProvider) LogStorage() storage.LogStorage {
-	return mysql.NewLogStorage(s.db, s.mf)
+	return mysql.NewLogStorage(s.db, s.mf, mysql.LogStorageOptions{
+		mysql.TreeStorageOptions{
+			FetchSingleSubtrees: *singleFetch,
+		},
+	})
 }
 
 func (s *mysqlProvider) MapStorage() storage.MapStorage {
