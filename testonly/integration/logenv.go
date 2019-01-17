@@ -87,7 +87,10 @@ func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts
 
 	registry := extension.Registry{
 		AdminStorage: mysql.NewAdminStorage(db),
-		LogStorage:   mysql.NewLogStorage(db, nil),
+		// *****************************************************************
+		// TODO(Martin2112): Do something about hardcoded LogStorageOptions.
+		// *****************************************************************
+		LogStorage:   mysql.NewLogStorage(db, nil, mysql.LogStorageOptions{mysql.TreeStorageOptions{FetchSingleSubtrees: true}}),
 		QuotaManager: quota.Noop(),
 		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 			return der.NewProtoFromSpec(spec)

@@ -56,7 +56,8 @@ const (
 	placeholderSQL         = "<placeholder>"
 	selectSingleSubtreeSQL = `
 	SELECT SubtreeRevision, Nodes FROM Subtree 
-      WHERE SubTreeId = ?
+			WHERE TreeID = ?
+      AND SubTreeId = ?
       ORDER BY SubtreeRevision DESC
   `
 )
@@ -315,7 +316,7 @@ func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, node
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
 
-		rows, err := stmt.QueryContext(ctx, nodeIDBytes)
+		rows, err := stmt.QueryContext(ctx, t.treeID, nodeIDBytes)
 		if err != nil {
 			glog.Warningf("Failed to get merkle subtrees: %s", err)
 			return nil, err
