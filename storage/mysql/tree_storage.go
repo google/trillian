@@ -58,6 +58,7 @@ const (
 	SELECT SubtreeRevision, Nodes FROM Subtree 
 			WHERE TreeID = ?
       AND SubTreeId = ?
+		  AND SubtreeRevision <= ?
       ORDER BY SubtreeRevision DESC
   `
 )
@@ -252,7 +253,6 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
 
 	for rows.Next() {
-
 		var subtreeIDBytes []byte
 		var subtreeRev int64
 		var nodesRaw []byte
@@ -260,27 +260,12 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 			glog.Warningf("Failed to scan merkle subtree: %s", err)
 			return nil, err
 		}
-		var subtree storagepb.SubtreeProto
-		if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
-			glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
+		subtree, err := unpackSubtree(subtreeRev, nodesRaw)
+		if err != nil {
 			return nil, err
 		}
-		if subtree.Prefix == nil {
-			subtree.Prefix = []byte{}
-		}
-		ret = append(ret, &subtree)
-
-		if glog.V(4) {
-			glog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
-				subtreeIDBytes, subtree.Prefix, subtree.Depth)
-			for k, v := range subtree.Leaves {
-				b, err := base64.StdEncoding.DecodeString(k)
-				if err != nil {
-					glog.Errorf("base64.DecodeString(%v): %v", k, err)
-				}
-				glog.Infof("     %x: %x", b, v)
-			}
-		}
+		ret = append(ret, subtree)
+		maybeLogSubtree(subtreeIDBytes, subtree)
 	}
 
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
@@ -316,62 +301,76 @@ func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, node
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
 
-		rows, err := stmt.QueryContext(ctx, t.treeID, nodeIDBytes)
+		rows, err := stmt.QueryContext(ctx, t.treeID, nodeIDBytes, treeRevision)
 		if err != nil {
 			glog.Warningf("Failed to get merkle subtrees: %s", err)
 			return nil, err
 		}
-		defer rows.Close()
 		if rows.Err() != nil {
 			// Nothing from the DB
 			glog.Warningf("Nothing from DB: %s", rows.Err())
+			rows.Close()
 			return nil, rows.Err()
 		}
 
-		found := false
-		for rows.Next() {
+		var subtree *storagepb.SubtreeProto
+		for rows.Next() && subtree == nil {
 			var subtreeRev int64
 			var nodesRaw []byte
 			if err := rows.Scan(&subtreeRev, &nodesRaw); err != nil {
 				glog.Warningf("Failed to scan merkle subtree: %s", err)
+				rows.Close()
 				return nil, err
 			}
 			if subtreeRev <= treeRevision {
-				var subtree storagepb.SubtreeProto
-				if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
-					glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
+				// This version is the first one before our cutoff so is what we want.
+				subtree, err = unpackSubtree(subtreeRev, nodesRaw)
+				if err != nil {
+					rows.Close()
 					return nil, err
 				}
-				if subtree.Prefix == nil {
-					subtree.Prefix = []byte{}
-				}
-				ret = append(ret, &subtree)
-				if glog.V(4) {
-					glog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
-						nodeIDBytes, subtree.Prefix, subtree.Depth)
-					for k, v := range subtree.Leaves {
-						b, err := base64.StdEncoding.DecodeString(k)
-						if err != nil {
-							glog.Errorf("base64.DecodeString(%v): %v", k, err)
-						}
-						glog.Infof("     %x: %x", b, v)
-					}
-				}
-				found = true
-				break
+				maybeLogSubtree(nodeIDBytes, subtree)
 			}
 		}
-		// Shouldn't be possible to get here without having found a suitable
-		// revision.
-		if !found {
+		rows.Close()
+		// If we didn't find a usable subtree then the fetch fails.
+		if subtree == nil {
 			glog.Warningf("Failed to find a suitable tree revision")
 			return nil, fmt.Errorf("no revision found for nodeID %s", hex.EncodeToString(nodeIDBytes))
 		}
+		ret = append(ret, subtree)
 	}
 
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
 	return ret, nil
+}
+
+func maybeLogSubtree(nodeIDBytes []byte, subtree *storagepb.SubtreeProto) {
+	if glog.V(4) {
+		glog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
+			nodeIDBytes, subtree.Prefix, subtree.Depth)
+		for k, v := range subtree.Leaves {
+			b, err := base64.StdEncoding.DecodeString(k)
+			if err != nil {
+				glog.Errorf("base64.DecodeString(%v): %v", k, err)
+			}
+			glog.Infof("     %x: %x", b, v)
+		}
+	}
+}
+
+func unpackSubtree(rev int64, nodesRaw []byte) (*storagepb.SubtreeProto, error) {
+	var subtree storagepb.SubtreeProto
+	if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
+		glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
+		return nil, err
+	}
+	if subtree.Prefix == nil {
+		subtree.Prefix = []byte{}
+	}
+
+	return &subtree, nil
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
