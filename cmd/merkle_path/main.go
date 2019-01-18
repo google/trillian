@@ -42,9 +42,7 @@ func main() {
 		glog.Exitf("Failed to build the Merkle path: %v", err)
 	}
 
-	fmt.Printf("Resulting path length: %d\n"+
-		"ls -l"+
-		"", len(path))
+	fmt.Printf("Resulting path length: %d\n", len(path))
 	for _, fetch := range path {
 		nodeID := fetch.NodeID
 		fmt.Printf("%v %v\n", nodeID.CoordString(), fetch.Rehash)
