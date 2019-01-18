@@ -204,10 +204,15 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	glog.V(4).Infof("getSubtrees(")
 	if t.ts.opts.FetchSingleSubtrees {
 		return t.getSubtreesSingly(ctx, treeRevision, nodeIDs)
 	}
-	glog.V(4).Infof("getSubtrees(")
+	return t.getSubtreesJoin(ctx, treeRevision, nodeIDs)
+}
+
+func (t *treeTX) getSubtreesJoin(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	glog.V(4).Infof("getSubtreesJoin(")
 	if len(nodeIDs) == 0 {
 		return nil, nil
 	}
