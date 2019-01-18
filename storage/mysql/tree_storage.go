@@ -212,6 +212,10 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
+	if err := checkNodeIDs(nodeIDs); err != nil {
+		return nil, err
+	}
+
 	tmpl, err := t.ts.getSubtreeStmt(ctx, len(nodeIDs))
 	if err != nil {
 		return nil, err
@@ -223,10 +227,6 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 
 	// populate args with nodeIDs
 	for _, nodeID := range nodeIDs {
-		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
-		}
-
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
 
@@ -284,6 +284,10 @@ func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, node
 		return nil, nil
 	}
 
+	if err := checkNodeIDs(nodeIDs); err != nil {
+		return nil, err
+	}
+
 	stmt, err := t.ts.db.Prepare(selectSingleSubtreeSQL)
 	if err != nil {
 		return nil, err
@@ -294,10 +298,6 @@ func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, node
 	// meets our requirements.
 	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
 	for _, nodeID := range nodeIDs {
-		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
-		}
-
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
 
@@ -344,6 +344,16 @@ func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, node
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
 	return ret, nil
+}
+
+func checkNodeIDs(nodeIDs []storage.NodeID) error {
+	for _, nodeID := range nodeIDs {
+		if nodeID.PrefixLenBits%8 != 0 {
+			return fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+		}
+	}
+
+	return nil
 }
 
 func maybeLogSubtree(nodeIDBytes []byte, subtree *storagepb.SubtreeProto) {
