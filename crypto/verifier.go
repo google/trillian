@@ -68,7 +68,12 @@ func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {
 	h := hasher.New()
 	h.Write(data)
 	digest := h.Sum(nil)
+	return VerifyDigest(pub, hasher, digest, sig)
+}
 
+// VerifyDigest cryptographically verifies the output of Signer, using an
+// already-generated digest over the source data.
+func VerifyDigest(pub crypto.PublicKey, hasher crypto.Hash, digest, sig []byte) error {
 	switch pub := pub.(type) {
 	case *ecdsa.PublicKey:
 		return verifyECDSA(pub, digest, sig)

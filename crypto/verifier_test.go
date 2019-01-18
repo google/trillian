@@ -16,6 +16,7 @@ package crypto
 
 import (
 	"crypto"
+	"crypto/sha256"
 	"testing"
 
 	"github.com/google/trillian/crypto/keys/pem"
@@ -57,27 +58,34 @@ func TestSignVerify(t *testing.T) {
 			wantVerifyErr: true,
 		},
 	} {
+		t.Run(test.name, func(t *testing.T) {
 
-		key, err := pem.UnmarshalPrivateKey(test.pem, test.password)
-		if err != nil {
-			t.Errorf("%s: LoadPrivateKey(_, %q)=%v, want nil", test.name, test.password, err)
-			continue
-		}
-
-		// Sign and Verify.
-		msg := []byte("foo")
-		var signature []byte
-		if !test.skipSigning {
-			signature, err = NewSigner(0, key, crypto.SHA256).Sign(msg)
+			key, err := pem.UnmarshalPrivateKey(test.pem, test.password)
 			if err != nil {
-				t.Errorf("%s: Sign()=(_,%v), want (_,nil)", test.name, err)
-				continue
+				t.Fatalf("UnmarshalPrivateKey(_, %q)=%v, want nil", test.password, err)
 			}
-		}
 
-		err = Verify(key.Public(), crypto.SHA256, msg, signature)
-		if gotErr := err != nil; gotErr != test.wantVerifyErr {
-			t.Errorf("%s: Verify(,,)=%v, want err? %t", test.name, err, test.wantVerifyErr)
-		}
+			// Sign and Verify.
+			msg := []byte("foo")
+			var signature []byte
+			if !test.skipSigning {
+				signature, err = NewSigner(0, key, crypto.SHA256).Sign(msg)
+				if err != nil {
+					t.Fatalf("Sign()=(_,%v), want (_,nil)", err)
+				}
+			}
+
+			err = Verify(key.Public(), crypto.SHA256, msg, signature)
+			if gotErr := err != nil; gotErr != test.wantVerifyErr {
+				t.Errorf("Verify(,,)=%v, want err? %t", err, test.wantVerifyErr)
+			}
+
+			// VerifyDigest
+			digest := sha256.Sum256(msg)
+			err = VerifyDigest(key.Public(), crypto.SHA256, digest[:], signature)
+			if gotErr := err != nil; gotErr != test.wantVerifyErr {
+				t.Errorf("VerifyDigest(,,)=%v, want err? %t", err, test.wantVerifyErr)
+			}
+		})
 	}
 }
