@@ -264,7 +264,7 @@ func (t *treeTX) getSubtreesJoin(ctx context.Context, treeRevision int64, nodeID
 			glog.Warningf("Failed to scan merkle subtree: %s", err)
 			return nil, err
 		}
-		subtree, err := unpackSubtree(subtreeRev, nodesRaw)
+		subtree, err := unpackSubtree(nodesRaw)
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +328,7 @@ func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, node
 			}
 			if subtreeRev <= treeRevision {
 				// This version is the first one before our cutoff so is what we want.
-				subtree, err = unpackSubtree(subtreeRev, nodesRaw)
+				subtree, err = unpackSubtree(nodesRaw)
 				if err != nil {
 					rows.Close()
 					return nil, err
@@ -374,7 +374,7 @@ func maybeLogSubtree(nodeIDBytes []byte, subtree *storagepb.SubtreeProto) {
 	}
 }
 
-func unpackSubtree(rev int64, nodesRaw []byte) (*storagepb.SubtreeProto, error) {
+func unpackSubtree(nodesRaw []byte) (*storagepb.SubtreeProto, error) {
 	var subtree storagepb.SubtreeProto
 	if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
 		glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
