@@ -296,7 +296,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	}
 
 	{
-		ls := mysql.NewLogStorage(db, nil)
+		ls := mysql.NewLogStorage(db, nil, mysql.LogStorageOptions{})
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 			signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 			slr, err := signer.SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
@@ -336,7 +336,7 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 		})
 	}
 
-	ls := mysql.NewLogStorage(db, nil)
+	ls := mysql.NewLogStorage(db, nil, mysql.LogStorageOptions{})
 	return ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		_, err := tx.QueueLeaves(ctx, leaves, time.Now())
 		return err

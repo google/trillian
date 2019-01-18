@@ -56,8 +56,8 @@ const (
 	placeholderSQL         = "<placeholder>"
 	selectSingleSubtreeSQL = `
 	SELECT SubtreeRevision, Nodes FROM Subtree 
-			WHERE TreeID = ?
-      AND SubTreeId = ?
+			WHERE TreeId = ?
+      AND SubtreeId = ?
 		  AND SubtreeRevision <= ?
       ORDER BY SubtreeRevision DESC
   `
