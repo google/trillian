@@ -1,0 +1,5 @@
+package bigquery
+
+import (
+	"testing"
+)
