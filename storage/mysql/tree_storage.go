@@ -19,7 +19,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -338,12 +337,12 @@ func (t *treeTX) getSubtreesSingly(ctx context.Context, treeRevision int64, node
 			}
 		}
 		rows.Close()
-		// If we didn't find a usable subtree then the fetch fails.
-		if subtree == nil {
-			glog.Warningf("Failed to find a suitable tree revision")
-			return nil, fmt.Errorf("no revision found for nodeID %s", hex.EncodeToString(nodeIDBytes))
+		// It's OK if we don't have a subtree as we might be prefetching for
+		// the subtree cache. Missing results will be checked by higher level
+		// code when actually reading.
+		if subtree != nil {
+			ret = append(ret, subtree)
 		}
-		ret = append(ret, subtree)
 	}
 
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
