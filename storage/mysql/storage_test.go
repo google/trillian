@@ -38,10 +38,14 @@ import (
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
+// *****************************************************************
+// TODO(Martin2112): Do something about hardcoded LogStorageOptions.
+// *****************************************************************
+
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	tree := createTreeOrPanic(DB, storageto.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB, nil, LogStorageOptions{TreeStorageOptions{FetchSingleSubtrees: true}})
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -84,7 +88,7 @@ func TestNodeRoundTrip(t *testing.T) {
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
 	tree := createTreeOrPanic(DB, storageto.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB, nil, LogStorageOptions{TreeStorageOptions{FetchSingleSubtrees: true}})
 
 	const writeRevision = int64(100)
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
@@ -236,7 +240,7 @@ func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 
 	ctx := context.Background()
-	l := NewLogStorage(db, nil)
+	l := NewLogStorage(DB, nil, LogStorageOptions{TreeStorageOptions{FetchSingleSubtrees: true}})
 	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
 		if err != nil {

@@ -108,7 +108,7 @@ func TestMySQLRateLimiting(t *testing.T) {
 	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced}
 	registry := extension.Registry{
 		AdminStorage: mysql.NewAdminStorage(db),
-		LogStorage:   mysql.NewLogStorage(db, nil),
+		LogStorage:   mysql.NewLogStorage(db, nil, mysql.LogStorageOptions{}),
 		MapStorage:   mysql.NewMapStorage(db),
 		QuotaManager: qm,
 	}
