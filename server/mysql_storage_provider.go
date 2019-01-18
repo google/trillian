@@ -72,7 +72,7 @@ func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, erro
 
 func (s *mysqlProvider) LogStorage() storage.LogStorage {
 	return mysql.NewLogStorage(s.db, s.mf, mysql.LogStorageOptions{
-		mysql.TreeStorageOptions{
+		TreeStorageOptions: mysql.TreeStorageOptions{
 			FetchSingleSubtrees: *singleFetch,
 		},
 	})

@@ -35,7 +35,7 @@ func NewRegistryForTests(ctx context.Context) (extension.Registry, error) {
 	// *****************************************************************
 	return extension.Registry{
 		AdminStorage: mysql.NewAdminStorage(db),
-		LogStorage:   mysql.NewLogStorage(db, nil, mysql.LogStorageOptions{mysql.TreeStorageOptions{FetchSingleSubtrees: true}}),
+		LogStorage:   mysql.NewLogStorage(db, nil, mysql.LogStorageOptions{TreeStorageOptions: mysql.TreeStorageOptions{FetchSingleSubtrees: true}}),
 		MapStorage:   mysql.NewMapStorage(db),
 		QuotaManager: &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: mysqlqm.DefaultMaxUnsequenced},
 	}, nil
