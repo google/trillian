@@ -59,6 +59,10 @@ func (m *m) add(c monitoring.Counter, tokens int, specs []Spec, success bool) {
 		return
 	}
 	for _, spec := range specs {
+		if spec.Group == User {
+			// Don't populate per-user labels.
+			continue
+		}
 		c.Add(float64(tokens), spec.Name(), fmt.Sprint(success))
 	}
 }
