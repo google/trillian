@@ -4,6 +4,13 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Deployments
+
+The [db\_server Docker image](examples/deployment/docker/db_server/Dockerfile)
+is now based on
+[the MySQL 5.7 image from the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/google/mysql5),
+rather than the [official MySQL 5.7 image](https://hub.docker.com/_/mysql).
+
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
