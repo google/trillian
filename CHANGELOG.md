@@ -13,7 +13,7 @@ they lead to excessive storage requirements for Trillian metrics).
 ### Fix Operation Loop Hang
 
 Resolved a bug that would hide errors and cause the `OperationLoop` to hang
-until process exit if any error occured.
+until process exit if any error occurred.
 
 ### Linting toolchain migration
 
