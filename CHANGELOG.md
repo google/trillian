@@ -7,7 +7,8 @@ Not yet released; provisionally v2.0.0 (may change).
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
-`users/<user>/write` are no longer exported by the Trillian binaries.
+`users/<user>/write` are no longer exported by the Trillian binaries (as
+they lead to excessive storage requirements for Trillian metrics).
 
 ### Fix Operation Loop Hang
 
