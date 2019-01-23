@@ -68,6 +68,23 @@ func TestCounter(t *testing.T, factory monitoring.MetricFactory) {
 			if got, want := counter.Value(test.labelVals...), 3.5; got != want {
 				t.Errorf("Counter[%v].Value()=%v; want %v", test.labelVals, got, want)
 			}
+			// Use a different set of label values
+			// Metrics with different valued label values, are distinct
+			// This test is only applicable when a Metric has labels
+			if test.labelVals != nil && len(test.labelVals) >= 1 {
+				altLabels := make([]string, len(test.labelVals))
+				copy(altLabels, test.labelVals)
+				altLabels[0] = "alt-val1"
+				// Increment counter using this different set of label values
+				counter.Add(25.0, altLabels...)
+				if got, want := counter.Value(altLabels...), 25.0; got != want {
+					t.Errorf("Counter[%v].Value()=%v; want %v", altLabels, got, want)
+				}
+				// Counter with original set of label values should be unchanged
+				if got, want := counter.Value(test.labelVals...), 3.5; got != want {
+					t.Errorf("Counter[%v].Value()=%v; want %v", test.labelVals, got, want)
+				}
+			}
 		})
 	}
 }
@@ -131,6 +148,23 @@ func TestGauge(t *testing.T, factory monitoring.MetricFactory) {
 			if got, want := gauge.Value(test.labelVals...), 42.0; got != want {
 				t.Errorf("Gauge[%v].Value()=%v; want %v", test.labelVals, got, want)
 			}
+			// Use a different set of label values
+			// Metrics with different valued label values, are distinct
+			// This test is only applicable when a Metric has labels
+			if test.labelVals != nil && len(test.labelVals) >= 1 {
+				altLabels := make([]string, len(test.labelVals))
+				copy(altLabels, test.labelVals)
+				altLabels[0] = "alt-val1"
+				// Set gauge using this different set of label values
+				gauge.Set(25.0, altLabels...)
+				if got, want := gauge.Value(altLabels...), 25.0; got != want {
+					t.Errorf("Gauge[%v].Value()=%v; want %v", altLabels, got, want)
+				}
+				// Gauge with original set of label values should be unchanged
+				if got, want := gauge.Value(test.labelVals...), 42.0; got != want {
+					t.Errorf("Gauge[%v].Value()=%v; want %v", test.labelVals, got, want)
+				}
+			}
 		})
 	}
 }
@@ -185,6 +219,26 @@ func TestHistogram(t *testing.T, factory monitoring.MetricFactory) {
 			gotCount, gotSum = histogram.Info(test.labelVals...)
 			if wantCount, wantSum := uint64(3), 6.0; gotCount != wantCount || gotSum != wantSum {
 				t.Errorf("Histogram[%v].Info()=%v,%v; want %v,%v", test.labelVals, gotCount, gotSum, wantCount, wantSum)
+			}
+			// Use a different set of label values
+			// Metrics with different valued label values, are distinct
+			// This test is only applicable when a Metric has labels
+			if test.labelVals != nil && len(test.labelVals) >= 1 {
+				altLabels := make([]string, len(test.labelVals))
+				copy(altLabels, test.labelVals)
+				altLabels[0] = "alt-val1"
+				// Observe histogram using this different set of label values
+				histogram.Observe(25.0, altLabels...)
+				histogram.Observe(50.0, altLabels...)
+				gotCount, gotSum = histogram.Info(altLabels...)
+				if wantCount, wantSum := uint64(2), 75.0; gotCount != wantCount || gotSum != wantSum {
+					t.Errorf("Histogram[%v].Info()=%v,%v; want %v,%v", altLabels, gotCount, gotSum, wantCount, wantSum)
+				}
+				// Histogram with original set of label values should be unchanged
+				gotCount, gotSum = histogram.Info(test.labelVals...)
+				if wantCount, wantSum := uint64(3), 6.0; gotCount != wantCount || gotSum != wantSum {
+					t.Errorf("Histogram[%v].Info()=%v,%v; want %v,%v", test.labelVals, gotCount, gotSum, wantCount, wantSum)
+				}
 			}
 		})
 	}
