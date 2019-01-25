@@ -19,6 +19,7 @@ type MetricFactory interface {
 	NewCounter(name, help string, labelNames ...string) Counter
 	NewGauge(name, help string, labelNames ...string) Gauge
 	NewHistogram(name, help string, labelNames ...string) Histogram
+	NewHistogramWithBuckets(name, help string, buckets []float64, labelNames ...string) Histogram
 }
 
 // Counter is a metric class for numeric values that increase.

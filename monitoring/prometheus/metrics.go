@@ -18,7 +18,6 @@ package prometheus
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
@@ -74,29 +73,26 @@ func (pmf MetricFactory) NewGauge(name, help string, labelNames ...string) monit
 	return &Gauge{labelNames: labelNames, vec: vec}
 }
 
-// buckets returns a reasonable range of histogram upper limits for most
-// latency-in-seconds usecases.
-func buckets() []float64 {
-	// These parameters give an exponential range from 0.04 seconds to ~1 day.
-	num := 300
-	b := 1.05
-	scale := 0.04
-
-	r := make([]float64, 0, num)
-	for i := 0; i < num; i++ {
-		r = append(r, math.Pow(b, float64(i))*scale)
-	}
-	return r
+// NewHistogramWithBuckets creates a new Histogram object backed by
+// Prometheus and using the supplied bucketing intervals. Note: the
+// number of buckets should be kept within reasonable bounds.
+func (pmf MetricFactory) NewHistogramWithBuckets(name, help string, buckets []float64, labelNames ...string) monitoring.Histogram {
+	return pmf.newHistogram(name, help, buckets, labelNames)
 }
 
-// NewHistogram creates a new Histogram object backed by Prometheus.
+// NewHistogram creates a new Histogram object backed by Prometheus with
+// the supplied buckets.
 func (pmf MetricFactory) NewHistogram(name, help string, labelNames ...string) monitoring.Histogram {
+	return pmf.newHistogram(name, help, monitoring.LatencyBuckets(), labelNames)
+}
+
+func (pmf MetricFactory) newHistogram(name, help string, buckets []float64, labelNames []string) monitoring.Histogram {
 	if len(labelNames) == 0 {
 		histogram := prometheus.NewHistogram(
 			prometheus.HistogramOpts{
 				Name:    pmf.Prefix + name,
 				Help:    help,
-				Buckets: buckets(),
+				Buckets: buckets,
 			})
 		prometheus.MustRegister(histogram)
 		return &Histogram{single: histogram}
@@ -105,7 +101,7 @@ func (pmf MetricFactory) NewHistogram(name, help string, labelNames ...string) m
 		prometheus.HistogramOpts{
 			Name:    pmf.Prefix + name,
 			Help:    help,
-			Buckets: buckets(),
+			Buckets: buckets,
 		},
 		labelNames)
 	prometheus.MustRegister(vec)
