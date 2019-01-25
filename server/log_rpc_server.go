@@ -51,9 +51,10 @@ var (
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
-	registry    extension.Registry
-	timeSource  clock.TimeSource
-	leafCounter monitoring.Counter
+	registry              extension.Registry
+	timeSource            clock.TimeSource
+	leafCounter           monitoring.Counter
+	proofIndexPercentiles monitoring.Histogram
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
@@ -69,6 +70,11 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource clock.TimeS
 			"queued_leaves",
 			"Number of leaves requested to be queued",
 			"status",
+		),
+		proofIndexPercentiles: mf.NewHistogramWithBuckets(
+			"proof_index_percentiles",
+			"Count of inclusion proof request index using percentage of current log size at the time",
+			monitoring.PercentileBuckets(1),
 		),
 	}
 }
@@ -252,6 +258,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 	if err != nil {
 		return nil, err
 	}
+	t.recordIndexPercent(req.LeafIndex, root.TreeSize)
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
@@ -314,6 +321,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 			return nil, err
 		}
 		proofs = append(proofs, &proof)
+		t.recordIndexPercent(leaf.LeafIndex, root.TreeSize)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -627,6 +635,8 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 			return nil, status.Errorf(codes.Internal, "expected one leaf from storage but got: %d", len(leaves))
 		}
 
+		t.recordIndexPercent(req.LeafIndex, root.TreeSize)
+
 		// Work is complete, we have everything we need for the response
 		r.Proof = &proof
 		r.Leaf = leaves[0]
@@ -740,6 +750,14 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	return &trillian.InitLogResponse{
 		Created: newRoot,
 	}, nil
+}
+
+func (t *TrillianLogRPCServer) recordIndexPercent(leafIndex int64, treeSize uint64) {
+	if treeSize > 0 {
+		// Work out what percentage of the current log size this index corresponds to.
+		percent := float64(leafIndex) / float64(treeSize) * 100.0
+		t.proofIndexPercentiles.Observe(percent)
+	}
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
