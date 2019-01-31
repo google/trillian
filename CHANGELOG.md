@@ -53,6 +53,14 @@ deprecated.
 
 The performance of `SetLeaves` requests on the Map has been slightly improved.
 
+### Logging
+
+Some warning-level logging has been removed from the sequencer in favour of
+returning the same information via the returned error. The caller may still
+choose to log this information. This allows storage implementations that retry
+transactions to suppress warnings when a transaction initially fails but a retry
+succeeds.
+
 ### Other
 
 The `TimeSource` type (and other time utils) moved to a separate `util/clock`
