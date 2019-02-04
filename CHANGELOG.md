@@ -66,6 +66,8 @@ succeeds.
 The `TimeSource` type (and other time utils) moved to a separate `util/clock`
 package, extended with a new `Timer` interface that allows mocking `time.Timer`.
 
+The `Sequencer.SignRoot()` method has been removed.
+
 ## v1.2.1 - Map race fixed. TLS client support. LogClient improvements
 
 Published 2018-08-20 10:31:00 +0000 UTC
