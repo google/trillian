@@ -80,7 +80,7 @@ func main() {
 	if err != nil {
 		glog.Exitf("Failed to create admin client conn: %v", err)
 	}
-	acl := trillian.NewTrillianAdminClient(ac)
+	adminCl := trillian.NewTrillianAdminClient(ac)
 
 	if *logID <= 0 {
 		// No logID provided, so create an ephemeral tree to test against.
@@ -103,7 +103,7 @@ func main() {
 				},
 			},
 		}
-		tree, err := client.CreateAndInitTree(ctx, &req, acl, nil, cl)
+		tree, err := client.CreateAndInitTree(ctx, &req, adminCl, nil, cl)
 		if err != nil {
 			glog.Exitf("failed to create ephemeral tree: %v", err)
 		}
@@ -112,7 +112,7 @@ func main() {
 		defer func() {
 			req := &trillian.DeleteTreeRequest{TreeId: *logID}
 			glog.Infof("Soft-delete transient Trillian Log with TreeID=%d", *logID)
-			if _, err := acl.DeleteTree(ctx, req); err != nil {
+			if _, err := adminCl.DeleteTree(ctx, req); err != nil {
 				glog.Errorf("failed to DeleteTree(%d): %v", *logID, err)
 			}
 		}()
@@ -125,7 +125,7 @@ func main() {
 		EmitInterval:  *emitInterval,
 		MetricFactory: mf,
 	}
-	monitor, err := mdm.NewMonitor(ctx, *logID, cl, acl, opts)
+	monitor, err := mdm.NewMonitor(ctx, *logID, cl, adminCl, opts)
 	if err != nil {
 		glog.Exitf("Failed to build merge delay monitor: %v", err)
 	}

@@ -49,7 +49,7 @@ type MergeDelayOptions struct {
 
 // NewMonitor creates a MergeDelayMonitor instance for the given log ID, accessed
 // via the cl client.
-func NewMonitor(ctx context.Context, logID int64, cl trillian.TrillianLogClient, acl trillian.TrillianAdminClient, opts MergeDelayOptions) (*MergeDelayMonitor, error) {
+func NewMonitor(ctx context.Context, logID int64, cl trillian.TrillianLogClient, adminCl trillian.TrillianAdminClient, opts MergeDelayOptions) (*MergeDelayMonitor, error) {
 	if opts.MetricFactory == nil {
 		opts.MetricFactory = monitoring.InertMetricFactory{}
 	}
@@ -58,7 +58,7 @@ func NewMonitor(ctx context.Context, logID int64, cl trillian.TrillianLogClient,
 	}
 	metricsOnce.Do(func() { initMetrics(opts.MetricFactory) })
 
-	tree, err := acl.GetTree(ctx, &trillian.GetTreeRequest{TreeId: logID})
+	tree, err := adminCl.GetTree(ctx, &trillian.GetTreeRequest{TreeId: logID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tree %d: %v", logID, err)
 	}
@@ -109,7 +109,7 @@ func (m *MergeDelayMonitor) Monitor(ctx context.Context) error {
 	close(errs)
 	var lastErr error
 	for err := range errs {
-		glog.Errorf("AddLeaf failure: %v", err)
+		glog.Errorf("monitor failure: %v", err)
 		lastErr = err
 	}
 	return lastErr
@@ -118,7 +118,7 @@ func (m *MergeDelayMonitor) Monitor(ctx context.Context) error {
 func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 	logIDLabel := strconv.FormatInt(m.logID, 10)
 	data := make([]byte, m.opts.LeafSize)
-	createNew := true
+	createNew := true // Always need a new leaf to start with
 	for {
 		if rand.Intn(100) < m.opts.NewLeafChance {
 			createNew = true
