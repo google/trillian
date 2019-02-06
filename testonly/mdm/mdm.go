@@ -44,6 +44,7 @@ type MergeDelayOptions struct {
 	LeafSize      int
 	NewLeafChance int // percentage
 	EmitInterval  time.Duration
+	Deadline      time.Duration
 	MetricFactory monitoring.MetricFactory
 }
 
@@ -53,8 +54,11 @@ func NewMonitor(ctx context.Context, logID int64, cl trillian.TrillianLogClient,
 	if opts.MetricFactory == nil {
 		opts.MetricFactory = monitoring.InertMetricFactory{}
 	}
-	if opts.EmitInterval == 0 {
+	if opts.EmitInterval <= 0 {
 		opts.EmitInterval = 10 * time.Second
+	}
+	if opts.Deadline <= 0 {
+		opts.Deadline = 60 * time.Second
 	}
 	metricsOnce.Do(func() { initMetrics(opts.MetricFactory) })
 
@@ -92,6 +96,7 @@ func (m *MergeDelayMonitor) Monitor(ctx context.Context) error {
 
 	ticker := time.NewTicker(m.opts.EmitInterval)
 	defer ticker.Stop()
+	glog.V(1).Infof("start stats ticker every %v", m.opts.EmitInterval)
 	go func(c <-chan time.Time) {
 		for range c {
 			countT, totalT := m.Stats(true)
@@ -128,10 +133,13 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 		}
 
 		// Add the leaf data and wait for its inclusion.
+		glog.V(1).Infof("[%d] submit new=%t leaf and wait for inclusion (within %v)", idx, createNew, m.opts.Deadline)
+		cctx, cancel := context.WithTimeout(ctx, m.opts.Deadline)
 		start := time.Now()
-		if err := m.client[idx].AddLeaf(ctx, data); err != nil {
+		if err := m.client[idx].AddLeaf(cctx, data); err != nil {
 			return fmt.Errorf("failed to QueueLeaf: %v", err)
 		}
+		cancel()
 		mergeDelay := time.Since(start)
 		mergeDelayDist.Observe(mergeDelay.Seconds(), logIDLabel, newLeafLabel[createNew])
 		glog.V(1).Infof("[%d] merge delay for new=%t leaf = %v", idx, createNew, mergeDelay)

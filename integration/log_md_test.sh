@@ -15,8 +15,7 @@ TRILLIAN_SERVER="${RPC_SERVER_1}"
 metrics_port=$(pick_unused_port ${port})
 echo "Running test against ephemeral tree, metrics on http://localhost:${metrics_port}/metrics"
 go build ${GOFLAGS} github.com/google/trillian/testonly/mdm/mdmtest
-./mdmtest --admin_server="${TRILLIAN_SERVER}" \
-          --rpc_server="${TRILLIAN_SERVER}" \
+./mdmtest --rpc_server="${TRILLIAN_SERVER}" \
           --metrics_endpoint="localhost:${metrics_port}" \
           --checkers=10 \
           --new_leaf_chance=90 \
@@ -27,4 +26,3 @@ set -e
 log_stop_test
 TO_KILL=()
 exit $RESULT
-
