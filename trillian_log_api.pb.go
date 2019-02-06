@@ -1888,7 +1888,7 @@ type TrillianLogClient interface {
 	AddSequencedLeaf(ctx context.Context, in *AddSequencedLeafRequest, opts ...grpc.CallOption) (*AddSequencedLeafResponse, error)
 	// Returns inclusion proof for a leaf with a given index in a given tree.
 	GetInclusionProof(ctx context.Context, in *GetInclusionProofRequest, opts ...grpc.CallOption) (*GetInclusionProofResponse, error)
-	// Returns inclusion proof for a leaf with a given identity hash in a given
+	// Returns inclusion proof for a leaf with a given Merkle hash in a given
 	// tree.
 	GetInclusionProofByHash(ctx context.Context, in *GetInclusionProofByHashRequest, opts ...grpc.CallOption) (*GetInclusionProofByHashResponse, error)
 	// Returns consistency proof between two versions of a given tree.
