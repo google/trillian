@@ -136,10 +136,11 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 		glog.V(1).Infof("[%d] submit new=%t leaf and wait for inclusion (within %v)", idx, createNew, m.opts.Deadline)
 		cctx, cancel := context.WithTimeout(ctx, m.opts.Deadline)
 		start := time.Now()
-		if err := m.client[idx].AddLeaf(cctx, data); err != nil {
+		err := m.client[idx].AddLeaf(cctx, data)
+		cancel()
+		if err != nil {
 			return fmt.Errorf("failed to QueueLeaf: %v", err)
 		}
-		cancel()
 		mergeDelay := time.Since(start)
 		mergeDelayDist.Observe(mergeDelay.Seconds(), logIDLabel, newLeafLabel[createNew])
 		glog.V(1).Infof("[%d] merge delay for new=%t leaf = %v", idx, createNew, mergeDelay)
