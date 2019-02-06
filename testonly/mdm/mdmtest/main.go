@@ -45,13 +45,14 @@ import (
 
 var (
 	logID           = flag.Int64("log_id", 0, "Log ID to test against; ephemeral tree used if zero")
-	rpcServer       = flag.String("rpc_server", "", "Server address:port")
-	adminServer     = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
+	rpcServer       = flag.String("rpc_server", "", "Trillian log server address:port")
+	adminServer     = flag.String("admin_server", "", "Trillian admin server address:port (defaults to --rpc_server value)")
 	metricsEndpoint = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will not be exposed")
 	leafSize        = flag.Uint("leaf_size", 500, "Size of leaf values")
 	newLeafChance   = flag.Uint("new_leaf_chance", 50, "Percentage chance of using a new leaf for each submission")
 	checkers        = flag.Int("checkers", 3, "Number of parallel checker goroutines to run")
-	emitInterval    = flag.Duration("emit_interval", 0, "How often to output the summary info")
+	emitInterval    = flag.Duration("emit_interval", 10*time.Second, "How often to output the summary info")
+	deadline        = flag.Duration("deadline", 60*time.Second, "Deadline for single add+get-proof operation")
 )
 
 func main() {
@@ -76,9 +77,13 @@ func main() {
 		glog.Exitf("Failed to create log client conn: %v", err)
 	}
 	cl := trillian.NewTrillianLogClient(c)
-	ac, err := grpc.Dial(*adminServer, dialOpts...)
-	if err != nil {
-		glog.Exitf("Failed to create admin client conn: %v", err)
+
+	ac := c
+	if len(*adminServer) > 0 {
+		ac, err = grpc.Dial(*adminServer, dialOpts...)
+		if err != nil {
+			glog.Exitf("Failed to create admin client conn: %v", err)
+		}
 	}
 	adminCl := trillian.NewTrillianAdminClient(ac)
 
@@ -123,6 +128,7 @@ func main() {
 		LeafSize:      int(*leafSize),
 		NewLeafChance: int(*newLeafChance),
 		EmitInterval:  *emitInterval,
+		Deadline:      *deadline,
 		MetricFactory: mf,
 	}
 	monitor, err := mdm.NewMonitor(ctx, *logID, cl, adminCl, opts)
