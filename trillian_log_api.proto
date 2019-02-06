@@ -62,7 +62,7 @@ service TrillianLog {
       get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
     };
   }
-  // Returns inclusion proof for a leaf with a given identity hash in a given
+  // Returns inclusion proof for a leaf with a given Merkle hash in a given
   // tree.
   rpc GetInclusionProofByHash(GetInclusionProofByHashRequest)
       returns (GetInclusionProofByHashResponse) {
