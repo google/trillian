@@ -78,8 +78,7 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 
 // VerifyRoot verifies that newRoot is a valid append-only operation from
 // trusted. If trusted.TreeSize is zero, a consistency proof is not needed.
-func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.SignedLogRoot,
-	consistency [][]byte) (*types.LogRootV1, error) {
+func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.SignedLogRoot, consistency [][]byte) (*types.LogRootV1, error) {
 
 	if trusted == nil {
 		return nil, fmt.Errorf("VerifyRoot() error: trusted == nil")
@@ -97,11 +96,8 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	// Implicitly trust the first root we get.
 	if trusted.TreeSize != 0 {
 		// Verify consistency proof.
-		if err := c.v.VerifyConsistencyProof(
-			int64(trusted.TreeSize), int64(r.TreeSize),
-			trusted.RootHash, r.RootHash,
-			consistency); err != nil {
-			return nil, err
+		if err := c.v.VerifyConsistencyProof(int64(trusted.TreeSize), int64(r.TreeSize), trusted.RootHash, r.RootHash, consistency); err != nil {
+			return nil, fmt.Errorf("failed to verify consistency proof from %d->%d %x->%x: %v", trusted.TreeSize, r.TreeSize, trusted.RootHash, r.RootHash, err)
 		}
 	}
 	return r, nil
