@@ -11,6 +11,10 @@ is now based on
 [the MySQL 5.7 image from the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/google/mysql5),
 rather than the [official MySQL 5.7 image](https://hub.docker.com/_/mysql).
 
+There is now a [mysql.cnf file](examples/deployment/docker/db_server/mysql.cnf)
+alongside the Dockerfile that makes it easy to build the image with a custom
+configuration, e.g. to allow MySQL to use more memory.
+
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
