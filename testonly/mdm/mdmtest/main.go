@@ -58,7 +58,12 @@ var (
 func main() {
 	flag.Parse()
 	ctx := context.Background()
+	if err := innerMain(ctx); err != nil {
+		glog.Exit(err)
+	}
+}
 
+func innerMain(ctx context.Context) error {
 	var mf monitoring.MetricFactory
 	if *metricsEndpoint != "" {
 		mf = prometheus.MetricFactory{}
@@ -133,13 +138,14 @@ func main() {
 	}
 	monitor, err := mdm.NewMonitor(ctx, *logID, cl, adminCl, opts)
 	if err != nil {
-		glog.Exitf("Failed to build merge delay monitor: %v", err)
+		return fmt.Errorf("failed to build merge delay monitor: %v", err)
 	}
 
 	cctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go util.AwaitSignal(ctx, cancel)
 	if err := monitor.Monitor(cctx); err != nil {
-		glog.Errorf("Merge delay monitoring failed: %v", err)
+		return fmt.Errorf("merge delay monitoring failed: %v", err)
 	}
+	return nil
 }
