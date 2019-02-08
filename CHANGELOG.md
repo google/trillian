@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Testing
+
+Support has been added for testing against a locally running mysql docker image,
+in addition to a locally running mysql instance.
+
 ### Configurable number of idle connections on MySQL
 
 This version adds a new flag `-mysql_max_idle_conns` to specify the number of
