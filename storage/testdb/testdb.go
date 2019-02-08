@@ -33,7 +33,7 @@ import (
 
 var (
 	trillianSQL = testonly.RelativeToPackage("../mysql/storage.sql")
-	dataSource  = "root@/"
+	dataSource  = "root@tcp(127.0.0.1)/"
 )
 
 // MySQLAvailable indicates whether a default MySQL database is available.
