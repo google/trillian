@@ -513,7 +513,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 		t.Errorf("AddSequencedLeaves().Status.Code=%d; want %d", got, want)
 	}
 	if result.Leaf != nil {
-		t.Errorf("AddSequencedLeaves().Leaf=%d; want nil", result.Leaf)
+		t.Errorf("AddSequencedLeaves().Leaf=%v; want nil", result.Leaf)
 	}
 }
 
