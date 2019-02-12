@@ -11,6 +11,12 @@ is now based on
 [the MySQL 5.7 image from the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/google/mysql5),
 rather than the [official MySQL 5.7 image](https://hub.docker.com/_/mysql).
 
+The `trillian-log-service` and `trillian-log-signer` Kubernetes services will
+now have load balancers configured for them that expose those services outside
+of the Kubernetes cluster. This makes it easier to access their APIs. When
+deployed on Google Cloud, these will be
+[Internal Load Balancers](https://cloud.google.com/kubernetes-engine/docs/how-to/internal-load-balancing).
+
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
