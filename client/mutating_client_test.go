@@ -26,34 +26,14 @@ import (
 // MutatingLogClient supports applying mutations to the return values of the TrillianLogClient
 // for testing.
 type MutatingLogClient struct {
-	c                      trillian.TrillianLogClient
+	trillian.TrillianLogClient
 	mutateInclusionProof   bool
 	mutateConsistencyProof bool
 }
 
-// QueueLeaf forwards requests.
-func (c *MutatingLogClient) QueueLeaf(ctx context.Context, in *trillian.QueueLeafRequest, opts ...grpc.CallOption) (*trillian.QueueLeafResponse, error) {
-	return c.c.QueueLeaf(ctx, in)
-}
-
-// QueueLeaves forwards requests.
-func (c *MutatingLogClient) QueueLeaves(ctx context.Context, in *trillian.QueueLeavesRequest, opts ...grpc.CallOption) (*trillian.QueueLeavesResponse, error) {
-	return c.c.QueueLeaves(ctx, in)
-}
-
-// AddSequencedLeaf forwards requests.
-func (c *MutatingLogClient) AddSequencedLeaf(ctx context.Context, in *trillian.AddSequencedLeafRequest, opts ...grpc.CallOption) (*trillian.AddSequencedLeafResponse, error) {
-	return c.c.AddSequencedLeaf(ctx, in)
-}
-
-// AddSequencedLeaves forwards requests.
-func (c *MutatingLogClient) AddSequencedLeaves(ctx context.Context, in *trillian.AddSequencedLeavesRequest, opts ...grpc.CallOption) (*trillian.AddSequencedLeavesResponse, error) {
-	return c.c.AddSequencedLeaves(ctx, in)
-}
-
 // GetInclusionProof forwards requests and optionally corrupts the response.
 func (c *MutatingLogClient) GetInclusionProof(ctx context.Context, in *trillian.GetInclusionProofRequest, opts ...grpc.CallOption) (*trillian.GetInclusionProofResponse, error) {
-	resp, err := c.c.GetInclusionProof(ctx, in)
+	resp, err := c.TrillianLogClient.GetInclusionProof(ctx, in)
 	if c.mutateInclusionProof {
 		i := rand.Intn(len(resp.Proof.Hashes))
 		j := rand.Intn(len(resp.Proof.Hashes[i]))
@@ -64,7 +44,7 @@ func (c *MutatingLogClient) GetInclusionProof(ctx context.Context, in *trillian.
 
 // GetInclusionProofByHash forwards requests and optionaly corrupts responses.
 func (c *MutatingLogClient) GetInclusionProofByHash(ctx context.Context, in *trillian.GetInclusionProofByHashRequest, opts ...grpc.CallOption) (*trillian.GetInclusionProofByHashResponse, error) {
-	resp, err := c.c.GetInclusionProofByHash(ctx, in)
+	resp, err := c.TrillianLogClient.GetInclusionProofByHash(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +63,7 @@ func (c *MutatingLogClient) GetInclusionProofByHash(ctx context.Context, in *tri
 
 // GetConsistencyProof forwards requests and optionally corrupts responses.
 func (c *MutatingLogClient) GetConsistencyProof(ctx context.Context, in *trillian.GetConsistencyProofRequest, opts ...grpc.CallOption) (*trillian.GetConsistencyProofResponse, error) {
-	resp, err := c.c.GetConsistencyProof(ctx, in)
+	resp, err := c.TrillianLogClient.GetConsistencyProof(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -97,39 +77,4 @@ func (c *MutatingLogClient) GetConsistencyProof(ctx context.Context, in *trillia
 		resp.Proof.Hashes[i][j] ^= 4
 	}
 	return resp, nil
-}
-
-// GetLatestSignedLogRoot forwards requests.
-func (c *MutatingLogClient) GetLatestSignedLogRoot(ctx context.Context, in *trillian.GetLatestSignedLogRootRequest, opts ...grpc.CallOption) (*trillian.GetLatestSignedLogRootResponse, error) {
-	return c.c.GetLatestSignedLogRoot(ctx, in)
-}
-
-// GetSequencedLeafCount forwards requests.
-func (c *MutatingLogClient) GetSequencedLeafCount(ctx context.Context, in *trillian.GetSequencedLeafCountRequest, opts ...grpc.CallOption) (*trillian.GetSequencedLeafCountResponse, error) {
-	return c.c.GetSequencedLeafCount(ctx, in)
-}
-
-// GetLeavesByIndex forwards requests.
-func (c *MutatingLogClient) GetLeavesByIndex(ctx context.Context, in *trillian.GetLeavesByIndexRequest, opts ...grpc.CallOption) (*trillian.GetLeavesByIndexResponse, error) {
-	return c.c.GetLeavesByIndex(ctx, in)
-}
-
-// GetLeavesByRange forwards requests.
-func (c *MutatingLogClient) GetLeavesByRange(ctx context.Context, in *trillian.GetLeavesByRangeRequest, opts ...grpc.CallOption) (*trillian.GetLeavesByRangeResponse, error) {
-	return c.c.GetLeavesByRange(ctx, in)
-}
-
-// GetLeavesByHash forwards requests.
-func (c *MutatingLogClient) GetLeavesByHash(ctx context.Context, in *trillian.GetLeavesByHashRequest, opts ...grpc.CallOption) (*trillian.GetLeavesByHashResponse, error) {
-	return c.c.GetLeavesByHash(ctx, in)
-}
-
-// GetEntryAndProof forwards requests.
-func (c *MutatingLogClient) GetEntryAndProof(ctx context.Context, in *trillian.GetEntryAndProofRequest, opts ...grpc.CallOption) (*trillian.GetEntryAndProofResponse, error) {
-	return c.c.GetEntryAndProof(ctx, in)
-}
-
-// InitLog forwards requests.
-func (c *MutatingLogClient) InitLog(ctx context.Context, in *trillian.InitLogRequest, opts ...grpc.CallOption) (*trillian.InitLogResponse, error) {
-	return c.c.InitLog(ctx, in)
 }
