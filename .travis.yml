@@ -21,9 +21,12 @@ env:
   - GOFLAGS='-race --tags batched_queue'
   - GOFLAGS='-race' WITH_ETCD=true
   - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
+  - WITH_DOCKER_TESTS=true
 
 matrix:
   fast_finish: true
+  allow_failures:
+    - env: WITH_DOCKER_TESTS=true
 
 services:
   - docker
@@ -98,7 +101,7 @@ script:
       # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
       # support is enabled. This requires running softhsm in a Docker container.
       # See https://github.com/rolandshoemaker/docker-hsm for an example.
-      if [[ "${WITH_PKCS11}" != "true" ]]; then
+      if [[ "${WITH_DOCKER_TESTS}" == "true" ]]; then
         ./integration/docker_compose_integration_test.sh
       fi
   - set +e
