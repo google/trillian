@@ -236,7 +236,7 @@ func TestWaitForInclusion(t *testing.T) {
 		{desc: "First leaf", leaf: []byte("A"), client: env.Log},
 		{desc: "Make TreeSize > 1", leaf: []byte("B"), client: env.Log},
 		{desc: "invalid inclusion proof", leaf: []byte("A"), skipPreCheck: true,
-			client: &MockLogClient{c: env.Log, mGetInclusionProof: true}, wantErr: true},
+			client: &MutatingLogClient{c: env.Log, mutateInclusionProof: true}, wantErr: true},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			client, err := NewFromTree(test.client, tree, types.LogRootV1{})
