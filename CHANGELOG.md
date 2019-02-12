@@ -46,8 +46,7 @@ jitter to `master_check_interval * resign_odds * 2` to achieve similar behavior.
 The `--master_check_interval` flag is removed from `logsigner`.
 
 `logsigner` switched to using a new master election interface contained in
-`util/election2` package. The interfaces in `util/election/election.go` file are
-deprecated.
+`util/election2` package. The interfaces in `util/election` are removed.
 
 ### Performance
 
