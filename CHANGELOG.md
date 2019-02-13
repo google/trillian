@@ -16,9 +16,9 @@ now have load balancers configured for them that expose those services outside
 of the Kubernetes cluster. This makes it easier to access their APIs. When
 deployed on Google Cloud, these will be
 [Internal Load Balancers](https://cloud.google.com/kubernetes-engine/docs/how-to/internal-load-balancing).
-Note that this change cannot be applied to an existing deployment; delete the
-existing Kubernetes services and redeploy them, otherwise you'll see an error
-similar to `The Service "trillian-log-service" is invalid: spec.clusterIP:
+Note that this change **cannot be applied to an existing deployment**; delete
+the existing Kubernetes services and redeploy them, otherwise you'll see an
+error similar to `The Service "trillian-log-service" is invalid: spec.clusterIP:
 Invalid value: "": field is immutable`.
 
 ### Dropped metrics
