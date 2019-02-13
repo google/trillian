@@ -16,6 +16,7 @@ package client
 
 import (
 	"crypto"
+	"errors"
 	"fmt"
 
 	"github.com/google/trillian"
@@ -45,16 +46,19 @@ type MapVerifier struct {
 // NewMapVerifierFromTree creates a new MapVerifier using the information
 // from a Trillian Tree object.
 func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
+	if config == nil {
+		return nil, errors.New("client: NewMapVerifierFromTree(): nil config")
+	}
 	if got, want := config.TreeType, trillian.TreeType_MAP; got != want {
-		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
+		return nil, fmt.Errorf("client: NewMapVerifierFromTree(): TreeType: %v, want %v", got, want)
 	}
 
-	mapHasher, err := hashers.NewMapHasher(config.GetHashStrategy())
+	mapHasher, err := hashers.NewMapHasher(config.HashStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating MapHasher: %v", err)
 	}
 
-	mapPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
+	mapPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing Map public key: %v", err)
 	}
@@ -65,7 +69,7 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	}
 
 	return &MapVerifier{
-		MapID:   config.GetTreeId(),
+		MapID:   config.TreeId,
 		Hasher:  mapHasher,
 		PubKey:  mapPubKey,
 		SigHash: sigHash,
