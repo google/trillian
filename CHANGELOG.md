@@ -15,6 +15,12 @@ There is now a [mysql.cnf file](examples/deployment/docker/db_server/mysql.cnf)
 alongside the Dockerfile that makes it easy to build the image with a custom
 configuration, e.g. to allow MySQL to use more memory.
 
+The `trillian-log-service` and `trillian-log-signer` Kubernetes services will
+now have load balancers configured for them that expose those services outside
+of the Kubernetes cluster. This makes it easier to access their APIs. When
+deployed on Google Cloud, these will be
+[Internal Load Balancers](https://cloud.google.com/kubernetes-engine/docs/how-to/internal-load-balancing).
+
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
@@ -50,8 +56,7 @@ jitter to `master_check_interval * resign_odds * 2` to achieve similar behavior.
 The `--master_check_interval` flag is removed from `logsigner`.
 
 `logsigner` switched to using a new master election interface contained in
-`util/election2` package. The interfaces in `util/election/election.go` file are
-deprecated.
+`util/election2` package. The interfaces in `util/election` are removed.
 
 ### Performance
 
