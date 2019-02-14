@@ -698,12 +698,14 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TrillianMapClient interface {
 	// GetLeaves returns an inclusion proof for each index requested.
-	// For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
+	// For indexes that do not exist, the inclusion proof will use nil for the
+	// empty leaf value.
 	GetLeaves(ctx context.Context, in *GetMapLeavesRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
 	GetLeavesByRevision(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
-	// SetLeaves sets the values for the provided leaves, and returns the new map root if successful.
-	// Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request),
-	// the API user is required to retry the request before performing a different SetLeaves request.
+	// SetLeaves sets the values for the provided leaves, and returns the new map
+	// root if successful. Note that if a SetLeaves request fails for a
+	// server-side reason (i.e. not an invalid request), the API user is required
+	// to retry the request before performing a different SetLeaves request.
 	SetLeaves(ctx context.Context, in *SetMapLeavesRequest, opts ...grpc.CallOption) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(ctx context.Context, in *GetSignedMapRootRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(ctx context.Context, in *GetSignedMapRootByRevisionRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
@@ -775,12 +777,14 @@ func (c *trillianMapClient) InitMap(ctx context.Context, in *InitMapRequest, opt
 // TrillianMapServer is the server API for TrillianMap service.
 type TrillianMapServer interface {
 	// GetLeaves returns an inclusion proof for each index requested.
-	// For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
+	// For indexes that do not exist, the inclusion proof will use nil for the
+	// empty leaf value.
 	GetLeaves(context.Context, *GetMapLeavesRequest) (*GetMapLeavesResponse, error)
 	GetLeavesByRevision(context.Context, *GetMapLeavesByRevisionRequest) (*GetMapLeavesResponse, error)
-	// SetLeaves sets the values for the provided leaves, and returns the new map root if successful.
-	// Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request),
-	// the API user is required to retry the request before performing a different SetLeaves request.
+	// SetLeaves sets the values for the provided leaves, and returns the new map
+	// root if successful. Note that if a SetLeaves request fails for a
+	// server-side reason (i.e. not an invalid request), the API user is required
+	// to retry the request before performing a different SetLeaves request.
 	SetLeaves(context.Context, *SetMapLeavesRequest) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(context.Context, *GetSignedMapRootRequest) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(context.Context, *GetSignedMapRootByRevisionRequest) (*GetSignedMapRootResponse, error)

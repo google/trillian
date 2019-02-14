@@ -332,6 +332,12 @@ func (m *GetInclusionProofRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetInclusionProofResponse struct {
+	// The proof field may be empty if the requested tree_size was larger
+	// than that available at the server (e.g. because there is skew between
+	// server instances, and an earlier client request was processed by a
+	// more up-to-date instance).  In this case, the signed_log_root
+	// field will indicate the tree size that the server is aware of, and
+	// the proof field will be empty.
 	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
 	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
@@ -562,6 +568,12 @@ func (m *GetConsistencyProofRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetConsistencyProofResponse struct {
+	// The proof field may be empty if the requested tree_size was larger
+	// than that available at the server (e.g. because there is skew between
+	// server instances, and an earlier client request was processed by a
+	// more up-to-date instance).  In this case, the signed_log_root
+	// field will indicate the tree size that the server is aware of, and
+	// the proof field will be empty.
 	Proof                *Proof         `protobuf:"bytes,2,opt,name=proof,proto3" json:"proof,omitempty"`
 	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
@@ -1887,11 +1899,15 @@ type TrillianLogClient interface {
 	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaf(ctx context.Context, in *AddSequencedLeafRequest, opts ...grpc.CallOption) (*AddSequencedLeafResponse, error)
 	// Returns inclusion proof for a leaf with a given index in a given tree.
+	// If the requested tree_size is larger than the server is aware of,
+	// the response will include the known log root and an empty proof.
 	GetInclusionProof(ctx context.Context, in *GetInclusionProofRequest, opts ...grpc.CallOption) (*GetInclusionProofResponse, error)
 	// Returns inclusion proof for a leaf with a given Merkle hash in a given
 	// tree.
 	GetInclusionProofByHash(ctx context.Context, in *GetInclusionProofByHashRequest, opts ...grpc.CallOption) (*GetInclusionProofByHashResponse, error)
 	// Returns consistency proof between two versions of a given tree.
+	// If the requested tree size is larger than the server is aware of,
+	// the response will include the known log root and an empty proof.
 	GetConsistencyProof(ctx context.Context, in *GetConsistencyProofRequest, opts ...grpc.CallOption) (*GetConsistencyProofResponse, error)
 	// Returns the latest signed log root for a given tree. Corresponds to the
 	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
@@ -1902,8 +1918,8 @@ type TrillianLogClient interface {
 	// DO NOT USE - FOR DEBUGGING/TEST ONLY
 	GetSequencedLeafCount(ctx context.Context, in *GetSequencedLeafCountRequest, opts ...grpc.CallOption) (*GetSequencedLeafCountResponse, error)
 	// Returns log entry and the corresponding inclusion proof for a given leaf
-	// index in a given tree. If the requested tree is unavailable but the leaf is in scope
-	// for the current tree, return a proof in that tree instead.
+	// index in a given tree. If the requested tree is unavailable but the leaf is
+	// in scope for the current tree, return a proof in that tree instead.
 	GetEntryAndProof(ctx context.Context, in *GetEntryAndProofRequest, opts ...grpc.CallOption) (*GetEntryAndProofResponse, error)
 	InitLog(ctx context.Context, in *InitLogRequest, opts ...grpc.CallOption) (*InitLogResponse, error)
 	// Adds a batch of leaves to the queue.
@@ -2064,11 +2080,15 @@ type TrillianLogServer interface {
 	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaf(context.Context, *AddSequencedLeafRequest) (*AddSequencedLeafResponse, error)
 	// Returns inclusion proof for a leaf with a given index in a given tree.
+	// If the requested tree_size is larger than the server is aware of,
+	// the response will include the known log root and an empty proof.
 	GetInclusionProof(context.Context, *GetInclusionProofRequest) (*GetInclusionProofResponse, error)
-	// Returns inclusion proof for a leaf with a given identity hash in a given
+	// Returns inclusion proof for a leaf with a given Merkle hash in a given
 	// tree.
 	GetInclusionProofByHash(context.Context, *GetInclusionProofByHashRequest) (*GetInclusionProofByHashResponse, error)
 	// Returns consistency proof between two versions of a given tree.
+	// If the requested tree size is larger than the server is aware of,
+	// the response will include the known log root and an empty proof.
 	GetConsistencyProof(context.Context, *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error)
 	// Returns the latest signed log root for a given tree. Corresponds to the
 	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
@@ -2079,8 +2099,8 @@ type TrillianLogServer interface {
 	// DO NOT USE - FOR DEBUGGING/TEST ONLY
 	GetSequencedLeafCount(context.Context, *GetSequencedLeafCountRequest) (*GetSequencedLeafCountResponse, error)
 	// Returns log entry and the corresponding inclusion proof for a given leaf
-	// index in a given tree. If the requested tree is unavailable but the leaf is in scope
-	// for the current tree, return a proof in that tree instead.
+	// index in a given tree. If the requested tree is unavailable but the leaf is
+	// in scope for the current tree, return a proof in that tree instead.
 	GetEntryAndProof(context.Context, *GetEntryAndProofRequest) (*GetEntryAndProofResponse, error)
 	InitLog(context.Context, *InitLogRequest) (*InitLogResponse, error)
 	// Adds a batch of leaves to the queue.
