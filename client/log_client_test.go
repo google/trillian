@@ -171,6 +171,12 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
 		}
 	}
+
+	// Ask for inclusion in a too-large tree.
+	root.TreeSize += 1000
+	if err := client.GetAndVerifyInclusionAtIndex(ctx, leafData[0], 0, root); err == nil {
+		t.Errorf("GetAndVerifyInclusionAtIndex(0, %d)=nil, want error", root.TreeSize)
+	}
 }
 
 func TestWaitForInclusion(t *testing.T) {
@@ -248,6 +254,43 @@ func TestUpdateRoot(t *testing.T) {
 	}
 	if got, want := root.TreeSize, before; got <= want {
 		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
+	}
+}
+
+func TestUpdateRootSkew(t *testing.T) {
+	ctx := context.Background()
+	tree := *stestonly.LogTree
+	env, client := clientEnvForTest(ctx, t, &tree)
+	tree.TreeId = client.LogID
+	defer env.Close()
+
+	// Start with a single leaf.
+	data := []byte("foo")
+	if err := client.QueueLeaf(ctx, data); err != nil {
+		t.Fatalf("QueueLeaf(%s): %v, want nil", data, err)
+	}
+	env.Sequencer.OperationSingle(ctx)
+
+	root, err := client.UpdateRoot(ctx)
+	if err != nil {
+		t.Fatalf("UpdateRoot(): %v", err)
+	}
+
+	// Put in a second leaf after root.
+	data2 := []byte("bar")
+	if err := client.QueueLeaf(ctx, data2); err != nil {
+		t.Fatalf("QueueLeaf(%s): %v, want nil", data2, err)
+	}
+	env.Sequencer.OperationSingle(ctx)
+
+	// Now force a bad request.
+	badRawClient := &MutatingLogClient{TrillianLogClient: env.Log, mutateRootSize: true}
+	badClient, err := NewFromTree(badRawClient, &tree, *root)
+	if err != nil {
+		t.Fatalf("failed to create mutating client: %v", err)
+	}
+	if _, err := badClient.UpdateRoot(ctx); err == nil {
+		t.Error("UpdateRoot()=nil, want error")
 	}
 }
 
