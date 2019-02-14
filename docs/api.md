@@ -216,7 +216,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) |  |  |
+| proof | [Proof](#trillian.Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
 
 
@@ -320,7 +320,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) |  |  |
+| proof | [Proof](#trillian.Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
 
 
@@ -665,9 +665,9 @@ operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 | ----------- | ------------ | ------------- | ------------|
 | QueueLeaf | [QueueLeafRequest](#trillian.QueueLeafRequest) | [QueueLeafResponse](#trillian.QueueLeafResponse) | Adds a single leaf to the queue. |
 | AddSequencedLeaf | [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest) | [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse) | Adds a single leaf with an assigned sequence number. Warning: This RPC is under development, don&#39;t use it. |
-| GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | Returns inclusion proof for a leaf with a given index in a given tree. |
+| GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | Returns inclusion proof for a leaf with a given index in a given tree. If the requested tree_size is larger than the server is aware of, the response will include the known log root and an empty proof. |
 | GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse) | Returns inclusion proof for a leaf with a given Merkle hash in a given tree. |
-| GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | Returns consistency proof between two versions of a given tree. |
+| GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | Returns consistency proof between two versions of a given tree. If the requested tree size is larger than the server is aware of, the response will include the known log root and an empty proof. |
 | GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | Returns the latest signed log root for a given tree. Corresponds to the ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface. |
 | GetSequencedLeafCount | [GetSequencedLeafCountRequest](#trillian.GetSequencedLeafCountRequest) | [GetSequencedLeafCountResponse](#trillian.GetSequencedLeafCountResponse) | Returns the total number of leaves that have been integrated into the given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount storage interface. DO NOT USE - FOR DEBUGGING/TEST ONLY |
 | GetEntryAndProof | [GetEntryAndProofRequest](#trillian.GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian.GetEntryAndProofResponse) | Returns log entry and the corresponding inclusion proof for a given leaf index in a given tree. If the requested tree is unavailable but the leaf is in scope for the current tree, return a proof in that tree instead. |
