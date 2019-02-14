@@ -23,14 +23,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// MapClient represents a client for a given Trillian log instance.
+// MapClient represents a client for a given Trillian Map instance.
 type MapClient struct {
 	*MapVerifier
 	MapID int64
 	Conn  trillian.TrillianMapClient
 }
 
-// NewMapClientFromTree returns a verifying map client.
+// NewMapClientFromTree returns a verifying Map client for the specified tree.
 func NewMapClientFromTree(client trillian.TrillianMapClient, config *trillian.Tree) (*MapClient, error) {
 	verifier, err := NewMapVerifierFromTree(config)
 	if err != nil {

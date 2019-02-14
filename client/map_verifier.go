@@ -30,7 +30,8 @@ import (
 	tcrypto "github.com/google/trillian/crypto"
 )
 
-// MapVerifier verifies protos produced by the Trillian Map.
+// MapVerifier allows verification of output from Trillian Maps; it is safe
+// for concurrent use (as its contents are fixed after construction).
 type MapVerifier struct {
 	MapID int64
 	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
@@ -41,7 +42,8 @@ type MapVerifier struct {
 	SigHash crypto.Hash
 }
 
-// NewMapVerifierFromTree creates a new MapVerifier.
+// NewMapVerifierFromTree creates a new MapVerifier using the information
+// from a Trillian Tree object.
 func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	if got, want := config.TreeType, trillian.TreeType_MAP; got != want {
 		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
@@ -70,7 +72,7 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	}, nil
 }
 
-// VerifyMapLeafInclusion verifies a MapLeafInclusion response against a signed map root.
+// VerifyMapLeafInclusion verifies a MapLeafInclusion object against a signed map root.
 func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafProof *trillian.MapLeafInclusion) error {
 	root, err := m.VerifySignedMapRoot(smr)
 	if err != nil {
@@ -79,12 +81,12 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 	return m.VerifyMapLeafInclusionHash(root.RootHash, leafProof)
 }
 
-// VerifyMapLeafInclusionHash verifies a MapLeafInclusion response against a root hash.
+// VerifyMapLeafInclusionHash verifies a MapLeafInclusion object against a root hash.
 func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *trillian.MapLeafInclusion) error {
 	return merkle.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
 }
 
-// VerifySignedMapRoot verifies the signature on the SignedMapRoot.
+// VerifySignedMapRoot verifies the signature on a SignedMapRoot.
 func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
 	return tcrypto.VerifySignedMapRoot(m.PubKey, m.SigHash, smr)
 }

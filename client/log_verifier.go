@@ -28,8 +28,9 @@ import (
 	tcrypto "github.com/google/trillian/crypto"
 )
 
-// LogVerifier contains state needed to verify output from Trillian Logs
-// (regular and pre-ordered ones).
+// LogVerifier allows verification of output from Trillian Logs, both regular
+// and pre-ordered; it is safe for concurrent use (as its contents are fixed
+// after construction).
 type LogVerifier struct {
 	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
 	Hasher hashers.LogHasher
@@ -51,7 +52,7 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash c
 }
 
 // NewLogVerifierFromTree creates a new LogVerifier using the algorithms
-// specified by *trillian.Tree.
+// specified by a Trillian Tree object.
 func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 	log, pLog := trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG
 	if got := config.TreeType; got != log && got != pLog {
@@ -87,7 +88,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 		return nil, fmt.Errorf("VerifyRoot() error: newRoot == nil")
 	}
 
-	// Verify SignedLogRoot signature.
+	// Verify SignedLogRoot signature and unpack its contents.
 	r, err := tcrypto.VerifySignedLogRoot(c.PubKey, c.SigHash, newRoot)
 	if err != nil {
 		return nil, err
@@ -103,9 +104,8 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	return r, nil
 }
 
-// VerifyInclusionAtIndex verifies that the inclusion proof for data at index
-// matches the currently trusted root. The inclusion proof must be requested
-// for Root().TreeSize.
+// VerifyInclusionAtIndex verifies that the inclusion proof for data at leafIndex
+// matches the given trusted root.
 func (c *LogVerifier) VerifyInclusionAtIndex(trusted *types.LogRootV1, data []byte, leafIndex int64, proof [][]byte) error {
 	if trusted == nil {
 		return fmt.Errorf("VerifyInclusionAtIndex() error: trusted == nil")
@@ -119,7 +119,8 @@ func (c *LogVerifier) VerifyInclusionAtIndex(trusted *types.LogRootV1, data []by
 		proof, trusted.RootHash, leaf.MerkleLeafHash)
 }
 
-// VerifyInclusionByHash verifies the inclusion proof for data.
+// VerifyInclusionByHash verifies that the inclusion proof for the given Merkle leafHash
+// matches the given trusted root.
 func (c *LogVerifier) VerifyInclusionByHash(trusted *types.LogRootV1, leafHash []byte, proof *trillian.Proof) error {
 	if trusted == nil {
 		return fmt.Errorf("VerifyInclusionByHash() error: trusted == nil")
