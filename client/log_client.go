@@ -73,7 +73,8 @@ func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, in
 }
 
 // AddLeaf adds leaf to the append only log.
-// Blocks and continuously updates the trusted root until it gets a verifiable response.
+// Blocks and continuously updates the trusted root until a successful inclusion proof
+// can be retrieved.
 func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	if err := c.QueueLeaf(ctx, data); err != nil {
 		return fmt.Errorf("QueueLeaf(): %v", err)
@@ -221,14 +222,19 @@ func (c *LogClient) GetRoot() *types.LogRootV1 {
 // seen in the past, and updating the currently trusted root if the new root verifies, and is
 // newer than the currently trusted root.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
-	// Only one root update should be running at any point in time.  This is
-	// because the consistency proof has to be requested against the currently
-	// trusted root, and allowing the current root to be updated during an
-	// existing update can lead to race conditions which result in incorrect and
-	// inconsistent state updates.
+	// Only one root update should be running at any point in time, because
+	// the update involves a consistency proof from the old value, and if the
+	// old value could change along the way (in another goroutine) then the
+	// result could be inconsistent.
 	//
-	// For more details, see:
-	// https://github.com/google/trillian/pull/1225#discussion_r201489925
+	// For example, if the current root is A and two root updates A->B and A->C
+	// happen in parallel, then we might end up with the transitions A->B->C:
+	//     cur := A            cur := A
+	//    getRoot() => B      getRoot() => C
+	//    proof(A->B) ok      proof(A->C) ok
+	//    c.root = B
+	//                        c.root = C
+	// and the last step (B->C) has no proof and so could hide a forked tree.
 	c.updateLock.Lock()
 	defer c.updateLock.Unlock()
 
