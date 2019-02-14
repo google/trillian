@@ -53,18 +53,14 @@ func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *Lo
 	return nil
 }
 
-func TestGetByIndex(t *testing.T) {
+func clientEnvForTest(ctx context.Context, t *testing.T, template *trillian.Tree) (*integration.LogEnv, *LogClient) {
+	t.Helper()
 	testdb.SkipIfNoMySQL(t)
-	ctx := context.Background()
 	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer env.Close()
-
-	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
-		env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{Tree: template}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -73,6 +69,14 @@ func TestGetByIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFromTree(): %v", err)
 	}
+	return env, client
+}
+
+func TestGetByIndex(t *testing.T) {
+	ctx := context.Background()
+	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
+	defer env.Close()
+
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -97,24 +101,10 @@ func TestGetByIndex(t *testing.T) {
 }
 
 func TestListByIndex(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "unused")
-	if err != nil {
-		t.Fatal(err)
-	}
+	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
-		env.Admin, nil, env.Log)
-	if err != nil {
-		t.Fatalf("Failed to create log: %v", err)
-	}
 
-	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
-	if err != nil {
-		t.Fatalf("NewFromTree(): %v", err)
-	}
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -139,24 +129,10 @@ func TestListByIndex(t *testing.T) {
 }
 
 func TestVerifyInclusion(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "unused")
-	if err != nil {
-		t.Fatal(err)
-	}
+	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
-		env.Admin, nil, env.Log)
-	if err != nil {
-		t.Fatalf("Failed to create log: %v", err)
-	}
 
-	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
-	if err != nil {
-		t.Fatalf("NewFromTree(): %v", err)
-	}
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -175,24 +151,10 @@ func TestVerifyInclusion(t *testing.T) {
 }
 
 func TestVerifyInclusionAtIndex(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "unused")
-	if err != nil {
-		t.Fatal(err)
-	}
+	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.PreorderedLogTree},
-		env.Admin, nil, env.Log)
-	if err != nil {
-		t.Fatalf("Failed to create log: %v", err)
-	}
 
-	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
-	if err != nil {
-		t.Fatalf("NewFromTree(): %v", err)
-	}
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -212,19 +174,11 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 }
 
 func TestWaitForInclusion(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "unused")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tree := *stestonly.LogTree
+	env, client := clientEnvForTest(ctx, t, &tree)
+	tree.TreeId = client.LogID
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
-		env.Admin, nil, env.Log)
-	if err != nil {
-		t.Fatalf("Failed to create log: %v", err)
-	}
 
 	for _, test := range []struct {
 		desc         string
@@ -239,7 +193,7 @@ func TestWaitForInclusion(t *testing.T) {
 			client: &MutatingLogClient{TrillianLogClient: env.Log, mutateInclusionProof: true}, wantErr: true},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			client, err := NewFromTree(test.client, tree, types.LogRootV1{})
+			client, err := NewFromTree(test.client, &tree, types.LogRootV1{})
 			if err != nil {
 				t.Fatalf("NewFromTree(): %v", err)
 			}
@@ -265,24 +219,9 @@ func TestWaitForInclusion(t *testing.T) {
 }
 
 func TestUpdateRoot(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "unused")
-	if err != nil {
-		t.Fatal(err)
-	}
+	env, client := clientEnvForTest(ctx, t, stestonly.LogTree)
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx,
-		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
-		env.Admin, nil, env.Log)
-	if err != nil {
-		t.Fatalf("Failed to create log: %v", err)
-	}
-
-	client, err := NewFromTree(env.Log, tree, types.LogRootV1{})
-	if err != nil {
-		t.Fatalf("NewFromTree(): %v", err)
-	}
 
 	before := client.root.TreeSize
 
