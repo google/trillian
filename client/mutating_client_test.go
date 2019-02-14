@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc"
 )
 
@@ -29,6 +30,21 @@ type MutatingLogClient struct {
 	trillian.TrillianLogClient
 	mutateInclusionProof   bool
 	mutateConsistencyProof bool
+	mutateRootSize         bool
+}
+
+// GetLatestSignedLogRoot forwards requests and optionally modifies the returned size.
+func (c *MutatingLogClient) GetLatestSignedLogRoot(ctx context.Context, in *trillian.GetLatestSignedLogRootRequest, opts ...grpc.CallOption) (*trillian.GetLatestSignedLogRootResponse, error) {
+	resp, err := c.TrillianLogClient.GetLatestSignedLogRoot(ctx, in)
+	if c.mutateRootSize {
+		var root types.LogRootV1
+		if err := root.UnmarshalBinary(resp.SignedLogRoot.LogRoot); err != nil {
+			panic("failed to unmarshal")
+		}
+		root.TreeSize += 10000
+		resp.SignedLogRoot.LogRoot, _ = root.MarshalBinary()
+	}
+	return resp, err
 }
 
 // GetInclusionProof forwards requests and optionally corrupts the response.

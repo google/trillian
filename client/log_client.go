@@ -196,12 +196,20 @@ func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.L
 		if err != nil {
 			return nil, err
 		}
+		// If this request hit a more out-of-date server instance than the GetSLR request,
+		// there may be an empty proof and an earlier SLR.
+		var proofRoot types.LogRootV1
+		if err := proofRoot.UnmarshalBinary(consistency.GetSignedLogRoot().GetLogRoot()); err != nil {
+			return nil, err
+		}
+		if proofRoot.TreeSize < logRoot.TreeSize {
+			return nil, fmt.Errorf("response for ConsistencyProof has a smaller (%d) root than requested (%d)", proofRoot.TreeSize, logRoot.TreeSize)
+		}
 	}
 
 	// Verify root update if the tree / the latest signed log root isn't empty.
 	if logRoot.TreeSize > 0 {
-		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(),
-			consistency.GetProof().GetHashes()); err != nil {
+		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(), consistency.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}
 	}
@@ -325,6 +333,17 @@ func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byt
 	if err != nil {
 		return err
 	}
+
+	// If this request hit a more out-of-date server instance than the GetSLR request,
+	// there may be an empty proof and an earlier SLR.
+	var proofRoot types.LogRootV1
+	if err := proofRoot.UnmarshalBinary(resp.GetSignedLogRoot().GetLogRoot()); err != nil {
+		return err
+	}
+	if proofRoot.TreeSize < sth.TreeSize {
+		return fmt.Errorf("response for InclusionProof has a smaller (%d) root than requested (%d)", proofRoot.TreeSize, sth.TreeSize)
+	}
+
 	return c.VerifyInclusionAtIndex(sth, data, index, resp.Proof.Hashes)
 }
 
