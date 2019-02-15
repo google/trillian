@@ -45,6 +45,7 @@ type MergeDelayOptions struct {
 	NewLeafChance int // percentage
 	EmitInterval  time.Duration
 	Deadline      time.Duration
+	MinMergeDelay time.Duration
 	MetricFactory monitoring.MetricFactory
 }
 
@@ -73,6 +74,7 @@ func NewMonitor(ctx context.Context, logID int64, cl trillian.TrillianLogClient,
 	clients := make([]*client.LogClient, opts.ParallelAdds)
 	for i := 0; i < opts.ParallelAdds; i++ {
 		clients[i] = client.New(logID, cl, verifier, types.LogRootV1{})
+		clients[i].MinMergeDelay = opts.MinMergeDelay
 	}
 
 	mdm := MergeDelayMonitor{logID: logID, opts: opts, client: clients}

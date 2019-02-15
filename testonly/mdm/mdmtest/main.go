@@ -53,6 +53,7 @@ var (
 	checkers        = flag.Int("checkers", 3, "Number of parallel checker goroutines to run")
 	emitInterval    = flag.Duration("emit_interval", 10*time.Second, "How often to output the summary info")
 	deadline        = flag.Duration("deadline", 60*time.Second, "Deadline for single add+get-proof operation")
+	minMergeDelay   = flag.Duration("min_merge_delay", 3*time.Second, "Minimum merge delay; don't check for inclusion until this interval has passed")
 )
 
 func main() {
@@ -134,6 +135,7 @@ func innerMain(ctx context.Context) error {
 		NewLeafChance: int(*newLeafChance),
 		EmitInterval:  *emitInterval,
 		Deadline:      *deadline,
+		MinMergeDelay: *minMergeDelay,
 		MetricFactory: mf,
 	}
 	monitor, err := mdm.NewMonitor(ctx, *logID, cl, adminCl, opts)
