@@ -33,11 +33,12 @@ import (
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
 	*LogVerifier
-	LogID      int64
-	client     trillian.TrillianLogClient
-	root       types.LogRootV1
-	rootLock   sync.Mutex
-	updateLock sync.Mutex
+	LogID         int64
+	MinMergeDelay time.Duration
+	client        trillian.TrillianLogClient
+	root          types.LogRootV1
+	rootLock      sync.Mutex
+	updateLock    sync.Mutex
 }
 
 // New returns a new LogClient.
@@ -280,6 +281,16 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
+	}
+
+	// If a minimum merge delay has been configured, wait at least that long before
+	// starting to poll
+	if c.MinMergeDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return status.Errorf(codes.DeadlineExceeded, "%v", ctx.Err())
+		case <-time.After(c.MinMergeDelay):
+		}
 	}
 
 	var root *types.LogRootV1
