@@ -95,6 +95,12 @@ func TestNewProtoFromSpec(t *testing.T) {
 			},
 		},
 		{
+			desc: "Ed25519",
+			keySpec: &keyspb.Specification{
+				Params: &keyspb.Specification_Ed25519Params{},
+			},
+		},
+		{
 			desc:    "No params",
 			keySpec: &keyspb.Specification{},
 			wantErr: true,
@@ -104,27 +110,32 @@ func TestNewProtoFromSpec(t *testing.T) {
 			wantErr: true,
 		},
 	} {
-		pb, err := NewProtoFromSpec(test.keySpec)
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%v: NewProtoFromSpec() = (_, %q), want err? %v", test.desc, err, test.wantErr)
-			continue
-		} else if gotErr {
-			continue
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			pb, err := NewProtoFromSpec(test.keySpec)
+			if err != nil {
+				if !test.wantErr {
+					t.Fatalf("NewProtoFromSpec() = (_, %q), want err? %v", err, test.wantErr)
+				}
+				return
+			}
+			if test.wantErr {
+				t.Fatalf("NewProtoFromSpec() = (_, %q), want err? %v", err, test.wantErr)
+			}
 
-		// Get the key out of the proto, check that it matches the spec and test that it works.
-		key, err := FromProto(pb)
-		if err != nil {
-			t.Errorf("%v: FromProto(%#v) = (_, %q), want (_, nil)", test.desc, pb, err)
-		}
+			// Get the key out of the proto, check that it matches the spec and test that it works.
+			key, err := FromProto(pb)
+			if err != nil {
+				t.Fatalf("FromProto(%#v) = (_, %q), want (_, nil)", pb, err)
+			}
 
-		if err := testonly.CheckKeyMatchesSpec(key, test.keySpec); err != nil {
-			t.Errorf("%v: CheckKeyMatchesSpec() => %v", test.desc, err)
-		}
+			if err := testonly.CheckKeyMatchesSpec(key, test.keySpec); err != nil {
+				t.Errorf("CheckKeyMatchesSpec() => %v", err)
+			}
 
-		if err := testonly.SignAndVerify(key, key.Public()); err != nil {
-			t.Errorf("%v: SignAndVerify() = %q, want nil", test.desc, err)
-		}
+			if err := testonly.SignAndVerify(key, key.Public()); err != nil {
+				t.Errorf("SignAndVerify() = %q, want nil", err)
+			}
+		})
 	}
 }
 
