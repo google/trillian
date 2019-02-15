@@ -25,6 +25,7 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/trillian"
 	"github.com/google/trillian/types"
+	"golang.org/x/crypto/ed25519"
 )
 
 var errVerify = errors.New("signature verification failed")
@@ -64,6 +65,10 @@ func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {
 	if sig == nil {
 		return errors.New("signature is nil")
 	}
+	if pubKey, ok := pub.(ed25519.PublicKey); ok {
+		// Ed25519 takes the whole message, not a hash digest.
+		return verifyEd25519(pubKey, data, sig)
+	}
 
 	h := hasher.New()
 	h.Write(data)
@@ -74,6 +79,7 @@ func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {
 		return verifyECDSA(pub, digest, sig)
 	case *rsa.PublicKey:
 		return verifyRSA(pub, digest, sig, hasher, hasher)
+
 	default:
 		return fmt.Errorf("unknown private key type: %T", pub)
 	}
@@ -102,5 +108,11 @@ func verifyECDSA(pub *ecdsa.PublicKey, hashed, sig []byte) error {
 		return errVerify
 	}
 	return nil
+}
 
+func verifyEd25519(pub ed25519.PublicKey, msg, sig []byte) error {
+	if !ed25519.Verify(pub, msg, sig) {
+		return errVerify
+	}
+	return nil
 }
