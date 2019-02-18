@@ -1,27 +1,19 @@
 sudo: true  # Only to move mysql onto ramdisk.
-
+os: linux
+dist: xenial
 language: go
+go: "1.10"
+go_import_path: github.com/google/trillian
 
 addons:
   apt:
-    sources:
-      - mysql-5.7-trusty
     packages:
       - softhsm
-      - mysql-server
-      - mysql-client
 
 cache:
   directories:
     - "$HOME/google-cloud-sdk/"
 
-os:
-  - linux
-
-go:
-  - "1.10"
-
-go_import_path: github.com/google/trillian
 
 env:
   - WITH_COVERAGE=true
@@ -36,10 +28,9 @@ matrix:
 services:
   - docker
   - postgresql
+  - mysql
 
 before_install:
-  - sudo mysql -e "use mysql; update user set authentication_string=PASSWORD('') where User='root'; update user set plugin='mysql_native_password';FLUSH PRIVILEGES;"
-  - sudo mysql_upgrade
   - sudo service mysql stop
   - |
     if [[ "$TRAVIS_SUDO" == "true" ]]; then
@@ -114,4 +105,3 @@ script:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
-
