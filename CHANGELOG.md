@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Database Schema
+
+This version includes a change to the MySQL and Postgres database schemas
+to add an index on the `SequencedLeafData` table.
+
 ### Deployments
 
 The [db\_server Docker image](examples/deployment/docker/db_server/Dockerfile)

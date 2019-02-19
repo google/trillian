@@ -111,6 +111,10 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE
 );
 
+
+CREATE INDEX SequencedLeafMerkleIdx
+  ON SequencedLeafData(TreeId, MerkleLeafHash);
+
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               BIGINT NOT NULL,
   -- The bucket field is to allow the use of time based ring bucketed schemes if desired. If
