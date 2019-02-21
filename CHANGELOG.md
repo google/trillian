@@ -7,7 +7,8 @@ Not yet released; provisionally v2.0.0 (may change).
 ### Database Schema
 
 This version includes a change to the MySQL and Postgres database schemas
-to add an index on the `SequencedLeafData` table.
+to add an index on the `SequencedLeafData` table.  This improves performance for
+inclusion proof queries.
 
 ### Deployments
 
