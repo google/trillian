@@ -127,7 +127,7 @@ func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) erro
 	if err := er.election.Await(ctx); err != nil {
 		return fmt.Errorf("election.Await() failed: %v", err)
 	}
-	glog.V(1).Infof("%s: Now, I am the master", er.id)
+	glog.Infof("%s: Now, I am the master", er.id)
 	er.tracker.Set(er.id, true)
 	defer er.tracker.Set(er.id, false)
 
