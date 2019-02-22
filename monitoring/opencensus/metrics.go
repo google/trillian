@@ -227,7 +227,7 @@ func buckets() []float64 {
 	return r
 }
 
-// NewHistogram creates a new Histogram object backed by Prometheus.
+// NewHistogram creates a new Histogram object backed by OpenCensus.
 func (ocmf MetricFactory) NewHistogram(name, help string, labelNames ...string) monitoring.Histogram {
 	//TODO(dazwilkin) How is an OpenCensus Distribution treated by Stackdriver?
 	glog.Infof("[Histogram] %s", name)
