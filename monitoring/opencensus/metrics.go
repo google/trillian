@@ -9,15 +9,16 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
+
+	datadog "github.com/Datadog/opencensus-go-exporter-datadog"
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
+	multierror "github.com/hashicorp/go-multierror"
 
 	"go.opencensus.io/exporter/prometheus"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-
-	datadog "github.com/Datadog/opencensus-go-exporter-datadog"
 )
 
 const (
@@ -30,13 +31,9 @@ type MetricFactory struct {
 	Prefix string
 }
 
-var (
-// Stackdriver Client will be used by [Custom|Gauge|Histogram] types to compute Value(s)
-//client *stackdriver_client.MetricClient
-)
-
-// init initializes Stackdriver, Prometheus and Datadog exporters
-// once registered with Opencensus' View, all metrics will export to these systems
+// Initialize is called by Trillian Servers to configure user-specific Exporters.
+// See https://github.com/google/trillian/pull/1414#pullrequestreview-195485927
+// Once registered with Opencensus' View, all metrics will export to these systems
 // Only Stackdriver requires a 60-second reporting period but this met be set once for all
 // Stackdriver authentication uses Application Default Credentials and assumes
 // GOOGLE_APPLICATION_CREDENTIALS references a service account key
@@ -45,47 +42,72 @@ var (
 // Datadog exporter assumes the Datadog Agent is running on localhost
 //TODO(dazwilkin) Is this the best place to initialize the exporters?
 //TODO(dazwilkin) OpenCensus exporters should be configured by config
-func init() {
+func Initialize() (func(), error) {
+	var (
+		err    error
+		errors *multierror.Error
+		dd     *datadog.Exporter
+		pm     *prometheus.Exporter
+		sd     *stackdriver.Exporter
+	)
+
 	// Stackdriver Exporter
-	sd, err := stackdriver.NewExporter(stackdriver.Options{
-		// MetricPrefix helps uniquely identify these metrics
-		//TODO(dazwilkin) How to create the exporter in order to use MetricFactory.Prefix
-		MetricPrefix: namespace,
-	})
-	if err != nil {
-		log.Fatal(err)
+	//TODO(dazwilkin) Make this dependent upon user-config
+	if true {
+		sd, err = stackdriver.NewExporter(stackdriver.Options{
+			// MetricPrefix helps uniquely identify these metrics
+			//TODO(dazwilkin) How to create the exporter in order to use MetricFactory.Prefix
+			MetricPrefix: namespace,
+		})
+		errors = multierror.Append(errors, err)
+		// Register Exporter
+		view.RegisterExporter(sd)
+		// Stackdriver requires 60s reporting period
+		view.SetReportingPeriod(60 * time.Second)
+		// Important to invoke Flush before exiting
+		// Pushing 'defer sd.Flush()' to the returned function
 	}
-	// Important to invoke Flush before exiting
-	defer sd.Flush()
 
 	// Prometheus Exporter
 	// Provides an http.Handler for the metrics endpoint
 	//TODO(dazwilkin) How to provide this handler back to the Trillian service?
 	// e.g. mux.Handle("/metrics", pm)
-	pm, err := prometheus.NewExporter(prometheus.Options{
-		Namespace: namespace,
-	})
-	if err != nil {
-		log.Fatal(err)
+	//TODO(dazwilkin) Make this dependent upon user-config
+	if true {
+		pm, err = prometheus.NewExporter(prometheus.Options{
+			Namespace: namespace,
+		})
+		errors = multierror.Append(errors, err)
+		// Register Exporter
+		view.RegisterExporter(pm)
 	}
 
 	// Datadog Exporter
 	// Assumes the Datadog agent is running
-	dd, err := datadog.NewExporter(datadog.Options{
-		Namespace: namespace,
-	})
-	if err != nil {
-		log.Fatal(err)
+	//TODO(dazwilkin) Make this dependent upon user-config
+	if true {
+		dd, err = datadog.NewExporter(datadog.Options{
+			Namespace: namespace,
+		})
+		errors = multierror.Append(errors, err)
+		// Pushing 'defer dd.Stop()' to the returned function
+		// Register Exporter
+		view.RegisterExporter(dd)
 	}
-	defer dd.Stop()
 
-	// Register Exporter(s) as metrics exporter(s)
-	view.RegisterExporter(sd)
-	view.RegisterExporter(pm)
-	view.RegisterExporter(dd)
-
-	// Stackdriver requires 60s reporting period
-	view.SetReportingPeriod(60 * time.Second)
+	return func() {
+		//TODO(dazwilkin) Make this dependent upon user-config
+		if true {
+			dd.Stop()
+		}
+		// if prometheus {
+		// 	// Nothing to do
+		// }
+		//TODO(dazwilkin) Make this dependent upon user-config
+		if true {
+			sd.Flush()
+		}
+	}, errors.ErrorOrNil()
 }
 
 // checkLabelNames as required by OpenCensus fails if any label name
