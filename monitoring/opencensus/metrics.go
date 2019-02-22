@@ -126,7 +126,7 @@ func checkLabelNames(labelNames []string) {
 	}
 }
 
-// createKeyMethods creates OpenCensus Tag Keys for each label name
+// createTagKeys creates OpenCensus Tag Keys for each label name.
 func createTagKeys(labelNames []string) []tag.Key {
 	tagKeys := make([]tag.Key, len(labelNames))
 	var err error
