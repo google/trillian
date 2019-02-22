@@ -114,14 +114,14 @@ func Initialize() (func(), error) {
 // -- contains non-printable ASCII
 // -- or len is 0 or >256
 // Printable ASCII 32-126 inclusive
-func checkLabelNames(labelNames []string) {
+func checkLabelNames(names []string) {
 	nonPrintableASCII := func(r rune) bool { return (r < 32 || r > 126) }
-	for _, labelName := range labelNames {
-		if len(labelName) == 0 || len(labelName) > 256 {
+	for _, name := range names {
+		if len(name) == 0 || len(name) > 256 {
 			glog.Fatalf("OpenCensus label names must be between 1 and 256 characters")
 		}
-		if strings.IndexFunc(labelName, nonPrintableASCII) != -1 {
-			glog.Fatalf("OpenCensus label names must be printable ASCII; '%s' is not", labelName)
+		if strings.IndexFunc(name, nonPrintableASCII) != -1 {
+			glog.Fatalf("OpenCensus label names must be printable ASCII; '%s' is not", name)
 		}
 	}
 }
