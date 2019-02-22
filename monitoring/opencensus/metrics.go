@@ -169,8 +169,8 @@ func createMeasureAndView(prefix, name, help string, aggregation *view.Aggregati
 
 // forAllLabelsAValue trivially ensures the numbers of labels matches the number of values.
 func forAllLabelsAValue(labels, values []string) error {
-	if len(labels) != len(values) {
-		return fmt.Errorf("Mismatched number of labels (%v) and values (%v)", len(labels), len(values))
+	if ll, lv := len(labels), len(values); ll != lv {
+		return fmt.Errorf("Mismatched number of labels (%v) and values (%v)", ll, lv)
 	}
 	return nil
 }
