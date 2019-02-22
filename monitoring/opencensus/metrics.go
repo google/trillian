@@ -26,7 +26,7 @@ const (
 	separator = "_"
 )
 
-// MetricFactory allows the creation of OpenCensus measures and views
+// MetricFactory allows the creation of OpenCensus measures and views.
 type MetricFactory struct {
 	Prefix string
 }
@@ -110,7 +110,7 @@ func Initialize() (func(), error) {
 	}, errors.ErrorOrNil()
 }
 
-// checkLabelNames as required by OpenCensus fails if any label name
+// checkLabelNames as required by OpenCensus fails if any label name:
 // -- contains non-printable ASCII
 // -- or len is 0 or >256
 // Printable ASCII 32-126 inclusive
@@ -139,7 +139,7 @@ func createTagKeys(labelNames []string) []tag.Key {
 	return tagKeys
 }
 
-// createMeasureAndView creates the OpenCensus Measure used to record stats and a View for reporting them
+// createMeasureAndView creates the OpenCensus Measure used to record stats and a View for reporting them.
 // Measurements are made against the Measure (returned)
 // These are reported against any Views created with the Measure but, once registered, a handle to the view is dropped
 func createMeasureAndView(prefix, name, help string, aggregation *view.Aggregation, labelNames []string) *stats.Float64Measure {
@@ -167,7 +167,7 @@ func createMeasureAndView(prefix, name, help string, aggregation *view.Aggregati
 	return measure
 }
 
-// forAllLabelsAValue trivially ensures the numbers of labels matches the number of values
+// forAllLabelsAValue trivially ensures the numbers of labels matches the number of values.
 func forAllLabelsAValue(labels, values []string) error {
 	if len(labels) != len(values) {
 		return fmt.Errorf("Mismatched number of labels (%v) and values (%v)", len(labels), len(values))
@@ -175,7 +175,7 @@ func forAllLabelsAValue(labels, values []string) error {
 	return nil
 }
 
-// assignValuesToLabels creates OpenCensus tags (label=value pairs) for all labels
+// assignValuesToLabels creates OpenCensus tags (label=value pairs) for all labels.
 func assignValuesToLabels(ctx context.Context, labels, values []string) context.Context {
 	for i, value := range values {
 		// NewKey is idempotent and provides the Key so that we can insert its value
@@ -189,7 +189,7 @@ func assignValuesToLabels(ctx context.Context, labels, values []string) context.
 	return ctx
 }
 
-// NewCounter create a new Counter object backed by OpenCensus
+// NewCounter create a new Counter object backed by OpenCensus.
 func (ocmf MetricFactory) NewCounter(name, help string, labelNames ...string) monitoring.Counter {
 	//TODO(dazwilkin) What View Aggregation is best for "Counter"? (sum?)
 	glog.Infof("[Counter] %s", name)
@@ -200,7 +200,7 @@ func (ocmf MetricFactory) NewCounter(name, help string, labelNames ...string) mo
 	}
 }
 
-// NewGauge creates a new Gauge object backed by OpenCensus
+// NewGauge creates a new Gauge object backed by OpenCensus.
 func (ocmf MetricFactory) NewGauge(name, help string, labelNames ...string) monitoring.Gauge {
 	//TODO(dazwilkin) What View Aggregation is best for "Gauge"? (count+sum? lastvalue?)
 	glog.Infof("[Gauge] %s", name)
@@ -211,9 +211,9 @@ func (ocmf MetricFactory) NewGauge(name, help string, labelNames ...string) moni
 	}
 }
 
-// Ref: https://github.com/google/trillian/blob/master/monitoring/prometheus/metrics.go
 // buckets returns a reasonable range of histogram upper limits for most
 // latency-in-seconds usecases.
+// Ref: https://github.com/google/trillian/blob/master/monitoring/prometheus/metrics.go
 func buckets() []float64 {
 	// These parameters give an exponential range from 0.04 seconds to ~1 day.
 	num := 300
@@ -238,18 +238,18 @@ func (ocmf MetricFactory) NewHistogram(name, help string, labelNames ...string) 
 	}
 }
 
-// Counter is a wrapper around OpenCensus object
+// Counter is a wrapper around an OpenCensus Measure.
 type Counter struct {
 	labelNames []string
 	measure    *stats.Float64Measure
 }
 
-// Inc adds 1 to a counter.
+// Inc adds 1 to a Counter.
 func (c *Counter) Inc(labelVals ...string) {
 	c.Add(1.0, labelVals...)
 }
 
-// Add adds the given amount to a counter.
+// Add adds the given amount to a Counter.
 func (c *Counter) Add(val float64, labelVals ...string) {
 	//TODO(dazwilkin) Are negative values permitted? Think not.
 	// Nothing to do
@@ -265,7 +265,10 @@ func (c *Counter) Add(val float64, labelVals ...string) {
 	stats.Record(ctx, c.measure.M(val))
 }
 
-// Value returns the amount of a counter.
+// Value returns the amount of a Counter.
+// OpenCensus does not permit returning values from measures.
+// The interface requires this function return a value.
+// As a result this function always returns 0.0.
 func (c *Counter) Value(labelVals ...string) float64 {
 	if err := forAllLabelsAValue(c.labelNames, labelVals); err != nil {
 		glog.Error(err.Error())
@@ -275,31 +278,37 @@ func (c *Counter) Value(labelVals ...string) float64 {
 	return 0.0
 }
 
-// Gauge is a wrapper around an OpenCensus measurement and view
+// Gauge is a wrapper around an OpenCensus Measure
 type Gauge struct {
 	labelNames []string
 	measure    *stats.Float64Measure
 }
 
-// Inc adds 1 to the gauge
+// Inc adds 1 to the Gauge.
+// OpenCensus does not permit incrementing Gauges.
+// This function always logs an error.
 func (g *Gauge) Inc(labelVals ...string) {
 	glog.Error("Unable to increment gauge values; need to know the current value but don't")
 	// g.Set(1.0, labelVals...)
 }
 
-// Dec subtracts 1 from the gauge
+// Dec subtracts 1 from the Gauge.
+// OpenCensus does not permit decrementing Gauges.
+// This function always logs an error.
 func (g *Gauge) Dec(labelVals ...string) {
 	glog.Error("Unable to decrement gauge values; need to know the current value but don't")
 	// g.Set(g.value-1.0, labelVals...)
 }
 
-// Add adds given value to the gauge
+// Add adds given value to the Gauge.
+// OpenCensus does not permit adding values to Gauges
+// This function always logs an error.
 func (g *Gauge) Add(val float64, labelVals ...string) {
 	glog.Error("Unable to add to gauge values; need to know the current value but don't.")
 	// g.Set(val, labelVals...)
 }
 
-// Set sets the value of the gauge
+// Set sets the value of the Gauge.
 func (g *Gauge) Set(val float64, labelVals ...string) {
 	if err := forAllLabelsAValue(g.labelNames, labelVals); err != nil {
 		glog.Error(err.Error())
@@ -310,7 +319,10 @@ func (g *Gauge) Set(val float64, labelVals ...string) {
 	stats.Record(ctx, g.measure.M(val))
 }
 
-// Value returns the value of the gauge
+// Value returns the value of the Gauge
+// OpenCensus does not permit returning values for Gauges.
+// The interface requires this function return a value.
+// As a result this function always returns 0.0.
 func (g *Gauge) Value(labelVals ...string) float64 {
 	if err := forAllLabelsAValue(g.labelNames, labelVals); err != nil {
 		glog.Error(err.Error())
@@ -320,13 +332,13 @@ func (g *Gauge) Value(labelVals ...string) float64 {
 	return 0.0
 }
 
-// Histogram is a wrapper around OpenCensus measurement
+// Histogram is a wrapper around an OpenCensus Measure.
 type Histogram struct {
 	labelNames []string
 	measure    *stats.Float64Measure
 }
 
-// Observe records a measure
+// Observe records a value.
 func (h *Histogram) Observe(val float64, labelVals ...string) {
 	if err := forAllLabelsAValue(h.labelNames, labelVals); err != nil {
 		glog.Error(err.Error())
@@ -337,8 +349,10 @@ func (h *Histogram) Observe(val float64, labelVals ...string) {
 	stats.Record(ctx, h.measure.M(val))
 }
 
-// Info returns the count and sum of observations in the histogram
-//TODO(dazwilkin) Unsure how to implement this for OpenCensus
+// Info returns the count and sum of observations in the histogram.
+// OpenCensus does not permit returning values for Historgrams.
+// The interface requires this function to return two values.
+// As a result this function always returns 0,0.0.
 func (h *Histogram) Info(labelVals ...string) (uint64, float64) {
 	if err := forAllLabelsAValue(h.labelNames, labelVals); err != nil {
 		glog.Error(err.Error())
