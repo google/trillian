@@ -133,7 +133,7 @@ func openInnerNode(prefix string, height, index, tier int64) func() {
 func perfectInner(prefix string, height, tier, index int64, top bool) {
 	nk := nodeKey(height, index)
 	setNodeInfo(nk, func(n *nodeInfo) { n.leaf = height == 0 })
-	setNodeInfo(nodeKey(height, index), func(n *nodeInfo) { n.perfectRoot = top && (height > 0) })
+	setNodeInfo(nodeKey(height, index), func(n *nodeInfo) { n.perfectRoot = top })
 
 	if height == 0 {
 		drawLeaf(prefix, index)
