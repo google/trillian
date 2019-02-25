@@ -50,7 +50,21 @@ const (
 \definecolor{perfect}{rgb}{1,0.9,0.5}
 \definecolor{target}{rgb}{0.5,0.5,0.9}
 \definecolor{target_path}{rgb}{0.7,0.7,0.9}
+\definecolor{mega}{rgb}{0.9,0.9,0.9}
 
+\forestset{
+	% This defines a new "edge" style for drawing the perfect subtrees.
+	% Rather than simply drawing a line representing an edge, this draws a
+	% triangle between the labelled anchors on the given nodes.
+	% See "Anchors" section in the Forest manual for more details:
+	%  http://mirrors.ibiblio.org/CTAN/graphics/pgf/contrib/forest/forest-doc.pdf
+	perfect/.style={edge path={%
+		\noexpand\path[fill=mega, \forestoption{edge}]
+				(.parent first)--(!u.children)--(.parent last)--cycle
+				\forestoption{edge label};
+		}
+	},
+}
 \begin{forest}
 `
 
@@ -64,6 +78,7 @@ const (
 var (
 	treeSize  = flag.Int64("tree_size", 23, "Size of tree to produce")
 	inclusion = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
+	megaMode  = flag.Int64("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
 
 	// nInfo holds nodeInfo data for the tree.
 	nInfo = make(map[string]nodeInfo)
@@ -125,6 +140,21 @@ func modifyNodeInfo(k string, f func(*nodeInfo)) {
 	nInfo[k] = n
 }
 
+// perfectMega renders a large perfect subtree as a single entity.
+func perfectMega(prefix string, height, leafIndex int64) {
+	stLeaves := int64(1 << uint(height))
+	stWidth := float32(stLeaves) / float32(*treeSize)
+	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, leafIndex, leafIndex+stLeaves, stLeaves, stWidth)
+
+	// Create some hidden nodes to preseve the tier spacings:
+	for i := height - 2; i > 0; i-- {
+		fmt.Printf(" [, no edge, tier=%d ", i)
+	}
+	for i := height - 2; i > 0; i-- {
+		fmt.Printf(" ] ")
+	}
+}
+
 // perfect renders a perfect subtree.
 func perfect(prefix string, height, index int64) {
 	perfectInner(prefix, height, index, true)
@@ -161,8 +191,12 @@ func perfectInner(prefix string, height, index int64, top bool) {
 	}
 	c := openInnerNode(prefix, height, index)
 	childIndex := index << 1
-	perfectInner(prefix+" ", height-1, childIndex, false)
-	perfectInner(prefix+" ", height-1, childIndex+1, false)
+	if height > *megaMode {
+		perfectMega(prefix, height, index<<uint(height))
+	} else {
+		perfectInner(prefix+" ", height-1, childIndex, false)
+		perfectInner(prefix+" ", height-1, childIndex+1, false)
+	}
 	c()
 }
 
