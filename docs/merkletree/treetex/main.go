@@ -1,16 +1,20 @@
-/* treetek is a command to produce LaTeX documents representing merkle trees.
- * Uses the Forest package.
- *
- * Usage: go run main.go | xelatex
- * This should generate a PDF file called treetek.pdf containing a drawing of
- * the tree.
- */
+// treetek is a command to produce LaTeX documents representing merkle trees.
+// Uses the Forest package.
+//
+// Usage: go run main.go | xelatex
+// This should generate a PDF file called treetek.pdf containing a drawing of
+// the tree.
+//
 package main
 
 import (
 	"flag"
 	"fmt"
 	"math/bits"
+	"strings"
+
+	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/storage"
 )
 
 const (
@@ -24,28 +28,91 @@ const (
 
 \begin{document}
 
+% Change colours here:
+\definecolor{inclusion}{rgb}{1,0.5,0.5}
+\definecolor{inclusion_ephemeral}{rgb}{1,0.7,0.7}
+\definecolor{perfect}{rgb}{1,0.9,0.5}
+\definecolor{target}{rgb}{0.5,0.5,0.9}
+
 \begin{forest}
 `
 
 	postfix = `\end{forest}
 \end{document}
 `
+	// maxLen is a suitably large maximum nodeID length for storage.NodeID.
+	maxLen = 64
 )
 
 var (
-	treeSize = flag.Int("tree_size", 23, "Size of tree to produce")
+	treeSize  = flag.Int64("tree_size", 23, "Size of tree to produce")
+	inclusion = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
+
+	// nInfo holds nodeInfo data for the tree.
+	nInfo = make(map[string]nodeInfo)
 )
+
+// nodeInfo represents the style to be applied to a tree node.
+type nodeInfo struct {
+	incProof    bool
+	target      bool
+	perfectRoot bool
+	ephemeral   bool
+	leaf        bool
+}
+
+// String returns a string containing Forest attributes suitable for
+// rendering the node, given its type.
+func (n nodeInfo) String() string {
+	attr := make([]string, 0, 4)
+
+	// Figure out which colour to fill with:
+	fill := "white"
+	if n.perfectRoot {
+		attr = append(attr, "line width=2pt")
+	}
+	if n.incProof {
+		fill = "inclusion"
+		if n.ephemeral {
+			fill = "inclusion_ephemeral"
+			attr = append(attr, "draw, dotted")
+		}
+	}
+	if n.target {
+		fill = "target"
+	}
+	attr = append(attr, "fill="+fill)
+
+	if !n.ephemeral {
+		attr = append(attr, "draw")
+	}
+	if !n.leaf {
+		attr = append(attr, "circle")
+	}
+	return strings.Join(attr, ", ")
+}
+
+// setNodeInfo applies f to the nodeInfo associated with node k.
+func setNodeInfo(k string, f func(*nodeInfo)) {
+	n, ok := nInfo[k]
+	if !ok {
+		n = nodeInfo{}
+	}
+	f(&n)
+	nInfo[k] = n
+}
 
 /* perfect renders a perfect subtree.
  */
-func perfect(prefix string, height, tier, index int) {
+func perfect(prefix string, height, tier, index int64) {
 	perfectInner(prefix, height, tier, index, true)
 }
 
 /* drawLeaf emits TeX code to render a leaf.
  */
-func drawLeaf(prefix string, index, tier int) {
-	fmt.Printf("%s [%d, draw, tier=%d]\n", prefix, index, tier)
+func drawLeaf(prefix string, index int64) {
+	a := nInfo[nodeKey(0, index)]
+	fmt.Printf("%s [%d, %s, tier=leaf]\n", prefix, index, a.String())
 }
 
 /* openInnerNode renders tex code to open an internal node.
@@ -53,25 +120,24 @@ func drawLeaf(prefix string, index, tier int) {
  * func to clode the node.
  * returns a func to be called to close the node.
  */
-func openInnerNode(prefix string, height, index, tier int, attr string) func() {
+func openInnerNode(prefix string, height, index, tier int64) func() {
+	attr := nInfo[nodeKey(height, index)].String()
 	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, height, index, attr, tier)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
 /* perfectInner renders the nodes of a perfect internal subtree.
  */
-func perfectInner(prefix string, height, tier, index int, top bool) {
+func perfectInner(prefix string, height, tier, index int64, top bool) {
+	nk := nodeKey(height, index)
+	setNodeInfo(nk, func(n *nodeInfo) { n.leaf = height == 0 })
+	setNodeInfo(nodeKey(height, index), func(n *nodeInfo) { n.perfectRoot = top && (height > 0) })
+
 	if height == 0 {
-		drawLeaf(prefix, index, tier)
+		drawLeaf(prefix, index)
 		return
 	}
-	attr := "draw, circle, fill="
-	if top {
-		attr += "Goldenrod"
-	} else {
-		attr += "white"
-	}
-	c := openInnerNode(prefix, height, index, tier, attr)
+	c := openInnerNode(prefix, height, index, tier)
 	childIndex := index << 1
 	perfectInner(prefix+" ", height-1, tier-1, childIndex, false)
 	perfectInner(prefix+" ", height-1, tier-1, childIndex+1, false)
@@ -80,7 +146,7 @@ func perfectInner(prefix string, height, tier, index int, top bool) {
 
 /* node renders a tree node.
  */
-func node(prefix string, treeSize, height, tier, index int) {
+func node(prefix string, treeSize, height, tier, index int64) {
 	if height < 0 {
 		return
 	}
@@ -95,7 +161,10 @@ func node(prefix string, treeSize, height, tier, index int) {
 		// parent. (Otherwise we'll just keep quiet, and recurse down - this is how
 		// we arrange for leaves to always be on the bottom level.)
 		if rest > 0 {
-			c := openInnerNode(prefix, height+1, index>>uint(height+1), tier, "")
+			ch := height + 1
+			ci := index >> uint(ch)
+			setNodeInfo(nodeKey(ch, ci), func(n *nodeInfo) { n.ephemeral = true })
+			c := openInnerNode(prefix, ch, ci, tier)
 			defer c()
 		}
 		perfect(prefix+" ", height, tier-1, index>>uint(tier))
@@ -107,9 +176,37 @@ func node(prefix string, treeSize, height, tier, index int) {
 	node(prefix+" ", rest, height-1, tier-1, index)
 }
 
+/* nodeKey returns a stable node identifier for the passed in node coordinate.
+ */
+func nodeKey(height, index int64) string {
+	return fmt.Sprintf("%d.%d", height, index)
+}
+
+/* toNodeKey converts a storage.NodeID to the corresponding stable node
+ * identifier used by this tool.
+ */
+func toNodeKey(n storage.NodeID) string {
+	d := int64(maxLen - n.PrefixLenBits)
+	i := n.BigInt().Int64() >> uint(d)
+	return nodeKey(d, i)
+}
+
+/* Whee - here we go!
+ */
 func main() {
 	flag.Parse()
-	height := bits.Len(uint(*treeSize))
+	height := int64(bits.Len(uint(*treeSize)))
+
+	if *inclusion > 0 {
+		setNodeInfo(nodeKey(0, *inclusion), func(n *nodeInfo) { n.target = true })
+		nf, err := merkle.CalcInclusionProofNodeAddresses(*treeSize, *inclusion, *treeSize, maxLen)
+		if err != nil {
+			panic(err)
+		}
+		for _, n := range nf {
+			setNodeInfo(toNodeKey(n.NodeID), func(n *nodeInfo) { n.incProof = true })
+		}
+	}
 
 	fmt.Print(preamble)
 	node("", *treeSize, height, height, 0)
