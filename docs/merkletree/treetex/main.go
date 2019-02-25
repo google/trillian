@@ -87,7 +87,9 @@ func (n nodeInfo) String() string {
 		attr = append(attr, "draw")
 	}
 	if !n.leaf {
-		attr = append(attr, "circle")
+		attr = append(attr, "circle, minimum size=3em")
+	} else {
+		attr = append(attr, "minimum size=1.5em")
 	}
 	return strings.Join(attr, ", ")
 }
