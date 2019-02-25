@@ -33,6 +33,7 @@ const (
 \definecolor{inclusion_ephemeral}{rgb}{1,0.7,0.7}
 \definecolor{perfect}{rgb}{1,0.9,0.5}
 \definecolor{target}{rgb}{0.5,0.5,0.9}
+\definecolor{target_path}{rgb}{0.7,0.7,0.9}
 
 \begin{forest}
 `
@@ -55,6 +56,7 @@ var (
 // nodeInfo represents the style to be applied to a tree node.
 type nodeInfo struct {
 	incProof    bool
+	incPath     bool
 	target      bool
 	perfectRoot bool
 	ephemeral   bool
@@ -69,7 +71,7 @@ func (n nodeInfo) String() string {
 	// Figure out which colour to fill with:
 	fill := "white"
 	if n.perfectRoot {
-		attr = append(attr, "line width=2pt")
+		attr = append(attr, "line width=4pt")
 	}
 	if n.incProof {
 		fill = "inclusion"
@@ -80,6 +82,9 @@ func (n nodeInfo) String() string {
 	}
 	if n.target {
 		fill = "target"
+	}
+	if n.incPath {
+		fill = "target_path"
 	}
 	attr = append(attr, "fill="+fill)
 
@@ -104,32 +109,29 @@ func setNodeInfo(k string, f func(*nodeInfo)) {
 	nInfo[k] = n
 }
 
-/* perfect renders a perfect subtree.
- */
+// perfect renders a perfect subtree.
 func perfect(prefix string, height, tier, index int64) {
 	perfectInner(prefix, height, tier, index, true)
 }
 
-/* drawLeaf emits TeX code to render a leaf.
- */
+// drawLeaf emits TeX code to render a leaf.
 func drawLeaf(prefix string, index int64) {
 	a := nInfo[nodeKey(0, index)]
 	fmt.Printf("%s [%d, %s, tier=leaf]\n", prefix, index, a.String())
 }
 
-/* openInnerNode renders tex code to open an internal node.
- * The caller may emit any number of child nodes before calling the returned
- * func to clode the node.
- * returns a func to be called to close the node.
- */
+// openInnerNode renders tex code to open an internal node.
+// The caller may emit any number of child nodes before calling the returned
+// func to clode the node.
+// returns a func to be called to close the node.
+//
 func openInnerNode(prefix string, height, index, tier int64) func() {
 	attr := nInfo[nodeKey(height, index)].String()
 	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, height, index, attr, tier)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
-/* perfectInner renders the nodes of a perfect internal subtree.
- */
+// perfectInner renders the nodes of a perfect internal subtree.
 func perfectInner(prefix string, height, tier, index int64, top bool) {
 	nk := nodeKey(height, index)
 	setNodeInfo(nk, func(n *nodeInfo) { n.leaf = height == 0 })
@@ -146,8 +148,7 @@ func perfectInner(prefix string, height, tier, index int64, top bool) {
 	c()
 }
 
-/* node renders a tree node.
- */
+// node renders a tree node.
 func node(prefix string, treeSize, height, tier, index int64) {
 	if height < 0 {
 		return
@@ -178,23 +179,20 @@ func node(prefix string, treeSize, height, tier, index int64) {
 	node(prefix+" ", rest, height-1, tier-1, index)
 }
 
-/* nodeKey returns a stable node identifier for the passed in node coordinate.
- */
+// nodeKey returns a stable node identifier for the passed in node coordinate.
 func nodeKey(height, index int64) string {
 	return fmt.Sprintf("%d.%d", height, index)
 }
 
-/* toNodeKey converts a storage.NodeID to the corresponding stable node
- * identifier used by this tool.
- */
+// toNodeKey converts a storage.NodeID to the corresponding stable node
+// identifier used by this tool.
 func toNodeKey(n storage.NodeID) string {
 	d := int64(maxLen - n.PrefixLenBits)
 	i := n.BigInt().Int64() >> uint(d)
 	return nodeKey(d, i)
 }
 
-/* Whee - here we go!
- */
+// Whee - here we go!
 func main() {
 	flag.Parse()
 	height := int64(bits.Len(uint(*treeSize)))
@@ -207,6 +205,13 @@ func main() {
 		}
 		for _, n := range nf {
 			setNodeInfo(toNodeKey(n.NodeID), func(n *nodeInfo) { n.incProof = true })
+		}
+		h := int64(0)
+		i := *inclusion
+		for h < height {
+			setNodeInfo(nodeKey(h, i), func(n *nodeInfo) { n.incPath = true })
+			h++
+			i >>= 1
 		}
 	}
 
