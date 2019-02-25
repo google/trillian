@@ -195,7 +195,7 @@ func toNodeKey(n storage.NodeID) string {
 // Whee - here we go!
 func main() {
 	flag.Parse()
-	height := int64(bits.Len(uint(*treeSize)))
+	height := int64(bits.Len(uint(*treeSize-1)) + 1)
 
 	if *inclusion > 0 {
 		setNodeInfo(nodeKey(0, *inclusion), func(n *nodeInfo) { n.target = true })
