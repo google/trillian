@@ -23,11 +23,11 @@ import (
 
 func TestMySQLStorageProviderErrorPersistence(t *testing.T) {
 	defer flagsaver.Save().Restore()
-	if err := flag.Set("mysql_uri", ""); err != nil {
+	if err := flag.Set("mysql_uri", "&bogus*:::?"); err != nil {
 		t.Errorf("Failed to set flag: %v", err)
 	}
 
-	// First call: This should fail due to the Database URL being empty.
+	// First call: This should fail due to the Database URL being garbage.
 	_, err1 := NewStorageProvider("mysql", nil)
 	if err1 == nil {
 		t.Fatalf("Expected 'server.NewStorageProvider' to fail")
