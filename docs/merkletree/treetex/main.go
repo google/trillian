@@ -50,6 +50,16 @@ const (
 \definecolor{perfect}{rgb}{1,0.9,0.5}
 \definecolor{target}{rgb}{0.5,0.5,0.9}
 \definecolor{target_path}{rgb}{0.7,0.7,0.9}
+\definecolor{mega}{rgb}{0.9,0.9,0.9}
+
+\forestset{
+	perfect/.style={edge path={%
+			\noexpand\path[fill=mega, \forestoption{edge}]
+			(.parent first)--(!u.children)--(.parent last)--cycle
+			\forestoption{edge label};
+		}
+	},
+}
 
 \begin{forest}
 `
@@ -126,8 +136,8 @@ func modifyNodeInfo(k string, f func(*nodeInfo)) {
 }
 
 // perfect renders a perfect subtree.
-func perfect(prefix string, height, tier, index int64) {
-	perfectInner(prefix, height, tier, index, true)
+func perfect(prefix string, height, index int64) {
+	perfectInner(prefix, height, index, true)
 }
 
 // drawLeaf emits TeX code to render a leaf.
@@ -136,36 +146,39 @@ func drawLeaf(prefix string, index int64) {
 	fmt.Printf("%s [%d, %s, tier=leaf]\n", prefix, index, a.String())
 }
 
-// openInnerNode renders tex code to open an internal node.
+// openInnerNode renders TeX code to open an internal node.
 // The caller may emit any number of child nodes before calling the returned
 // func to clode the node.
-// returns a func to be called to close the node.
+// Returns a func to be called to close the node.
 //
-func openInnerNode(prefix string, height, index, tier int64) func() {
+func openInnerNode(prefix string, height, index int64) func() {
 	attr := nInfo[nodeKey(height, index)].String()
-	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, height, index, attr, tier)
+	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, height, index, attr, height-1)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
 // perfectInner renders the nodes of a perfect internal subtree.
-func perfectInner(prefix string, height, tier, index int64, top bool) {
+func perfectInner(prefix string, height, index int64, top bool) {
+
 	nk := nodeKey(height, index)
-	modifyNodeInfo(nk, func(n *nodeInfo) { n.leaf = height == 0 })
-	modifyNodeInfo(nodeKey(height, index), func(n *nodeInfo) { n.perfectRoot = top })
+	modifyNodeInfo(nk, func(n *nodeInfo) {
+		n.leaf = height == 0
+		n.perfectRoot = top
+	})
 
 	if height == 0 {
 		drawLeaf(prefix, index)
 		return
 	}
-	c := openInnerNode(prefix, height, index, tier)
+	c := openInnerNode(prefix, height, index)
 	childIndex := index << 1
-	perfectInner(prefix+" ", height-1, tier-1, childIndex, false)
-	perfectInner(prefix+" ", height-1, tier-1, childIndex+1, false)
+	perfectInner(prefix+" ", height-1, childIndex, false)
+	perfectInner(prefix+" ", height-1, childIndex+1, false)
 	c()
 }
 
-// node renders a tree node.
-func node(prefix string, treeSize, height, tier, index int64) {
+// renderTree renders a tree node and recurses if necessary.
+func renderTree(prefix string, treeSize, height, index int64) {
 	if height < 0 {
 		return
 	}
@@ -183,16 +196,16 @@ func node(prefix string, treeSize, height, tier, index int64) {
 			ch := height + 1
 			ci := index >> uint(ch)
 			modifyNodeInfo(nodeKey(ch, ci), func(n *nodeInfo) { n.ephemeral = true })
-			c := openInnerNode(prefix, ch, ci, tier)
+			c := openInnerNode(prefix, ch, ci)
 			defer c()
 		}
-		perfect(prefix+" ", height, tier-1, index>>uint(tier))
+		perfect(prefix+" ", height, index>>uint(height))
 		index += b
 	}
 	if rest == 0 {
 		return
 	}
-	node(prefix+" ", rest, height-1, tier-1, index)
+	renderTree(prefix+" ", rest, height-1, index)
 }
 
 // nodeKey returns a stable node identifier for the passed in node coordinate.
@@ -231,6 +244,6 @@ func main() {
 	// TODO(al): structify this into a util, and add ability to output to an
 	// arbitrary stream.
 	fmt.Print(preamble)
-	node("", *treeSize, height, height, 0)
+	renderTree("", *treeSize, height, 0)
 	fmt.Println(postfix)
 }
