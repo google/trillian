@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// treetek is a command to produce LaTeX documents representing merkle trees.
-// Uses the Forest package.
+// A binary to produce LaTeX documents representing Merkle trees.
+// The generated document should be fed into xelatex, and the Forest package
+// must be available.
 //
 // Usage: go run main.go | xelatex
 // This should generate a PDF file called treetek.pdf containing a drawing of
@@ -24,6 +25,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"math/bits"
 	"strings"
 
@@ -34,7 +36,7 @@ import (
 const (
 	preamble = `
 % Hash-tree
-% Author: treetek
+% Author: treetex
 \documentclass[convert]{standalone}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{forest}
@@ -113,8 +115,8 @@ func (n nodeInfo) String() string {
 	return strings.Join(attr, ", ")
 }
 
-// setNodeInfo applies f to the nodeInfo associated with node k.
-func setNodeInfo(k string, f func(*nodeInfo)) {
+// modifyNodeInfo applies f to the nodeInfo associated with node k.
+func modifyNodeInfo(k string, f func(*nodeInfo)) {
 	n, ok := nInfo[k]
 	if !ok {
 		n = nodeInfo{}
@@ -148,8 +150,8 @@ func openInnerNode(prefix string, height, index, tier int64) func() {
 // perfectInner renders the nodes of a perfect internal subtree.
 func perfectInner(prefix string, height, tier, index int64, top bool) {
 	nk := nodeKey(height, index)
-	setNodeInfo(nk, func(n *nodeInfo) { n.leaf = height == 0 })
-	setNodeInfo(nodeKey(height, index), func(n *nodeInfo) { n.perfectRoot = top })
+	modifyNodeInfo(nk, func(n *nodeInfo) { n.leaf = height == 0 })
+	modifyNodeInfo(nodeKey(height, index), func(n *nodeInfo) { n.perfectRoot = top })
 
 	if height == 0 {
 		drawLeaf(prefix, index)
@@ -180,7 +182,7 @@ func node(prefix string, treeSize, height, tier, index int64) {
 		if rest > 0 {
 			ch := height + 1
 			ci := index >> uint(ch)
-			setNodeInfo(nodeKey(ch, ci), func(n *nodeInfo) { n.ephemeral = true })
+			modifyNodeInfo(nodeKey(ch, ci), func(n *nodeInfo) { n.ephemeral = true })
 			c := openInnerNode(prefix, ch, ci, tier)
 			defer c()
 		}
@@ -208,27 +210,26 @@ func toNodeKey(n storage.NodeID) string {
 
 // Whee - here we go!
 func main() {
+	// TODO(al): check flag validity.
 	flag.Parse()
 	height := int64(bits.Len(uint(*treeSize-1)) + 1)
 
 	if *inclusion > 0 {
-		setNodeInfo(nodeKey(0, *inclusion), func(n *nodeInfo) { n.target = true })
+		modifyNodeInfo(nodeKey(0, *inclusion), func(n *nodeInfo) { n.target = true })
 		nf, err := merkle.CalcInclusionProofNodeAddresses(*treeSize, *inclusion, *treeSize, maxLen)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}
 		for _, n := range nf {
-			setNodeInfo(toNodeKey(n.NodeID), func(n *nodeInfo) { n.incProof = true })
+			modifyNodeInfo(toNodeKey(n.NodeID), func(n *nodeInfo) { n.incProof = true })
 		}
-		h := int64(0)
-		i := *inclusion
-		for h < height {
-			setNodeInfo(nodeKey(h, i), func(n *nodeInfo) { n.incPath = true })
-			h++
-			i >>= 1
+		for h, i := int64(0), *inclusion; h < height; h, i = h+1, i>>1 {
+			modifyNodeInfo(nodeKey(h, i), func(n *nodeInfo) { n.incPath = true })
 		}
 	}
 
+	// TODO(al): structify this into a util, and add ability to output to an
+	// arbitrary stream.
 	fmt.Print(preamble)
 	node("", *treeSize, height, height, 0)
 	fmt.Println(postfix)
