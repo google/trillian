@@ -138,7 +138,7 @@ func drawLeaf(prefix string, index int64) {
 
 // openInnerNode renders TeX code to open an internal node.
 // The caller may emit any number of child nodes before calling the returned
-// func to clode the node.
+// func to close the node.
 // Returns a func to be called to close the node.
 //
 func openInnerNode(prefix string, height, index int64) func() {
@@ -168,30 +168,28 @@ func perfectInner(prefix string, height, index int64, top bool) {
 
 // renderTree renders a tree node and recurses if necessary.
 func renderTree(prefix string, treeSize, index int64) {
-	height := int64(bits.Len64(uint64(treeSize)) - 1)
-	if height < 0 || treeSize <= 0 {
+	if treeSize <= 0 {
 		return
 	}
 
 	// Look at the bit of the treeSize corresponding to the current level:
+	height := int64(bits.Len64(uint64(treeSize)) - 1)
 	b := (1 << uint(height)) & treeSize
 	rest := treeSize - b
-	if b > 0 {
-		// left child is a perfect subtree
+	// left child is a perfect subtree
 
-		// if there's a right-hand child, then we'll emit this node to be the
-		// parent. (Otherwise we'll just keep quiet, and recurse down - this is how
-		// we arrange for leaves to always be on the bottom level.)
-		if rest > 0 {
-			ch := height + 1
-			ci := index >> uint(ch)
-			modifyNodeInfo(nodeKey(ch, ci), func(n *nodeInfo) { n.ephemeral = true })
-			c := openInnerNode(prefix, ch, ci)
-			defer c()
-		}
-		perfect(prefix+" ", height, index>>uint(height))
-		index += b
+	// if there's a right-hand child, then we'll emit this node to be the
+	// parent. (Otherwise we'll just keep quiet, and recurse down - this is how
+	// we arrange for leaves to always be on the bottom level.)
+	if rest > 0 {
+		ch := height + 1
+		ci := index >> uint(ch)
+		modifyNodeInfo(nodeKey(ch, ci), func(n *nodeInfo) { n.ephemeral = true })
+		c := openInnerNode(prefix, ch, ci)
+		defer c()
 	}
+	perfect(prefix+" ", height, index>>uint(height))
+	index += b
 	renderTree(prefix+" ", rest, index)
 }
 
