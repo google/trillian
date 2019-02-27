@@ -50,16 +50,6 @@ const (
 \definecolor{perfect}{rgb}{1,0.9,0.5}
 \definecolor{target}{rgb}{0.5,0.5,0.9}
 \definecolor{target_path}{rgb}{0.7,0.7,0.9}
-\definecolor{mega}{rgb}{0.9,0.9,0.9}
-
-\forestset{
-	perfect/.style={edge path={%
-			\noexpand\path[fill=mega, \forestoption{edge}]
-			(.parent first)--(!u.children)--(.parent last)--cycle
-			\forestoption{edge label};
-		}
-	},
-}
 
 \begin{forest}
 `
@@ -159,7 +149,6 @@ func openInnerNode(prefix string, height, index int64) func() {
 
 // perfectInner renders the nodes of a perfect internal subtree.
 func perfectInner(prefix string, height, index int64, top bool) {
-
 	nk := nodeKey(height, index)
 	modifyNodeInfo(nk, func(n *nodeInfo) {
 		n.leaf = height == 0
@@ -178,14 +167,15 @@ func perfectInner(prefix string, height, index int64, top bool) {
 }
 
 // renderTree renders a tree node and recurses if necessary.
-func renderTree(prefix string, treeSize, height, index int64) {
-	if height < 0 {
+func renderTree(prefix string, treeSize, index int64) {
+	height := int64(bits.Len64(uint64(treeSize)) - 1)
+	if height < 0 || treeSize <= 0 {
 		return
 	}
+
 	// Look at the bit of the treeSize corresponding to the current level:
 	b := (1 << uint(height)) & treeSize
 	rest := treeSize - b
-
 	if b > 0 {
 		// left child is a perfect subtree
 
@@ -202,10 +192,7 @@ func renderTree(prefix string, treeSize, height, index int64) {
 		perfect(prefix+" ", height, index>>uint(height))
 		index += b
 	}
-	if rest == 0 {
-		return
-	}
-	renderTree(prefix+" ", rest, height-1, index)
+	renderTree(prefix+" ", rest, index)
 }
 
 // nodeKey returns a stable node identifier for the passed in node coordinate.
@@ -244,6 +231,6 @@ func main() {
 	// TODO(al): structify this into a util, and add ability to output to an
 	// arbitrary stream.
 	fmt.Print(preamble)
-	renderTree("", *treeSize, height, 0)
+	renderTree("", *treeSize, 0)
 	fmt.Println(postfix)
 }
