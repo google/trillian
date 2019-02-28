@@ -174,7 +174,7 @@ func renderTree(prefix string, treeSize, index int64) {
 
 	// Look at the bit of the treeSize corresponding to the current level:
 	height := int64(bits.Len64(uint64(treeSize)) - 1)
-	b := (1 << uint(height)) & treeSize
+	b := int64(1) << uint(height)
 	rest := treeSize - b
 	// left child is a perfect subtree
 
