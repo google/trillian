@@ -23,6 +23,8 @@ import (
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestNewMapVerifier(t *testing.T) {
@@ -119,17 +121,17 @@ func TestGetLeavesAtRevision(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc    string
-		indexes [][]byte
-		wantErr bool
+		desc     string
+		indexes  [][]byte
+		wantCode codes.Code
 	}{
 		{desc: "1", indexes: [][]byte{index}},
-		{desc: "2", indexes: [][]byte{index, index}, wantErr: true},
+		{desc: "2", indexes: [][]byte{index, index}, wantCode: codes.InvalidArgument},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			leaves, err := client.GetAndVerifyMapLeaves(ctx, tc.indexes)
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("GetAndVerifyMapLeavesAtRevision(): %v, wantErr %v", err, tc.wantErr)
+			if status.Code(err) != tc.wantCode {
+				t.Fatalf("GetAndVerifyMapLeavesAtRevision(): %v, wantErr %v", err, tc.wantCode)
 			}
 			if err != nil {
 				return
