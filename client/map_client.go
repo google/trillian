@@ -58,6 +58,16 @@ func (c *MapClient) GetAndVerifyLatestMapRoot(ctx context.Context) (*types.MapRo
 
 // GetAndVerifyMapLeaves verifies and returns the requested map leaves.
 func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte) ([]*trillian.MapLeaf, error) {
+	// Verify that there are no duplicates
+	set := make(map[string]bool)
+	for _, i := range indexes {
+		if ok := set[string(i)]; ok != false {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"map.GetLeaves(): index %x requested more than once", i)
+		}
+		set[string(i)] = true
+	}
+
 	getResp, err := c.Conn.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 		MapId: c.MapID,
 		Index: indexes,

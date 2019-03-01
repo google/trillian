@@ -86,17 +86,32 @@ func TestGetLeavesAtRevision(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SetLeaves(): %v", err)
 	}
-	leaves, err := client.GetAndVerifyMapLeaves(ctx, [][]byte{index})
-	if err != nil {
-		t.Fatalf("GetAndVerifyMapLeavesAtRevision(): %v", err)
-	}
-	if got := len(leaves); got != 1 {
-		t.Errorf("len(leaves): %v, want 1", got)
-	}
-	if got, want := leaves[0].LeafValue, []byte("A"); !bytes.Equal(got, want) {
-		t.Errorf("LeafValue: %v, want %v", got, want)
-	}
-	if got, want := leaves[0].Index, index; !bytes.Equal(got, want) {
-		t.Errorf("LeafIndex: %v, want %v", got, want)
+
+	for _, tc := range []struct {
+		desc    string
+		indexes [][]byte
+		wantErr bool
+	}{
+		{desc: "1", indexes: [][]byte{index}},
+		{desc: "2", indexes: [][]byte{index, index}, wantErr: true},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			leaves, err := client.GetAndVerifyMapLeaves(ctx, tc.indexes)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("GetAndVerifyMapLeavesAtRevision(): %v, wantErr %v", err, tc.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if got := len(leaves); got != 1 {
+				t.Errorf("len(leaves): %v, want 1", got)
+			}
+			if got, want := leaves[0].LeafValue, []byte("A"); !bytes.Equal(got, want) {
+				t.Errorf("LeafValue: %v, want %v", got, want)
+			}
+			if got, want := leaves[0].Index, index; !bytes.Equal(got, want) {
+				t.Errorf("LeafIndex: %v, want %v", got, want)
+			}
+		})
 	}
 }
