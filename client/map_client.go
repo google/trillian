@@ -61,7 +61,7 @@ func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte)
 	// Verify that there are no duplicates
 	set := make(map[string]bool)
 	for _, i := range indexes {
-		if ok := set[string(i)]; ok != false {
+		if set[string(i)] {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"map.GetLeaves(): index %x requested more than once", i)
 		}
