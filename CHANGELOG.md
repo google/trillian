@@ -4,6 +4,10 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Client Verification
+The map client now verifies that every map leaf is being requested at most once.
+This catches potential errors before they go to the server.
+
 ### Database Schema
 
 This version includes a change to the MySQL and Postgres database schemas
