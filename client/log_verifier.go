@@ -16,6 +16,7 @@ package client
 
 import (
 	"crypto"
+	"errors"
 	"fmt"
 
 	"github.com/google/trillian"
@@ -54,17 +55,20 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash c
 // NewLogVerifierFromTree creates a new LogVerifier using the algorithms
 // specified by a Trillian Tree object.
 func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
+	if config == nil {
+		return nil, errors.New("client: NewLogVerifierFromTree(): nil config")
+	}
 	log, pLog := trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG
 	if got := config.TreeType; got != log && got != pLog {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v or %v", got, log, pLog)
 	}
 
-	logHasher, err := hashers.NewLogHasher(config.GetHashStrategy())
+	logHasher, err := hashers.NewLogHasher(config.HashStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %v", err)
 	}
 
-	logPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
+	logPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log public key: %v", err)
 	}

@@ -25,6 +25,37 @@ import (
 	"github.com/google/trillian/testonly/integration"
 )
 
+func TestNewMapVerifier(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+	ctx := context.Background()
+	env, err := integration.NewMapEnv(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: testonly.MapTree},
+		env.Admin, env.Map, nil)
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	for _, tc := range []struct {
+		desc    string
+		tree    *trillian.Tree
+		wantErr bool
+	}{
+		{desc: "success", tree: tree},
+		{desc: "nil PublicKey", tree: func() *trillian.Tree { t := *tree; t.PublicKey = nil; return &t }(), wantErr: true},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			if _, err := NewMapClientFromTree(env.Map, tc.tree); (err != nil) != tc.wantErr {
+				t.Fatalf("NewMapClientFromTree(): %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestGetLatestMapRoot(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
