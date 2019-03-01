@@ -142,16 +142,14 @@ func modifyNodeInfo(k string, f func(*nodeInfo)) {
 
 // perfectMega renders a large perfect subtree as a single entity.
 func perfectMega(prefix string, height, leafIndex int64) {
-	stLeaves := int64(1 << uint(height))
+	stLeaves := int64(1) << uint(height)
 	stWidth := float32(stLeaves) / float32(*treeSize)
 	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, leafIndex, leafIndex+stLeaves, stLeaves, stWidth)
 
 	// Create some hidden nodes to preseve the tier spacings:
 	for i := height - 2; i > 0; i-- {
 		fmt.Printf(" [, no edge, tier=%d ", i)
-	}
-	for i := height - 2; i > 0; i-- {
-		fmt.Printf(" ] ")
+		defer fmt.Printf(" ] ")
 	}
 }
 
