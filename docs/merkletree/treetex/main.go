@@ -147,6 +147,7 @@ func perfectMega(prefix string, height, leafIndex int64) {
 	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, leafIndex, leafIndex+stLeaves, stLeaves, stWidth)
 
 	// Create some hidden nodes to preseve the tier spacings:
+	fmt.Printf("%s", prefix)
 	for i := height - 2; i > 0; i-- {
 		fmt.Printf(" [, no edge, tier=%d ", i)
 		defer fmt.Printf(" ] ")
