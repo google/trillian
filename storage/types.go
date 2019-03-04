@@ -42,7 +42,9 @@ type NodeID struct {
 	// this NodeID.
 	//
 	// e.g. if Path contains two bytes, and PrefixLenBits is 9, then the 8 bits
-	// in Path[0] are included, along with the lowest bit of Path[1]
+	// in Path[0] are included, along with the MSB of Path[1]. However, note
+	// that some of the APIs count bits with 0 being the rightmost as this
+	// is a natural ordering to use when working from the leaves upwards.
 	PrefixLenBits int
 }
 
@@ -197,6 +199,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 }
 
 // SetBit sets the ith bit to true if b is non-zero, and false otherwise.
+// Note that the bit index 0 is the right most valid bit in the path.
 func (n *NodeID) SetBit(i int, b uint) {
 	bIndex := (n.PathLenBits() - i - 1) / 8
 	if b == 0 {
