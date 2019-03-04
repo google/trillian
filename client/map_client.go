@@ -57,7 +57,11 @@ func (c *MapClient) GetAndVerifyLatestMapRoot(ctx context.Context) (*types.MapRo
 }
 
 // GetAndVerifyMapLeaves verifies and returns the requested map leaves.
+// indexes may not contain duplicates.
 func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte) ([]*trillian.MapLeaf, error) {
+	if err := hasDuplicates(indexes); err != nil {
+		return nil, err
+	}
 	getResp, err := c.Conn.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 		MapId: c.MapID,
 		Index: indexes,
@@ -69,7 +73,11 @@ func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte)
 }
 
 // GetAndVerifyMapLeavesByRevision verifies and returns the requested map leaves at a specific revision.
+// indexes may not contain duplicates.
 func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, error) {
+	if err := hasDuplicates(indexes); err != nil {
+		return nil, err
+	}
 	getResp, err := c.Conn.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
 		MapId:    c.MapID,
 		Index:    indexes,
@@ -79,4 +87,17 @@ func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revisio
 		return nil, status.Errorf(status.Code(err), "map.GetLeaves(): %v", err)
 	}
 	return c.VerifyMapLeavesResponse(indexes, revision, getResp)
+}
+
+// hasDuplicates returns an error if there are duplicates in indexes.
+func hasDuplicates(indexes [][]byte) error {
+	set := make(map[string]bool)
+	for _, i := range indexes {
+		if set[string(i)] {
+			return status.Errorf(codes.InvalidArgument,
+				"map.GetLeaves(): index %x requested more than once", i)
+		}
+		set[string(i)] = true
+	}
+	return nil
 }
