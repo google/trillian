@@ -337,7 +337,27 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.
 func (n *NodeID) Equivalent(other NodeID) bool {
-	return n.String() == other.String()
+	// If they're different lengths they cannot represent the same path prefix.
+	if n.PrefixLenBits != other.PrefixLenBits {
+		return false
+	}
+
+	// The first depthBytes must be identical.
+	depthBytes := n.PrefixLenBits / 8
+	for i := 0; i < depthBytes; i++ {
+		if n.Path[i] != other.Path[i] {
+			return false
+		}
+	}
+
+	// There may not be a leftover partial byte to compare.
+	if n.PrefixLenBits%8 == 0 {
+		return true
+	}
+
+	// Check the remaining bits after masking off unwanted bits in the last byte.
+	mask := leftmask[n.PrefixLenBits%8]
+	return (n.Path[depthBytes] & mask) == (other.Path[depthBytes] & mask)
 }
 
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree
