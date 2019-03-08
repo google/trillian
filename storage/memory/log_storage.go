@@ -212,6 +212,7 @@ func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.T
 func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree, false /* readonly */)
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 	existing, err := tx.QueueLeaves(ctx, leaves, queueTimestamp)
