@@ -41,7 +41,7 @@ const (
 			FROM subtree n
 			WHERE n.subtree_id IN (` + placeholderSQL + `) AND
 			n.tree_id = ? AND n.subtree_revision <= ?
-			GROUP BY n.subtree_id
+			GROUP BY n.tree_id, n.subtree_id
 		) AS x
 		INNER JOIN subtree
 		ON subtree.subtree_id = x.subtree_id

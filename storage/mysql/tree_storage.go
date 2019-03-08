@@ -46,7 +46,7 @@ const (
 	FROM Subtree n
 	WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
 	 n.TreeId = ? AND n.SubtreeRevision <= ?
-	GROUP BY n.SubtreeId
+	GROUP BY n.TreeId, n.SubtreeId
  ) AS x
  INNER JOIN Subtree 
  ON Subtree.SubtreeId = x.SubtreeId 
