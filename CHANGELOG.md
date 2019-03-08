@@ -81,6 +81,8 @@ The `--master_check_interval` flag is removed from `logsigner`.
 ### Performance
 
 The performance of `SetLeaves` requests on the Map has been slightly improved.
+The performance of `GetConsistencyProof` requests has been improved when using
+MySQL.
 
 ### Logging
 
