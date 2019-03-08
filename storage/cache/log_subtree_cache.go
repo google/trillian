@@ -78,6 +78,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 				// nodes. If the subtree was saved with internal nodes then we don't touch the map.
 				if height > 0 && len(st.Leaves) == maxLeaves {
 					subDepth := logStrataDepth - height
+					// TODO(Martin2112): See if we can possibly avoid the expense hiding inside NewNodeIDFromPrefix.
 					nodeID := storage.NewNodeIDFromPrefix(st.Prefix, subDepth, index, logStrataDepth, maxLogDepth)
 					_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 					sfxKey := sfx.String()
