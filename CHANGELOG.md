@@ -4,6 +4,12 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Configurable number of idle connections on MySQL
+
+This version adds a new flag `-mysql_max_idle_conns` to specify the number of
+idle database connections in the pool. Defaults to -1 which uses the Go default.
+Go default is currently set at 2 but could change in future releases.
+
 ### Client Verification
 The map client now verifies that every map leaf is being requested at most once.
 This catches potential errors before they go to the server.
