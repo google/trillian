@@ -34,14 +34,17 @@ import (
 const (
 	placeholderSQL        = "<placeholder>"
 	insertSubtreeMultiSQL = `INSERT INTO subtree(tree_id, subtree_id, nodes, subtree_revision) ` + placeholderSQL
-	selectSubtreeSQL      = `
+	// TODO(RJPercival): Consider using a recursive CTE in selectSubtreeSQL
+	// to get the benefits of a loose index scan, which would improve
+	// performance: https://wiki.postgresql.org/wiki/Loose_indexscan
+	selectSubtreeSQL = `
 		SELECT x.subtree_id, x.max_revision, subtree.nodes
 		FROM (
 			SELECT n.subtree_id, max(n.subtree_revision) AS max_revision
 			FROM subtree n
 			WHERE n.subtree_id IN (` + placeholderSQL + `) AND
 			n.tree_id = ? AND n.subtree_revision <= ?
-			GROUP BY n.tree_id, n.subtree_id
+			GROUP BY n.subtree_id
 		) AS x
 		INNER JOIN subtree
 		ON subtree.subtree_id = x.subtree_id
