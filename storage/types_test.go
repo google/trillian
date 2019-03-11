@@ -16,6 +16,7 @@ package storage
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -233,6 +234,127 @@ func TestNewNodeIDForTreeCoords(t *testing.T) {
 	}
 }
 
+// TestEquivalentTreeCoords uses the log coordinate scheme to ensure that
+// the 8 cases of partial byte IDs are tested for equivalence.
+func TestEquivalentTreeCoords(t *testing.T) {
+	index := int64(18457) // Arbitrary index.
+	for l := int64(0); l < 8; l++ {
+		n1, err := NewNodeIDForTreeCoords(l, index, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for lDelta := int64(0); lDelta < 2; lDelta++ {
+			for iDelta := int64(-1); iDelta < 2; iDelta++ {
+				n2, err := NewNodeIDForTreeCoords(l+lDelta, index+iDelta, 64)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if lDelta == 0 && iDelta == 0 {
+					// Nodes with the same coordinates must be equivalent.
+					if !n1.Equivalent(n2) || !n2.Equivalent(n1) {
+						t.Errorf("NodeIDs for same coords not equivalent at level %d", l)
+					}
+
+					continue
+				}
+				// Different but 'nearby' coordinates must be different NodeIDs.
+				if n1.Equivalent(n2) || n2.Equivalent(n1) {
+					t.Errorf("NodeIDs unexpectedly equivalent at level %d %d %d", l, lDelta, iDelta)
+				}
+			}
+		}
+
+		index >>= 1
+	}
+}
+
+func TestEquivalentTrailingBits(t *testing.T) {
+	// Set up node IDs with 56 significant bits and length 64.
+	n1 := NewNodeIDWithPrefix(h26("12345678"), 56, 56, 64)
+	n2 := NewNodeIDWithPrefix(h26("12345678"), 56, 56, 64)
+	// Whatever we do to the last byte of the path shouldn't affect their
+	// equivalence.
+	for b := 0; b < 256; b++ {
+		n2.Path[7] = byte(b)
+		if !n1.Equivalent(n2) || !n2.Equivalent(n1) {
+			t.Errorf("Not equivalent but should be: %v %v", n1, n2)
+		}
+	}
+	// But if we modify the last but one byte they're now different.
+	for b := 1; b < 256; b++ {
+		n2.Path[6] = n1.Path[6] ^ byte(b)
+		if n1.Equivalent(n2) || n2.Equivalent(n1) {
+			t.Errorf("Equivalent but should not be: %v %v", n1, n2)
+		}
+	}
+}
+
+// TestNodeIDFromHash tests some specific bit patterns of different lengths
+// and that Equivalent is consistent.
+func TestNodeEquivalentFromHash(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		str1 string
+		str2 string
+		want bool
+	}{
+		{
+			name: "ok",
+			str1: "abcdef0987654321",
+			str2: "abcdef0987654321",
+			want: true,
+		},
+		{
+			name: "ok 8 bit",
+			str1: "c7",
+			str2: "c7",
+			want: true,
+		},
+		{
+			name: "different 8 bit",
+			str1: "c7",
+			str2: "d7",
+		},
+		{
+			name: "ok 16 bit",
+			str1: "1201",
+			str2: "1201",
+			want: true,
+		},
+		{
+			name: "different 16 bit",
+			str1: "1201",
+			str2: "0201",
+		},
+		{
+			name: "different but same length",
+			str1: "abcdef0987654321",
+			str2: "abcdef0987654320",
+		},
+		{
+			name: "different length",
+			str1: "abcdef0987654321",
+			str2: "abcdef09876543",
+		},
+		{
+			name: "different midway",
+			str1: "abcdef0987654321",
+			str2: "abcdef0887654321",
+		},
+	} {
+		h1 := mustDecode(tc.str1)
+		h2 := mustDecode(tc.str2)
+
+		n1 := NewNodeIDFromHash(h1)
+		n2 := NewNodeIDFromHash(h2)
+
+		if n1.Equivalent(n2) != tc.want || n2.Equivalent(n1) != tc.want {
+			t.Errorf("TestNodeIDFromHash mismatch: %v", tc)
+		}
+	}
+}
+
 func TestSetBit(t *testing.T) {
 	for _, tc := range []struct {
 		n    NodeID
@@ -445,6 +567,18 @@ func TestNodeEquivalent(t *testing.T) {
 			want: false,
 		},
 		{
+			// Different Prefix 2
+			n1:   NewNodeIDWithPrefix(h26("1234"), l, l, l),
+			n2:   NewNodeIDWithPrefix(h26("1235"), l, l, l),
+			want: false,
+		},
+		{
+			// Different Prefix 3
+			n1:   NewNodeIDWithPrefix(h26("1234"), l, l, l),
+			n2:   NewNodeIDWithPrefix(h26("2234"), l, l, l),
+			want: false,
+		},
+		{
 			// Different max len, but that's ok because the prefixes are identical
 			n1:   NewNodeIDWithPrefix(h26("1234"), l, l, l),
 			n2:   NewNodeIDWithPrefix(h26("1234"), l, l, l*2),
@@ -452,6 +586,10 @@ func TestNodeEquivalent(t *testing.T) {
 		},
 	} {
 		if got, want := tc.n1.Equivalent(tc.n2), tc.want; got != want {
+			t.Errorf("Equivalent(%v, %v): %v, want %v",
+				tc.n1, tc.n2, got, want)
+		}
+		if got, want := tc.n2.Equivalent(tc.n1), tc.want; got != want {
 			t.Errorf("Equivalent(%v, %v): %v, want %v",
 				tc.n1, tc.n2, got, want)
 		}
@@ -481,4 +619,12 @@ func h26(h string) uint64 {
 		panic(err)
 	}
 	return i
+}
+
+func mustDecode(h string) []byte {
+	b, err := hex.DecodeString(h)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
