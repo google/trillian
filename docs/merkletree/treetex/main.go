@@ -51,6 +51,9 @@ const (
 \definecolor{target}{rgb}{0.5,0.5,0.9}
 \definecolor{target_path}{rgb}{0.7,0.7,0.9}
 \definecolor{mega}{rgb}{0.9,0.9,0.9}
+\definecolor{range1}{rgb}{0.3,0.9,0.3}
+\definecolor{range2}{rgb}{0.3,0.3,0.9}
+\definecolor{range3}{rgb}{0.9,0.3,0.9}
 
 \forestset{
 	% This defines a new "edge" style for drawing the perfect subtrees.
@@ -71,6 +74,10 @@ const (
 	postfix = `\end{forest}
 \end{document}
 `
+
+	// Maximum number of ranges to allow.
+	maxRanges = 3
+
 	// maxLen is a suitably large maximum nodeID length for storage.NodeID.
 	maxLen = 64
 )
@@ -79,6 +86,7 @@ var (
 	treeSize  = flag.Int64("tree_size", 23, "Size of tree to produce")
 	inclusion = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
 	megaMode  = flag.Int64("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
+	ranges    = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
 
 	// nInfo holds nodeInfo data for the tree.
 	nInfo = make(map[string]nodeInfo)
@@ -86,12 +94,13 @@ var (
 
 // nodeInfo represents the style to be applied to a tree node.
 type nodeInfo struct {
-	incProof    bool
-	incPath     bool
-	target      bool
-	perfectRoot bool
-	ephemeral   bool
-	leaf        bool
+	incProof     bool
+	incPath      bool
+	target       bool
+	perfectRoot  bool
+	ephemeral    bool
+	leaf         bool
+	rangeIndices []int
 }
 
 // String returns a string containing Forest attributes suitable for
@@ -116,6 +125,17 @@ func (n nodeInfo) String() string {
 	}
 	if n.incPath {
 		fill = "target_path"
+	}
+
+	if len(n.rangeIndices) == 1 {
+		// For nodes in a single range just change the fill
+		fill = fmt.Sprintf("range%d!50", n.rangeIndices[0])
+	} else {
+		// Otherwise, we need to be a bit cleverer, and use the shading feature
+		for i, ri := range n.rangeIndices {
+			pos := []string{"left", "right", "middle"}[i]
+			attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, ri))
+		}
 	}
 	attr = append(attr, "fill="+fill)
 
@@ -239,6 +259,101 @@ func toNodeKey(n storage.NodeID) string {
 	return nodeKey(d, i)
 }
 
+// decompose splits out a range into component subtrees.
+// TODO(al): Remove this and depend on actual range code.
+func decomposeRange(begin, end uint64) (uint64, uint64) {
+	// Special case, as the code below works only if begin != 0, or end < 2^63.
+	if begin == 0 {
+		return 0, end
+	}
+	xbegin := begin - 1
+	// Find where paths to leaves #begin-1 and #end diverge, and mask the upper
+	// bits away, as only the nodes strictly below this point are in the range.
+	d := bits.Len64(xbegin^end) - 1
+	mask := uint64(1)<<uint(d) - 1
+	// The left part of the compact range consists of all nodes strictly below
+	// and to the right from the path to leaf #begin-1, corresponding to zero
+	// bits in the masked part of begin-1. Likewise, the right part consists of
+	// nodes below and to the left from the path to leaf #end, corresponding to
+	// ones in the masked part of end.
+	return ^xbegin & mask, end & mask
+}
+
+// parseRanges parses and validates a string of comma-separates open-closed
+// ranges of the form L:R.
+// Returns the parsed ranges, or an error if there's a problem.
+func parseRanges(ranges string, treeSize int64) ([][2]int64, error) {
+	rangePairs := strings.Split(ranges, ",")
+	numRanges := len(rangePairs)
+	if num, max := numRanges, maxRanges; num > max {
+		return nil, fmt.Errorf("too many ranges %d, must be %d or fewer", num, max)
+	}
+	ret := make([][2]int64, 0, numRanges)
+	for _, rng := range rangePairs {
+		lr := strings.Split(rng, ":")
+		if len(lr) != 2 {
+			return nil, fmt.Errorf("specified range %q is invalid", rng)
+		}
+		var l, r int64
+		if _, err := fmt.Sscanf(rng, "%d:%d", &l, &r); err != nil {
+			return nil, fmt.Errorf("range (%q) is malformed: %s", rng, err)
+		}
+		if r > treeSize {
+			return nil, fmt.Errorf("range %q extends past end of tree (%d)", lr, treeSize)
+		}
+		if l < 0 {
+			return nil, fmt.Errorf("range %q has -ve element", rng)
+		}
+		if l > r {
+			return nil, fmt.Errorf("range elements in %q are out of order", rng)
+		}
+		ret = append(ret, [2]int64{l, r})
+	}
+	return ret, nil
+}
+
+// modifyRangeNodeInfo sets style info for nodes affected by ranges.
+// This includes leaves and perfect subtree roots.
+// TODO(al): Figure out what, if anything, to do to make this show ranges
+// which are inside the perfect meganodes.
+func modifyRangeNodeInfo() error {
+	rng, err := parseRanges(*ranges, *treeSize)
+	if err != nil {
+		return err
+	}
+	for ri, lr := range rng {
+		rStyle := ri + 1
+		l, r := lr[0], lr[1]
+		// Set leaves:
+		for i := l; i < r; i++ {
+			modifyNodeInfo(nodeKey(0, i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, rStyle) })
+		}
+
+		// Now perfect roots which comprise the range:
+		maskL, maskR := decomposeRange(uint64(l), uint64(r))
+		p := l
+		// Do left perfect subtree roots:
+		nBitsL := uint64(bits.Len64(maskL))
+		for i, bit := uint64(0), uint64(1); i < nBitsL; i, bit = i+1, bit<<1 {
+			if maskL&bit != 0 {
+				if i > 0 {
+					modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, rStyle) })
+				}
+				p += int64(bit)
+			}
+		}
+		// Do right perfect subtree roots:
+		nBitsR := uint(bits.Len64(maskR))
+		for i, bit := nBitsR, uint64(1<<nBitsR); i > 1; i, bit = i-1, bit>>1 {
+			if maskR&bit != 0 {
+				modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, rStyle) })
+				p += int64(bit)
+			}
+		}
+	}
+	return nil
+}
+
 // Whee - here we go!
 func main() {
 	// TODO(al): check flag validity.
@@ -256,6 +371,12 @@ func main() {
 		}
 		for h, i := int64(0), *inclusion; h < height; h, i = h+1, i>>1 {
 			modifyNodeInfo(nodeKey(h, i), func(n *nodeInfo) { n.incPath = true })
+		}
+	}
+
+	if len(*ranges) > 0 {
+		if err := modifyRangeNodeInfo(); err != nil {
+			log.Fatalf("Failed to modify range node styles: %s", err)
 		}
 	}
 
