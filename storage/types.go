@@ -33,8 +33,17 @@ type Node struct {
 }
 
 // NodeID uniquely identifies a Node within a versioned MerkleTree.
+// NodeIDs as presented to the storage layer will always have a multiple
+// of 8 bits as they identify the root of a 256 element subtree.
+//
+// Reading paths right to left is the natural order when traversing from
+// leaves towards the root. However, for internal nodes the rightmost bits
+// of the IDs are not aligned on a byte boundary so care must be taken.
+//
+// Note that some of the APIs count bits with 0 being the rightmost
+// in the entire path array when some of these might not be significant.
 type NodeID struct {
-	// path is effectively a BigEndian bit set, with path[0] being the MSB
+	// Path is effectively a BigEndian bit set, with Path[0] being the MSB
 	// (identifying the root child), and successive bits identifying the lower
 	// level children down to the leaf.
 	Path []byte
@@ -42,11 +51,42 @@ type NodeID struct {
 	// this NodeID.
 	//
 	// e.g. if Path contains two bytes, and PrefixLenBits is 9, then the 8 bits
-	// in Path[0] are included, along with the MSB of Path[1]. However, note
-	// that some of the APIs count bits with 0 being the rightmost as this
-	// is a natural ordering to use when working from the leaves upwards.
+	// in Path[0] are included, along with the MSB of Path[1]. The remaining
+	// 7 bits are not significant.
 	PrefixLenBits int
 }
+
+// Some Additional NodeID examples and Documentation.
+//
+// Consider a hypothetical case of a tree of size 256 and max path length 8.
+// The IDs within this tree will at most have 8 significant bits. To specify
+// the leaf with index 95 requires 8 bits to match the tree height so the
+// Path array would be: [0x5f] with PrefixLength 8. Moving up the tree two
+// levels from this node the depth would be 2 and index 23. This gives a Path
+// array of [0x5c] and PrefixLength is 6, which means the lowest 2 bits are not
+// significant. In binary 0x5c is: 0b01011100 and 23 decimal is: 0b000010111
+// so the index has been shifted left by 2 places in the NodeID. Reading
+// from left to right after 6 bits the node has been reached. The remaining
+// two bits therefore don't matter.
+//
+// Larger tree sizes as used by Logs and Maps work in exactly the same
+// way but with the Path taking up multiple bytes. For example if we move
+// to a tree size of up to 65535 there will be two Path bytes. For a leaf
+// in this tree at depth = 0, index = 19 the resulting NodeID has a
+// Path array of [0x00, 0x13] and PrefixLength 16. To see that it's the
+// left bits that are significant consider depth = 2, index = 16383 in this
+// tree (the rightmost node in a complete tree at this level). The resulting
+// NodeID has Path [0xff, 0xfc] and PrefixLength is 14. When processing this
+// NodeID to move up the tree the lowest 2 bits of Path[1] should be ignored as
+// it only takes 14 bits to reach the root of the tree from level 2 in a 16
+// levels deep tree. Also, testing Bit(0) on this NodeID would not be valid as
+// this is the LSB of Path[1] and it's not one of the significant bits.
+//
+// When dealing with storage the ID can be split into a prefix and suffix.
+// All nodes within the same storage subtree have the same prefix and form
+// the subtree ID. The suffix identifies the internal node within the subtree.
+// They are both paths in the entire Merkle tree. In this case the prefix will
+// always be a multiple of 8 bits.
 
 // PathLenBits returns 8 * len(path).
 func (n NodeID) PathLenBits() int {
@@ -105,6 +145,7 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 
 	// Copy subDepth/8 bytes of subIndex into path.
 	subPath := new(bytes.Buffer)
+	// Write() on a Buffer never errors. It panics internally if we run out of RAM.
 	binary.Write(subPath, binary.BigEndian, uint64(subIndex))
 	unusedHighBytes := 64/8 - subDepth/8
 	copy(path[len(prefix):], subPath.Bytes()[unusedHighBytes:])
@@ -209,7 +250,8 @@ func (n *NodeID) SetBit(i int, b uint) {
 	}
 }
 
-// Bit returns 1 if the ith bit from the right is true, and false otherwise.
+// Bit returns 1 if the zero indexed ith bit from the right (of the whole path
+// array, not just the significant portion) is true, and false otherwise.
 func (n *NodeID) Bit(i int) uint {
 	if got, want := i, n.PathLenBits()-1; got > want {
 		panic(fmt.Sprintf("storage: Bit(%v) > (PathLenBits() -1): %v", got, want))
@@ -219,7 +261,9 @@ func (n *NodeID) Bit(i int) uint {
 }
 
 // String returns a string representation of the binary value of the NodeID.
-// The left-most bit is the MSB (i.e. nearer the root of the tree).
+// The left-most bit is the MSB (i.e. nearer the root of the tree). The
+// length of the returned string will always be the same as the prefix length
+// of the node.
 func (n *NodeID) String() string {
 	var r bytes.Buffer
 	limit := n.PathLenBits() - n.PrefixLenBits
