@@ -1,0 +1,19 @@
+# Customizations to codecov for Trillian repo. This will be merged into
+# the team / default codecov yaml file.
+
+# Exclude code that's for testing, demos or utilities that aren't really
+# part of production releases.
+ignore:
+  - "cmd/createtree/testonly"
+  - "crypto/keys/testonly"
+  - "docs/**/*"
+  - "examples/**/*"
+  - "integration/**/*"
+  - "monitoring/testonly"
+  - "server/mock_log_operation.go"
+  - "storage/cache/mock_node_storage.go"
+  - "storage/mock_storage.go"
+  - "storage/testonly"
+  - "testonly/**/*"
+  - "util/election2/testonly"
+  - "vendor/**/*"
