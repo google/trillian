@@ -58,6 +58,23 @@ func TestMaskLeft(t *testing.T) {
 	}
 }
 
+func TestNewEmptyNodeIDPanic(t *testing.T) {
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// Only multiples of 8 bits should be accepted.
+			want := b%8 != 0
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = NewEmptyNodeID(b)
+		})
+	}
+}
+
 func TestNewNodeIDFromBigInt(t *testing.T) {
 	for _, tc := range []struct {
 		depth      int
@@ -80,6 +97,30 @@ func TestNewNodeIDFromBigInt(t *testing.T) {
 			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): depth %v, want %v",
 				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
 		}
+		// We should be able to get the same big.Int back. This is used in
+		// the HStar2 implementation so should be tested.
+		if got, want := n.BigInt(), tc.index; want.Cmp(got) != 0 {
+			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): got: %v, want: %v",
+				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
+		}
+	}
+}
+
+func TestNewNodeIDFromBigIntPanic(t *testing.T) {
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// Only multiples of 8 bits should be accepted. This method also
+			// fails for 0 bits, unlike NewNodeIDFromPrefix.
+			want := (b%8 != 0) || b == 0
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = NewNodeIDFromBigInt(12, big.NewInt(234), b)
+		})
 	}
 }
 
@@ -145,6 +186,70 @@ func TestSplit(t *testing.T) {
 		if got, want := newNode.PrefixLenBits, n.PrefixLenBits; got != want {
 			t.Errorf("NewNodeIDFromPrefix(%x, %v).PrefixLenBits: %x, want %x", p, s, got, want)
 		}
+	}
+}
+
+func TestSplitPanics(t *testing.T) {
+	n, err := NewNodeIDForTreeCoords(8, 4567, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name      string
+		pBytes    int
+		sBits     int
+		wantPanic bool
+	}{
+		{
+			name:   "split8bits",
+			pBytes: 6,
+			sBits:  8,
+		},
+		{
+			name:   "split16bits",
+			pBytes: 5,
+			sBits:  16,
+		},
+		{
+			name:      "split15bits",
+			pBytes:    5,
+			sBits:     15,
+			wantPanic: true, // There's 16 bits left, which is more than requested.
+		},
+		{
+			name:      "splitnothing",
+			pBytes:    7, // This is 56 bits - same as the PrefixLength so nothing left.
+			sBits:     0,
+			wantPanic: true,
+		},
+		{
+			name:      "split1bit",
+			pBytes:    7, // This is 56 bits - same as the PrefixLength so nothing left.
+			sBits:     1, // When there's nothing left any number of bits fails.
+			wantPanic: true,
+		},
+		{
+			name:      "splitoutofbounds",
+			pBytes:    9, // There aren't 72 bits in the path.
+			sBits:     0,
+			wantPanic: true,
+		},
+	} {
+		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !tc.wantPanic) || (got == nil && tc.wantPanic) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, tc.wantPanic)
+				}
+			}()
+			_, _ = n.Split(tc.pBytes, tc.sBits)
+		})
+	}
+	// The 2 cases where split should panic are 1.) There are more bits left
+	// after the prefix point than have been requested. 2.) Trying to split zero
+	// bits off the end of the NodeID.
+	for b := 0; b < 64; b++ {
 	}
 }
 
@@ -440,6 +545,24 @@ func TestBit(t *testing.T) {
 				t.Errorf("%v.Bit(%v): %x, want %v", tc.n.String(), height, got, want)
 			}
 		}
+	}
+}
+
+func TestBitPanics(t *testing.T) {
+	n := NewNodeIDWithPrefix(95, 8, 8, 8)
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// Testing anything larger than the 7th bit should fail.
+			want := b >= 8
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = n.Bit(b)
+		})
 	}
 }
 
