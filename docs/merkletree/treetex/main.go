@@ -331,8 +331,8 @@ func modifyRangeNodeInfo() error {
 		maskL, maskR := decomposeRange(uint64(l), uint64(r))
 		p := l
 		// Do left perfect subtree roots:
-		nBitsL := uint64(bits.Len64(maskL))
-		for i, bit := uint64(0), uint64(1); i < nBitsL; i, bit = i+1, bit<<1 {
+		nBitsL := uint(bits.Len64(maskL))
+		for i, bit := uint(0), uint64(1); i < nBitsL; i, bit = i+1, bit<<1 {
 			if maskL&bit != 0 {
 				if i > 0 {
 					modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
