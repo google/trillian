@@ -298,13 +298,12 @@ func parseRanges(ranges string, treeSize int64) ([][2]int64, error) {
 		if _, err := fmt.Sscanf(rng, "%d:%d", &l, &r); err != nil {
 			return nil, fmt.Errorf("range (%q) is malformed: %s", rng, err)
 		}
-		if r > treeSize {
+		switch {
+		case r > treeSize:
 			return nil, fmt.Errorf("range %q extends past end of tree (%d)", lr, treeSize)
-		}
-		if l < 0 {
+		case l < 0:
 			return nil, fmt.Errorf("range %q has -ve element", rng)
-		}
-		if l > r {
+		case l > r:
 			return nil, fmt.Errorf("range elements in %q are out of order", rng)
 		}
 		ret = append(ret, [2]int64{l, r})
