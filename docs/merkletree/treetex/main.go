@@ -128,10 +128,10 @@ func (n nodeInfo) String() string {
 	}
 
 	if len(n.rangeIndices) == 1 {
-		// For nodes in a single range just change the fill
+		// For nodes in a single range just change the fill.
 		fill = fmt.Sprintf("range%d!50", n.rangeIndices[0])
 	} else {
-		// Otherwise, we need to be a bit cleverer, and use the shading feature
+		// Otherwise, we need to be a bit cleverer, and use the shading feature.
 		for i, ri := range n.rangeIndices {
 			pos := []string{"left", "right", "middle"}[i]
 			attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, ri))
@@ -229,7 +229,7 @@ func renderTree(prefix string, treeSize, index int64) {
 	height := int64(bits.Len64(uint64(treeSize)) - 1)
 	b := int64(1) << uint(height)
 	rest := treeSize - b
-	// left child is a perfect subtree
+	// left child is a perfect subtree.
 
 	// if there's a right-hand child, then we'll emit this node to be the
 	// parent. (Otherwise we'll just keep quiet, and recurse down - this is how
