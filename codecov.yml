@@ -12,5 +12,4 @@ ignore:
   - "docs/**/*"
   - "examples/**/*"
   - "integration/**/*"
-  - "testonly/**/*"
   - "vendor/**/*"
