@@ -75,6 +75,91 @@ func TestNewEmptyNodeIDPanic(t *testing.T) {
 	}
 }
 
+func TestNodeIDWithPrefixPanic(t *testing.T) {
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// It should panic if nodeIDLenBits is not a multiple of 8.
+			want := b%8 != 0
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = NewNodeIDWithPrefix(0x12345, 32, b, 64)
+		})
+	}
+}
+
+// TestNewNodeIDFromPrefixPanic tests the cases where this will panic. To
+// succeed these must all be true:
+// 1.) totalDepth must be a multiple of 8 and not negative.
+// 2.) subDepth must be a multiple of 8 and not negative.
+// 3.) depth must be >= 0.
+func TestNewNodeIDFromPrefixPanic(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		depth      int
+		subDepth   int
+		totalDepth int
+		wantPanic  bool
+	}{
+		{
+			name:       "ok",
+			depth:      64,
+			totalDepth: 64,
+			subDepth:   64,
+		},
+		{
+			name:       "depthnegative",
+			depth:      -1,
+			totalDepth: 64,
+			subDepth:   64,
+			wantPanic:  true,
+		},
+		{
+			name:       "subdepthbad",
+			depth:      64,
+			totalDepth: 64,
+			subDepth:   63,
+			wantPanic:  true,
+		},
+		{
+			name:       "subdepthnegative",
+			depth:      64,
+			totalDepth: 64,
+			subDepth:   -1,
+			wantPanic:  true,
+		},
+		{
+			name:       "totaldepthbad",
+			depth:      64,
+			totalDepth: 63,
+			subDepth:   64,
+			wantPanic:  true,
+		},
+		{
+			name:       "totaldepthnegative",
+			depth:      64,
+			totalDepth: -1,
+			subDepth:   64,
+			wantPanic:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !tc.wantPanic) || (got == nil && tc.wantPanic) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, tc.wantPanic)
+				}
+			}()
+			_ = NewNodeIDFromPrefix([]byte("prefix"), tc.depth, 0, tc.subDepth, tc.totalDepth)
+		})
+	}
+}
+
 func TestNewNodeIDFromBigInt(t *testing.T) {
 	for _, tc := range []struct {
 		depth      int
