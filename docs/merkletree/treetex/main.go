@@ -51,9 +51,9 @@ const (
 \definecolor{target}{rgb}{0.5,0.5,0.9}
 \definecolor{target_path}{rgb}{0.7,0.7,0.9}
 \definecolor{mega}{rgb}{0.9,0.9,0.9}
-\definecolor{range1}{rgb}{0.3,0.9,0.3}
-\definecolor{range2}{rgb}{0.3,0.3,0.9}
-\definecolor{range3}{rgb}{0.9,0.3,0.9}
+\definecolor{range0}{rgb}{0.3,0.9,0.3}
+\definecolor{range1}{rgb}{0.3,0.3,0.9}
+\definecolor{range2}{rgb}{0.9,0.3,0.9}
 
 \forestset{
 	% This defines a new "edge" style for drawing the perfect subtrees.
@@ -322,11 +322,10 @@ func modifyRangeNodeInfo() error {
 		return err
 	}
 	for ri, lr := range rng {
-		rStyle := ri + 1
 		l, r := lr[0], lr[1]
 		// Set leaves:
 		for i := l; i < r; i++ {
-			modifyNodeInfo(nodeKey(0, i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, rStyle) })
+			modifyNodeInfo(nodeKey(0, i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 		}
 
 		// Now perfect roots which comprise the range:
@@ -337,7 +336,7 @@ func modifyRangeNodeInfo() error {
 		for i, bit := uint64(0), uint64(1); i < nBitsL; i, bit = i+1, bit<<1 {
 			if maskL&bit != 0 {
 				if i > 0 {
-					modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, rStyle) })
+					modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 				}
 				p += int64(bit)
 			}
@@ -346,7 +345,7 @@ func modifyRangeNodeInfo() error {
 		nBitsR := uint(bits.Len64(maskR))
 		for i, bit := nBitsR, uint64(1<<nBitsR); i > 1; i, bit = i-1, bit>>1 {
 			if maskR&bit != 0 {
-				modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, rStyle) })
+				modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 				p += int64(bit)
 			}
 		}
