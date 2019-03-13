@@ -730,6 +730,16 @@ func TestGetLeavesByHash(t *testing.T) {
 			errStr: "not read current log root",
 		},
 		{
+			name: "leaf hash too short",
+			req: &trillian.GetLeavesByHashRequest{
+				LeafHash: [][]byte{
+					[]byte("too-short-to-be-a-hash"),
+				},
+				LogId: logID1,
+			},
+			errStr: "GetLeavesByHashRequest.LeafHash[0]: 22 bytes, want 32",
+		},
+		{
 			name: "ok multiple",
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
@@ -750,7 +760,9 @@ func TestGetLeavesByHash(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			fakeStorage := storage.NewMockLogStorage(ctrl)
-			tc.setupStorage(ctrl, fakeStorage)
+			if tc.setupStorage != nil {
+				tc.setupStorage(ctrl, fakeStorage)
+			}
 			registry := extension.Registry{
 				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
@@ -899,12 +911,23 @@ func TestGetProofByHashErrors(t *testing.T) {
 			req:    &getInclusionProofByHashRequest7,
 			errStr: "not read current log root",
 		},
+		{
+			name: "leaf hash too short",
+			req: &trillian.GetInclusionProofByHashRequest{
+				LeafHash: []byte("too-short-to-be-a-hash"),
+				LogId:    logID1,
+				TreeSize: 7,
+			},
+			errStr: "GetInclusionProofByHashRequest.LeafHash: 22 bytes, want 32",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			fakeStorage := storage.NewMockLogStorage(ctrl)
-			tc.setupStorage(ctrl, fakeStorage)
+			if tc.setupStorage != nil {
+				tc.setupStorage(ctrl, fakeStorage)
+			}
 			registry := extension.Registry{
 				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
