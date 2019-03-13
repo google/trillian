@@ -9,6 +9,27 @@ Not yet released; provisionally v2.0.0 (may change).
 Support has been added for testing against a locally running mysql docker image,
 in addition to a locally running mysql instance.
 
+### Deprecated Fields Removed From SignedLogRoot Proto
+
+All the fields marked as deprecated in this proto have been removed. All
+the same fields are available via the TLS marshalled log root in the proto.
+Updating affected code is straightforward. For example HTTP handler code that
+needs to use these fields can do something like:
+
+```
+var currentRoot types.LogRootV1
+if err := currentRoot.UnmarshalBinary(rsp.GetSignedLogRoot().GetLogRoot()); err != nil {
+	return http.StatusInternalServerError, fmt.Errorf("failed to unmarshal root: %v", err))
+	}
+if currentRoot.TreeSize == 0 {
+  // Do stuff.
+}
+```
+
+For RPC handler code the error wrapping will differ but the unmarshalling is
+the same.
+>>>>>>> Update CHANGELOG.md
+
 ### Configurable number of idle connections on MySQL
 
 This version adds a new flag `-mysql_max_idle_conns` to specify the number of
