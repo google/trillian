@@ -285,6 +285,10 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 	}
 	ctx = trees.NewContext(ctx, tree)
 
+	if got, want := len(req.LeafHash), hasher.Size(); got != want {
+		return nil, status.Errorf(codes.InvalidArgument, "GetInclusionProofByHash.LeafHash: expected %d bytes, got %d", want, got)
+	}
+
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
