@@ -406,17 +406,18 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
 	ctx, span := spanFor(ctx, "GetLatestSignedLogRoot")
 	defer span.End()
-	tree, ctx, err := t.getTreeAndContext(ctx, req.LogId, optsLogRead)
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
+	ctx = trees.NewContext(ctx, tree)
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLatestSignedLogRoot")
 
-	signedRoot, err := tx.LatestSignedLogRoot(ctx)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +426,50 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, err
 	}
 
-	return &trillian.GetLatestSignedLogRootResponse{SignedLogRoot: &signedRoot}, nil
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
+	}
+
+	r := &trillian.GetLatestSignedLogRootResponse{SignedLogRoot: &slr}
+
+	if req.FirstTreeSize == 0 {
+		// no need to get consistency proof in this case
+		return r, nil
+	}
+
+	reqProof := &trillian.GetConsistencyProofRequest{
+		LogId:          req.LogId,
+		FirstTreeSize:  int64(req.FirstTreeSize),
+		SecondTreeSize: int64(root.TreeSize),
+	}
+	if err := validateGetConsistencyProofRequest(reqProof); err != nil {
+		return nil, err
+	}
+
+	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(reqProof.FirstTreeSize, reqProof.SecondTreeSize, int64(root.TreeSize), proofMaxBitLen)
+	if err != nil {
+		return nil, err
+	}
+
+	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
+	// against.
+	rev, err := tx.ReadRevision(ctx)
+	if err != nil {
+		return nil, err
+	}
+	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, rev, 0, nodeFetches)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// We have everything we need. Return the response
+	r.Proof = &proof
+	return r, nil
 }
 
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
