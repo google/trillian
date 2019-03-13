@@ -542,6 +542,7 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 // GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
 // to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
 // entries so this may return more results than the number of hashes in the request.
+// An error is returned if there are no matches for any of the hashes.
 func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
 	ctx, span := spanFor(ctx, "GetLeavesByHash")
 	defer span.End()
@@ -571,6 +572,10 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 
 	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByHash"); err != nil {
 		return nil, err
+	}
+
+	if len(leaves) == 0 {
+		return nil, status.Errorf(codes.NotFound, "no leaves found with requested hashes")
 	}
 
 	return &trillian.GetLeavesByHashResponse{
