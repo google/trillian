@@ -338,6 +338,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
 | charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| first_tree_size | [int64](#int64) |  |  |
 
 
 
@@ -353,6 +354,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian.Proof) |  |  |
 
 
 

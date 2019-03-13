@@ -239,10 +239,12 @@ message GetConsistencyProofResponse {
 message GetLatestSignedLogRootRequest {
   int64 log_id = 1;
   ChargeTo charge_to = 2;
+  int64 first_tree_size = 3;
 }
 
 message GetLatestSignedLogRootResponse {
   SignedLogRoot signed_log_root = 2;
+  Proof proof = 3;
 }
 
 message GetSequencedLeafCountRequest {
