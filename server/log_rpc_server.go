@@ -595,10 +595,18 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 		return nil, err
 	}
 
-	tree, ctx, err := t.getTreeAndContext(ctx, req.LogId, optsLogRead)
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
+	ctx = trees.NewContext(ctx, tree)
+
+	for i, hash := range req.LeafHash {
+		if got, want := len(hash), hasher.Size(); got != want {
+			return nil, status.Errorf(codes.InvalidArgument, "GetLeavesByHashRequest.LeafHash[%d]: expected %d bytes, got %d", i, want, got)
+		}
+	}
+
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
