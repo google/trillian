@@ -274,19 +274,15 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
 	ctx, span := spanFor(ctx, "GetInclusionProofByHash")
 	defer span.End()
-	if err := validateGetInclusionProofByHashRequest(req); err != nil {
-		return nil, err
-	}
-	logID := req.LogId
 
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogRead)
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	if got, want := len(req.LeafHash), hasher.Size(); got != want {
-		return nil, status.Errorf(codes.InvalidArgument, "GetInclusionProofByHash.LeafHash: expected %d bytes, got %d", want, got)
+	if err := validateGetInclusionProofByHashRequest(req, hasher); err != nil {
+		return nil, err
 	}
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
@@ -591,9 +587,6 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
 	ctx, span := spanFor(ctx, "GetLeavesByHash")
 	defer span.End()
-	if err := validateGetLeavesByHashRequest(req); err != nil {
-		return nil, err
-	}
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogRead)
 	if err != nil {
@@ -601,10 +594,8 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	for i, hash := range req.LeafHash {
-		if got, want := len(hash), hasher.Size(); got != want {
-			return nil, status.Errorf(codes.InvalidArgument, "GetLeavesByHashRequest.LeafHash[%d]: expected %d bytes, got %d", i, want, got)
-		}
+	if err := validateGetLeavesByHashRequest(req, hasher); err != nil {
+		return nil, err
 	}
 
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)

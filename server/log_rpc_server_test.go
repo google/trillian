@@ -1796,13 +1796,22 @@ func TestTrillianLogRPCServer_GetInclusionProofByHashErrors(t *testing.T) {
 		},
 	}
 
-	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
 	ctx := context.Background()
 	for _, test := range tests {
-		_, err := logServer.GetInclusionProofByHash(ctx, test.req)
-		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
-			t.Errorf("%v: GetInclusionProofByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
+			}
+			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+			_, err := logServer.GetInclusionProofByHash(ctx, test.req)
+			if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+				t.Errorf("%v: GetInclusionProofByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+			}
+		})
 	}
 }
 
@@ -1830,13 +1839,22 @@ func TestTrillianLogRPCServer_GetLeavesByHashErrors(t *testing.T) {
 		},
 	}
 
-	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
 	ctx := context.Background()
 	for _, test := range tests {
-		_, err := logServer.GetLeavesByHash(ctx, test.req)
-		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
-			t.Errorf("%v: GetLeavesByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
+			}
+			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+			_, err := logServer.GetLeavesByHash(ctx, test.req)
+			if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+				t.Errorf("%v: GetLeavesByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+			}
+		})
 	}
 }
 
