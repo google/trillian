@@ -422,10 +422,6 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, err
 	}
 
-	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLatestSignedLogRoot"); err != nil {
-		return nil, err
-	}
-
 	var root types.LogRootV1
 	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
@@ -462,11 +458,9 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-
-	if err := tx.Commit(); err != nil {
+	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLatestSignedLogRoot"); err != nil {
 		return nil, err
 	}
-
 	// We have everything we need. Return the response
 	r.Proof = &proof
 	return r, nil
