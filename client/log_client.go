@@ -161,8 +161,8 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
 	resp, err := c.client.GetLatestSignedLogRoot(ctx,
 		&trillian.GetLatestSignedLogRootRequest{
-			LogId: c.LogID,
-			FirstTreeSize:  int64(trusted.TreeSize),
+			LogId:         c.LogID,
+			FirstTreeSize: int64(trusted.TreeSize),
 		})
 	if err != nil {
 		return nil, err
