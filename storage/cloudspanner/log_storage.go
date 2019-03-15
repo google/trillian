@@ -67,10 +67,6 @@ type LogStorageOptions struct {
 }
 
 var (
-	// MaxUnsequencedCountStaleness configures the read-staleness limit for the
-	// spanner query to retrieve the number of unsequenced certs.
-	MaxUnsequencedCountStaleness = 5 * time.Minute
-
 	// Spanner DB columns:
 	colExtraData               = "ExtraData"
 	colLeafValue               = "LeafValue"

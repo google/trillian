@@ -392,11 +392,11 @@ func lastNodePresent(level, ts int64) bool {
 	}
 
 	// Last index in the level is the tree size - 1
-	bits := uint64(ts - 1)
+	b := uint64(ts - 1)
 	// Test the bit in the path for the requested level
 	mask := uint64(1) << uint64(level-1)
 
-	return bits&mask != 0
+	return b&mask != 0
 }
 
 // skipMissingLevels moves down the tree a level towards the leaves until the node exists. This

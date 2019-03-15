@@ -55,12 +55,12 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 
 	mapHasher, err := hashers.NewMapHasher(config.HashStrategy)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating MapHasher: %v", err)
+		return nil, fmt.Errorf("failed creating MapHasher: %v", err)
 	}
 
 	mapPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
 	if err != nil {
-		return nil, fmt.Errorf("Failed parsing Map public key: %v", err)
+		return nil, fmt.Errorf("failed parsing Map public key: %v", err)
 	}
 
 	sigHash, err := trees.Hash(config)

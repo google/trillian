@@ -141,7 +141,7 @@ func (t *treeStorage) begin(ctx context.Context, tree *trillian.Tree, newCache n
 	if err != nil {
 		return nil, err
 	}
-	cache, err := newCache(tree)
+	subtreeCache, err := newCache(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (t *treeStorage) begin(ctx context.Context, tree *trillian.Tree, newCache n
 		treeID: tree.TreeId,
 		ts:     t,
 		stx:    stx,
-		cache:  cache,
+		cache:  subtreeCache,
 		config: config,
 	}
 

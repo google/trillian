@@ -42,7 +42,7 @@ type ReadOnlyTreeTX interface {
 	// Close attempts to Rollback the TX if it's open, it's a noop otherwise.
 	Close() error
 
-	// Open indicates if this transaction is open. An open transaction is one for which
+	// IsOpen indicates if this transaction is open. An open transaction is one for which
 	// Commit() or Rollback() has never been called. Implementations must do all clean up
 	// in these methods so transactions are assumed closed regardless of the reported success.
 	IsOpen() bool

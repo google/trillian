@@ -23,8 +23,8 @@ import (
 func checkNotFiring(t *testing.T, timer Timer) {
 	t.Helper()
 	select {
-	case time := <-timer.Chan():
-		t.Errorf("Timer unexpectedly fired at %v", time)
+	case tm := <-timer.Chan():
+		t.Errorf("Timer unexpectedly fired at %v", tm)
 	case <-time.After(10 * time.Millisecond): // Give some real time to pass.
 	}
 }

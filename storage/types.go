@@ -316,19 +316,19 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	a := make([]byte, len(n.Path))
 	copy(a, n.Path)
 
-	bits := n.PrefixLenBits - prefixBytes*8
-	if bits > suffixBits {
+	b := n.PrefixLenBits - prefixBytes*8
+	if b > suffixBits {
 		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
 	}
-	if bits == 0 {
+	if b == 0 {
 		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) == 0", n.Path, n.PrefixLenBits, prefixBytes))
 	}
-	suffixBytes := bytesForBits(bits)
+	suffixBytes := bytesForBits(b)
 	sfx := Suffix{
-		Bits: byte(bits),
+		Bits: byte(b),
 		Path: a[prefixBytes : prefixBytes+suffixBytes],
 	}
-	maskIndex := (bits - 1) / 8
+	maskIndex := (b - 1) / 8
 	maskLowBits := (sfx.Bits-1)%8 + 1
 	sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
 
