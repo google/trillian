@@ -375,19 +375,8 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	if uint64(req.SecondTreeSize) > root.TreeSize {
 		return r, nil
 	}
-
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, int64(root.TreeSize), proofMaxBitLen)
-	if err != nil {
-		return nil, err
-	}
-
-	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
-	// against.
-	rev, err := tx.ReadRevision(ctx)
-	if err != nil {
-		return nil, err
-	}
-	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, rev, 0, nodeFetches)
+	// Try to get consistency proof
+	proof, err := tryGetConsistencyProof(ctx, req.FirstTreeSize, req.SecondTreeSize, int64(root.TreeSize), tx, hasher)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +386,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 
 	// We have everything we need. Return the proof
-	r.Proof = &proof
+	r.Proof = proof
 	return r, nil
 }
 
@@ -442,8 +431,21 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	if err := validateGetConsistencyProofRequest(reqProof); err != nil {
 		return nil, err
 	}
+	// Try to get consistency proof
+	proof, err := tryGetConsistencyProof(ctx, reqProof.FirstTreeSize, reqProof.SecondTreeSize, int64(root.TreeSize), tx, hasher)
+	if err != nil {
+		return nil, err
+	}
+	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLatestSignedLogRoot"); err != nil {
+		return nil, err
+	}
+	// We have everything we need. Return the response
+	r.Proof = proof
+	return r, nil
+}
 
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(reqProof.FirstTreeSize, reqProof.SecondTreeSize, int64(root.TreeSize), proofMaxBitLen)
+func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize, rootTreeSize int64, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher) (*trillian.Proof, error) {
+	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize, rootTreeSize, proofMaxBitLen)
 	if err != nil {
 		return nil, err
 	}
@@ -458,12 +460,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLatestSignedLogRoot"); err != nil {
-		return nil, err
-	}
-	// We have everything we need. Return the response
-	r.Proof = &proof
-	return r, nil
+	return &proof, nil
 }
 
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
