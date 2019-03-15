@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	_ "net/http/pprof" // Register pprof HTTP handlers.
 	"time"
 
 	"github.com/golang/glog"
@@ -38,8 +39,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	// Register pprof HTTP handlers
-	_ "net/http/pprof"
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"

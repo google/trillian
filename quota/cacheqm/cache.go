@@ -77,18 +77,22 @@ func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) (quota.Man
 	}, nil
 }
 
+// PeekTokens implements Manager.PeekTokens.
 func (m *manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota.Spec]int, error) {
 	return m.qm.PeekTokens(ctx, specs)
 }
 
+// PutTokens implements Manager.PutTokens.
 func (m *manager) PutTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
 	return m.qm.PutTokens(ctx, numTokens, specs)
 }
 
+// ResetQuota implements Manager.ResetQuota.
 func (m *manager) ResetQuota(ctx context.Context, specs []quota.Spec) error {
 	return m.qm.ResetQuota(ctx, specs)
 }
 
+// GetTokens implements Manager.GetTokens.
 func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -200,14 +204,17 @@ type specBucket struct {
 // bucketsByTime is a sortable slice of specBuckets.
 type bucketsByTime []specBucket
 
+// Len provides sort.Interface.Len.
 func (b bucketsByTime) Len() int {
 	return len(b)
 }
 
+// Less provides sort.Interface.Less.
 func (b bucketsByTime) Less(i, j int) bool {
 	return b[i].lastModified.Before(b[j].lastModified)
 }
 
+// Swap provides sort.Interface.Swap.
 func (b bucketsByTime) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
 }

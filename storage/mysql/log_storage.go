@@ -478,7 +478,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		)
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
-			return nil, fmt.Errorf("Unsequenced: %v", err)
+			return nil, err
 		}
 		leafDuration := time.Since(leafStart)
 		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)

@@ -138,7 +138,7 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 	}
 	hasherFn, err := trees.Hash(tree)
 	if err != nil {
-		return fmt.Errorf("Hash() returned err = %v", err)
+		return fmt.Errorf("trees.Hash()=%v, want: nil", err)
 	}
 	hasher := hasherFn.New()
 	lw := &leafWriter{client: s.log, hash: hasher, treeID: tree.TreeId}

@@ -704,7 +704,7 @@ func (tester *AdminStorageTester) TestAdminTXReadWriteTransaction(t *testing.T) 
 					t.Fatalf("%v: CreateTree() = (_, %v), want = (_, nil)", i, err)
 				}
 				if !test.wantCommit {
-					return fmt.Errorf("No commit %d", i)
+					return fmt.Errorf("no commit %d", i)
 				}
 				return nil
 			})
