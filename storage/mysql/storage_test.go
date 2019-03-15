@@ -240,10 +240,10 @@ func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
 		if err != nil {
-			return fmt.Errorf("Error creating new SignedLogRoot: %v", err)
+			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
 		}
 		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
-			return fmt.Errorf("Error storing new SignedLogRoot: %v", err)
+			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
 		}
 		return nil
 	})

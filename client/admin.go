@@ -79,7 +79,7 @@ func CreateAndInitTree(
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("Don't know how or whether to initialise tree type %v", tree.TreeType)
+		return nil, fmt.Errorf("don't know how or whether to initialise tree type %v", tree.TreeType)
 	}
 
 	return tree, nil

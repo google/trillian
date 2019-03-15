@@ -944,11 +944,11 @@ func setupTokens(ctx context.Context, qs *QuotaStorage, cfgs *storagepb.Configs,
 		names := []string{name}
 		tokens, err := qs.Peek(ctx, names)
 		if err != nil {
-			return fmt.Errorf("Peek() returned err = %v", err)
+			return fmt.Errorf("qs.Peek()=%v,%v, want: err=nil", tokens, err)
 		}
 		mod := tokens[name] - wantTokens
 		if err := qs.Get(ctx, names, mod); err != nil {
-			return fmt.Errorf("Get() returned err = %v", err)
+			return fmt.Errorf("qs.Get()=%v, want: nil", err)
 		}
 		if err := peekAndDiff(ctx, qs, map[string]int64{name: wantTokens}); err != nil {
 			return err
