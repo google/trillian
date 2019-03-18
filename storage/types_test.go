@@ -279,6 +279,9 @@ func TestSplitPanics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The 2 cases where split should panic are 1.) There are more bits left
+	// after the prefix point than have been requested. 2.) Trying to split zero
+	// (or -ve) bits off the end of the NodeID.
 	for _, tc := range []struct {
 		name      string
 		pBytes    int
@@ -330,11 +333,6 @@ func TestSplitPanics(t *testing.T) {
 			}()
 			_, _ = n.Split(tc.pBytes, tc.sBits)
 		})
-	}
-	// The 2 cases where split should panic are 1.) There are more bits left
-	// after the prefix point than have been requested. 2.) Trying to split zero
-	// bits off the end of the NodeID.
-	for b := 0; b < 64; b++ {
 	}
 }
 
