@@ -568,9 +568,13 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 		return nil, err
 	}
 
-	root, err := tx.LatestSignedLogRoot(ctx)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
+	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
 	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByHash"); err != nil {
@@ -579,7 +583,7 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 
 	return &trillian.GetLeavesByHashResponse{
 		Leaves:        leaves,
-		SignedLogRoot: &root,
+		SignedLogRoot: &slr,
 	}, nil
 }
 
