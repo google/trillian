@@ -4,6 +4,15 @@ package quota
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Global-0]
+	_ = x[Tree-1]
+	_ = x[User-2]
+}
+
 const _Group_name = "GlobalTreeUser"
 
 var _Group_index = [...]uint8{0, 6, 10, 14}

@@ -20,8 +20,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-// NodeIDProto is the serialized form of NodeID. It's used only for persistence in storage.
-// As this is long-term we prefer not to use a Go specific format.
+// NodeIDProto is the serialized form of NodeID. It's used only for persistence
+// in storage. As this is long-term we prefer not to use a Go specific format.
 type NodeIDProto struct {
 	Path                 []byte   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	PrefixLenBits        int32    `protobuf:"varint,2,opt,name=prefix_len_bits,json=prefixLenBits,proto3" json:"prefix_len_bits,omitempty"`
@@ -83,8 +83,8 @@ type SubtreeProto struct {
 	// the subtree are not generally stored. However internal nodes are stored for
 	// partially filled log subtrees.
 	InternalNodes map[string][]byte `protobuf:"bytes,5,rep,name=internal_nodes,json=internalNodes,proto3" json:"internal_nodes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Used as a crosscheck on the internal node map by recording its expected size after
-	// loading and repopulation.
+	// Used as a crosscheck on the internal node map by recording its expected
+	// size after loading and repopulation.
 	InternalNodeCount    uint32   `protobuf:"varint,6,opt,name=internal_node_count,json=internalNodeCount,proto3" json:"internal_node_count,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
