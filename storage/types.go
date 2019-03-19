@@ -68,7 +68,7 @@ func NewNodeIDFromHash(h []byte) NodeID {
 // capacity to store a maximum of maxLenBits.
 func NewEmptyNodeID(maxLenBits int) NodeID {
 	if got, want := maxLenBits%8, 0; got != want {
-		panic(fmt.Sprintf("storeage: NewEmptyNodeID() maxLenBits mod 8: %v, want %v", got, want))
+		panic(fmt.Sprintf("storage: NewEmptyNodeID() maxLenBits mod 8: %v, want %v", got, want))
 	}
 	return NodeID{
 		Path:          make([]byte, maxLenBits/8),
@@ -308,7 +308,7 @@ func NewNodeIDFromPrefixSuffix(prefix []byte, suffix Suffix, maxPathBits int) No
 	}
 }
 
-// Split splits a NodeID into a prefix and a suffix at prefixSplit
+// Split splits a NodeID into a prefix and a suffix at prefixBytes.
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, Suffix{Bits: 0, Path: []byte{0}}
@@ -320,8 +320,8 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	if b > suffixBits {
 		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
 	}
-	if b == 0 {
-		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) == 0", n.Path, n.PrefixLenBits, prefixBytes))
+	if b <= 0 {
+		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) <= 0", n.Path, n.PrefixLenBits, prefixBytes))
 	}
 	suffixBytes := bytesForBits(b)
 	sfx := Suffix{
