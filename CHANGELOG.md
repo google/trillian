@@ -11,6 +11,10 @@ in addition to a locally running mysql instance.
 
 ### Deprecated Fields Removed From SignedLogRoot Proto
 
+*Important Note*: If this version of logserver is deployed in conjuction with
+a CTFE that's older than about 11 months it won't work properly. Make sure
+to update CTFE first.
+
 All the fields marked as deprecated in this proto have been removed. All
 the same fields are available via the TLS marshalled log root in the proto.
 Updating affected code is straightforward. For example HTTP handler code that
@@ -26,9 +30,8 @@ if currentRoot.TreeSize == 0 {
 }
 ```
 
-For RPC handler code the error wrapping will differ but the unmarshalling is
-the same.
->>>>>>> Update CHANGELOG.md
+For non HTTP handler code the error wrapping will differ but the unmarshalling
+is the same.
 
 ### Configurable number of idle connections on MySQL
 
