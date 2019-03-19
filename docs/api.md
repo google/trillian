@@ -664,7 +664,7 @@ operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | QueueLeaf | [QueueLeafRequest](#trillian.QueueLeafRequest) | [QueueLeafResponse](#trillian.QueueLeafResponse) | Adds a single leaf to the queue. |
-| AddSequencedLeaf | [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest) | [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse) | Adds a single leaf with an assigned sequence number. Warning: This RPC is under development, don&#39;t use it. |
+| AddSequencedLeaf | [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest) | [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse) | Adds a single leaf with an assigned sequence number. |
 | GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | Returns inclusion proof for a leaf with a given index in a given tree. If the requested tree_size is larger than the server is aware of, the response will include the known log root and an empty proof. |
 | GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse) | Returns inclusion proof for a leaf with a given Merkle hash in a given tree. |
 | GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | Returns consistency proof between two versions of a given tree. If the requested tree size is larger than the server is aware of, the response will include the known log root and an empty proof. |
@@ -673,9 +673,7 @@ operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 | GetEntryAndProof | [GetEntryAndProofRequest](#trillian.GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian.GetEntryAndProofResponse) | Returns log entry and the corresponding inclusion proof for a given leaf index in a given tree. If the requested tree is unavailable but the leaf is in scope for the current tree, return a proof in that tree instead. |
 | InitLog | [InitLogRequest](#trillian.InitLogRequest) | [InitLogResponse](#trillian.InitLogResponse) |  |
 | QueueLeaves | [QueueLeavesRequest](#trillian.QueueLeavesRequest) | [QueueLeavesResponse](#trillian.QueueLeavesResponse) | Adds a batch of leaves to the queue. |
-| AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | Stores leaves from the provided batch and associates them with the log positions according to the `LeafIndex` field. The indices must be contiguous.
-
-Warning: This RPC is under development, don&#39;t use it. |
+| AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | Stores leaves from the provided batch and associates them with the log positions according to the `LeafIndex` field. The indices must be contiguous. |
 | GetLeavesByIndex | [GetLeavesByIndexRequest](#trillian.GetLeavesByIndexRequest) | [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse) | Returns a batch of leaves located in the provided positions. |
 | GetLeavesByRange | [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse) | Returns a batch of leaves in a sequential range. |
 | GetLeavesByHash | [GetLeavesByHashRequest](#trillian.GetLeavesByHashRequest) | [GetLeavesByHashResponse](#trillian.GetLeavesByHashResponse) | Returns a batch of leaves by their `merkle_leaf_hash` values. |

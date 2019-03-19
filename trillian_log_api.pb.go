@@ -1896,7 +1896,6 @@ type TrillianLogClient interface {
 	// Adds a single leaf to the queue.
 	QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*QueueLeafResponse, error)
 	// Adds a single leaf with an assigned sequence number.
-	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaf(ctx context.Context, in *AddSequencedLeafRequest, opts ...grpc.CallOption) (*AddSequencedLeafResponse, error)
 	// Returns inclusion proof for a leaf with a given index in a given tree.
 	// If the requested tree_size is larger than the server is aware of,
@@ -1927,8 +1926,6 @@ type TrillianLogClient interface {
 	// Stores leaves from the provided batch and associates them with the log
 	// positions according to the `LeafIndex` field. The indices must be
 	// contiguous.
-	//
-	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaves(ctx context.Context, in *AddSequencedLeavesRequest, opts ...grpc.CallOption) (*AddSequencedLeavesResponse, error)
 	// Returns a batch of leaves located in the provided positions.
 	GetLeavesByIndex(ctx context.Context, in *GetLeavesByIndexRequest, opts ...grpc.CallOption) (*GetLeavesByIndexResponse, error)
@@ -2077,7 +2074,6 @@ type TrillianLogServer interface {
 	// Adds a single leaf to the queue.
 	QueueLeaf(context.Context, *QueueLeafRequest) (*QueueLeafResponse, error)
 	// Adds a single leaf with an assigned sequence number.
-	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaf(context.Context, *AddSequencedLeafRequest) (*AddSequencedLeafResponse, error)
 	// Returns inclusion proof for a leaf with a given index in a given tree.
 	// If the requested tree_size is larger than the server is aware of,
@@ -2108,8 +2104,6 @@ type TrillianLogServer interface {
 	// Stores leaves from the provided batch and associates them with the log
 	// positions according to the `LeafIndex` field. The indices must be
 	// contiguous.
-	//
-	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaves(context.Context, *AddSequencedLeavesRequest) (*AddSequencedLeavesResponse, error)
 	// Returns a batch of leaves located in the provided positions.
 	GetLeavesByIndex(context.Context, *GetLeavesByIndexRequest) (*GetLeavesByIndexResponse, error)

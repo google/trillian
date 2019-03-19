@@ -42,7 +42,6 @@ service TrillianLog {
   }
 
   // Adds a single leaf with an assigned sequence number.
-  // Warning: This RPC is under development, don't use it.
   rpc AddSequencedLeaf(AddSequencedLeafRequest)
       returns (AddSequencedLeafResponse) {
     option (google.api.http) = {
@@ -132,8 +131,6 @@ service TrillianLog {
   // Stores leaves from the provided batch and associates them with the log
   // positions according to the `LeafIndex` field. The indices must be
   // contiguous.
-  //
-  // Warning: This RPC is under development, don't use it.
   rpc AddSequencedLeaves(AddSequencedLeavesRequest)
       returns (AddSequencedLeavesResponse) {}
 
