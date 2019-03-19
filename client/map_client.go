@@ -102,7 +102,7 @@ func hasDuplicates(indexes [][]byte) error {
 	return nil
 }
 
-// SetAndVerifyMapLeaves calls SetLeaves and verifies the returned map root.
+// SetAndVerifyMapLeaves calls SetLeaves and verifies the signature of the returned map root.
 func (c *MapClient) SetAndVerifyMapLeaves(ctx context.Context, leaves []*trillian.MapLeaf, metadata []byte) (*types.MapRootV1, error) {
 	// Set new leaf values.
 	req := &trillian.SetMapLeavesRequest{
@@ -113,7 +113,7 @@ func (c *MapClient) SetAndVerifyMapLeaves(ctx context.Context, leaves []*trillia
 	setResp, err := c.Conn.SetLeaves(ctx, req)
 	if err != nil {
 		s := status.Convert(err)
-		return nil, status.Errorf(s.Code(), "map.SetLeaves(): %v", s.Message())
+		return nil, status.Errorf(s.Code(), "map.SetLeaves(MapId: %v): %v", c.MapID, s.Message())
 	}
 	return c.VerifySignedMapRoot(setResp.GetMapRoot())
 }
