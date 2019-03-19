@@ -78,7 +78,6 @@ var (
 	signedRoot1, _     = fixedSigner.SignLogRoot(root1)
 
 	getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
-	getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
 
 	getInclusionProofByHashRequest7  = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
 	getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
@@ -1450,6 +1449,7 @@ type consistProofTest struct {
 	wantHashes  [][]byte
 	noSnap      bool
 	snapErr     error
+	root        *trillian.SignedLogRoot
 	noRoot      bool
 	rootErr     error
 	noRev       bool
@@ -1479,6 +1479,14 @@ func TestGetConsistencyProof(t *testing.T) {
 			req:      getConsistencyProofRequest7,
 			errStr:   "LatestSigned",
 			rootErr:  errors.New("LatestSignedLogRoot() failed"),
+			noRev:    true,
+			noCommit: true,
+		},
+		{
+			// Storage fails to unpack the log root, should result in an error.
+			req:      getConsistencyProofRequest7,
+			errStr:   "not read current log root",
+			root:     corruptLogRoot,
 			noRev:    true,
 			noCommit: true,
 		},
@@ -1553,7 +1561,11 @@ func TestGetConsistencyProof(t *testing.T) {
 			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, test.snapErr)
 		}
 		if !test.noRoot {
-			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, test.rootErr)
+			root := test.root
+			if root == nil {
+				root = signedRoot1
+			}
+			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*root, test.rootErr)
 		}
 		if !test.noRev {
 			mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
@@ -1993,8 +2005,8 @@ type makeRPCFunc func(*TrillianLogRPCServer) error
 
 type txMode int
 
-func nopTX(*storage.MockLogTreeTX)         {}
-func nopStorage(*stestonly.FakeLogStorage) {}
+func nopTX(_ *storage.MockLogTreeTX)         {}
+func nopStorage(_ *stestonly.FakeLogStorage) {}
 
 const (
 	readOnly txMode = iota
