@@ -344,10 +344,8 @@ func (n *NodeID) Equivalent(other NodeID) bool {
 
 	// The first depthBytes must be identical.
 	depthBytes := n.PrefixLenBits / 8
-	for i := 0; i < depthBytes; i++ {
-		if n.Path[i] != other.Path[i] {
-			return false
-		}
+	if !bytes.Equal(n.Path[:depthBytes], other.Path[:depthBytes]) {
+		return false
 	}
 
 	// There may not be a leftover partial byte to compare.
