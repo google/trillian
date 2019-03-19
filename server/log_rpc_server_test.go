@@ -937,182 +937,164 @@ func TestGetProofByHash(t *testing.T) {
 	}
 }
 
-func TestGetProofByIndexBeginTXFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly, nopStorage,
-		func(t *storage.MockLogTreeTX) {},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
-			return err
-		})
-
-	test.executeBeginFailsTest(t, getInclusionProofByIndexRequest25.LogId)
-}
-
-func TestGetProofByIndexGetNodesFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly, nopStorage,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-			t.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-			t.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
-			return err
-		})
-
-	test.executeStorageFailureTest(t, getInclusionProofByIndexRequest7.LogId)
-}
-
-func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fakeStorage := storage.NewMockLogStorage(ctrl)
-	mockTX := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
-
-	// The server expects three nodes from storage but we return only two
-	mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-	mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-	mockTX.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
-	mockTX.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
-		LogStorage:   fakeStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
-	if err == nil || !strings.Contains(err.Error(), "expected 3 nodes") {
-		t.Fatalf("get inclusion proof by index returned no or wrong error when get nodes returns wrong count: %v", err)
-	}
-}
-
-func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fakeStorage := storage.NewMockLogStorage(ctrl)
-	mockTX := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
-
-	// We set this up so one of the returned nodes has the wrong ID
-	mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-	mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-	mockTX.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
-	mockTX.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
-		LogStorage:   fakeStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
-	if err == nil || !strings.Contains(err.Error(), "expected node ") {
-		t.Fatalf("get inclusion proof by index returned no or wrong error when get nodes returns wrong node: %v", err)
-	}
-}
-
-func TestGetProofByIndexCommitFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly, nopStorage,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-			t.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-			t.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
-			return err
-		})
-
-	test.executeCommitFailsTest(t, getInclusionProofByIndexRequest7.LogId)
-}
-
 func TestGetProofByIndex(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fakeStorage := storage.NewMockLogStorage(ctrl)
-	mockTX := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
-
-	mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-	mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-	mockTX.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
-		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
-		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
-	mockTX.EXPECT().Commit().Return(nil)
-	mockTX.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17.LogId, numSnapshots: 1}),
-		LogStorage:   fakeStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	proofResponse, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
-	if err != nil {
-		t.Fatalf("get inclusion proof by index should have succeeded but we got: %v", err)
-	}
-
-	if proofResponse == nil {
-		t.Fatalf("server response was not successful: %v", proofResponse)
-	}
-
-	expectedProof := trillian.Proof{
-		LeafIndex: 2,
-		Hashes: [][]byte{
-			[]byte("nodehash0"),
-			[]byte("nodehash1"),
-			[]byte("nodehash2"),
+	for _, tc := range []struct {
+		name         string
+		setupStorage func(*gomock.Controller, *storage.MockLogStorage)
+		req          *trillian.GetInclusionProofRequest
+		errStr       string
+		wantResp     *trillian.GetInclusionProofResponse
+	}{
+		{
+			name: "begin fails",
+			setupStorage: func(_ *gomock.Controller, s *storage.MockLogStorage) {
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(nil, errors.New("TX"))
+			},
+			req:    &getInclusionProofByIndexRequest25,
+			errStr: "TX",
 		},
-	}
+		{
+			name: "get nodes fails",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
+				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
+				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getInclusionProofByIndexRequest7,
+			errStr: "STORAGE",
+		},
+		{
+			name: "too few nodes",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				// The server expects three nodes from storage but we return only two
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
+				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
+				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getInclusionProofByIndexRequest7,
+			errStr: "expected 3 nodes",
+		},
+		{
+			name: "wrong node",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				// We set this up so one of the returned nodes has the wrong ID
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
+				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
+				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getInclusionProofByIndexRequest7,
+			errStr: "expected node ",
+		},
+		{
+			name: "commit fails",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
+				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
+				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+				tx.EXPECT().Commit().Return(errors.New("COMMIT"))
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getInclusionProofByIndexRequest7,
+			errStr: "COMMIT",
+		},
+		{
+			name: "log root fails",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, errors.New("SLR"))
+				tx.EXPECT().Close().Return(nil)
+				tx.EXPECT().IsOpen().AnyTimes().Return(false)
+			},
+			req:    &getInclusionProofByIndexRequest7,
+			errStr: "SLR",
+		},
+		{
+			name: "bad log root",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*corruptLogRoot, nil)
+				tx.EXPECT().Close().Return(nil)
+				tx.EXPECT().IsOpen().AnyTimes().Return(false)
+			},
+			req:    &getInclusionProofByIndexRequest7,
+			errStr: "not read current log root",
+		},
+		{
+			name: "ok",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
+				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
+				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
+					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
+					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
+					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+				tx.EXPECT().Commit().Return(nil)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req: &getInclusionProofByIndexRequest7,
+			wantResp: &trillian.GetInclusionProofResponse{
+				SignedLogRoot: signedRoot1,
+				Proof: &trillian.Proof{
+					LeafIndex: 2,
+					Hashes: [][]byte{
+						[]byte("nodehash0"),
+						[]byte("nodehash1"),
+						[]byte("nodehash2"),
+					},
+				},
+			},
+		},
+		{
+			name: "skew beyond sth",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req: &getInclusionProofByIndexRequest25,
+			wantResp: &trillian.GetInclusionProofResponse{
+				SignedLogRoot: signedRoot1,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			fakeStorage := storage.NewMockLogStorage(ctrl)
+			tc.setupStorage(ctrl, fakeStorage)
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}),
+				LogStorage:   fakeStorage,
+			}
+			server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+			resp, err := server.GetInclusionProof(context.Background(), tc.req)
+			if len(tc.errStr) > 0 {
+				if err == nil || !strings.Contains(err.Error(), tc.errStr) {
+					t.Errorf("GetInclusionProofByHash(%v)=%v, %v want nil, err containing: %s", tc.req, resp, err, tc.errStr)
+				}
+				return
+			}
 
-	if !proto.Equal(proofResponse.Proof, &expectedProof) {
-		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof)
-	}
-}
-
-func TestGetProofByIndexBeyondSTH(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fakeStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
-
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-	mockTx.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17.LogId, numSnapshots: 1}),
-		LogStorage:   fakeStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	proofResponse, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
-	if err != nil {
-		t.Fatalf("get inclusion proof by index should have succeeded but we got: %v", err)
-	}
-
-	if proofResponse == nil {
-		t.Fatalf("server response was not successful: %v", proofResponse)
-	}
-
-	if proofResponse.Proof != nil {
-		t.Fatalf("expected nil proof but got: %v", proofResponse.Proof)
+			if err != nil || !proto.Equal(tc.wantResp, resp) {
+				t.Errorf("GetInclusionProofByHash(%v)=%v, %v, want: %v, nil", tc.req, resp, err, tc.wantResp)
+			}
+		})
 	}
 }
 
