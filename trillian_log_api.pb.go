@@ -11,6 +11,8 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status1 "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -2111,6 +2113,53 @@ type TrillianLogServer interface {
 	GetLeavesByRange(context.Context, *GetLeavesByRangeRequest) (*GetLeavesByRangeResponse, error)
 	// Returns a batch of leaves by their `merkle_leaf_hash` values.
 	GetLeavesByHash(context.Context, *GetLeavesByHashRequest) (*GetLeavesByHashResponse, error)
+}
+
+// UnimplementedTrillianLogServer can be embedded to have forward compatible implementations.
+type UnimplementedTrillianLogServer struct {
+}
+
+func (*UnimplementedTrillianLogServer) QueueLeaf(ctx context.Context, req *QueueLeafRequest) (*QueueLeafResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method QueueLeaf not implemented")
+}
+func (*UnimplementedTrillianLogServer) AddSequencedLeaf(ctx context.Context, req *AddSequencedLeafRequest) (*AddSequencedLeafResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method AddSequencedLeaf not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetInclusionProof(ctx context.Context, req *GetInclusionProofRequest) (*GetInclusionProofResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetInclusionProof not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *GetInclusionProofByHashRequest) (*GetInclusionProofByHashResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetInclusionProofByHash not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetConsistencyProof(ctx context.Context, req *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetConsistencyProof not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *GetLatestSignedLogRootRequest) (*GetLatestSignedLogRootResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetLatestSignedLogRoot not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *GetSequencedLeafCountRequest) (*GetSequencedLeafCountResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetSequencedLeafCount not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetEntryAndProof(ctx context.Context, req *GetEntryAndProofRequest) (*GetEntryAndProofResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetEntryAndProof not implemented")
+}
+func (*UnimplementedTrillianLogServer) InitLog(ctx context.Context, req *InitLogRequest) (*InitLogResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method InitLog not implemented")
+}
+func (*UnimplementedTrillianLogServer) QueueLeaves(ctx context.Context, req *QueueLeavesRequest) (*QueueLeavesResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method QueueLeaves not implemented")
+}
+func (*UnimplementedTrillianLogServer) AddSequencedLeaves(ctx context.Context, req *AddSequencedLeavesRequest) (*AddSequencedLeavesResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method AddSequencedLeaves not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetLeavesByIndex(ctx context.Context, req *GetLeavesByIndexRequest) (*GetLeavesByIndexResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetLeavesByIndex not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetLeavesByRange(ctx context.Context, req *GetLeavesByRangeRequest) (*GetLeavesByRangeResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetLeavesByRange not implemented")
+}
+func (*UnimplementedTrillianLogServer) GetLeavesByHash(ctx context.Context, req *GetLeavesByHashRequest) (*GetLeavesByHashResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method GetLeavesByHash not implemented")
 }
 
 func RegisterTrillianLogServer(s *grpc.Server, srv TrillianLogServer) {

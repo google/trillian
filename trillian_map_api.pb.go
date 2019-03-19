@@ -9,6 +9,8 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -789,6 +791,29 @@ type TrillianMapServer interface {
 	GetSignedMapRoot(context.Context, *GetSignedMapRootRequest) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(context.Context, *GetSignedMapRootByRevisionRequest) (*GetSignedMapRootResponse, error)
 	InitMap(context.Context, *InitMapRequest) (*InitMapResponse, error)
+}
+
+// UnimplementedTrillianMapServer can be embedded to have forward compatible implementations.
+type UnimplementedTrillianMapServer struct {
+}
+
+func (*UnimplementedTrillianMapServer) GetLeaves(ctx context.Context, req *GetMapLeavesRequest) (*GetMapLeavesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLeaves not implemented")
+}
+func (*UnimplementedTrillianMapServer) GetLeavesByRevision(ctx context.Context, req *GetMapLeavesByRevisionRequest) (*GetMapLeavesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLeavesByRevision not implemented")
+}
+func (*UnimplementedTrillianMapServer) SetLeaves(ctx context.Context, req *SetMapLeavesRequest) (*SetMapLeavesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetLeaves not implemented")
+}
+func (*UnimplementedTrillianMapServer) GetSignedMapRoot(ctx context.Context, req *GetSignedMapRootRequest) (*GetSignedMapRootResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSignedMapRoot not implemented")
+}
+func (*UnimplementedTrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req *GetSignedMapRootByRevisionRequest) (*GetSignedMapRootResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSignedMapRootByRevision not implemented")
+}
+func (*UnimplementedTrillianMapServer) InitMap(ctx context.Context, req *InitMapRequest) (*InitMapResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitMap not implemented")
 }
 
 func RegisterTrillianMapServer(s *grpc.Server, srv TrillianMapServer) {
