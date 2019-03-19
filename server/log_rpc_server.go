@@ -420,6 +420,9 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 
 	if req.FirstTreeSize == 0 {
 		// no need to get consistency proof in this case
+		if err := t.commitAndLog(ctx, req.LogId, tx, "GetLatestSignedLogRoot"); err != nil {
+			return nil, err
+		}
 		return r, nil
 	}
 

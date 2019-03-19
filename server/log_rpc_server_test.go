@@ -581,7 +581,6 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			req:         getLogRootRequest1,
 			wantRoot:    trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
 			storageRoot: *signedRoot1,
-			noCommit:    true,
 		},
 	}
 

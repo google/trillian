@@ -189,7 +189,7 @@ func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.L
 	}
 
 	// Verify root update if the tree / the latest signed log root isn't empty.
-	if trusted.TreeSize > 0 && logRoot.TreeSize > 0 {
+	if logRoot.TreeSize > 0 {
 		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(), resp.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}
