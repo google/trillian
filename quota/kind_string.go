@@ -4,6 +4,14 @@ package quota
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Read-0]
+	_ = x[Write-1]
+}
+
 const _Kind_name = "ReadWrite"
 
 var _Kind_index = [...]uint8{0, 4, 9}

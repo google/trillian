@@ -36,6 +36,7 @@ func (m *MockTrillianAdminServer) EXPECT() *MockTrillianAdminServerMockRecorder 
 
 // CreateTree mocks base method
 func (m *MockTrillianAdminServer) CreateTree(arg0 context.Context, arg1 *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTree", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.Tree)
 	ret1, _ := ret[1].(error)
@@ -44,11 +45,13 @@ func (m *MockTrillianAdminServer) CreateTree(arg0 context.Context, arg1 *trillia
 
 // CreateTree indicates an expected call of CreateTree
 func (mr *MockTrillianAdminServerMockRecorder) CreateTree(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTree", reflect.TypeOf((*MockTrillianAdminServer)(nil).CreateTree), arg0, arg1)
 }
 
 // DeleteTree mocks base method
 func (m *MockTrillianAdminServer) DeleteTree(arg0 context.Context, arg1 *trillian.DeleteTreeRequest) (*trillian.Tree, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteTree", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.Tree)
 	ret1, _ := ret[1].(error)
@@ -57,11 +60,13 @@ func (m *MockTrillianAdminServer) DeleteTree(arg0 context.Context, arg1 *trillia
 
 // DeleteTree indicates an expected call of DeleteTree
 func (mr *MockTrillianAdminServerMockRecorder) DeleteTree(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTree", reflect.TypeOf((*MockTrillianAdminServer)(nil).DeleteTree), arg0, arg1)
 }
 
 // GetTree mocks base method
 func (m *MockTrillianAdminServer) GetTree(arg0 context.Context, arg1 *trillian.GetTreeRequest) (*trillian.Tree, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTree", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.Tree)
 	ret1, _ := ret[1].(error)
@@ -70,11 +75,13 @@ func (m *MockTrillianAdminServer) GetTree(arg0 context.Context, arg1 *trillian.G
 
 // GetTree indicates an expected call of GetTree
 func (mr *MockTrillianAdminServerMockRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTree", reflect.TypeOf((*MockTrillianAdminServer)(nil).GetTree), arg0, arg1)
 }
 
 // ListTrees mocks base method
 func (m *MockTrillianAdminServer) ListTrees(arg0 context.Context, arg1 *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListTrees", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.ListTreesResponse)
 	ret1, _ := ret[1].(error)
@@ -83,11 +90,13 @@ func (m *MockTrillianAdminServer) ListTrees(arg0 context.Context, arg1 *trillian
 
 // ListTrees indicates an expected call of ListTrees
 func (mr *MockTrillianAdminServerMockRecorder) ListTrees(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockTrillianAdminServer)(nil).ListTrees), arg0, arg1)
 }
 
 // UndeleteTree mocks base method
 func (m *MockTrillianAdminServer) UndeleteTree(arg0 context.Context, arg1 *trillian.UndeleteTreeRequest) (*trillian.Tree, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UndeleteTree", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.Tree)
 	ret1, _ := ret[1].(error)
@@ -96,11 +105,13 @@ func (m *MockTrillianAdminServer) UndeleteTree(arg0 context.Context, arg1 *trill
 
 // UndeleteTree indicates an expected call of UndeleteTree
 func (mr *MockTrillianAdminServerMockRecorder) UndeleteTree(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UndeleteTree", reflect.TypeOf((*MockTrillianAdminServer)(nil).UndeleteTree), arg0, arg1)
 }
 
 // UpdateTree mocks base method
 func (m *MockTrillianAdminServer) UpdateTree(arg0 context.Context, arg1 *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateTree", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.Tree)
 	ret1, _ := ret[1].(error)
@@ -109,5 +120,6 @@ func (m *MockTrillianAdminServer) UpdateTree(arg0 context.Context, arg1 *trillia
 
 // UpdateTree indicates an expected call of UpdateTree
 func (mr *MockTrillianAdminServerMockRecorder) UpdateTree(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTree", reflect.TypeOf((*MockTrillianAdminServer)(nil).UpdateTree), arg0, arg1)
 }
