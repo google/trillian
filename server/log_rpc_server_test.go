@@ -231,6 +231,8 @@ func TestGetLeavesByRange(t *testing.T) {
 		adminErr     error
 		txErr        error
 		getErr       error
+		slrErr       error
+		root         *trillian.SignedLogRoot
 		want         []*trillian.LogLeaf
 		wantErr      string
 	}{
@@ -250,6 +252,19 @@ func TestGetLeavesByRange(t *testing.T) {
 			count:   1,
 			txErr:   errors.New("test error xyzzy"),
 			wantErr: "test error xyzzy",
+		},
+		{
+			start:   1,
+			count:   1,
+			root:    signedRoot1,
+			slrErr:  errors.New("SLR"),
+			wantErr: "SLR",
+		},
+		{
+			start:   1,
+			count:   1,
+			root:    corruptLogRoot,
+			wantErr: "not read current log root",
 		},
 		{
 			start:   1,
@@ -299,13 +314,20 @@ func TestGetLeavesByRange(t *testing.T) {
 				if test.txErr != nil {
 					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(nil, test.txErr)
 				} else {
+					root := test.root
+					if root == nil {
+						root = signedRoot1
+					}
 					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(mockTX, nil)
-					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-					if test.getErr != nil {
-						mockTX.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
-					} else {
-						mockTX.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(test.want, nil)
-						mockTX.EXPECT().Commit().Return(nil)
+					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*root, test.slrErr)
+
+					if test.root == nil {
+						if test.getErr != nil {
+							mockTX.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
+						} else {
+							mockTX.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(test.want, nil)
+							mockTX.EXPECT().Commit().Return(nil)
+						}
 					}
 					mockTX.EXPECT().Close().Return(nil)
 				}
@@ -2104,16 +2126,4 @@ func addTreeID(tree *trillian.Tree, treeID int64) *trillian.Tree {
 	newTree := proto.Clone(tree).(*trillian.Tree)
 	newTree.TreeId = treeID
 	return newTree
-}
-
-type protoMatcher struct {
-	target proto.Message
-}
-
-func (p *protoMatcher) Matches(other proto.Message) bool {
-	return proto.Equal(p.target, other)
-}
-
-func (p *protoMatcher) String() string {
-	return fmt.Sprintf("is proto: %v", proto.MarshalTextString(p.target))
 }
