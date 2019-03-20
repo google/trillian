@@ -17,21 +17,26 @@ to update CTFE first.
 
 All the fields marked as deprecated in this proto have been removed. All
 the same fields are available via the TLS marshalled log root in the proto.
-Updating affected code is straightforward. For example HTTP handler code that
-needs to use these fields can do something like:
+Updating affected code is straightforward. 
 
-```
-var currentRoot types.LogRootV1
-if err := currentRoot.UnmarshalBinary(rsp.GetSignedLogRoot().GetLogRoot()); err != nil {
-	return http.StatusInternalServerError, fmt.Errorf("failed to unmarshal root: %v", err))
-	}
-if currentRoot.TreeSize == 0 {
-  // Do stuff.
+Normally, clients will want to verify that the signed root is correctly signed.
+This is the preferred way to interact with the root data.
+
+There is a utility function provided that will verify the signature and unpack
+the TLS data. It works well in conjunction with a `LogVerifier`. The public key
+of the server is required.
+
+```go
+verifier := client.NewLogVerifier(rfc6962.DefaultHasher, pk, crypto.SHA256)
+root, err := crypto.VerifySignedLogRoot(verifier.PubKey, verifier.SigHash, resp.SignedLogRoot)
+if err != nil {
+  // Signature verified and unmarshalled correctly. The struct may now
+  // be used.
+  if root.TreeSize > 0 {
+    // Non empty tree.
+  }
 }
 ```
-
-For non HTTP handler code the error wrapping will differ but the unmarshalling
-is the same.
 
 ### Configurable number of idle connections on MySQL
 
