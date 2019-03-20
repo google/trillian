@@ -11,8 +11,6 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	field_mask "google.golang.org/genproto/protobuf/field_mask"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -506,29 +504,6 @@ type TrillianAdminServer interface {
 	// A soft-deleted tree may be undeleted for a certain period, after which
 	// it'll be permanently deleted.
 	UndeleteTree(context.Context, *UndeleteTreeRequest) (*Tree, error)
-}
-
-// UnimplementedTrillianAdminServer can be embedded to have forward compatible implementations.
-type UnimplementedTrillianAdminServer struct {
-}
-
-func (*UnimplementedTrillianAdminServer) ListTrees(ctx context.Context, req *ListTreesRequest) (*ListTreesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListTrees not implemented")
-}
-func (*UnimplementedTrillianAdminServer) GetTree(ctx context.Context, req *GetTreeRequest) (*Tree, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTree not implemented")
-}
-func (*UnimplementedTrillianAdminServer) CreateTree(ctx context.Context, req *CreateTreeRequest) (*Tree, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateTree not implemented")
-}
-func (*UnimplementedTrillianAdminServer) UpdateTree(ctx context.Context, req *UpdateTreeRequest) (*Tree, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateTree not implemented")
-}
-func (*UnimplementedTrillianAdminServer) DeleteTree(ctx context.Context, req *DeleteTreeRequest) (*Tree, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteTree not implemented")
-}
-func (*UnimplementedTrillianAdminServer) UndeleteTree(ctx context.Context, req *UndeleteTreeRequest) (*Tree, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UndeleteTree not implemented")
 }
 
 func RegisterTrillianAdminServer(s *grpc.Server, srv TrillianAdminServer) {

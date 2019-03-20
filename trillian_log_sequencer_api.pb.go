@@ -63,10 +63,6 @@ func NewTrillianLogSequencerClient(cc *grpc.ClientConn) TrillianLogSequencerClie
 type TrillianLogSequencerServer interface {
 }
 
-// UnimplementedTrillianLogSequencerServer can be embedded to have forward compatible implementations.
-type UnimplementedTrillianLogSequencerServer struct {
-}
-
 func RegisterTrillianLogSequencerServer(s *grpc.Server, srv TrillianLogSequencerServer) {
 	s.RegisterService(&_TrillianLogSequencer_serviceDesc, srv)
 }

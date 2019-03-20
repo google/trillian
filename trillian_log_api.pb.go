@@ -11,8 +11,6 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status1 "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -623,12 +621,14 @@ func (m *GetConsistencyProofResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetLatestSignedLogRootRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
-	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
-	FirstTreeSize        int64     `protobuf:"varint,3,opt,name=first_tree_size,json=firstTreeSize,proto3" json:"first_tree_size,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	LogId    int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	ChargeTo *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
+	// If first_tree_size is non-zero, the response will include a consistency
+	// proof between first_tree_size and the new tree size (if not smaller).
+	FirstTreeSize        int64    `protobuf:"varint,3,opt,name=first_tree_size,json=firstTreeSize,proto3" json:"first_tree_size,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *GetLatestSignedLogRootRequest) Reset()         { *m = GetLatestSignedLogRootRequest{} }
@@ -678,11 +678,13 @@ func (m *GetLatestSignedLogRootRequest) GetFirstTreeSize() int64 {
 }
 
 type GetLatestSignedLogRootResponse struct {
-	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
-	Proof                *Proof         `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	SignedLogRoot *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
+	// proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
+	// non-zero and the new tree size is not smaller than first_tree_size.
+	Proof                *Proof   `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *GetLatestSignedLogRootResponse) Reset()         { *m = GetLatestSignedLogRootResponse{} }
@@ -2130,53 +2132,6 @@ type TrillianLogServer interface {
 	GetLeavesByRange(context.Context, *GetLeavesByRangeRequest) (*GetLeavesByRangeResponse, error)
 	// Returns a batch of leaves by their `merkle_leaf_hash` values.
 	GetLeavesByHash(context.Context, *GetLeavesByHashRequest) (*GetLeavesByHashResponse, error)
-}
-
-// UnimplementedTrillianLogServer can be embedded to have forward compatible implementations.
-type UnimplementedTrillianLogServer struct {
-}
-
-func (*UnimplementedTrillianLogServer) QueueLeaf(ctx context.Context, req *QueueLeafRequest) (*QueueLeafResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method QueueLeaf not implemented")
-}
-func (*UnimplementedTrillianLogServer) AddSequencedLeaf(ctx context.Context, req *AddSequencedLeafRequest) (*AddSequencedLeafResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method AddSequencedLeaf not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetInclusionProof(ctx context.Context, req *GetInclusionProofRequest) (*GetInclusionProofResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetInclusionProof not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *GetInclusionProofByHashRequest) (*GetInclusionProofByHashResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetInclusionProofByHash not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetConsistencyProof(ctx context.Context, req *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetConsistencyProof not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *GetLatestSignedLogRootRequest) (*GetLatestSignedLogRootResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetLatestSignedLogRoot not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *GetSequencedLeafCountRequest) (*GetSequencedLeafCountResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetSequencedLeafCount not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetEntryAndProof(ctx context.Context, req *GetEntryAndProofRequest) (*GetEntryAndProofResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetEntryAndProof not implemented")
-}
-func (*UnimplementedTrillianLogServer) InitLog(ctx context.Context, req *InitLogRequest) (*InitLogResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method InitLog not implemented")
-}
-func (*UnimplementedTrillianLogServer) QueueLeaves(ctx context.Context, req *QueueLeavesRequest) (*QueueLeavesResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method QueueLeaves not implemented")
-}
-func (*UnimplementedTrillianLogServer) AddSequencedLeaves(ctx context.Context, req *AddSequencedLeavesRequest) (*AddSequencedLeavesResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method AddSequencedLeaves not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetLeavesByIndex(ctx context.Context, req *GetLeavesByIndexRequest) (*GetLeavesByIndexResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetLeavesByIndex not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetLeavesByRange(ctx context.Context, req *GetLeavesByRangeRequest) (*GetLeavesByRangeResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetLeavesByRange not implemented")
-}
-func (*UnimplementedTrillianLogServer) GetLeavesByHash(ctx context.Context, req *GetLeavesByHashRequest) (*GetLeavesByHashResponse, error) {
-	return nil, status1.Errorf(codes.Unimplemented, "method GetLeavesByHash not implemented")
 }
 
 func RegisterTrillianLogServer(s *grpc.Server, srv TrillianLogServer) {
