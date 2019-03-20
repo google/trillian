@@ -198,8 +198,6 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 
 // SetBit sets the ith bit to true if b is non-zero, and false otherwise.
 func (n *NodeID) SetBit(i int, b uint) {
-	// TODO(al): investigate whether having lookup tables for these might be
-	// faster.
 	bIndex := (n.PathLenBits() - i - 1) / 8
 	if b == 0 {
 		n.Path[bIndex] &= ^(1 << uint(i%8))
