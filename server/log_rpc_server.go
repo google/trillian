@@ -689,11 +689,7 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 	return fetchNodesAndBuildProof(ctx, tx, hasher, rev, leafIndex, proofNodeIDs)
 }
 
-func (t *TrillianLogRPCServer) getTreeAndHasher(
-	ctx context.Context,
-	treeID int64,
-	opts trees.GetOpts,
-) (*trillian.Tree, hashers.LogHasher, error) {
+func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, hashers.LogHasher, error) {
 	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
 	if err != nil {
 		return nil, nil, err
