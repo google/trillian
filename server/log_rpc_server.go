@@ -237,7 +237,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetInclusionProof")
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -291,7 +291,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetInclusionProofByHash")
 
 	// Find the leaf index of the supplied hash
 	leafHashes := [][]byte{req.LeafHash}
@@ -360,7 +360,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetConsistencyProof")
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -414,7 +414,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLatestSignedLogRoot")
 
 	signedRoot, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -441,7 +441,7 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetSequencedLeafCount")
 
 	leafCount, err := tx.GetSequencedLeafCount(ctx)
 	if err != nil {
@@ -474,7 +474,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByIndex")
 
 	leaves, err := tx.GetLeavesByIndex(ctx, req.LeafIndex)
 	if err != nil {
@@ -511,7 +511,7 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRange")
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -557,7 +557,7 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByHash")
 
 	leaves, err := tx.GetLeavesByHash(ctx, req.LeafHash, req.OrderBySequence)
 	if err != nil {
@@ -601,7 +601,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetEntryAndProof")
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -655,6 +655,13 @@ func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, logID int64, tx
 		glog.Warningf("%v: Commit failed for %v: %v", logID, op, err)
 	}
 	return err
+}
+
+func (t *TrillianLogRPCServer) closeAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyLogTreeTX, op string) {
+	err := tx.Close()
+	if err != nil {
+		glog.Warningf("%v: Close failed for %v: %v", logID, op, err)
+	}
 }
 
 // getInclusionProofForLeafIndex is used by multiple handlers. It does the storage fetching
