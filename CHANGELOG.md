@@ -11,9 +11,13 @@ in addition to a locally running mysql instance.
 
 ### Deprecated Fields Removed From SignedLogRoot Proto
 
-*Important Note*: If this version of logserver is deployed in conjuction with
-a CTFE that's older than about 11 months it won't work properly. Make sure
-to update CTFE first.
+*Important Note*: For use in Certificate Transparency this version of the
+logserver binary won't work properly with an older CTFE. Make sure to update the
+CTFE servers to a current version (built from a git checkout after March 20th
+2019) before deploying logservers that include this change or deploy them
+together with this release. Failure to do this can result in 5XX errors being
+returned to clients when the old handler code tries to access fields in
+responses that no longer exist.
 
 All the fields marked as deprecated in this proto have been removed. All
 the same fields are available via the TLS marshalled log root in the proto.
