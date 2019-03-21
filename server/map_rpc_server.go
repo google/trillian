@@ -113,7 +113,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	if err != nil {
 		return nil, fmt.Errorf("could not create database snapshot: %v", err)
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRevision")
 
 	var root *trillian.SignedMapRoot
 	if revision < 0 {
@@ -332,7 +332,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetSignedMapRoot")
 
 	r, err := tx.LatestSignedMapRoot(ctx)
 	if err != nil {
@@ -365,7 +365,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetSignedMapRootByRevision")
 
 	r, err := tx.GetSignedMapRoot(ctx, req.Revision)
 	if err != nil {
@@ -443,4 +443,11 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 	return &trillian.InitMapResponse{
 		Created: rev0Root,
 	}, nil
+}
+
+func (t *TrillianMapServer) closeAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyMapTreeTX, op string) {
+	err := tx.Close()
+	if err != nil {
+		glog.Warningf("%v: Close failed for %v: %v", logID, op, err)
+	}
 }
