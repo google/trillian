@@ -25,7 +25,7 @@ deployment on Google Cloud using Kubernetes and Cloud Spanner.
 1. Create a new project
 1. Edit the [example-config.sh](example-config.sh) file, set `PROJECT_ID` to
    the ID of your project
-1. Run: `./create.sh`.
+1. Run: `./create.sh example-config.sh`.
    This script will create the Kubernetes cluster, node pools, and Spanner
    database, service account and etcd cluster.
    It should take about 5 to 10 minutes to finish and must complete without
