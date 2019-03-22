@@ -3,10 +3,28 @@
 # This script (optionally) creates and then prepares a Google Cloud project to host a
 # Trillian instance using Kubernetes.
 
+function checkEnv() {
+  if [ -z ${PROJECT_ID+x} ] ||
+     [ -z ${CLUSTER_NAME+x} ] ||
+     [ -z ${REGION+x} ] ||
+     [ -z ${NODE_LOCATIONS+x} ] ||
+     [ -z ${MASTER_ZONE+x} ] ||
+     [ -z ${CONFIGMAP+x} ] ||
+     [ -z ${POOLSIZE+x} ] ||
+     [ -z ${MACHINE_TYPE+x} ]; then
+    echo "You must either pass an argument which is a config file, or set all the required environment variables" >&2
+    exit 1
+  fi
+}
+
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source ${DIR}/config.sh
+if [ $# -eq 1 ]; then
+  source $1
+else
+  checkEnv
+fi
 
 # Check required binaries are installed
 if ! gcloud --help > /dev/null; then
