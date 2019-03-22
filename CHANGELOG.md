@@ -9,6 +9,39 @@ Not yet released; provisionally v2.0.0 (may change).
 Support has been added for testing against a locally running mysql docker image,
 in addition to a locally running mysql instance.
 
+### Deprecated Fields Removed From SignedLogRoot Proto
+
+*Important Note*: For use in Certificate Transparency this version of the
+logserver binary won't work properly with an older CTFE. Make sure to update the
+CTFE servers to a current version (built from a git checkout after March 20th
+2019) before deploying logservers that include this change or deploy them
+together with this release. Failure to do this can result in 5XX errors being
+returned to clients when the old handler code tries to access fields in
+responses that no longer exist.
+
+All the fields marked as deprecated in this proto have been removed. All
+the same fields are available via the TLS marshalled log root in the proto.
+Updating affected code is straightforward. 
+
+Normally, clients will want to verify that the signed root is correctly signed.
+This is the preferred way to interact with the root data.
+
+There is a utility function provided that will verify the signature and unpack
+the TLS data. It works well in conjunction with a `LogVerifier`. The public key
+of the server is required.
+
+```go
+verifier := client.NewLogVerifier(rfc6962.DefaultHasher, pk, crypto.SHA256)
+root, err := crypto.VerifySignedLogRoot(verifier.PubKey, verifier.SigHash, resp.SignedLogRoot)
+if err != nil {
+  // Signature verified and unmarshalled correctly. The struct may now
+  // be used.
+  if root.TreeSize > 0 {
+    // Non empty tree.
+  }
+}
+```
+
 ### Configurable number of idle connections on MySQL
 
 This version adds a new flag `-mysql_max_idle_conns` to specify the number of
