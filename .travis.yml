@@ -2,7 +2,7 @@ sudo: true  # Only to move mysql onto ramdisk.
 os: linux
 dist: xenial
 language: go
-go: "1.10"
+go: "1.11.x"
 go_import_path: github.com/google/trillian
 
 addons:
@@ -18,9 +18,9 @@ cache:
 env:
   - WITH_COVERAGE=true
   - GOFLAGS='-race'
-  - GOFLAGS='-race --tags batched_queue'
+  - GOFLAGS='-race --tags=batched_queue'
   - GOFLAGS='-race' WITH_ETCD=true
-  - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
+  - GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
   - WITH_DOCKER_TESTS=true
 
 matrix:
