@@ -127,6 +127,23 @@ func (t *Tree) CurrentRoot() []byte {
 	return t.root
 }
 
+// String describes the internal state of the compact Tree.
+func (t *Tree) String() string {
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("Tree Nodes @ %d root=%x\n", t.size, t.root))
+	mask := int64(1)
+	numBits := bits.Len64(uint64(t.size))
+	for bit := 0; bit < numBits; bit++ {
+		if t.size&mask != 0 {
+			buf.WriteString(fmt.Sprintf("%d:  %s\n", bit, base64.StdEncoding.EncodeToString(t.nodes[bit][:])))
+		} else {
+			buf.WriteString(fmt.Sprintf("%d:  -\n", bit))
+		}
+		mask <<= 1
+	}
+	return buf.String()
+}
+
 type setNodeFunc func(depth int, index int64, hash []byte) error
 
 func (t *Tree) recalculateRoot(f setNodeFunc) error {
