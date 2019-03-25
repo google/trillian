@@ -26,6 +26,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
@@ -532,7 +533,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 		Return([]*trillian.QueuedLogLeaf{{Status: status.New(codes.OK, "OK").Proto()}}, nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{addSeqRequest0.LogId, true, 1, nil, nil}),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{addSeqRequest0.LogId, true, 1, nil, nil, false}),
 		LogStorage:   mockStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1954,15 +1955,25 @@ func TestInitLog(t *testing.T) {
 	for _, tc := range []struct {
 		desc       string
 		preordered bool
+		signFail   bool
+		snapErr    error
+		treeErr    error
 		getRootErr error
+		storeErr   error
 		wantInit   bool
 		slr        trillian.SignedLogRoot
 		wantCode   codes.Code
+		wantErrStr string
 	}{
+		{desc: "snap err", snapErr: errors.New("snap"), wantCode: codes.FailedPrecondition, wantErrStr: "snap"},
+		{desc: "tree err", treeErr: errors.New("tree"), wantCode: codes.FailedPrecondition, wantErrStr: "tree"},
+		{desc: "root err", getRootErr: errors.New("root"), wantCode: codes.FailedPrecondition, wantErrStr: "root"},
+		{desc: "sign fail", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, signFail: true, wantCode: codes.FailedPrecondition, wantErrStr: "Signer()=signature alg"},
+		{desc: "store fail", getRootErr: storage.ErrTreeNeedsInit, storeErr: errors.New("store"), wantInit: true, wantCode: codes.FailedPrecondition},
 		{desc: "init new log", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, wantCode: codes.OK},
 		{desc: "init new preordered log", preordered: true, getRootErr: storage.ErrTreeNeedsInit, wantInit: true, wantCode: codes.OK},
-		{desc: "init new log, no err", getRootErr: nil, wantInit: true, wantCode: codes.OK},
-		{desc: "init already initialised log", getRootErr: nil, wantInit: false, slr: *signedRoot, wantCode: codes.AlreadyExists},
+		{desc: "init new log, no err", wantInit: true, wantCode: codes.OK},
+		{desc: "init already initialised log", wantInit: false, slr: *signedRoot, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -1970,39 +1981,45 @@ func TestInitLog(t *testing.T) {
 
 			mockTX := storage.NewMockLogTreeTX(ctrl)
 			fakeStorage := &stestonly.FakeLogStorage{TX: mockTX}
-			if tc.getRootErr != nil {
-				mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, tc.getRootErr)
-			} else {
-
-				mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(tc.slr, nil)
+			if tc.snapErr == nil && tc.treeErr == nil {
+				if tc.getRootErr != nil {
+					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, tc.getRootErr)
+				} else {
+					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(tc.slr, nil)
+				}
+				mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
+				mockTX.EXPECT().Close().Return(nil)
 			}
-			mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
-			mockTX.EXPECT().Close().Return(nil)
-			if tc.wantInit {
-				mockTX.EXPECT().Commit().Return(nil)
-				mockTX.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any())
+			if tc.wantInit && !tc.signFail {
+				if tc.storeErr == nil {
+					mockTX.EXPECT().Commit().Return(nil)
+				}
+				mockTX.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any()).Return(tc.storeErr)
 			}
 
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorage(ctrl, storageParams{logID1, tc.preordered, 1, nil, nil}),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{logID1, tc.preordered, 1, tc.snapErr, tc.treeErr, tc.signFail}),
 				LogStorage:   fakeStorage,
 			}
 			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
 			c, err := logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: logID1})
 			if got, want := status.Code(err), tc.wantCode; got != want {
-				t.Errorf("InitLog returned %v (%v), want %v", got, err, want)
+				t.Errorf("InitLog()=%v,%v, want err code: %v", c, got, want)
 			}
-			if tc.wantInit {
+			if len(tc.wantErrStr) > 0 && !strings.Contains(err.Error(), tc.wantErrStr) {
+				t.Errorf("InitLog()=%v,%v, want err containing: %s", c, err, tc.wantErrStr)
+			}
+			if tc.wantInit && !tc.signFail && tc.storeErr == nil {
 				if err != nil {
-					t.Fatalf("InitLog returned %v, want no error", err)
+					t.Fatalf("InitLog()=%v,%v want err=nil", c, err)
 				}
 				if c.Created == nil {
-					t.Error("InitLog first attempt didn't return the created STH.")
+					t.Error("InitLog first attempt didn't return a created STH.")
 				}
 			} else {
 				if err == nil {
-					t.Errorf("InitLog returned nil, want error")
+					t.Errorf("InitLog()=%v,%v want err", c, err)
 				}
 			}
 		})
@@ -2063,7 +2080,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil}),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil, false}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -2117,7 +2134,7 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T, logID int64)
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil}),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil, false}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -2139,7 +2156,7 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T, logID int64) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil}),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil, false}),
 		LogStorage:   logStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -2155,6 +2172,7 @@ type storageParams struct {
 	numSnapshots int
 	snapErr      error
 	treeErr      error
+	badSigAlg    bool
 }
 
 func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
@@ -2163,6 +2181,12 @@ func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.Adm
 		tree = *stestonly.PreorderedLogTree
 	}
 	tree.TreeId = params.treeID
+
+	if params.badSigAlg {
+		// Force the algorithm to one that can't be signed, which will provoke
+		// an error.
+		tree.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
+	}
 
 	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
