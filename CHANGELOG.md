@@ -54,7 +54,7 @@ This version adds a new flag `-mysql_max_idle_conns` to specify the number of
 idle database connections in the pool. Defaults to -1 which uses the Go default.
 Go default is currently set at 2 but could change in future releases.
 
-### Server Verification
+### Server verification of leaf hashes
 
 The log server now verifies that leaf hashes are the correct length and returns
 an InvalidArgument error if they are not. Previously, GetLeavesByHash would
