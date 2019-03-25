@@ -755,7 +755,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	logID := req.LogId
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogInit)
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
+		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher()=%v", err)
 	}
 
 	var newRoot *trillian.SignedLogRoot
@@ -764,7 +764,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 
 		latestRoot, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil && err != storage.ErrTreeNeedsInit {
-			return status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot(): %v", err)
+			return status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot()=%v", err)
 		}
 
 		// Belt and braces check.
@@ -774,7 +774,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 
 		signer, err := trees.Signer(ctx, tree)
 		if err != nil {
-			return status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
+			return status.Errorf(codes.FailedPrecondition, "Signer()=%v", err)
 		}
 
 		root, err := signer.SignLogRoot(&types.LogRootV1{
@@ -787,7 +787,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		newRoot = root
 
 		if err := tx.StoreSignedLogRoot(ctx, *newRoot); err != nil {
-			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)
+			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot()=%v", err)
 		}
 
 		return nil
