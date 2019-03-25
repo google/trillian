@@ -229,7 +229,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 			fakeStorage := storage.NewMockLogStorage(ctrl)
 			tc.setupStorage(ctrl, fakeStorage)
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorageWithErrs(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}, tc.snapErr, tc.treeErr),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
 			}
 			server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -532,7 +532,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 		Return([]*trillian.QueuedLogLeaf{{Status: status.New(codes.OK, "OK").Proto()}}, nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{addSeqRequest0.LogId, true, 1}),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{addSeqRequest0.LogId, true, 1, nil, nil}),
 		LogStorage:   mockStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -748,7 +748,7 @@ func TestGetLeavesByHash(t *testing.T) {
 			fakeStorage := storage.NewMockLogStorage(ctrl)
 			tc.setupStorage(ctrl, fakeStorage)
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorageWithErrs(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}, tc.snapErr, tc.treeErr),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
 			}
 			server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -902,7 +902,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 			fakeStorage := storage.NewMockLogStorage(ctrl)
 			tc.setupStorage(ctrl, fakeStorage)
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorageWithErrs(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}, tc.snapErr, tc.treeErr),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
 			}
 			server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1151,7 +1151,7 @@ func TestGetProofByIndex(t *testing.T) {
 			fakeStorage := storage.NewMockLogStorage(ctrl)
 			tc.setupStorage(ctrl, fakeStorage)
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorageWithErrs(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}, tc.snapErr, tc.treeErr),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
 			}
 			server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1360,7 +1360,7 @@ func TestGetEntryAndProof(t *testing.T) {
 			fakeStorage := storage.NewMockLogStorage(ctrl)
 			tc.setupStorage(ctrl, fakeStorage)
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorageWithErrs(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}, tc.snapErr, tc.treeErr),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
 			}
 			server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1984,7 +1984,7 @@ func TestInitLog(t *testing.T) {
 			}
 
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorage(ctrl, storageParams{logID1, tc.preordered, 1}),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{logID1, tc.preordered, 1, nil, nil}),
 				LogStorage:   fakeStorage,
 			}
 			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -2063,7 +2063,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1}),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -2117,7 +2117,7 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T, logID int64)
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1}),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -2139,7 +2139,7 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T, logID int64) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1}),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil}),
 		LogStorage:   logStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -2153,9 +2153,11 @@ type storageParams struct {
 	treeID       int64
 	preordered   bool
 	numSnapshots int
+	snapErr      error
+	treeErr      error
 }
 
-func fakeAdminStorageWithErrs(ctrl *gomock.Controller, params storageParams, snapErr, treeErr error) storage.AdminStorage {
+func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
 	tree := *stestonly.LogTree
 	if params.preordered {
 		tree = *stestonly.PreorderedLogTree
@@ -2165,16 +2167,12 @@ func fakeAdminStorageWithErrs(ctrl *gomock.Controller, params storageParams, sna
 	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 
-	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(params.numSnapshots).Return(adminTX, snapErr)
-	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(&tree, treeErr)
+	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(params.numSnapshots).Return(adminTX, params.snapErr)
+	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(&tree, params.treeErr)
 	adminTX.EXPECT().Close().MaxTimes(params.numSnapshots).Return(nil)
 	adminTX.EXPECT().Commit().MaxTimes(params.numSnapshots).Return(nil)
 
 	return adminStorage
-}
-
-func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
-	return fakeAdminStorageWithErrs(ctrl, params, nil, nil)
 }
 
 func addTreeID(tree *trillian.Tree, treeID int64) *trillian.Tree {
