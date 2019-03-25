@@ -771,13 +771,13 @@ func TestGetLeavesByHash(t *testing.T) {
 			resp, err := server.GetLeavesByHash(context.Background(), tc.req)
 			if len(tc.errStr) > 0 {
 				if err == nil || !strings.Contains(err.Error(), tc.errStr) {
-					t.Errorf("GetLeavesByHash(%v)=%v, %v want nil, err containing: %s", tc.req, resp, err, tc.errStr)
+					t.Errorf("GetLeavesByHash(%v)=(%v, %v), want (nil, err containing %q)", tc.req, resp, err, tc.errStr)
 				}
 				return
 			}
 
 			if err != nil || !proto.Equal(tc.wantResp, resp) {
-				t.Errorf("GetLeavesByHash(%v)=%v, %v, want: %v, nil", tc.req, resp, err, tc.wantResp)
+				t.Errorf("GetLeavesByHash(%v)=(%v, %v), want (%v, nil)", tc.req, resp, err, tc.wantResp)
 			}
 		})
 	}
@@ -936,13 +936,13 @@ func TestGetProofByHashErrors(t *testing.T) {
 			resp, err := server.GetInclusionProofByHash(context.Background(), tc.req)
 			if len(tc.errStr) > 0 {
 				if err == nil || !strings.Contains(err.Error(), tc.errStr) {
-					t.Errorf("GetInclusionProofByHash(%v)=%v, %v want nil, err containing: %s", tc.req, resp, err, tc.errStr)
+					t.Errorf("GetInclusionProofByHash(%v)=(%v, %v), want (nil, err containing %q)", tc.req, resp, err, tc.errStr)
 				}
 				return
 			}
 
 			if err != nil || !proto.Equal(tc.wantResp, resp) {
-				t.Errorf("GetInclusionProofByHash(%v)=%v, %v, want: %v, nil", tc.req, resp, err, tc.wantResp)
+				t.Errorf("GetInclusionProofByHash(%v)=(%v, %v), want (%v, nil)", tc.req, resp, err, tc.wantResp)
 			}
 		})
 	}
