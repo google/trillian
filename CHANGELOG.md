@@ -6,9 +6,9 @@ Not yet released; provisionally v2.0.0 (may change).
 
 ### GetLatestSignedLogRoot With Consistency Proof
 
-`GetLatestSignedLogRoot` in LogServer also returns a consistency proof if
-possible, in addition to the latest signed log root. This reduces the number
-RPC calls from logClient from 2 to 1 in `getAndVerifyLatestRoot`.
+`GetLatestSignedLogRoot` in the LogServer will return a consistency proof if
+`first_tree_size` > 0. This reduces the number of RPC calls from logClient from
+2 to 1 in `client.getAndVerifyLatestRoot`.
 
 ### Testing
 
