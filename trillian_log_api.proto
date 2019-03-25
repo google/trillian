@@ -239,10 +239,16 @@ message GetConsistencyProofResponse {
 message GetLatestSignedLogRootRequest {
   int64 log_id = 1;
   ChargeTo charge_to = 2;
+  // If first_tree_size is non-zero, the response will include a consistency
+  // proof between first_tree_size and the new tree size (if not smaller).
+  int64 first_tree_size = 3;
 }
 
 message GetLatestSignedLogRootResponse {
   SignedLogRoot signed_log_root = 2;
+  // proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
+  // non-zero and the new tree size is not smaller than first_tree_size.
+  Proof proof = 3;
 }
 
 message GetSequencedLeafCountRequest {

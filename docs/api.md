@@ -338,6 +338,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
 | charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| first_tree_size | [int64](#int64) |  | If first_tree_size is non-zero, the response will include a consistency proof between first_tree_size and the new tree size (if not smaller). |
 
 
 
@@ -353,6 +354,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian.Proof) |  | proof is filled if first_tree_size in GetLatestSignedLogRootRequest is non-zero and the new tree size is not smaller than first_tree_size. |
 
 
 
