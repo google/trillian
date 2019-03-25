@@ -82,7 +82,9 @@ service TrillianLog {
   }
 
   // Returns the latest signed log root for a given tree. Corresponds to the
-  // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
+  // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.  The server will
+  // return InvalidArgument if first_tree_size is greater than the
+  // LatestSignedLogRoot available to that server.
   rpc GetLatestSignedLogRoot(GetLatestSignedLogRootRequest)
       returns (GetLatestSignedLogRootResponse) {
     option (google.api.http) = {
@@ -247,7 +249,7 @@ message GetLatestSignedLogRootRequest {
 message GetLatestSignedLogRootResponse {
   SignedLogRoot signed_log_root = 2;
   // proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
-  // non-zero and the new tree size is not smaller than first_tree_size.
+  // non-zero.
   Proof proof = 3;
 }
 
