@@ -54,6 +54,13 @@ This version adds a new flag `-mysql_max_idle_conns` to specify the number of
 idle database connections in the pool. Defaults to -1 which uses the Go default.
 Go default is currently set at 2 but could change in future releases.
 
+### Server Verification
+
+The log server now verifies that leaf hashes are the correct length and returns
+an InvalidArgument error if they are not. Previously, GetLeavesByHash would
+simply not return any matching leaves for invalid hashes, and
+GetInclusionProofByHash would previously have returned a NotFound error.
+
 ### Client Verification
 
 The map client now verifies that every map leaf is being requested at most once.
