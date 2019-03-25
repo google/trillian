@@ -35,6 +35,7 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 
 // GetTokens mocks base method
 func (m *MockManager) GetTokens(arg0 context.Context, arg1 int, arg2 []Spec) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTokens", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -42,11 +43,13 @@ func (m *MockManager) GetTokens(arg0 context.Context, arg1 int, arg2 []Spec) err
 
 // GetTokens indicates an expected call of GetTokens
 func (mr *MockManagerMockRecorder) GetTokens(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokens", reflect.TypeOf((*MockManager)(nil).GetTokens), arg0, arg1, arg2)
 }
 
 // PeekTokens mocks base method
 func (m *MockManager) PeekTokens(arg0 context.Context, arg1 []Spec) (map[Spec]int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeekTokens", arg0, arg1)
 	ret0, _ := ret[0].(map[Spec]int)
 	ret1, _ := ret[1].(error)
@@ -55,11 +58,13 @@ func (m *MockManager) PeekTokens(arg0 context.Context, arg1 []Spec) (map[Spec]in
 
 // PeekTokens indicates an expected call of PeekTokens
 func (mr *MockManagerMockRecorder) PeekTokens(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeekTokens", reflect.TypeOf((*MockManager)(nil).PeekTokens), arg0, arg1)
 }
 
 // PutTokens mocks base method
 func (m *MockManager) PutTokens(arg0 context.Context, arg1 int, arg2 []Spec) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PutTokens", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -67,11 +72,13 @@ func (m *MockManager) PutTokens(arg0 context.Context, arg1 int, arg2 []Spec) err
 
 // PutTokens indicates an expected call of PutTokens
 func (mr *MockManagerMockRecorder) PutTokens(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutTokens", reflect.TypeOf((*MockManager)(nil).PutTokens), arg0, arg1, arg2)
 }
 
 // ResetQuota mocks base method
 func (m *MockManager) ResetQuota(arg0 context.Context, arg1 []Spec) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResetQuota", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -79,5 +86,6 @@ func (m *MockManager) ResetQuota(arg0 context.Context, arg1 []Spec) error {
 
 // ResetQuota indicates an expected call of ResetQuota
 func (mr *MockManagerMockRecorder) ResetQuota(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetQuota", reflect.TypeOf((*MockManager)(nil).ResetQuota), arg0, arg1)
 }
