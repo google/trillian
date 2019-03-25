@@ -137,6 +137,14 @@ package, extended with a new `Timer` interface that allows mocking `time.Timer`.
 
 The `Sequencer.SignRoot()` method has been removed.
 
+## v1.2.2 - LogServer and logClient improvements
+
+Published 2018-08-20 19:08:00 +0000 UTC
+
+`GetLatestSignedLogRoot` in LogServer also returns a consistency proof if
+possible, in addition to the latest signed log root. This reduces the number
+RPC calls from logClient from 2 to 1 in `getAndVerifyLatestRoot`.
+
 ## v1.2.1 - Map race fixed. TLS client support. LogClient improvements
 
 Published 2018-08-20 10:31:00 +0000 UTC

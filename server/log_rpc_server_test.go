@@ -571,10 +571,10 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			noCommit: true,
 		},
 		{
-			// Test error case where storage fails to commit the tx.
-			req:       getLogRootRequest1,
-			errStr:    "commit",
-			commitErr: errors.New("commit() error"),
+			// Test error case where the log root could not be read
+			req:      getLogRootRequest1,
+			errStr:   "rpc error: code = Internal desc = Could not read current log root: logRootBytes too short",
+			noCommit: true,
 		},
 		{
 			// Test normal case where a root is returned correctly.
