@@ -682,7 +682,7 @@ func (m *GetLatestSignedLogRootRequest) GetFirstTreeSize() int64 {
 type GetLatestSignedLogRootResponse struct {
 	SignedLogRoot *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	// proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
-	// non-zero and the new tree size is not smaller than first_tree_size.
+	// non-zero.
 	Proof                *Proof   `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -1932,7 +1932,9 @@ type TrillianLogClient interface {
 	// the response will include the known log root and an empty proof.
 	GetConsistencyProof(ctx context.Context, in *GetConsistencyProofRequest, opts ...grpc.CallOption) (*GetConsistencyProofResponse, error)
 	// Returns the latest signed log root for a given tree. Corresponds to the
-	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
+	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.  The server will
+	// return InvalidArgument if first_tree_size is greater than the
+	// LatestSignedLogRoot available to that server.
 	GetLatestSignedLogRoot(ctx context.Context, in *GetLatestSignedLogRootRequest, opts ...grpc.CallOption) (*GetLatestSignedLogRootResponse, error)
 	// Returns the total number of leaves that have been integrated into the
 	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
@@ -2110,7 +2112,9 @@ type TrillianLogServer interface {
 	// the response will include the known log root and an empty proof.
 	GetConsistencyProof(context.Context, *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error)
 	// Returns the latest signed log root for a given tree. Corresponds to the
-	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
+	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.  The server will
+	// return InvalidArgument if first_tree_size is greater than the
+	// LatestSignedLogRoot available to that server.
 	GetLatestSignedLogRoot(context.Context, *GetLatestSignedLogRootRequest) (*GetLatestSignedLogRootResponse, error)
 	// Returns the total number of leaves that have been integrated into the
 	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
