@@ -79,7 +79,8 @@ GetInclusionProofByHash would return a NotFound error.
 
 ### Map client
 
-A MapClient has been added to simplify interacting with the map server.
+A [MapClient](client/map_client.go) has been added to simplify interacting with
+the map server.
 
 ### Database Schema
 
