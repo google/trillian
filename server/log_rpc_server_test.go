@@ -57,9 +57,12 @@ var (
 	logID2 = int64(2)
 	logID3 = int64(3)
 
-	leaf1 = newTestLeaf([]byte("value"), []byte("extra"), 1)
-	leaf2 = newTestLeaf([]byte("value2"), []byte("extra"), 2)
-	leaf3 = newTestLeaf([]byte("value3"), []byte("extra3"), 3)
+	leaf1     = newTestLeaf([]byte("value"), []byte("extra"), 1)
+	leafHash1 = []byte("\xcd\x42\x40\x4d\x52\xad\x55\xcc\xfa\x9a\xca\x4a\xdc\x82\x8a\xa5\x80\x0a\xd9\xd3\x85\xa0\x67\x1f\xbc\xbf\x72\x41\x18\x32\x06\x19")
+	leaf2     = newTestLeaf([]byte("value2"), []byte("extra"), 2)
+	leafHash2 = []byte("\x05\x37\xd4\x81\xf7\x3a\x75\x73\x34\x32\x80\x52\xda\x3a\xf9\x62\x6c\xed\x97\x02\x8e\x20\xb8\x49\xf6\x11\x5c\x22\xcd\x76\x51\x97")
+	leaf3     = newTestLeaf([]byte("value3"), []byte("extra3"), 3)
+	leafHash3 = []byte("\x89\xdc\x6a\xe7\xf0\x6a\x9f\x46\xb5\x65\xaf\x03\xea\xb0\xec\xe0\xbf\x60\x24\xd3\x65\x9b\x7e\x3a\x1d\x03\x57\x3c\xfe\xb0\xb5\x9d")
 
 	leaf0Request  = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
 	leaf03Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
@@ -78,10 +81,10 @@ var (
 	root1              = &types.LogRootV1{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, Revision: uint64(revision1)}
 	signedRoot1, _     = fixedSigner.SignLogRoot(root1)
 
-	getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
+	getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{leafHash1, leafHash3}}
 
-	getInclusionProofByHashRequest7  = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
-	getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
+	getInclusionProofByHashRequest7  = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: leafHash1}
+	getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: leafHash2}
 
 	getInclusionProofByIndexRequest7  = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 	getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 25}
@@ -681,7 +684,7 @@ func TestGetLeavesByHash(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return(nil, errors.New("STORAGE"))
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1, leafHash3}, false).Return(nil, errors.New("STORAGE"))
 				tx.EXPECT().Close().AnyTimes()
 			},
 			req:    &getByHashRequest1,
@@ -692,7 +695,7 @@ func TestGetLeavesByHash(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return(nil, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1, leafHash3}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().Commit().Return(errors.New("COMMIT"))
 				tx.EXPECT().Close().AnyTimes()
@@ -705,7 +708,7 @@ func TestGetLeavesByHash(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return(nil, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1, leafHash3}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, errors.New("SLR"))
 				tx.EXPECT().Close().Return(nil)
 				tx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -718,7 +721,7 @@ func TestGetLeavesByHash(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return(nil, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1, leafHash3}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*corruptLogRoot, nil)
 				tx.EXPECT().Close().Return(nil)
 				tx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -727,11 +730,21 @@ func TestGetLeavesByHash(t *testing.T) {
 			errStr: "not read current log root",
 		},
 		{
+			name: "leaf hash too short",
+			req: &trillian.GetLeavesByHashRequest{
+				LeafHash: [][]byte{
+					[]byte("too-short-to-be-a-hash"),
+				},
+				LogId: logID1,
+			},
+			errStr: "GetLeavesByHashRequest.LeafHash[0]: 22 bytes, want 32",
+		},
+		{
 			name: "ok multiple",
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1, leafHash3}, false).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().Commit().Return(nil)
 				tx.EXPECT().Close().Return(nil)
@@ -747,7 +760,9 @@ func TestGetLeavesByHash(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			fakeStorage := storage.NewMockLogStorage(ctrl)
-			tc.setupStorage(ctrl, fakeStorage)
+			if tc.setupStorage != nil {
+				tc.setupStorage(ctrl, fakeStorage)
+			}
 			registry := extension.Registry{
 				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
@@ -756,13 +771,13 @@ func TestGetLeavesByHash(t *testing.T) {
 			resp, err := server.GetLeavesByHash(context.Background(), tc.req)
 			if len(tc.errStr) > 0 {
 				if err == nil || !strings.Contains(err.Error(), tc.errStr) {
-					t.Errorf("GetLeavesByHash(%v)=%v, %v want nil, err containing: %s", tc.req, resp, err, tc.errStr)
+					t.Errorf("GetLeavesByHash(%v)=(%v, %v), want (nil, err containing %q)", tc.req, resp, err, tc.errStr)
 				}
 				return
 			}
 
 			if err != nil || !proto.Equal(tc.wantResp, resp) {
-				t.Errorf("GetLeavesByHash(%v)=%v, %v, want: %v, nil", tc.req, resp, err, tc.wantResp)
+				t.Errorf("GetLeavesByHash(%v)=(%v, %v), want (%v, nil)", tc.req, resp, err, tc.wantResp)
 			}
 		})
 	}
@@ -807,7 +822,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return(nil, errors.New("STORAGE"))
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash2}, false).Return(nil, errors.New("STORAGE"))
 				tx.EXPECT().Close().AnyTimes()
 			},
 			req:    &getInclusionProofByHashRequest25,
@@ -820,7 +835,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
 				tx.EXPECT().Close().Return(nil)
 			},
@@ -834,7 +849,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
 				// The server expects three nodes from storage but we return only two
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 				tx.EXPECT().Close().Return(nil)
@@ -849,7 +864,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
 				// We set this up so one of the returned nodes has the wrong ID
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 				tx.EXPECT().Close().Return(nil)
@@ -862,7 +877,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return(nil, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().Commit().Return(errors.New("COMMIT"))
 				tx.EXPECT().Close().AnyTimes()
@@ -875,7 +890,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return(nil, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, errors.New("SLR"))
 				tx.EXPECT().Close().Return(nil)
 				tx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -888,7 +903,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
-				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return(nil, nil)
+				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*corruptLogRoot, nil)
 				tx.EXPECT().Close().Return(nil)
 				tx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -896,12 +911,23 @@ func TestGetProofByHashErrors(t *testing.T) {
 			req:    &getInclusionProofByHashRequest7,
 			errStr: "not read current log root",
 		},
+		{
+			name: "leaf hash too short",
+			req: &trillian.GetInclusionProofByHashRequest{
+				LeafHash: []byte("too-short-to-be-a-hash"),
+				LogId:    logID1,
+				TreeSize: 7,
+			},
+			errStr: "GetInclusionProofByHashRequest.LeafHash: 22 bytes, want 32",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			fakeStorage := storage.NewMockLogStorage(ctrl)
-			tc.setupStorage(ctrl, fakeStorage)
+			if tc.setupStorage != nil {
+				tc.setupStorage(ctrl, fakeStorage)
+			}
 			registry := extension.Registry{
 				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1, snapErr: tc.snapErr, treeErr: tc.treeErr}),
 				LogStorage:   fakeStorage,
@@ -910,13 +936,13 @@ func TestGetProofByHashErrors(t *testing.T) {
 			resp, err := server.GetInclusionProofByHash(context.Background(), tc.req)
 			if len(tc.errStr) > 0 {
 				if err == nil || !strings.Contains(err.Error(), tc.errStr) {
-					t.Errorf("GetInclusionProofByHash(%v)=%v, %v want nil, err containing: %s", tc.req, resp, err, tc.errStr)
+					t.Errorf("GetInclusionProofByHash(%v)=(%v, %v), want (nil, err containing %q)", tc.req, resp, err, tc.errStr)
 				}
 				return
 			}
 
 			if err != nil || !proto.Equal(tc.wantResp, resp) {
-				t.Errorf("GetInclusionProofByHash(%v)=%v, %v, want: %v, nil", tc.req, resp, err, tc.wantResp)
+				t.Errorf("GetInclusionProofByHash(%v)=(%v, %v), want (%v, nil)", tc.req, resp, err, tc.wantResp)
 			}
 		})
 	}
@@ -941,7 +967,7 @@ func TestGetProofByHash(t *testing.T) {
 			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
 
 			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-			mockTX.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("ahash")}, false).Return(tc.leavesByHashVal, nil)
+			mockTX.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(tc.leavesByHashVal, nil)
 			mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(root1.Revision), nil).AnyTimes()
 			mockTX.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
 				{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
@@ -963,7 +989,7 @@ func TestGetProofByHash(t *testing.T) {
 				&trillian.GetInclusionProofByHashRequest{
 					LogId:    logID1,
 					TreeSize: 7,
-					LeafHash: []byte("ahash"),
+					LeafHash: leafHash1,
 				})
 			if got, want := status.Code(err), tc.wantCode; got != want {
 				t.Fatalf("GetInclusionProofByHash(): %v, want %v", err, want)
@@ -1770,13 +1796,22 @@ func TestTrillianLogRPCServer_GetInclusionProofByHashErrors(t *testing.T) {
 		},
 	}
 
-	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
 	ctx := context.Background()
 	for _, test := range tests {
-		_, err := logServer.GetInclusionProofByHash(ctx, test.req)
-		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
-			t.Errorf("%v: GetInclusionProofByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
+			}
+			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+			_, err := logServer.GetInclusionProofByHash(ctx, test.req)
+			if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+				t.Errorf("%v: GetInclusionProofByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+			}
+		})
 	}
 }
 
@@ -1804,13 +1839,22 @@ func TestTrillianLogRPCServer_GetLeavesByHashErrors(t *testing.T) {
 		},
 	}
 
-	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
 	ctx := context.Background()
 	for _, test := range tests {
-		_, err := logServer.GetLeavesByHash(ctx, test.req)
-		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
-			t.Errorf("%v: GetLeavesByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
+			}
+			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+			_, err := logServer.GetLeavesByHash(ctx, test.req)
+			if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+				t.Errorf("%v: GetLeavesByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+			}
+		})
 	}
 }
 
