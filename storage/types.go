@@ -32,23 +32,27 @@ type Node struct {
 	NodeRevision int64
 }
 
-// NodeID uniquely identifies a Node within a versioned MerkleTree.
-// NodeIDs as presented to the storage layer will always have a multiple
-// of 8 bits as they identify the root of a 256 element subtree.
-//
+// NodeID uniquely identifies a Node within a MerkleTree.
 // Reading paths right to left is the natural order when traversing from
 // leaves towards the root. However, for internal nodes the rightmost bits
 // of the IDs are not aligned on a byte boundary so care must be taken.
 //
+// NodeIDs as presented to the storage layer will always have a multiple
+// of 8 bits as they identify the root of a 256 element subtree.
+//
 // Note that some of the APIs count bits with 0 being the rightmost
 // in the entire path array when some of these might not be significant.
+//
+// See the types.go file that defines this type for more detailed information
+// and docs/storage for how they are used in the on-disk representation of
+// Merkle trees.
 type NodeID struct {
-	// Path is effectively a BigEndian bit set, with Path[0] being the MSB
-	// (identifying the root child), and successive bits identifying the lower
+	// Path is effectively a BigEndian bit set, with the MSB of Path[0]
+	// identifying the root child, and successive bits identifying the lower
 	// level children down to the leaf.
 	Path []byte
-	// PrefixLenBits is the number of MSB in Path which are considered part of
-	// this NodeID.
+	// PrefixLenBits is the number of significant bits in Path, which are
+	// considered part of this NodeID.
 	//
 	// e.g. if Path contains two bytes, and PrefixLenBits is 9, then the 8 bits
 	// in Path[0] are included, along with the MSB of Path[1]. The remaining
@@ -135,7 +139,7 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 		panic(fmt.Sprintf("storage NewNodeFromPrefix(): depth: %v, want >= %v", got, want))
 	}
 
-	// Put prefix in the MSB bits of path.
+	// Put prefix in the left (most significant) bits of path.
 	path := make([]byte, totalDepth/8)
 	copy(path, prefix)
 
