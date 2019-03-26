@@ -25,9 +25,9 @@ together with this release. Failure to do this can result in 5XX errors being
 returned to clients when the old handler code tries to access fields in
 responses that no longer exist.
 
-All the fields marked as deprecated in this proto have been removed. All
-the same fields are available via the TLS marshalled log root in the proto.
-Updating affected code is straightforward. 
+All the fields marked as deprecated in this proto have been removed. All the
+same fields are available via the TLS marshalled log root in the proto. Updating
+affected code is straightforward.
 
 Normally, clients will want to verify that the signed root is correctly signed.
 This is the preferred way to interact with the root data.
@@ -54,14 +54,22 @@ This version adds a new flag `-mysql_max_idle_conns` to specify the number of
 idle database connections in the pool. Defaults to -1 which uses the Go default.
 Go default is currently set at 2 but could change in future releases.
 
-### Client Verification
+### Server validation of leaf hashes
+
+The log server now checks that leaf hashes are the correct length and returns
+an InvalidArgument error if they are not. Previously, GetLeavesByHash would
+simply not return any matching leaves for invalid hashes, and
+GetInclusionProofByHash would return a NotFound error.
+
+### Client validation of map leaf requests
+
 The map client now verifies that every map leaf is being requested at most once.
 This catches potential errors before they go to the server.
 
 ### Database Schema
 
-This version includes a change to the MySQL and Postgres database schemas
-to add an index on the `SequencedLeafData` table.  This improves performance for
+This version includes a change to the MySQL and Postgres database schemas to add
+an index on the `SequencedLeafData` table. This improves performance for
 inclusion proof queries.
 
 ### Deployments
@@ -88,8 +96,8 @@ Invalid value: "": field is immutable`.
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
-`users/<user>/write` are no longer exported by the Trillian binaries (as
-they lead to excessive storage requirements for Trillian metrics).
+`users/<user>/write` are no longer exported by the Trillian binaries (as they
+lead to excessive storage requirements for Trillian metrics).
 
 ### Fix Operation Loop Hang
 

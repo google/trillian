@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/hashers"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -35,22 +36,22 @@ func validateGetInclusionProofRequest(req *trillian.GetInclusionProofRequest) er
 	return nil
 }
 
-func validateGetInclusionProofByHashRequest(req *trillian.GetInclusionProofByHashRequest) error {
+func validateGetInclusionProofByHashRequest(req *trillian.GetInclusionProofByHashRequest, hasher hashers.LogHasher) error {
 	if req.TreeSize <= 0 {
 		return status.Errorf(codes.InvalidArgument, "GetInclusionProofByHashRequest.TreeSize: %v, want > 0", req.TreeSize)
 	}
-	if err := validateLeafHash(req.LeafHash); err != nil {
+	if err := validateLeafHash(req.LeafHash, hasher); err != nil {
 		return status.Errorf(codes.InvalidArgument, "GetInclusionProofByHashRequest.LeafHash: %v", err)
 	}
 	return nil
 }
 
-func validateGetLeavesByHashRequest(req *trillian.GetLeavesByHashRequest) error {
+func validateGetLeavesByHashRequest(req *trillian.GetLeavesByHashRequest, hasher hashers.LogHasher) error {
 	if len(req.LeafHash) == 0 {
 		return status.Error(codes.InvalidArgument, "GetLeavesByHashRequest.LeafHash empty")
 	}
 	for i, hash := range req.LeafHash {
-		if err := validateLeafHash(hash); err != nil {
+		if err := validateLeafHash(hash, hasher); err != nil {
 			return status.Errorf(codes.InvalidArgument, "GetLeavesByHashRequest.LeafHash[%v]: %v", i, err)
 		}
 	}
@@ -147,9 +148,9 @@ func validateLogLeaf(leaf *trillian.LogLeaf, errPrefix string) error {
 	return nil
 }
 
-func validateLeafHash(hash []byte) error {
-	if len(hash) == 0 {
-		return fmt.Errorf("leaf hash empty")
+func validateLeafHash(hash []byte, hasher hashers.LogHasher) error {
+	if got, want := len(hash), hasher.Size(); got != want {
+		return fmt.Errorf("%d bytes, want %d", got, want)
 	}
 	return nil
 }
