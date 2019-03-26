@@ -10,6 +10,13 @@ Google Cloud Spanner is now a supported storage backend for maps.
 
 The admin API calls to list trees backed by Cloud Spanner trees are fixed.
 
+### RPC Server Transaction Leaks Fixed
+
+There were some cases where the RPC server could leak storage transactions in
+error situations. These have now been fixed. If you have a custom storage
+implementation review the fixes made to the MySQL Log storage to see if they
+need to be applied to your code (`storage/mysq/log_storage.go`).
+
 ### GetLatestSignedLogRoot With Consistency Proof
 
 `GetLatestSignedLogRoot` in the LogServer will return a consistency proof if
