@@ -4,6 +4,10 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Google Cloud Spanner support
+
+Google Cloud Spanner is now a supported storage backend for maps.
+
 ### GetLatestSignedLogRoot With Consistency Proof
 
 `GetLatestSignedLogRoot` in the LogServer will return a consistency proof if
@@ -48,11 +52,23 @@ if err != nil {
 }
 ```
 
-### Configurable number of idle connections on MySQL
+### Configurable number of connections for MySQL
 
-This version adds a new flag `-mysql_max_idle_conns` to specify the number of
-idle database connections in the pool. Defaults to -1 which uses the Go default.
-Go default is currently set at 2 but could change in future releases.
+Two new flags have been added that limit connections to MySQL database servers:
+
+-   `--mysql_max_conns` - limits the total number of database connections
+-   `--mysql_max_idle_conns` - limits the number of idle database connections
+
+By default, there is no maximum number of database connections. However, the
+database server will likely impose limits on the number of connections. The
+default limit on idle connections is controlled by
+[Go's `sql` package](https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns).
+
+### Removal of length limits for a tree's `display_name` and `description`
+
+Previously, these were restricted to 20 bytes and 200 bytes respectively. These
+limits have been removed. However, the underlying storage implementation may
+still impose its own limitations.
 
 ### Server validation of leaf hashes
 
@@ -61,10 +77,9 @@ an InvalidArgument error if they are not. Previously, GetLeavesByHash would
 simply not return any matching leaves for invalid hashes, and
 GetInclusionProofByHash would return a NotFound error.
 
-### Client validation of map leaf requests
+### Map client
 
-The map client now verifies that every map leaf is being requested at most once.
-This catches potential errors before they go to the server.
+A MapClient has been added to simplify interacting with the map server.
 
 ### Database Schema
 
@@ -93,6 +108,23 @@ the existing Kubernetes services and redeploy them, otherwise you'll see an
 error similar to `The Service "trillian-log-service" is invalid: spec.clusterIP:
 Invalid value: "": field is immutable`.
 
+A working [Docker Compose](https://docs.docker.com/compose/) configuration is
+now available and can be used to bring up a local Trillian deployment for
+testing and experimental purposes:
+
+```shell
+docker-compose -f examples/deployment/docker-compose.yml up
+```
+
+The Terraform, Kubernetes and Docker configuration files, as well as various
+scripts, all now use the same, consistently-named environment variables for
+MySQL-related data (e.g. `MYSQL_DATABASE`). The variable names are based on
+those for the
+[MySQL Docker image](https://hub.docker.com/_/mysql#environment-variables).
+
+Docker images have been upgraded from Go 1.9 to 1.10. They now use ["Distroless"
+base images](https://github.com/GoogleContainerTools/distroless).
+
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
@@ -109,15 +141,35 @@ until process exit if any error occurred.
 gometalinter has been replaced with golangci-lint for improved performance and
 Go module support.
 
-### Storage API change
+### CompactMerkleTree moved
+
+The CompactMerkleTree has been moved from `github.com/google/trillian/merkle` to
+`github.com/google/trillian/merkle/compact` and renamed `Tree`.
+
+### Storage API changes
 
 The internal storage API is modified so that the ReadOnlyTreeTX.ReadRevision and
 TreeWriter.WriteRevision entrypoints take a context.Context parameter and return
 an optional error.
 
+The `SubtreeCache.GetNodeHash()` method is no longer exported.
+
+The memory storage provider has been refactored to make it more consistent with
+the other storage providers.
+
 ### Maphammer improvements
 
 The maphammer test tool for the experimental Trillian Map has been enhanced.
+
+### Default values changed for some signer flags
+
+The following flags for the signer have new default values:
+
+-   `--sequencer_interval`: changed from 10 seconds to 100 milliseconds
+-   `--batch_size`: changed from 50 to 1000
+
+These changes improve the signer's throughput and latency under typical
+conditions.
 
 ### Master election refactoring
 
@@ -129,6 +181,11 @@ The `--master_check_interval` flag is removed from `logsigner`.
 
 `logsigner` switched to using a new master election interface contained in
 `util/election2` package. The interfaces in `util/election` are removed.
+
+### `CONIKS_SHA256` hash strategy added
+
+Support has been added for a CONIKS sparse tree hasher with SHA256 as the hash
+algorithm. Set a tree's `hash_strategy` to `CONIKS_SHA256` to use it.
 
 ### Performance
 
@@ -143,6 +200,12 @@ returning the same information via the returned error. The caller may still
 choose to log this information. This allows storage implementations that retry
 transactions to suppress warnings when a transaction initially fails but a retry
 succeeds.
+
+Some incorrectly-formatted log messages have been fixed.
+
+### Documentation
+
+[API documentation in Markdown format](docs/api.md) is now available.
 
 ### Other
 
@@ -175,6 +238,16 @@ access as this was an unexpected side effect. Clients now have explicit control
 of when the root is updated by calling `UpdateRoot`.
 
 A root parameter is now required when log clients are constructed.
+
+The client will now only retry requests that fail with the following errors:
+
+-   Aborted
+-   DeadlineExceeded
+-   ResourceExhausted
+-   Unavailable
+
+There is one exception - it will also retry InitLog/InitMap requests that fail
+due to a FailedPrecondition error.
 
 ### Other
 
