@@ -233,7 +233,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetInclusionProof")
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetInclusionProofByHash")
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +356,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetConsistencyProof")
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +475,7 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetSequencedLeafCount")
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +508,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByIndex")
 	if err != nil {
 		return nil, err
 	}
@@ -549,7 +549,7 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRange")
 	if err != nil {
 		return nil, err
 	}
@@ -597,8 +597,7 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 	if err := validateGetLeavesByHashRequest(req, hasher); err != nil {
 		return nil, err
 	}
-
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByHash")
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +645,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetEntryAndProof")
 	if err != nil {
 		return nil, err
 	}
@@ -814,4 +813,14 @@ func (t *TrillianLogRPCServer) recordIndexPercent(leafIndex int64, treeSize uint
 
 func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
 	return trace.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
+}
+
+func (t *TrillianLogRPCServer) snapshotForTree(ctx context.Context, tree *trillian.Tree, method string) (storage.ReadOnlyLogTreeTX, error) {
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
+	if err == storage.ErrTreeNeedsInit {
+		// Special case - We have an error but we still have an open transaction.
+		// To avoid leaking it make sure it's closed and indicate with status code.
+		defer t.closeAndLog(ctx, tree.TreeId, tx, method)
+	}
+	return tx, err
 }

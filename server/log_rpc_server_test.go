@@ -142,12 +142,22 @@ func TestGetLeavesByIndex(t *testing.T) {
 			errStr: "TX",
 		},
 		{
+			name: "not initialized",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, storage.ErrTreeNeedsInit)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &leaf0Request,
+			errStr: "tree needs init",
+		},
+		{
 			name: "storage error",
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{0}).Return(nil, errors.New("STORAGE"))
-				tx.EXPECT().Close().AnyTimes()
+				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &leaf0Request,
 			errStr: "STORAGE",
@@ -159,7 +169,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{0}).Return([]*trillian.LogLeaf{leaf1}, nil)
 				tx.EXPECT().Commit().Return(errors.New("COMMIT"))
-				tx.EXPECT().Close().AnyTimes()
+				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &leaf0Request,
 			errStr: "COMMIT",
@@ -680,12 +690,22 @@ func TestGetLeavesByHash(t *testing.T) {
 			errStr: "TX",
 		},
 		{
+			name: "not initialized",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, storage.ErrTreeNeedsInit)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getByHashRequest1,
+			errStr: "tree needs init",
+		},
+		{
 			name: "storage error",
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1, leafHash3}, false).Return(nil, errors.New("STORAGE"))
-				tx.EXPECT().Close().AnyTimes()
+				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &getByHashRequest1,
 			errStr: "STORAGE",
@@ -698,7 +718,7 @@ func TestGetLeavesByHash(t *testing.T) {
 				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1, leafHash3}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().Commit().Return(errors.New("COMMIT"))
-				tx.EXPECT().Close().AnyTimes()
+				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &getByHashRequest1,
 			errStr: "COMMIT",
@@ -818,12 +838,22 @@ func TestGetProofByHashErrors(t *testing.T) {
 			errStr: "TX",
 		},
 		{
+			name: "not initialized",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, storage.ErrTreeNeedsInit)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getInclusionProofByHashRequest25,
+			errStr: "tree needs init",
+		},
+		{
 			name: "storage error",
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash2}, false).Return(nil, errors.New("STORAGE"))
-				tx.EXPECT().Close().AnyTimes()
+				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &getInclusionProofByHashRequest25,
 			errStr: "STORAGE",
@@ -880,7 +910,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
 				tx.EXPECT().Commit().Return(errors.New("COMMIT"))
-				tx.EXPECT().Close().AnyTimes()
+				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &getInclusionProofByHashRequest7,
 			errStr: "COMMIT",
@@ -1051,6 +1081,16 @@ func TestGetProofByIndex(t *testing.T) {
 			},
 			req:    &getInclusionProofByIndexRequest25,
 			errStr: "TX",
+		},
+		{
+			name: "not initialized",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, storage.ErrTreeNeedsInit)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getInclusionProofByIndexRequest25,
+			errStr: "tree needs init",
 		},
 		{
 			name: "get nodes fails",
@@ -1232,6 +1272,16 @@ func TestGetEntryAndProof(t *testing.T) {
 			errStr: "TX",
 		},
 		{
+			name: "not initialized",
+			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
+				tx := storage.NewMockLogTreeTX(c)
+				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, storage.ErrTreeNeedsInit)
+				tx.EXPECT().Close().Return(nil)
+			},
+			req:    &getEntryAndProofRequest17,
+			errStr: "tree needs init",
+		},
+		{
 			name: "storage error",
 			setupStorage: func(c *gomock.Controller, s *storage.MockLogStorage) {
 				tx := storage.NewMockLogTreeTX(c)
@@ -1243,7 +1293,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{2}).Return(nil, errors.New("STORAGE"))
-				tx.EXPECT().Close().AnyTimes()
+				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &getEntryAndProofRequest7,
 			errStr: "STORAGE",
