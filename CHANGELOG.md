@@ -4,6 +4,12 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### GetLatestSignedLogRoot With Consistency Proof
+
+`GetLatestSignedLogRoot` in the LogServer will return a consistency proof if
+`first_tree_size` > 0. This reduces the number of RPC calls from logClient from
+2 to 1 in `client.getAndVerifyLatestRoot`.
+
 ### Testing
 
 Support has been added for testing against a locally running mysql docker image,

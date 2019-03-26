@@ -338,6 +338,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
 | charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| first_tree_size | [int64](#int64) |  | If first_tree_size is non-zero, the response will include a consistency proof between first_tree_size and the new tree size (if not smaller). |
 
 
 
@@ -353,6 +354,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian.Proof) |  | proof is filled if first_tree_size in GetLatestSignedLogRootRequest is non-zero. |
 
 
 
@@ -668,7 +670,7 @@ operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 | GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | Returns inclusion proof for a leaf with a given index in a given tree. If the requested tree_size is larger than the server is aware of, the response will include the known log root and an empty proof. |
 | GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse) | Returns inclusion proof for a leaf with a given Merkle hash in a given tree. |
 | GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | Returns consistency proof between two versions of a given tree. If the requested tree size is larger than the server is aware of, the response will include the known log root and an empty proof. |
-| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | Returns the latest signed log root for a given tree. Corresponds to the ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface. |
+| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | Returns the latest signed log root for a given tree. Corresponds to the ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface. The server will return InvalidArgument if first_tree_size is greater than the LatestSignedLogRoot available to that server. |
 | GetSequencedLeafCount | [GetSequencedLeafCountRequest](#trillian.GetSequencedLeafCountRequest) | [GetSequencedLeafCountResponse](#trillian.GetSequencedLeafCountResponse) | Returns the total number of leaves that have been integrated into the given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount storage interface. DO NOT USE - FOR DEBUGGING/TEST ONLY |
 | GetEntryAndProof | [GetEntryAndProofRequest](#trillian.GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian.GetEntryAndProofResponse) | Returns log entry and the corresponding inclusion proof for a given leaf index in a given tree. If the requested tree is unavailable but the leaf is in scope for the current tree, return a proof in that tree instead. |
 | InitLog | [InitLogRequest](#trillian.InitLogRequest) | [InitLogResponse](#trillian.InitLogResponse) |  |
