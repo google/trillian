@@ -328,14 +328,12 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 func (t *adminTX) readTrees(ctx context.Context, includeDeleted, idOnly bool, f func(*spanner.Row) error) error {
 	var stmt spanner.Statement
 	if idOnly {
-		stmt = spanner.NewStatement("SELECT idx.TreeID FROM TreeRootsByDeleted idx")
+		stmt = spanner.NewStatement("SELECT t.TreeID FROM TreeRoots t")
 	} else {
-		stmt = spanner.NewStatement(
-			"SELECT t.TreeInfo FROM TreeRootsByDeleted idx" +
-				" INNER JOIN TreeRoots t ON idx.TreeID = t.TreeID")
+		stmt = spanner.NewStatement("SELECT t.TreeInfo FROM TreeRoots t")
 	}
 	if !includeDeleted {
-		stmt.SQL += " WHERE idx.Deleted = @deleted"
+		stmt.SQL += " WHERE t.Deleted = @deleted"
 		stmt.Params["deleted"] = false
 	}
 	rows := t.tx.Query(ctx, stmt)
