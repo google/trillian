@@ -8,6 +8,8 @@ Not yet released; provisionally v2.0.0 (may change).
 
 Google Cloud Spanner is now a supported storage backend for maps.
 
+The admin API calls to list trees backed by Cloud Spanner trees are fixed.
+
 ### GetLatestSignedLogRoot With Consistency Proof
 
 `GetLatestSignedLogRoot` in the LogServer will return a consistency proof if
