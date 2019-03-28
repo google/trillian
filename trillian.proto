@@ -251,6 +251,22 @@ message SignedLogRoot {
   //     case v1: LogRootV1;
   //   }
   // } LogRoot;
+  //
+  // A serialized v1 log root will therefore be laid out as:
+  //
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
+  // | ver=1 |          tree_size            |len|    root_hashlen   |
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
+  //
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  // |        timestamp_nanos        |      revision                 |
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  //
+  // +---+---+---+---+---+-....---+
+  // |  len  |    metadata        |
+  // +---+---+---+---+---+-....---+
+  //
+  // (with all integers encoded big-endian).
   bytes log_root = 8;
 
   // log_root_signature is the raw signature over log_root.
