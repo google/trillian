@@ -15,7 +15,9 @@ The admin API calls to list trees backed by Cloud Spanner trees are fixed.
 There were some cases where the Log RPC server could leak storage transactions
 in error situations. These have now been fixed. If you have a custom storage
 implementation review the fixes made to the MySQL Log storage to see if they
-need to be applied to your code (`storage/mysql/log_storage.go`).
+need to be applied to your code (`storage/mysql/log_storage.go`). The Map
+server had similar issues but these were fixed without requiring changes to
+storage code.
 
 ### GetLatestSignedLogRoot With Consistency Proof
 
