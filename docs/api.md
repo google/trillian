@@ -1109,7 +1109,17 @@ SignedLogRoot represents a commitment by a Log to a particular tree.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | key_hint | [bytes](#bytes) |  | key_hint is a hint to identify the public key for signature verification. key_hint is not authenticated and may be incorrect or missing, in which case all known public keys may be used to verify the signature. When directly communicating with a Trillian gRPC server, the key_hint will typically contain the LogID encoded as a big-endian 64-bit integer; however, in other contexts the key_hint is likely to have different contents (e.g. it could be a GUID, a URL &#43; TreeID, or it could be derived from the public key itself). |
-| log_root | [bytes](#bytes) |  | log_root holds the TLS-serialization of the following structure (described in RFC5246 notation): Clients should validate log_root_signature with VerifySignedLogRoot before deserializing log_root. enum { v1(1), (65535)} Version; struct { uint64 tree_size; opaque root_hash&lt;0..128&gt;; uint64 timestamp_nanos; uint64 revision; opaque metadata&lt;0..65535&gt;; } LogRootV1; struct { Version version; select(version) { case v1: LogRootV1; } } LogRoot; |
+| log_root | [bytes](#bytes) |  | log_root holds the TLS-serialization of the following structure (described in RFC5246 notation): Clients should validate log_root_signature with VerifySignedLogRoot before deserializing log_root. enum { v1(1), (65535)} Version; struct { uint64 tree_size; opaque root_hash&lt;0..128&gt;; uint64 timestamp_nanos; uint64 revision; opaque metadata&lt;0..65535&gt;; } LogRootV1; struct { Version version; select(version) { case v1: LogRootV1; } } LogRoot;
+
+A serialized v1 log root will therefore be laid out as:
+
+&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....--&#43; | ver=1 | tree_size |len| root_hashlen | &#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....--&#43;
+
+&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43; | timestamp_nanos | revision | &#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;
+
+&#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....---&#43; | len | metadata | &#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....---&#43;
+
+(with all integers encoded big-endian). |
 | log_root_signature | [bytes](#bytes) |  | log_root_signature is the raw signature over log_root. |
 
 
