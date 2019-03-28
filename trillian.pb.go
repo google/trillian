@@ -507,6 +507,22 @@ type SignedLogRoot struct {
 	//     case v1: LogRootV1;
 	//   }
 	// } LogRoot;
+	//
+	// A serialized v1 log root will therefore be laid out as:
+	//
+	// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
+	// | ver=1 |          tree_size            |len|    root_hashlen   |
+	// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
+	//
+	// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+	// |        timestamp_nanos        |      revision                 |
+	// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+	//
+	// +---+---+---+---+---+-....---+
+	// |  len  |    metadata        |
+	// +---+---+---+---+---+-....---+
+	//
+	// (with all integers encoded big-endian).
 	LogRoot []byte `protobuf:"bytes,8,opt,name=log_root,json=logRoot,proto3" json:"log_root,omitempty"`
 	// log_root_signature is the raw signature over log_root.
 	LogRootSignature     []byte   `protobuf:"bytes,9,opt,name=log_root_signature,json=logRootSignature,proto3" json:"log_root_signature,omitempty"`
