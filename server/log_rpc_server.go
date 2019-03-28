@@ -817,9 +817,9 @@ func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
 
 func (t *TrillianLogRPCServer) snapshotForTree(ctx context.Context, tree *trillian.Tree, method string) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
-	if err == storage.ErrTreeNeedsInit {
-		// Special case - We have an error but we still have an open transaction.
-		// To avoid leaking it make sure it's closed and indicate with status code.
+	if err != nil && tx != nil {
+		// Special case to handle ErrTreeNeedsInit, which leaves the TX open.
+		// To avoid leaking it make sure it's closed.
 		defer t.closeAndLog(ctx, tree.TreeId, tx, method)
 	}
 	return tx, err
