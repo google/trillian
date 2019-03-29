@@ -294,10 +294,10 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			adminStorage := fakeAdminStorageForMap(ctrl, 1, mapID1)
 			fakeStorage := storage.NewMockMapStorage(ctrl)
 			mockTX := storage.NewMockMapTreeTX(ctrl)
