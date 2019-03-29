@@ -31,9 +31,10 @@ func GetTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.T
 	ctx, span := spanFor(ctx, "GetTree")
 	defer span.End()
 	var tree *trillian.Tree
-	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) (err error) {
+	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) error {
+		var err error
 		tree, err = tx.GetTree(ctx, treeID)
-		return
+		return err
 	})
 	return tree, err
 }
@@ -45,9 +46,10 @@ func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool) ([]
 	ctx, span := spanFor(ctx, "ListTrees")
 	defer span.End()
 	var resp []*trillian.Tree
-	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) (err error) {
+	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) error {
+		var err error
 		resp, err = tx.ListTrees(ctx, includeDeleted)
-		return
+		return err
 	})
 	return resp, err
 }
@@ -59,9 +61,10 @@ func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree) (*
 	ctx, span := spanFor(ctx, "CreateTree")
 	defer span.End()
 	var createdTree *trillian.Tree
-	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
+		var err error
 		createdTree, err = tx.CreateTree(ctx, tree)
-		return
+		return err
 	})
 	return createdTree, err
 }
@@ -73,9 +76,9 @@ func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*
 	ctx, span := spanFor(ctx, "UpdateTree")
 	defer span.End()
 	var updatedTree *trillian.Tree
-	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
-		updatedTree, err = tx.UpdateTree(ctx, treeID, fn)
-		return
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
+		_, err := tx.UpdateTree(ctx, treeID, fn)
+		return err
 	})
 	return updatedTree, err
 }
@@ -87,9 +90,9 @@ func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*tri
 	ctx, span := spanFor(ctx, "SoftDeleteTree")
 	defer span.End()
 	var tree *trillian.Tree
-	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
-		tree, err = tx.SoftDeleteTree(ctx, treeID)
-		return
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
+		_, err := tx.SoftDeleteTree(ctx, treeID)
+		return err
 	})
 	return tree, err
 }
@@ -112,11 +115,24 @@ func UndeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trill
 	ctx, span := spanFor(ctx, "UndeleteTree")
 	defer span.End()
 	var tree *trillian.Tree
-	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
-		tree, err = tx.UndeleteTree(ctx, treeID)
-		return
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
+		_, err := tx.UndeleteTree(ctx, treeID)
+		return err
 	})
 	return tree, err
+}
+
+// RunInAdminSnapshot runs fn against a ReadOnlyAdminTX and commits if no error is returned.
+func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx ReadOnlyAdminTX) error) error {
+	tx, err := admin.Snapshot(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Close()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
