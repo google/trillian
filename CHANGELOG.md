@@ -125,7 +125,7 @@ MySQL-related data (e.g. `MYSQL_DATABASE`). The variable names are based on
 those for the
 [MySQL Docker image](https://hub.docker.com/_/mysql#environment-variables).
 
-Docker images have been upgraded from Go 1.9 to 1.10. They now use ["Distroless"
+Docker images have been upgraded from Go 1.9 to 1.11. They now use ["Distroless"
 base images](https://github.com/GoogleContainerTools/distroless).
 
 ### Dropped metrics
