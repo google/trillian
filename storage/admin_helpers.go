@@ -77,7 +77,8 @@ func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*
 	defer span.End()
 	var updatedTree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
-		_, err := tx.UpdateTree(ctx, treeID, fn)
+		var err error
+		updatedTree, err = tx.UpdateTree(ctx, treeID, fn)
 		return err
 	})
 	return updatedTree, err
@@ -91,7 +92,8 @@ func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*tri
 	defer span.End()
 	var tree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
-		_, err := tx.SoftDeleteTree(ctx, treeID)
+		var err error
+		tree, err = tx.SoftDeleteTree(ctx, treeID)
 		return err
 	})
 	return tree, err
@@ -116,7 +118,8 @@ func UndeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trill
 	defer span.End()
 	var tree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
-		_, err := tx.UndeleteTree(ctx, treeID)
+		var err error
+		tree, err = tx.UndeleteTree(ctx, treeID)
 		return err
 	})
 	return tree, err
