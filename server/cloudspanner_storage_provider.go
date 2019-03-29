@@ -85,7 +85,7 @@ func configFromFlags() spanner.ClientConfig {
 	return r
 }
 
-func newCloudSpannerStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
+func newCloudSpannerStorageProvider(_ monitoring.MetricFactory) (StorageProvider, error) {
 	csMu.Lock()
 	defer csMu.Unlock()
 
