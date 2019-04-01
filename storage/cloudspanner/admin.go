@@ -311,8 +311,12 @@ func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
 	trees := []*trillian.Tree{}
 	err := t.readTrees(ctx, includeDeleted, false /* idOnly */, func(r *spanner.Row) error {
+		var infoBytes []byte
+		if err := r.Columns(&infoBytes); err != nil {
+			return err
+		}
 		info := &spannerpb.TreeInfo{}
-		if err := r.Columns(info); err != nil {
+		if err := proto.Unmarshal(infoBytes, info); err != nil {
 			return err
 		}
 		tree, err := toTrillianTree(info)
