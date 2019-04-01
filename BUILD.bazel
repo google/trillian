@@ -1,0 +1,45 @@
+# This is a sensible default for the API build targets
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "trillian_admin_api_proto",
+    srcs = [
+        "trillian_admin_api.proto",
+    ],
+    deps = [
+        ":trillian_proto",
+        "@googleapi//google/api:annotations_proto",
+        "@googleapi//google/rpc:status_proto",
+        "@com_google_protobuf//:field_mask_proto",
+    ],
+)
+
+proto_library(
+    name = "trillian_log_api_proto",
+    srcs = [
+        "trillian_log_api.proto",
+    ],
+    deps = [
+        ":trillian_proto",
+        "@googleapi//google/api:annotations_proto",
+        "@googleapi//google/rpc:status_proto",
+        "@com_google_protobuf//:api_proto",
+        "@com_google_protobuf//:timestamp_proto",
+    ],
+)
+
+proto_library(
+    name = "trillian_proto",
+    srcs = [
+        "trillian.proto",
+        "crypto/keyspb/keyspb.proto",
+        "crypto/sigpb/sigpb.proto",
+    ],
+    deps = [
+        "@com_google_protobuf//:any_proto",
+        "@com_google_protobuf//:api_proto",
+        "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:timestamp_proto",
+    ],
+)
+
