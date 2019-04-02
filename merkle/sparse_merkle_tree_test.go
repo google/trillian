@@ -353,7 +353,7 @@ func testSparseTreeCalculatedRoot(ctx context.Context, t *testing.T, vec sparseT
 	testSparseTreeCalculatedRootWithWriter(ctx, t, rev, vec, w)
 }
 
-func testSparseTreeCalculatedRootWithWriter(ctx context.Context, t *testing.T, rev int64, vec sparseTestVector, w *SparseMerkleTreeWriter) {
+func testSparseTreeCalculatedRootWithWriter(ctx context.Context, t *testing.T, _ int64, vec sparseTestVector, w *SparseMerkleTreeWriter) {
 	var leaves []HashKeyValue
 	for _, kv := range vec.kv {
 		index := testonly.HashKey(kv.k)

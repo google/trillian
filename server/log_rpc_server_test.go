@@ -2151,7 +2151,6 @@ func newParameterizedTest(ctrl *gomock.Controller, operation string, m txMode, p
 }
 
 func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
-	withRoot := false
 	t.Helper()
 
 	mockTX := storage.NewMockLogTreeTX(p.ctrl)
@@ -2165,9 +2164,6 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
 	}
 	if p.mode != noTX {
 		p.prepareTX(mockTX)
-		if withRoot {
-			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*signedRoot1, nil)
-		}
 		mockTX.EXPECT().Commit().Return(errors.New("bang"))
 		mockTX.EXPECT().Close().Return(errors.New("bang"))
 		mockTX.EXPECT().IsOpen().AnyTimes().Return(false)

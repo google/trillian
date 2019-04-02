@@ -382,5 +382,5 @@ func main() {
 	// arbitrary stream.
 	fmt.Print(preamble)
 	renderTree("", *treeSize, 0)
-	fmt.Println(postfix)
+	fmt.Print(postfix)
 }

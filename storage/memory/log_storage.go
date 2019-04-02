@@ -433,11 +433,10 @@ func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.Count
 	ret := make(map[int64]int64)
 	for id, tree := range t.ms.trees {
 		tree.RLock()
-		defer tree.RUnlock() // OK to hold until method returns.
-
 		k := unseqKey(id)
 		queue := tree.store.Get(k).(*kv).v.(*list.List)
 		ret[id] = int64(queue.Len())
+		tree.RUnlock()
 	}
 	return ret, nil
 }
