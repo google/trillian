@@ -104,9 +104,9 @@ func TestManyFakeTimers(t *testing.T) {
 		}
 	}
 	check(-1, time.Time{}) // No firing before.
-	for i, time := range times {
-		ts.Set(time)
-		check(i, time)
+	for i, fTime := range times {
+		ts.Set(fTime)
+		check(i, fTime)
 	}
 	check(-1, time.Time{}) // No firing after.
 }
