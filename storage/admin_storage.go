@@ -126,16 +126,3 @@ type AdminWriter interface {
 	// is returned.
 	UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
 }
-
-// RunInAdminSnapshot runs fn against a ReadOnlyAdminTX and commits if no error is returned.
-func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx ReadOnlyAdminTX) error) error {
-	tx, err := admin.Snapshot(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Close()
-	if err := fn(tx); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
