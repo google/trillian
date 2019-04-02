@@ -109,7 +109,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevision")
 	if err != nil {
 		return nil, fmt.Errorf("could not create database snapshot: %v", err)
 	}
@@ -331,7 +331,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetSignedMapRoot")
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +364,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetSignedMapRootByRevision")
 	if err != nil {
 		return nil, err
 	}
@@ -453,4 +453,14 @@ func (t *TrillianMapServer) closeAndLog(ctx context.Context, logID int64, tx sto
 	if err != nil {
 		glog.Warningf("%v: Close failed for %v: %v", logID, op, err)
 	}
+}
+
+func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.Tree, method string) (storage.ReadOnlyMapTreeTX, error) {
+	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	if err != nil && tx != nil {
+		// Special case to handle ErrTreeNeedsInit, which leaves the TX open.
+		// To avoid leaking it make sure it's closed.
+		defer t.closeAndLog(ctx, tree.TreeId, tx, method)
+	}
+	return tx, err
 }

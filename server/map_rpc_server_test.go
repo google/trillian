@@ -201,9 +201,9 @@ func TestGetSignedMapRoot(t *testing.T) {
 				if test.lsmrErr == nil {
 					mockTX.EXPECT().Commit().Return(nil)
 				}
-				mockTX.EXPECT().Close().Return(nil)
 				mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
 			}
+			mockTX.EXPECT().Close().Return(nil)
 
 			server := NewTrillianMapServer(extension.Registry{
 				AdminStorage: adminStorage,
