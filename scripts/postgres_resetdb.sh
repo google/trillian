@@ -34,8 +34,8 @@ collect_vars() {
   FLAGS=()
 
   FLAGS+=(-U "${POSTGRES_ROOT_USER}")
-  FLAGS+=(--host "${POSTGRES_HOST}")
-  FLAGS+=(--port "${POSTGRES_PORT}")
+  #FLAGS+=(--host "${POSTGRES_HOST}")
+  #FLAGS+=(--port "${POSTGRES_PORT}")
 
   # handle flags
   FORCE=false
@@ -62,12 +62,12 @@ main() {
   if [ -z ${REPLY+x} ] || [[ $REPLY =~ ^[Yy]$ ]]
   then
       echo "Resetting DB..."
-      psql "${FLAGS[@]}" -c "DROP DATABASE IF EXISTS ${POSTGRES_DB};" || \
-        die "Error: Failed to drop database '${POSTGRES_DB}'."
-      psql "${FLAGS[@]}" -c "CREATE DATABASE ${POSTGRES_DB};" || \
-        die "Error: Failed to create database '${POSTGRES_DB}'."
-      psql "${FLAGS[@]}" -d ${POSTGRES_DB} -f ${TRILLIAN_PATH}/storage/postgres/storage.sql || \
-        die "Error: Failed to create tables in '${POSTGRES_DB}' database."
+      #psql "${FLAGS[@]}" -c "DROP DATABASE IF EXISTS ${POSTGRES_DB};" || \
+      #  die "Error: Failed to drop database '${POSTGRES_DB}'."
+      #psql "${FLAGS[@]}" -c "CREATE DATABASE ${POSTGRES_DB};" || \
+      #  die "Error: Failed to create database '${POSTGRES_DB}'."
+      #psql "${FLAGS[@]}" -d ${POSTGRES_DB} -f ${TRILLIAN_PATH}/storage/postgres/storage.sql || \
+       # die "Error: Failed to create tables in '${POSTGRES_DB}' database."
       if ! psql "${FLAGS[@]}" -t -c "SELECT 1 FROM pg_user WHERE usename = '${POSTGRES_USER}'" | grep -q 1; then
         psql "${FLAGS[@]}" -c "CREATE USER ${POSTGRES_USER} WITH PASSWORD '${POSTGRES_PASSWORD}' CREATEDB;" || \
           die "Error: Failed to create user '${POSTGRES_USER}'."

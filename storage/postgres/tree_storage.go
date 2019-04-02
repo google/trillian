@@ -47,6 +47,11 @@ const (
 		ON subtree.subtree_id = x.subtree_id
 		AND subtree.subtree_revision = x.max_revision
 		AND subtree.tree_id = ?`
+        insertTreeHeadSQL     = `INSERT INTO tree_head(tree_id,tree_headTimestamp,tree_size,root_hash,tree_revision,root_signature)
+                 VALUES(?,?,?,?,?,?)`
+        selectTreeRevisionAtSizeOrLargerSQL = "SELECT tree_revision,tree_size FROM tree_head WHERE tree_id=? AND TreeSize>=? ORDER BY tree_revision LIMIT 1"
+
+
 )
 
 // pgTreeStorage contains the pgLogStorage implementation.
@@ -390,3 +395,56 @@ func (t *treeTX) Close() error {
 	}
 	return nil
 }
+
+func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
+        return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
+}
+
+func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
+        for _, n := range nodes {
+                err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
+                        func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
+                                return t.getSubtree(ctx, t.writeRevision, nID)
+                        })
+                if err != nil {
+                        return err
+                }
+        }
+        return nil
+}
+
+
+func (t *treeTX) IsOpen() bool {
+        return !t.closed
+}
+
+// getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
+func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
+        return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+                return t.getSubtrees(ctx, rev, ids)
+        }
+}
+
+
+func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
+        // The Exec() might have just failed
+        if err != nil {
+                return err
+        }
+
+        // Otherwise we have to look at the result of the operation
+        rowsAffected, rowsError := res.RowsAffected()
+
+        if rowsError != nil {
+                return rowsError
+        }
+
+        if rowsAffected != count {
+                return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
+                        rowsAffected)
+        }
+
+        return nil
+}
+
+

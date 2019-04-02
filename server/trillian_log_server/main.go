@@ -94,7 +94,6 @@ func main() {
 		// Enable the server request counter tracing etc.
 		options = append(options, opts...)
 	}
-
 	sp, err := server.NewStorageProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)

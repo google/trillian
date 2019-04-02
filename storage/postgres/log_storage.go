@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgres
 
 import (
 	"bytes"
@@ -24,8 +24,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/go-sql-driver/mysql"
+	"github.com/lib/pq"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
@@ -39,54 +38,53 @@ import (
 )
 
 const (
-	valuesPlaceholder5 = "(?,?,?,?,?)"
+	        valuesPlaceholder5 = "(?,?,?,?,?)"
+        insertLeafDataSQL      = "INSERT INTO leaf_data(tree_id,leaf_identity_hash,leaf_value,extra_data,queue_timestamp_nanos) VALUES" + valuesPlaceholder5
+        insertSequencedLeafSQL = "INSERT INTO sequenced_leaf_data(tree_id,leaf_identity_hash,merkle_leaf_hash,sequence_number,integrate_timestamp_nanos) VALUES"
 
-	insertLeafDataSQL      = "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES" + valuesPlaceholder5
-	insertSequencedLeafSQL = "INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"
+        selectNonDeletedTreeIDByTypeAndStateSQL = `
+                SELECT tree_id FROM Trees
+                  WHERE tree_type IN(?,?)
+                  AND tree_state IN(?,?)
+                  AND (Deleted IS NULL OR Deleted = 'false')`
 
-	selectNonDeletedTreeIDByTypeAndStateSQL = `
-		SELECT TreeId FROM Trees
-		  WHERE TreeType IN(?,?)
-		  AND TreeState IN(?,?)
-		  AND (Deleted IS NULL OR Deleted = 'false')`
+        selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM sequenced_leaf_data WHERE tree_id=?"
+        selectUnsequencedLeafCountSQL = "SELECT tree_id, COUNT(1) FROM unsequenced GROUP BY tree_id"
+        selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
+                        FROM tree_head WHERE tree_id=?
+                        ORDER BY tree_head_timestamp DESC LIMIT 1`
 
-	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
-	selectUnsequencedLeafCountSQL = "SELECT TreeId, COUNT(1) FROM Unsequenced GROUP BY TreeId"
-	selectLatestSignedLogRootSQL  = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
-			FROM TreeHead WHERE TreeId=?
-			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
+        selectLeavesByRangeSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+                        FROM leaf_data l,sequenced_leaf_data s
+                        WHERE l.leaf_identity_hash = s.leaf_identity_hash
+                        AND s.sequence_number >= ? AND s.sequence_number < ? AND l.tree_id = ? AND s.tree_id = l.tree_id` + orderBysequence_numberSQL
 
-	selectLeavesByRangeSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.SequenceNumber >= ? AND s.SequenceNumber < ? AND l.TreeId = ? AND s.TreeId = l.TreeId` + orderBySequenceNumberSQL
+        // These statements need to be expanded to provide the correct number of parameter placeholders.
+        selectLeavesByIndexSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+                        FROM leaf_data l,sequenced_leaf_data s
+                        WHERE l.leaf_identity_hash = s.leaf_identity_hash
+                        AND s.sequence_number IN (` + placeholderSQL + `) AND l.tree_id = ? AND s.tree_id = l.tree_id`
+        selectLeavesByMerkleHashSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+                        FROM leaf_data l,sequenced_leaf_data s
+                        WHERE l.leaf_identity_hash = s.leaf_identity_hash
+                        AND s.merkle_leaf_hash IN (` + placeholderSQL + `) AND l.tree_id = ? AND s.tree_id = l.tree_id`
+        // TODO(drysdale): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
+        dummymerkle_leaf_hash = "00000000000000000000000000000000"
+        // This statement returns a dummy Merkle leaf hash value (which must be
+        // of the right size) so that its signature matches that of the other
+        // leaf-selection statements.
+        selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummymerkle_leaf_hash + `',l.leaf_identity_hash,l.leaf_value,-1,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+                        FROM leaf_data l LEFT JOIN sequenced_leaf_data s ON (l.leaf_identity_hash = s.leaf_identity_hash AND l.tree_id = s.tree_id)
+                        WHERE l.leaf_identity_hash IN (` + placeholderSQL + `) AND l.tree_id = ?`
 
-	// These statements need to be expanded to provide the correct number of parameter placeholders.
-	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-	// TODO(drysdale): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
-	dummyMerkleLeafHash = "00000000000000000000000000000000"
-	// This statement returns a dummy Merkle leaf hash value (which must be
-	// of the right size) so that its signature matches that of the other
-	// leaf-selection statements.
-	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
-			WHERE l.LeafIdentityHash IN (` + placeholderSQL + `) AND l.TreeId = ?`
+        // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
+        orderBysequence_numberSQL                     = " ORDER BY s.sequence_number"
+        selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBysequence_numberSQL
 
-	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
-	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
-	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
+        // Error code returned by driver when inserting a duplicate row
+        errNumDuplicate = "42710"
 
-	// Error code returned by driver when inserting a duplicate row
-	errNumDuplicate = 1062
-
-	logIDLabel = "logid"
+        logIDLabel = "logid"
 )
 
 var (
@@ -108,19 +106,19 @@ var (
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
-	queuedCounter = mf.NewCounter("mysql_queued_leaves", "Number of leaves queued", logIDLabel)
-	queuedDupCounter = mf.NewCounter("mysql_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
-	dequeuedCounter = mf.NewCounter("mysql_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
+	queuedCounter = mf.NewCounter("postgres_queued_leaves", "Number of leaves queued", logIDLabel)
+	queuedDupCounter = mf.NewCounter("postgres_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
+	dequeuedCounter = mf.NewCounter("postgres_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
 
-	queueLatency = mf.NewHistogram("mysql_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
-	queueInsertLatency = mf.NewHistogram("mysql_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)
-	queueReadLatency = mf.NewHistogram("mysql_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in seconds", logIDLabel)
-	queueInsertLeafLatency = mf.NewHistogram("mysql_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in seconds", logIDLabel)
-	queueInsertEntryLatency = mf.NewHistogram("mysql_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in seconds", logIDLabel)
+	queueLatency = mf.NewHistogram("postgres_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
+	queueInsertLatency = mf.NewHistogram("postgres_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)
+	queueReadLatency = mf.NewHistogram("postgres_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in seconds", logIDLabel)
+	queueInsertLeafLatency = mf.NewHistogram("postgres_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in seconds", logIDLabel)
+	queueInsertEntryLatency = mf.NewHistogram("postgres_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in seconds", logIDLabel)
 
-	dequeueLatency = mf.NewHistogram("mysql_dequeue_leaves_latency", "Latency of dequeue leaves operation in seconds", logIDLabel)
-	dequeueSelectLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in seconds", logIDLabel)
-	dequeueRemoveLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_remove", "Latency of removal part of dequeue leaves operation in seconds", logIDLabel)
+	dequeueLatency = mf.NewHistogram("postgres_dequeue_leaves_latency", "Latency of dequeue leaves operation in seconds", logIDLabel)
+	dequeueSelectLatency = mf.NewHistogram("postgres_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in seconds", logIDLabel)
+	dequeueRemoveLatency = mf.NewHistogram("postgres_dequeue_leaves_latency_remove", "Latency of removal part of dequeue leaves operation in seconds", logIDLabel)
 }
 
 func labelForTX(t *logTreeTX) string {
@@ -131,8 +129,8 @@ func observe(hist monitoring.Histogram, duration time.Duration, label string) {
 	hist.Observe(duration.Seconds(), label)
 }
 
-type mySQLLogStorage struct {
-	*mySQLTreeStorage
+type postgresLogStorage struct {
+	*pgTreeStorage
 	admin         storage.AdminStorage
 	metricFactory monitoring.MetricFactory
 }
@@ -143,40 +141,76 @@ func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
-	return &mySQLLogStorage{
+	return &postgresLogStorage{
 		admin:            NewAdminStorage(db),
-		mySQLTreeStorage: newTreeStorage(db),
+		pgTreeStorage: newTreeStorage(db),
 		metricFactory:    mf,
 	}
 }
 
-func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
+func (m *postgresLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
 }
 
-func (m *mySQLLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectLeavesByIndexSQL, num, "?", "?")
-}
-
-func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
-	if orderBySequence {
-		return m.getStmt(ctx, selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
+func (m *postgresLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+	stmt := &statementSkeleton{ 
+		sql:			selectLeavesByIndexSQL,
+		firstInsertion:		"%s",
+		firstPlaceholders: 	1,
+		restInsertion:		"%s",
+		restPlaceholders:	1,
+		num:			num,
 	}
-
-	return m.getStmt(ctx, selectLeavesByMerkleHashSQL, num, "?", "?")
+	return m.getStmt(ctx, stmt)
 }
 
-func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
+func (m *postgresLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
+	if orderBySequence {
+
+	        orderByStmt := &statementSkeleton{
+        	        sql:                    selectLeavesByMerkleHashOrderedBySequenceSQL,
+                	firstInsertion:         "%s",
+	                firstPlaceholders:      1,
+        	        restInsertion:          "%s",
+                	restPlaceholders:       1,
+	                num:                    num,
+	        }
+
+		return m.getStmt(ctx, orderByStmt)
+	}
+	
+        merkleHashStmt := &statementSkeleton{
+                sql:                  	selectLeavesByMerkleHashSQL,
+                firstInsertion:         "%s",
+                firstPlaceholders:      1,
+                restInsertion:          "%s",
+                restPlaceholders:       1,
+                num:                    num,
+        }
+
+	return m.getStmt(ctx, merkleHashStmt)
+}
+
+func (m *postgresLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+        identityHashStmt := &statementSkeleton{
+                sql:                    selectLeavesByLeafIdentityHashSQL,
+                firstInsertion:         "%s",
+                firstPlaceholders:      1,
+                restInsertion:          "%s",
+                restPlaceholders:       1,
+                num:                    num,
+        }
+
+	return m.getStmt(ctx, identityHashStmt)
 }
 
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
-	ls *mySQLLogStorage
+	ls *postgresLogStorage
 	tx *sql.Tx
 }
 
-func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+func (m *postgresLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
 	tx, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
@@ -223,7 +257,7 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (storage.LogTreeTX, error) {
+func (m *postgresLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
@@ -259,7 +293,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	return ltx, nil
 }
 
-func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
+func (m *postgresLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
@@ -271,7 +305,7 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	return tx.Commit()
 }
 
-func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (m *postgresLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil {
 		return nil, err
@@ -286,7 +320,7 @@ func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian
 	return res, nil
 }
 
-func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
+func (m *postgresLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
@@ -294,7 +328,7 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 	return tx, err
 }
 
-func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (m *postgresLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil {
 		return nil, err
@@ -324,7 +358,7 @@ func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, 
 
 type logTreeTX struct {
 	treeTX
-	ls   *mySQLLogStorage
+	ls   *postgresLogStorage
 	root types.LogRootV1
 	slr  trillian.SignedLogRoot
 }
@@ -814,7 +848,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 		return err
 	}
 	if len(logRoot.Metadata) != 0 {
-		return fmt.Errorf("unimplemented: mysql storage does not support log root metadata")
+		return fmt.Errorf("unimplemented: postgres storage does not support log root metadata")
 
 	}
 
@@ -935,8 +969,8 @@ func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 
 func isDuplicateErr(err error) bool {
 	switch err := err.(type) {
-	case *mysql.MySQLError:
-		return err.Number == errNumDuplicate
+	case *pq.Error:
+		return err.Code == errNumDuplicate
 	default:
 		return false
 	}

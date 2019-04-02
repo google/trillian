@@ -34,7 +34,7 @@ type NewQuotaManagerFunc func() (quota.Manager, error)
 
 var (
 	// QuotaSystem is a flag specifying which quota system is in use.
-	QuotaSystem = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quotaSystems()))
+	QuotaSystem = flag.String("quota_system", "etcd", fmt.Sprintf("Quota system to use. One of: %v", quotaSystems()))
 
 	qpMu     sync.RWMutex
 	qpByName map[string]NewQuotaManagerFunc
@@ -80,6 +80,7 @@ func quotaSystems() []string {
 
 // NewQuotaManagerFromFlags returns a quota.Manager implementation as speficied by flag.
 func NewQuotaManagerFromFlags() (quota.Manager, error) {
+	fmt.Println(quotaSystems())
 	return NewQuotaManager(*QuotaSystem)
 }
 

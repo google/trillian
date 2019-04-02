@@ -28,7 +28,7 @@ import (
 type NewStorageProviderFunc func(monitoring.MetricFactory) (StorageProvider, error)
 
 var (
-	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", storageProviders()))
+	storageSystem = flag.String("storage_system", "postgres", fmt.Sprintf("Storage system to use. One of: %v", storageProviders()))
 
 	spMu     sync.RWMutex
 	spOnce   sync.Once
@@ -55,6 +55,8 @@ func RegisterStorageProvider(name string, sp NewStorageProviderFunc) error {
 // NewStorageProviderFromFlags returns a new StorageProvider instance of the type
 // specified by flag.
 func NewStorageProviderFromFlags(mf monitoring.MetricFactory) (StorageProvider, error) {
+	fmt.Println("Before SP")
+	fmt.Println(storageProviders())
 	return NewStorageProvider(*storageSystem, mf)
 }
 
