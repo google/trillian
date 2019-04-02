@@ -273,6 +273,12 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 
 func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
+	if tx != nil {
+		// Ensure we don't leak the transaction. For example if we get an
+		// ErrTreeNeedsInit from beginInternal() or if AddSequencedLeaves fails
+		// below.
+		defer tx.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -296,6 +302,12 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 
 func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
+	if tx != nil {
+		// Ensure we don't leak the transaction. For example if we get an
+		// ErrTreeNeedsInit from beginInternal() or if QueueLeaves fails
+		// below.
+		defer tx.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
