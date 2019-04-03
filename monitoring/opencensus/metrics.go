@@ -5,20 +5,18 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"strings"
-	"time"
 
-	"contrib.go.opencensus.io/exporter/stackdriver"
+	"contrib.go.opencensus.io/exporter/ocagent"
 
-	datadog "github.com/Datadog/opencensus-go-exporter-datadog"
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
-	multierror "github.com/hashicorp/go-multierror"
 
-	"go.opencensus.io/exporter/prometheus"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+	"go.opencensus.io/trace"
 )
 
 const (
@@ -27,87 +25,30 @@ const (
 )
 
 // MetricFactory allows the creation of OpenCensus measures and views.
+// Fully-qualified metrics names will be:
+// - Datadog: [namespace].[Prefix][separator][name]
+// - Prometheus: {TBD}
+// - Stackdriver: [namespace]/[Prefix][separator][name]
 type MetricFactory struct {
 	Prefix string
 }
 
-// Initialize is called by Trillian Servers to configure user-specific Exporters.
+// Initialize is called by Trillian Servers to configure OpenCensus Agent Exporter.
 // See https://github.com/google/trillian/pull/1414#pullrequestreview-195485927
 // Once registered with Opencensus' View, all metrics will export to these systems
-// Only Stackdriver requires a 60-second reporting period but this met be set once for all
-// Stackdriver authentication uses Application Default Credentials and assumes
-// GOOGLE_APPLICATION_CREDENTIALS references a service account key
-// The service account permissions must include at least roles/monitoring.metricWriter
-// Prometheus should expose a /metrics endpoint but currently does not
-// Datadog exporter assumes the Datadog Agent is running on localhost
-//TODO(dazwilkin) Is this the best place to initialize the exporters?
-//TODO(dazwilkin) OpenCensus exporters should be configured by config
+//TODO(dazwilkin) OpenCensus Agent Exporter should be configured by config
+//TODO(dazwilkin) Address 'WithInsecure()'
 func Initialize() (func(), error) {
-	var (
-		err    error
-		errors *multierror.Error
-		dd     *datadog.Exporter
-		pm     *prometheus.Exporter
-		sd     *stackdriver.Exporter
-	)
-
-	// Stackdriver Exporter
-	//TODO(dazwilkin) Make this dependent upon user-config
-	if true {
-		sd, err = stackdriver.NewExporter(stackdriver.Options{
-			// MetricPrefix helps uniquely identify these metrics
-			//TODO(dazwilkin) How to create the exporter in order to use MetricFactory.Prefix
-			MetricPrefix: namespace,
-		})
-		errors = multierror.Append(errors, err)
-		// Register Exporter
-		view.RegisterExporter(sd)
-		// Stackdriver requires 60s reporting period
-		view.SetReportingPeriod(60 * time.Second)
-		// Important to invoke Flush before exiting
-		// Pushing 'defer sd.Flush()' to the returned function
+	agent, err := ocagent.NewExporter(
+		ocagent.WithInsecure(),
+		ocagent.WithServiceName(fmt.Sprintf("trillian-%d", os.Getpid())))
+	if err == nil {
+		trace.RegisterExporter(agent)
+		view.RegisterExporter(agent)
 	}
-
-	// Prometheus Exporter
-	// Provides an http.Handler for the metrics endpoint
-	//TODO(dazwilkin) How to provide this handler back to the Trillian service?
-	// e.g. mux.Handle("/metrics", pm)
-	//TODO(dazwilkin) Make this dependent upon user-config
-	if true {
-		pm, err = prometheus.NewExporter(prometheus.Options{
-			Namespace: namespace,
-		})
-		errors = multierror.Append(errors, err)
-		// Register Exporter
-		view.RegisterExporter(pm)
-	}
-
-	// Datadog Exporter
-	// Assumes the Datadog agent is running
-	//TODO(dazwilkin) Make this dependent upon user-config
-	if true {
-		dd, err = datadog.NewExporter(datadog.Options{
-			Namespace: namespace,
-		})
-		errors = multierror.Append(errors, err)
-		// Pushing 'defer dd.Stop()' to the returned function
-		// Register Exporter
-		view.RegisterExporter(dd)
-	}
-
 	return func() {
-		//TODO(dazwilkin) Make this dependent upon user-config
-		if true {
-			dd.Stop()
-		}
-		// if prometheus {
-		// 	// Nothing to do
-		// }
-		//TODO(dazwilkin) Make this dependent upon user-config
-		if true {
-			sd.Flush()
-		}
-	}, errors.ErrorOrNil()
+		//TODO(dazwilkin) Does the OpenCensus Agent Exporter need graceful shutdown?
+	}, err
 }
 
 // checkLabelNames as required by OpenCensus fails if any label name:
@@ -148,7 +89,6 @@ func createMeasureAndView(prefix, name, help string, aggregation *view.Aggregati
 		checkLabelNames(labelNames)
 	}
 
-	//TODO(dazwilkin) Should the measure name be prefixed with the namespace?
 	prefixedName := prefix + separator + name
 	measure := stats.Float64(prefixedName, help, "1")
 	tagKeys := createTagKeys(labelNames)
@@ -269,6 +209,8 @@ func (c *Counter) Add(val float64, labelVals ...string) {
 // OpenCensus does not permit returning values from measures.
 // The interface requires this function return a value.
 // As a result this function always returns 0.0.
+//
+//BUG(dazwilkin) Change the implementation or change the interface!
 func (c *Counter) Value(labelVals ...string) float64 {
 	if err := forAllLabelsAValue(c.labelNames, labelVals); err != nil {
 		glog.Error(err.Error())

@@ -8,36 +8,80 @@ TBD
 
 ## Stats
 
-### Trillian servers
+### 1. Trillian servers
 
-Each of the Trillian servers currently statically binds to `prometheus.MetricFactory` (e.g. [Log Server](https://github.com/DazWilkin/trillian/blob/72282e09c253cab36ead0c54c3835fcb0393927f/server/trillian_log_server/main.go#L88)), simply change this line (and rebuild) to:
+Each of the Trillian servers currently statically binds to `prometheus.MetricFactory` (e.g. [Log Server](https://github.com/DazWilkin/trillian/blob/72282e09c253cab36ead0c54c3835fcb0393927f/server/trillian_log_server/main.go#L88)).
+
+To use OpenCensus, with each server, change this line (then rebuild) to:
 ```golang
-mf := opencensus.MetricFactory{}
+mf := opencensus.MetricFactory{
+    //Prefix: "YourDesiredPrefix",
+}
+```
+The OpenCensus Exporter must be initialized (to connect it to an OpenCensus Agent) before use, so the following initialization is required too:
+```
+flush, err := opencensus.Initialize()
+if err != nil {
+	glog.Exitf("Failed to initialize OpenCensus Agent: %v", err)
+}
+defer flush()
 ```
 
 The package (`"github.com/google/trillian/monitoring/opencensus"`) is already imported and so no import changes are needed.
 
-The OpenCensus code exports to Datadog, Prometheus and Stackdriver (concurrently)
+## 2. OpenCensus Agent
 
+The OpenCensus code exports to an OpenCensus Agent and, by default (not yet configurable), it expects this Agent to be listening on `55678`.
 
-### Datadog
+Using the YAML below, configures the Agent to:
+* receive OpenCensus metric data on port `55678`
+* export zPages data (implicit) on port `55679` and endpoints `/debug/rpcs` and `/debug/tracez`
+* export Stackdriver data to `{PROJECT}` (this value needs to be replaced before use) using the key referenced by `GOOGLE_APPLICATION_CREDENTIALS`
+* export Prometheus data on a metrics endpoint on port `9090`.
+* export Datadog data to the Datadog Agent on port `8125`. [Currently Datadog does not support metrics!]
 
-Run the Datadog Agent:
+```yaml
+receivers:
+  opencensus:
+    address: ":55678"
+exporters:
+  stackdriver:
+    project: "${PROJECT}"
+    enable_metrics: true
+    enable_trace: false
+  prometheus:
+    address: ":9090"
+  # Uncertain whether Datadog is implemented correctly
+  # It may only be trace-enabled presently
+  datadog:
+    namespace: "freddie"
+    # The address:port of the Datadog Agent (:8125 is the default)
+    # metrics_addr: ":8125"
+    enable_metrics: true
+    enable_trace: false    
+```
+The simplest way to run the Agent is using the Docker image:
 ```bash
-DD_API_KEY=[[YOUR-DATADOG-API-KEY]]
 docker run \
---volume=/var/run/docker.sock:/var/run/docker.sock:ro \
---volume=/proc/:/host/proc/:ro \
---volume=/sys/fs/cgroup/:/host/sys/fs/cgroup:ro \
---env=DD_API_KEY=${DD_API_KEY} \
---env=DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true \
---publish=8125:8125/udp \
-datadog/agent:latest
+--interactive \
+--tty \
+--volume=$PWD/configs:/configs \
+--volume=$PWD/secrets:/secrets \
+--publish=9090:9090 \
+--publish=55678:55678 \
+--publish=55679:55679 \
+--env=GOOGLE_APPLICATION_CREDENTIALS=/secrets/key.json \
+omnition/opencensus-agent:0.1.5 \
+  --config=/configs/agent.yaml
 ```
 
-You may use Datadog's console to observe metrics being exported.
+## 3. Monitoring
+### 3.1. zPages
 
-### Stackdriver
+* http://localhost:55679/debug/rpcz
+* http://localhost:55679/debug/tracez
+
+### 3.2. Stackdriver
 
 ```bash
 PROJECT=[[YOUR-PROJECT]]
@@ -78,13 +122,34 @@ google-chrome https://app.google.stackdriver.com/?project=${PROJECT}
 
 Observe the metrics using Stackdriver Console, e.g. Metrics Explorer
 
-Tests fail.
+### 3.3. Prometheus
+
+Easy: http://localhost:9090/metrics
+
+### 3.4. Datadog
+
+Run the Datadog Agent:
+```bash
+DD_API_KEY=[[YOUR-DATADOG-API-KEY]]
+docker run \
+--volume=/var/run/docker.sock:/var/run/docker.sock:ro \
+--volume=/proc/:/host/proc/:ro \
+--volume=/sys/fs/cgroup/:/host/sys/fs/cgroup:ro \
+--env=DD_API_KEY=${DD_API_KEY} \
+--env=DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true \
+--publish=8125:8125/udp \
+datadog/agent:latest
+```
+
+You may use Datadog's console to observe metrics being exported.
+
+
+## 4. Tests.
 
 OpenCensus is a one-way proxy to one or more monitoring services; it is unable to query values for metrics that it has forwarded. For this reason, the tests which all depend upon `Value` fail:
 
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS=${FILE}
-GOCACHE=off go test github.com/google/trillian/monitoring/opencensus
+go test github.com/google/trillian/monitoring/opencensus
 ```
 Errors are to expected:
 ```bash
