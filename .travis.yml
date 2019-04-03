@@ -59,6 +59,12 @@ install:
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go get ${GOFLAGS} -d -t ./...
+  # TODO(drysdale): remove this once https://github.com/grpc/grpc-go/pull/2733/files#r271705181 is addressed upstream
+  - |
+    (
+      cd ${GOPATH}/src/google.golang.org/grpc
+      git revert --no-edit 955eb8a3c829b
+    )
   - go get -d -t github.com/google/certificate-transparency-go/...
   - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.12.5
   - go get github.com/golang/protobuf/proto
