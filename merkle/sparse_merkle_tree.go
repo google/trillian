@@ -389,42 +389,62 @@ func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) (
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
 func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, index []byte) ([][]byte, error) {
-	glog.V(2).Infof("InclusionProof: GetMerkleNodes(rev=%d, index=%x)", rev, index)
-	nid := storage.NewNodeIDFromHash(index)
-	sibs := nid.Siblings()
-	nodes, err := s.tx.GetMerkleNodes(ctx, rev, sibs)
+	proofs, err := s.BatchInclusionProof(ctx, rev, [][]byte{index})
 	if err != nil {
 		return nil, err
 	}
+	return proofs[string(index)], nil
+}
 
+// BatchInclusionProof returns an inclusion (or non-inclusion) proof for each of the specified keys
+// at the specified revision. The return value is a map of the string form of the key to the
+// inclusion proof for that key.
+func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int64, indices [][]byte) (map[string]([][]byte), error) {
+	indexToSibs := make(map[string][]storage.NodeID)
+	allSibs := make([]storage.NodeID, 0, len(indices)*s.hasher.BitLen()*8)
+	includedNodes := map[string]bool{}
+	for _, index := range indices {
+		nid := storage.NewNodeIDFromHash(index)
+		sibs := nid.Siblings()
+		indexToSibs[string(index)] = sibs
+		for _, sib := range sibs {
+			if sibID := sib.String(); !includedNodes[sibID] {
+				includedNodes[sibID] = true
+				allSibs = append(allSibs, sib)
+			}
+		}
+	}
+	nodes, err := s.tx.GetMerkleNodes(ctx, rev, allSibs)
+	if err != nil {
+		return nil, err
+	}
 	nodeMap := make(map[string]*storage.Node)
-	glog.V(2).Infof("InclusionProof: Got non-empty Nodes: ")
 	for _, n := range nodes {
 		n := n // need this or we'll end up with the same node hash repeated in the map
 		glog.V(2).Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.String()), n.Hash)
 		nodeMap[n.NodeID.String()] = &n
 	}
 
-	// We're building a full proof from a combination of whichever nodes we got
-	// back from the storage layer, and the set of "null" hashes.
-	r := make([][]byte, len(sibs))
-	// For each proof element:
-	for i := 0; i < len(r); i++ {
-		proofID := sibs[i]
-		pNode := nodeMap[proofID.String()]
-		if pNode == nil {
-			// we have no node for this level from storage, so the client will use
-			// the null hash.
-			continue
+	r := map[string]([][]byte){}
+	for _, index := range indices {
+		// We're building a full proof from a combination of whichever nodes we got
+		// back from the storage layer, and the set of "null" hashes.
+		sibs := indexToSibs[string(index)]
+		ri := make([][]byte, len(sibs))
+		// For each proof element:
+		for i := range ri {
+			proofID := sibs[i]
+			pNode := nodeMap[proofID.String()]
+			if pNode == nil {
+				// we have no node for this level from storage, so the client will use
+				// the null hash.
+				continue
+			}
+			ri[i] = pNode.Hash
 		}
-		r[i] = pNode.Hash
-		delete(nodeMap, proofID.String())
+		r[string(index)] = ri
 	}
 
-	// Make sure we used up all the returned nodes, otherwise something's gone wrong.
-	if remaining := len(nodeMap); remaining != 0 {
-		return nil, fmt.Errorf("failed to consume all returned nodes; got %d nodes, but %d remain(s) unused", len(nodes), remaining)
-	}
 	return r, nil
 }
 
