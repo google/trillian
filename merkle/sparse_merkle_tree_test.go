@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
-	"strings"
 	"sync"
 	"testing"
 
@@ -256,31 +255,6 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 
 // TODO(al): Add some more inclusion proof tests here
 
-func TestInclusionProofGetsIncorrectNode(t *testing.T) {
-	ctx := context.Background()
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	// This test requests inclusion proofs where storage returns a single node that should not be part
-	// of the proof for the supplied key. This should not succeed.
-	for _, testNode := range inclusionProofIncorrectTestNodes {
-		const rev = 100
-		r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
-		tx.EXPECT().Commit().AnyTimes().Return(nil)
-		tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).Return([]storage.Node{testNode}, nil)
-		const key = "SomeArbitraryKey"
-		index := testonly.HashKey(key)
-		proof, err := r.InclusionProof(ctx, rev, index)
-		if err == nil {
-			t.Errorf("InclusionProof() = %v, nil want: nil, 1 remain(s) unused", proof)
-		}
-		if !strings.Contains(err.Error(), "1 remain(s) unused") {
-			t.Errorf("InclusionProof() = %v, %v. want: nil, 1 remain(s) unused", proof, err)
-		}
-	}
-}
-
 func TestInclusionProofPassesThroughStorageError(t *testing.T) {
 	ctx := context.Background()
 
@@ -294,38 +268,6 @@ func TestInclusionProofPassesThroughStorageError(t *testing.T) {
 	_, err := r.InclusionProof(ctx, rev, testonly.HashKey("Whatever"))
 	if err != e {
 		t.Fatalf("InclusionProof() should've returned an error '%v', but got '%v'", e, err)
-	}
-}
-
-func TestInclusionProofGetsTooManyNodes(t *testing.T) {
-	ctx := context.Background()
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	const rev = 100
-	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
-	const key = "SomeArbitraryKey"
-	keyHash := testonly.HashKey(key)
-	// going to return one too many nodes
-	nodes := make([]storage.Node, 257)
-	// First build a plausible looking set of proof nodes.
-	for i := 1; i < 256; i++ {
-		nodes[255-i].NodeID = storage.NewNodeIDFromHash(keyHash)
-		nodes[255-i].NodeID.PrefixLenBits = i + 1
-		nodes[255-i].NodeID.SetBit(i, nodes[255-i].NodeID.Bit(i)^1)
-	}
-	// and then tack on some rubbish:
-	nodes[256] = getRandomNonRootNode(t, 42)
-
-	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).AnyTimes().Return(nodes, nil)
-	_, err := r.InclusionProof(ctx, rev, testonly.HashKey(key))
-	if err == nil {
-		t.Fatal("InclusionProof() should've returned an error due to extra unused node")
-	}
-	if !strings.Contains(err.Error(), "failed to consume") {
-		t.Fatalf("Saw unexpected error: %v", err)
 	}
 }
 
