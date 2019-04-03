@@ -17,21 +17,20 @@ package server
 import (
 	"context"
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/google/trillian"
-	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/trees"
-	"github.com/google/trillian/types"
+	"google3/third_party/golang/trillian/extension/extension"
+	"google3/third_party/golang/trillian/merkle/hashers/hashers"
+	"google3/third_party/golang/trillian/merkle/merkle"
+	"google3/third_party/golang/trillian/storage/storage"
+	"google3/third_party/golang/trillian/trees/trees"
+	trillian "google3/third_party/golang/trillian/trillian_go_proto"
+	"google3/third_party/golang/trillian/types/types"
 
-	"github.com/golang/glog"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	glog "google3/base/go/log"
+	"google3/third_party/golang/grpc/codes/codes"
+	"google3/third_party/golang/grpc/status/status"
 )
 
 const (
@@ -109,7 +108,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevision")
+	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, fmt.Errorf("could not create database snapshot: %v", err)
 	}
@@ -145,9 +144,6 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	for i, l := range leaves {
 		leavesByIndex[string(l.Index)] = &leaves[i]
 	}
-	if len(indices) != len(leavesByIndex) {
-		glog.V(1).Infof("%v: request had %v indices, %v of these are unique", mapID, len(indices), len(leavesByIndex))
-	}
 	glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), len(leaves))
 
 	// Add empty leaf values for indices that were not returned.
@@ -159,29 +155,17 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	// Fetch inclusion proofs in parallel.
 	smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
-	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
-	errs := make(chan error, len(indices))
-	var wg sync.WaitGroup
-	wg.Add(len(indices))
-	for i, index := range indices {
-		// TODO(gbelvin): Replace with a batch inclusion proof reader.
-		go func(i int, index []byte) {
-			defer wg.Done()
-			l := leavesByIndex[string(index)]
-			proof, err := smtReader.InclusionProof(ctx, revision, l.Index)
-			if err != nil {
-				errs <- fmt.Errorf("could not get inclusion proof for leaf %x: %v", l.Index, err)
-				return
-			}
-			inclusions[i] = &trillian.MapLeafInclusion{
-				Leaf:      l,
-				Inclusion: proof,
-			}
-		}(i, index)
+	proofs, err := smtReader.BatchInclusionProof(ctx, revision, indices)
+	if err != nil {
+		return nil, err
 	}
-	wg.Wait()
-	if len(errs) != 0 {
-		return nil, <-errs // Only return the first error.
+	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
+	for i, index := range indices {
+		idxStr := string(index)
+		inclusions[i] = &trillian.MapLeafInclusion{
+			Leaf:      leavesByIndex[idxStr],
+			Inclusion: proofs[idxStr],
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -331,7 +315,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.snapshotForTree(ctx, tree, "GetSignedMapRoot")
+	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +348,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.snapshotForTree(ctx, tree, "GetSignedMapRootByRevision")
+	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -453,14 +437,4 @@ func (t *TrillianMapServer) closeAndLog(ctx context.Context, logID int64, tx sto
 	if err != nil {
 		glog.Warningf("%v: Close failed for %v: %v", logID, op, err)
 	}
-}
-
-func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.Tree, method string) (storage.ReadOnlyMapTreeTX, error) {
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
-	if err != nil && tx != nil {
-		// Special case to handle ErrTreeNeedsInit, which leaves the TX open.
-		// To avoid leaking it make sure it's closed.
-		defer t.closeAndLog(ctx, tree.TreeId, tx, method)
-	}
-	return tx, err
 }
