@@ -61,7 +61,7 @@ func checkLabelNames(names []string) {
 			glog.Fatalf("OpenCensus label names must be between 1 and 256 characters")
 		}
 		if strings.IndexFunc(name, nonPrintableASCII) != -1 {
-			glog.Fatalf("OpenCensus label names must be printable ASCII; '%s' is not", name)
+			glog.Fatalf("OpenCensus label names must be printable ASCII; %q is not", name)
 		}
 	}
 }
