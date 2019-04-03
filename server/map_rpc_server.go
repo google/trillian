@@ -17,20 +17,21 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
-	"google3/third_party/golang/trillian/extension/extension"
-	"google3/third_party/golang/trillian/merkle/hashers/hashers"
-	"google3/third_party/golang/trillian/merkle/merkle"
-	"google3/third_party/golang/trillian/storage/storage"
-	"google3/third_party/golang/trillian/trees/trees"
-	trillian "google3/third_party/golang/trillian/trillian_go_proto"
-	"google3/third_party/golang/trillian/types/types"
+	"github.com/google/trillian"
+	"github.com/google/trillian/extension"
+	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
+	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 
-	glog "google3/base/go/log"
-	"google3/third_party/golang/grpc/codes/codes"
-	"google3/third_party/golang/grpc/status/status"
+	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
