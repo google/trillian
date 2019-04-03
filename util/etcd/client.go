@@ -34,8 +34,10 @@ import (
 // the same version of etcd in external codebases. Could Go modules help?
 func NewClient(endpoints []string, dialTimeout time.Duration) (*clientv3.Client, error) {
 	return clientv3.New(clientv3.Config{
-		Endpoints:   endpoints,
-		DialTimeout: dialTimeout,
+		Endpoints: endpoints,
+		// TODO(daviddrysdale): re-enable dial timeout when upstream client code fixed
+		// for https://github.com/grpc/grpc-go/pull/2733/files#r271705181
+		// DialTimeout: dialTimeout,
 	})
 }
 
