@@ -20,15 +20,14 @@ import (
 )
 
 const (
-	namespace = "trillian"
 	separator = "_"
 )
 
 // MetricFactory allows the creation of OpenCensus measures and views.
 // Fully-qualified metrics names will be:
-// - Datadog: [namespace].[Prefix][separator][name]
-// - Prometheus: {TBD}
-// - Stackdriver: [namespace]/[Prefix][separator][name]
+// - Datadog: [Prefix][separator][name]
+// - Prometheus: [Prefix][separator][name]
+// - Stackdriver: OpenCensus/[Prefix][separator][name]
 type MetricFactory struct {
 	Prefix string
 }
@@ -47,7 +46,7 @@ func Initialize() (func(), error) {
 		view.RegisterExporter(agent)
 	}
 	return func() {
-		//TODO(dazwilkin) Does the OpenCensus Agent Exporter need graceful shutdown?
+		agent.Stop()
 	}, err
 }
 
