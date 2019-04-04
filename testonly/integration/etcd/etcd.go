@@ -86,10 +86,8 @@ func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) 
 	}
 
 	c, err = clientv3.New(clientv3.Config{
-		Endpoints: []string{e.Config().LCUrls[0].String()},
-		// TODO(daviddrysdale): re-enable dial timeout when upstream client code fixed
-		// for https://github.com/grpc/grpc-go/pull/2733/files#r271705181
-		// DialTimeout: defaultTimeout,
+		Endpoints:   []string{e.Config().LCUrls[0].String()},
+		DialTimeout: defaultTimeout,
 	})
 	if err != nil {
 		cleanup()
