@@ -161,10 +161,9 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}
 	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
 	for i, index := range indices {
-		idxStr := string(index)
 		inclusions[i] = &trillian.MapLeafInclusion{
-			Leaf:      leavesByIndex[idxStr],
-			Inclusion: proofs[idxStr],
+			Leaf:      leavesByIndex[string(index)],
+			Inclusion: proofs[string(index)],
 		}
 	}
 
