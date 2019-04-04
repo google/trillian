@@ -101,7 +101,7 @@ func main() {
 
 	client, err := etcd.NewClientFromString(*server.EtcdServers)
 	if err != nil {
-		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
+		glog.Exitf("Failed to connect to etcd at %v: %v", *server.EtcdServers, err)
 	}
 
 	// Announce our endpoints to etcd if so configured.
