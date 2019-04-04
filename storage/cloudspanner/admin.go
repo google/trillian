@@ -74,6 +74,8 @@ var (
 	signatureAlgReverseMap = reverseSignatureAlgMap(signatureAlgMap)
 )
 
+const nanosPerMilli = int64(time.Millisecond / time.Nanosecond)
+
 func reverseTreeStateMap(m map[trillian.TreeState]spannerpb.TreeState) map[spannerpb.TreeState]trillian.TreeState {
 	reverse := make(map[spannerpb.TreeState]trillian.TreeState)
 	for k, v := range m {
@@ -542,37 +544,28 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 }
 
 func (t *adminTX) updateTreeInfo(ctx context.Context, info *spannerpb.TreeInfo) error {
+	infoBytes, err := proto.Marshal(info)
+	if err != nil {
+		return err
+	}
+
 	m1 := spanner.Update(
 		"TreeRoots",
 		[]string{
 			"TreeID",
 			"TreeState",
 			"TreeType",
-			"HashStrategy",
-			"HashAlgorithm",
-			"SignatureAlgorithm",
-			"DisplayName",
-			"Description",
-			"CreateTimeNanos",
-			"UpdateTimeNanos",
-			"MaxRootDurationMillis",
-			"PrivateKey",
-			"PublicKey",
+			"TreeInfo",
+			"Deleted",
+			"DeleteTimeMillis",
 		},
 		[]interface{}{
 			info.TreeId,
-			info.TreeState,
-			info.TreeType,
-			info.HashStrategy,
-			info.HashAlgorithm,
-			info.SignatureAlgorithm,
-			info.Name,
-			info.Description,
-			info.CreateTimeNanos,
-			info.UpdateTimeNanos,
-			info.MaxRootDurationMillis,
-			info.PrivateKey,
-			info.PublicKeyDer,
+			int64(info.TreeState),
+			int64(info.TreeType),
+			infoBytes,
+			info.Deleted,
+			info.DeleteTimeNanos / nanosPerMilli,
 		})
 
 	stx, ok := t.tx.(*spanner.ReadWriteTransaction)
