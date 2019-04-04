@@ -152,7 +152,7 @@ func getRootAsString(mt InMemoryMerkleTree, leaf int64) string {
 // Get the largest power of two smaller than i.
 func downToPowerOfTwo(i int64) int64 {
 	if i < 2 {
-		panic(errors.New("Requested downToPowerOf2 for value < 2"))
+		panic(errors.New("requested downToPowerOf2 for value < 2"))
 	}
 
 	// Find the smallest power of two greater than or equal to i. We

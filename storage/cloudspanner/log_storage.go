@@ -67,10 +67,6 @@ type LogStorageOptions struct {
 }
 
 var (
-	// MaxUnsequencedCountStaleness configures the read-staleness limit for the
-	// spanner query to retrieve the number of unsequenced certs.
-	MaxUnsequencedCountStaleness = 5 * time.Minute
-
 	// Spanner DB columns:
 	colExtraData               = "ExtraData"
 	colLeafValue               = "LeafValue"
@@ -346,11 +342,6 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 		KeyHint:          types.SerializeKeyHint(tx.treeID),
 		LogRoot:          logRoot,
 		LogRootSignature: currentSTH.Signature,
-		// TODO(gbelvin): Remove deprecated fields
-		TimestampNanos: currentSTH.TsNanos,
-		RootHash:       currentSTH.RootHash,
-		TreeSize:       currentSTH.TreeSize,
-		TreeRevision:   currentSTH.TreeRevision,
 	}, nil
 }
 

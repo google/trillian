@@ -42,7 +42,6 @@ service TrillianLog {
   }
 
   // Adds a single leaf with an assigned sequence number.
-  // Warning: This RPC is under development, don't use it.
   rpc AddSequencedLeaf(AddSequencedLeafRequest)
       returns (AddSequencedLeafResponse) {
     option (google.api.http) = {
@@ -56,13 +55,15 @@ service TrillianLog {
   //
 
   // Returns inclusion proof for a leaf with a given index in a given tree.
+  // If the requested tree_size is larger than the server is aware of,
+  // the response will include the known log root and an empty proof.
   rpc GetInclusionProof(GetInclusionProofRequest)
       returns (GetInclusionProofResponse) {
     option (google.api.http) = {
       get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
     };
   }
-  // Returns inclusion proof for a leaf with a given identity hash in a given
+  // Returns inclusion proof for a leaf with a given Merkle hash in a given
   // tree.
   rpc GetInclusionProofByHash(GetInclusionProofByHashRequest)
       returns (GetInclusionProofByHashResponse) {
@@ -71,6 +72,8 @@ service TrillianLog {
     };
   }
   // Returns consistency proof between two versions of a given tree.
+  // If the requested tree size is larger than the server is aware of,
+  // the response will include the known log root and an empty proof.
   rpc GetConsistencyProof(GetConsistencyProofRequest)
       returns (GetConsistencyProofResponse) {
     option (google.api.http) = {
@@ -79,7 +82,9 @@ service TrillianLog {
   }
 
   // Returns the latest signed log root for a given tree. Corresponds to the
-  // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
+  // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.  The server will
+  // return InvalidArgument if first_tree_size is greater than the
+  // LatestSignedLogRoot available to that server.
   rpc GetLatestSignedLogRoot(GetLatestSignedLogRootRequest)
       returns (GetLatestSignedLogRootResponse) {
     option (google.api.http) = {
@@ -128,8 +133,6 @@ service TrillianLog {
   // Stores leaves from the provided batch and associates them with the log
   // positions according to the `LeafIndex` field. The indices must be
   // contiguous.
-  //
-  // Warning: This RPC is under development, don't use it.
   rpc AddSequencedLeaves(AddSequencedLeavesRequest)
       returns (AddSequencedLeavesResponse) {}
 
@@ -192,6 +195,12 @@ message GetInclusionProofRequest {
 }
 
 message GetInclusionProofResponse {
+  // The proof field may be empty if the requested tree_size was larger
+  // than that available at the server (e.g. because there is skew between
+  // server instances, and an earlier client request was processed by a
+  // more up-to-date instance).  In this case, the signed_log_root
+  // field will indicate the tree size that the server is aware of, and
+  // the proof field will be empty.
   Proof proof = 2;
   SignedLogRoot signed_log_root = 3;
 }
@@ -219,6 +228,12 @@ message GetConsistencyProofRequest {
 }
 
 message GetConsistencyProofResponse {
+  // The proof field may be empty if the requested tree_size was larger
+  // than that available at the server (e.g. because there is skew between
+  // server instances, and an earlier client request was processed by a
+  // more up-to-date instance).  In this case, the signed_log_root
+  // field will indicate the tree size that the server is aware of, and
+  // the proof field will be empty.
   Proof proof = 2;
   SignedLogRoot signed_log_root = 3;
 }
@@ -226,10 +241,16 @@ message GetConsistencyProofResponse {
 message GetLatestSignedLogRootRequest {
   int64 log_id = 1;
   ChargeTo charge_to = 2;
+  // If first_tree_size is non-zero, the response will include a consistency
+  // proof between first_tree_size and the new tree size (if not smaller).
+  int64 first_tree_size = 3;
 }
 
 message GetLatestSignedLogRootResponse {
   SignedLogRoot signed_log_root = 2;
+  // proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
+  // non-zero.
+  Proof proof = 3;
 }
 
 message GetSequencedLeafCountRequest {

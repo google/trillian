@@ -211,6 +211,12 @@ func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.T
 
 func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree, false /* readonly */)
+	if tx != nil {
+		// Ensure we don't leak the transaction. For example if we get an
+		// ErrTreeNeedsInit from beginInternal() or if QueueLeaves fails
+		// below.
+		defer tx.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -427,11 +433,10 @@ func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.Count
 	ret := make(map[int64]int64)
 	for id, tree := range t.ms.trees {
 		tree.RLock()
-		defer tree.RUnlock() // OK to hold until method returns.
-
 		k := unseqKey(id)
 		queue := tree.store.Get(k).(*kv).v.(*list.List)
 		ret[id] = int64(queue.Len())
+		tree.RUnlock()
 	}
 	return ret, nil
 }

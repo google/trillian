@@ -211,20 +211,18 @@ message SignedEntryTimestamp {
 
 // SignedLogRoot represents a commitment by a Log to a particular tree.
 message SignedLogRoot {
-  // Deprecated: TimestampNanos moved to LogRoot.
-  int64 timestamp_nanos = 1;
-  // Deprecated: RootHash moved to LogRoot.
-  bytes root_hash = 2;
-  // Deprecated: TreeSize moved to LogRoot.
-  int64 tree_size = 3;
-  // Deprecated: TreeRevision moved to LogRoot.
-  int64 tree_revision = 6;
-
+  // Deleted: TimestampNanos moved to LogRoot.
+  reserved 1;
+  // Deleted: RootHash moved to LogRoot.
+  reserved 2;
+  // Deleted: TreeSize moved to LogRoot.
+  reserved 3;
   // Deleted: Signature replaced by LogRootSignature.
   reserved 4;
-
   // Deleted: LogID is associated with the public key that validates signature.
   reserved 5;
+  // Deleted: TreeRevision moved to LogRoot.
+  reserved 6;
 
   // key_hint is a hint to identify the public key for signature verification.
   // key_hint is not authenticated and may be incorrect or missing, in which
@@ -253,6 +251,22 @@ message SignedLogRoot {
   //     case v1: LogRootV1;
   //   }
   // } LogRoot;
+  //
+  // A serialized v1 log root will therefore be laid out as:
+  //
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
+  // | ver=1 |          tree_size            |len|    root_hashlen   |
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
+  //
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  // |        timestamp_nanos        |      revision                 |
+  // +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  //
+  // +---+---+---+---+---+-....---+
+  // |  len  |    metadata        |
+  // +---+---+---+---+---+-....---+
+  //
+  // (with all integers encoded big-endian).
   bytes log_root = 8;
 
   // log_root_signature is the raw signature over log_root.

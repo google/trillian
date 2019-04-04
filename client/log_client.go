@@ -33,11 +33,12 @@ import (
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
 	*LogVerifier
-	LogID      int64
-	client     trillian.TrillianLogClient
-	root       types.LogRootV1
-	rootLock   sync.Mutex
-	updateLock sync.Mutex
+	LogID         int64
+	MinMergeDelay time.Duration
+	client        trillian.TrillianLogClient
+	root          types.LogRootV1
+	rootLock      sync.Mutex
+	updateLock    sync.Mutex
 }
 
 // New returns a new LogClient.
@@ -73,7 +74,8 @@ func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, in
 }
 
 // AddLeaf adds leaf to the append only log.
-// Blocks and continuously updates the trusted root until it gets a verifiable response.
+// Blocks and continuously updates the trusted root until a successful inclusion proof
+// can be retrieved.
 func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	if err := c.QueueLeaf(ctx, data); err != nil {
 		return fmt.Errorf("QueueLeaf(): %v", err)
@@ -158,7 +160,10 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 // Pass nil for trusted if this is the first time querying this log.
 func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
 	resp, err := c.client.GetLatestSignedLogRoot(ctx,
-		&trillian.GetLatestSignedLogRootRequest{LogId: c.LogID})
+		&trillian.GetLatestSignedLogRootRequest{
+			LogId:         c.LogID,
+			FirstTreeSize: int64(trusted.TreeSize),
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -182,25 +187,10 @@ func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.L
 		// Tree has not been updated.
 		return &logRoot, nil
 	}
-	// Fetch a consistency proof if this isn't the first root we've seen.
-	var consistency *trillian.GetConsistencyProofResponse
-	if trusted.TreeSize > 0 {
-		// Get consistency proof.
-		consistency, err = c.client.GetConsistencyProof(ctx,
-			&trillian.GetConsistencyProofRequest{
-				LogId:          c.LogID,
-				FirstTreeSize:  int64(trusted.TreeSize),
-				SecondTreeSize: int64(logRoot.TreeSize),
-			})
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	// Verify root update if the tree / the latest signed log root isn't empty.
 	if logRoot.TreeSize > 0 {
-		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(),
-			consistency.GetProof().GetHashes()); err != nil {
+		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(), resp.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}
 	}
@@ -221,14 +211,19 @@ func (c *LogClient) GetRoot() *types.LogRootV1 {
 // seen in the past, and updating the currently trusted root if the new root verifies, and is
 // newer than the currently trusted root.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
-	// Only one root update should be running at any point in time.  This is
-	// because the consistency proof has to be requested against the currently
-	// trusted root, and allowing the current root to be updated during an
-	// existing update can lead to race conditions which result in incorrect and
-	// inconsistent state updates.
+	// Only one root update should be running at any point in time, because
+	// the update involves a consistency proof from the old value, and if the
+	// old value could change along the way (in another goroutine) then the
+	// result could be inconsistent.
 	//
-	// For more details, see:
-	// https://github.com/google/trillian/pull/1225#discussion_r201489925
+	// For example, if the current root is A and two root updates A->B and A->C
+	// happen in parallel, then we might end up with the transitions A->B->C:
+	//     cur := A            cur := A
+	//    getRoot() => B      getRoot() => C
+	//    proof(A->B) ok      proof(A->C) ok
+	//    c.root = B
+	//                        c.root = C
+	// and the last step (B->C) has no proof and so could hide a forked tree.
 	c.updateLock.Lock()
 	defer c.updateLock.Unlock()
 
@@ -266,6 +261,16 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
+	}
+
+	// If a minimum merge delay has been configured, wait at least that long before
+	// starting to poll
+	if c.MinMergeDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return status.Errorf(codes.DeadlineExceeded, "%v", ctx.Err())
+		case <-time.After(c.MinMergeDelay):
+		}
 	}
 
 	var root *types.LogRootV1
@@ -319,6 +324,17 @@ func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byt
 	if err != nil {
 		return err
 	}
+
+	// If this request hit a more out-of-date server instance than the GetSLR request,
+	// there may be an empty proof and an earlier SLR.
+	var proofRoot types.LogRootV1
+	if err := proofRoot.UnmarshalBinary(resp.GetSignedLogRoot().GetLogRoot()); err != nil {
+		return err
+	}
+	if proofRoot.TreeSize < sth.TreeSize {
+		return fmt.Errorf("response for InclusionProof has a smaller (%d) root than requested (%d)", proofRoot.TreeSize, sth.TreeSize)
+	}
+
 	return c.VerifyInclusionAtIndex(sth, data, index, resp.Proof.Hashes)
 }
 

@@ -261,7 +261,7 @@ func TestQuotaManager_Noops(t *testing.T) {
 	}
 }
 
-func allSpecs(ctx context.Context, qm quota.Manager, treeID int64) []quota.Spec {
+func allSpecs(_ context.Context, _ quota.Manager, treeID int64) []quota.Spec {
 	return []quota.Spec{
 		{Group: quota.User, Kind: quota.Read, User: "florence"},
 		{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},

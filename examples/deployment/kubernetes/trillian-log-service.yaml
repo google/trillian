@@ -7,7 +7,7 @@ metadata:
   annotations:
       cloud.google.com/load-balancer-type: "Internal"
 spec:
-  clusterIP: None
+  type: LoadBalancer
   ports:
   - name: grpclb
     port: 8090
@@ -17,5 +17,3 @@ spec:
     targetPort: 8091
   selector:
     io.kompose.service: trillian-log
-status:
-  loadBalancer: {}

@@ -46,7 +46,7 @@ const (
 	FROM Subtree n
 	WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
 	 n.TreeId = ? AND n.SubtreeRevision <= ?
-	GROUP BY n.SubtreeId
+	GROUP BY n.TreeId, n.SubtreeId
  ) AS x
  INNER JOIN Subtree 
  ON Subtree.SubtreeId = x.SubtreeId 
@@ -336,14 +336,14 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	}
 
 	if rowsAffected != count {
-		return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
+		return fmt.Errorf("expected %d row(s) to be affected but saw: %d", count,
 			rowsAffected)
 	}
 
 	return nil
 }
 
-// GetTreeRevisionAtSize returns the max node version for a tree at a particular size.
+// GetTreeRevisionIncludingSize returns the max node version for a tree at a particular size.
 // It is an error to request tree sizes larger than the currently published tree size.
 // For an inexact tree size this implementation always returns the next largest revision if an
 // exact one does not exist but it isn't required to do so.

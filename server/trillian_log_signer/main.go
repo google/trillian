@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	_ "net/http/pprof" // Register pprof HTTP handlers.
 	"os"
 	"time"
 
@@ -38,15 +39,12 @@ import (
 	"google.golang.org/grpc"
 
 	tpb "github.com/google/trillian"
-	// Register pprof HTTP handlers
-	_ "net/http/pprof"
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
 
 	// Load hashers
-	_ "github.com/google/trillian/merkle/objhasher"
 	_ "github.com/google/trillian/merkle/rfc6962"
 )
 

@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS Subtree(
   TreeId               BIGINT NOT NULL,
   SubtreeId            VARBINARY(255) NOT NULL,
   Nodes                MEDIUMBLOB NOT NULL,
-  SubtreeRevision      INTEGER NOT NULL,  -- negated because DESC indexes aren't supported :/
+  SubtreeRevision      INTEGER NOT NULL,
+  -- Key columns must be in ASC order in order to benefit from group-by/min-max
+  -- optimization in MySQL.
   PRIMARY KEY(TreeId, SubtreeId, SubtreeRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
@@ -110,6 +112,10 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
   FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE
 );
+
+
+CREATE INDEX SequencedLeafMerkleIdx
+  ON SequencedLeafData(TreeId, MerkleLeafHash);
 
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               BIGINT NOT NULL,

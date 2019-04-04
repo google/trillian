@@ -23,8 +23,8 @@ import (
 func checkNotFiring(t *testing.T, timer Timer) {
 	t.Helper()
 	select {
-	case time := <-timer.Chan():
-		t.Errorf("Timer unexpectedly fired at %v", time)
+	case tm := <-timer.Chan():
+		t.Errorf("Timer unexpectedly fired at %v", tm)
 	case <-time.After(10 * time.Millisecond): // Give some real time to pass.
 	}
 }
@@ -104,9 +104,9 @@ func TestManyFakeTimers(t *testing.T) {
 		}
 	}
 	check(-1, time.Time{}) // No firing before.
-	for i, time := range times {
-		ts.Set(time)
-		check(i, time)
+	for i, fTime := range times {
+		ts.Set(fTime)
+		check(i, fTime)
 	}
 	check(-1, time.Time{}) // No firing after.
 }

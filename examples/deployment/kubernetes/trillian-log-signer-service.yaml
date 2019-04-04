@@ -10,11 +10,10 @@ metadata:
     io.kompose.service: trillian-log-signer
   name: trillian-log-signer
 spec:
+  type: LoadBalancer
   ports:
   - name: "8092"
     port: 8092
     targetPort: 8091
   selector:
     io.kompose.service: trillian-log-signer
-status:
-  loadBalancer: {}

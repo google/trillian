@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -32,13 +33,13 @@ import (
 )
 
 var (
-	trillianSQL = testonly.RelativeToPackage("../mysql/storage.sql")
-	dataSource  = "root@/"
+	trillianSQL   = testonly.RelativeToPackage("../mysql/storage.sql")
+	dataSourceURI = flag.String("test_mysql_uri", "root@tcp(127.0.0.1)/", "The MySQL uri to use when running tests")
 )
 
 // MySQLAvailable indicates whether a default MySQL database is available.
 func MySQLAvailable() bool {
-	db, err := sql.Open("mysql", dataSource)
+	db, err := sql.Open("mysql", *dataSourceURI)
 	if err != nil {
 		log.Printf("sql.Open(): %v", err)
 		return false
@@ -53,7 +54,7 @@ func MySQLAvailable() bool {
 
 // newEmptyDB creates a new, empty database.
 func newEmptyDB(ctx context.Context) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dataSource)
+	db, err := sql.Open("mysql", *dataSourceURI)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +68,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 	}
 
 	db.Close()
-	db, err = sql.Open("mysql", dataSource+name)
+	db, err = sql.Open("mysql", *dataSourceURI+name)
 	if err != nil {
 		return nil, err
 	}

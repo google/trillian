@@ -23,18 +23,19 @@ deployment on Google Cloud using Kubernetes and Cloud Spanner.
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 1. Create a new project
-1. Edit the [config.sh](config.sh) file, set `PROJECT_ID` to the ID of your
-   project
-1. Run: `./create.sh`.
+1. Edit the [example-config.sh](example-config.sh) file, set `PROJECT_ID` to
+   the ID of your project
+1. Run: `./create.sh example-config.sh`.
    This script will create the Kubernetes cluster, node pools, and Spanner
    database, service account and etcd cluster.
    It should take about 5 to 10 minutes to finish and must complete without
    error.
 1. Now you can deploy the Trillian services.
-   Run: `./deploy.sh config.sh`
+   Run: `./deploy.sh example-config.sh`
    This will build the Trillian Docker images, tag them, and create/update the
    Kubernetes deployment.
-1. To update a running deployment, simply re-run `./deploy.sh config.sh` at any time.
+1. To update a running deployment, simply re-run `./deploy.sh example-config.sh`
+   at any time.
 
 You should now have a working Trilian Log deployment in Kubernetes.
 
@@ -52,7 +53,7 @@ To provision a tree into Trillian, use the `provision_tree.sh` script (which
 uses `kubectl` to forward requests to the Trillian Log's admin API):
 
 ```bash
-./provision_tree.sh config.sh
+./provision_tree.sh example-config.sh
 ```
 
 Make a note of the tree ID for the new tree.

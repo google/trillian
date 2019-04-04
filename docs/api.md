@@ -216,7 +216,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) |  |  |
+| proof | [Proof](#trillian.Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
 
 
@@ -320,7 +320,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) |  |  |
+| proof | [Proof](#trillian.Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
 
 
@@ -338,6 +338,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
 | charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| first_tree_size | [int64](#int64) |  | If first_tree_size is non-zero, the response will include a consistency proof between first_tree_size and the new tree size (if not smaller). |
 
 
 
@@ -353,6 +354,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian.Proof) |  | proof is filled if first_tree_size in GetLatestSignedLogRootRequest is non-zero. |
 
 
 
@@ -664,18 +666,16 @@ operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | QueueLeaf | [QueueLeafRequest](#trillian.QueueLeafRequest) | [QueueLeafResponse](#trillian.QueueLeafResponse) | Adds a single leaf to the queue. |
-| AddSequencedLeaf | [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest) | [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse) | Adds a single leaf with an assigned sequence number. Warning: This RPC is under development, don&#39;t use it. |
-| GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | Returns inclusion proof for a leaf with a given index in a given tree. |
-| GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse) | Returns inclusion proof for a leaf with a given identity hash in a given tree. |
-| GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | Returns consistency proof between two versions of a given tree. |
-| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | Returns the latest signed log root for a given tree. Corresponds to the ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface. |
+| AddSequencedLeaf | [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest) | [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse) | Adds a single leaf with an assigned sequence number. |
+| GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | Returns inclusion proof for a leaf with a given index in a given tree. If the requested tree_size is larger than the server is aware of, the response will include the known log root and an empty proof. |
+| GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse) | Returns inclusion proof for a leaf with a given Merkle hash in a given tree. |
+| GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | Returns consistency proof between two versions of a given tree. If the requested tree size is larger than the server is aware of, the response will include the known log root and an empty proof. |
+| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | Returns the latest signed log root for a given tree. Corresponds to the ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface. The server will return InvalidArgument if first_tree_size is greater than the LatestSignedLogRoot available to that server. |
 | GetSequencedLeafCount | [GetSequencedLeafCountRequest](#trillian.GetSequencedLeafCountRequest) | [GetSequencedLeafCountResponse](#trillian.GetSequencedLeafCountResponse) | Returns the total number of leaves that have been integrated into the given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount storage interface. DO NOT USE - FOR DEBUGGING/TEST ONLY |
 | GetEntryAndProof | [GetEntryAndProofRequest](#trillian.GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian.GetEntryAndProofResponse) | Returns log entry and the corresponding inclusion proof for a given leaf index in a given tree. If the requested tree is unavailable but the leaf is in scope for the current tree, return a proof in that tree instead. |
 | InitLog | [InitLogRequest](#trillian.InitLogRequest) | [InitLogResponse](#trillian.InitLogResponse) |  |
 | QueueLeaves | [QueueLeavesRequest](#trillian.QueueLeavesRequest) | [QueueLeavesResponse](#trillian.QueueLeavesResponse) | Adds a batch of leaves to the queue. |
-| AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | Stores leaves from the provided batch and associates them with the log positions according to the `LeafIndex` field. The indices must be contiguous.
-
-Warning: This RPC is under development, don&#39;t use it. |
+| AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | Stores leaves from the provided batch and associates them with the log positions according to the `LeafIndex` field. The indices must be contiguous. |
 | GetLeavesByIndex | [GetLeavesByIndexRequest](#trillian.GetLeavesByIndexRequest) | [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse) | Returns a batch of leaves located in the provided positions. |
 | GetLeavesByRange | [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse) | Returns a batch of leaves in a sequential range. |
 | GetLeavesByHash | [GetLeavesByHashRequest](#trillian.GetLeavesByHashRequest) | [GetLeavesByHashResponse](#trillian.GetLeavesByHashResponse) | Returns a batch of leaves by their `merkle_leaf_hash` values. |
@@ -1108,12 +1108,18 @@ SignedLogRoot represents a commitment by a Log to a particular tree.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| timestamp_nanos | [int64](#int64) |  | Deprecated: TimestampNanos moved to LogRoot. |
-| root_hash | [bytes](#bytes) |  | Deprecated: RootHash moved to LogRoot. |
-| tree_size | [int64](#int64) |  | Deprecated: TreeSize moved to LogRoot. |
-| tree_revision | [int64](#int64) |  | Deprecated: TreeRevision moved to LogRoot. |
 | key_hint | [bytes](#bytes) |  | key_hint is a hint to identify the public key for signature verification. key_hint is not authenticated and may be incorrect or missing, in which case all known public keys may be used to verify the signature. When directly communicating with a Trillian gRPC server, the key_hint will typically contain the LogID encoded as a big-endian 64-bit integer; however, in other contexts the key_hint is likely to have different contents (e.g. it could be a GUID, a URL &#43; TreeID, or it could be derived from the public key itself). |
-| log_root | [bytes](#bytes) |  | log_root holds the TLS-serialization of the following structure (described in RFC5246 notation): Clients should validate log_root_signature with VerifySignedLogRoot before deserializing log_root. enum { v1(1), (65535)} Version; struct { uint64 tree_size; opaque root_hash&lt;0..128&gt;; uint64 timestamp_nanos; uint64 revision; opaque metadata&lt;0..65535&gt;; } LogRootV1; struct { Version version; select(version) { case v1: LogRootV1; } } LogRoot; |
+| log_root | [bytes](#bytes) |  | log_root holds the TLS-serialization of the following structure (described in RFC5246 notation): Clients should validate log_root_signature with VerifySignedLogRoot before deserializing log_root. enum { v1(1), (65535)} Version; struct { uint64 tree_size; opaque root_hash&lt;0..128&gt;; uint64 timestamp_nanos; uint64 revision; opaque metadata&lt;0..65535&gt;; } LogRootV1; struct { Version version; select(version) { case v1: LogRootV1; } } LogRoot;
+
+A serialized v1 log root will therefore be laid out as:
+
+&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....--&#43; | ver=1 | tree_size |len| root_hashlen | &#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....--&#43;
+
+&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43; | timestamp_nanos | revision | &#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;---&#43;
+
+&#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....---&#43; | len | metadata | &#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....---&#43;
+
+(with all integers encoded big-endian). |
 | log_root_signature | [bytes](#bytes) |  | log_root_signature is the raw signature over log_root. |
 
 

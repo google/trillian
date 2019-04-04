@@ -12,24 +12,24 @@ CREATE TYPE E_SIGNATURE_ALGORITHM AS ENUM('ECDSA', 'RSA');
 
 -- Tree parameters should not be changed after creation. Doing so can
 -- render the data in the tree unusable or inconsistent.
-CREATE TABLE IF NOT EXISTS trees ( 
-  tree_id                  BIGINT NOT NULL, 
-  tree_state               E_TREE_STATE NOT NULL, 
-  tree_type                E_TREE_TYPE NOT NULL, 
-  hash_strategy            E_HASH_STRATEGY NOT NULL, 
-  hash_algorithm           E_HASH_ALGORITHM NOT NULL, 
-  signature_algorithm      E_SIGNATURE_ALGORITHM NOT NULL, 
-  display_name             VARCHAR(20), 
-  description              VARCHAR(200), 
-  create_time_millis       BIGINT NOT NULL, 
-  update_time_millis       BIGINT NOT NULL, 
-  max_root_duration_millis BIGINT NOT NULL, 
-  private_key              BYTEA NOT NULL, 
-  public_key               BYTEA NOT NULL, 
+CREATE TABLE IF NOT EXISTS trees (
+  tree_id                  BIGINT NOT NULL,
+  tree_state               E_TREE_STATE NOT NULL,
+  tree_type                E_TREE_TYPE NOT NULL,
+  hash_strategy            E_HASH_STRATEGY NOT NULL,
+  hash_algorithm           E_HASH_ALGORITHM NOT NULL,
+  signature_algorithm      E_SIGNATURE_ALGORITHM NOT NULL,
+  display_name             VARCHAR(20),
+  description              VARCHAR(200),
+  create_time_millis       BIGINT NOT NULL,
+  update_time_millis       BIGINT NOT NULL,
+  max_root_duration_millis BIGINT NOT NULL,
+  private_key              BYTEA NOT NULL,
+  public_key               BYTEA NOT NULL,
   deleted                  BOOLEAN NOT NULL DEFAULT FALSE,
-  delete_time_millis       BIGINT, 
-  PRIMARY KEY(tree_id) 
-); 
+  delete_time_millis       BIGINT,
+  PRIMARY KEY(tree_id)
+);
 
 -- This table contains tree parameters that can be changed at runtime such as for
 -- administrative purposes.
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS subtree(
   tree_id               BIGINT NOT NULL,
   subtree_id            BYTEA NOT NULL,
   nodes                 BYTEA NOT NULL,
-  subtree_revision      INTEGER NOT NULL, 
+  subtree_revision      INTEGER NOT NULL,
   PRIMARY KEY(tree_id, subtree_id, subtree_revision),
   FOREIGN KEY(tree_id) REFERENCES Trees(tree_id) ON DELETE CASCADE
 );
@@ -117,6 +117,8 @@ CREATE TABLE IF NOT EXISTS sequenced_leaf_data(
   FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE,
   FOREIGN KEY(tree_id, leaf_identity_hash) REFERENCES leaf_data(tree_id, leaf_identity_hash) ON DELETE CASCADE
 );
+
+CREATE INDEX SequencedLeafMerkleIdx ON sequenced_leaf_data(tree_id, merkle_leaf_hash);
 
 CREATE TABLE IF NOT EXISTS unsequenced(
   tree_id               BIGINT NOT NULL,

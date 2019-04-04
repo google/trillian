@@ -30,7 +30,7 @@ else
 fi
 
 echo "Provision log"
-go build ${GOFLAGS} github.com/google/trillian/cmd/createtree/
+go build github.com/google/trillian/cmd/createtree/
 TEST_TREE_ID=$(./createtree \
   --admin_server="${TRILLIAN_SERVER}" \
   ${KEY_ARGS})
@@ -39,7 +39,7 @@ echo "Created tree ${TEST_TREE_ID}"
 echo "Running test"
 pushd "${INTEGRATION_DIR}"
 set +e
-go test ${GOFLAGS} \
+go test \
   -run ".*LiveLog.*" \
   -timeout=${GO_TEST_TIMEOUT:-5m} \
   ./ \

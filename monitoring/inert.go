@@ -50,6 +50,12 @@ func (imf InertMetricFactory) NewHistogram(name, help string, labelNames ...stri
 	}
 }
 
+// NewHistogramWithBuckets creates a new inert Histogram with supplied buckets.
+// The buckets are not actually used.
+func (imf InertMetricFactory) NewHistogramWithBuckets(name, help string, _ []float64, labelNames ...string) Histogram {
+	return imf.NewHistogram(name, help, labelNames...)
+}
+
 // InertFloat is an internal-only implementation of both the Counter and Gauge interfaces.
 type InertFloat struct {
 	labelCount int

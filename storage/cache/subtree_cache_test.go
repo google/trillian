@@ -159,7 +159,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	}
 }
 
-func noFetch(storage.NodeID) (*storagepb.SubtreeProto, error) {
+func noFetch(_ storage.NodeID) (*storagepb.SubtreeProto, error) {
 	return nil, errors.New("not supposed to read anything")
 }
 

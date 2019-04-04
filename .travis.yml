@@ -1,45 +1,39 @@
 sudo: true  # Only to move mysql onto ramdisk.
-
+os: linux
+dist: xenial
 language: go
+go: "1.11.x"
+go_import_path: github.com/google/trillian
 
 addons:
   apt:
-    sources:
-      - mysql-5.7-trusty
     packages:
       - softhsm
-      - mysql-server
-      - mysql-client
 
 cache:
   directories:
     - "$HOME/google-cloud-sdk/"
 
-os:
-  - linux
-
-go:
-  - "1.10"
-
-go_import_path: github.com/google/trillian
 
 env:
   - WITH_COVERAGE=true
   - GOFLAGS='-race'
-  - GOFLAGS='-race --tags batched_queue'
+  - GOFLAGS='-race --tags=batched_queue'
   - GOFLAGS='-race' WITH_ETCD=true
-  - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
+  - GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
+  - WITH_DOCKER_TESTS=true
 
 matrix:
   fast_finish: true
+  allow_failures:
+    - env: WITH_DOCKER_TESTS=true
 
 services:
   - docker
   - postgresql
+  - mysql
 
 before_install:
-  - sudo mysql -e "use mysql; update user set authentication_string=PASSWORD('') where User='root'; update user set plugin='mysql_native_password';FLUSH PRIVILEGES;"
-  - sudo mysql_upgrade
   - sudo service mysql stop
   - |
     if [[ "$TRAVIS_SUDO" == "true" ]]; then
@@ -65,6 +59,12 @@ install:
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go get ${GOFLAGS} -d -t ./...
+  # TODO(drysdale): remove this once https://github.com/grpc/grpc-go/pull/2733/files#r271705181 is addressed upstream
+  - |
+    (
+      cd ${GOPATH}/src/google.golang.org/grpc
+      git revert --no-edit 955eb8a3c829b
+    )
   - go get -d -t github.com/google/certificate-transparency-go/...
   - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.12.5
   - go get github.com/golang/protobuf/proto
@@ -107,11 +107,10 @@ script:
       # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
       # support is enabled. This requires running softhsm in a Docker container.
       # See https://github.com/rolandshoemaker/docker-hsm for an example.
-      if [[ "${WITH_PKCS11}" != "true" ]]; then
+      if [[ "${WITH_DOCKER_TESTS}" == "true" ]]; then
         ./integration/docker_compose_integration_test.sh
       fi
   - set +e
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
-

@@ -32,19 +32,65 @@ type Node struct {
 	NodeRevision int64
 }
 
-// NodeID uniquely identifies a Node within a versioned MerkleTree.
+// NodeID uniquely identifies a Node within a MerkleTree.
+// Reading paths right to left is the natural order when traversing from
+// leaves towards the root. However, for internal nodes the rightmost bits
+// of the IDs are not aligned on a byte boundary so care must be taken.
+//
+// NodeIDs as presented to the storage layer will always have a multiple
+// of 8 bits as they identify the root of a 256 element subtree.
+//
+// Note that some of the APIs count bits with 0 being the rightmost
+// in the entire path array when some of these might not be significant.
+//
+// See the types.go file that defines this type for more detailed information
+// and docs/storage for how they are used in the on-disk representation of
+// Merkle trees.
 type NodeID struct {
-	// path is effectively a BigEndian bit set, with path[0] being the MSB
-	// (identifying the root child), and successive bits identifying the lower
+	// Path is effectively a BigEndian bit set, with the MSB of Path[0]
+	// identifying the root child, and successive bits identifying the lower
 	// level children down to the leaf.
 	Path []byte
-	// PrefixLenBits is the number of MSB in Path which are considered part of
-	// this NodeID.
+	// PrefixLenBits is the number of significant bits in Path, which are
+	// considered part of this NodeID.
 	//
 	// e.g. if Path contains two bytes, and PrefixLenBits is 9, then the 8 bits
-	// in Path[0] are included, along with the lowest bit of Path[1]
+	// in Path[0] are included, along with the MSB of Path[1]. The remaining
+	// 7 bits are not significant.
 	PrefixLenBits int
 }
+
+// Some Additional NodeID examples and Documentation.
+//
+// Consider a hypothetical case of a tree of size 256 and max path length 8.
+// The IDs within this tree will at most have 8 significant bits. To specify
+// the leaf with index 95 requires 8 bits to match the tree height so the
+// Path array would be: [0x5f] with PrefixLength 8. Moving up the tree two
+// levels from this node the depth would be 2 and index 23. This gives a Path
+// array of [0x5c] and PrefixLength is 6, which means the lowest 2 bits are not
+// significant. In binary 0x5c is: 0b01011100 and 23 decimal is: 0b000010111
+// so the index has been shifted left by 2 places in the NodeID. Reading
+// from left to right after 6 bits the node has been reached. The remaining
+// two bits therefore don't matter.
+//
+// Larger tree sizes as used by Logs and Maps work in exactly the same
+// way but with the Path taking up multiple bytes. For example if we move
+// to a tree size of up to 65535 there will be two Path bytes. For a leaf
+// in this tree at depth = 0, index = 19 the resulting NodeID has a
+// Path array of [0x00, 0x13] and PrefixLength 16. To see that it's the
+// left bits that are significant consider depth = 2, index = 16383 in this
+// tree (the rightmost node in a complete tree at this level). The resulting
+// NodeID has Path [0xff, 0xfc] and PrefixLength is 14. When processing this
+// NodeID to move up the tree the lowest 2 bits of Path[1] should be ignored as
+// it only takes 14 bits to reach the root of the tree from level 2 in a 16
+// levels deep tree. Also, testing Bit(0) on this NodeID would not be valid as
+// this is the LSB of Path[1] and it's not one of the significant bits.
+//
+// When dealing with storage the ID can be split into a prefix and suffix.
+// All nodes within the same storage subtree have the same prefix and form
+// the subtree ID. The suffix identifies the internal node within the subtree.
+// They are both paths in the entire Merkle tree. In this case the prefix will
+// always be a multiple of 8 bits.
 
 // PathLenBits returns 8 * len(path).
 func (n NodeID) PathLenBits() int {
@@ -68,7 +114,7 @@ func NewNodeIDFromHash(h []byte) NodeID {
 // capacity to store a maximum of maxLenBits.
 func NewEmptyNodeID(maxLenBits int) NodeID {
 	if got, want := maxLenBits%8, 0; got != want {
-		panic(fmt.Sprintf("storeage: NewEmptyNodeID() maxLenBits mod 8: %v, want %v", got, want))
+		panic(fmt.Sprintf("storage: NewEmptyNodeID() maxLenBits mod 8: %v, want %v", got, want))
 	}
 	return NodeID{
 		Path:          make([]byte, maxLenBits/8),
@@ -93,7 +139,7 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 		panic(fmt.Sprintf("storage NewNodeFromPrefix(): depth: %v, want >= %v", got, want))
 	}
 
-	// Put prefix in the MSB bits of path.
+	// Put prefix in the left (most significant) bits of path.
 	path := make([]byte, totalDepth/8)
 	copy(path, prefix)
 
@@ -103,6 +149,7 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 
 	// Copy subDepth/8 bytes of subIndex into path.
 	subPath := new(bytes.Buffer)
+	// Write() on a Buffer never errors. It panics internally if we run out of RAM.
 	binary.Write(subPath, binary.BigEndian, uint64(subIndex))
 	unusedHighBytes := 64/8 - subDepth/8
 	copy(path[len(prefix):], subPath.Bytes()[unusedHighBytes:])
@@ -197,9 +244,8 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 }
 
 // SetBit sets the ith bit to true if b is non-zero, and false otherwise.
+// Note that the bit index 0 is the right most valid bit in the path.
 func (n *NodeID) SetBit(i int, b uint) {
-	// TODO(al): investigate whether having lookup tables for these might be
-	// faster.
 	bIndex := (n.PathLenBits() - i - 1) / 8
 	if b == 0 {
 		n.Path[bIndex] &= ^(1 << uint(i%8))
@@ -208,7 +254,8 @@ func (n *NodeID) SetBit(i int, b uint) {
 	}
 }
 
-// Bit returns 1 if the ith bit from the right is true, and false otherwise.
+// Bit returns 1 if the zero indexed ith bit from the right (of the whole path
+// array, not just the significant portion) is true, and false otherwise.
 func (n *NodeID) Bit(i int) uint {
 	if got, want := i, n.PathLenBits()-1; got > want {
 		panic(fmt.Sprintf("storage: Bit(%v) > (PathLenBits() -1): %v", got, want))
@@ -218,7 +265,9 @@ func (n *NodeID) Bit(i int) uint {
 }
 
 // String returns a string representation of the binary value of the NodeID.
-// The left-most bit is the MSB (i.e. nearer the root of the tree).
+// The left-most bit is the MSB (i.e. nearer the root of the tree). The
+// length of the returned string will always be the same as the prefix length
+// of the node.
 func (n *NodeID) String() string {
 	var r bytes.Buffer
 	limit := n.PathLenBits() - n.PrefixLenBits
@@ -308,7 +357,7 @@ func NewNodeIDFromPrefixSuffix(prefix []byte, suffix Suffix, maxPathBits int) No
 	}
 }
 
-// Split splits a NodeID into a prefix and a suffix at prefixSplit
+// Split splits a NodeID into a prefix and a suffix at prefixBytes.
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, Suffix{Bits: 0, Path: []byte{0}}
@@ -316,19 +365,19 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	a := make([]byte, len(n.Path))
 	copy(a, n.Path)
 
-	bits := n.PrefixLenBits - prefixBytes*8
-	if bits > suffixBits {
+	b := n.PrefixLenBits - prefixBytes*8
+	if b > suffixBits {
 		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
 	}
-	if bits == 0 {
-		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) == 0", n.Path, n.PrefixLenBits, prefixBytes))
+	if b <= 0 {
+		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) <= 0", n.Path, n.PrefixLenBits, prefixBytes))
 	}
-	suffixBytes := bytesForBits(bits)
+	suffixBytes := bytesForBits(b)
 	sfx := Suffix{
-		Bits: byte(bits),
+		Bits: byte(b),
 		Path: a[prefixBytes : prefixBytes+suffixBytes],
 	}
-	maskIndex := (bits - 1) / 8
+	maskIndex := (b - 1) / 8
 	maskLowBits := (sfx.Bits-1)%8 + 1
 	sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
 
@@ -337,7 +386,25 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.
 func (n *NodeID) Equivalent(other NodeID) bool {
-	return n.String() == other.String()
+	// If they're different lengths they cannot represent the same path prefix.
+	if n.PrefixLenBits != other.PrefixLenBits {
+		return false
+	}
+
+	// The first depthBytes must be identical.
+	depthBytes := n.PrefixLenBits / 8
+	if !bytes.Equal(n.Path[:depthBytes], other.Path[:depthBytes]) {
+		return false
+	}
+
+	// There may not be a leftover partial byte to compare.
+	if n.PrefixLenBits%8 == 0 {
+		return true
+	}
+
+	// Check the remaining bits after masking off unwanted bits in the last byte.
+	mask := leftmask[n.PrefixLenBits%8]
+	return (n.Path[depthBytes] & mask) == (other.Path[depthBytes] & mask)
 }
 
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree

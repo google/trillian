@@ -35,6 +35,7 @@ func (m *MockLogOperation) EXPECT() *MockLogOperationMockRecorder {
 
 // ExecutePass mocks base method
 func (m *MockLogOperation) ExecutePass(arg0 context.Context, arg1 int64, arg2 *LogOperationInfo) (int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ExecutePass", arg0, arg1, arg2)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
@@ -43,11 +44,13 @@ func (m *MockLogOperation) ExecutePass(arg0 context.Context, arg1 int64, arg2 *L
 
 // ExecutePass indicates an expected call of ExecutePass
 func (mr *MockLogOperationMockRecorder) ExecutePass(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecutePass", reflect.TypeOf((*MockLogOperation)(nil).ExecutePass), arg0, arg1, arg2)
 }
 
 // Name mocks base method
 func (m *MockLogOperation) Name() string {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Name")
 	ret0, _ := ret[0].(string)
 	return ret0
@@ -55,5 +58,6 @@ func (m *MockLogOperation) Name() string {
 
 // Name indicates an expected call of Name
 func (mr *MockLogOperationMockRecorder) Name() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockLogOperation)(nil).Name))
 }

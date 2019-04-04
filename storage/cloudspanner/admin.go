@@ -74,6 +74,8 @@ var (
 	signatureAlgReverseMap = reverseSignatureAlgMap(signatureAlgMap)
 )
 
+const nanosPerMilli = int64(time.Millisecond / time.Nanosecond)
+
 func reverseTreeStateMap(m map[trillian.TreeState]spannerpb.TreeState) map[spannerpb.TreeState]trillian.TreeState {
 	reverse := make(map[spannerpb.TreeState]trillian.TreeState)
 	for k, v := range m {
@@ -158,19 +160,23 @@ func NewAdminStorage(client *spanner.Client) storage.AdminStorage {
 	return &adminStorage{client}
 }
 
+// CheckDatabaseAccessible implements AdminStorage.CheckDatabaseAccessible.
 func (s *adminStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return checkDatabaseAccessible(ctx, s.client)
 }
 
+// Snapshot implements AdminStorage.Snapshot.
 func (s *adminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
 	tx := s.client.ReadOnlyTransaction()
 	return &adminTX{client: s.client, tx: tx}, nil
 }
 
+// Begin implements AdminStorage.Begin.
 func (s *adminStorage) Begin(ctx context.Context) (storage.AdminTX, error) {
 	return nil, ErrNotImplemented
 }
 
+// ReadWriteTransaction implements AdminStorage.ReadWriteTransaction.
 func (s *adminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
 	_, err := s.client.ReadWriteTransaction(ctx, func(ctx context.Context, stx *spanner.ReadWriteTransaction) error {
 		tx := &adminTX{client: s.client, tx: stx}
@@ -179,10 +185,12 @@ func (s *adminStorage) ReadWriteTransaction(ctx context.Context, f storage.Admin
 	return err
 }
 
+// Commit implements ReadOnlyAdminTX.Commit.
 func (t *adminTX) Commit() error {
 	return t.Close()
 }
 
+// Rollback implements ReadOnlyAdminTX.Rollback.
 func (t *adminTX) Rollback() error {
 	if err := t.Close(); err != nil {
 		return nil
@@ -190,12 +198,14 @@ func (t *adminTX) Rollback() error {
 	return errRollback
 }
 
+// IsClosed implements ReadOnlyAdminTX.IsClosed.
 func (t *adminTX) IsClosed() bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.closed
 }
 
+// Close implements ReadOnlyAdminTX.Close.
 func (t *adminTX) Close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -211,6 +221,7 @@ func (t *adminTX) Close() error {
 	return nil
 }
 
+// GetTree implements AdminReader.GetTree.
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
 	info, err := t.getTreeInfo(ctx, treeID)
 	if err != nil {
@@ -284,6 +295,7 @@ func (t *adminTX) getTreeInfo(ctx context.Context, treeID int64) (*spannerpb.Tre
 	return info, nil
 }
 
+// ListTreeIDs implements AdminReader.ListTreeIDs.
 func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
 	ids := []int64{}
 	err := t.readTrees(ctx, includeDeleted, true /* idOnly */, func(r *spanner.Row) error {
@@ -297,11 +309,16 @@ func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64
 	return ids, err
 }
 
+// ListTrees implements AdminReader.ListTrees.
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
 	trees := []*trillian.Tree{}
 	err := t.readTrees(ctx, includeDeleted, false /* idOnly */, func(r *spanner.Row) error {
+		var infoBytes []byte
+		if err := r.Columns(&infoBytes); err != nil {
+			return err
+		}
 		info := &spannerpb.TreeInfo{}
-		if err := r.Columns(info); err != nil {
+		if err := proto.Unmarshal(infoBytes, info); err != nil {
 			return err
 		}
 		tree, err := toTrillianTree(info)
@@ -317,20 +334,19 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 func (t *adminTX) readTrees(ctx context.Context, includeDeleted, idOnly bool, f func(*spanner.Row) error) error {
 	var stmt spanner.Statement
 	if idOnly {
-		stmt = spanner.NewStatement("SELECT idx.TreeID FROM TreeRootsByDeleted idx")
+		stmt = spanner.NewStatement("SELECT t.TreeID FROM TreeRoots t")
 	} else {
-		stmt = spanner.NewStatement(
-			"SELECT t.TreeInfo FROM TreeRootsByDeleted idx" +
-				" INNER JOIN TreeRoots t ON idx.TreeID = t.TreeID")
+		stmt = spanner.NewStatement("SELECT t.TreeInfo FROM TreeRoots t")
 	}
 	if !includeDeleted {
-		stmt.SQL += " WHERE idx.Deleted = @deleted"
+		stmt.SQL += " WHERE t.Deleted = @deleted"
 		stmt.Params["deleted"] = false
 	}
 	rows := t.tx.Query(ctx, stmt)
 	return rows.Do(f)
 }
 
+// CreateTree implements AdminWriter.CreateTree.
 func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, error) {
 	if err := storage.ValidateTreeForCreation(ctx, tree); err != nil {
 		return nil, err
@@ -481,6 +497,7 @@ func mapConfigOrDefault(tree *trillian.Tree) (*spannerpb.MapStorageConfig, error
 	return config, nil
 }
 
+// UpdateTree implements AdminWriter.UpdateTree.
 func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error) {
 	info, err := t.getTreeInfo(ctx, treeID)
 	if err != nil {
@@ -527,37 +544,28 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 }
 
 func (t *adminTX) updateTreeInfo(ctx context.Context, info *spannerpb.TreeInfo) error {
+	infoBytes, err := proto.Marshal(info)
+	if err != nil {
+		return err
+	}
+
 	m1 := spanner.Update(
 		"TreeRoots",
 		[]string{
 			"TreeID",
 			"TreeState",
 			"TreeType",
-			"HashStrategy",
-			"HashAlgorithm",
-			"SignatureAlgorithm",
-			"DisplayName",
-			"Description",
-			"CreateTimeNanos",
-			"UpdateTimeNanos",
-			"MaxRootDurationMillis",
-			"PrivateKey",
-			"PublicKey",
+			"TreeInfo",
+			"Deleted",
+			"DeleteTimeMillis",
 		},
 		[]interface{}{
 			info.TreeId,
-			info.TreeState,
-			info.TreeType,
-			info.HashStrategy,
-			info.HashAlgorithm,
-			info.SignatureAlgorithm,
-			info.Name,
-			info.Description,
-			info.CreateTimeNanos,
-			info.UpdateTimeNanos,
-			info.MaxRootDurationMillis,
-			info.PrivateKey,
-			info.PublicKeyDer,
+			int64(info.TreeState),
+			int64(info.TreeType),
+			infoBytes,
+			info.Deleted,
+			info.DeleteTimeNanos / nanosPerMilli,
 		})
 
 	stx, ok := t.tx.(*spanner.ReadWriteTransaction)
@@ -567,6 +575,7 @@ func (t *adminTX) updateTreeInfo(ctx context.Context, info *spannerpb.TreeInfo) 
 	return stx.BufferWrite([]*spanner.Mutation{m1})
 }
 
+// SoftDeleteTree implements AdminWriter.SoftDeleteTree.
 func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
 	info, err := t.getTreeInfo(ctx, treeID)
 	if err != nil {
@@ -585,6 +594,7 @@ func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.T
 	return toTrillianTree(info)
 }
 
+// HardDeleteTree implements AdminWriter.HardDeleteTree.
 func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 	info, err := t.getTreeInfo(ctx, treeID)
 	if err != nil {
@@ -613,6 +623,7 @@ func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 	})
 }
 
+// UndeleteTree implements AdminWriter.UndeleteTree.
 func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
 	info, err := t.getTreeInfo(ctx, treeID)
 	if err != nil {

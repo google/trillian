@@ -273,6 +273,12 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 
 func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
+	if tx != nil {
+		// Ensure we don't leak the transaction. For example if we get an
+		// ErrTreeNeedsInit from beginInternal() or if AddSequencedLeaves fails
+		// below.
+		defer tx.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -296,6 +302,12 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 
 func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
+	if tx != nil {
+		// Ensure we don't leak the transaction. For example if we get an
+		// ErrTreeNeedsInit from beginInternal() or if QueueLeaves fails
+		// below.
+		defer tx.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +490,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		)
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
-			return nil, fmt.Errorf("Unsequenced: %v", err)
+			return nil, err
 		}
 		leafDuration := time.Since(leafStart)
 		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)
@@ -799,11 +811,6 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		KeyHint:          types.SerializeKeyHint(t.treeID),
 		LogRoot:          logRoot,
 		LogRootSignature: rootSignatureBytes,
-		// TODO(gbelvin): Remove deprecated fields
-		TimestampNanos: timestamp,
-		RootHash:       rootHash,
-		TreeSize:       treeSize,
-		TreeRevision:   treeRevision,
 	}, nil
 }
 

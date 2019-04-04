@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	_ "net/http/pprof" // Register pprof HTTP handlers.
 	"time"
 
 	"github.com/golang/glog"
@@ -38,15 +39,12 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	// Register pprof HTTP handlers
-	_ "net/http/pprof"
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
 
 	// Load hashers
-	_ "github.com/google/trillian/merkle/objhasher"
 	_ "github.com/google/trillian/merkle/rfc6962"
 )
 
@@ -103,7 +101,7 @@ func main() {
 
 	client, err := etcd.NewClientFromString(*server.EtcdServers)
 	if err != nil {
-		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
+		glog.Exitf("Failed to connect to etcd at %v: %v", *server.EtcdServers, err)
 	}
 
 	// Announce our endpoints to etcd if so configured.
