@@ -166,11 +166,23 @@ func buckets() []float64 {
 	return r
 }
 
-// NewHistogram creates a new Histogram object backed by OpenCensus.
+// NewHistogram creates a new Histogram object with a default set of buckets backed by OpenCensus.
 func (ocmf MetricFactory) NewHistogram(name, help string, labelNames ...string) monitoring.Histogram {
+	return ocmf.NewHistogramWithBuckets(name, help, buckets(), labelNames...)
+}
+
+// NewHistogramWithBuckets creates a new Histogram object with a specified set of buckets backed by OpenCensus.
+func (ocmf MetricFactory) NewHistogramWithBuckets(name, help string, buckets []float64, labelNames ...string) monitoring.Histogram {
 	//TODO(dazwilkin) How is an OpenCensus Distribution treated by Stackdriver?
 	glog.Infof("[Histogram] %s", name)
-	measure := createMeasureAndView(ocmf.Prefix, name, help, view.Distribution(buckets()...), labelNames)
+	if len(buckets) == 0 {
+		glog.Infof("[Histogram] %s: created with 0 buckets!", name)
+	}
+	if len(buckets) > 0 && buckets[0] == 0.0 {
+		glog.Infof("[Histogram] %s: Removing 0-valued bucket [0.0, ....] as this breaks OpenCensus Stackdriver Exporter", name)
+		buckets = buckets[1:]
+	}
+	measure := createMeasureAndView(ocmf.Prefix, name, help, view.Distribution(buckets...), labelNames)
 	return &Histogram{
 		labelNames: labelNames,
 		measure:    measure,
