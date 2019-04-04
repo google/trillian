@@ -82,7 +82,7 @@ kill_pid() {
       fi
     done
     pids="${im_still_alive}"
-    if [ "${pids}x" == "x" ]; then
+    if [ -z "${pids}" ]; then
       # all gone!
       break
     fi
@@ -217,14 +217,10 @@ log_prep_test() {
 #  - ETCD_PID        : etcd pid
 log_stop_test() {
   local pids
-  for pid in "${LOG_SIGNER_PIDS[@]}"; do
-    echo "Stopping Log signer (pid ${pid})"
-    pids+=" ${pid}"
-  done
-  for pid in "${RPC_SERVER_PIDS[@]}"; do
-    echo "Stopping Log RPC server (pid ${pid})"
-    pids+=" ${pid}"
-  done
+  echo "Stopping Log signers (pids ${LOG_SIGNER_PIDS[@]})"
+  pids+=" ${LOG_SIGNER_PIDS[@]}"
+  echo "Stopping Log RPC servers (pids ${RPC_SERVER_PIDS[@]})"
+  pids+=" ${RPC_SERVER_PIDS[@]}"
   if [[ "${ETCD_PID}" != "" ]]; then
     echo "Stopping local etcd server (pid ${ETCD_PID})"
     pids+=" ${ETCD_PID}"
@@ -319,12 +315,8 @@ map_prep_test() {
 # Assumes the following variables are set:
 #  - RPC_SERVER_PIDS : bash array of RPC server pids
 map_stop_test() {
-  local pids
-  for pid in "${RPC_SERVER_PIDS[@]}"; do
-    echo "Stopping Map RPC server (pid ${pid})"
-    pids+=" ${pid}"
-  done
-  kill_pid ${pids}
+  echo "Stopping Map RPC servers (pids ${RPC_SERVER_PIDS[@]}"
+  kill_pid ${RPC_SERVER_PIDS[@]}
 }
 
 # map_provision creates new Trillian maps
