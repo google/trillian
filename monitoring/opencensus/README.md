@@ -120,7 +120,36 @@ Once Stackdriver is provisioned, you should be able to return to it:
 google-chrome https://app.google.stackdriver.com/?project=${PROJECT}
 ```
 
+#### 3.2.1 Console
 Observe the metrics using Stackdriver Console, e.g. Metrics Explorer
+
+**NB** 
+
+The metric types will be `custom.googleapis.com/opencensus/{{MetricFactory.Prefix}}{{separator}}{{name}}`
+
+So, for a `Prefix: "Freddie"`, the Trillian metric name `mysql_queue_leaf_latency_entry` will be `custom.googleapis.com/opencensus/Freddie_mysql_queue_leaf_leatency_entry`
+
+Stackdriver will display this name as `OpenCensus/Freddie_mysql_queue_leaf_latency_entry`
+
+#### 3.2.2. APIs Explorer
+
+APIs Explorer is a powerful tool and it's useful to be able to browse Stackdriver metric types and their time-series data:
+
+For the list of metrics:
+
+* stackdriver/monitoring/v3/monitoring.projects.metricDescriptors.list
+* name: `projects/[[YOUR-PROJECT]]`
+* filter: `metric.type=starts_with("custom.googleapis.com/opencensus/{{MetricFactory.Prefix}}`
+* [optional] fields: `metricDescriptors/name`
+
+For the time-series for a specific metric, e.g. `log_rpc_requests`
+
+* stackdriver/monitoring/v3/monitoring.projects.timeSeries.list
+* name: `projects/[[YOUR-PROJECT]]`
+* filter: `metric.type="custom.googleapis.com/opencensus/{{MetricFactory.Prefix}}_log_rpc_requests"`
+* interval.endTime: e.g. `2019-04-04T23:59:59-08:00` (4th April 2019 23:59:59 in Pacific)
+* interval.startTime: e.g. `2019-04-04T00:00:00-08:00`
+* [optional] fields: `timeSeries/points/value`
 
 ### 3.3. Prometheus
 
