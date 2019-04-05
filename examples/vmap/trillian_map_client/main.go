@@ -25,7 +25,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-var server = flag.String("server", "localhost:8091", "Server address:port")
+var (
+	server = flag.String("server", "localhost:8091", "Server address:port")
+	mapID = flag.Int64("map_id", 1, "Trillian Map ID")
+)
 
 func main() {
 	flag.Parse()
@@ -44,7 +47,7 @@ func main() {
 
 	{
 		req := &trillian.SetMapLeavesRequest{
-			MapId: 1,
+			MapId: *mapID,
 			Leaves: []*trillian.MapLeaf{
 				{
 					Index:     index,
@@ -64,7 +67,7 @@ func main() {
 
 	{
 		req := &trillian.GetMapLeavesRequest{
-			MapId: 1,
+			MapId: *mapID,
 			Index: [][]byte{
 				index,
 			},
