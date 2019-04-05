@@ -401,7 +401,7 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 // inclusion proof for that key.
 func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int64, indices [][]byte) (map[string]([][]byte), error) {
 	indexToSibs := make(map[string][]storage.NodeID)
-	allSibs := make([]storage.NodeID, 0, len(indices)*s.hasher.BitLen()*8)
+	allSibs := make([]storage.NodeID, 0, len(indices)*s.hasher.BitLen())
 	includedNodes := map[string]bool{}
 	for _, index := range indices {
 		nid := storage.NewNodeIDFromHash(index)
