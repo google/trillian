@@ -435,8 +435,7 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 			proofID := sibs[i]
 			pNode := nodeMap[proofID.String()]
 			if pNode == nil {
-				// we have no node for this level from storage, so the client will use
-				// the null hash.
+				// No node for this level from storage, so use the nil hash.
 				continue
 			}
 			ri[i] = pNode.Hash
