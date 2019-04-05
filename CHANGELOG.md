@@ -4,6 +4,13 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Introduce BatchInclusionProof function
+
+Added a batch version of the Merkle Tree InclusionProof function.
+
+Updated the map RPC for getLeaves to use the new batch function to improve
+efficiency.
+
 ### Google Cloud Spanner support
 
 Google Cloud Spanner is now a supported storage backend for maps.
