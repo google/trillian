@@ -243,6 +243,47 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 	}
 }
 
+func TestBatchInclusionProofForNullEntriesInEmptyTrees(t *testing.T) {
+	ctx := context.Background()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	const rev = 100
+	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
+	tx.EXPECT().Commit().AnyTimes().Return(nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).Return([]storage.Node{}, nil)
+	key := testonly.HashKey("SomeArbitraryKey")
+	key2 := testonly.HashKey("SomeOtherArbitraryKey")
+	proofs, err := r.BatchInclusionProof(ctx, rev, [][]byte{key, key2})
+	if err != nil {
+		t.Fatalf("Got error while retrieving inclusion proofs: %v", err)
+	}
+
+	if expected, got := 2, len(proofs); expected != got {
+		t.Fatalf("Expected %d proofs but got %d", expected, got)
+	}
+
+	proof1 := proofs[string(key)]
+	if expected, got := 256, len(proof1); expected != got {
+		t.Fatalf("Expected proof1 of len %d, but got len %d", expected, got)
+	}
+
+	proof2 := proofs[string(key2)]
+	if expected, got := 256, len(proof2); expected != got {
+		t.Fatalf("Expected proof2 of len %d, but got len %d", expected, got)
+	}
+
+	// Verify these are null hashes
+	for _, proof := range proofs {
+		for i := len(proof) - 1; i > 0; i-- {
+			if got := proof[i]; got != nil {
+				t.Errorf("proof[%d] = %v, expected nil", i, got)
+			}
+		}
+	}
+}
+
 // TODO(al): Add some more inclusion proof tests here
 
 func TestInclusionProofPassesThroughStorageError(t *testing.T) {
