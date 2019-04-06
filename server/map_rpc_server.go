@@ -17,7 +17,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -159,29 +158,16 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	// Fetch inclusion proofs in parallel.
 	smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
-	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
-	errs := make(chan error, len(indices))
-	var wg sync.WaitGroup
-	wg.Add(len(indices))
-	for i, index := range indices {
-		// TODO(gbelvin): Replace with a batch inclusion proof reader.
-		go func(i int, index []byte) {
-			defer wg.Done()
-			l := leavesByIndex[string(index)]
-			proof, err := smtReader.InclusionProof(ctx, revision, l.Index)
-			if err != nil {
-				errs <- fmt.Errorf("could not get inclusion proof for leaf %x: %v", l.Index, err)
-				return
-			}
-			inclusions[i] = &trillian.MapLeafInclusion{
-				Leaf:      l,
-				Inclusion: proof,
-			}
-		}(i, index)
+	proofs, err := smtReader.BatchInclusionProof(ctx, revision, indices)
+	if err != nil {
+		return nil, err
 	}
-	wg.Wait()
-	if len(errs) != 0 {
-		return nil, <-errs // Only return the first error.
+	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
+	for i, index := range indices {
+		inclusions[i] = &trillian.MapLeafInclusion{
+			Leaf:      leavesByIndex[string(index)],
+			Inclusion: proofs[string(index)],
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
