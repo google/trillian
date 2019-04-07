@@ -53,6 +53,28 @@ func PGAvailable() bool {
 	return true
 }
 
+func TestSQL(ctx context.Context) string {
+	fmt.Println("Starting test")
+	db, err := sql.Open("postgres", getConnStr(*dbName))
+	defer db.Close()
+	if err != nil { 
+		fmt.Println("Error: ",err)
+                return "error"
+        }
+	result, err := db.QueryContext(ctx,"select ignore_duplicates(1531960917093437771,'f435e786ebc6694590fbd1790ca734299b5908c3b0044175d65c800d95def72d'::bytea,'ff'::bytea,'ff'::bytea,10)")
+	if err != nil {
+		fmt.Println("Error: ",err)
+		return "error"
+	}
+	var resultData bool
+	result.Scan(&resultData)
+	if resultData == true { 
+		fmt.Println("Result: ",resultData)
+	}
+	return "done"
+}
+
+
 // newEmptyDB creates a new, empty database.
 func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 	fmt.Println("new Db")

@@ -321,7 +321,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		// TODO(gbelvin): Add signature checking as a santity check.
 		var currentRoot types.LogRootV1
 		if err := currentRoot.UnmarshalBinary(sth.LogRoot); err != nil {
-			return fmt.Errorf("%v: Sequencer failed to unmarshal latest root: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: Sequencer failed to unmarshal latest root: %v >>> %v <<<", tree.TreeId, err,sth)
 		}
 		seqGetRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 

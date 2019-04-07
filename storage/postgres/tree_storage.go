@@ -22,6 +22,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"strconv"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -40,16 +41,16 @@ const (
 			SELECT n.subtree_id, max(n.subtree_revision) AS max_revision
 			FROM subtree n
 			WHERE n.subtree_id IN (` + placeholderSQL + `) AND
-			n.tree_id = ? AND n.subtree_revision <= ?
+			n.tree_id = <param> AND n.subtree_revision <= <param>
 			GROUP BY n.subtree_id
 		) AS x
 		INNER JOIN subtree
 		ON subtree.subtree_id = x.subtree_id
 		AND subtree.subtree_revision = x.max_revision
-		AND subtree.tree_id = ?`
-        insertTreeHeadSQL     = `INSERT INTO tree_head(tree_id,tree_headTimestamp,tree_size,root_hash,tree_revision,root_signature)
-                 VALUES(?,?,?,?,?,?)`
-        selectTreeRevisionAtSizeOrLargerSQL = "SELECT tree_revision,tree_size FROM tree_head WHERE tree_id=? AND TreeSize>=? ORDER BY tree_revision LIMIT 1"
+		AND subtree.tree_id = <param>`
+        insertTreeHeadSQL     = `INSERT INTO tree_head(tree_id,tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature)
+                 VALUES($1,$2,$3,$4,$5,$6)`
+        selectTreeRevisionAtSizeOrLargerSQL = "SELECT tree_revision,tree_size FROM tree_head WHERE tree_id=$1 AND TreeSize>=$2 ORDER BY tree_revision LIMIT 1"
 
 
 )
@@ -143,6 +144,13 @@ func (p *pgTreeStorage) getStmt(ctx context.Context, skeleton *statementSkeleton
 	}
 
 	statement, err := expandPlaceholderSQL(skeleton)
+	
+	var counter = skeleton.restPlaceholders*skeleton.num+1;
+	for strings.Contains(statement, "<param>") {
+		statement = strings.Replace(statement,"<param>","$"+strconv.Itoa(counter),1)
+		counter += 1;
+	}
+	
 	if err != nil {
 		glog.Warningf("Failed to expand placeholder sql: %v", skeleton)
 		return nil, err
