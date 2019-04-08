@@ -40,48 +40,8 @@ import (
 
 const (
 	valuesPlaceholder5 = "(?,?,?,?,?)"
-
-	insertLeafDataSQL      = "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES" + valuesPlaceholder5
-	insertSequencedLeafSQL = "INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"
-
-	selectNonDeletedTreeIDByTypeAndStateSQL = `
-		SELECT TreeId FROM Trees
-		  WHERE TreeType IN(?,?)
-		  AND TreeState IN(?,?)
-		  AND (Deleted IS NULL OR Deleted = 'false')`
-
-	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
-	selectUnsequencedLeafCountSQL = "SELECT TreeId, COUNT(1) FROM Unsequenced GROUP BY TreeId"
-	selectLatestSignedLogRootSQL  = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
-			FROM TreeHead WHERE TreeId=?
-			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
-
-	selectLeavesByRangeSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.SequenceNumber >= ? AND s.SequenceNumber < ? AND l.TreeId = ? AND s.TreeId = l.TreeId` + orderBySequenceNumberSQL
-
-	// These statements need to be expanded to provide the correct number of parameter placeholders.
-	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 	// TODO(drysdale): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
 	dummyMerkleLeafHash = "00000000000000000000000000000000"
-	// This statement returns a dummy Merkle leaf hash value (which must be
-	// of the right size) so that its signature matches that of the other
-	// leaf-selection statements.
-	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
-			WHERE l.LeafIdentityHash IN (` + placeholderSQL + `) AND l.TreeId = ?`
-
-	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
-	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
-	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
 
 	// Error code returned by driver when inserting a duplicate row
 	errNumDuplicate = 1062
@@ -155,19 +115,35 @@ func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectLeavesByIndexSQL, num, "?", "?")
+	// This statement needs to be expanded to provide the correct number of parameter placeholders.
+	return m.getStmt(ctx,
+		`SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+			FROM LeafData l,SequencedLeafData s
+			WHERE l.LeafIdentityHash = s.LeafIdentityHash
+			AND s.SequenceNumber IN (`+placeholderSQL+`) AND l.TreeId = ? AND s.TreeId = l.TreeId`, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
+	selectSQL := `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+                       FROM LeafData l,SequencedLeafData s
+                       WHERE l.LeafIdentityHash = s.LeafIdentityHash
+                       AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 	if orderBySequence {
-		return m.getStmt(ctx, selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
+		selectSQL = selectSQL + " ORDER BY s.SequenceNumber"
 	}
 
-	return m.getStmt(ctx, selectLeavesByMerkleHashSQL, num, "?", "?")
+	// This statement needs to be expanded to provide the correct number of parameter placeholders.
+	return m.getStmt(ctx, selectSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
+	// This statement returns a dummy Merkle leaf hash value (which must be
+	// of the right size) so that its signature matches that of the other
+	// leaf-selection statements.
+	return m.getStmt(ctx,
+		`SELECT '`+dummyMerkleLeafHash+`',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
+			WHERE l.LeafIdentityHash IN (`+placeholderSQL+`) AND l.TreeId = ?`, num, "?", "?")
 }
 
 // readOnlyLogTX implements storage.ReadOnlyLogTX
@@ -205,7 +181,11 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	// Include logs that are DRAINING in the active list as we're still
 	// integrating leaves into them.
 	rows, err := t.tx.QueryContext(
-		ctx, selectNonDeletedTreeIDByTypeAndStateSQL,
+		ctx, `
+		SELECT TreeId FROM Trees
+		  WHERE TreeType IN(?,?)
+		  AND TreeState IN(?,?)
+		  AND (Deleted IS NULL OR Deleted = 'false')`,
 		trillian.TreeType_LOG.String(), trillian.TreeType_PREORDERED_LOG.String(),
 		trillian.TreeState_ACTIVE.String(), trillian.TreeState_DRAINING.String())
 	if err != nil {
@@ -457,7 +437,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
-		_, err = t.tx.ExecContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
+		_, err = t.tx.ExecContext(ctx, "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES"+valuesPlaceholder5, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
@@ -579,8 +559,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
 
 		// TODO(pavelkalinnikov): Measure latencies.
-		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL,
-			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, timestamp.UnixNano())
+		_, err := t.tx.ExecContext(ctx, "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES"+valuesPlaceholder5, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, timestamp.UnixNano())
 		// TODO(pavelkalinnikov): Detach PREORDERED_LOG integration latency metric.
 
 		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
@@ -593,7 +572,8 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return nil, err
 		}
 
-		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
+		_, err = t.tx.ExecContext(ctx,
+			"INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"+valuesPlaceholder5,
 			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
 		// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
 
@@ -622,7 +602,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	var sequencedLeafCount int64
 
-	err := t.tx.QueryRowContext(ctx, selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
+	err := t.tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?", t.treeID).Scan(&sequencedLeafCount)
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)
 	}
@@ -717,7 +697,11 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
 
 	args := []interface{}{start, start + count, t.treeID}
-	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
+	rows, err := t.tx.QueryContext(ctx,
+		`SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+			FROM LeafData l,SequencedLeafData s
+			WHERE l.LeafIdentityHash = s.LeafIdentityHash
+			AND s.SequenceNumber >= ? AND s.SequenceNumber < ? AND l.TreeId = ? AND s.TreeId = l.TreeId ORDER BY s.SequenceNumber`, args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by range: %s", err)
 		return nil, err
@@ -788,8 +772,10 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLog
 func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
-	if err := t.tx.QueryRowContext(
-		ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
+	if err := t.tx.QueryRowContext(ctx,
+		`SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
+		FROM TreeHead WHERE TreeId=?
+		ORDER BY TreeHeadTimestamp DESC LIMIT 1`, t.treeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
 	); err == sql.ErrNoRows {
 		// It's possible there are no roots for this tree yet
@@ -827,7 +813,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 
 	res, err := t.tx.ExecContext(
 		ctx,
-		insertTreeHeadSQL,
+		`INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature) VALUES(?,?,?,?,?,?)`,
 		t.treeID,
 		logRoot.TimestampNanos,
 		logRoot.TreeSize,
@@ -896,7 +882,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 }
 
 func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.CountByLogID, error) {
-	stx, err := t.tx.PrepareContext(ctx, selectUnsequencedLeafCountSQL)
+	stx, err := t.tx.PrepareContext(ctx, "SELECT TreeId, COUNT(1) FROM Unsequenced GROUP BY TreeId")
 	if err != nil {
 		glog.Warningf("Failed to prep unsequenced leaf count statement: %v", err)
 		return nil, err

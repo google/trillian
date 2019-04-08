@@ -93,7 +93,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 		}
 		_, err = t.tx.ExecContext(
 			ctx,
-			insertSequencedLeafSQL+valuesPlaceholder5,
+			"INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"+valuesPlaceholder5,
 			t.treeID,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,

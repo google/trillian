@@ -29,31 +29,6 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-const (
-	insertMapHeadSQL = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData)
-	VALUES(?, ?, ?, ?, ?, ?)`
-	selectLatestSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
-		 FROM MapHead WHERE TreeId=?
-		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
-	selectGetSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
-		 FROM MapHead WHERE TreeId=? AND MapRevision=?`
-	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
-	selectMapLeafSQL = `
- SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
- FROM MapLeaf t1
- INNER JOIN
- (
-	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
-	FROM MapLeaf t0
-	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
-	      t0.TreeId = ? AND t0.MapRevision <= ?
-	GROUP BY t0.TreeId, t0.KeyHash
- ) t2
- ON t1.TreeId=t2.TreeId
- AND t1.KeyHash=t2.KeyHash
- AND t1.MapRevision=t2.maxrev`
-)
-
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 type mySQLMapStorage struct {
@@ -183,7 +158,7 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 		return nil
 	}
 
-	stmt, err := m.tx.PrepareContext(ctx, insertMapLeafSQL)
+	stmt, err := m.tx.PrepareContext(ctx, `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -201,7 +176,20 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	if len(indexes) == 0 {
 		return []trillian.MapLeaf{}, nil
 	}
-	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
+	stmt, err := m.ms.getStmt(ctx, `
+ SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
+ FROM MapLeaf t1
+ INNER JOIN
+ (
+	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
+	FROM MapLeaf t0
+	WHERE t0.KeyHash IN (`+placeholderSQL+`) AND
+	      t0.TreeId = ? AND t0.MapRevision <= ?
+	GROUP BY t0.TreeId, t0.KeyHash
+ ) t2
+ ON t1.TreeId=t2.TreeId
+ AND t1.KeyHash=t2.KeyHash
+ AND t1.MapRevision=t2.maxrev`, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +244,8 @@ func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trill
 	var rootHash, rootSignatureBytes []byte
 	var mapperMetaBytes []byte
 
-	stmt, err := m.tx.PrepareContext(ctx, selectGetSignedMapRootSQL)
+	stmt, err := m.tx.PrepareContext(ctx, `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
+		 FROM MapHead WHERE TreeId=? AND MapRevision=?`)
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}
@@ -279,7 +268,9 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	var rootHash, rootSignatureBytes []byte
 	var mapperMetaBytes []byte
 
-	stmt, err := m.tx.PrepareContext(ctx, selectLatestSignedMapRootSQL)
+	stmt, err := m.tx.PrepareContext(ctx, `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
+		 FROM MapHead WHERE TreeId=?
+		 ORDER BY MapHeadTimestamp DESC LIMIT 1`)
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}
@@ -321,7 +312,8 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.Signed
 		return err
 	}
 
-	stmt, err := m.tx.PrepareContext(ctx, insertMapHeadSQL)
+	stmt, err := m.tx.PrepareContext(ctx, `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData)
+	VALUES(?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}

@@ -32,28 +32,7 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
-// These statements are fixed
-const (
-	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
-	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
-		 VALUES(?,?,?,?,?,?)`
-	selectTreeRevisionAtSizeOrLargerSQL = "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1"
-
-	selectSubtreeSQL = `
- SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
- FROM (
- 	SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
-	FROM Subtree n
-	WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
-	 n.TreeId = ? AND n.SubtreeRevision <= ?
-	GROUP BY n.TreeId, n.SubtreeId
- ) AS x
- INNER JOIN Subtree 
- ON Subtree.SubtreeId = x.SubtreeId 
- AND Subtree.SubtreeRevision = x.MaxRevision 
- AND Subtree.TreeId = ?`
-	placeholderSQL = "<placeholder>"
-)
+const placeholderSQL = "<placeholder>"
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
 // Storage implementations, and contains functionality which is common to both,
@@ -135,11 +114,23 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 }
 
 func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
+	return m.getStmt(ctx, `
+ SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
+ FROM (
+ 	SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
+	FROM Subtree n
+	WHERE n.SubtreeId IN (`+placeholderSQL+`) AND
+	 n.TreeId = ? AND n.SubtreeRevision <= ?
+	GROUP BY n.TreeId, n.SubtreeId
+ ) AS x
+ INNER JOIN Subtree
+ ON Subtree.SubtreeId = x.SubtreeId
+ AND Subtree.SubtreeRevision = x.MaxRevision
+ AND Subtree.TreeId = ?`, num, "?", "?")
 }
 
 func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
+	return m.getStmt(ctx, `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) `+placeholderSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache cache.SubtreeCache) (treeTX, error) {
@@ -354,7 +345,7 @@ func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int6
 	}
 
 	var treeRevision, actualTreeSize int64
-	err := t.tx.QueryRowContext(ctx, selectTreeRevisionAtSizeOrLargerSQL, t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
+	err := t.tx.QueryRowContext(ctx, "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1", t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
 
 	return treeRevision, actualTreeSize, err
 }
