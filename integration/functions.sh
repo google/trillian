@@ -66,23 +66,32 @@ pick_unused_port() {
   done
 }
 
-# kill_pid tries to kill the given pid, first softly then more aggressively.
+# kill_pid tries to kill the given pid(s), first softly then more aggressively.
 kill_pid() {
-  local pid=$1
+  local pids=$@
   set +e
   local count=0
-  while kill -INT ${pid} > /dev/null 2>&1; do
+  while kill -INT ${pids} > /dev/null 2>&1; do
     sleep 1
     ((count++))
-    if ! ps -p ${pid} > /dev/null ; then
+    local im_still_alive=""
+    for pid in ${pids}; do
+      if ps -p ${pid} > /dev/null ; then
+        # https://www.youtube.com/watch?time_continue=1&v=VuLktUzq23c
+        im_still_alive+=" ${pid}"
+      fi
+    done
+    pids="${im_still_alive}"
+    if [ -z "${pids}" ]; then
+      # all gone!
       break
     fi
     if [ $count -gt 5 ]; then
-      echo "Now do kill -KILL ${pid}"
-      kill -KILL ${pid}
+      echo "Now do kill -KILL ${pids}"
+      kill -KILL ${pids}
       break
     fi
-    echo "Retry kill -INT ${pid}"
+    echo "Retry kill -INT ${pids}"
   done
   set -e
 }
@@ -207,18 +216,16 @@ log_prep_test() {
 #  - RPC_SERVER_PIDS : bash array of RPC server pids
 #  - ETCD_PID        : etcd pid
 log_stop_test() {
-  for pid in "${LOG_SIGNER_PIDS[@]}"; do
-    echo "Stopping Log signer (pid ${pid})"
-    kill_pid ${pid}
-  done
-  for pid in "${RPC_SERVER_PIDS[@]}"; do
-    echo "Stopping Log RPC server (pid ${pid})"
-    kill_pid ${pid}
-  done
+  local pids
+  echo "Stopping Log signers (pids ${LOG_SIGNER_PIDS[@]})"
+  pids+=" ${LOG_SIGNER_PIDS[@]}"
+  echo "Stopping Log RPC servers (pids ${RPC_SERVER_PIDS[@]})"
+  pids+=" ${RPC_SERVER_PIDS[@]}"
   if [[ "${ETCD_PID}" != "" ]]; then
     echo "Stopping local etcd server (pid ${ETCD_PID})"
-    kill_pid ${ETCD_PID}
+    pids+=" ${ETCD_PID}"
   fi
+  kill_pid ${pids}
 }
 
 # setup_etcd_quotas creates the etcd quota configurations used by tests.
@@ -308,10 +315,8 @@ map_prep_test() {
 # Assumes the following variables are set:
 #  - RPC_SERVER_PIDS : bash array of RPC server pids
 map_stop_test() {
-  for pid in "${RPC_SERVER_PIDS[@]}"; do
-    echo "Stopping Map RPC server (pid ${pid})"
-    kill_pid ${pid}
-  done
+  echo "Stopping Map RPC servers (pids ${RPC_SERVER_PIDS[@]}"
+  kill_pid ${RPC_SERVER_PIDS[@]}
 }
 
 # map_provision creates new Trillian maps
@@ -348,11 +353,13 @@ map_provision() {
 
 # on_exit will clean up anything in ${TO_KILL} and ${TO_DELETE}.
 on_exit() {
-  local pid=0
+  local pids=
   for pid in "${TO_KILL[@]}"; do
     echo "Killing ${pid} on exit"
-    kill_pid "${pid}"
+    pids+=" ${pid}"
   done
+  kill_pid "${pids}"
+
   local file=""
   for file in "${TO_DELETE[@]}"; do
     echo "Deleting ${file} on exit"
