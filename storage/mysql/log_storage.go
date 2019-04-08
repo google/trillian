@@ -114,38 +114,6 @@ func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
 }
 
-func (m *mySQLLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	// This statement needs to be expanded to provide the correct number of parameter placeholders.
-	return m.getStmt(ctx,
-		`SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.SequenceNumber IN (`+placeholderSQL+`) AND l.TreeId = ? AND s.TreeId = l.TreeId`, num, "?", "?")
-}
-
-func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
-	selectSQL := `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-                       FROM LeafData l,SequencedLeafData s
-                       WHERE l.LeafIdentityHash = s.LeafIdentityHash
-                       AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-	if orderBySequence {
-		selectSQL = selectSQL + " ORDER BY s.SequenceNumber"
-	}
-
-	// This statement needs to be expanded to provide the correct number of parameter placeholders.
-	return m.getStmt(ctx, selectSQL, num, "?", "?")
-}
-
-func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	// This statement returns a dummy Merkle leaf hash value (which must be
-	// of the right size) so that its signature matches that of the other
-	// leaf-selection statements.
-	return m.getStmt(ctx,
-		`SELECT '`+dummyMerkleLeafHash+`',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
-			WHERE l.LeafIdentityHash IN (`+placeholderSQL+`) AND l.TreeId = ?`, num, "?", "?")
-}
-
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
 	ls *mySQLLogStorage
@@ -622,7 +590,12 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 			}
 		}
 	}
-	tmpl, err := t.ls.getLeavesByIndexStmt(ctx, len(leaves))
+	// This statement needs to be expanded to provide the correct number of parameter placeholders.
+	tmpl, err := t.ls.getStmt(ctx,
+		`SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+			FROM LeafData l,SequencedLeafData s
+			WHERE l.LeafIdentityHash = s.LeafIdentityHash
+			AND s.SequenceNumber IN (`+placeholderSQL+`) AND l.TreeId = ? AND s.TreeId = l.TreeId`, len(leaves), "?", "?")
 	if err != nil {
 		return nil, err
 	}
@@ -745,7 +718,15 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 }
 
 func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
-	tmpl, err := t.ls.getLeavesByMerkleHashStmt(ctx, len(leafHashes), orderBySequence)
+	// This statement needs to be expanded to provide the correct number of parameter placeholders.
+	selectSQL := `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+                       FROM LeafData l,SequencedLeafData s
+                       WHERE l.LeafIdentityHash = s.LeafIdentityHash
+                       AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+	if orderBySequence {
+		selectSQL = selectSQL + " ORDER BY s.SequenceNumber"
+	}
+	tmpl, err := t.ls.getStmt(ctx, selectSQL, len(leafHashes), "?", "?")
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +738,13 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 // as a slice of LogLeaf objects for convenience.  However, note that the
 // returned LogLeaf objects will not have a valid MerkleLeafHash, LeafIndex, or IntegrateTimestamp.
 func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
-	tmpl, err := t.ls.getLeavesByLeafIdentityHashStmt(ctx, len(leafHashes))
+	// This statement returns a dummy Merkle leaf hash value (which must be
+	// of the right size) so that its signature matches that of the other
+	// leaf-selection statements.
+	tmpl, err := t.ls.getStmt(ctx,
+		`SELECT '`+dummyMerkleLeafHash+`',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
+			WHERE l.LeafIdentityHash IN (`+placeholderSQL+`) AND l.TreeId = ?`, len(leafHashes), "?", "?")
 	if err != nil {
 		return nil, err
 	}

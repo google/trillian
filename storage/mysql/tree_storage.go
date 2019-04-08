@@ -113,26 +113,6 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 	return s, nil
 }
 
-func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, `
- SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
- FROM (
- 	SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
-	FROM Subtree n
-	WHERE n.SubtreeId IN (`+placeholderSQL+`) AND
-	 n.TreeId = ? AND n.SubtreeRevision <= ?
-	GROUP BY n.TreeId, n.SubtreeId
- ) AS x
- INNER JOIN Subtree
- ON Subtree.SubtreeId = x.SubtreeId
- AND Subtree.SubtreeRevision = x.MaxRevision
- AND Subtree.TreeId = ?`, num, "?", "?")
-}
-
-func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) `+placeholderSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
-}
-
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
@@ -182,7 +162,21 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
-	tmpl, err := t.ts.getSubtreeStmt(ctx, len(nodeIDs))
+	tmpl, err := t.ts.getStmt(ctx, `
+ SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
+ FROM (
+ 	SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
+	FROM Subtree n
+	WHERE n.SubtreeId IN (`+placeholderSQL+`) AND
+	 n.TreeId = ? AND n.SubtreeRevision <= ?
+	GROUP BY n.TreeId, n.SubtreeId
+ ) AS x
+ INNER JOIN Subtree
+ ON Subtree.SubtreeId = x.SubtreeId
+ AND Subtree.SubtreeRevision = x.MaxRevision
+ AND Subtree.TreeId = ?`,
+		len(nodeIDs), "?", "?")
+
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +291,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		args = append(args, t.writeRevision)
 	}
 
-	tmpl, err := t.ts.setSubtreeStmt(ctx, len(subtrees))
+	tmpl, err := t.ts.getStmt(ctx, `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) `+placeholderSQL, len(subtrees), "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
