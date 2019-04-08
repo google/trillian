@@ -119,6 +119,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeued
 		glog.Warningf("Failed to prep delete statement for sequenced work: %v", err)
 		return err
 	}
+	defer stx.Close()
 	for _, dql := range leaves {
 		result, err := stx.ExecContext(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
 		err = checkResultOkAndRowCountIs(result, err, int64(1))
