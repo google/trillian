@@ -18,7 +18,7 @@ You may monitor the server's Prometheus metric exporter on:
 
 `http://${MAP_SERVER}:${HTTP}/metrics`
 
-## Generate a Tree
+## Create a Tree
 ```bash
 MAPID=$(go run github.com/google/trillian/cmd/createtree \
   --admin_server=":${RPCS}" \
@@ -30,7 +30,7 @@ MAPID=$(go run github.com/google/trillian/cmd/createtree \
 ## Run the sample
 
 ```bash
-go run $GOPATH/google/trillian/examples/vmap/trillian_map_client/
+go run github.com/google/trillian/examples/vmap/trillian_map_client \
 --logtostderr \
 --server=":${RPCS} \
 --map_id=${MAPID}
