@@ -103,3 +103,12 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 		t.Errorf("Subtree hash does not depend on the order of leaves")
 	}
 }
+
+func BenchmarkHashChildren(b *testing.B) {
+	h := DefaultHasher
+	l, _ := h.HashLeaf([]byte("one"))
+	r, _ := h.HashLeaf([]byte("or other"))
+	for i := 0; i < b.N; i++ {
+		_ = h.HashChildren(l, r)
+	}
+}
