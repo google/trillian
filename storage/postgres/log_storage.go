@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"encoding/json"
 	"github.com/lib/pq"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
@@ -812,8 +813,18 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLog
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
 func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
-	var timestamp, treeSize, treeRevision int64
-	var rootHash, rootSignatureBytes []byte
+//	var timestamp, treeSize, treeRevision int64
+	var rootSignatureBytes []byte
+	var jsonObj []byte
+
+        t.tx.QueryRowContext(
+                ctx,
+                "select current_tree_data,root_signature from trees where tree_id = $1",
+                t.treeID).Scan(&jsonObj,&rootSignatureBytes)
+	
+	var logRoot types.LogRootV1
+	json.Unmarshal(jsonObj,&logRoot)
+  /*	
 	if err := t.tx.QueryRowContext(
 		ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
@@ -831,16 +842,17 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 	}).MarshalBinary()
 	if err != nil {
 		return trillian.SignedLogRoot{}, err
-	}
+	}*/
+	newRoot, _ := logRoot.MarshalBinary()
 	return trillian.SignedLogRoot{
 		KeyHint:          types.SerializeKeyHint(t.treeID),
-		LogRoot:          logRoot,
+		LogRoot:          newRoot,
 		LogRootSignature: rootSignatureBytes,
 		// TODO(gbelvin): Remove deprecated fields
-		TimestampNanos: timestamp,
-		RootHash:       rootHash,
-		TreeSize:       treeSize,
-		TreeRevision:   treeRevision,
+		TimestampNanos: int64(logRoot.TimestampNanos), //timestamp,
+		RootHash:       logRoot.RootHash, //rootHash,
+		TreeSize:       int64(logRoot.TreeSize), //treeSize,
+		TreeRevision:   int64(logRoot.Revision), //treeRevision,
 	}, nil
 }
 
@@ -854,7 +866,14 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 		return fmt.Errorf("unimplemented: postgres storage does not support log root metadata")
 
 	}
-
+	//get a json copy of the tree_head
+        data,_ := json.Marshal(logRoot)
+	t.tx.ExecContext(
+		ctx,
+		"update trees set current_tree_data = $1,root_signature = $2 where tree_id = $3",
+		data,
+		root.LogRootSignature,
+		t.treeID)
 	res, err := t.tx.ExecContext(
 		ctx,
 		insertTreeHeadSQL,
@@ -979,3 +998,11 @@ func isDuplicateErr(err error) bool {
 		return false
 	}
 }
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//

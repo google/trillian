@@ -267,7 +267,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
-		glog.Warningf("Failed to get merkle subtrees: %s", err)
+		glog.Warningf("Failed to get merkle subtrees: %s all args: %v", err, args)
 		return nil, err
 	}
 	defer rows.Close()

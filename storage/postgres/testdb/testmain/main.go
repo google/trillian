@@ -18,6 +18,7 @@ func main() {
 	defer cancel()
 	//testdb.PGAvailable();
 	//testdb.NewTrillianDB(fContext);
-	testdb.TestSQL(fContext)
+	//testdb.TestSQL(fContext)
+	testdb.Test3(fContext)
 }
 

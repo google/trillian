@@ -25,6 +25,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"encoding/json"
 
 	"github.com/google/trillian/testonly"
 
@@ -34,7 +35,7 @@ import (
 var (
 	trillianSQL = testonly.RelativeToPackage("../storage.sql")
 	pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
-	dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
+	dbName      = flag.String("db_name", "test2", "The database name to be used when checking for pg connectivity")
 )
 
 // PGAvailable indicates whether a default PG database is available.
@@ -51,6 +52,57 @@ func PGAvailable() bool {
 		return false
 	}
 	return true
+}
+
+ 
+func Test3(ctx context.Context) {
+	fmt.Println("Start sql updtae")
+	db, err := sql.Open("postgres", getConnStr(*dbName))
+
+        if err != nil {
+                log.Printf("sql.Open(): %v", err)
+                //return false
+        }
+        defer db.Close()
+	//var timestamp, treeSize, treeRevision int64
+        //var rootHash, rootSignatureBytes []byte
+
+//result, {"TreeSize":956308,"RootHash":"VzP81LYhQWbytZsfltjTQtpKxU14Ida69lmW7kdjpjE=","TimestampNanos":1554760730674199319,"Revision":219399,"Metadata":""} <nil>
+
+	type DataTwo struct {
+		TreeSize int64
+		RootHash []byte
+		TimestampNanos int64
+		Revision int64
+		MetaData []byte
+	}
+	data:= db.QueryRowContext(ctx,"select current_tree_data from trees limit 1")
+	var jsonObj []byte
+	data.Scan(&jsonObj)
+	var d2 DataTwo
+	json.Unmarshal(jsonObj,&d2)
+	fmt.Println("result,", string(jsonObj),d2)
+}
+
+func Test2(ctx context.Context) {
+	fmt.Println("Start sql updtae")
+	db, err := sql.Open("postgres", getConnStr(*dbName))
+
+        if err != nil {
+                log.Printf("sql.Open(): %v", err)
+                //return false
+        }
+        defer db.Close()
+
+       type Message struct {
+                Name string
+                Body string
+                Time int64
+        }
+        m := Message{"Alice", "Hello", 1294706395881547000}
+	data,_ := json.Marshal(m)
+	result, err := db.ExecContext(ctx,"update trees set current_tree_data = $1 where 1 = 1",data)
+	fmt.Println("Result", result,err)
 }
 
 func TestSQL(ctx context.Context) string {
