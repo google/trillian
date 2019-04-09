@@ -32,6 +32,6 @@ MAPID=$(go run github.com/google/trillian/cmd/createtree \
 ```bash
 go run github.com/google/trillian/examples/vmap/trillian_map_client \
 --logtostderr \
---server=":${RPCS} \
+--server=":${RPCS}" \
 --map_id=${MAPID}
 ```
