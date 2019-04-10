@@ -61,11 +61,11 @@ func (s Suffix) String() string {
 }
 
 // ParseSuffix converts a suffix string back into a Suffix.
-func ParseSuffix(s string) (Suffix, error) {
+func ParseSuffix(s string) (*Suffix, error) {
 	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return EmptySuffix, err
+		return &EmptySuffix, err
 	}
 
-	return *NewSuffix(byte(b[0]), b[1:]), nil
+	return NewSuffix(byte(b[0]), b[1:]), nil
 }

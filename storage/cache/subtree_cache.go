@@ -131,7 +131,7 @@ func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
 // unless ID is 0 bits long, Suffix must always contain at least one bit.
-func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, storage.Suffix) {
+func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, *storage.Suffix) {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
 	return id.Split(sInfo.prefixBytes, sInfo.depth)
 }
