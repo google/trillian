@@ -17,6 +17,7 @@
 package log
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -134,9 +135,10 @@ func NewSequencer(
 
 // initMerkleTreeFromStorage builds a compact tree that matches the latest data
 // in the database. It ensures that the root hash matches the passed in root.
-func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
+func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
+	fact := compact.RangeFactory{Hash: s.hasher.HashChildren}
 	if root.TreeSize == 0 {
-		return compact.NewTree(s.hasher), nil
+		return fact.NewEmptyRange(0), nil
 	}
 
 	ids := compact.TreeNodes(root.TreeSize)
@@ -167,7 +169,19 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.Lo
 		hashes[i] = node.Hash
 	}
 
-	return compact.NewTreeWithState(s.hasher, root.TreeSize, hashes, root.RootHash)
+	rng, err := fact.NewRange(0, root.TreeSize, hashes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create compact.Range: %v", err)
+	}
+	hash, err := rng.GetRootHash(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to restore the root hash: %v", err)
+	}
+	// Note: Tree size != 0 at this point, so we don't consider the empty hash.
+	if want := root.RootHash; !bytes.Equal(hash, want) {
+		return nil, fmt.Errorf("root hash mismatch: got %x, want %x", hash, want)
+	}
+	return rng, nil
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
@@ -211,25 +225,28 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 
 // updateCompactTree adds the passed in leaves to the compact tree. Returns a
 // map of all updated tree nodes, and the new root hash.
-func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
+func (s Sequencer) updateCompactTree(mt *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
 		idx := leaf.LeafIndex
-		if size := mt.Size(); idx < 0 || idx != int64(size) {
+		if size := mt.End(); idx < 0 || idx != int64(size) {
 			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
-		if err := mt.AppendLeafHash(leaf.MerkleLeafHash, store); err != nil {
+		// Store the leaf hash in the Merkle tree.
+		store(compact.NewNodeID(0, uint64(idx)), leaf.MerkleLeafHash)
+		// Store all the new internal nodes.
+		if err := mt.Append(leaf.MerkleLeafHash, store); err != nil {
 			return nil, nil, err
 		}
 	}
-	hash, err := mt.CalculateRoot(store)
+	// Store ephemeral nodes on the right border of the tree as well.
+	hash, err := mt.GetRootHash(store)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return nodeMap, hash, nil
 }
 
@@ -396,7 +413,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
-		if err := s.prepareLeaves(sequencedLeaves, merkleTree.Size(), label); err != nil {
+		if err := s.prepareLeaves(sequencedLeaves, merkleTree.End(), label); err != nil {
 			return err
 		}
 		nodeMap, newRoot, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
@@ -429,10 +446,14 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 
 		// Create the log root ready for signing.
+		if merkleTree.End() == 0 {
+			// Override the nil root hash returned by the compact range.
+			newRoot = s.hasher.EmptyRoot()
+		}
 		newLogRoot = &types.LogRootV1{
 			RootHash:       newRoot,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
-			TreeSize:       merkleTree.Size(),
+			TreeSize:       merkleTree.End(),
 			Revision:       uint64(newVersion),
 		}
 		seqTreeSize.Set(float64(newLogRoot.TreeSize), label)
