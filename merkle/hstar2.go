@@ -124,7 +124,9 @@ func (s *HStar2) hStar2b(depth, maxDepth int, values []HStar2LeafHash, offset *b
 		return nil, err
 	}
 	h := s.hasher.HashChildren(lhs, rhs)
-	s.set(offset, depth, h, set)
+	if err := s.set(offset, depth, h, set); err != nil {
+		return nil, err
+	}
 	return h, nil
 }
 
