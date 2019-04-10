@@ -29,7 +29,7 @@ import (
 
 var (
 	hashChildren = rfc6962.DefaultHasher.HashChildren
-	factory      = &Factory{Hash: hashChildren}
+	factory      = &RangeFactory{Hash: hashChildren}
 )
 
 // treeNode represents a Merkle tree node which roots a full binary subtree.
@@ -296,7 +296,7 @@ func TestNewRange(t *testing.T) {
 }
 
 func TestAppendRangeErrors(t *testing.T) {
-	anotherFactory := &Factory{Hash: hashChildren}
+	anotherFactory := &RangeFactory{Hash: hashChildren}
 	nonEmpty1, _ := factory.NewRange(7, 8, [][]byte{[]byte("hash")})
 	nonEmpty2, _ := factory.NewRange(0, 6, [][]byte{[]byte("hash0"), []byte("hash1")})
 	nonEmpty3, _ := factory.NewRange(6, 7, [][]byte{[]byte("hash")})
@@ -513,7 +513,7 @@ func TestEqual(t *testing.T) {
 				hashes: [][]byte{[]byte("hash 1"), []byte("hash 2")},
 			},
 			rhs: &Range{
-				f:      &Factory{Hash: hashChildren},
+				f:      &RangeFactory{Hash: hashChildren},
 				begin:  17,
 				end:    23,
 				hashes: [][]byte{[]byte("hash 1"), []byte("hash 2")},

@@ -36,16 +36,16 @@ type HashFn func(left, right []byte) []byte
 //   [0 0] [0 1] [0 2] [0 3]
 type VisitFn func(level uint, index uint64, hash []byte)
 
-// Factory allows creating compact ranges with the specified hash function,
-// which must not be nil, and must not be changed.
-type Factory struct {
+// RangeFactory allows creating compact ranges with the specified hash
+// function, which must not be nil, and must not be changed.
+type RangeFactory struct {
 	Hash HashFn
 }
 
 // NewRange creates a Range for [begin, end) with the given set of hashes. The
 // hashes correspond to the roots of the minimal set of perfect sub-trees
 // covering the [begin, end) leaves range, ordered left to right.
-func (f *Factory) NewRange(begin, end uint64, hashes [][]byte) (*Range, error) {
+func (f *RangeFactory) NewRange(begin, end uint64, hashes [][]byte) (*Range, error) {
 	if end < begin {
 		return nil, fmt.Errorf("invalid range: end=%d, want >= %d", end, begin)
 	}
@@ -60,7 +60,7 @@ func (f *Factory) NewRange(begin, end uint64, hashes [][]byte) (*Range, error) {
 // NewEmptyRange returns a new Range for an empty [begin, begin) range. The
 // value of begin defines where the range will start growing from when entries
 // are appended to it.
-func (f *Factory) NewEmptyRange(begin uint64) *Range {
+func (f *RangeFactory) NewEmptyRange(begin uint64) *Range {
 	return &Range{f: f, begin: begin, end: begin}
 }
 
@@ -73,7 +73,7 @@ func (f *Factory) NewEmptyRange(begin uint64) *Range {
 // TODO(pavelkalinnikov): Add document with more details on how it works, and
 // what it can be used for.
 type Range struct {
-	f      *Factory
+	f      *RangeFactory
 	begin  uint64
 	end    uint64
 	hashes [][]byte
