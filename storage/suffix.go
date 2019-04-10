@@ -23,18 +23,28 @@ import (
 type Suffix struct {
 	// bits is the number of bits in the node ID suffix.
 	// TODO(gdbelvin): make bits an integer.
-	Bits byte
+	bits byte
 	// path is the suffix itself.
-	Path []byte
+	path []byte
+}
+
+// Bits returns the number of significant bits in the Suffix path.
+func (s Suffix) Bits() byte {
+	return s.bits
+}
+
+// Path returns a copy of the Suffix path.
+func (s Suffix) Path() []byte {
+	return append([]byte(nil), s.path...)
 }
 
 // String returns a string that represents Suffix.
 // This is a base64 encoding of the following format:
 // [ 1 byte for depth || path bytes ]
 func (s Suffix) String() string {
-	r := make([]byte, 1, 1+(len(s.Path)))
-	r[0] = s.Bits
-	r = append(r, s.Path...)
+	r := make([]byte, 1, 1+(s.bits/8))
+	r[0] = s.bits
+	r = append(r, s.path...)
 	return base64.StdEncoding.EncodeToString(r)
 }
 
@@ -46,7 +56,7 @@ func ParseSuffix(s string) (Suffix, error) {
 	}
 
 	return Suffix{
-		Bits: byte(b[0]),
-		Path: b[1:],
+		bits: byte(b[0]),
+		path: b[1:],
 	}, nil
 }

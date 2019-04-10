@@ -53,10 +53,10 @@ func TestParseSuffix(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		if got, want := sfx.Bits, tc.wantBits; got != want {
+		if got, want := sfx.Bits(), tc.wantBits; got != want {
 			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", tc.suffix, got, want)
 		}
-		if got, want := sfx.Path, tc.wantPath; !bytes.Equal(got, want) {
+		if got, want := sfx.Path(), tc.wantPath; !bytes.Equal(got, want) {
 			t.Errorf("ParseSuffix(%s).Path: %x, want %x", tc.suffix, got, want)
 		}
 	}
@@ -80,10 +80,10 @@ func TestSplitParseSuffixRoundtrip(t *testing.T) {
 			t.Errorf("ParseSuffix(%s): %v", sfxKey, err)
 			continue
 		}
-		if got, want := sfx.Bits, sfxP.Bits; got != want {
+		if got, want := sfx.Bits(), sfxP.Bits(); got != want {
 			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", sfxKey, got, want)
 		}
-		if got, want := sfx.Path, sfxP.Path; !bytes.Equal(got, want) {
+		if got, want := sfx.Path(), sfxP.Path(); !bytes.Equal(got, want) {
 			t.Errorf("ParseSuffix(%s).Path: %x, want %x", sfxKey, got, want)
 		}
 	}
@@ -176,7 +176,7 @@ func TestSuffixKey(t *testing.T) {
 }
 
 // makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and InternalNodes maps.
-// This function documents existing log storage behavior. Any new code that emits Sufix objects must
+// This function documents existing log storage behavior. Any new code that emits Suffix objects must
 // produce the exact same outputs as this function would for Logs.
 func makeSuffixKey(depth int, index int64) (string, error) {
 	if depth < 0 {
@@ -200,5 +200,23 @@ func TestSuffixSerialize(t *testing.T) {
 		if got, want := tc.s.String(), tc.want; got != want {
 			t.Errorf("%v.serialize(): %v, want %v", tc.s, got, want)
 		}
+	}
+}
+
+func TestSuffixPathImmutable(t *testing.T) {
+	s1 := Suffix{bits: 8, path: []byte{0x97}}
+	s2 := Suffix{bits: 8, path: []byte{0x97}}
+
+	p1 := s1.Path()
+	p2 := s2.Path()
+
+	// Modifying the paths should leave the underlying objects still equal.
+	p1[0] = 0xff
+	if !bytes.Equal(s1.Path(), s2.Path()) {
+		t.Errorf("suffix path is not immutable")
+	}
+	p2[0] = 0xff
+	if !bytes.Equal(s1.Path(), s2.Path()) {
+		t.Errorf("suffix path is not immutable")
 	}
 }
