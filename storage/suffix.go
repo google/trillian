@@ -18,6 +18,8 @@ import (
 	"encoding/base64"
 )
 
+var EmptySuffix = Suffix{path: []byte{0}}
+
 // Suffix represents the tail of a NodeID. It is the path within the subtree.
 // The portion of the path that extends beyond the subtree is not part of this suffix.
 type Suffix struct {
@@ -26,6 +28,19 @@ type Suffix struct {
 	bits byte
 	// path is the suffix itself.
 	path []byte
+	// asString is the string representation of the suffix.
+	asString string
+}
+
+// NewSuffix creates a new Suffix. The only real point of using them is
+// to get their String value so we compute that once up front.
+func NewSuffix(bits byte, path []byte) *Suffix {
+	r := make([]byte, 1, 1+(bits/8))
+	r[0] = bits
+	r = append(r, path...)
+	s := base64.StdEncoding.EncodeToString(r)
+
+	return &Suffix{bits: bits, path: path, asString: s}
 }
 
 // Bits returns the number of significant bits in the Suffix path.
@@ -42,21 +57,15 @@ func (s Suffix) Path() []byte {
 // This is a base64 encoding of the following format:
 // [ 1 byte for depth || path bytes ]
 func (s Suffix) String() string {
-	r := make([]byte, 1, 1+(s.bits/8))
-	r[0] = s.bits
-	r = append(r, s.path...)
-	return base64.StdEncoding.EncodeToString(r)
+	return s.asString
 }
 
 // ParseSuffix converts a suffix string back into a Suffix.
 func ParseSuffix(s string) (Suffix, error) {
 	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return Suffix{}, err
+		return EmptySuffix, err
 	}
 
-	return Suffix{
-		bits: byte(b[0]),
-		path: b[1:],
-	}, nil
+	return *NewSuffix(byte(b[0]), b[1:]), nil
 }

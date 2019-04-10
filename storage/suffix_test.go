@@ -185,17 +185,17 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 	if index < 0 {
 		return "", fmt.Errorf("invalid negative index %d", index)
 	}
-	sfx := Suffix{byte(depth), []byte{byte(index)}}
+	sfx := NewSuffix(byte(depth), []byte{byte(index)})
 	return sfx.String(), nil
 }
 
 func TestSuffixSerialize(t *testing.T) {
 	for _, tc := range []struct {
-		s    Suffix
+		s    *Suffix
 		want string
 	}{
-		// Prexisting format. This test vector must NOT change or existing data will be inaccessible.
-		{s: Suffix{5, []byte{0xae}}, want: "Ba4="},
+		// Pre-existing format. This test vector must NOT change or existing data will be inaccessible.
+		{s: NewSuffix(5, []byte{0xae}), want: "Ba4="},
 	} {
 		if got, want := tc.s.String(), tc.want; got != want {
 			t.Errorf("%v.serialize(): %v, want %v", tc.s, got, want)
@@ -204,8 +204,8 @@ func TestSuffixSerialize(t *testing.T) {
 }
 
 func TestSuffixPathImmutable(t *testing.T) {
-	s1 := Suffix{bits: 8, path: []byte{0x97}}
-	s2 := Suffix{bits: 8, path: []byte{0x97}}
+	s1 := NewSuffix(8, []byte{0x97})
+	s2 := NewSuffix(8, []byte{0x97})
 
 	p1 := s1.Path()
 	p2 := s2.Path()

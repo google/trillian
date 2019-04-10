@@ -220,7 +220,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 			if err != nil {
 				return err
 			}
-			nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.Suffix{}, s.hasher.BitLen())
+			nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.EmptySuffix, s.hasher.BitLen())
 			sibs = append(sibs, nodeID.Siblings()...)
 
 			leaves = append(leaves, HStar2LeafHash{
