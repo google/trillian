@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/testonly"
 )
 
 var (
@@ -375,6 +376,47 @@ func TestGetRootHash(t *testing.T) {
 	rng := factory.NewEmptyRange(10)
 	if _, err := rng.GetRootHash(); err == nil {
 		t.Error("GetRootHash succeeded unexpectedly")
+	}
+}
+
+func TestGetRootHashGolden(t *testing.T) {
+	// TODO(pavelkalinnikov): Values are copied from tree_test. Commonize them.
+	for _, tc := range []struct {
+		size     int
+		wantRoot []byte
+	}{
+		{10, testonly.MustDecodeBase64("VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=")},
+		{15, testonly.MustDecodeBase64("j4SulYmocFuxdeyp12xXCIgK6PekBcxzAIj4zbQzNEI=")},
+		{16, testonly.MustDecodeBase64("c+4Uc6BCMOZf/v3NZK1kqTUJe+bBoFtOhP+P3SayKRE=")},
+		{100, testonly.MustDecodeBase64("dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY=")},
+		{255, testonly.MustDecodeBase64("SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0=")},
+		{256, testonly.MustDecodeBase64("qFI0t/tZ1MdOYgyPpPzHFiZVw86koScXy9q3FU5casA=")},
+		{1000, testonly.MustDecodeBase64("RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ=")},
+		{4095, testonly.MustDecodeBase64("cWRFdQhPcjn9WyBXE/r1f04ejxIm5lvg40DEpRBVS0w=")},
+		{4096, testonly.MustDecodeBase64("6uU/phfHg1n/GksYT6TO9aN8EauMCCJRl3dIK0HDs2M=")},
+		{10000, testonly.MustDecodeBase64("VZcav65F9haHVRk3wre2axFoBXRNeUh/1d9d5FQfxIg=")},
+		{65535, testonly.MustDecodeBase64("iPuVYJhP6SEE4gUFp8qbafd2rYv9YTCDYqAxCj8HdLM=")},
+	} {
+		t.Run(fmt.Sprintf("size:%v", tc.size), func(t *testing.T) {
+			rng := factory.NewEmptyRange(0)
+			for i := 0; i < tc.size; i++ {
+				data := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
+				hash, err := rfc6962.DefaultHasher.HashLeaf(data)
+				if err != nil {
+					t.Fatalf("HashLeaf(%x): %v", data, err)
+				}
+				if err := rng.Append(hash, nil); err != nil {
+					t.Fatalf("Append(%d): %v", i, err)
+				}
+			}
+			got, err := rng.GetRootHash()
+			if err != nil {
+				t.Fatalf("GetRootHash: %v", err)
+			}
+			if !bytes.Equal(got, tc.wantRoot) {
+				t.Errorf("root hash mismatch: got %x, want %x", got, tc.wantRoot)
+			}
+		})
 	}
 }
 
