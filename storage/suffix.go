@@ -18,10 +18,16 @@ import (
 	"encoding/base64"
 )
 
+// EmptySuffix is a reusable suffix of zero bits.
 var EmptySuffix = Suffix{path: []byte{0}}
+
+var byteToSuffix = make(map[byte]*Suffix)
+var strToSuffix = make(map[string]*Suffix)
 
 // Suffix represents the tail of a NodeID. It is the path within the subtree.
 // The portion of the path that extends beyond the subtree is not part of this suffix.
+// We keep a cache of the one byte Suffix values use by log trees. These
+// are reused to avoid constant reallocation and base64 conversion overhead.
 type Suffix struct {
 	// bits is the number of bits in the node ID suffix.
 	// TODO(gdbelvin): make bits an integer.
@@ -32,9 +38,16 @@ type Suffix struct {
 	asString string
 }
 
-// NewSuffix creates a new Suffix. The only real point of using them is
-// to get their String value so we compute that once up front.
+// NewSuffix creates a new Suffix. The primary use for them is to get their
+// String value to use as a key so we compute that once up front.
 func NewSuffix(bits byte, path []byte) *Suffix {
+	// Use a shared value for a short suffix if we have one, they're immutable.
+	if bits == 8 {
+		if sfx, ok := byteToSuffix[path[0]]; ok {
+			return sfx
+		}
+	}
+
 	r := make([]byte, 1, 1+(bits/8))
 	r[0] = bits
 	r = append(r, path...)
@@ -62,10 +75,25 @@ func (s Suffix) String() string {
 
 // ParseSuffix converts a suffix string back into a Suffix.
 func ParseSuffix(s string) (*Suffix, error) {
+	if sfx, ok := strToSuffix[s]; ok {
+		// Matches a precalculated value, use that.
+		return sfx, nil
+	}
+
 	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
 		return &EmptySuffix, err
 	}
 
 	return NewSuffix(byte(b[0]), b[1:]), nil
+}
+
+// Precalculate all the one byte suffix values so they can be reused
+// either on construction or parsing.
+func init() {
+	for b := 0; b < 256; b++ {
+		sfx := NewSuffix(8, []byte{byte(b)})
+		byteToSuffix[byte(b)] = sfx
+		strToSuffix[sfx.asString] = sfx
+	}
 }
