@@ -160,10 +160,13 @@ until process exit if any error occurred.
 gometalinter has been replaced with golangci-lint for improved performance and
 Go module support.
 
-### CompactMerkleTree moved
+### Compact Merkle tree data structures
 
 The CompactMerkleTree has been moved from `github.com/google/trillian/merkle` to
 `github.com/google/trillian/merkle/compact` and renamed `Tree`.
+
+A new powerful data structure named Compact Range has been added to the same
+package. It is a generalization of the previous compact Merkle tree structure.
 
 ### Storage API changes
 
