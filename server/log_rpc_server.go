@@ -424,6 +424,16 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	if err := validateGetConsistencyProofRequest(reqProof); err != nil {
 		return nil, err
 	}
+	if uint64(req.FirstTreeSize) > root.TreeSize {
+		st := status.Newf(codes.Unavailable, "first_tree_size: %v is not available, want <= %v", req.FirstTreeSize, root.TreeSize)
+		st, err := st.WithDetails(&slr)
+		if err != nil {
+			glog.Errorf("Error attaching metadata: %v", err)
+			return nil, status.Errorf(codes.Internal, "first_tree_size unavailable. Error attaching SLR")
+		}
+		return nil, st.Err()
+	}
+
 	// Try to get consistency proof
 	proof, err := tryGetConsistencyProof(ctx, reqProof.FirstTreeSize, reqProof.SecondTreeSize, int64(root.TreeSize), tx, hasher)
 	if err != nil {
