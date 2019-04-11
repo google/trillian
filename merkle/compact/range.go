@@ -67,8 +67,8 @@ func (f *RangeFactory) NewEmptyRange(begin uint64) *Range {
 // Range represents a compact Merkle tree range for leaf indices [begin, end).
 //
 // It contains the minimal set of perfect subtrees whose leaves comprise this
-// range. The structure is efficiently mergeable with with other compact ranges
-// that share one of the endpoints with it.
+// range. The structure is efficiently mergeable with other compact ranges that
+// share one of the endpoints with it.
 //
 // TODO(pavelkalinnikov): Add document with more details on how it works, and
 // what it can be used for.
