@@ -33,13 +33,13 @@ func (s *STH) String() string {
 	return string(v)
 }
 
-func sthFromString(s string) *STH {
+func sthFromString(s string) (*STH, error) {
 	if s == "" {
-		return nil
+		return nil, nil
 	}
 	var result STH
-	json.Unmarshal([]byte(s), &result)
-	return &result
+	err := json.Unmarshal([]byte(s), &result)
+	return &result, err
 }
 
 // STHInfo holds information about an STH stored in the STH topic.
