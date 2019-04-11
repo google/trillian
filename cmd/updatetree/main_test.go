@@ -121,7 +121,7 @@ func runTest(t *testing.T, tests []*testCase) {
 				t.Fatalf("Error starting fake server: %v", err)
 			}
 			defer stopFakeServer()
-			defer flagsaver.Save().Restore()
+			defer flagsaver.Save().MustRestore()
 			*adminServerAddr = s.Addr
 			if tc.setFlags != nil {
 				tc.setFlags()

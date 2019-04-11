@@ -22,7 +22,12 @@
 //   } // flags are reset to their original values here.
 package flagsaver
 
-import "flag"
+import (
+	"flag"
+	"strings"
+
+	"github.com/golang/glog"
+)
 
 // Stash holds flag values so that they can be restored at the end of a test.
 type Stash struct {
@@ -30,10 +35,13 @@ type Stash struct {
 }
 
 // Restore sets all non-hidden flags to the values they had when the Stash was created.
-func (s *Stash) Restore() {
+func (s *Stash) Restore() error {
 	for name, value := range s.flags {
-		flag.Set(name, value)
+		if err := flag.Set(name, value); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // Save returns a Stash that captures the current value of all non-hidden flags.
@@ -42,9 +50,23 @@ func Save() *Stash {
 		flags: make(map[string]string, flag.NFlag()),
 	}
 
+	// Exclude the go test related flags. Also exclude log_backtrace_at because
+	// while it may have an empty value it can't be set to one without an
+	// error.
 	flag.VisitAll(func(f *flag.Flag) {
-		s.flags[f.Name] = f.Value.String()
+		if !strings.HasPrefix(f.Name, "test.") && f.Name != "log_backtrace_at" {
+			s.flags[f.Name] = f.Value.String()
+		}
 	})
 
 	return &s
+}
+
+// MustRestore calls Restore and exits on failure. It can be used in a defer for
+// tests. If Restore fails then otherwise the flags may be in an arbitrary
+// state that could cause subsequent tests to misbehave.
+func (s *Stash) MustRestore() {
+	if err := s.Restore(); err != nil {
+		glog.Fatalf("MustRestore(): failed to restore flags: %v %v", err, *s)
+	}
 }

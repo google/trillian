@@ -38,7 +38,7 @@ func TestRestore(t *testing.T) {
 		flag string
 		// oldValue is the value the flag should have when saved. If empty, this indicates the flag should have its default value.
 		oldValue string
-		// newValue ist he value the flag should have just before being restored to oldValue.
+		// newValue is the value the flag should have just before being restored to oldValue.
 		newValue string
 	}{
 		{
@@ -94,8 +94,12 @@ func TestRestore(t *testing.T) {
 		}
 
 		func() {
-			defer Save().Restore()
-			flag.Set(test.flag, test.newValue)
+			defer Save().MustRestore()
+			// If the Set() fails the value won't have been updated but some of the
+			// test cases set the same value so it's safer to have this check.
+			if err := flag.Set(test.flag, test.newValue); err != nil {
+				t.Errorf("%v: flag.Set(%q)=%v", test.desc, test.flag, err)
+			}
 			if gotValue := f.Value.String(); gotValue != test.newValue {
 				t.Errorf("%v: flag.Lookup(%q).Value.String() = %q, want %q", test.desc, test.flag, gotValue, test.newValue)
 			}
