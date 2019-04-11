@@ -105,12 +105,13 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 	}
 }
 
+// TODO(al): Remove me.
 func BenchmarkHashChildrenOld(b *testing.B) {
 	h := DefaultHasher
 	l, _ := h.HashLeaf([]byte("one"))
 	r, _ := h.HashLeaf([]byte("or other"))
 	for i := 0; i < b.N; i++ {
-		_ = h.HashChildrenOld(l, r)
+		_ = h.hashChildrenOld(l, r)
 	}
 }
 
@@ -134,7 +135,7 @@ func TestHashChildrenEquivToOld(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if oldHash, newHash := h.HashChildrenOld(l, r), h.HashChildren(l, r); !bytes.Equal(oldHash, newHash) {
+		if oldHash, newHash := h.hashChildrenOld(l, r), h.HashChildren(l, r); !bytes.Equal(oldHash, newHash) {
 			t.Errorf("%d different hashes: %x vs %x", i, oldHash, newHash)
 		}
 	}
