@@ -45,14 +45,14 @@ func buildFullLogSubtree() *storagepb.SubtreeProto {
 	return r
 }
 
-func CreateGoldenSubtree(t *testing.T) {
+func CreateGoldenSubtree(t testing.TB) {
 	st := buildFullLogSubtree()
 	fmt.Printf("no intermediate:\n%s\n", squashSubtree(t, st))
 	LogPopulateFunc(rfc6962.DefaultHasher)(st)
 	fmt.Printf("populated:\n%s\n", squashSubtree(t, st))
 }
 
-func squashSubtree(t *testing.T, st *storagepb.SubtreeProto) string {
+func squashSubtree(t testing.TB, st *storagepb.SubtreeProto) string {
 	t.Helper()
 	flat, err := proto.Marshal(st)
 	if err != nil {
@@ -69,17 +69,17 @@ func squashSubtree(t *testing.T, st *storagepb.SubtreeProto) string {
 	return b64
 }
 
-func goldenSubtreeNoIntermediates(t *testing.T) *storagepb.SubtreeProto {
+func goldenSubtreeNoIntermediates(t testing.TB) *storagepb.SubtreeProto {
 	t.Helper()
 	return unsquashSubtree(t, goldenSubtreeNoIntermediatesB64)
 }
 
-func goldenSubtree(t *testing.T) *storagepb.SubtreeProto {
+func goldenSubtree(t testing.TB) *storagepb.SubtreeProto {
 	t.Helper()
 	return unsquashSubtree(t, goldenSubtreeB64)
 }
 
-func unsquashSubtree(t *testing.T, b64 string) *storagepb.SubtreeProto {
+func unsquashSubtree(t testing.TB, b64 string) *storagepb.SubtreeProto {
 	gz, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		t.Fatal(err)
@@ -102,25 +102,29 @@ func unsquashSubtree(t *testing.T, b64 string) *storagepb.SubtreeProto {
 
 func TestLogPopulation(t *testing.T) {
 	f := LogPopulateFunc(rfc6962.DefaultHasher)
-
-	for _, test := range []struct {
-		name    string
-		subtree *storagepb.SubtreeProto
-		want    *storagepb.SubtreeProto
-	}{
-		{
-			name:    "full1",
-			subtree: goldenSubtreeNoIntermediates(t),
-			want:    goldenSubtree(t),
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if err := f(test.subtree); err != nil {
-				t.Fatalf("failed to repopulate subtree: %v", err)
-			}
-			if diff := pretty.Compare(test.want, test.subtree); diff != "" {
-				t.Fatalf("unexpected repopulation - diff: %s", diff)
-			}
-		})
+	subtree := goldenSubtreeNoIntermediates(t)
+	want := goldenSubtree(t)
+	if err := f(subtree); err != nil {
+		t.Fatalf("failed to repopulate subtree: %v", err)
 	}
+	if diff := pretty.Compare(want, subtree); diff != "" {
+		t.Fatalf("unexpected repopulation - diff: %s", diff)
+	}
+}
+
+// Original results:
+// goos: linux
+// goarch: amd64
+// pkg: github.com/google/trillian/storage/cache
+// BenchmarkLogPopulation-6   	    1000	   2234488 ns/op
+func BenchmarkLogPopulation(b *testing.B) {
+	f := LogPopulateFunc(rfc6962.DefaultHasher)
+	subtree := goldenSubtreeNoIntermediates(b)
+
+	for i := 0; i < b.N; i++ {
+		if err := f(subtree); err != nil {
+			b.Fatalf("failed to repopulate subtree: %v", err)
+		}
+	}
+
 }
