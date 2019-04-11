@@ -220,3 +220,61 @@ func TestSuffixPathImmutable(t *testing.T) {
 		t.Errorf("suffix path is not immutable")
 	}
 }
+
+func Test8BitSuffixCache(t *testing.T) {
+	for _, tc := range []struct {
+		b         byte
+		path      []byte
+		wantCache bool
+	}{
+		// below 8 bits should not be cached.
+		{b: 1, path: []byte{020}, wantCache: false},
+		{b: 2, path: []byte{0x20}, wantCache: false},
+		{b: 3, path: []byte{0x40}, wantCache: false},
+		{b: 4, path: []byte{0x40}, wantCache: false},
+		{b: 5, path: []byte{0x40}, wantCache: false},
+		{b: 6, path: []byte{0x40}, wantCache: false},
+		{b: 7, path: []byte{0x40}, wantCache: false},
+		// 8 bits suffix should be cached.
+		{b: 8, path: []byte{0x76}, wantCache: true},
+		{b: 9, path: []byte{0x40}, wantCache: false},
+		// above 8 bits should not be cached.
+		{b: 9, path: []byte{0x40, 0x80}, wantCache: false},
+		{b: 12, path: []byte{0x40, 0x80}, wantCache: false},
+		{b: 15, path: []byte{0x40, 0xf0}, wantCache: false},
+		{b: 24, path: []byte{0x40, 0xf0, 0xaa}, wantCache: false},
+		{b: 32, path: []byte{0x40, 0xf0, 0xaa, 0xed}, wantCache: false},
+	} {
+		s1 := NewSuffix(tc.b, tc.path)
+		s2 := NewSuffix(tc.b, tc.path)
+
+		if s1 == s2 != tc.wantCache {
+			t.Errorf("NewSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s2)
+		}
+
+		// Test the other direction as well by parsing it and we should get the
+		// same instance again.
+		s3, err := ParseSuffix(s1.String())
+		if err != nil {
+			t.Fatalf("failed to parse our own suffix: %v", err)
+		}
+		if s1 == s3 != tc.wantCache {
+			t.Errorf("ParseSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s3)
+		}
+	}
+}
+
+// TestCacheIsolation ensures that users can't corrupt the cache by modifying
+// values.
+func TestCacheIsolation(t *testing.T) {
+	s1 := NewSuffix(8, []byte{0x80})
+	s1.Path()[0] ^= 0xff
+	s2 := NewSuffix(8, []byte{0x80})
+
+	if s1 != s2 {
+		t.Fatalf("did not get same instance back from NewSuffix(8, ...)")
+	}
+	if s2.Path()[0] != 0x80 {
+		t.Fatalf("cache instances are not immutable")
+	}
+}
