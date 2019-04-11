@@ -21,7 +21,7 @@ import (
 	"math/bits"
 )
 
-// HashFn computes a node's hash using the hashes of its child nodes.
+// HashFn computes an internal node's hash using the hashes of its child nodes.
 type HashFn func(left, right []byte) []byte
 
 // VisitFn visits the (level, index) node with the specified hash. The level is
@@ -136,7 +136,7 @@ func (r *Range) GetRootHash() ([]byte, error) {
 	return hash, nil
 }
 
-// Equal compares two Range for equality.
+// Equal compares two Ranges for equality.
 func (r *Range) Equal(other *Range) bool {
 	if r.f != other.f || r.begin != other.begin || r.end != other.end {
 		return false
@@ -205,11 +205,11 @@ func (r *Range) appendImpl(end uint64, seed []byte, hashes [][]byte, visitor Vis
 }
 
 // getMergePath returns the merging path between the compact range [begin, mid)
-// and [mid, end). The path is represented as a submask of mid, with bit
-// indices [low, high). A bit value of 1 on level i of mid means that the node
-// on this level merges with the corresponding node in the left compact range,
-// whereas 0 represents merging with the right compact range. If the path is
-// empty then high <= low.
+// and [mid, end). The path is represented as a range of bits within mid, with
+// bit indices [low, high). A bit value of 1 on level i of mid means that the
+// node on this level merges with the corresponding node in the left compact
+// range, whereas 0 represents merging with the right compact range. If the
+// path is empty then high <= low.
 //
 // The output is not specified if begin <= mid <= end doesn't hold, but the
 // function never panics.
@@ -237,8 +237,8 @@ func getMergePath(begin, mid, end uint64) (uint, uint) {
 // The corresponding values of m are not returned (they can be calculated from
 // begin and the sub-range sizes).
 //
-// For example, (left,right) values of 0b101, 0b1001 would indicate a sequence
-// of tree sizes: 1,4; 8,1.
+// For example, (begin, end) values of (0b110, 0b11101) would indicate a
+// sequence of tree sizes: 2,8; 8,4,1.
 //
 // The output is not specified if begin > end, but the function never panics.
 func decompose(begin, end uint64) (uint64, uint64) {
