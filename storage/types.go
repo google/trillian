@@ -349,7 +349,7 @@ func (n *NodeID) Siblings() []NodeID {
 func NewNodeIDFromPrefixSuffix(prefix []byte, suffix *Suffix, maxPathBits int) NodeID {
 	path := make([]byte, maxPathBits/8)
 	copy(path, prefix)
-	copy(path[len(prefix):], suffix.Path())
+	copy(path[len(prefix):], suffix.path)
 
 	return NodeID{
 		Path:          path,
@@ -360,7 +360,7 @@ func NewNodeIDFromPrefixSuffix(prefix []byte, suffix *Suffix, maxPathBits int) N
 // Split splits a NodeID into a prefix and a suffix at prefixBytes.
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	if n.PrefixLenBits == 0 {
-		return []byte{}, &EmptySuffix
+		return []byte{}, EmptySuffix
 	}
 	a := make([]byte, len(n.Path))
 	copy(a, n.Path)
@@ -375,9 +375,9 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	suffixBytes := bytesForBits(b)
 	maskIndex := (b - 1) / 8
 	maskLowBits := (b-1)%8 + 1
-	path := a[prefixBytes : prefixBytes+suffixBytes]
-	path[maskIndex] &= ((0x01 << uint(maskLowBits)) - 1) << uint(8-maskLowBits)
-	sfx := NewSuffix(byte(b), path)
+	sfxPath := a[prefixBytes : prefixBytes+suffixBytes]
+	sfxPath[maskIndex] &= ((0x01 << uint(maskLowBits)) - 1) << uint(8-maskLowBits)
+	sfx := NewSuffix(byte(b), sfxPath)
 
 	return a[:prefixBytes], sfx
 }

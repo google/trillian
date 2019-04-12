@@ -18,11 +18,14 @@ import (
 	"encoding/base64"
 )
 
-// EmptySuffix is a reusable suffix of zero bits.
-var EmptySuffix = Suffix{path: []byte{0}}
-
-var byteToSuffix = make(map[byte]*Suffix)
-var strToSuffix = make(map[string]*Suffix)
+var (
+	// EmptySuffix is a reusable suffix of zero bits.
+	EmptySuffix = NewSuffix(0, []byte{0})
+	// byteToSuffix maps a single byte suffix (8 bits length) to a Suffix.
+	byteToSuffix = make(map[byte]*Suffix)
+	// strToSuffix maps a base64 encoded string representation to a Suffix.
+	strToSuffix = make(map[string]*Suffix)
+)
 
 // Suffix represents the tail of a NodeID. It is the path within the subtree.
 // The portion of the path that extends beyond the subtree is not part of this suffix.
@@ -48,7 +51,7 @@ func NewSuffix(bits byte, path []byte) *Suffix {
 		}
 	}
 
-	r := make([]byte, 1, 1+(bits/8))
+	r := make([]byte, 1, len(path)+1)
 	r[0] = bits
 	r = append(r, path...)
 	s := base64.StdEncoding.EncodeToString(r)
@@ -63,7 +66,7 @@ func (s Suffix) Bits() byte {
 
 // Path returns a copy of the Suffix path.
 func (s Suffix) Path() []byte {
-	return append([]byte(nil), s.path...)
+	return append(make([]byte, 0, len(s.path)), s.path...)
 }
 
 // String returns a string that represents Suffix.
@@ -82,7 +85,7 @@ func ParseSuffix(s string) (*Suffix, error) {
 
 	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return &EmptySuffix, err
+		return nil, err
 	}
 
 	return NewSuffix(byte(b[0]), b[1:]), nil
