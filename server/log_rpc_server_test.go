@@ -568,6 +568,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 }
 
 type latestRootTest struct {
+	desc        string
 	req         trillian.GetLatestSignedLogRootRequest
 	wantRoot    trillian.GetLatestSignedLogRootResponse
 	errStr      string
@@ -588,6 +589,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 	tests := []latestRootTest{
 		{
 			// Test error case when failing to get a snapshot from storage.
+			desc:     "storage error",
 			req:      getLogRootRequest1,
 			snapErr:  errors.New("SnapshotForTree() error"),
 			errStr:   "SnapshotFor",
@@ -597,6 +599,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 		},
 		{
 			// Test error case when storage fails to provide a root.
+			desc:     "root error",
 			req:      getLogRootRequest1,
 			errStr:   "LatestSigned",
 			rootErr:  errors.New("LatestSignedLogRoot() error"),
@@ -604,12 +607,14 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 		},
 		{
 			// Test error case where the log root could not be read
+			desc:     "root read error",
 			req:      getLogRootRequest1,
 			errStr:   "rpc error: code = Internal desc = Could not read current log root: logRootBytes too short",
 			noCommit: true,
 		},
 		{
 			// Test normal case where a root is returned correctly.
+			desc:        "success",
 			req:         getLogRootRequest1,
 			wantRoot:    trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
 			storageRoot: *signedRoot1,
@@ -617,41 +622,42 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fakeStorage := storage.NewMockLogStorage(ctrl)
-		mockTX := storage.NewMockLogTreeTX(ctrl)
-		if !test.noSnap {
-			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, test.snapErr)
-		}
-		if !test.noRoot {
-			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(test.storageRoot, test.rootErr)
-		}
-		if !test.noCommit {
-			mockTX.EXPECT().Commit().Return(test.commitErr)
-		}
-		if !test.noClose {
-			mockTX.EXPECT().Close().Return(nil)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			fakeStorage := storage.NewMockLogStorage(ctrl)
+			mockTX := storage.NewMockLogTreeTX(ctrl)
+			if !test.noSnap {
+				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, test.snapErr)
+			}
+			if !test.noRoot {
+				mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(test.storageRoot, test.rootErr)
+			}
+			if !test.noCommit {
+				mockTX.EXPECT().Commit().Return(test.commitErr)
+			}
+			if !test.noClose {
+				mockTX.EXPECT().Close().Return(nil)
+			}
 
-		registry := extension.Registry{
-			AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
-			LogStorage:   fakeStorage,
-		}
-		s := NewTrillianLogRPCServer(registry, fakeTimeSource)
-		got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
-		if len(test.errStr) > 0 {
-			if err == nil || !strings.Contains(err.Error(), test.errStr) {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
+				LogStorage:   fakeStorage,
 			}
-		} else {
-			if err != nil {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=_,%v, want: _,nil", test.req, err)
-				continue
+			s := NewTrillianLogRPCServer(registry, fakeTimeSource)
+			resp, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
+			if len(test.errStr) > 0 {
+				if err == nil || !strings.Contains(err.Error(), test.errStr) {
+					t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("GetLatestSignedLogRoot(%+v)=_,%v, want: _,nil", test.req, err)
+				}
+				// Ensure we got the expected root back.
+				if !proto.Equal(resp.SignedLogRoot, test.wantRoot.SignedLogRoot) {
+					t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, resp, test.wantRoot)
+				}
 			}
-			// Ensure we got the expected root back.
-			if !proto.Equal(got.SignedLogRoot, test.wantRoot.SignedLogRoot) {
-				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, test.wantRoot)
-			}
-		}
+		})
 	}
 }
 
