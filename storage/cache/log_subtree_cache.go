@@ -35,6 +35,49 @@ func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 	return populateLogSubtreeNodes(hasher)
 }
 
+func suffixKey(d, i int) string {
+	sfx := &storage.Suffix{Bits: byte(d), Path: []byte{byte(i << uint(8-d))}}
+	maskLowBits := (sfx.Bits-1)%8 + 1
+	sfx.Path[0] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
+	return sfx.String()
+}
+
+func populatePerfectLogSubtree(hasher hashers.LogHasher, st *storagepb.SubtreeProto) error {
+	if got, want := len(st.Leaves), 256; got != want {
+		return fmt.Errorf("subtree is not perfect, tree has %d leaves, expected %d", got, want)
+	}
+	var l, r []byte
+	var ok bool
+	for d := 7; d >= 0; d-- {
+		for i := 0; i < 1<<uint(d); i++ {
+			leftChild := i * 2
+			childDepth := d + 1
+			if d == 7 {
+				l, r = st.Leaves[suffixKey(childDepth, leftChild)], st.Leaves[suffixKey(childDepth, leftChild+1)]
+			} else {
+				l, ok = st.InternalNodes[suffixKey(childDepth, leftChild)]
+				if !ok {
+					return fmt.Errorf("internal error, no intermediate node for %d, %d", d, i)
+				}
+				r, ok = st.InternalNodes[suffixKey(childDepth, leftChild+1)]
+				if !ok {
+					return fmt.Errorf("internal error, no intermediate node for %d, %d", d, i)
+				}
+			}
+			h := hasher.HashChildren(l, r)
+			// This hash is either an intermediate node (in which case the depth >
+			// 0), or the root hash. Store it in the appropriate place.
+			if d > 0 {
+				st.InternalNodes[suffixKey(d, i)] = h
+			} else {
+				st.RootHash = h
+			}
+		}
+	}
+	return nil
+
+}
+
 // populateLogSubtreeNodes re-creates a Log subtree's InternalNodes from the
 // subtree Leaves map.
 //
@@ -59,42 +102,31 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 			st.InternalNodes = make(map[string][]byte)
 		}
 
-		// We need to update the subtree root hash regardless of whether it's fully populated
-		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
-			nodeID := storage.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
-			_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
-			sfxKey := sfx.String()
-			h := st.Leaves[sfxKey]
-			if h == nil {
-				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
-			}
-			seq, err := cmt.AddLeafHash(h, func(height int, index int64, h []byte) error {
-				if height == logStrataDepth && index == 0 {
-					// no space for the root in the node cache
-					return nil
-				}
-
-				// Don't put leaves into the internal map and only update if we're rebuilding internal
-				// nodes. If the subtree was saved with internal nodes then we don't touch the map.
-				if height > 0 && len(st.Leaves) == maxLeaves {
-					subDepth := logStrataDepth - height
-					sfx2 := &storage.Suffix{Bits: byte(subDepth), Path: []byte{byte(index << uint(8-subDepth))}}
-					maskLowBits := (sfx2.Bits-1)%8 + 1
-					sfx2.Path[0] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
-
-					sfxKey := sfx2.String()
-					st.InternalNodes[sfxKey] = h
-				}
-				return nil
-			})
-			if err != nil {
+		// Special case the perfect subtree case for now:
+		if len(st.Leaves) == maxLeaves {
+			if err := populatePerfectLogSubtree(hasher, st); err != nil {
 				return err
 			}
-			if got, expected := seq, leafIndex; got != expected {
-				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
+		} else {
+			// We need to update the subtree root hash regardless of whether it's fully populated
+			for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
+				nodeID := storage.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
+				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
+				sfxKey := sfx.String()
+				h := st.Leaves[sfxKey]
+				if h == nil {
+					return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
+				}
+				seq, err := cmt.AddLeafHash(h, func(height int, index int64, h []byte) error { return nil })
+				if err != nil {
+					return err
+				}
+				if got, expected := seq, leafIndex; got != expected {
+					return fmt.Errorf("got seq of %d, but expected %d", got, expected)
+				}
 			}
+			st.RootHash = cmt.CurrentRoot()
 		}
-		st.RootHash = cmt.CurrentRoot()
 
 		// Additional check - after population we should have the same number of internal nodes
 		// as before the subtree was written to storage. Either because they were loaded from
