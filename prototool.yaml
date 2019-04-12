@@ -1,0 +1,51 @@
+# Paths to exclude when searching for Protobuf files.
+excludes:
+- vendor
+
+# Protoc directives.
+protoc:
+  # The Protobuf version to use from https://github.com/protocolbuffers/protobuf/releases.
+  # You probably want to set this to make your builds completely reproducible.
+  version: 3.7.1
+
+  # Additional paths to include with -I to protoc.
+  # By default, the directory of the config file is included,
+  # or the current directory if there is no config file.
+  includes:
+  - ../../googleapis/googleapis
+  - ../tink/proto
+
+# Lint directives.
+lint:
+  # Linter files to ignore.
+#  ignores:
+#  - id: RPC_NAMES_CAMEL_CASE
+#    files:
+#    - path/to/foo.proto
+#    - path/to/bar.proto
+#  - id: SYNTAX_PROTO3
+#    files:
+#    - path/to/foo.proto
+
+  # Linter rules.
+  # Run prototool list-all-linters to see all available linters.
+  rules:
+    # Determines whether or not to include the default set of linters.
+#    no_default: true
+
+    # The specific linters to add.
+#    add:
+
+    # The specific linters to remove.
+    remove:
+    - ENUM_FIELD_PREFIXES
+    - ENUM_ZERO_VALUES_INVALID
+    - FILE_OPTIONS_REQUIRE_JAVA_PACKAGE
+    - FILE_OPTIONS_REQUIRE_JAVA_MULTIPLE_FILES
+    - FILE_OPTIONS_JAVA_MULTIPLE_FILES_SAME_IN_DIR
+    - FILE_OPTIONS_EQUAL_JAVA_PACKAGE_COM_PREFIX
+    - FILE_OPTIONS_REQUIRE_JAVA_OUTER_CLASSNAME
+    - FILE_OPTIONS_EQUAL_GO_PACKAGE_PB_SUFFIX
+    - FILE_OPTIONS_REQUIRE_GO_PACKAGE
+    - REQUEST_RESPONSE_TYPES_IN_SAME_FILE
+    - REQUEST_RESPONSE_TYPES_UNIQUE 
