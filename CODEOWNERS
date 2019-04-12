@@ -6,4 +6,4 @@
 
 # Default
 *                          @google/certificate-transparency
-*.proto                    @Martin2112 @daviddrysdale
+*.proto                    @Martin2112 @daviddrysdale @AlCutter
