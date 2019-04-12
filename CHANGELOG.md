@@ -179,6 +179,10 @@ The `SubtreeCache.GetNodeHash()` method is no longer exported.
 The memory storage provider has been refactored to make it more consistent with
 the other storage providers.
 
+`NodeReader.GetMerkleNodes` now must return `Node` objects in the same order as
+node IDs requested. Storage implementations known to us already adhere to this
+requirement.
+
 ### Maphammer improvements
 
 The maphammer test tool for the experimental Trillian Map has been enhanced.
