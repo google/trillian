@@ -571,6 +571,7 @@ type latestRootTest struct {
 	desc        string
 	req         trillian.GetLatestSignedLogRootRequest
 	wantRoot    trillian.GetLatestSignedLogRootResponse
+	wantCode    codes.Code
 	errStr      string
 	noSnap      bool
 	snapErr     error
@@ -592,6 +593,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			desc:     "storage error",
 			req:      getLogRootRequest1,
 			snapErr:  errors.New("SnapshotForTree() error"),
+			wantCode: codes.Unknown,
 			errStr:   "SnapshotFor",
 			noRoot:   true,
 			noCommit: true,
@@ -602,6 +604,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			desc:     "root error",
 			req:      getLogRootRequest1,
 			errStr:   "LatestSigned",
+			wantCode: codes.Unknown,
 			rootErr:  errors.New("LatestSignedLogRoot() error"),
 			noCommit: true,
 		},
@@ -609,6 +612,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			// Test error case where the log root could not be read
 			desc:     "root read error",
 			req:      getLogRootRequest1,
+			wantCode: codes.Internal,
 			errStr:   "rpc error: code = Internal desc = Could not read current log root: logRootBytes too short",
 			noCommit: true,
 		},
@@ -644,6 +648,9 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			}
 			s := NewTrillianLogRPCServer(registry, fakeTimeSource)
 			resp, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
+			if st := status.Convert(err); st.Code() != test.wantCode {
+				t.Errorf("GetLatestSignedLogRoot(): %v, want %v", st.Err(), test.wantCode)
+			}
 			if len(test.errStr) > 0 {
 				if err == nil || !strings.Contains(err.Error(), test.errStr) {
 					t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
