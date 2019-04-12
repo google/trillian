@@ -57,6 +57,7 @@ type TrillianMapServerOptions struct {
 
 // TrillianMapServer implements the RPC API defined in the proto
 type TrillianMapServer struct {
+	trillian.UnimplementedTrillianMapServer
 	registry extension.Registry
 	opts     TrillianMapServerOptions
 }
