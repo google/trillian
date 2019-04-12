@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	log "github.com/golang/glog"
+	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
 )
 
@@ -81,7 +81,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, f GetNodeFunc, expec
 	}
 
 	if isPerfectTree(size) {
-		log.V(1).Info("Is perfect tree.")
+		glog.V(1).Info("Is perfect tree.")
 		r.root = append(make([]byte, 0, len(expectedRoot)), expectedRoot...)
 		r.nodes[sizeBits-1] = r.root
 	} else {
@@ -89,10 +89,10 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, f GetNodeFunc, expec
 		for depth := 0; depth < sizeBits; depth++ {
 			if size&1 == 1 {
 				index := size - 1
-				log.V(1).Infof("fetching d: %d i: %d, leaving size %d", depth, index, size)
+				glog.V(1).Infof("fetching d: %d i: %d, leaving size %d", depth, index, size)
 				h, err := f(depth, index)
 				if err != nil {
-					log.Warningf("Failed to fetch node depth %d index %d: %s", depth, index, err)
+					glog.Warningf("Failed to fetch node depth %d index %d: %s", depth, index, err)
 					return nil, err
 				}
 				r.nodes[depth] = h
@@ -104,10 +104,10 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, f GetNodeFunc, expec
 		})
 	}
 	if !bytes.Equal(r.root, expectedRoot) {
-		log.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
+		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
 		return nil, RootHashMismatchError{ActualHash: r.root, ExpectedHash: expectedRoot}
 	}
-	log.V(1).Infof("Resuming at size %d, with root: %s", r.size, base64.StdEncoding.EncodeToString(r.root[:]))
+	glog.V(1).Infof("Resuming at size %d, with root: %s", r.size, base64.StdEncoding.EncodeToString(r.root[:]))
 	return &r, nil
 }
 
