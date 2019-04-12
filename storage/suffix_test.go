@@ -66,10 +66,15 @@ func TestSplitParseSuffixRoundtrip(t *testing.T) {
 	for _, tc := range []struct {
 		prefix    []byte
 		leafIndex int64
-		want      []byte
+		wantPath  []byte
 	}{
-		{h2b(""), 1, h2b("0801")},
-		{h2b("00"), 1, h2b("0801")},
+		// Because we're using logStrataDepth below we'll always get a one byte
+		// suffix path.
+		{h2b(""), 1, h2b("01")},
+		{h2b("00"), 1, h2b("01")},
+		{h2b("abcd"), 99, h2b("63")},
+		{h2b("98765432"), 27, h2b("1b")},
+		{h2b("12345678"), 253, h2b("fd")},
 	} {
 		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
 		_, sfx := nodeID.Split(len(tc.prefix), logStrataDepth)
@@ -83,7 +88,13 @@ func TestSplitParseSuffixRoundtrip(t *testing.T) {
 		if got, want := sfx.Bits(), sfxP.Bits(); got != want {
 			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", sfxKey, got, want)
 		}
+		// This is the roundtrip test that the parsed value matches the Split().
 		if got, want := sfx.Path(), sfxP.Path(); !bytes.Equal(got, want) {
+			t.Errorf("ParseSuffix(%s).Path: %x, want %x", sfxKey, got, want)
+		}
+		// This tests that the path result was correct. Otherwise, if both
+		// sides had a bug it might pass the above.
+		if got, want := sfx.Path(), tc.wantPath; !bytes.Equal(got, want) {
 			t.Errorf("ParseSuffix(%s).Path: %x, want %x", sfxKey, got, want)
 		}
 	}
