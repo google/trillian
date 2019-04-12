@@ -62,9 +62,10 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 
 	h := m.New()
 	h.Write(emptyIdentifier)
-	binary.Write(h, binary.BigEndian, uint64(treeID))
+	// The golang Hash interface documents that write never returns an error.
+	_ = binary.Write(h, binary.BigEndian, uint64(treeID))
 	h.Write(m.maskIndex(index, depth))
-	binary.Write(h, binary.BigEndian, uint32(depth))
+	_ = binary.Write(h, binary.BigEndian, uint32(depth))
 	r := h.Sum(nil)
 	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, r)
 	return r
@@ -76,9 +77,10 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, erro
 	depth := m.BitLen()
 	h := m.New()
 	h.Write(leafIdentifier)
-	binary.Write(h, binary.BigEndian, uint64(treeID))
+	// The golang Hash interface documents that write never returns an error.
+	_ = binary.Write(h, binary.BigEndian, uint64(treeID))
 	h.Write(m.maskIndex(index, depth))
-	binary.Write(h, binary.BigEndian, uint32(depth))
+	_ = binary.Write(h, binary.BigEndian, uint32(depth))
 	h.Write(leaf)
 	p := h.Sum(nil)
 	glog.V(5).Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
