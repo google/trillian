@@ -148,6 +148,11 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 		if got, want := len(nodes), len(storIDs); got != want {
 			return nil, fmt.Errorf("%x: failed to get %d nodes at rev %d, got %d", s.signer.KeyHint, want, root.Revision, got)
 		}
+		for i, id := range storIDs {
+			if !nodes[i].NodeID.Equivalent(id) {
+				return nil, fmt.Errorf("%x: node ID mismatch at %d", s.signer.KeyHint, i)
+			}
+		}
 
 		hashes := make([][]byte, len(nodes))
 		for i, node := range nodes {
