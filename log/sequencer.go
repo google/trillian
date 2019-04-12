@@ -324,6 +324,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return fmt.Errorf("%v: Sequencer failed to unmarshal latest root: %v >>> %v <<<", tree.TreeId, err,sth)
 		}
 		seqGetRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
+		seqTreeSize.Set(float64(currentRoot.TreeSize), label)
 
 		if currentRoot.RootHash == nil {
 			glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", tree.TreeId)
