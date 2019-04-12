@@ -25,6 +25,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
@@ -572,6 +574,7 @@ type latestRootTest struct {
 	req         trillian.GetLatestSignedLogRootRequest
 	wantRoot    trillian.GetLatestSignedLogRootResponse
 	wantCode    codes.Code
+	wantDetails []interface{}
 	errStr      string
 	noSnap      bool
 	snapErr     error
@@ -624,11 +627,11 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			storageRoot: *signedRoot1,
 		},
 		{
-			desc: "unavailable",
 			// Request an inclusion proof from a tree_size > SLR.
-			req: trillian.GetLatestSignedLogRootRequest{LogId: logID1, FirstTreeSize: 1000},
-			//wantRoot:    trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
-			wantCode:    codes.Unavailable, //wantDetails: signedRoot1,
+			desc:        "unavailable",
+			req:         trillian.GetLatestSignedLogRootRequest{LogId: logID1, FirstTreeSize: 1000},
+			wantCode:    codes.Unavailable,
+			wantDetails: []interface{}{signedRoot1},
 			storageRoot: *signedRoot1,
 		},
 	}
@@ -656,8 +659,13 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			}
 			s := NewTrillianLogRPCServer(registry, fakeTimeSource)
 			resp, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
-			if st := status.Convert(err); st.Code() != test.wantCode {
+			st := status.Convert(err)
+			if st.Code() != test.wantCode {
 				t.Fatalf("GetLatestSignedLogRoot(): %v, want %v", st.Err(), test.wantCode)
+			}
+			if details := st.Details(); !cmp.Equal(details, test.wantDetails,
+				cmp.Comparer(proto.Equal), cmpopts.EquateEmpty()) {
+				t.Errorf("GetLatestSignedLogRoot().Details: %#v, want %#v", details, test.wantDetails)
 			}
 			if len(test.errStr) > 0 {
 				if err == nil || !strings.Contains(err.Error(), test.errStr) {
