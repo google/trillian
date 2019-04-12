@@ -623,6 +623,14 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			wantRoot:    trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
 			storageRoot: *signedRoot1,
 		},
+		{
+			desc: "unavailable",
+			// Request an inclusion proof from a tree_size > SLR.
+			req: trillian.GetLatestSignedLogRootRequest{LogId: logID1, FirstTreeSize: 1000},
+			//wantRoot:    trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
+			wantCode:    codes.Unavailable, //wantDetails: signedRoot1,
+			storageRoot: *signedRoot1,
+		},
 	}
 
 	for _, test := range tests {
@@ -649,16 +657,14 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			s := NewTrillianLogRPCServer(registry, fakeTimeSource)
 			resp, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
 			if st := status.Convert(err); st.Code() != test.wantCode {
-				t.Errorf("GetLatestSignedLogRoot(): %v, want %v", st.Err(), test.wantCode)
+				t.Fatalf("GetLatestSignedLogRoot(): %v, want %v", st.Err(), test.wantCode)
 			}
 			if len(test.errStr) > 0 {
 				if err == nil || !strings.Contains(err.Error(), test.errStr) {
 					t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("GetLatestSignedLogRoot(%+v)=_,%v, want: _,nil", test.req, err)
-				}
+			}
+			if test.wantCode == codes.OK {
 				// Ensure we got the expected root back.
 				if !proto.Equal(resp.SignedLogRoot, test.wantRoot.SignedLogRoot) {
 					t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, resp, test.wantRoot)

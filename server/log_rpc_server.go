@@ -421,10 +421,12 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		FirstTreeSize:  int64(req.FirstTreeSize),
 		SecondTreeSize: int64(root.TreeSize),
 	}
-	if err := validateGetConsistencyProofRequest(reqProof); err != nil {
-		return nil, err
-	}
 	if uint64(req.FirstTreeSize) > root.TreeSize {
+		// no need to get consistency proof in this case
+		if err := t.commitAndLog(ctx, req.LogId, tx, "GetLatestSignedLogRoot"); err != nil {
+			return nil, err
+		}
+
 		st := status.Newf(codes.Unavailable, "first_tree_size: %v is not available, want <= %v", req.FirstTreeSize, root.TreeSize)
 		st, err := st.WithDetails(&slr)
 		if err != nil {
@@ -432,6 +434,9 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 			return nil, status.Errorf(codes.Internal, "first_tree_size unavailable. Error attaching SLR")
 		}
 		return nil, st.Err()
+	}
+	if err := validateGetConsistencyProofRequest(reqProof); err != nil {
+		return nil, err
 	}
 
 	// Try to get consistency proof
