@@ -76,6 +76,30 @@ message GetMapLeavesByRevisionRequest {
   int64 revision = 3;
 }
 
+message ListLeavesByRevisionRequest {
+  int64 map_id = 1;
+  int64 revision = 2;
+  // [start_index, end_index)
+  bytes start_index = 3;
+  bytes end_index = 4;
+  // A comma separated list of fields. The default sorting order is ascending.
+  // To specify decending order for a field, a suffix " desc" should be appended
+  // to the field name. For example: "foor desc,bar".
+  // The only supported field is "index". Valid options are "index", and "index desc".
+  string order_by = 5;
+  // The maximum number of items to return.
+  int32 page_size = 6;
+  // The next_page_token value returned from a previous List request, if any.
+  string page_token = 7;
+}
+
+message ListLeavesByRevisionResponse {
+  repeated MapLeaf leaves = 1;
+  // Token to retrieve the next page of results, or empty if there are no
+  // more results in the list.
+  string next_page_token = 3;
+}
+
 message GetMapLeavesResponse {
   repeated MapLeafInclusion map_leaf_inclusion = 2;
   SignedMapRoot map_root = 3;
@@ -134,6 +158,12 @@ service TrillianMap {
   rpc GetLeaves(GetMapLeavesRequest) returns (GetMapLeavesResponse) {}
   rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest)
       returns (GetMapLeavesResponse) {}
+  // ListLeavesByRevision paginates through the requested leaves.
+  rpc ListLeavesByRevision(ListLeavesByRevisionRequest) returns (ListLeavesByRevisionResponse) {
+    option (google.api.http) = {
+      get: "/v1beta1/maps/{map_id}/roots/{revision}/leaves"
+    };
+  }
   // SetLeaves sets the values for the provided leaves, and returns the new map
   // root if successful. Note that if a SetLeaves request fails for a
   // server-side reason (i.e. not an invalid request), the API user is required

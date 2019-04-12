@@ -109,6 +109,21 @@ func (mr *MockTrillianMapServerMockRecorder) InitMap(arg0, arg1 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitMap", reflect.TypeOf((*MockTrillianMapServer)(nil).InitMap), arg0, arg1)
 }
 
+// ListLeavesByRevision mocks base method
+func (m *MockTrillianMapServer) ListLeavesByRevision(arg0 context.Context, arg1 *trillian.ListLeavesByRevisionRequest) (*trillian.ListLeavesByRevisionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListLeavesByRevision", arg0, arg1)
+	ret0, _ := ret[0].(*trillian.ListLeavesByRevisionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListLeavesByRevision indicates an expected call of ListLeavesByRevision
+func (mr *MockTrillianMapServerMockRecorder) ListLeavesByRevision(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListLeavesByRevision", reflect.TypeOf((*MockTrillianMapServer)(nil).ListLeavesByRevision), arg0, arg1)
+}
+
 // SetLeaves mocks base method
 func (m *MockTrillianMapServer) SetLeaves(arg0 context.Context, arg1 *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
 	m.ctrl.T.Helper()

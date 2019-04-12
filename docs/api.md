@@ -58,6 +58,8 @@
     - [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse)
     - [InitMapRequest](#trillian.InitMapRequest)
     - [InitMapResponse](#trillian.InitMapResponse)
+    - [ListLeavesByRevisionRequest](#trillian.ListLeavesByRevisionRequest)
+    - [ListLeavesByRevisionResponse](#trillian.ListLeavesByRevisionResponse)
     - [MapLeaf](#trillian.MapLeaf)
     - [MapLeafInclusion](#trillian.MapLeafInclusion)
     - [SetMapLeavesRequest](#trillian.SetMapLeavesRequest)
@@ -842,6 +844,43 @@ with the difference that revision must be &gt;=0.
 
 
 
+<a name="trillian.ListLeavesByRevisionRequest"></a>
+
+### ListLeavesByRevisionRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| map_id | [int64](#int64) |  |  |
+| revision | [int64](#int64) |  |  |
+| start_index | [bytes](#bytes) |  | [start_index, end_index) |
+| end_index | [bytes](#bytes) |  |  |
+| order_by | [string](#string) |  | A comma separated list of fields. The default sorting order is ascending. To specify decending order for a field, a suffix &#34; desc&#34; should be appended to the field name. For example: &#34;foor desc,bar&#34;. The only supported field is &#34;index&#34;. Valid options are &#34;index&#34;, and &#34;index desc&#34;. |
+| page_size | [int32](#int32) |  | The maximum number of items to return. |
+| page_token | [string](#string) |  | The next_page_token value returned from a previous List request, if any. |
+
+
+
+
+
+
+<a name="trillian.ListLeavesByRevisionResponse"></a>
+
+### ListLeavesByRevisionResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| leaves | [MapLeaf](#trillian.MapLeaf) | repeated |  |
+| next_page_token | [string](#string) |  | Token to retrieve the next page of results, or empty if there are no more results in the list. |
+
+
+
+
+
+
 <a name="trillian.MapLeaf"></a>
 
 ### MapLeaf
@@ -925,6 +964,7 @@ defined in the Verifiable Data Structures paper.
 | ----------- | ------------ | ------------- | ------------|
 | GetLeaves | [GetMapLeavesRequest](#trillian.GetMapLeavesRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) | GetLeaves returns an inclusion proof for each index requested. For indexes that do not exist, the inclusion proof will use nil for the empty leaf value. |
 | GetLeavesByRevision | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
+| ListLeavesByRevision | [ListLeavesByRevisionRequest](#trillian.ListLeavesByRevisionRequest) | [ListLeavesByRevisionResponse](#trillian.ListLeavesByRevisionResponse) | ListLeavesByRevision paginates through the requested leaves. |
 | SetLeaves | [SetMapLeavesRequest](#trillian.SetMapLeavesRequest) | [SetMapLeavesResponse](#trillian.SetMapLeavesResponse) | SetLeaves sets the values for the provided leaves, and returns the new map root if successful. Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request), the API user is required to retry the request before performing a different SetLeaves request. |
 | GetSignedMapRoot | [GetSignedMapRootRequest](#trillian.GetSignedMapRootRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |
 | GetSignedMapRootByRevision | [GetSignedMapRootByRevisionRequest](#trillian.GetSignedMapRootByRevisionRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |
