@@ -195,7 +195,12 @@ func TestSuffixSerialize(t *testing.T) {
 		want string
 	}{
 		// Pre-existing format. This test vector must NOT change or existing data will be inaccessible.
+		{s: NewSuffix(1, []byte{0xae}), want: "Aa4="},
 		{s: NewSuffix(5, []byte{0xae}), want: "Ba4="},
+		{s: NewSuffix(8, []byte{0xae}), want: "CK4="},
+		{s: NewSuffix(15, []byte{0xae, 0x27}), want: "D64n"},
+		{s: NewSuffix(16, []byte{0xae, 0x27}), want: "EK4n"},
+		{s: NewSuffix(23, []byte{0xae, 0x27, 0x49}), want: "F64nSQ=="},
 	} {
 		if got, want := tc.s.String(), tc.want; got != want {
 			t.Errorf("%v.serialize(): %v, want %v", tc.s, got, want)
@@ -237,8 +242,8 @@ func Test8BitSuffixCache(t *testing.T) {
 		{b: 7, path: []byte{0x40}, wantCache: false},
 		// 8 bits suffix should be cached.
 		{b: 8, path: []byte{0x76}, wantCache: true},
-		{b: 9, path: []byte{0x40}, wantCache: false},
 		// above 8 bits should not be cached.
+		{b: 9, path: []byte{0x40}, wantCache: false},
 		{b: 9, path: []byte{0x40, 0x80}, wantCache: false},
 		{b: 12, path: []byte{0x40, 0x80}, wantCache: false},
 		{b: 15, path: []byte{0x40, 0xf0}, wantCache: false},
