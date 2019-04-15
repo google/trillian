@@ -45,7 +45,9 @@ func buildFullLogSubtree() *storagepb.SubtreeProto {
 	return r
 }
 
-func CreateGoldenSubtree(t testing.TB) {
+func TestCreateGoldenSubtree(t *testing.T) {
+	t.Skip("This is just for creating golden data")
+
 	st := buildFullLogSubtree()
 	fmt.Printf("no intermediate:\n%s\n", squashSubtree(t, st))
 	LogPopulateFunc(rfc6962.DefaultHasher)(st)
