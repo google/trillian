@@ -243,14 +243,15 @@ func Test8BitSuffixCache(t *testing.T) {
 		path      []byte
 		wantCache bool
 	}{
-		// below 8 bits should not be cached.
-		{b: 1, path: []byte{020}, wantCache: false},
-		{b: 2, path: []byte{0x20}, wantCache: false},
-		{b: 3, path: []byte{0x40}, wantCache: false},
-		{b: 4, path: []byte{0x40}, wantCache: false},
-		{b: 5, path: []byte{0x40}, wantCache: false},
-		{b: 6, path: []byte{0x40}, wantCache: false},
-		{b: 7, path: []byte{0x40}, wantCache: false},
+		// below 8 bits should be cached.
+		{b: 1, path: []byte{0x80}, wantCache: true},
+		{b: 1, path: []byte{0x40}, wantCache: false}, // bit set is outside the length.
+		{b: 2, path: []byte{0x40}, wantCache: true},
+		{b: 3, path: []byte{0x40}, wantCache: true},
+		{b: 4, path: []byte{0x40}, wantCache: true},
+		{b: 5, path: []byte{0x40}, wantCache: true},
+		{b: 6, path: []byte{0x40}, wantCache: true},
+		{b: 7, path: []byte{0x40}, wantCache: true},
 		// 8 bits suffix should be cached.
 		{b: 8, path: []byte{0x76}, wantCache: true},
 		// above 8 bits should not be cached.
