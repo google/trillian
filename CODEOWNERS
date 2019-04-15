@@ -5,5 +5,4 @@
 # https://git-scm.com/docs/gitignore#_pattern_format
 
 # Default
-*                          @google/certificate-transparency
 *.proto                    @Martin2112 @daviddrysdale @AlCutter
