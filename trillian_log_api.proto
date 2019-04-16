@@ -40,7 +40,8 @@ import "trillian.proto";
 //    contiguous range of leaves is available.
 //
 // The API also supports read operations to retrieve leaf contents, and to
-// provide cryptographic proofs of the append-only nature of the Log.
+// provide cryptographic proofs of leaf inclusion and of the append-only nature
+// of the Log.
 //
 // Each API request also includes a charge_to field, which allows API users
 // to provide quota identifiers that should be "charged" for each API request
@@ -78,7 +79,7 @@ service TrillianLog {
   // in a particular tree.
   //
   // If the requested tree_size is larger than the server is aware of, the
-  // response will include the known log root and an empty proof.
+  // response will include the latest known log root and an empty proof.
   rpc GetInclusionProof(GetInclusionProofRequest)
       returns (GetInclusionProofResponse) {
     option (google.api.http) = {
@@ -102,7 +103,7 @@ service TrillianLog {
   // a particular tree.
   //
   // If the requested tree size is larger than the server is aware of,
-  // the response will include the known log root and an empty proof.
+  // the response will include the latest known log root and an empty proof.
   rpc GetConsistencyProof(GetConsistencyProofRequest)
       returns (GetConsistencyProofResponse) {
     option (google.api.http) = {
@@ -211,10 +212,10 @@ message QueueLeafRequest {
 }
 
 message QueueLeafResponse {
-  // queued_leaf describes the leaf is or will be incorporated into the Log.
-  // If the submitted leaf was already present in the Log (as indicated by its
-  // leaf identity hash), then the returned leaf will be the pre-existing leaf
-  // entry rather than the submitted leaf.
+  // queued_leaf describes the leaf which is or will be incorporated into the
+  // Log.  If the submitted leaf was already present in the Log (as indicated by
+  // its leaf identity hash), then the returned leaf will be the pre-existing
+  // leaf entry rather than the submitted leaf.
   QueuedLogLeaf queued_leaf = 2;
 }
 
@@ -293,8 +294,9 @@ message GetLatestSignedLogRootRequest {
 
 message GetLatestSignedLogRootResponse {
   SignedLogRoot signed_log_root = 2;
-  // proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
-  // non-zero (and within the tree size available at the server).
+  // proof is filled in with a consistency proof if first_tree_size in
+  // GetLatestSignedLogRootRequest is non-zero (and within the tree size
+  // available at the server).
   Proof proof = 3;
 }
 
@@ -493,8 +495,9 @@ message LogLeaf {
 // Proof holds a consistency or inclusion proof for a Merkle tree, as returned
 // by the API.
 message Proof {
-  // leaf_index indicates the requested leaf index for leaf inclusion proof.
-  // This field is set to zero on a consistency proof.
+  // leaf_index indicates the requested leaf index when this message is used for
+  // a leaf inclusion proof.  This field is set to zero when this message is
+  // used for a consistency proof.
   int64 leaf_index = 1;
   reserved 2; // Contained internal node details (removed)
   repeated bytes hashes = 3;

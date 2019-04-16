@@ -138,10 +138,10 @@ func (m *QueueLeafRequest) GetChargeTo() *ChargeTo {
 }
 
 type QueueLeafResponse struct {
-	// queued_leaf describes the leaf is or will be incorporated into the Log.
-	// If the submitted leaf was already present in the Log (as indicated by its
-	// leaf identity hash), then the returned leaf will be the pre-existing leaf
-	// entry rather than the submitted leaf.
+	// queued_leaf describes the leaf which is or will be incorporated into the
+	// Log.  If the submitted leaf was already present in the Log (as indicated by
+	// its leaf identity hash), then the returned leaf will be the pre-existing
+	// leaf entry rather than the submitted leaf.
 	QueuedLeaf           *QueuedLogLeaf `protobuf:"bytes,2,opt,name=queued_leaf,json=queuedLeaf,proto3" json:"queued_leaf,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
@@ -689,8 +689,9 @@ func (m *GetLatestSignedLogRootRequest) GetFirstTreeSize() int64 {
 
 type GetLatestSignedLogRootResponse struct {
 	SignedLogRoot *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
-	// proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
-	// non-zero (and within the tree size available at the server).
+	// proof is filled in with a consistency proof if first_tree_size in
+	// GetLatestSignedLogRootRequest is non-zero (and within the tree size
+	// available at the server).
 	Proof                *Proof   `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -1757,8 +1758,9 @@ func (m *LogLeaf) GetIntegrateTimestamp() *timestamp.Timestamp {
 // Proof holds a consistency or inclusion proof for a Merkle tree, as returned
 // by the API.
 type Proof struct {
-	// leaf_index indicates the requested leaf index for leaf inclusion proof.
-	// This field is set to zero on a consistency proof.
+	// leaf_index indicates the requested leaf index when this message is used for
+	// a leaf inclusion proof.  This field is set to zero when this message is
+	// used for a consistency proof.
 	LeafIndex            int64    `protobuf:"varint,1,opt,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
 	Hashes               [][]byte `protobuf:"bytes,3,rep,name=hashes,proto3" json:"hashes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -1965,7 +1967,7 @@ type TrillianLogClient interface {
 	// in a particular tree.
 	//
 	// If the requested tree_size is larger than the server is aware of, the
-	// response will include the known log root and an empty proof.
+	// response will include the latest known log root and an empty proof.
 	GetInclusionProof(ctx context.Context, in *GetInclusionProofRequest, opts ...grpc.CallOption) (*GetInclusionProofResponse, error)
 	// GetInclusionProofByHash returns an inclusion proof for any leaves that have
 	// the given Merkle hash in a particular tree.
@@ -1977,7 +1979,7 @@ type TrillianLogClient interface {
 	// a particular tree.
 	//
 	// If the requested tree size is larger than the server is aware of,
-	// the response will include the known log root and an empty proof.
+	// the response will include the latest known log root and an empty proof.
 	GetConsistencyProof(ctx context.Context, in *GetConsistencyProofRequest, opts ...grpc.CallOption) (*GetConsistencyProofResponse, error)
 	// GetLatestSignedLogRoot returns the latest signed log root for a given tree,
 	// and optionally also includes a consistency proof from an earlier tree size
@@ -2167,7 +2169,7 @@ type TrillianLogServer interface {
 	// in a particular tree.
 	//
 	// If the requested tree_size is larger than the server is aware of, the
-	// response will include the known log root and an empty proof.
+	// response will include the latest known log root and an empty proof.
 	GetInclusionProof(context.Context, *GetInclusionProofRequest) (*GetInclusionProofResponse, error)
 	// GetInclusionProofByHash returns an inclusion proof for any leaves that have
 	// the given Merkle hash in a particular tree.
@@ -2179,7 +2181,7 @@ type TrillianLogServer interface {
 	// a particular tree.
 	//
 	// If the requested tree size is larger than the server is aware of,
-	// the response will include the known log root and an empty proof.
+	// the response will include the latest known log root and an empty proof.
 	GetConsistencyProof(context.Context, *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error)
 	// GetLatestSignedLogRoot returns the latest signed log root for a given tree,
 	// and optionally also includes a consistency proof from an earlier tree size

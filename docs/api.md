@@ -354,7 +354,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
-| proof | [Proof](#trillian.Proof) |  | proof is filled if first_tree_size in GetLatestSignedLogRootRequest is non-zero (and within the tree size available at the server). |
+| proof | [Proof](#trillian.Proof) |  | proof is filled in with a consistency proof if first_tree_size in GetLatestSignedLogRootRequest is non-zero (and within the tree size available at the server). |
 
 
 
@@ -573,7 +573,7 @@ by the API.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| leaf_index | [int64](#int64) |  | leaf_index indicates the requested leaf index for leaf inclusion proof. This field is set to zero on a consistency proof. |
+| leaf_index | [int64](#int64) |  | leaf_index indicates the requested leaf index when this message is used for a leaf inclusion proof. This field is set to zero when this message is used for a consistency proof. |
 | hashes | [bytes](#bytes) | repeated |  |
 
 
@@ -606,7 +606,7 @@ by the API.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| queued_leaf | [QueuedLogLeaf](#trillian.QueuedLogLeaf) |  | queued_leaf describes the leaf is or will be incorporated into the Log. If the submitted leaf was already present in the Log (as indicated by its leaf identity hash), then the returned leaf will be the pre-existing leaf entry rather than the submitted leaf. |
+| queued_leaf | [QueuedLogLeaf](#trillian.QueuedLogLeaf) |  | queued_leaf describes the leaf which is or will be incorporated into the Log. If the submitted leaf was already present in the Log (as indicated by its leaf identity hash), then the returned leaf will be the pre-existing leaf entry rather than the submitted leaf. |
 
 
 
@@ -685,7 +685,8 @@ instance (identified by its log_id) in two modes:
    contiguous range of leaves is available.
 
 The API also supports read operations to retrieve leaf contents, and to
-provide cryptographic proofs of the append-only nature of the Log.
+provide cryptographic proofs of leaf inclusion and of the append-only nature
+of the Log.
 
 Each API request also includes a charge_to field, which allows API users
 to provide quota identifiers that should be &#34;charged&#34; for each API request
@@ -705,13 +706,13 @@ in this case the server will typically return an OK response that contains:
 | AddSequencedLeaf | [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest) | [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse) | AddSequencedLeaf adds a single leaf with an assigned sequence number to a pre-ordered log. |
 | GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | GetInclusionProof returns an inclusion proof for a leaf with a given index in a particular tree.
 
-If the requested tree_size is larger than the server is aware of, the response will include the known log root and an empty proof. |
+If the requested tree_size is larger than the server is aware of, the response will include the latest known log root and an empty proof. |
 | GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse) | GetInclusionProofByHash returns an inclusion proof for any leaves that have the given Merkle hash in a particular tree.
 
 If any of the leaves that match the given Merkle has have a leaf index that is beyond the requested tree size, the corresponding proof entry will be empty. |
 | GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | GetConsistencyProof returns a consistency proof between different sizes of a particular tree.
 
-If the requested tree size is larger than the server is aware of, the response will include the known log root and an empty proof. |
+If the requested tree size is larger than the server is aware of, the response will include the latest known log root and an empty proof. |
 | GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | GetLatestSignedLogRoot returns the latest signed log root for a given tree, and optionally also includes a consistency proof from an earlier tree size to the new size of the tree.
 
 If the earlier tree size is larger than the server is aware of, an InvalidArgument error is returned. |
