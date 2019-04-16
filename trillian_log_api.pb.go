@@ -138,6 +138,10 @@ func (m *QueueLeafRequest) GetChargeTo() *ChargeTo {
 }
 
 type QueueLeafResponse struct {
+	// queued_leaf describes the leaf is or will be incorporated into the Log.
+	// If the submitted leaf was already present in the Log (as indicated by its
+	// leaf identity hash), then the returned leaf will be the pre-existing leaf
+	// entry rather than the submitted leaf.
 	QueuedLeaf           *QueuedLogLeaf `protobuf:"bytes,2,opt,name=queued_leaf,json=queuedLeaf,proto3" json:"queued_leaf,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
@@ -387,7 +391,9 @@ func (m *GetInclusionProofResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetInclusionProofByHashRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	LogId int64 `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	// The leaf hash field provides the Merkle tree hash of the leaf entry
+	// to be retrieved.
 	LeafHash             []byte    `protobuf:"bytes,2,opt,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
 	TreeSize             int64     `protobuf:"varint,3,opt,name=tree_size,json=treeSize,proto3" json:"tree_size,omitempty"`
 	OrderBySequence      bool      `protobuf:"varint,4,opt,name=order_by_sequence,json=orderBySequence,proto3" json:"order_by_sequence,omitempty"`
@@ -459,7 +465,9 @@ func (m *GetInclusionProofByHashRequest) GetChargeTo() *ChargeTo {
 
 type GetInclusionProofByHashResponse struct {
 	// Logs can potentially contain leaves with duplicate hashes so it's possible
-	// for this to return multiple proofs.
+	// for this to return multiple proofs.  If the leaf index for a particular
+	// instance of the requested Merkle leaf hash is beyond the requested tree
+	// size, the corresponding proof entry will be missing.
 	Proof                []*Proof       `protobuf:"bytes,2,rep,name=proof,proto3" json:"proof,omitempty"`
 	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
@@ -682,7 +690,7 @@ func (m *GetLatestSignedLogRootRequest) GetFirstTreeSize() int64 {
 type GetLatestSignedLogRootResponse struct {
 	SignedLogRoot *SignedLogRoot `protobuf:"bytes,2,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	// proof is filled if first_tree_size in GetLatestSignedLogRootRequest is
-	// non-zero.
+	// non-zero (and within the tree size available at the server).
 	Proof                *Proof   `protobuf:"bytes,3,opt,name=proof,proto3" json:"proof,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -728,6 +736,10 @@ func (m *GetLatestSignedLogRootResponse) GetProof() *Proof {
 	return nil
 }
 
+// DO NOT USE - FOR DEBUGGING/TEST ONLY
+//
+// (Use GetLatestSignedLogRoot then de-serialize the Log Root and use
+// use the tree size field within.)
 type GetSequencedLeafCountRequest struct {
 	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
 	ChargeTo             *ChargeTo `protobuf:"bytes,2,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
@@ -1264,7 +1276,7 @@ func (m *GetLeavesByIndexRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetLeavesByIndexResponse struct {
-	// TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
+	// TODO(gbelvin): Response syntax does not allow for some requested leaves to be available, and some not (but using QueuedLogLeaf might)
 	Leaves               []*LogLeaf     `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
 	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
@@ -1426,8 +1438,11 @@ func (m *GetLeavesByRangeResponse) GetSignedLogRoot() *SignedLogRoot {
 }
 
 type GetLeavesByHashRequest struct {
-	LogId                int64     `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
-	LeafHash             [][]byte  `protobuf:"bytes,2,rep,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
+	LogId int64 `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	// The Merkle leaf hash of the leaf to be retrieved.
+	LeafHash [][]byte `protobuf:"bytes,2,rep,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
+	// If order_by_sequence is set then leaves will be returned in order of ascending
+	// leaf index.
 	OrderBySequence      bool      `protobuf:"varint,3,opt,name=order_by_sequence,json=orderBySequence,proto3" json:"order_by_sequence,omitempty"`
 	ChargeTo             *ChargeTo `protobuf:"bytes,5,opt,name=charge_to,json=chargeTo,proto3" json:"charge_to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
@@ -1489,7 +1504,6 @@ func (m *GetLeavesByHashRequest) GetChargeTo() *ChargeTo {
 }
 
 type GetLeavesByHashResponse struct {
-	// TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
 	Leaves               []*LogLeaf     `protobuf:"bytes,2,rep,name=leaves,proto3" json:"leaves,omitempty"`
 	SignedLogRoot        *SignedLogRoot `protobuf:"bytes,3,opt,name=signed_log_root,json=signedLogRoot,proto3" json:"signed_log_root,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
@@ -1536,7 +1550,7 @@ func (m *GetLeavesByHashResponse) GetSignedLogRoot() *SignedLogRoot {
 	return nil
 }
 
-// A result of submitting an entry to the log. Output only.
+// QueuedLogLeaf provides the result of submitting an entry to the log.
 // TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
 type QueuedLogLeaf struct {
 	// The leaf as it was stored by Trillian. Empty unless `status.code` is:
@@ -1596,48 +1610,70 @@ func (m *QueuedLogLeaf) GetStatus() *status.Status {
 	return nil
 }
 
-// A leaf of the log's Merkle tree, corresponds to a single log entry. Each leaf
-// has a unique `leaf_index` in the scope of this tree.
+// LogLeaf describes a leaf in the Log's Merkle tree, corresponding to a single log entry.
+// Each leaf has a unique leaf index in the scope of this tree.  Clients submitting new
+// leaf entries should only set the following fields:
+//   - leaf_value
+//   - extra_data (optionally)
+//   - leaf_identity_hash (optionally)
+//   - leaf_index (iff the log is a PREORDERED_LOG)
 type LogLeaf struct {
-	// Output only. The hash over `leaf_data`.
+	// merkle_leaf_hash holds the Merkle leaf hash over leaf_value.  This is
+	// calculated by the Trillian server when leaves are added to the tree, using
+	// the defined hashing algorithm and strategy for the tree; as such, the client
+	// does not need to set it on leaf submissions.
 	MerkleLeafHash []byte `protobuf:"bytes,1,opt,name=merkle_leaf_hash,json=merkleLeafHash,proto3" json:"merkle_leaf_hash,omitempty"`
-	// Required. The arbitrary data associated with this log entry. Validity of
-	// this field is governed by the call site (personality).
+	// leaf_value holds the data that forms the value of the Merkle tree leaf.
+	// The client should set this field on all leaf submissions, and is
+	// responsible for ensuring its validity (the Trillian server treats it as an
+	// opaque blob).
 	LeafValue []byte `protobuf:"bytes,2,opt,name=leaf_value,json=leafValue,proto3" json:"leaf_value,omitempty"`
-	// The arbitrary metadata, e.g., a timestamp.
+	// extra_data holds additional data associated with the Merkle tree leaf.
+	// The client may set this data on leaf submissions, and the Trillian server
+	// will return it on subsequent read operations. However, the contents of
+	// this field are not covered by and do not affect the Merkle tree hash
+	// calculations.
 	ExtraData []byte `protobuf:"bytes,3,opt,name=extra_data,json=extraData,proto3" json:"extra_data,omitempty"`
-	// Output only in `LOG` mode. Required in `PREORDERED_LOG` mode.
-	// The index of the leaf in the Merkle tree, i.e., the position of the
-	// corresponding entry in the log. For normal logs this value will be
-	// assigned by the LogSigner.
+	// leaf_index indicates the index of this leaf in the Merkle tree.
+	// This field is returned on all read operations, but should only be
+	// set for leaf submissions in PREORDERED_LOG mode (for a normal log
+	// the leaf index is assigned by Trillian when the submitted leaf is
+	// integrated into the Merkle tree).
 	LeafIndex int64 `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
-	// The hash over the identity of this leaf. If empty, assumed to be the same
-	// as `merkle_leaf_hash`. It is a mechanism for the personality to provide a
-	// hint to Trillian that two leaves should be considered "duplicates" even
-	// though their `leaf_value`s differ.
+	// leaf_identity_hash provides a hash value that indicates the client's
+	// concept of which leaf entries should be considered identical.
 	//
-	// E.g., in a CT personality multiple `add-chain` calls for an identical
-	// certificate would produce differing `leaf_data` bytes (due to the
-	// presence of SCT elements), with just this information Trillian would be
-	// unable to determine that. Within the context of the CT personality, these
-	// entries are dupes, so it sets `leaf_identity_hash` to `H(cert)`, which
-	// allows Trillian to detect the duplicates.
+	// This mechanism allows the client personality to indicate that two leaves
+	// should be considered "duplicates" even though their `leaf_value`s differ.
+	//
+	// If this is not set on leaf submissions, the Trillian server will take its
+	// value to be the same as merkle_leaf_hash (and thus only leaves with
+	// identical leaf_value contents will be considered identical).
+	//
+	// For example, in Certificate Transparency each certificate submission is
+	// associated with a submission timestamp, but subsequent submissions of the
+	// same certificate should be considered identical.  This is achieved
+	// by setting the leaf identity hash to a hash over (just) the certificate,
+	// whereas the Merkle leaf hash encompasses both the certificate and its
+	// submission time -- allowing duplicate certificates to be detected.
+	//
 	//
 	// Continuing the CT example, for a CT mirror personality (which must allow
 	// dupes since the source log could contain them), the part of the
 	// personality which fetches and submits the entries might set
 	// `leaf_identity_hash` to `H(leaf_index||cert)`.
+	//
 	// TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing
 	// identity hash dupes in `PREORDERED_LOG` mode, for it can later be
 	// upgraded to `LOG` which will need to correctly detect duplicates with
 	// older entries when new ones get queued.
 	LeafIdentityHash []byte `protobuf:"bytes,5,opt,name=leaf_identity_hash,json=leafIdentityHash,proto3" json:"leaf_identity_hash,omitempty"`
-	// Output only. The time at which this leaf was passed to `QueueLeaves`.
-	// This value will be determined and set by the LogServer. Equals zero if
-	// the entry was submitted without queuing.
+	// queue_timestamp holds the time at which this leaf was queued for
+	// inclusion in the Log, or zero if the entry was submitted without
+	// queuing. Clients should not set this field on submissions.
 	QueueTimestamp *timestamp.Timestamp `protobuf:"bytes,6,opt,name=queue_timestamp,json=queueTimestamp,proto3" json:"queue_timestamp,omitempty"`
-	// Output only. The time at which this leaf was integrated into the tree.
-	// This value will be determined and set by the LogSigner.
+	// integrate_timestamp holds the time at which this leaf was integrated into
+	// the tree.  Clients should not set this field on submissions.
 	IntegrateTimestamp   *timestamp.Timestamp `protobuf:"bytes,7,opt,name=integrate_timestamp,json=integrateTimestamp,proto3" json:"integrate_timestamp,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_unrecognized     []byte               `json:"-"`
@@ -1718,8 +1754,11 @@ func (m *LogLeaf) GetIntegrateTimestamp() *timestamp.Timestamp {
 	return nil
 }
 
-// A consistency or inclusion proof for a Merkle tree. Output only.
+// Proof holds a consistency or inclusion proof for a Merkle tree, as returned
+// by the API.
 type Proof struct {
+	// leaf_index indicates the requested leaf index for leaf inclusion proof.
+	// This field is set to zero on a consistency proof.
 	LeafIndex            int64    `protobuf:"varint,1,opt,name=leaf_index,json=leafIndex,proto3" json:"leaf_index,omitempty"`
 	Hashes               [][]byte `protobuf:"bytes,3,rep,name=hashes,proto3" json:"hashes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -1916,47 +1955,69 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TrillianLogClient interface {
-	// Adds a single leaf to the queue.
+	// QueueLeaf adds a single leaf to the queue of pending leaves for a normal
+	// log.
 	QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*QueueLeafResponse, error)
-	// Adds a single leaf with an assigned sequence number.
+	// AddSequencedLeaf adds a single leaf with an assigned sequence number to a
+	// pre-ordered log.
 	AddSequencedLeaf(ctx context.Context, in *AddSequencedLeafRequest, opts ...grpc.CallOption) (*AddSequencedLeafResponse, error)
-	// Returns inclusion proof for a leaf with a given index in a given tree.
-	// If the requested tree_size is larger than the server is aware of,
-	// the response will include the known log root and an empty proof.
+	// GetInclusionProof returns an inclusion proof for a leaf with a given index
+	// in a particular tree.
+	//
+	// If the requested tree_size is larger than the server is aware of, the
+	// response will include the known log root and an empty proof.
 	GetInclusionProof(ctx context.Context, in *GetInclusionProofRequest, opts ...grpc.CallOption) (*GetInclusionProofResponse, error)
-	// Returns inclusion proof for a leaf with a given Merkle hash in a given
-	// tree.
+	// GetInclusionProofByHash returns an inclusion proof for any leaves that have
+	// the given Merkle hash in a particular tree.
+	//
+	// If any of the leaves that match the given Merkle has have a leaf index that
+	// is beyond the requested tree size, the corresponding proof entry will be empty.
 	GetInclusionProofByHash(ctx context.Context, in *GetInclusionProofByHashRequest, opts ...grpc.CallOption) (*GetInclusionProofByHashResponse, error)
-	// Returns consistency proof between two versions of a given tree.
+	// GetConsistencyProof returns a consistency proof between different sizes of
+	// a particular tree.
+	//
 	// If the requested tree size is larger than the server is aware of,
 	// the response will include the known log root and an empty proof.
 	GetConsistencyProof(ctx context.Context, in *GetConsistencyProofRequest, opts ...grpc.CallOption) (*GetConsistencyProofResponse, error)
-	// Returns the latest signed log root for a given tree. Corresponds to the
-	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.  The server will
-	// return InvalidArgument if first_tree_size is greater than the
-	// LatestSignedLogRoot available to that server.
+	// GetLatestSignedLogRoot returns the latest signed log root for a given tree,
+	// and optionally also includes a consistency proof from an earlier tree size
+	// to the new size of the tree.
+	//
+	// If the earlier tree size is larger than the server is aware of,
+	// an InvalidArgument error is returned.
 	GetLatestSignedLogRoot(ctx context.Context, in *GetLatestSignedLogRootRequest, opts ...grpc.CallOption) (*GetLatestSignedLogRootResponse, error)
-	// Returns the total number of leaves that have been integrated into the
-	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
-	// storage interface.
+	// GetSequencedLeafCount returns the total number of leaves that have been
+	// integrated into the given tree.
+	//
 	// DO NOT USE - FOR DEBUGGING/TEST ONLY
+	//
+	// (Use GetLatestSignedLogRoot then de-serialize the Log Root and use
+	// use the tree size field within.)
 	GetSequencedLeafCount(ctx context.Context, in *GetSequencedLeafCountRequest, opts ...grpc.CallOption) (*GetSequencedLeafCountResponse, error)
-	// Returns log entry and the corresponding inclusion proof for a given leaf
-	// index in a given tree. If the requested tree is unavailable but the leaf is
-	// in scope for the current tree, return a proof in that tree instead.
+	// GetEntryAndProof returns a log leaf and the corresponding inclusion proof
+	// to a specified tree size, for a given leaf index in a particular tree.
+	//
+	// If the requested tree size is unavailable but the leaf is
+	// in scope for the current tree, the returned proof will be for the
+	// current tree size rather than the requested tree size.
 	GetEntryAndProof(ctx context.Context, in *GetEntryAndProofRequest, opts ...grpc.CallOption) (*GetEntryAndProofResponse, error)
+	// InitLog initializes a particular tree, creating the initial signed log
+	// root (which will be of size 0).
 	InitLog(ctx context.Context, in *InitLogRequest, opts ...grpc.CallOption) (*InitLogResponse, error)
-	// Adds a batch of leaves to the queue.
+	// QueueLeaf adds a batch of leaves to the queue of pending leaves for a
+	// normal log.
 	QueueLeaves(ctx context.Context, in *QueueLeavesRequest, opts ...grpc.CallOption) (*QueueLeavesResponse, error)
-	// Stores leaves from the provided batch and associates them with the log
-	// positions according to the `LeafIndex` field. The indices must be
-	// contiguous.
+	// AddSequencedLeaves adds a batch of leaves with assigned sequence numbers
+	// to a pre-ordered log.  The indices of the provided leaves must be contiguous.
 	AddSequencedLeaves(ctx context.Context, in *AddSequencedLeavesRequest, opts ...grpc.CallOption) (*AddSequencedLeavesResponse, error)
-	// Returns a batch of leaves located in the provided positions.
+	// GetLeavesByIndex returns a batch of leaves whose leaf indices are provided
+	// in the request.
 	GetLeavesByIndex(ctx context.Context, in *GetLeavesByIndexRequest, opts ...grpc.CallOption) (*GetLeavesByIndexResponse, error)
-	// Returns a batch of leaves in a sequential range.
+	// GetLeavesByRange returns a batch of leaves whose leaf indices are in a
+	// sequential range.
 	GetLeavesByRange(ctx context.Context, in *GetLeavesByRangeRequest, opts ...grpc.CallOption) (*GetLeavesByRangeResponse, error)
-	// Returns a batch of leaves by their `merkle_leaf_hash` values.
+	// GetLeavesByHash returns a batch of leaves which are identified by their
+	// Merkle leaf hash values.
 	GetLeavesByHash(ctx context.Context, in *GetLeavesByHashRequest, opts ...grpc.CallOption) (*GetLeavesByHashResponse, error)
 }
 
@@ -2096,47 +2157,69 @@ func (c *trillianLogClient) GetLeavesByHash(ctx context.Context, in *GetLeavesBy
 
 // TrillianLogServer is the server API for TrillianLog service.
 type TrillianLogServer interface {
-	// Adds a single leaf to the queue.
+	// QueueLeaf adds a single leaf to the queue of pending leaves for a normal
+	// log.
 	QueueLeaf(context.Context, *QueueLeafRequest) (*QueueLeafResponse, error)
-	// Adds a single leaf with an assigned sequence number.
+	// AddSequencedLeaf adds a single leaf with an assigned sequence number to a
+	// pre-ordered log.
 	AddSequencedLeaf(context.Context, *AddSequencedLeafRequest) (*AddSequencedLeafResponse, error)
-	// Returns inclusion proof for a leaf with a given index in a given tree.
-	// If the requested tree_size is larger than the server is aware of,
-	// the response will include the known log root and an empty proof.
+	// GetInclusionProof returns an inclusion proof for a leaf with a given index
+	// in a particular tree.
+	//
+	// If the requested tree_size is larger than the server is aware of, the
+	// response will include the known log root and an empty proof.
 	GetInclusionProof(context.Context, *GetInclusionProofRequest) (*GetInclusionProofResponse, error)
-	// Returns inclusion proof for a leaf with a given Merkle hash in a given
-	// tree.
+	// GetInclusionProofByHash returns an inclusion proof for any leaves that have
+	// the given Merkle hash in a particular tree.
+	//
+	// If any of the leaves that match the given Merkle has have a leaf index that
+	// is beyond the requested tree size, the corresponding proof entry will be empty.
 	GetInclusionProofByHash(context.Context, *GetInclusionProofByHashRequest) (*GetInclusionProofByHashResponse, error)
-	// Returns consistency proof between two versions of a given tree.
+	// GetConsistencyProof returns a consistency proof between different sizes of
+	// a particular tree.
+	//
 	// If the requested tree size is larger than the server is aware of,
 	// the response will include the known log root and an empty proof.
 	GetConsistencyProof(context.Context, *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error)
-	// Returns the latest signed log root for a given tree. Corresponds to the
-	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.  The server will
-	// return InvalidArgument if first_tree_size is greater than the
-	// LatestSignedLogRoot available to that server.
+	// GetLatestSignedLogRoot returns the latest signed log root for a given tree,
+	// and optionally also includes a consistency proof from an earlier tree size
+	// to the new size of the tree.
+	//
+	// If the earlier tree size is larger than the server is aware of,
+	// an InvalidArgument error is returned.
 	GetLatestSignedLogRoot(context.Context, *GetLatestSignedLogRootRequest) (*GetLatestSignedLogRootResponse, error)
-	// Returns the total number of leaves that have been integrated into the
-	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
-	// storage interface.
+	// GetSequencedLeafCount returns the total number of leaves that have been
+	// integrated into the given tree.
+	//
 	// DO NOT USE - FOR DEBUGGING/TEST ONLY
+	//
+	// (Use GetLatestSignedLogRoot then de-serialize the Log Root and use
+	// use the tree size field within.)
 	GetSequencedLeafCount(context.Context, *GetSequencedLeafCountRequest) (*GetSequencedLeafCountResponse, error)
-	// Returns log entry and the corresponding inclusion proof for a given leaf
-	// index in a given tree. If the requested tree is unavailable but the leaf is
-	// in scope for the current tree, return a proof in that tree instead.
+	// GetEntryAndProof returns a log leaf and the corresponding inclusion proof
+	// to a specified tree size, for a given leaf index in a particular tree.
+	//
+	// If the requested tree size is unavailable but the leaf is
+	// in scope for the current tree, the returned proof will be for the
+	// current tree size rather than the requested tree size.
 	GetEntryAndProof(context.Context, *GetEntryAndProofRequest) (*GetEntryAndProofResponse, error)
+	// InitLog initializes a particular tree, creating the initial signed log
+	// root (which will be of size 0).
 	InitLog(context.Context, *InitLogRequest) (*InitLogResponse, error)
-	// Adds a batch of leaves to the queue.
+	// QueueLeaf adds a batch of leaves to the queue of pending leaves for a
+	// normal log.
 	QueueLeaves(context.Context, *QueueLeavesRequest) (*QueueLeavesResponse, error)
-	// Stores leaves from the provided batch and associates them with the log
-	// positions according to the `LeafIndex` field. The indices must be
-	// contiguous.
+	// AddSequencedLeaves adds a batch of leaves with assigned sequence numbers
+	// to a pre-ordered log.  The indices of the provided leaves must be contiguous.
 	AddSequencedLeaves(context.Context, *AddSequencedLeavesRequest) (*AddSequencedLeavesResponse, error)
-	// Returns a batch of leaves located in the provided positions.
+	// GetLeavesByIndex returns a batch of leaves whose leaf indices are provided
+	// in the request.
 	GetLeavesByIndex(context.Context, *GetLeavesByIndexRequest) (*GetLeavesByIndexResponse, error)
-	// Returns a batch of leaves in a sequential range.
+	// GetLeavesByRange returns a batch of leaves whose leaf indices are in a
+	// sequential range.
 	GetLeavesByRange(context.Context, *GetLeavesByRangeRequest) (*GetLeavesByRangeResponse, error)
-	// Returns a batch of leaves by their `merkle_leaf_hash` values.
+	// GetLeavesByHash returns a batch of leaves which are identified by their
+	// Merkle leaf hash values.
 	GetLeavesByHash(context.Context, *GetLeavesByHashRequest) (*GetLeavesByHashResponse, error)
 }
 
