@@ -116,10 +116,11 @@ func (s *Signer) Run() {
 	var nextSTH *STH
 	for {
 		nextOffset++
-		nextSTH, err := sthFromString(simkafka.Read("STHs/<treeID>", nextOffset))
+		sth, err := sthFromString(simkafka.Read("STHs/<treeID>", nextOffset))
 		if err != nil {
 			glog.Errorf("%s: got an error unpacking STH: %v", s.Name, err)
 		}
+		nextSTH = sth
 		if nextSTH == nil {
 			break
 		}
