@@ -56,7 +56,7 @@ var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevi
 var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
 func TestRehasher(t *testing.T) {
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.NewSHA256()
 	rehashTests := []rehashTest{
 		{
 			desc:    "no rehash",
@@ -131,7 +131,7 @@ func TestRehasher(t *testing.T) {
 
 func TestTree813FetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.NewSHA256()
 	const ts int64 = 813
 
 	mt := treeAtSize(int(ts))
@@ -209,7 +209,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 
 func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.NewSHA256()
 
 	mt := treeAtSize(32)
 	// The reader is built up with multiple batches, 4 batches x 8 leaves each
@@ -251,7 +251,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 
 func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.NewSHA256()
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -302,7 +302,7 @@ func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) []byte {
 
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
-	mt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	mt := merkle.NewInMemoryMerkleTree(rfc6962.NewSHA256())
 	for _, leaf := range leaves {
 		if _, _, err := mt.AddLeaf([]byte(leaf)); err != nil {
 			panic(err)
