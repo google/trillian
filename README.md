@@ -249,6 +249,7 @@ cd -
 #### Or just run the linters alone
 ```bash
 golangci-lint run
+prototool lint
 ```
 
 
