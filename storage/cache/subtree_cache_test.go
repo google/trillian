@@ -71,11 +71,11 @@ func TestSplitNodeID(t *testing.T) {
 			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
 			continue
 		}
-		if got, want := int(s.Bits), tc.outSuffixBits; got != want {
+		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
 			t.Errorf("splitNodeID(%v): suffix.Bits %v, want %v", n, got, want)
 			continue
 		}
-		if got, want := s.Path, tc.outSuffix; !bytes.Equal(got, want) {
+		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
 			t.Errorf("splitNodeID(%v): suffix.Path %x, want %x", n, got, want)
 		}
 	}
