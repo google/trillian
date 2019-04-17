@@ -60,7 +60,7 @@ install:
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go get ${GOFLAGS} -d -t ./...
   - go get -d -t github.com/google/certificate-transparency-go/...
-  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.12.5
+  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.16.0
   - go get github.com/golang/protobuf/proto
   - go get github.com/golang/protobuf/protoc-gen-go
   - go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
