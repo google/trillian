@@ -244,7 +244,7 @@ func Main(args Options) string {
 	as := memory.NewAdminStorage(ts)
 	tree, tSigner := createTree(as, ls)
 
-	seq := log.NewSequencer(rfc6962.DefaultHasher,
+	seq := log.NewSequencer(rfc6962.NewSHA256(),
 		clock.System,
 		ls,
 		tSigner,
