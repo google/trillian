@@ -121,7 +121,7 @@ func decodeHexStringOrPanic(hs string) []byte {
 }
 
 func makeEmptyTree() *InMemoryMerkleTree {
-	return NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	return NewInMemoryMerkleTree(rfc6962.NewSHA256())
 }
 
 func makeFuzzTestData() [][]byte {

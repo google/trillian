@@ -51,7 +51,7 @@ func newTestLeaf(data []byte, extra []byte, index int64) *trillian.LogLeaf {
 }
 
 var (
-	th = rfc6962.DefaultHasher
+	th = rfc6962.NewSHA256()
 
 	logID1 = int64(1)
 	logID2 = int64(2)

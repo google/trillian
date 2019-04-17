@@ -171,7 +171,7 @@ func TestTree813FetchAll(t *testing.T) {
 
 func TestTree32InclusionProofFetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.NewSHA256()
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
