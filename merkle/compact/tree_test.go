@@ -16,6 +16,7 @@ package compact
 
 import (
 	"bytes"
+	"crypto"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -269,5 +270,15 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func BenchmarkAddLeaf(b *testing.B) {
+	tree := NewTree(rfc6962.New(crypto.SHA256))
+	for i := 0; i < b.N; i++ {
+		l := []byte(fmt.Sprintf("This %x is leaf data that we made up %d", i, i))
+		tree.AddLeaf(l, func(int, int64, []byte) error {
+			return nil
+		})
 	}
 }

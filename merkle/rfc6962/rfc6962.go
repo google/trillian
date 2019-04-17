@@ -18,6 +18,7 @@ package rfc6962
 import (
 	"crypto"
 	_ "crypto/sha256" // SHA256 is the default algorithm.
+	"hash"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -39,11 +40,13 @@ var DefaultHasher = New(crypto.SHA256)
 // Hasher implements the RFC6962 tree hashing algorithm.
 type Hasher struct {
 	crypto.Hash
+	hasher hash.Hash
+	buffer []byte
 }
 
 // New creates a new Hashers.LogHasher on the passed in hash function.
 func New(h crypto.Hash) *Hasher {
-	return &Hasher{Hash: h}
+	return &Hasher{Hash: h, hasher: h.New()}
 }
 
 // EmptyRoot returns a special case for an empty tree.
@@ -58,6 +61,20 @@ func (t *Hasher) HashLeaf(leaf []byte) ([]byte, error) {
 	h.Write([]byte{RFC6962LeafHashPrefix})
 	h.Write(leaf)
 	return h.Sum(nil), nil
+}
+
+// HashLeafInto places the Merkle tree leaf hash of the data passed in into a
+// supplied slice, which can be reused if appropriate. The data in leaf is
+// prefixed by the LeafHashPrefix. Note: This function is not thread safe.
+// Calling this on DefaultHasher is not recommended. If in doubt use
+// HashLeaf.
+func (t *Hasher) HashLeafInto(leaf, res []byte) error {
+	t.hasher.Reset()
+	t.hasher.Write([]byte{RFC6962LeafHashPrefix})
+	t.hasher.Write(leaf)
+	res = res[:0]
+	t.hasher.Sum(res)
+	return nil
 }
 
 // hashChildrenOld returns the inner Merkle tree node hash of the two child nodes l and r.
@@ -83,4 +100,22 @@ func (t *Hasher) HashChildren(l, r []byte) []byte {
 
 	h.Write(b)
 	return h.Sum(nil)
+}
+
+// HashChildrenInto places the inner Merkle tree node hash of the two child nodes
+// l and r into a supplied slice, which can be reused if appropriate. The hashed
+// structure is NodeHashPrefix||l||r. Note: This function is not thread safe.
+// Calling this on DefaultHasher is not recommended. If in doubt use HashChildren.
+func (t *Hasher) HashChildrenInto(l, r, res []byte) {
+	t.buffer = t.buffer[:0]
+	t.buffer = append(append(append(
+		t.buffer,
+		RFC6962NodeHashPrefix),
+		l...),
+		r...)
+
+	t.hasher.Reset()
+	t.hasher.Write(t.buffer)
+	res = res[:0]
+	t.hasher.Sum(res)
 }

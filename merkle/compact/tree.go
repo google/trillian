@@ -163,7 +163,7 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 
 	index := t.size
 
-	var newRoot []byte
+	newRoot := make([]byte, t.hasher.Size())
 	first := true
 	mask := int64(1)
 	numBits := bits.Len64(uint64(t.size))
@@ -171,10 +171,10 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 		index >>= 1
 		if t.size&mask != 0 {
 			if first {
-				newRoot = t.nodes[bit]
+				copy(newRoot, t.nodes[bit])
 				first = false
 			} else {
-				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
+				t.hasher.HashChildrenInto(t.nodes[bit], newRoot, newRoot)
 				if err := setNodeFn(bit+1, index, newRoot); err != nil {
 					return err
 				}
@@ -232,8 +232,8 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 		return assignedSeq, nil
 	}
 
-	// Initialize our running hash value to the leaf hash.
-	hash := leafHash
+	// Initialize our running hash value to the leaf hash
+	hash := append(make([]byte, 0, len(leafHash)), leafHash...)
 	bit := 0
 	// Iterate over the bits in our existing tree size.
 	for mask := t.size; mask > 0; mask >>= 1 {
@@ -251,7 +251,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
-		hash = t.hasher.HashChildren(t.nodes[bit], hash)
+		t.hasher.HashChildrenInto(t.nodes[bit], hash, hash)
 		// Store the resulting parent hash.
 		if err := setNodeFn(bit+1, index, hash); err != nil {
 			return 0, err
@@ -262,11 +262,12 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 		if bit+1 >= len(t.nodes) {
 			// If we're extending the node list then add a new entry with our
 			// running hash, and we're done.
-			t.nodes = append(t.nodes, hash)
+			t.nodes = append(t.nodes, append(make([]byte, 0, len(hash)), hash...))
 			return assignedSeq, nil
 		} else if mask&0x02 == 0 {
 			// If the node above us is unused at this tree size, then store our
 			// running hash there, and we're done.
+			// No need to copy the value here as we won't modify it again.
 			t.nodes[bit+1] = hash
 			return assignedSeq, nil
 		}
