@@ -112,9 +112,13 @@ main() {
   if [[ "${run_lint}" -eq 1 ]]; then
     check_cmd golangci-lint \
       'have you installed github.com/golangci/golangci-lint?' || exit 1
+    check_cmd prototool \
+      'have you installed github.com/uber/prototool?' || exit 1
 
     echo 'running golangci-lint'
     golangci-lint run
+    echo 'running prototool lint'
+    prototool lint
     echo 'checking license headers'
     ./scripts/check_license.sh ${go_srcs}
   fi
