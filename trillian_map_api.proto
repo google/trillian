@@ -90,11 +90,25 @@ message GetMapLeavesByRevisionRequest {
 message GetMapLeafResponse {
   MapLeafInclusion map_leaf_inclusion = 1;
   SignedMapRoot map_root = 2;
-}
+} 
+
 
 message GetMapLeavesResponse {
   repeated MapLeafInclusion map_leaf_inclusion = 2;
   SignedMapRoot map_root = 3;
+}
+
+// GetLastInRangeByRevisionRequest specifies a range in the map at a revision.
+// The range is defined as the entire subtree below a particular point in the 
+// Merkle tree. Another way of saying this is that the range matches all leaves
+// that share a common prefix of `prefix_bits` with prefix.
+message GetLastInRangeByRevisionRequest {
+  int64 map_id = 1;
+  int64 revision = 2;
+  bytes prefix = 3;
+  // prefix_bits is the number of bits to include, starting from the left, or
+  // most significant bit (MSB).
+  int32 prefix_bits = 4;
 }
 
 message SetMapLeavesRequest {
@@ -152,6 +166,12 @@ service TrillianMap {
   rpc GetLeaves(GetMapLeavesRequest) returns (GetMapLeavesResponse) {}
   rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest)
       returns (GetMapLeavesResponse) {}
+  // GetLastInRangeByRevision returns the last leaf in a requested range.
+  rpc GetLastInRangeByRevision(GetLastInRangeByRevisionRequest) returns (MapLeaf) {
+    option (google.api.http) = {
+      get: "/v1beta1/maps/{map_id}/roots/{revision}/leaves:last_in_range"
+    };
+  }
   // SetLeaves sets the values for the provided leaves, and returns the new map
   // root if successful. Note that if a SetLeaves request fails for a
   // server-side reason (i.e. not an invalid request), the API user is required
