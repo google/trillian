@@ -20,6 +20,7 @@ import (
 	_ "crypto/sha256" // SHA256 is the default algorithm.
 	"hash"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 )
@@ -73,6 +74,9 @@ func (t *Hasher) HashLeaf(leaf []byte) ([]byte, error) {
 // Calling this on DefaultHasher is not recommended. If in doubt use
 // HashLeaf.
 func (t *Hasher) HashLeafInto(leaf, res []byte) error {
+	if t == DefaultHasher {
+		glog.Fatal("DefaultHasher.HashLeafInto is unsafe")
+	}
 	t.hasher.Reset()
 	t.hasher.Write([]byte{RFC6962LeafHashPrefix})
 	t.hasher.Write(leaf)
@@ -111,6 +115,9 @@ func (t *Hasher) HashChildren(l, r []byte) []byte {
 // structure is NodeHashPrefix||l||r. Note: This function is not thread safe.
 // Calling this on DefaultHasher is not recommended. If in doubt use HashChildren.
 func (t *Hasher) HashChildrenInto(l, r, res []byte) {
+	if t == DefaultHasher {
+		glog.Fatal("DefaultHasher.HashChildrenInto is unsafe")
+	}
 	t.buffer = t.buffer[:0]
 	t.buffer = append(append(append(
 		t.buffer,
