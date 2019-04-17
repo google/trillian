@@ -339,7 +339,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 			}
 			leafMap[leaf.LeafIndex] = leaf
 
-			hash, err := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
+			hash, err := rfc6962.NewSHA256().HashLeaf(leaf.LeafValue)
 			if err != nil {
 				return nil, fmt.Errorf("HashLeaf(%v): %v", leaf.LeafValue, err)
 			}
@@ -462,7 +462,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 
 		// Verify inclusion proof.
 		root := tree.RootAtSnapshot(treeSize).Hash()
-		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
+		verifier := merkle.NewLogVerifier(rfc6962.NewSHA256())
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
 		if err := verifier.VerifyInclusionProof(index, treeSize, resp.Proof.Hashes, root, merkleLeafHash); err != nil {
@@ -499,7 +499,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		return fmt.Errorf("requested tree size %d > available tree size %d", req.SecondTreeSize, root.TreeSize)
 	}
 
-	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
+	verifier := merkle.NewLogVerifier(rfc6962.NewSHA256())
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
 	return verifier.VerifyConsistencyProof(req.FirstTreeSize, req.SecondTreeSize,
@@ -519,8 +519,8 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*merkle.InMemoryMerkleTree, error) {
 	// Build the same tree with two different Merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
-	compactTree := compact.NewTree(rfc6962.DefaultHasher)
-	merkleTree := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	compactTree := compact.NewTree(rfc6962.NewSHA256())
+	merkleTree := merkle.NewInMemoryMerkleTree(rfc6962.NewSHA256())
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.StartLeaf; l < params.LeafCount; l++ {

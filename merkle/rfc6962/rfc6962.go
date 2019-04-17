@@ -49,6 +49,10 @@ func New(h crypto.Hash) *Hasher {
 	return &Hasher{Hash: h, hasher: h.New()}
 }
 
+func NewSHA256() *Hasher {
+	return &Hasher{Hash: crypto.SHA256, hasher: crypto.SHA256.New()}
+}
+
 // EmptyRoot returns a special case for an empty tree.
 func (t *Hasher) EmptyRoot() []byte {
 	return t.New().Sum(nil)
