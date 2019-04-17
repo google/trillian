@@ -21,6 +21,7 @@ import (
 	"math/bits"
 
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 // RootMismatchError occurs when an inclusion proof fails.
@@ -40,6 +41,11 @@ type LogVerifier struct {
 
 // NewLogVerifier returns a new LogVerifier for a tree.
 func NewLogVerifier(hasher hashers.LogHasher) LogVerifier {
+	// TODO(Martin2112): Testing if issues are being caused by use of DefaultHasher in ct-go
+	// repo. If so remove this and fix it up properly.
+	if hasher == rfc6962.DefaultHasher {
+		return LogVerifier{rfc6962.NewSHA256()}
+	}
 	return LogVerifier{hasher}
 }
 
