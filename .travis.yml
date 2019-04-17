@@ -70,7 +70,16 @@ install:
   # install vendored etcd binary
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
-
+  # install bazel
+  - |
+    (
+      BAZEL_VERSION='0.18.0'
+      URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
+      wget -O install.sh ${URL}
+      chmod +x install.sh
+      ./install.sh --user
+      rm -f install.sh
+    )
 
 before_script:
   - ./scripts/resetdb.sh --force
@@ -104,6 +113,7 @@ script:
       if [[ "${WITH_DOCKER_TESTS}" == "true" ]]; then
         ./integration/docker_compose_integration_test.sh
       fi
+  - bazel --batch build //:*
   - set +e
 
 after_success:
