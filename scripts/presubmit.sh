@@ -117,6 +117,7 @@ main() {
       trap 'rm -rf "${TMP}"' EXIT
       cd "${TMP}"
       GO111MODULE=on go get github.com/uber/prototool/cmd/prototool@v1.6
+      cd -
     fi
 
     echo 'running golangci-lint'
