@@ -19,6 +19,7 @@ import (
 	"crypto"
 	_ "crypto/sha256" // SHA256 is the default algorithm.
 	"hash"
+	"sync"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -37,6 +38,10 @@ const (
 
 // DefaultHasher is a SHA256 based LogHasher.
 var DefaultHasher = New(crypto.SHA256)
+
+// TODO(Martin2112): Remove this after testing whether hasher instances
+// are being used across goroutines.
+var bufferMutex sync.Mutex
 
 // Hasher implements the RFC6962 tree hashing algorithm.
 type Hasher struct {
@@ -74,6 +79,9 @@ func (t *Hasher) HashLeaf(leaf []byte) ([]byte, error) {
 // Calling this on DefaultHasher is not recommended. If in doubt use
 // HashLeaf.
 func (t *Hasher) HashLeafInto(leaf, res []byte) error {
+	bufferMutex.Lock()
+	defer bufferMutex.Unlock()
+
 	if t == DefaultHasher {
 		glog.Fatal("DefaultHasher.HashLeafInto is unsafe")
 	}
@@ -115,6 +123,9 @@ func (t *Hasher) HashChildren(l, r []byte) []byte {
 // structure is NodeHashPrefix||l||r. Note: This function is not thread safe.
 // Calling this on DefaultHasher is not recommended. If in doubt use HashChildren.
 func (t *Hasher) HashChildrenInto(l, r, res []byte) {
+	bufferMutex.Lock()
+	defer bufferMutex.Unlock()
+
 	if t == DefaultHasher {
 		glog.Fatal("DefaultHasher.HashChildrenInto is unsafe")
 	}
