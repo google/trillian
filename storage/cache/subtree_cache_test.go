@@ -246,8 +246,8 @@ func TestCacheFlush(t *testing.T) {
 }
 
 func TestRepopulateLogSubtree(t *testing.T) {
-	populateTheThing := populateLogSubtreeNodes(rfc6962.DefaultHasher)
-	cmt := compact.NewTree(rfc6962.DefaultHasher)
+	populateTheThing := populateLogSubtreeNodes(rfc6962.NewSHA256())
+	cmt := compact.NewTree(rfc6962.NewSHA256())
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
@@ -257,13 +257,13 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		Leaves: make(map[string][]byte),
 		Depth:  int32(defaultLogStrata[0]),
 	}
-	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.NewSHA256()), prepareLogSubtreeWrite())
 	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
 
 		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
-		leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaf)
+		leafHash, err := rfc6962.NewSHA256().HashLeaf(leaf)
 		if err != nil {
 			t.Fatalf("HashLeaf(%v): %v", leaf, err)
 		}

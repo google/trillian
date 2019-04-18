@@ -54,7 +54,7 @@ func TestVerifyRootErrors(t *testing.T) {
 		{desc: "trustedNil", trusted: nil, newRoot: signedRoot},
 	}
 	for _, test := range tests {
-		logVerifier := NewLogVerifier(rfc6962.DefaultHasher, pk, crypto.SHA256)
+		logVerifier := NewLogVerifier(rfc6962.NewSHA256(), pk, crypto.SHA256)
 
 		// This also makes sure that no nil pointer dereference errors occur (as this would cause a panic).
 		if _, err := logVerifier.VerifyRoot(test.trusted, test.newRoot, nil); err == nil {

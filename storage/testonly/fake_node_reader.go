@@ -128,7 +128,7 @@ func NewMultiFakeNodeReader(readers []FakeNodeReader) *MultiFakeNodeReader {
 // code. To help guard against this we check the tree root hash after each batch has been
 // processed. The supplied batches should be in ascending order of tree revision.
 func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader {
-	tree := compact.NewTree(rfc6962.DefaultHasher)
+	tree := compact.NewTree(rfc6962.NewSHA256())
 	readers := make([]FakeNodeReader, 0, len(batches))
 
 	lastBatchRevision := int64(0)

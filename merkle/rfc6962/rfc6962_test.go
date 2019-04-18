@@ -23,7 +23,7 @@ import (
 )
 
 func TestRFC6962Hasher(t *testing.T) {
-	hasher := DefaultHasher
+	hasher := NewSHA256()
 
 	leafHash, err := hasher.HashLeaf([]byte("L123456"))
 	if err != nil {
@@ -79,7 +79,7 @@ func TestRFC6962Hasher(t *testing.T) {
 
 // TODO(pavelkalinnikov): Apply this test to all LogHasher implementations.
 func TestRFC6962HasherCollisions(t *testing.T) {
-	hasher := DefaultHasher
+	hasher := NewSHA256()
 
 	// Check that different leaves have different hashes.
 	leaf1, leaf2 := []byte("Hello"), []byte("World")
@@ -107,7 +107,7 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 
 // TODO(al): Remove me.
 func BenchmarkHashChildrenOld(b *testing.B) {
-	h := DefaultHasher
+	h := NewSHA256()
 	l, _ := h.HashLeaf([]byte("one"))
 	r, _ := h.HashLeaf([]byte("or other"))
 	for i := 0; i < b.N; i++ {
@@ -116,7 +116,7 @@ func BenchmarkHashChildrenOld(b *testing.B) {
 }
 
 func BenchmarkHashChildren(b *testing.B) {
-	h := DefaultHasher
+	h := NewSHA256()
 	l, _ := h.HashLeaf([]byte("one"))
 	r, _ := h.HashLeaf([]byte("or other"))
 	for i := 0; i < b.N; i++ {
@@ -125,7 +125,7 @@ func BenchmarkHashChildren(b *testing.B) {
 }
 
 func TestHashChildrenEquivToOld(t *testing.T) {
-	h := DefaultHasher
+	h := NewSHA256()
 	for i := 0; i < 1000; i++ {
 		l, err := h.HashLeaf([]byte(fmt.Sprintf("leaf left %d", i)))
 		if err != nil {

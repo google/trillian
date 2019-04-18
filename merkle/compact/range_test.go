@@ -401,7 +401,7 @@ func TestGetRootHashGolden(t *testing.T) {
 			rng := factory.NewEmptyRange(0)
 			for i := 0; i < tc.size; i++ {
 				data := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
-				hash, err := rfc6962.DefaultHasher.HashLeaf(data)
+				hash, err := rfc6962.NewSHA256().HashLeaf(data)
 				if err != nil {
 					t.Fatalf("HashLeaf(%x): %v", data, err)
 				}
@@ -652,7 +652,7 @@ func TestEqual(t *testing.T) {
 }
 
 func hashLeaf(data []byte) []byte {
-	hash, err := rfc6962.DefaultHasher.HashLeaf(data)
+	hash, err := rfc6962.NewSHA256().HashLeaf(data)
 	if err != nil {
 		panic(fmt.Sprintf("rfc6962: HashLeaf: %v", err))
 	}
