@@ -256,7 +256,7 @@ func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1,
 }
 
 func TestVerifyInclusionProofSingleEntry(t *testing.T) {
-	v := NewLogVerifier(rfc6962.DefaultHasher)
+	v := NewLogVerifier(rfc6962.NewSHA256())
 	data := []byte("data")
 	// Root and leaf hash for 1-entry tree are the same.
 	hash, _ := v.hasher.HashLeaf(data)
@@ -284,7 +284,7 @@ func TestVerifyInclusionProofSingleEntry(t *testing.T) {
 }
 
 func TestVerifyInclusionProof(t *testing.T) {
-	v := NewLogVerifier(rfc6962.DefaultHasher)
+	v := NewLogVerifier(rfc6962.NewSHA256())
 	proof := [][]byte{}
 
 	probes := []struct {
@@ -308,7 +308,7 @@ func TestVerifyInclusionProof(t *testing.T) {
 	for i := 1; i < 6; i++ {
 		p := inclusionProofs[i]
 		t.Run(fmt.Sprintf("proof:%d", i), func(t *testing.T) {
-			leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaves[p.leaf-1])
+			leafHash, err := rfc6962.NewSHA256().HashLeaf(leaves[p.leaf-1])
 			if err != nil {
 				t.Fatalf("HashLeaf(): %v", err)
 			}
@@ -342,7 +342,7 @@ func TestVerifyInclusionProofGenerated(t *testing.T) {
 }
 
 func TestVerifyConsistencyProof(t *testing.T) {
-	v := NewLogVerifier(rfc6962.DefaultHasher)
+	v := NewLogVerifier(rfc6962.NewSHA256())
 
 	root1 := []byte("don't care 1")
 	root2 := []byte("don't care 2")
@@ -513,9 +513,9 @@ func shortHash(hash []byte) string {
 }
 
 func createTree(size int64) (*InMemoryMerkleTree, LogVerifier) {
-	tree := NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	tree := NewInMemoryMerkleTree(rfc6962.NewSHA256())
 	growTree(tree, size)
-	return tree, NewLogVerifier(rfc6962.DefaultHasher)
+	return tree, NewLogVerifier(rfc6962.NewSHA256())
 }
 
 func growTree(tree *InMemoryMerkleTree, upTo int64) {

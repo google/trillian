@@ -72,7 +72,7 @@ func TestAddingLeaves(t *testing.T) {
 		{desc: "two-chunks-zero", breaks: []int{0, 3, 8}},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			tree := NewTree(rfc6962.DefaultHasher)
+			tree := NewTree(rfc6962.NewSHA256())
 			idx := 0
 			for _, br := range tc.breaks {
 				for ; idx < br; idx++ {
@@ -116,7 +116,7 @@ func fixedHashGetNodeFunc(_ int, _ int64) ([]byte, error) {
 }
 
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
-	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, failingGetNodeFunc, []byte("notimportant"))
+	_, err := NewTreeWithState(rfc6962.NewSHA256(), 237, failingGetNodeFunc, []byte("notimportant"))
 
 	if err == nil || !strings.Contains(err.Error(), "bang") {
 		t.Errorf("Did not return correctly on failed node fetch: %v", err)
@@ -126,7 +126,7 @@ func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
 	// data
-	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
+	_, err := NewTreeWithState(rfc6962.NewSHA256(), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
 	_, ok := err.(RootHashMismatchError)
 
 	if err == nil || !ok {
@@ -146,12 +146,12 @@ func nodeKey(d int, i int64) (string, error) {
 }
 
 func TestCompactVsFullTree(t *testing.T) {
-	imt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	imt := merkle.NewInMemoryMerkleTree(rfc6962.NewSHA256())
 	nodes := make(map[string][]byte)
 
 	for i := int64(0); i < 1024; i++ {
 		cmt, err := NewTreeWithState(
-			rfc6962.DefaultHasher,
+			rfc6962.NewSHA256(),
 			imt.LeafCount(),
 			func(depth int, index int64) ([]byte, error) {
 				k, err := nodeKey(depth, index)
@@ -205,7 +205,7 @@ func TestCompactVsFullTree(t *testing.T) {
 	}
 
 	// Build another compact Merkle tree by incrementally adding the leaves to an empty tree.
-	cmt := NewTree(rfc6962.DefaultHasher)
+	cmt := NewTree(rfc6962.NewSHA256())
 	for i := int64(0); i < imt.LeafCount(); i++ {
 		newLeaf := []byte(fmt.Sprintf("Leaf %d", i))
 		seq, _, err := cmt.AddLeaf(newLeaf, func(depth int, index int64, hash []byte) error {
@@ -245,7 +245,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 	b64e := func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
 
 	for _, test := range tests {
-		tree := NewTree(rfc6962.DefaultHasher)
+		tree := NewTree(rfc6962.NewSHA256())
 		for i := int64(0); i < test.size; i++ {
 			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
 			tree.AddLeaf(l, func(int, int64, []byte) error {

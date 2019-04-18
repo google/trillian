@@ -308,7 +308,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 		}, wantErr: true},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			c := &LogClient{LogVerifier: &LogVerifier{Hasher: rfc6962.DefaultHasher}}
+			c := &LogClient{LogVerifier: &LogVerifier{Hasher: rfc6962.NewSHA256()}}
 			err := c.AddSequencedLeaves(ctx, tc.dataByIndex)
 			if gotErr := err != nil; gotErr != tc.wantErr {
 				t.Errorf("AddSequencedLeaves(): %v, wantErr: %v", err, tc.wantErr)
