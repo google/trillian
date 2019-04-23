@@ -69,13 +69,15 @@ type MapHasher interface {
 	BitLen() int
 }
 
+type NewHasherFunc func() LogHasher
+
 var (
-	logHashers = make(map[trillian.HashStrategy]LogHasher)
+	logHashers = make(map[trillian.HashStrategy]NewHasherFunc)
 	mapHashers = make(map[trillian.HashStrategy]MapHasher)
 )
 
 // RegisterLogHasher registers a hasher for use.
-func RegisterLogHasher(h trillian.HashStrategy, f LogHasher) {
+func RegisterLogHasher(h trillian.HashStrategy, f NewHasherFunc) {
 	if h == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY {
 		panic(fmt.Sprintf("RegisterLogHasher(%s) of unknown hasher", h))
 	}
@@ -97,15 +99,19 @@ func RegisterMapHasher(h trillian.HashStrategy, f MapHasher) {
 }
 
 // NewLogHasher returns a LogHasher.
+// TODO(Martin2112): The name of this func implies it creates a new instance
+// but it doesn't.
 func NewLogHasher(h trillian.HashStrategy) (LogHasher, error) {
 	f := logHashers[h]
 	if f != nil {
-		return f, nil
+		return f(), nil
 	}
 	return nil, fmt.Errorf("LogHasher(%s) is an unknown hasher", h)
 }
 
 // NewMapHasher returns a MapHasher.
+// TODO(Martin2112): The name of this func implies it creates a new instance
+// but it doesn't.
 func NewMapHasher(h trillian.HashStrategy) (MapHasher, error) {
 	f := mapHashers[h]
 	if f != nil {

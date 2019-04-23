@@ -262,7 +262,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 		if bit+1 >= len(t.nodes) {
 			// If we're extending the node list then add a new entry with our
 			// running hash, and we're done.
-			t.nodes = append(t.nodes, append(make([]byte, 0, len(hash)), hash...))
+			t.nodes = append(t.nodes, hash)
 			return assignedSeq, nil
 		} else if mask&0x02 == 0 {
 			// If the node above us is unused at this tree size, then store our
