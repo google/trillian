@@ -253,7 +253,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		t.hasher.HashChildrenInto(t.nodes[bit], hash, hash)
 		// Store the resulting parent hash.
-		if err := setNodeFn(bit+1, index, hash); err != nil {
+		if err := setNodeFn(bit+1, index, append(make([]byte, 0, len(hash)), hash...)); err != nil {
 			return 0, err
 		}
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
