@@ -48,7 +48,7 @@ type NodeID struct {
 //
 // TODO(pavelkalinnikov): Remove it, use compact.Range instead.
 type Tree struct {
-	hasher hashers.LogHasher
+	hasher hashers.InplaceLogHasher
 	root   []byte
 	// The list of "dangling" left-hand nodes, where entry [0] is the leaf.
 	// So: nodes[0] is the hash of a subtree of size 1 = 1<<0, if included.
@@ -84,12 +84,12 @@ type GetNodesFunc func(ids []NodeID) ([][]byte, error)
 // whose hash values are required to initialize the internal state of the
 // compact Tree. The expectedRoot is the known-good tree root of the tree at
 // the specified size, and is used to verify the initial state.
-func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesFunc, expectedRoot []byte) (*Tree, error) {
+func NewTreeWithState(hasher hashers.InplaceLogHasher, size int64, getNodesFn GetNodesFunc, expectedRoot []byte) (*Tree, error) {
 	sizeBits := bits.Len64(uint64(size))
 	r := Tree{
 		hasher: hasher,
 		nodes:  make([][]byte, sizeBits),
-		root:   hasher.EmptyRoot(),
+		root:   hasher.EmptyRootInto(nil),
 		size:   size,
 	}
 
@@ -128,10 +128,10 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 }
 
 // NewTree creates a new compact Tree with size zero.
-func NewTree(hasher hashers.LogHasher) *Tree {
+func NewTree(hasher hashers.InplaceLogHasher) *Tree {
 	return &Tree{
 		hasher: hasher,
-		root:   hasher.EmptyRoot(),
+		root:   hasher.EmptyRootInto(nil),
 		nodes:  make([][]byte, 0),
 		size:   0,
 	}
@@ -168,7 +168,7 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 
 	index := t.size
 
-	var newRoot []byte
+	newRoot := make([]byte, t.hasher.Size())
 	first := true
 	mask := int64(1)
 	numBits := bits.Len64(uint64(t.size))
@@ -176,11 +176,12 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 		index >>= 1
 		if t.size&mask != 0 {
 			if first {
-				newRoot = t.nodes[bit]
+				copy(newRoot, t.nodes[bit])
 				first = false
 			} else {
-				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
-				if err := setNodeFn(bit+1, index, newRoot); err != nil {
+				newRoot := t.hasher.HashChildrenInto(t.nodes[bit], newRoot, newRoot)
+				// Must make a copy in case the setNodeFn retains the value.
+				if err := setNodeFn(bit+1, index, append(make([]byte, 0, len(newRoot)), newRoot...)); err != nil {
 					return err
 				}
 			}
@@ -200,7 +201,7 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 // Returns the index of the new leaf (equal to t.Size()-1) and the Merkle leaf
 // hash for the new leaf.
 func (t *Tree) AddLeaf(data []byte, setNodeFn setNodeFunc) (int64, []byte, error) {
-	h, err := t.hasher.HashLeaf(data)
+	h, err := t.hasher.HashLeafInto(data, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -237,8 +238,8 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 		return assignedSeq, nil
 	}
 
-	// Initialize our running hash value to the leaf hash.
-	hash := leafHash
+	// Initialize our running hash value to a copy of the leaf hash
+	hash := append(make([]byte, 0, len(leafHash)), leafHash...)
 	bit := 0
 	// Iterate over the bits in our existing tree size.
 	for mask := t.size; mask > 0; mask >>= 1 {
@@ -256,9 +257,9 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
-		hash = t.hasher.HashChildren(t.nodes[bit], hash)
-		// Store the resulting parent hash.
-		if err := setNodeFn(bit+1, index, hash); err != nil {
+		hash := t.hasher.HashChildrenInto(t.nodes[bit], hash, hash)
+		// Store the resulting parent hash. Make a copy in case the function retains it.
+		if err := setNodeFn(bit+1, index, append(make([]byte, 0, len(hash)), hash...)); err != nil {
 			return 0, err
 		}
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
@@ -272,6 +273,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 		} else if mask&0x02 == 0 {
 			// If the node above us is unused at this tree size, then store our
 			// running hash there, and we're done.
+			// No need to copy the value here as we won't modify it again.
 			t.nodes[bit+1] = hash
 			return assignedSeq, nil
 		}

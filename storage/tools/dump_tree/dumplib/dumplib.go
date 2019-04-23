@@ -244,7 +244,7 @@ func Main(args Options) string {
 	as := memory.NewAdminStorage(ts)
 	tree, tSigner := createTree(as, ls)
 
-	seq := log.NewSequencer(rfc6962.DefaultHasher,
+	seq := log.NewSequencer(rfc6962.NewInplace(crypto.SHA256),
 		clock.System,
 		ls,
 		tSigner,
@@ -299,7 +299,7 @@ func Main(args Options) string {
 		formatter = fullProto
 	}
 
-	hasher, err := hashers.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)
+	hasher, err := hashers.NewInplaceLogHasher(trillian.HashStrategy_RFC6962_SHA256)
 	if err != nil {
 		glog.Fatalf("Failed to create a log hasher: %v", err)
 	}

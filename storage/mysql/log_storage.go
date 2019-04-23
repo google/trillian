@@ -226,7 +226,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	hasher, err := hashers.NewInplaceLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

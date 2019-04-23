@@ -18,6 +18,7 @@ package rfc6962
 import (
 	"crypto"
 	_ "crypto/sha256" // SHA256 is the default algorithm.
+	"hash"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -25,6 +26,10 @@ import (
 
 func init() {
 	hashers.RegisterLogHasher(trillian.HashStrategy_RFC6962_SHA256, New(crypto.SHA256))
+	hashers.RegisterInplaceLogHasher(trillian.HashStrategy_RFC6962_SHA256,
+		func() hashers.InplaceLogHasher {
+			return NewInplace(crypto.SHA256)
+		})
 }
 
 // Domain separation prefixes
@@ -41,9 +46,21 @@ type Hasher struct {
 	crypto.Hash
 }
 
-// New creates a new Hashers.LogHasher on the passed in hash function.
+// InplaceHasher implements the RFC6962 tree hashing algorithm.
+type InplaceHasher struct {
+	crypto.Hash
+	hasher hash.Hash
+	buffer []byte
+}
+
+// New creates a new hashers.LogHasher on the passed in hash function.
 func New(h crypto.Hash) *Hasher {
 	return &Hasher{Hash: h}
+}
+
+// NewInplace creates a new hashers.InplaceLogHasher on the passed in hash function.
+func NewInplace(h crypto.Hash) *InplaceHasher {
+	return &InplaceHasher{Hash: h, hasher: h.New()}
 }
 
 // EmptyRoot returns a special case for an empty tree.
@@ -60,17 +77,6 @@ func (t *Hasher) HashLeaf(leaf []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// hashChildrenOld returns the inner Merkle tree node hash of the two child nodes l and r.
-// The hashed structure is NodeHashPrefix||l||r.
-// TODO(al): Remove me.
-func (t *Hasher) hashChildrenOld(l, r []byte) []byte {
-	h := t.New()
-	h.Write([]byte{RFC6962NodeHashPrefix})
-	h.Write(l)
-	h.Write(r)
-	return h.Sum(nil)
-}
-
 // HashChildren returns the inner Merkle tree node hash of the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
 func (t *Hasher) HashChildren(l, r []byte) []byte {
@@ -83,4 +89,40 @@ func (t *Hasher) HashChildren(l, r []byte) []byte {
 
 	h.Write(b)
 	return h.Sum(nil)
+}
+
+// EmptyRootInto returns a special case for an empty tree.
+func (t *InplaceHasher) EmptyRootInto(res []byte) []byte {
+	return t.New().Sum(res)
+}
+
+// HashLeafInto places the Merkle tree leaf hash of the data passed in into a
+// supplied slice, which can be reused if appropriate. The data in leaf is
+// prefixed by the LeafHashPrefix. Note: This function is not thread safe.
+func (t *InplaceHasher) HashLeafInto(leaf, res []byte) ([]byte, error) {
+	t.hasher.Reset()
+	t.hasher.Write([]byte{RFC6962LeafHashPrefix})
+	t.hasher.Write(leaf)
+	if res == nil {
+		res = make([]byte, 0, t.hasher.Size())
+	}
+	res = res[:0]
+	return t.hasher.Sum(res), nil
+}
+
+// HashChildrenInto places the inner Merkle tree node hash of the two child nodes
+// l and r into a supplied slice, which can be reused if appropriate. The hashed
+// structure is NodeHashPrefix||l||r. Note: This function is not thread safe.
+func (t *InplaceHasher) HashChildrenInto(l, r, res []byte) []byte {
+	t.buffer = t.buffer[:0]
+	t.buffer = append(append(append(
+		t.buffer,
+		RFC6962NodeHashPrefix),
+		l...),
+		r...)
+
+	t.hasher.Reset()
+	t.hasher.Write(t.buffer)
+	res = res[:0]
+	return t.hasher.Sum(res)
 }

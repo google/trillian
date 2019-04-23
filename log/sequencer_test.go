@@ -332,7 +332,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFake(fakeTimeForTest), fakeStorage, signer, nil, qm)
+	sequencer := NewSequencer(rfc6962.NewInplace(crypto.SHA256), clock.NewFake(fakeTimeForTest), fakeStorage, signer, nil, qm)
 	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 
@@ -659,7 +659,6 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Needed to create a signer
-	hasher := rfc6962.DefaultHasher
 	ts := clock.NewFake(fakeTimeForTest)
 	signer := tcrypto.NewSigner(0, cryptoSigner, crypto.SHA256)
 
@@ -749,7 +748,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 				qm.EXPECT().PutTokens(any, test.wantTokens, specs)
 			}
 
-			sequencer := NewSequencer(hasher, ts, logStorage, signer, nil /* mf */, qm)
+			sequencer := NewSequencer(rfc6962.NewInplace(crypto.SHA256), ts, logStorage, signer, nil /* mf */, qm)
 			tree := &trillian.Tree{TreeId: treeID, TreeType: trillian.TreeType_LOG}
 			leaves, err := sequencer.IntegrateBatch(ctx, tree, limit, guardWindow, maxRootDuration)
 			if err != nil {

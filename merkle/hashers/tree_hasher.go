@@ -21,6 +21,8 @@ import (
 )
 
 // LogHasher provides the hash functions needed to compute dense merkle trees.
+// Implementations are shared in various places and are therefore expected to
+// be thread safe.
 type LogHasher interface {
 	// EmptyRoot supports returning a special case for the root of an empty tree.
 	EmptyRoot() []byte
@@ -28,6 +30,32 @@ type LogHasher interface {
 	HashLeaf(leaf []byte) ([]byte, error)
 	// HashChildren computes interior nodes.
 	HashChildren(l, r []byte) []byte
+	// Size is the number of bytes in the underlying hash function.
+	// TODO(gbelvin): Replace Size() with BitLength().
+	Size() int
+}
+
+// InplaceLogHasher provides the hash functions needed to compute dense merkle
+// trees.
+// Implementations may hold state and are not expected to be thread
+// safe. They should not be shared between multiple callers.
+type InplaceLogHasher interface {
+	// EmptyRootInto supports returning a special case for the root of an empty tree.
+	// The passed in slice is mutated. The caller is responsible for making copies
+	// where necessary.
+	EmptyRootInto([]byte) []byte
+	// HashLeafInto computes the hash of a leaf into an existing slice,
+	// which is mutated.
+	// Note: Implementations are not expected to be thread safe. The caller must
+	// ensure that concurrent calls are not made and is responsible for making
+	// copies of slices where necessary to avoid data being overwritten.
+	HashLeafInto(leaf, res []byte) ([]byte, error)
+	// HashChildrenInto computes interior nodes into an existing slice, which is
+	// mutated.
+	// Note: Implementations are not expected to be thread safe. The caller must
+	// ensure that concurrent calls are not made and is responsible for making
+	// copies of slices where necessary to avoid data being overwritten.
+	HashChildrenInto(l, r, res []byte) []byte
 	// Size is the number of bytes in the underlying hash function.
 	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int
@@ -57,9 +85,12 @@ type MapHasher interface {
 	BitLen() int
 }
 
+type InplaceHasher func() InplaceLogHasher
+
 var (
-	logHashers = make(map[trillian.HashStrategy]LogHasher)
-	mapHashers = make(map[trillian.HashStrategy]MapHasher)
+	logHashers        = make(map[trillian.HashStrategy]LogHasher)
+	inplaceLogHashers = make(map[trillian.HashStrategy]InplaceHasher)
+	mapHashers        = make(map[trillian.HashStrategy]MapHasher)
 )
 
 // RegisterLogHasher registers a hasher for use.
@@ -71,6 +102,17 @@ func RegisterLogHasher(h trillian.HashStrategy, f LogHasher) {
 		panic(fmt.Sprintf("%v already registered as a LogHasher", h))
 	}
 	logHashers[h] = f
+}
+
+// RegisterInplaceLogHasher registers a hasher for use.
+func RegisterInplaceLogHasher(h trillian.HashStrategy, f InplaceHasher) {
+	if h == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY {
+		panic(fmt.Sprintf("RegisterLogHasher(%s) of unknown hasher", h))
+	}
+	if inplaceLogHashers[h] != nil {
+		panic(fmt.Sprintf("%v already registered as a LogHasher", h))
+	}
+	inplaceLogHashers[h] = f
 }
 
 // RegisterMapHasher registers a hasher for use.
@@ -85,6 +127,8 @@ func RegisterMapHasher(h trillian.HashStrategy, f MapHasher) {
 }
 
 // NewLogHasher returns a LogHasher.
+// TODO(Martin2112): The name of this func implies it creates a new instance
+// but it doesn't.
 func NewLogHasher(h trillian.HashStrategy) (LogHasher, error) {
 	f := logHashers[h]
 	if f != nil {
@@ -93,7 +137,18 @@ func NewLogHasher(h trillian.HashStrategy) (LogHasher, error) {
 	return nil, fmt.Errorf("LogHasher(%s) is an unknown hasher", h)
 }
 
+// NewInplaceLogHasher returns an InplaceLogHasher.
+func NewInplaceLogHasher(h trillian.HashStrategy) (InplaceLogHasher, error) {
+	f := inplaceLogHashers[h]
+	if f != nil {
+		return f(), nil
+	}
+	return nil, fmt.Errorf("InplaceLogHasher(%s) is an unknown hasher", h)
+}
+
 // NewMapHasher returns a MapHasher.
+// TODO(Martin2112): The name of this func implies it creates a new instance
+// but it doesn't.
 func NewMapHasher(h trillian.HashStrategy) (MapHasher, error) {
 	f := mapHashers[h]
 	if f != nil {

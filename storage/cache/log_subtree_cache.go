@@ -25,13 +25,13 @@ import (
 
 // NewLogSubtreeCache creates and returns a SubtreeCache appropriate for use with a log
 // tree. The caller must supply the strata depths to be used and a suitable LogHasher.
-func NewLogSubtreeCache(logStrata []int, hasher hashers.LogHasher) SubtreeCache {
+func NewLogSubtreeCache(logStrata []int, hasher hashers.InplaceLogHasher) SubtreeCache {
 	return NewSubtreeCache(logStrata, populateLogSubtreeNodes(hasher), prepareLogSubtreeWrite())
 }
 
 // LogPopulateFunc obtains a log storage population function based on a supplied LogHasher.
 // This is intended for use by storage utilities.
-func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
+func LogPopulateFunc(hasher hashers.InplaceLogHasher) storage.PopulateSubtreeFunc {
 	return populateLogSubtreeNodes(hasher)
 }
 
@@ -42,7 +42,7 @@ func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 // handle imperfect (but left-hand dense) subtrees. Note that we only rebuild internal
 // nodes when the subtree is fully populated. For an explanation of why see the comments
 // below for PrepareLogSubtreeWrite.
-func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
+func populateLogSubtreeNodes(hasher hashers.InplaceLogHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		cmt := compact.NewTree(hasher)
 		if st.Depth < 1 {

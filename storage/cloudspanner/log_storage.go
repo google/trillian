@@ -128,7 +128,7 @@ func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, erro
 }
 
 func newLogCache(tree *trillian.Tree) (cache.SubtreeCache, error) {
-	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	hasher, err := hashers.NewInplaceLogHasher(tree.HashStrategy)
 	if err != nil {
 		return cache.SubtreeCache{}, err
 	}

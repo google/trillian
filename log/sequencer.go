@@ -97,7 +97,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	hasher     hashers.LogHasher
+	hasher     hashers.InplaceLogHasher
 	timeSource clock.TimeSource
 	logStorage storage.LogStorage
 	signer     *tcrypto.Signer
@@ -112,7 +112,7 @@ const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(
-	hasher hashers.LogHasher,
+	hasher hashers.InplaceLogHasher,
 	timeSource clock.TimeSource,
 	logStorage storage.LogStorage,
 	signer *tcrypto.Signer,

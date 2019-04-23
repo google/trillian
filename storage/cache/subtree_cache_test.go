@@ -16,6 +16,7 @@ package cache
 
 import (
 	"bytes"
+	"crypto"
 	"errors"
 	"fmt"
 	"testing"
@@ -246,8 +247,8 @@ func TestCacheFlush(t *testing.T) {
 }
 
 func TestRepopulateLogSubtree(t *testing.T) {
-	populateTheThing := populateLogSubtreeNodes(rfc6962.DefaultHasher)
-	cmt := compact.NewTree(rfc6962.DefaultHasher)
+	populateTheThing := populateLogSubtreeNodes(rfc6962.NewInplace(crypto.SHA256))
+	cmt := compact.NewTree(rfc6962.NewInplace(crypto.SHA256))
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
@@ -257,7 +258,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		Leaves: make(map[string][]byte),
 		Depth:  int32(defaultLogStrata[0]),
 	}
-	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.NewInplace(crypto.SHA256)), prepareLogSubtreeWrite())
 	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
