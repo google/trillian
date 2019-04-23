@@ -73,27 +73,18 @@ func (t *Hasher) HashLeaf(leaf []byte) ([]byte, error) {
 // prefixed by the LeafHashPrefix. Note: This function is not thread safe.
 // Calling this on DefaultHasher is not recommended. If in doubt use
 // HashLeaf.
-func (t *Hasher) HashLeafInto(leaf, res []byte) error {
+func (t *Hasher) HashLeafInto(leaf, res []byte) ([]byte, error) {
 	if t == DefaultHasher {
 		glog.Fatal("DefaultHasher.HashLeafInto is unsafe")
 	}
 	t.hasher.Reset()
 	t.hasher.Write([]byte{RFC6962LeafHashPrefix})
 	t.hasher.Write(leaf)
+	if res == nil {
+		res = make([]byte, 0, t.hasher.Size())
+	}
 	res = res[:0]
-	t.hasher.Sum(res)
-	return nil
-}
-
-// hashChildrenOld returns the inner Merkle tree node hash of the two child nodes l and r.
-// The hashed structure is NodeHashPrefix||l||r.
-// TODO(al): Remove me.
-func (t *Hasher) hashChildrenOld(l, r []byte) []byte {
-	h := t.New()
-	h.Write([]byte{RFC6962NodeHashPrefix})
-	h.Write(l)
-	h.Write(r)
-	return h.Sum(nil)
+	return t.hasher.Sum(res), nil
 }
 
 // HashChildren returns the inner Merkle tree node hash of the two child nodes l and r.
@@ -114,7 +105,7 @@ func (t *Hasher) HashChildren(l, r []byte) []byte {
 // l and r into a supplied slice, which can be reused if appropriate. The hashed
 // structure is NodeHashPrefix||l||r. Note: This function is not thread safe.
 // Calling this on DefaultHasher is not recommended. If in doubt use HashChildren.
-func (t *Hasher) HashChildrenInto(l, r, res []byte) {
+func (t *Hasher) HashChildrenInto(l, r, res []byte) []byte {
 	if t == DefaultHasher {
 		glog.Fatal("DefaultHasher.HashChildrenInto is unsafe")
 	}
@@ -128,5 +119,5 @@ func (t *Hasher) HashChildrenInto(l, r, res []byte) {
 	t.hasher.Reset()
 	t.hasher.Write(t.buffer)
 	res = res[:0]
-	t.hasher.Sum(res)
+	return t.hasher.Sum(res)
 }

@@ -31,7 +31,7 @@ type LogHasher interface {
 	// Note: Implementations are not expected to be thread safe. The caller must
 	// ensure that concurrent calls are not made and is responsible for making
 	// copies of slices where necessary to avoid data being overwritten.
-	HashLeafInto(leaf, res []byte) error
+	HashLeafInto(leaf, res []byte) ([]byte, error)
 	// HashChildren computes interior nodes.
 	HashChildren(l, r []byte) []byte
 	// HashChildrenInto computes interior nodes into an existing slice, which is
@@ -39,7 +39,7 @@ type LogHasher interface {
 	// Note: Implementations are not expected to be thread safe. The caller must
 	// ensure that concurrent calls are not made and is responsible for making
 	// copies of slices where necessary to avoid data being overwritten.
-	HashChildrenInto(l, r, res []byte)
+	HashChildrenInto(l, r, res []byte) []byte
 	// Size is the number of bytes in the underlying hash function.
 	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int

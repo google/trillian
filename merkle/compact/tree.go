@@ -174,7 +174,7 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 				copy(newRoot, t.nodes[bit])
 				first = false
 			} else {
-				t.hasher.HashChildrenInto(t.nodes[bit], newRoot, newRoot)
+				newRoot := t.hasher.HashChildrenInto(t.nodes[bit], newRoot, newRoot)
 				if err := setNodeFn(bit+1, index, newRoot); err != nil {
 					return err
 				}
@@ -251,7 +251,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
-		t.hasher.HashChildrenInto(t.nodes[bit], hash, hash)
+		hash := t.hasher.HashChildrenInto(t.nodes[bit], hash, hash)
 		// Store the resulting parent hash.
 		if err := setNodeFn(bit+1, index, append(make([]byte, 0, len(hash)), hash...)); err != nil {
 			return 0, err

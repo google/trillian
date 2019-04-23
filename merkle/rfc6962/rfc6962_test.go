@@ -15,6 +15,7 @@ package rfc6962
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -25,44 +26,51 @@ import (
 func TestRFC6962Hasher(t *testing.T) {
 	hasher := NewSHA256()
 
-	leafHash, err := hasher.HashLeaf([]byte("L123456"))
-	if err != nil {
-		t.Fatalf("HashLeaf(): %v", err)
-	}
-	emptyLeafHash, err := hasher.HashLeaf([]byte{})
-	if err != nil {
-		t.Fatalf("HashLeaf(empty): %v", err)
-	}
-
 	for _, tc := range []struct {
 		desc string
-		got  []byte
+		got  func() ([]byte, error)
 		want string
 	}{
 		// echo -n | sha256sum
 		{
 			desc: "RFC6962 Empty",
 			want: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			got:  hasher.EmptyRoot(),
+			got:  func() ([]byte, error) { return hasher.EmptyRoot(), nil },
 		},
 		// Check that the empty hash is not the same as the hash of an empty leaf.
 		// echo -n 00 | xxd -r -p | sha256sum
 		{
 			desc: "RFC6962 Empty Leaf",
 			want: "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
-			got:  emptyLeafHash,
+			got:  func() ([]byte, error) { return hasher.HashLeaf([]byte{}) },
 		},
 		// echo -n 004C313233343536 | xxd -r -p | sha256sum
 		{
 			desc: "RFC6962 Leaf",
 			want: "395aa064aa4c29f7010acfe3f25db9485bbd4b91897b6ad7ad547639252b4d56",
-			got:  leafHash,
+			got:  func() ([]byte, error) { return hasher.HashLeaf([]byte("L123456")) },
+		},
+		{
+			desc: "RFC6962 Leaf_Into",
+			want: "395aa064aa4c29f7010acfe3f25db9485bbd4b91897b6ad7ad547639252b4d56",
+			got: func() ([]byte, error) {
+				hash := make([]byte, 0, 32)
+				return hasher.HashLeafInto([]byte("L123456"), hash)
+			},
 		},
 		// echo -n 014E3132334E343536 | xxd -r -p | sha256sum
 		{
 			desc: "RFC6962 Node",
 			want: "aa217fe888e47007fa15edab33c2b492a722cb106c64667fc2b044444de66bbb",
-			got:  hasher.HashChildren([]byte("N123"), []byte("N456")),
+			got:  func() ([]byte, error) { return hasher.HashChildren([]byte("N123"), []byte("N456")), nil },
+		},
+		{
+			desc: "RFC6962 Node_Into",
+			want: "aa217fe888e47007fa15edab33c2b492a722cb106c64667fc2b044444de66bbb",
+			got: func() ([]byte, error) {
+				hash := make([]byte, 0, 32)
+				return hasher.HashChildrenInto([]byte("N123"), []byte("N456"), hash), nil
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -70,7 +78,14 @@ func TestRFC6962Hasher(t *testing.T) {
 			if err != nil {
 				t.Fatalf("hex.DecodeString(%x): %v", tc.want, err)
 			}
-			if got, want := tc.got, wantBytes; !bytes.Equal(got, want) {
+			got, err := tc.got()
+			if err != nil {
+				t.Errorf("got: %v, %v, want err=nil", got, err)
+			}
+			if len(got) != 32 {
+				t.Errorf("got result of: %d bytes, want: 32", len(got))
+			}
+			if got, want := got, wantBytes; !bytes.Equal(got, want) {
 				t.Errorf("got %x, want %x", got, want)
 			}
 		})
@@ -105,13 +120,24 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 	}
 }
 
+// hashChildrenOld returns the inner Merkle tree node hash of the two child nodes l and r.
+// The hashed structure is NodeHashPrefix||l||r.
+// TODO(al): Remove me.
+func hashChildrenOld(l, r []byte) []byte {
+	h := sha256.New()
+	h.Write([]byte{RFC6962NodeHashPrefix})
+	h.Write(l)
+	h.Write(r)
+	return h.Sum(nil)
+}
+
 // TODO(al): Remove me.
 func BenchmarkHashChildrenOld(b *testing.B) {
 	h := NewSHA256()
 	l, _ := h.HashLeaf([]byte("one"))
 	r, _ := h.HashLeaf([]byte("or other"))
 	for i := 0; i < b.N; i++ {
-		_ = h.hashChildrenOld(l, r)
+		_ = hashChildrenOld(l, r)
 	}
 }
 
@@ -135,7 +161,7 @@ func TestHashChildrenEquivToOld(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if oldHash, newHash := h.hashChildrenOld(l, r), h.HashChildren(l, r); !bytes.Equal(oldHash, newHash) {
+		if oldHash, newHash := hashChildrenOld(l, r), h.HashChildren(l, r); !bytes.Equal(oldHash, newHash) {
 			t.Errorf("%d different hashes: %x vs %x", i, oldHash, newHash)
 		}
 	}
