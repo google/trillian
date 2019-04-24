@@ -80,11 +80,10 @@ type GetNodesFunc func(ids []NodeID) ([][]byte, error)
 // fetched or the calculated root hash after population does not match the
 // expected value.
 //
-// getNodesFn will be called a number of times with the coordinates of internal
-// Merkle tree nodes whose hash values are required to initialize the internal
-// state of the compact Tree. The expectedRoot is the known-good tree root of
-// the tree at the specified size, and is used to verify the correct initial
-// state of the compact Tree after initialization.
+// getNodesFn will be called with the coordinates of internal Merkle tree nodes
+// whose hash values are required to initialize the internal state of the
+// compact Tree. The expectedRoot is the known-good tree root of the tree at
+// the specified size, and is used to verify the initial state.
 func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesFunc, expectedRoot []byte) (*Tree, error) {
 	sizeBits := bits.Len64(uint64(size))
 	r := Tree{
