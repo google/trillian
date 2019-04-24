@@ -12,6 +12,8 @@ linters-settings:
       - golang.org/x/net/context
       - github.com/gogo/protobuf/proto
       - github.com/google/certificate-transparency-go/trillian
+      - encoding/asn1
+      - crypto/x509
 
 linters:
   disable-all: true
@@ -27,5 +29,5 @@ linters:
     - deadcode
     - ineffassign
     - varcheck
-    # TODO(gbelvin): write license linter and commit to upstream. 
+    # TODO(gbelvin): write license linter and commit to upstream.
     # ./scripts/check_license.sh is run by ./scripts/presubmit.sh
