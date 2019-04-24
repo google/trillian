@@ -17,7 +17,6 @@ package merkle
 import (
 	"bytes"
 	"crypto"
-	"reflect"
 	"testing"
 
 	"github.com/google/trillian/merkle/rfc6962"
@@ -163,7 +162,7 @@ func TestChainInnerRight(t *testing.T) {
 			c := hashChainer{
 				hasher: rfc6962.NewInplace(crypto.SHA256),
 			}
-			if got := c.chainInnerRight(inSeed, tt.args.proof, tt.args.index); !reflect.DeepEqual(got, tt.want) {
+			if got := c.chainInnerRight(inSeed, tt.args.proof, tt.args.index); !bytes.Equal(got, tt.want) {
 				t.Errorf("hashChainer.chainInnerRight() = %v, want %v", got, tt.want)
 			}
 			if got := bytes.Equal(inSeed, tt.args.seed); got != true {
@@ -208,7 +207,7 @@ func TestChainBorderRight(t *testing.T) {
 			c := hashChainer{
 				hasher: rfc6962.NewInplace(crypto.SHA256),
 			}
-			if got := c.chainBorderRight(tt.args.seed, tt.args.proof); !reflect.DeepEqual(got, tt.want) {
+			if got := c.chainBorderRight(tt.args.seed, tt.args.proof); !bytes.Equal(got, tt.want) {
 				t.Errorf("hashChainer.chainBorderRight() = %v, want %v", got, tt.want)
 			}
 		})
