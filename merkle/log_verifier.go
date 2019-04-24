@@ -16,11 +16,13 @@ package merkle
 
 import (
 	"bytes"
+	"crypto"
 	"errors"
 	"fmt"
 	"math/bits"
 
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 // RootMismatchError occurs when an inclusion proof fails.
@@ -35,12 +37,15 @@ func (e RootMismatchError) Error() string {
 
 // LogVerifier verifies inclusion and consistency proofs for append only logs.
 type LogVerifier struct {
-	hasher hashers.LogHasher
+	hasher hashers.InplaceLogHasher
 }
 
 // NewLogVerifier returns a new LogVerifier for a tree.
-func NewLogVerifier(hasher hashers.LogHasher) LogVerifier {
-	return LogVerifier{hasher}
+// TODO(Martin2112): Clean this up if we implement this change. There is a
+// cross-repo dependency to consider if this function signature changes to
+// take an InplaceLogHasher.
+func NewLogVerifier(_ hashers.LogHasher) LogVerifier {
+	return LogVerifier{rfc6962.NewInplace(crypto.SHA256)}
 }
 
 // VerifyInclusionProof verifies the correctness of the proof given the passed
