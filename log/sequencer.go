@@ -136,23 +136,26 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 	mt, err := compact.NewTreeWithState(s.hasher, int64(root.TreeSize), func(depth int, index int64) ([]byte, error) {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 		if err != nil {
-			return nil, fmt.Errorf("%x: Failed to create nodeID: %v", s.signer.KeyHint, err)
+			return nil, fmt.Errorf("failed to create nodeID: %v", err)
 		}
 		nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), []storage.NodeID{nodeID})
 
 		if err != nil {
-			return nil, fmt.Errorf("%x: Failed to get Merkle nodes: %v", s.signer.KeyHint, err)
+			return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
 		}
 
 		// We expect to get exactly one node here
 		if nodes == nil || len(nodes) != 1 {
-			return nil, fmt.Errorf("%x: Did not retrieve one node while loading compact Merkle tree, got %#v for ID %v@%v", s.signer.KeyHint, nodes, nodeID.String(), root.Revision)
+			return nil, fmt.Errorf("did not retrieve one node while loading compact Merkle tree, got %#v for ID %v@%v", nodes, nodeID.String(), root.Revision)
 		}
 
 		return nodes[0].Hash, nil
 	}, root.RootHash)
 
-	return mt, err
+	if err != nil {
+		return nil, fmt.Errorf("%x: %v", s.signer.KeyHint, err)
+	}
+	return mt, nil
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVersion int64) ([]storage.Node, error) {
