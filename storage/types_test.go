@@ -249,12 +249,12 @@ func TestSplit(t *testing.T) {
 				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue
 		}
-		if got, want := int(s.Bits), tc.outSuffixBits; got != want {
+		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
 			t.Errorf("%d, %x.Split(%v, %v): suffix.Bits %v, want %d",
 				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue
 		}
-		if got, want := s.Path, tc.outSuffix; !bytes.Equal(got, want) {
+		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
 			t.Errorf("%d, %x.Split(%v, %v).Path: %x, want %x",
 				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue

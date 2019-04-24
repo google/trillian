@@ -60,7 +60,7 @@ install:
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go get ${GOFLAGS} -d -t ./...
   - go get -d -t github.com/google/certificate-transparency-go/...
-  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.12.5
+  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.16.0
   - go get github.com/golang/protobuf/proto
   - go get github.com/golang/protobuf/protoc-gen-go
   - go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
@@ -70,7 +70,16 @@ install:
   # install vendored etcd binary
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
-
+  # install bazel
+  - |
+    (
+      BAZEL_VERSION='0.18.0'
+      URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
+      wget -O install.sh ${URL}
+      chmod +x install.sh
+      ./install.sh --user
+      rm -f install.sh
+    )
 
 before_script:
   - ./scripts/resetdb.sh --force
@@ -104,6 +113,7 @@ script:
       if [[ "${WITH_DOCKER_TESTS}" == "true" ]]; then
         ./integration/docker_compose_integration_test.sh
       fi
+  - bazel --batch build //:*
   - set +e
 
 after_success:

@@ -135,6 +135,9 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	if err == nil || !ok {
 		t.Errorf("Did not return correct error type on root mismatch: %v", err)
 	}
+	if !strings.Contains(err.Error(), "mismatch") {
+		t.Errorf("Error %q doesn't mention mismatch", err.Error())
+	}
 }
 
 func nodeKey(level uint, index uint64) (string, error) {
@@ -213,7 +216,24 @@ func TestCompactVsFullTree(t *testing.T) {
 		if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
 			t.Errorf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
 		}
+	}
 
+	// Build another compact Merkle tree by incrementally adding the leaves to an empty tree.
+	cmt := NewTree(rfc6962.DefaultHasher)
+	for i := int64(0); i < imt.LeafCount(); i++ {
+		newLeaf := []byte(fmt.Sprintf("Leaf %d", i))
+		seq, _, err := cmt.AddLeaf(newLeaf, func(depth int, index int64, hash []byte) error {
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("AddLeaf(%d)=_,_,%v, want _,_,nil", i, err)
+		}
+		if seq != i {
+			t.Fatalf("AddLeaf(%d)=%d, want %d", i, seq, i)
+		}
+	}
+	if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
+		t.Errorf("got in-memory root of %v, but compact tree has root %v", a, b)
 	}
 }
 
@@ -222,6 +242,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		size     int64
 		wantRoot []byte
 	}{
+		{0, testonly.MustDecodeBase64("47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=")},
 		{10, testonly.MustDecodeBase64("VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=")},
 		{15, testonly.MustDecodeBase64("j4SulYmocFuxdeyp12xXCIgK6PekBcxzAIj4zbQzNEI=")},
 		{16, testonly.MustDecodeBase64("c+4Uc6BCMOZf/v3NZK1kqTUJe+bBoFtOhP+P3SayKRE=")},
@@ -245,8 +266,23 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 				return nil
 			})
 		}
-		if got, want := tree.CurrentRoot(), test.wantRoot; !bytes.Equal(got, want) {
-			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(got), b64e(want))
+		if gotRoot := tree.CurrentRoot(); !bytes.Equal(gotRoot, test.wantRoot) {
+			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(gotRoot), b64e(test.wantRoot))
+		}
+		t.Log(tree)
+		if isPerfectTree(test.size) {
+			// A perfect tree should have a single hash at the highest bit that is just
+			// the root hash.
+			hashes := tree.Hashes()
+			for i, got := range hashes {
+				var want []byte
+				if i == (len(hashes) - 1) {
+					want = tree.CurrentRoot()
+				}
+				if !bytes.Equal(got, want) {
+					t.Errorf("Test(treesize=%v).nodes[i]=%x, want %x", test.size, got, want)
+				}
+			}
 		}
 	}
 }

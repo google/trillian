@@ -5,6 +5,7 @@
 *.tfstate.backup
 *~
 /.idea
+/bazel-*
 /commit_log
 /coverage.txt
 /createtree

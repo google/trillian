@@ -43,20 +43,30 @@ type NodeID struct {
 	Index uint64
 }
 
-// Tree is a compact Merkle tree representation. It uses O(log(N)) nodes to
+// Tree is a compact Merkle tree representation. It uses O(log(size)) nodes to
 // represent the current on-disk tree.
 //
 // TODO(pavelkalinnikov): Remove it, use compact.Range instead.
 type Tree struct {
 	hasher hashers.LogHasher
 	root   []byte
-	// the list of "dangling" left-hand nodes, NOTE: index 0 is the leaf, not the root.
+	// The list of "dangling" left-hand nodes, where entry [0] is the leaf.
+	// So: nodes[0] is the hash of a subtree of size 1 = 1<<0, if included.
+	//     nodes[1] is the hash of a subtree of size 2 = 1<<1, if included.
+	//     nodes[2] is the hash of a subtree of size 4 = 1<<2, if included.
+	//     ....
+	// Nodes are included if the tree size includes that power of two.
+	// For example, a tree of size 21 is built from subtrees of sizes
+	// 16 + 4 + 1, so nodes[1] == nodes[3] == nil.
+	//
+	// For a tree whose size is a perfect power of two, only the last
+	// entry in nodes will be set (and it will match root).
 	nodes [][]byte
 	size  int64
 }
 
-func isPerfectTree(x int64) bool {
-	return x != 0 && (x&(x-1) == 0)
+func isPerfectTree(size int64) bool {
+	return size != 0 && (size&(size-1) == 0)
 }
 
 // GetNodesFunc is a function prototype which can look up particular nodes
@@ -64,17 +74,18 @@ func isPerfectTree(x int64) bool {
 // itself with correct state when starting up with a non-empty tree.
 type GetNodesFunc func(ids []NodeID) ([][]byte, error)
 
-// NewTreeWithState creates a new compact Tree for the passed in |size|.
+// NewTreeWithState creates a new compact Tree for the passed in size.
 //
 // This can fail if the nodes required to recreate the tree state cannot be
 // fetched or the calculated root hash after population does not match the
-// value we expect.
+// expected value.
 //
-// |f| will be called a number of times with the coordinates of internal Merkle
-// tree nodes whose hash values are required to initialize the internal state
-// of the compact Tree. |expectedRoot| is the known-good tree root of the tree
-// at |size|, and is used to verify the initial state of the compact Tree.
-func NewTreeWithState(hasher hashers.LogHasher, size int64, f GetNodesFunc, expectedRoot []byte) (*Tree, error) {
+// getNodesFn will be called a number of times with the coordinates of internal
+// Merkle tree nodes whose hash values are required to initialize the internal
+// state of the compact Tree. The expectedRoot is the known-good tree root of
+// the tree at the specified size, and is used to verify the correct initial
+// state of the compact Tree after initialization.
+func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesFunc, expectedRoot []byte) (*Tree, error) {
 	sizeBits := bits.Len64(uint64(size))
 	r := Tree{
 		hasher: hasher,
@@ -94,7 +105,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, f GetNodesFunc, expe
 			index := (sz - 1) >> level
 			ids = append(ids, NodeID{Level: level, Index: index})
 		}
-		hashes, err := f(ids)
+		hashes, err := getNodesFn(ids)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch nodes: %v", err)
 		}
@@ -121,15 +132,14 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, f GetNodesFunc, expe
 	return &r, nil
 }
 
-// NewTree creates a new compact Tree with size zero. This always succeeds.
+// NewTree creates a new compact Tree with size zero.
 func NewTree(hasher hashers.LogHasher) *Tree {
-	r := Tree{
+	return &Tree{
 		hasher: hasher,
 		root:   hasher.EmptyRoot(),
 		nodes:  make([][]byte, 0),
 		size:   0,
 	}
-	return &r
 }
 
 // CurrentRoot returns the current root hash.
@@ -137,9 +147,26 @@ func (t *Tree) CurrentRoot() []byte {
 	return t.root
 }
 
+// String describes the internal state of the compact Tree.
+func (t *Tree) String() string {
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("Tree Nodes @ %d root=%x\n", t.size, t.root))
+	mask := int64(1)
+	numBits := bits.Len64(uint64(t.size))
+	for bit := 0; bit < numBits; bit++ {
+		if t.size&mask != 0 {
+			buf.WriteString(fmt.Sprintf("%d:  %s\n", bit, base64.StdEncoding.EncodeToString(t.nodes[bit][:])))
+		} else {
+			buf.WriteString(fmt.Sprintf("%d:  -\n", bit))
+		}
+		mask <<= 1
+	}
+	return buf.String()
+}
+
 type setNodeFunc func(depth int, index int64, hash []byte) error
 
-func (t *Tree) recalculateRoot(f setNodeFunc) error {
+func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 	if t.size == 0 {
 		return nil
 	}
@@ -158,7 +185,7 @@ func (t *Tree) recalculateRoot(f setNodeFunc) error {
 				first = false
 			} else {
 				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
-				if err := f(bit+1, index, newRoot); err != nil {
+				if err := setNodeFn(bit+1, index, newRoot); err != nil {
 					return err
 				}
 			}
@@ -169,38 +196,43 @@ func (t *Tree) recalculateRoot(f setNodeFunc) error {
 	return nil
 }
 
-// AddLeaf calculates the leafhash of |data| and appends it to the tree.
+// AddLeaf calculates the Merkle leaf hash of the given leaf data and appends it
+// to the tree.
 //
-// |f| will be called multiple times with the full Merkle tree coordinates of
-// nodes whose hash should be updated.
-func (t *Tree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
+// setNodeFn is a callback which will be called multiple times with the full
+// MerkleTree coordinates of nodes whose hash should be updated.
+//
+// Returns the index of the new leaf (equal to t.Size()-1) and the Merkle leaf
+// hash for the new leaf.
+func (t *Tree) AddLeaf(data []byte, setNodeFn setNodeFunc) (int64, []byte, error) {
 	h, err := t.hasher.HashLeaf(data)
 	if err != nil {
 		return 0, nil, err
 	}
-	seq, err := t.AddLeafHash(h, f)
+	seq, err := t.AddLeafHash(h, setNodeFn)
 	if err != nil {
 		return 0, nil, err
 	}
 	return seq, h, err
 }
 
-// AddLeafHash adds the specified |leafHash| to the tree.
+// AddLeafHash appends the specified Merkle leaf hash to the tree.
 //
-// |f| is will be called multiple times with the full Merkle tree coordinates
+// setNodeFn is a callback which will be called multiple times with the full MerkleTree coordinates
 // of nodes whose hash should be updated.
-func (t *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
+//
+// Returns the index of the new leaf (equal to t.Size()-1).
+func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error) {
 	defer func() {
 		t.size++
-		// TODO(al): do this lazily
 		// TODO(pavelkalinnikov): Handle recalculateRoot errors.
-		t.recalculateRoot(f)
+		t.recalculateRoot(setNodeFn)
 	}()
 
 	assignedSeq := t.size
 	index := assignedSeq
 
-	if err := f(0, index, leafHash); err != nil {
+	if err := setNodeFn(0, index, leafHash); err != nil {
 		return 0, err
 	}
 
@@ -210,10 +242,10 @@ func (t *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 		return assignedSeq, nil
 	}
 
-	// Initialize our running hash value to the leaf hash
+	// Initialize our running hash value to the leaf hash.
 	hash := leafHash
 	bit := 0
-	// Iterate over the bits in our tree size
+	// Iterate over the bits in our existing tree size.
 	for mask := t.size; mask > 0; mask >>= 1 {
 		index >>= 1
 		if mask&1 == 0 {
@@ -221,8 +253,8 @@ func (t *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 			t.nodes[bit] = hash
 			// Don't re-write the leaf hash node (we've done it above already)
 			if bit > 0 {
-				// Store the leaf hash node
-				if err := f(bit, index, hash); err != nil {
+				// Store the (non-leaf) hash node
+				if err := setNodeFn(bit, index, hash); err != nil {
 					return 0, err
 				}
 			}
@@ -231,7 +263,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = t.hasher.HashChildren(t.nodes[bit], hash)
 		// Store the resulting parent hash.
-		if err := f(bit+1, index, hash); err != nil {
+		if err := setNodeFn(bit+1, index, hash); err != nil {
 			return 0, err
 		}
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
@@ -256,14 +288,14 @@ func (t *Tree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 	return 0, fmt.Errorf("AddLeaf failed running hash not cleared: h: %v seq: %d", leafHash, assignedSeq)
 }
 
-// Size returns the current size of the tree, that is, the number of leaves
-// ever added to the tree.
+// Size returns the current size of the tree.
 func (t *Tree) Size() int64 {
 	return t.size
 }
 
 // Hashes returns a copy of the set of node hashes that comprise the compact
-// representation of the tree, in the old format.
+// representation of the tree. A tree whose size is a power of two has no
+// internal node hashes (just the root hash), so returns nil.
 //
 // TODO(pavelkalinnikov): Get rid of this format.
 func (t *Tree) Hashes() [][]byte {
