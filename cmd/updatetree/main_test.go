@@ -24,7 +24,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/util/flagsaver"
+	"github.com/google/trillian/testonly/flagsaver"
 )
 
 type testCase struct {

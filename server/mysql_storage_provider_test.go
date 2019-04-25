@@ -18,7 +18,7 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/google/trillian/util/flagsaver"
+	"github.com/google/trillian/testonly/flagsaver"
 )
 
 func TestMySQLStorageProviderErrorPersistence(t *testing.T) {
