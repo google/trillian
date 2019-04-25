@@ -259,8 +259,8 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 
-// Tests for sequencer. Currently relies on having a database set up. This might change in future
-// as it would be better if it was not tied to a specific storage mechanism.
+// Tests for sequencer. Currently relies on storage mocks.
+// TODO(pavelkalinnikov): Consider using real in-memory storage.
 
 func TestIntegrateBatch(t *testing.T) {
 	signerErr, err := newSignerWithErr(errors.New("signerfailed"))
