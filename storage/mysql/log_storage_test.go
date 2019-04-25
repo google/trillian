@@ -1258,55 +1258,6 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 	}
 }
 
-func TestGetUnsequencedCounts(t *testing.T) {
-	numLogs := 4
-	cleanTestDB(DB)
-	trees := make([]*trillian.Tree, 0, numLogs)
-	for i := 0; i < numLogs; i++ {
-		trees = append(trees, createTreeOrPanic(DB, testonly.LogTree))
-	}
-	s := NewLogStorage(DB, nil)
-
-	ctx := context.Background()
-	expectedCount := make(map[int64]int64)
-
-	for i := int64(1); i < 10; i++ {
-		// Put some leaves in the queue of each of the logs
-		for j, tree := range trees {
-			numToAdd := i + int64(j)
-			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-				leaves := createTestLeaves(numToAdd, expectedCount[tree.TreeId])
-				if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
-					t.Fatalf("Failed to queue leaves: %v", err)
-				}
-				return nil
-			})
-
-			expectedCount[tree.TreeId] += numToAdd
-		}
-
-		// Now check what we get back from GetUnsequencedCounts matches
-		tx, err := s.Snapshot(ctx)
-		if err != nil {
-			t.Fatalf("Snapshot() = (_, %v), want no error", err)
-		}
-		// tx explicitly closed in all branches
-
-		got, err := tx.GetUnsequencedCounts(ctx)
-		if err != nil {
-			tx.Close()
-			t.Errorf("GetUnsequencedCounts() = %v, want no error", err)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Errorf("Commit() = %v, want no error", err)
-			return
-		}
-		if diff := pretty.Compare(expectedCount, got); diff != "" {
-			t.Errorf("GetUnsequencedCounts() = diff -want +got:\n%s", diff)
-		}
-	}
-}
-
 func TestReadOnlyLogTX_Rollback(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)

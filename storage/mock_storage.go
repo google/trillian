@@ -1155,21 +1155,6 @@ func (mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveLogIDs", reflect.TypeOf((*MockReadOnlyLogTX)(nil).GetActiveLogIDs), arg0)
 }
 
-// GetUnsequencedCounts mocks base method
-func (m *MockReadOnlyLogTX) GetUnsequencedCounts(arg0 context.Context) (CountByLogID, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUnsequencedCounts", arg0)
-	ret0, _ := ret[0].(CountByLogID)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetUnsequencedCounts indicates an expected call of GetUnsequencedCounts
-func (mr *MockReadOnlyLogTXMockRecorder) GetUnsequencedCounts(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnsequencedCounts", reflect.TypeOf((*MockReadOnlyLogTX)(nil).GetUnsequencedCounts), arg0)
-}
-
 // Rollback mocks base method
 func (m *MockReadOnlyLogTX) Rollback() error {
 	m.ctrl.T.Helper()
