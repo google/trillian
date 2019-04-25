@@ -38,23 +38,23 @@ type LogHasher interface {
 // InplaceLogHasher provides the hash functions needed to compute dense merkle
 // trees.
 // Implementations may hold state and are not expected to be thread
-// safe. They should not be shared between multiple callers.
+// safe. They should not be shared between multiple callers. Where performance
+// is not critical the LogHasher interface provides a safer alternative.
+//
+// Note: Implementations are not expected to be thread safe. The caller must
+// ensure that concurrent calls are not made and is responsible for making
+// copies of slices where necessary to avoid data being overwritten.
 type InplaceLogHasher interface {
 	// EmptyRootInto supports returning a special case for the root of an empty tree.
 	// The passed in slice is mutated. The caller is responsible for making copies
-	// where necessary.
+	// where necessary. Not thread safe.
 	EmptyRootInto([]byte) []byte
 	// HashLeafInto computes the hash of a leaf into an existing slice,
-	// which is mutated.
-	// Note: Implementations are not expected to be thread safe. The caller must
-	// ensure that concurrent calls are not made and is responsible for making
-	// copies of slices where necessary to avoid data being overwritten.
+	// which is mutated. The leaf and res slices may be the same. Not thread safe.
 	HashLeafInto(leaf, res []byte) ([]byte, error)
 	// HashChildrenInto computes interior nodes into an existing slice, which is
-	// mutated.
-	// Note: Implementations are not expected to be thread safe. The caller must
-	// ensure that concurrent calls are not made and is responsible for making
-	// copies of slices where necessary to avoid data being overwritten.
+	// mutated. The res slice may be the same as one of the l or r slices. Not
+	// thread safe.
 	HashChildrenInto(l, r, res []byte) []byte
 	// Size is the number of bytes in the underlying hash function.
 	// TODO(gbelvin): Replace Size() with BitLength().

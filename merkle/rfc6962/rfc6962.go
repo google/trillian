@@ -93,7 +93,8 @@ func (t *Hasher) HashChildren(l, r []byte) []byte {
 
 // EmptyRootInto returns a special case for an empty tree.
 func (t *InplaceHasher) EmptyRootInto(res []byte) []byte {
-	return t.New().Sum(res)
+	t.hasher.Reset()
+	return t.hasher.Sum(res)
 }
 
 // HashLeafInto places the Merkle tree leaf hash of the data passed in into a
