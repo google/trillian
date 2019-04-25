@@ -136,21 +136,21 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 		for i, id := range ids {
 			nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
 			if err != nil {
-				return nil, fmt.Errorf("%x: failed to create nodeID: %v", s.signer.KeyHint, err)
+				return nil, fmt.Errorf("failed to create nodeID: %v", err)
 			}
 			storIDs[i] = nodeID
 		}
 
 		nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), storIDs)
 		if err != nil {
-			return nil, fmt.Errorf("%x: failed to get Merkle nodes: %v", s.signer.KeyHint, err)
+			return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
 		}
 		if got, want := len(nodes), len(storIDs); got != want {
-			return nil, fmt.Errorf("%x: failed to get %d nodes at rev %d, got %d", s.signer.KeyHint, want, root.Revision, got)
+			return nil, fmt.Errorf("failed to get %d nodes at rev %d, got %d", want, root.Revision, got)
 		}
 		for i, id := range storIDs {
 			if !nodes[i].NodeID.Equivalent(id) {
-				return nil, fmt.Errorf("%x: node ID mismatch at %d", s.signer.KeyHint, i)
+				return nil, fmt.Errorf("node ID mismatch at %d", i)
 			}
 		}
 
@@ -161,7 +161,10 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 		return hashes, nil
 	}, root.RootHash)
 
-	return mt, err
+	if err != nil {
+		return nil, fmt.Errorf("%x: %v", s.signer.KeyHint, err)
+	}
+	return mt, nil
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVersion int64) ([]storage.Node, error) {

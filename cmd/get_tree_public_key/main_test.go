@@ -50,7 +50,7 @@ func TestGetTreePublicKey(t *testing.T) {
 	}
 
 	// Set the flags.
-	defer flagsaver.Save().Restore()
+	defer flagsaver.Save().MustRestore()
 	setup.SetFlag(t, "admin_server", logEnv.Address)
 	setup.SetFlag(t, "log_id", fmt.Sprint(log.TreeId))
 
