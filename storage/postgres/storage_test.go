@@ -30,16 +30,14 @@ var db *sql.DB
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	ec := 0
-	defer func() { os.Exit(ec) }()
 	if !testdb.PGAvailable() {
 		glog.Errorf("PG not available, skipping all PG storage tests")
-		ec = 1
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*30))
 	defer cancel()
 	db = testdb.NewTrillianDBOrDie(ctx)
 	defer db.Close()
-	ec = m.Run()
+	ec := m.Run()
+	os.Exit(ec)
 }
