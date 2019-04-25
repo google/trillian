@@ -50,9 +50,8 @@ const (
 		  AND TreeState IN(?,?)
 		  AND (Deleted IS NULL OR Deleted = 'false')`
 
-	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
-	selectUnsequencedLeafCountSQL = "SELECT TreeId, COUNT(1) FROM Unsequenced GROUP BY TreeId"
-	selectLatestSignedLogRootSQL  = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
+	selectSequencedLeafCountSQL  = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
+	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 			FROM TreeHead WHERE TreeId=?
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 
@@ -892,31 +891,6 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		ret = append(ret, leaf)
 	}
 
-	return ret, nil
-}
-
-func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.CountByLogID, error) {
-	stx, err := t.tx.PrepareContext(ctx, selectUnsequencedLeafCountSQL)
-	if err != nil {
-		glog.Warningf("Failed to prep unsequenced leaf count statement: %v", err)
-		return nil, err
-	}
-	defer stx.Close()
-
-	rows, err := stx.QueryContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	ret := make(map[int64]int64)
-	for rows.Next() {
-		var logID, count int64
-		if err := rows.Scan(&logID, &count); err != nil {
-			return nil, fmt.Errorf("failed to scan row from unsequenced counts: %v", err)
-		}
-		ret[logID] = count
-	}
 	return ret, nil
 }
 

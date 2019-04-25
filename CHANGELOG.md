@@ -179,6 +179,8 @@ The `SubtreeCache.GetNodeHash()` method is no longer exported.
 The memory storage provider has been refactored to make it more consistent with
 the other storage providers.
 
+The `LogMetadata.GetUnsequencedCounts()` method has been removed.
+
 ### Maphammer improvements
 
 The maphammer test tool for the experimental Trillian Map has been enhanced.
