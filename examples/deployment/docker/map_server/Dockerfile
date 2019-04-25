@@ -5,6 +5,9 @@ WORKDIR /go/src/github.com/google/trillian
 
 ARG GOFLAGS=""
 RUN go get ./server/trillian_map_server
+# Delete the .git directories from the Go packages to minimise their size
+# ahead of copying them into the final image.
+RUN ["find", "/go/src", "-name", ".git", "-prune", "-exec", "rm", "-rf", "{}", ";"]
 
 FROM gcr.io/distroless/base
 
