@@ -60,7 +60,7 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileNotSet(t *testing.T) {
 }
 
 func TestNewClientDialOptionsFromFlagsWithTLSCertFileMissing(t *testing.T) {
-	defer flagsaver.Save().Restore()
+	defer flagsaver.Save().MustRestore()
 	if err := flag.Set("tls_cert_file", "/a/missing/file"); err != nil {
 		t.Errorf("Failed to set flag: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileSet(t *testing.T) {
 	defer logEnv.Close()
 
 	// Set up the flag.
-	defer flagsaver.Save().Restore()
+	defer flagsaver.Save().MustRestore()
 	err = flag.Set("tls_cert_file", crtFile.Name())
 	if err != nil {
 		t.Errorf("Failed to set -tls_cert_file flag: %v", err)
