@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	_ "github.com/golang/glog"
+	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/hashers"
 )
 
 func TestRFC6962Hasher(t *testing.T) {
@@ -196,5 +198,14 @@ func TestHashChildrenEquivToOld(t *testing.T) {
 			t.Errorf("%d different hashes: %x vs %x", i, oldHash, newHash)
 		}
 	}
+}
 
+// Tests that the rfc6962 log hashers were registered.
+func TestRegistrations(t *testing.T) {
+	if h, err := hashers.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256); err != nil || h == nil {
+		t.Errorf("NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)=%v, %v, want registered hasher", h, err)
+	}
+	if h, err := hashers.NewInplaceLogHasher(trillian.HashStrategy_RFC6962_SHA256); err != nil || h == nil {
+		t.Errorf("NewInplaceLogHasher(trillian.HashStrategy_RFC6962_SHA256)=%v, %v, want registered hasher", h, err)
+	}
 }
