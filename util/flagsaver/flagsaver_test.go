@@ -98,7 +98,7 @@ func TestRestore(t *testing.T) {
 			// If the Set() fails the value won't have been updated but some of the
 			// test cases set the same value so it's safer to have this check.
 			if err := flag.Set(test.flag, test.newValue); err != nil {
-				t.Errorf("%v: flag.Set(%q)=%v", test.desc, test.flag, err)
+				t.Errorf("%v: flag.Set(%q) = %q, want nil", test.desc, test.flag, err)
 			}
 			if gotValue := f.Value.String(); gotValue != test.newValue {
 				t.Errorf("%v: flag.Lookup(%q).Value.String() = %q, want %q", test.desc, test.flag, gotValue, test.newValue)
