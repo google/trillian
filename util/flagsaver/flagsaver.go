@@ -63,7 +63,7 @@ func Save() *Stash {
 }
 
 // MustRestore calls Restore and exits on failure. It can be used in a defer for
-// tests. If Restore fails then otherwise the flags may be in an arbitrary
+// tests. If Restore fails then the flags may be in an arbitrary
 // state that could cause subsequent tests to misbehave.
 func (s *Stash) MustRestore() {
 	if err := s.Restore(); err != nil {
