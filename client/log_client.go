@@ -310,10 +310,18 @@ func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int6
 		leaf.LeafIndex = index
 		leaves = append(leaves, leaf)
 	}
-	_, err := c.client.AddSequencedLeaves(ctx, &trillian.AddSequencedLeavesRequest{
+	resp, err := c.client.AddSequencedLeaves(ctx, &trillian.AddSequencedLeavesRequest{
 		LogId:  c.LogID,
 		Leaves: leaves,
 	})
+	for _, leaf := range resp.GetResults() {
+		if stat := leaf.GetStatus().GetCode(); stat != codes.OK {
+			glog.Warningf("Got a non-OK status for a sequenced leaf: %+v", leaf)
+			if stat != codes.AlreadyExists {
+				return fmt.Errorf("unexpected fail status in AddSequencedLeaves: %+v", leaf)
+			}
+		}
+	}
 	return err
 }
 
