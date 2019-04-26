@@ -315,11 +315,8 @@ func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int6
 		Leaves: leaves,
 	})
 	for _, leaf := range resp.GetResults() {
-		if stat := leaf.GetStatus().GetCode(); stat != codes.OK {
-			glog.Warningf("Got a non-OK status for a sequenced leaf: %+v", leaf)
-			if stat != codes.AlreadyExists {
-				return fmt.Errorf("unexpected fail status in AddSequencedLeaves: %+v", leaf)
-			}
+		if stat := leaf.GetStatus().GetCode(); stat != int32(codes.OK) && stat != int32(codes.AlreadyExists) {
+			return fmt.Errorf("unexpected fail status in AddSequencedLeaves: %+v", leaf)
 		}
 	}
 	return err
