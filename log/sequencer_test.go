@@ -131,20 +131,20 @@ var (
 		{
 			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14}, PrefixLenBits: 64},
 			Hash:         testonly.MustDecodeBase64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="),
-			NodeRevision: 6,
+			NodeRevision: 5,
 		},
 		{
 			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 62},
 			Hash:         testonly.MustDecodeBase64("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="),
-			NodeRevision: 6,
+			NodeRevision: 5,
 		},
 		{
 			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 60},
 			Hash:         testonly.MustDecodeBase64("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="),
-			NodeRevision: 6,
+			NodeRevision: 5,
 		},
 	}
-	// Nodes that will be storead after updating the tree of size 21.
+	// Nodes that will be stored after updating the tree of size 21.
 	updatedNodes21 = []storage.Node{
 		{
 			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59},
