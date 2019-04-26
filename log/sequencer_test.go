@@ -307,6 +307,9 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 			ids := []storage.NodeID{node.NodeID}
 			nodes := []storage.Node{node}
 			mockTx.EXPECT().GetMerkleNodes(gomock.Any(), params.writeRevision-1, ids).Return(nodes, params.merkleNodesGetError)
+			if params.merkleNodesGetError != nil {
+				break
+			}
 		}
 	}
 
@@ -466,6 +469,20 @@ func TestIntegrateBatch(t *testing.T) {
 				skipStoreSignedRoot:   true,
 			},
 			errStr: "root",
+		},
+		{
+			desc: "get-merkle-nodes-fails",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       int64(testRoot21.Revision + 1),
+				dequeueLimit:        1,
+				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:    testSignedRoot21,
+				merkleNodesGet:      &compactTree21,
+				merkleNodesGetError: errors.New("getmerklenodes"),
+				skipStoreSignedRoot: true,
+			},
+			errStr: "getmerklenodes",
 		},
 		{
 			desc: "update-seq-leaves-fails",
