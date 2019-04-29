@@ -77,6 +77,7 @@ type DatabaseChecker interface {
 // NodeReader provides read-only access to the stored tree nodes, as an interface to allow easier
 // testing of node manipulation.
 type NodeReader interface {
-	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
+	// GetMerkleNodes looks up the set of nodes identified by ids, at
+	// treeRevision, and returns them in the same order.
 	GetMerkleNodes(ctx context.Context, treeRevision int64, ids []NodeID) ([]Node, error)
 }
