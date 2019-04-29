@@ -303,14 +303,11 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	}
 
 	if params.merkleNodesGet != nil {
+		ids := make([]storage.NodeID, 0, len(*params.merkleNodesGet))
 		for _, node := range *params.merkleNodesGet {
-			ids := []storage.NodeID{node.NodeID}
-			nodes := []storage.Node{node}
-			mockTx.EXPECT().GetMerkleNodes(gomock.Any(), params.writeRevision-1, ids).Return(nodes, params.merkleNodesGetError)
-			if params.merkleNodesGetError != nil {
-				break
-			}
+			ids = append(ids, node.NodeID)
 		}
+		mockTx.EXPECT().GetMerkleNodes(gomock.Any(), params.writeRevision-1, ids).Return(*params.merkleNodesGet, params.merkleNodesGetError)
 	}
 
 	if params.updatedLeaves != nil {
