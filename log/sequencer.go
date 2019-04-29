@@ -53,6 +53,7 @@ var (
 	seqStoreRootLatency    monitoring.Histogram
 	seqCounter             monitoring.Counter
 	seqMergeDelay          monitoring.Histogram
+	seqTimestamp           monitoring.Gauge
 
 	// QuotaIncreaseFactor is the multiplier used for the number of tokens added back to
 	// sequencing-based quotas. The resulting PutTokens call is equivalent to
@@ -80,6 +81,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	quota.InitMetrics(mf)
 	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
 	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
+	seqTimestamp = mf.NewGauge("sequencer_timestamp", "Time of last STH in ms since epoch", logIDLabel)
 	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in seconds", logIDLabel)
 	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in seconds", logIDLabel)
 	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in seconds", logIDLabel)
@@ -417,13 +419,14 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 
 		// Create the log root ready for signing
-		seqTreeSize.Set(float64(merkleTree.Size()), label)
 		newLogRoot = &types.LogRootV1{
 			RootHash:       merkleTree.CurrentRoot(),
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
 			TreeSize:       uint64(merkleTree.Size()),
 			Revision:       uint64(newVersion),
 		}
+		seqTreeSize.Set(float64(newLogRoot.TreeSize), label)
+		seqTimestamp.Set(float64(newLogRoot.TimestampNanos), label)
 
 		if newLogRoot.TimestampNanos <= currentRoot.TimestampNanos {
 			return fmt.Errorf("%v: refusing to sign root with timestamp earlier than previous root (%d <= %d)", tree.TreeId, newLogRoot.TimestampNanos, currentRoot.TimestampNanos)
@@ -438,7 +441,6 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return fmt.Errorf("%v: failed to write updated tree root: %v", tree.TreeId, err)
 		}
 		seqStoreRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
-
 		return nil
 	})
 	if err != nil {
