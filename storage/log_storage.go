@@ -197,11 +197,4 @@ type LogMetadata interface {
 	// GetActiveLogIDs returns a list of the IDs of all the logs that are
 	// configured in storage and are eligible to have entries sequenced.
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
-
-	// GetUnsequencedCounts returns a map of the number of unsequenced entries
-	// by log ID.
-	//
-	// This call is likely to be VERY expensive and take a long time to complete.
-	// Consider carefully whether you really need to call it!
-	GetUnsequencedCounts(ctx context.Context) (CountByLogID, error)
 }

@@ -22,9 +22,9 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly/flagsaver"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/testonly/setup"
-	"github.com/google/trillian/util/flagsaver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
