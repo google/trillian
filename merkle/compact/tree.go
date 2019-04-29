@@ -111,12 +111,8 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 		if got, want := len(hashes), len(ids); got != want {
 			return nil, fmt.Errorf("got %d hashes, needed %d", got, want)
 		}
-
-		for level, idx := 0, 0; level < sizeBits; level++ {
-			if size&(1<<uint(level)) != 0 {
-				r.nodes[level] = hashes[idx]
-				idx++
-			}
+		for i, id := range ids {
+			r.nodes[id.Level] = hashes[i]
 		}
 		r.recalculateRoot(func(depth int, index int64, hash []byte) error {
 			return nil
