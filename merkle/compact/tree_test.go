@@ -104,18 +104,22 @@ func TestAddingLeaves(t *testing.T) {
 	}
 }
 
-func failingGetNodeFunc(_ int, _ int64) ([]byte, error) {
-	return []byte{}, errors.New("bang")
+func failingGetNodesFunc(_ []NodeID) ([][]byte, error) {
+	return nil, errors.New("bang")
 }
 
 // This returns something that won't result in a valid root hash match, doesn't really
 // matter what it is but it must be correct length for an SHA256 hash as if it was real
-func fixedHashGetNodeFunc(_ int, _ int64) ([]byte, error) {
-	return []byte("12345678901234567890123456789012"), nil
+func fixedHashGetNodesFunc(ids []NodeID) ([][]byte, error) {
+	hashes := make([][]byte, len(ids))
+	for i := range ids {
+		hashes[i] = []byte("12345678901234567890123456789012")
+	}
+	return hashes, nil
 }
 
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
-	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, failingGetNodeFunc, []byte("notimportant"))
+	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, failingGetNodesFunc, []byte("notimportant"))
 
 	if err == nil || !strings.Contains(err.Error(), "bang") {
 		t.Errorf("Did not return correctly on failed node fetch: %v", err)
@@ -125,7 +129,7 @@ func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
 	// data
-	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
+	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, fixedHashGetNodesFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
 	_, ok := err.(RootHashMismatchError)
 
 	if err == nil || !ok {
@@ -136,8 +140,8 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	}
 }
 
-func nodeKey(d int, i int64) (string, error) {
-	n, err := storage.NewNodeIDForTreeCoords(int64(d), i, 64)
+func nodeKey(level uint, index uint64) (string, error) {
+	n, err := storage.NewNodeIDForTreeCoords(int64(level), int64(index), 64)
 	if err != nil {
 		return "", err
 	}
@@ -148,17 +152,28 @@ func TestCompactVsFullTree(t *testing.T) {
 	imt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	nodes := make(map[string][]byte)
 
+	getNode := func(id NodeID) ([]byte, error) {
+		k, err := nodeKey(id.Level, id.Index)
+		if err != nil {
+			t.Errorf("failed to get node key: %v", err)
+		}
+		return nodes[k], nil
+	}
+
 	for i := int64(0); i < 1024; i++ {
 		cmt, err := NewTreeWithState(
 			rfc6962.DefaultHasher,
 			imt.LeafCount(),
-			func(depth int, index int64) ([]byte, error) {
-				k, err := nodeKey(depth, index)
-				if err != nil {
-					t.Errorf("failed to create nodeID: %v", err)
+			func(ids []NodeID) ([][]byte, error) {
+				hashes := make([][]byte, len(ids))
+				for i, id := range ids {
+					var err error
+					hashes[i], err = getNode(id)
+					if err != nil {
+						return nil, err
+					}
 				}
-				h := nodes[k]
-				return h, nil
+				return hashes, nil
 			}, imt.CurrentRoot().Hash())
 
 		if err != nil {
@@ -177,7 +192,7 @@ func TestCompactVsFullTree(t *testing.T) {
 
 		cSeq, cHash, err := cmt.AddLeaf(newLeaf,
 			func(depth int, index int64, hash []byte) error {
-				k, err := nodeKey(depth, index)
+				k, err := nodeKey(uint(depth), uint64(index))
 				if err != nil {
 					return fmt.Errorf("failed to create nodeID: %v", err)
 				}

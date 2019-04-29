@@ -37,8 +37,14 @@ func (r RootHashMismatchError) Error() string {
 	return fmt.Sprintf("root hash mismatch: got %v, expected %v", r.ActualHash, r.ExpectedHash)
 }
 
-// Tree is a compact Merkle tree representation.
-// Uses O(log(size)) nodes to represent the current on-disk tree.
+// NodeID identifies a node of a Merkle tree.
+type NodeID struct {
+	Level uint
+	Index uint64
+}
+
+// Tree is a compact Merkle tree representation. It uses O(log(size)) nodes to
+// represent the current on-disk tree.
 //
 // TODO(pavelkalinnikov): Remove it, use compact.Range instead.
 type Tree struct {
@@ -63,27 +69,23 @@ func isPerfectTree(size int64) bool {
 	return size != 0 && (size&(size-1) == 0)
 }
 
-// GetNodeFunc is a function prototype which can look up particular nodes
+// GetNodesFunc is a function prototype which can look up particular nodes
 // within a non-compact Merkle tree. Used by the compact Tree to populate
 // itself with correct state when starting up with a non-empty tree.
-type GetNodeFunc func(depth int, index int64) ([]byte, error)
+type GetNodesFunc func(ids []NodeID) ([][]byte, error)
 
 // NewTreeWithState creates a new compact Tree for the passed in size.
 //
 // This can fail if the nodes required to recreate the tree state cannot be
 // fetched or the calculated root hash after population does not match the
 // expected value.
-
-// getNodeFn will be called a number of times with the coordinates of internal
-// MerkleTree nodes whose hash values are required to initialize the internal
-// state of the compact Tree.  The expectedRoot is the known-good tree root of
-// the tree at size, and is used to verify the correct initial state of the
-// compact Tree after initialisation.
 //
-// TODO(pavelkalinnikov): Make GetNodeFunc get all nodes at once.
-func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodeFn GetNodeFunc, expectedRoot []byte) (*Tree, error) {
+// getNodesFn will be called with the coordinates of internal Merkle tree nodes
+// whose hash values are required to initialize the internal state of the
+// compact Tree. The expectedRoot is the known-good tree root of the tree at
+// the specified size, and is used to verify the initial state.
+func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesFunc, expectedRoot []byte) (*Tree, error) {
 	sizeBits := bits.Len64(uint64(size))
-
 	r := Tree{
 		hasher: hasher,
 		nodes:  make([][]byte, sizeBits),
@@ -96,24 +98,31 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodeFn GetNodeFun
 		r.root = append(make([]byte, 0, len(expectedRoot)), expectedRoot...)
 		r.nodes[sizeBits-1] = r.root
 	} else {
-		// Pull in the nodes we need to repopulate our compact tree and verify the root
-		for depth := 0; depth < sizeBits; depth++ {
-			if size&1 == 1 {
-				index := size - 1
-				glog.V(1).Infof("fetching d: %d i: %d, leaving size %d", depth, index, size)
-				h, err := getNodeFn(depth, index)
-				if err != nil {
-					glog.Warningf("Failed to fetch node depth %d index %d: %s", depth, index, err)
-					return nil, err
-				}
-				r.nodes[depth] = h
+		ids := make([]NodeID, 0, bits.OnesCount64(uint64(size)))
+		for sz := uint64(size); sz != 0; sz &= sz - 1 { // Iterate 1-bits of size.
+			level := uint(bits.TrailingZeros64(sz))
+			index := (sz - 1) >> level
+			ids = append(ids, NodeID{Level: level, Index: index})
+		}
+		hashes, err := getNodesFn(ids)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch nodes: %v", err)
+		}
+		if got, want := len(hashes), len(ids); got != want {
+			return nil, fmt.Errorf("got %d hashes, needed %d", got, want)
+		}
+
+		for level, idx := 0, 0; level < sizeBits; level++ {
+			if size&(1<<uint(level)) != 0 {
+				r.nodes[level] = hashes[idx]
+				idx++
 			}
-			size >>= 1
 		}
 		r.recalculateRoot(func(depth int, index int64, hash []byte) error {
 			return nil
 		})
 	}
+
 	if !bytes.Equal(r.root, expectedRoot) {
 		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
 		return nil, RootHashMismatchError{ActualHash: r.root, ExpectedHash: expectedRoot}
@@ -284,7 +293,7 @@ func (t *Tree) Size() int64 {
 }
 
 // Hashes returns a copy of the set of node hashes that comprise the compact
-// representation of the tree.  A tree whose size is a power of two has no
+// representation of the tree. A tree whose size is a power of two has no
 // internal node hashes (just the root hash), so returns nil.
 //
 // TODO(pavelkalinnikov): Get rid of this format.

@@ -130,26 +130,35 @@ func NewSequencer(
 	}
 }
 
-// TODO: This currently doesn't use the batch api for fetching the required nodes. This
-// would be more efficient but requires refactoring.
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
-	mt, err := compact.NewTreeWithState(s.hasher, int64(root.TreeSize), func(depth int, index int64) ([]byte, error) {
-		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create nodeID: %v", err)
+	mt, err := compact.NewTreeWithState(s.hasher, int64(root.TreeSize), func(ids []compact.NodeID) ([][]byte, error) {
+		storIDs := make([]storage.NodeID, len(ids))
+		for i, id := range ids {
+			nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create nodeID: %v", err)
+			}
+			storIDs[i] = nodeID
 		}
-		nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), []storage.NodeID{nodeID})
 
+		nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), storIDs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
 		}
-
-		// We expect to get exactly one node here
-		if nodes == nil || len(nodes) != 1 {
-			return nil, fmt.Errorf("did not retrieve one node while loading compact Merkle tree, got %#v for ID %v@%v", nodes, nodeID.String(), root.Revision)
+		if got, want := len(nodes), len(storIDs); got != want {
+			return nil, fmt.Errorf("failed to get %d nodes at rev %d, got %d", want, root.Revision, got)
+		}
+		for i, id := range storIDs {
+			if !nodes[i].NodeID.Equivalent(id) {
+				return nil, fmt.Errorf("node ID mismatch at %d", i)
+			}
 		}
 
-		return nodes[0].Hash, nil
+		hashes := make([][]byte, len(nodes))
+		for i, node := range nodes {
+			hashes[i] = node.Hash
+		}
+		return hashes, nil
 	}, root.RootHash)
 
 	if err != nil {
