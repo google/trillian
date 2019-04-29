@@ -48,6 +48,13 @@ var (
 		LeafIndex:          16,
 		IntegrateTimestamp: testonly.MustToTimestampProto(fakeTime()),
 	}
+	testLeaf21 = &trillian.LogLeaf{
+		MerkleLeafHash:     testLeaf16Hash,
+		LeafValue:          testLeaf16Data,
+		ExtraData:          nil,
+		LeafIndex:          21,
+		IntegrateTimestamp: testonly.MustToTimestampProto(fakeTime()),
+	}
 
 	testRoot16 = &types.LogRootV1{
 		TreeSize: 16,
@@ -109,6 +116,65 @@ var (
 		TreeSize:       17,
 	}
 	testSignedRoot, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(testRoot)
+
+	// TODO(pavelkalinnikov): Generate boilerplate structures, like the ones
+	// below, in a more compact way.
+	testRoot21 = &types.LogRootV1{
+		TreeSize:       21,
+		Revision:       5,
+		RootHash:       testonly.MustDecodeBase64("lfLXEAeBNB/zX1+97lInoqpnLJtX+AS/Ok0mwlWFpRc="),
+		TimestampNanos: uint64(fakeTimeForTest.Add(-10 * time.Millisecond).UnixNano()),
+	}
+	testSignedRoot21, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(testRoot21)
+	// Nodes that will be loaded when updating the tree of size 21.
+	compactTree21 = []storage.Node{
+		{
+			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14}, PrefixLenBits: 64},
+			Hash:         testonly.MustDecodeBase64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="),
+			NodeRevision: 5,
+		},
+		{
+			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 62},
+			Hash:         testonly.MustDecodeBase64("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="),
+			NodeRevision: 5,
+		},
+		{
+			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 60},
+			Hash:         testonly.MustDecodeBase64("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="),
+			NodeRevision: 5,
+		},
+	}
+	// Nodes that will be stored after updating the tree of size 21.
+	updatedNodes21 = []storage.Node{
+		{
+			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59},
+			Hash:         testonly.MustDecodeBase64("1oUtLDlyOWXLHLAvL3NvWaO4D9kr0oQYScylDlgjey4="),
+			NodeRevision: 6,
+		},
+		{
+			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 61},
+			Hash:         testonly.MustDecodeBase64("1yCvo/9xbNIileBAEjc+c00GxVQQV7h54Tdmkc48uRU="),
+			NodeRevision: 6,
+		},
+		{
+			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14}, PrefixLenBits: 63},
+			Hash:         testonly.MustDecodeBase64("S55qEsQMx90/eq1fSb87pYCB9WIYL7hBgiTY+B9LmPw="),
+			NodeRevision: 6,
+		},
+		{
+			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15}, PrefixLenBits: 64},
+			Hash:         testonly.MustDecodeBase64("L5Iyd7aFOVewxiRm29xD+EU+jvEo4RfufBijKdflWMk="),
+			NodeRevision: 6,
+		},
+	}
+	// The new root after updating the tree of size 21.
+	updatedRoot21 = &types.LogRootV1{
+		RootHash:       testonly.MustDecodeBase64("1oUtLDlyOWXLHLAvL3NvWaO4D9kr0oQYScylDlgjey4="),
+		TimestampNanos: uint64(fakeTimeForTest.UnixNano()),
+		Revision:       6,
+		TreeSize:       22,
+	}
+	updatedSignedRoot21, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(updatedRoot21)
 )
 
 var fakeTimeForTest = fakeTime()
@@ -134,6 +200,9 @@ type testParameters struct {
 
 	latestSignedRootError error
 	latestSignedRoot      *trillian.SignedLogRoot
+
+	merkleNodesGet      *[]storage.Node
+	merkleNodesGetError error
 
 	updatedLeaves      *[]*trillian.LogLeaf
 	updatedLeavesError error
@@ -231,6 +300,17 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	if params.latestSignedRoot != nil {
 		mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*params.latestSignedRoot, params.latestSignedRootError)
+	}
+
+	if params.merkleNodesGet != nil {
+		for _, node := range *params.merkleNodesGet {
+			ids := []storage.NodeID{node.NodeID}
+			nodes := []storage.Node{node}
+			mockTx.EXPECT().GetMerkleNodes(gomock.Any(), params.writeRevision-1, ids).Return(nodes, params.merkleNodesGetError)
+			if params.merkleNodesGetError != nil {
+				break
+			}
+		}
 	}
 
 	if params.updatedLeaves != nil {
@@ -391,6 +471,20 @@ func TestIntegrateBatch(t *testing.T) {
 			errStr: "root",
 		},
 		{
+			desc: "get-merkle-nodes-fails",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       int64(testRoot21.Revision + 1),
+				dequeueLimit:        1,
+				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:    testSignedRoot21,
+				merkleNodesGet:      &compactTree21,
+				merkleNodesGetError: errors.New("getmerklenodes"),
+				skipStoreSignedRoot: true,
+			},
+			errStr: "getmerklenodes",
+		},
+		{
 			desc: "update-seq-leaves-fails",
 			params: testParameters{
 				logID:               154035,
@@ -481,6 +575,23 @@ func TestIntegrateBatch(t *testing.T) {
 				updatedLeaves:    &leaves16,
 				merkleNodesSet:   &updatedNodes,
 				storeSignedRoot:  testSignedRoot,
+				signer:           fixedSigner,
+			},
+			wantCount: 1,
+		},
+		{
+			desc: "sequence-leaf-21",
+			params: testParameters{
+				logID:            154035,
+				writeRevision:    int64(testRoot21.Revision + 1),
+				dequeueLimit:     1,
+				shouldCommit:     true,
+				dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot: testSignedRoot21,
+				merkleNodesGet:   &compactTree21,
+				updatedLeaves:    &[]*trillian.LogLeaf{testLeaf21},
+				merkleNodesSet:   &updatedNodes21,
+				storeSignedRoot:  updatedSignedRoot21,
 				signer:           fixedSigner,
 			},
 			wantCount: 1,
