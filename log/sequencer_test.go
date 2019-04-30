@@ -64,6 +64,13 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTimeForTest.Add(-10 * time.Millisecond).UnixNano()),
 	}
+	compactTree16 = []storage.Node{{
+		NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 60},
+		// TODO(pavelkalinnikov): Put a well-formed hash here. The current one is
+		// taken from testRoot16 and retained for regression purposes.
+		Hash:         []byte{},
+		NodeRevision: 5,
+	}}
 
 	fixedSigner         = newSignerWithFixedSig([]byte("signed"))
 	testSignedRoot16, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(testRoot16)
@@ -406,6 +413,7 @@ func TestIntegrateBatch(t *testing.T) {
 				latestSignedRoot: testSignedRoot16,
 				dequeuedLeaves:   noLeaves,
 				writeRevision:    int64(testRoot16.Revision + 1),
+				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &noLeaves,
 				merkleNodesSet:   &noNodes,
 				signer:           fixedSigner,
@@ -422,6 +430,7 @@ func TestIntegrateBatch(t *testing.T) {
 				latestSignedRoot: testSignedRoot16,
 				dequeuedLeaves:   noLeaves,
 				writeRevision:    int64(testRoot16.Revision + 1),
+				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &noLeaves,
 				merkleNodesSet:   &noNodes,
 				signer:           fixedSigner,
@@ -489,6 +498,7 @@ func TestIntegrateBatch(t *testing.T) {
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot16,
+				merkleNodesGet:      &compactTree16,
 				updatedLeaves:       &leaves16,
 				updatedLeavesError:  errors.New("unsequenced"),
 				skipStoreSignedRoot: true,
@@ -503,6 +513,7 @@ func TestIntegrateBatch(t *testing.T) {
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot16,
+				merkleNodesGet:      &compactTree16,
 				updatedLeaves:       &leaves16,
 				merkleNodesSet:      &updatedNodes,
 				merkleNodesSetError: errors.New("setmerklenodes"),
@@ -518,6 +529,7 @@ func TestIntegrateBatch(t *testing.T) {
 				dequeueLimit:         1,
 				dequeuedLeaves:       []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:     testSignedRoot16,
+				merkleNodesGet:       &compactTree16,
 				updatedLeaves:        &leaves16,
 				merkleNodesSet:       &updatedNodes,
 				storeSignedRoot:      nil,
@@ -534,6 +546,7 @@ func TestIntegrateBatch(t *testing.T) {
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot16,
+				merkleNodesGet:      &compactTree16,
 				updatedLeaves:       &leaves16,
 				merkleNodesSet:      &updatedNodes,
 				storeSignedRoot:     nil,
@@ -553,6 +566,7 @@ func TestIntegrateBatch(t *testing.T) {
 				commitError:      errors.New("commit"),
 				dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot: testSignedRoot16,
+				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &leaves16,
 				merkleNodesSet:   &updatedNodes,
 				storeSignedRoot:  nil,
@@ -569,6 +583,7 @@ func TestIntegrateBatch(t *testing.T) {
 				shouldCommit:     true,
 				dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot: testSignedRoot16,
+				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &leaves16,
 				merkleNodesSet:   &updatedNodes,
 				storeSignedRoot:  testSignedRoot,
@@ -601,6 +616,7 @@ func TestIntegrateBatch(t *testing.T) {
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot17,
+				merkleNodesGet:      &compactTree16,
 				updatedLeaves:       &leaves16,
 				merkleNodesSet:      &updatedNodes,
 				skipStoreSignedRoot: true,
@@ -615,6 +631,7 @@ func TestIntegrateBatch(t *testing.T) {
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot18,
+				merkleNodesGet:      &compactTree16,
 				updatedLeaves:       &leaves16,
 				merkleNodesSet:      &updatedNodes,
 				skipStoreSignedRoot: true,
@@ -736,6 +753,9 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			logTX := storage.NewMockLogTreeTX(ctrl)
 			logTX.EXPECT().DequeueLeaves(any, any, any).Return(test.leaves, nil)
 			logTX.EXPECT().LatestSignedLogRoot(any).Return(*testSignedRoot16, nil)
+			if len(test.leaves) != 0 {
+				logTX.EXPECT().GetMerkleNodes(any, any, any).Return(compactTree16, nil)
+			}
 			logTX.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(int64(testRoot16.Revision+1), nil)
 			logTX.EXPECT().UpdateSequencedLeaves(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().SetMerkleNodes(any, any).AnyTimes().Return(nil)
