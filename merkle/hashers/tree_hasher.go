@@ -48,7 +48,7 @@ type InplaceLogHasher interface {
 	// EmptyRootInto supports returning a special case for the root of an empty tree.
 	// The passed in slice is mutated. The caller is responsible for making copies
 	// where necessary. Not thread safe.
-	EmptyRootInto([]byte) []byte
+	EmptyRootInto(res []byte) []byte
 	// HashLeafInto computes the hash of a leaf into an existing slice,
 	// which is mutated. The leaf and res slices may be the same. Not thread safe.
 	HashLeafInto(leaf, res []byte) ([]byte, error)
