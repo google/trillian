@@ -80,8 +80,8 @@ func createMetrics(mf monitoring.MetricFactory) {
 	}
 	quota.InitMetrics(mf)
 	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
-	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Tree size of last STH signed", logIDLabel)
-	seqTimestamp = mf.NewGauge("sequencer_tree_timestamp", "Time of last STH signed in ms since epoch", logIDLabel)
+	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Tree size of last SLR signed", logIDLabel)
+	seqTimestamp = mf.NewGauge("sequencer_tree_timestamp", "Time of last SLR signed in ms since epoch", logIDLabel)
 	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in seconds", logIDLabel)
 	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in seconds", logIDLabel)
 	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in seconds", logIDLabel)
@@ -377,7 +377,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 
 		// We've done all the reads, can now do the updates in the same transaction.
-		// The schema should prevent multiple STHs being inserted with the same
+		// The schema should prevent multiple SLRs being inserted with the same
 		// revision number so it should not be possible for colliding updates to
 		// commit.
 		newVersion, err := tx.WriteRevision(ctx)
