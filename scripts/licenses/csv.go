@@ -37,7 +37,7 @@ var (
 )
 
 func init() {
-	csvCmd.Flags().StringArrayVar(&gitRemotes, "git_remote", []string{"origin"}, "Remote Git repositories to try")
+	csvCmd.Flags().StringArrayVar(&gitRemotes, "git_remote", []string{"origin", "upstream"}, "Remote Git repositories to try")
 
 	rootCmd.AddCommand(csvCmd)
 }
