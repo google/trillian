@@ -426,7 +426,8 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			Revision:       uint64(newVersion),
 		}
 		seqTreeSize.Set(float64(newLogRoot.TreeSize), label)
-		seqTimestamp.Set(float64(newLogRoot.TimestampNanos), label)
+		seqTimestamp.Set(float64(time.Duration(newLogRoot.TimestampNanos)*time.Nanosecond/
+			time.Millisecond), label)
 
 		if newLogRoot.TimestampNanos <= currentRoot.TimestampNanos {
 			return fmt.Errorf("%v: refusing to sign root with timestamp earlier than previous root (%d <= %d)", tree.TreeId, newLogRoot.TimestampNanos, currentRoot.TimestampNanos)
