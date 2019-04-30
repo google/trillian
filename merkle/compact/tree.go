@@ -93,31 +93,25 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 		size:   size,
 	}
 
-	if isPerfectTree(size) {
-		glog.V(1).Info("Is perfect tree.")
-		r.root = append(make([]byte, 0, len(expectedRoot)), expectedRoot...)
-		r.nodes[sizeBits-1] = r.root
-	} else {
-		ids := make([]NodeID, 0, bits.OnesCount64(uint64(size)))
-		for sz := uint64(size); sz != 0; sz &= sz - 1 { // Iterate 1-bits of size.
-			level := uint(bits.TrailingZeros64(sz))
-			index := (sz - 1) >> level
-			ids = append(ids, NodeID{Level: level, Index: index})
-		}
-		hashes, err := getNodesFn(ids)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch nodes: %v", err)
-		}
-		if got, want := len(hashes), len(ids); got != want {
-			return nil, fmt.Errorf("got %d hashes, needed %d", got, want)
-		}
-		for i, id := range ids {
-			r.nodes[id.Level] = hashes[i]
-		}
-		r.recalculateRoot(func(depth int, index int64, hash []byte) error {
-			return nil
-		})
+	ids := make([]NodeID, 0, bits.OnesCount64(uint64(size)))
+	for sz := uint64(size); sz != 0; sz &= sz - 1 { // Iterate 1-bits of size.
+		level := uint(bits.TrailingZeros64(sz))
+		index := (sz - 1) >> level
+		ids = append(ids, NodeID{Level: level, Index: index})
 	}
+	hashes, err := getNodesFn(ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch nodes: %v", err)
+	}
+	if got, want := len(hashes), len(ids); got != want {
+		return nil, fmt.Errorf("got %d hashes, needed %d", got, want)
+	}
+	for i, id := range ids {
+		r.nodes[id.Level] = hashes[i]
+	}
+	r.recalculateRoot(func(depth int, index int64, hash []byte) error {
+		return nil
+	})
 
 	if !bytes.Equal(r.root, expectedRoot) {
 		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
