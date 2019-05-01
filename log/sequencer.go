@@ -209,31 +209,28 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label 
 
 func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, error) {
 	nodeMap := make(map[string]storage.Node)
+	store := func(level int, index int64, hash []byte) error {
+		id, err := storage.NewNodeIDForTreeCoords(int64(level), index, maxTreeDepth)
+		if err != nil {
+			return err
+		}
+		nodeMap[id.String()] = storage.Node{NodeID: id, Hash: hash}
+		return nil
+	}
+
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
 		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) error {
-			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
-			if err != nil {
-				return err
-			}
-			nodeMap[nodeID.String()] = storage.Node{
-				NodeID: nodeID,
-				Hash:   hash,
-			}
-			return nil
+			return store(depth, index, hash)
 		})
 		if err != nil {
 			return nil, err
+		} else if leaf.LeafIndex != seq {
+			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", seq, leaf.LeafIndex)
 		}
-
-		// Store leaf hash in the Merkle tree too:
-		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
-		if err != nil {
+		// Store leaf hash in the Merkle tree too.
+		if err := store(0, seq, leaf.MerkleLeafHash); err != nil {
 			return nil, err
-		}
-		nodeMap[leafNodeID.String()] = storage.Node{
-			NodeID: leafNodeID,
-			Hash:   leaf.MerkleLeafHash,
 		}
 	}
 
