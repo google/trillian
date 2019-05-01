@@ -170,17 +170,15 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
-	targetNodes := make([]storage.Node, len(nodeMap))
-	i := 0
+	nodes := make([]storage.Node, 0, len(nodeMap))
 	for id, hash := range nodeMap {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
 		if err != nil {
 			return nil, err
 		}
-		targetNodes[i] = storage.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion}
-		i++
+		nodes = append(nodes, storage.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion})
 	}
-	return targetNodes, nil
+	return nodes, nil
 }
 
 func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label string) error {
