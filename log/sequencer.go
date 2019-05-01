@@ -180,6 +180,33 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 	return targetNodes, nil
 }
 
+func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label string) error {
+	now := s.timeSource.Now()
+	integrateAt, err := ptypes.TimestampProto(now)
+	if err != nil {
+		return fmt.Errorf("got invalid integrate timestamp: %v", err)
+	}
+	for i, leaf := range leaves {
+		// The leaf should already have the correct index before it's integrated.
+		if got, want := leaf.LeafIndex, begin+int64(i); got != want {
+			return fmt.Errorf("got invalid leaf index: %v, want: %v", got, want)
+		}
+		leaf.IntegrateTimestamp = integrateAt
+
+		// Old leaves might not have a QueueTimestamp, only calculate the merge
+		// delay if this one does.
+		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
+			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
+			if err != nil {
+				return fmt.Errorf("got invalid queue timestamp: %v", queueTS)
+			}
+			mergeDelay := now.Sub(queueTS)
+			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
+		}
+	}
+	return nil
+}
+
 func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, error) {
 	nodeMap := make(map[string]storage.Node)
 	// Update the tree state by integrating the leaves one by one.
@@ -197,25 +224,6 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 		})
 		if err != nil {
 			return nil, err
-		}
-		// The leaf should already have the correct index before it's integrated.
-		if leaf.LeafIndex != seq {
-			return nil, fmt.Errorf("got invalid leaf index: %v, want: %v", leaf.LeafIndex, seq)
-		}
-		integrateTS := s.timeSource.Now()
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(integrateTS)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
-		}
-
-		// Old leaves might not have a QueueTimestamp, only calculate the merge delay if this one does.
-		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
-			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
-			if err != nil {
-				return nil, fmt.Errorf("got invalid queue timestamp: %v", queueTS)
-			}
-			mergeDelay := integrateTS.Sub(queueTS)
-			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
 		}
 
 		// Store leaf hash in the Merkle tree too:
@@ -401,6 +409,9 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
+		if err := s.prepareLeaves(sequencedLeaves, merkleTree.Size(), label); err != nil {
+			return err
+		}
 		nodeMap, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
 		if err != nil {
 			return err
