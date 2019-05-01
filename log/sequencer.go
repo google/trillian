@@ -169,12 +169,15 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 	return mt, nil
 }
 
-func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVersion int64) ([]storage.Node, error) {
+func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
 	targetNodes := make([]storage.Node, len(nodeMap))
 	i := 0
-	for _, node := range nodeMap {
-		node.NodeRevision = newVersion
-		targetNodes[i] = node
+	for id, hash := range nodeMap {
+		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
+		if err != nil {
+			return nil, err
+		}
+		targetNodes[i] = storage.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion}
 		i++
 	}
 	return targetNodes, nil
@@ -207,21 +210,17 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label 
 	return nil
 }
 
-func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, error) {
-	nodeMap := make(map[string]storage.Node)
-	store := func(level int, index int64, hash []byte) error {
-		id, err := storage.NewNodeIDForTreeCoords(int64(level), index, maxTreeDepth)
-		if err != nil {
-			return err
-		}
-		nodeMap[id.String()] = storage.Node{NodeID: id, Hash: hash}
-		return nil
+func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, error) {
+	nodeMap := make(map[compact.NodeID][]byte)
+	store := func(level uint, index uint64, hash []byte) {
+		nodeMap[compact.NodeID{Level: level, Index: index}] = hash
 	}
 
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
 		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) error {
-			return store(depth, index, hash)
+			store(uint(depth), uint64(index), hash)
+			return nil
 		})
 		if err != nil {
 			return nil, err
@@ -229,9 +228,7 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", seq, leaf.LeafIndex)
 		}
 		// Store leaf hash in the Merkle tree too.
-		if err := store(0, seq, leaf.MerkleLeafHash); err != nil {
-			return nil, err
-		}
+		store(0, uint64(seq), leaf.MerkleLeafHash)
 	}
 
 	return nodeMap, nil
