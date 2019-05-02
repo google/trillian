@@ -99,47 +99,57 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		copySrc := false
 		switch licenseType {
 		case licenses.Restricted, licenses.Reciprocal:
-			copySrc = true
+			// Copy the entire source directory for the library.
+			if err := copySrc(libDir, libSaveDir); err != nil {
+				return err
+			}
 		case licenses.Notice, licenses.Permissive, licenses.Unencumbered:
-			copySrc = false
+			// Just copy the license and copyright notice.
+			if err := copyNotices(lib.LicensePath, libSaveDir); err != nil {
+				return err
+			}
 		case licenses.Forbidden:
 			return fmt.Errorf("forbidden license %q used by this library: %s", licenseName, lib)
 		default:
 			return fmt.Errorf("%q license is of an unknown type: %q", licenseName, licenseType)
 		}
-		if copySrc {
-			if err := copy.Copy(libDir, libSaveDir); err != nil {
-				return err
-			}
-			// Delete the .git directory from the saved copy, if it exists, since we don't want to save the user's
-			// local Git config along with the source code.
-			if err := os.RemoveAll(filepath.Join(libSaveDir, ".git")); err != nil {
-				return err
-			}
-		} else {
-			// Just copy the license and copyright notice.
-			if err := copy.Copy(lib.LicensePath, filepath.Join(libSaveDir, filepath.Base(lib.LicensePath))); err != nil {
-				return err
-			}
-
-			files, err := ioutil.ReadDir(libDir)
-			if err != nil {
-				return err
-			}
-			for _, f := range files {
-				if fName := f.Name(); !f.IsDir() && noticeRegexp.MatchString(fName) {
-					if err := copy.Copy(filepath.Join(libDir, fName), filepath.Join(libSaveDir, fName)); err != nil {
-						return err
-					}
-				}
-			}
-		}
 	}
 	if len(unlicensedPkgs) > 0 {
 		return fmt.Errorf("Unlicensed packages: %v", unlicensedPkgs)
+	}
+	return nil
+}
+
+func copySrc(src, dest string) error {
+	if err := copy.Copy(src, dest); err != nil {
+		return err
+	}
+	// Delete the .git directory from the saved copy, if it exists, since we don't want to save the user's
+	// local Git config along with the source code.
+	if err := os.RemoveAll(filepath.Join(dest, ".git")); err != nil {
+		return err
+	}
+	return nil
+}
+
+func copyNotices(licensePath, dest string) error {
+	if err := copy.Copy(licensePath, filepath.Join(dest, filepath.Base(licensePath))); err != nil {
+		return err
+	}
+
+	src := filepath.Dir(licensePath)
+	files, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if fName := f.Name(); !f.IsDir() && noticeRegexp.MatchString(fName) {
+			if err := copy.Copy(filepath.Join(src, fName), filepath.Join(dest, fName)); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
