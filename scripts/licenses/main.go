@@ -73,6 +73,8 @@ func libraries(importPath string) ([]*licenses.Library, error) {
 	return licenses.Libraries(&buildCtx, pkg)
 }
 
+// ParseGoBuildFlags will parse the $GOFLAGS environment variable for recognised
+// flags and adopt their values.
 func parseGoBuildFlags(flagset *pflag.FlagSet) error {
 	// Temporarily ensure that unknown flags are not treated as an error, because
 	// this binary doesn't support most `go build` flags.
@@ -88,6 +90,7 @@ func parseGoBuildFlags(flagset *pflag.FlagSet) error {
 	return flagset.Parse(goFlags)
 }
 
+// Unvendor removes the "*/vendor/" prefix from the given import path, if present.
 func unvendor(importPath string) string {
 	if vendorerAndVendoree := strings.SplitN(importPath, "/vendor/", 2); len(vendorerAndVendoree) == 2 {
 		return vendorerAndVendoree[1]
