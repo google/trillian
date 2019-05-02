@@ -32,7 +32,11 @@ import (
 var (
 	noticeRegexp = regexp.MustCompile(`^NOTICE(\.(txt|md))?$`)
 
+	// savePath is where the output of the command is written to.
 	savePath string
+	// overwriteSavePath controls behaviour when the directory indicated by savepath already exists.
+	// If true, the directory will be replaced. If false, the command will fail.
+	overwriteSavePath bool
 
 	saveCmd = &cobra.Command{
 		Use:   "save <package>",
@@ -51,16 +55,27 @@ func init() {
 		glog.Fatal(err)
 	}
 
+	saveCmd.Flags().BoolVar(&overwriteSavePath, "force", false, "Delete the destination directory if it already exists.")
+
 	rootCmd.AddCommand(saveCmd)
 }
 
 func saveMain(cmd *cobra.Command, args []string) error {
+	if overwriteSavePath {
+		if err := os.RemoveAll(savePath); err != nil {
+			return err
+		}
+	}
+
+	// Check that the save path doesn't exist, otherwise it'd end up with a mix of
+	// existing files and the output of this command.
 	if d, err := os.Open(savePath); err == nil {
 		d.Close()
 		return fmt.Errorf("%s already exists", savePath)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
+
 	// Import the main package and find all of the libraries that it uses.
 	wd, err := os.Getwd()
 	if err != nil {
