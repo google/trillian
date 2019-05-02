@@ -169,64 +169,70 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 	return mt, nil
 }
 
-func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVersion int64) ([]storage.Node, error) {
-	targetNodes := make([]storage.Node, len(nodeMap))
-	i := 0
-	for _, node := range nodeMap {
-		node.NodeRevision = newVersion
-		targetNodes[i] = node
-		i++
+func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
+	nodes := make([]storage.Node, 0, len(nodeMap))
+	for id, hash := range nodeMap {
+		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, storage.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion})
 	}
-	return targetNodes, nil
+	return nodes, nil
 }
 
-func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, error) {
-	nodeMap := make(map[string]storage.Node)
+func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label string) error {
+	now := s.timeSource.Now()
+	integrateAt, err := ptypes.TimestampProto(now)
+	if err != nil {
+		return fmt.Errorf("got invalid integrate timestamp: %v", err)
+	}
+	for i, leaf := range leaves {
+		// The leaf should already have the correct index before it's integrated.
+		if got, want := leaf.LeafIndex, begin+int64(i); got != want {
+			return fmt.Errorf("got invalid leaf index: %v, want: %v", got, want)
+		}
+		leaf.IntegrateTimestamp = integrateAt
+
+		// Old leaves might not have a QueueTimestamp, only calculate the merge
+		// delay if this one does.
+		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
+			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
+			if err != nil {
+				return fmt.Errorf("got invalid queue timestamp: %v", queueTS)
+			}
+			mergeDelay := now.Sub(queueTS)
+			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
+		}
+	}
+	return nil
+}
+
+func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, error) {
+	// TODO(pavelkalinnikov): Move this call to IntegrateBatch when gocyclo is
+	// happy with the function complexity.
+	if err := s.prepareLeaves(leaves, mt.Size(), label); err != nil {
+		return nil, err
+	}
+
+	nodeMap := make(map[compact.NodeID][]byte)
+	store := func(level uint, index uint64, hash []byte) {
+		nodeMap[compact.NodeID{Level: level, Index: index}] = hash
+	}
+
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
 		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) error {
-			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
-			if err != nil {
-				return err
-			}
-			nodeMap[nodeID.String()] = storage.Node{
-				NodeID: nodeID,
-				Hash:   hash,
-			}
+			store(uint(depth), uint64(index), hash)
 			return nil
 		})
 		if err != nil {
 			return nil, err
+		} else if leaf.LeafIndex != seq {
+			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", seq, leaf.LeafIndex)
 		}
-		// The leaf should already have the correct index before it's integrated.
-		if leaf.LeafIndex != seq {
-			return nil, fmt.Errorf("got invalid leaf index: %v, want: %v", leaf.LeafIndex, seq)
-		}
-		integrateTS := s.timeSource.Now()
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(integrateTS)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
-		}
-
-		// Old leaves might not have a QueueTimestamp, only calculate the merge delay if this one does.
-		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
-			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
-			if err != nil {
-				return nil, fmt.Errorf("got invalid queue timestamp: %v", queueTS)
-			}
-			mergeDelay := integrateTS.Sub(queueTS)
-			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
-		}
-
-		// Store leaf hash in the Merkle tree too:
-		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
-		if err != nil {
-			return nil, err
-		}
-		nodeMap[leafNodeID.String()] = storage.Node{
-			NodeID: leafNodeID,
-			Hash:   leaf.MerkleLeafHash,
-		}
+		// Store leaf hash in the Merkle tree too.
+		store(0, uint64(seq), leaf.MerkleLeafHash)
 	}
 
 	return nodeMap, nil
