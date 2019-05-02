@@ -268,16 +268,26 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			})
 		}
 
+		// Work around a performance issue when using the map in
+		// single-transaction mode by preloading all the nodes we know the
+		// sparse merkle writer is going to need.
 		if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
 			readRev, err := tx.ReadRevision(ctx)
 			if err != nil {
 				return err
 			}
+			nidSet := make(map[string]bool)
 			nids := make([]storage.NodeID, 0, len(hkv)*256)
 			for _, i := range hkv {
 				nid := storage.NewNodeIDFromHash(i.HashedKey)
 				sibs := (&nid).Siblings()
-				nids = append(nids, sibs...)
+				for _, sib := range sibs {
+					sibID := sib.String()
+					if _, ok := nidSet[sibID]; !ok {
+						nidSet[sibID] = true
+						nids = append(nids, sibs...)
+					}
+				}
 			}
 			if _, err := tx.GetMerkleNodes(ctx, readRev, nids); err != nil {
 				return err
