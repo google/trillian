@@ -21,6 +21,7 @@ import (
 	"fmt"
 	_ "net/http/pprof" // Register pprof HTTP handlers.
 	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/golang/glog"
@@ -71,6 +72,10 @@ var (
 	masterHoldJitter   = flag.Duration("master_hold_jitter", 120*time.Second, "Maximal random addition to --master_hold_interval")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
+
+	// Profiling related flags.
+	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
+	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
 )
 
 func main() {
@@ -160,6 +165,13 @@ func main() {
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
 	go sequencerTask.OperationLoop(ctx)
 
+	// Enable CPU profile if requested
+	if *cpuProfile != "" {
+		f := mustCreate(*cpuProfile)
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	m := server.Main{
 		RPCEndpoint:  *rpcEndpoint,
 		HTTPEndpoint: *httpEndpoint,
@@ -187,4 +199,12 @@ func main() {
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
 	time.Sleep(time.Second * 5)
+}
+
+func mustCreate(fileName string) *os.File {
+	f, err := os.Create(fileName)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	return f
 }
