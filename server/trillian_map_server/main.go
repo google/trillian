@@ -68,6 +68,7 @@ var (
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 
 	useSingleTransaction = flag.Bool("single_transaction", false, "Experimental: use a single transaction when updating the map")
+	largePreload         = flag.Bool("large_preload_fix", false, "Experimental: work-around locking performance issues when using useSingleTransaction mode")
 
 	// Profiling related flags.
 	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
@@ -150,6 +151,7 @@ func main() {
 			mapServer := server.NewTrillianMapServer(registry,
 				server.TrillianMapServerOptions{
 					UseSingleTransaction: *useSingleTransaction,
+					UseLargePreload:      *largePreload,
 				})
 			if err := mapServer.IsHealthy(); err != nil {
 				return err
