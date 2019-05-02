@@ -196,6 +196,11 @@ func main() {
 		glog.Exitf("Server exited with error: %v", err)
 	}
 
+	if *memProfile != "" {
+		f := mustCreate(*memProfile)
+		pprof.WriteHeapProfile(f)
+	}
+
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
 	time.Sleep(time.Second * 5)
