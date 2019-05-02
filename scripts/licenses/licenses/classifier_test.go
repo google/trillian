@@ -27,7 +27,7 @@ func TestIdentify(t *testing.T) {
 	}{
 		{
 			desc:        "Apache 2.0 license",
-			file:        "testdata/apache2.txt",
+			file:        "../../../LICENSE",
 			confidence:  1,
 			wantLicense: "Apache-2.0",
 		},
