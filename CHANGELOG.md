@@ -4,6 +4,13 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Add Profiling Flags to Binaries
+
+The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
+binaries now have CPU and heap profiling flags. Profiling is off by default.
+For more details see the
+[Go Blog](https://blog.golang.org/profiling-go-programs).
+
 ### Introduce BatchInclusionProof function
 
 Added a batch version of the Merkle Tree InclusionProof function.
