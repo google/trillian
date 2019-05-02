@@ -859,13 +859,13 @@ func mustDecode(h string) []byte {
 func BenchmarkString(b *testing.B) {
 	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
 	for i := 0; i < b.N; i++ {
-		nID.String()
+		_ = nID.String()
 	}
 }
 
 func BenchmarkAsKey(b *testing.B) {
 	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
 	for i := 0; i < b.N; i++ {
-		nID.AsKey()
+		_ = nID.AsKey()
 	}
 }
