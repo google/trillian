@@ -18,6 +18,8 @@ import (
 	"context"
 	"flag"
 	_ "net/http/pprof" // Register pprof HTTP handlers.
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/golang/glog"
@@ -66,6 +68,10 @@ var (
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 
 	useSingleTransaction = flag.Bool("single_transaction", false, "Experimental: use a single transaction when updating the map")
+
+	// Profiling related flags.
+	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
+	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
 )
 
 func main() {
@@ -112,6 +118,13 @@ func main() {
 		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 			return der.NewProtoFromSpec(spec)
 		},
+	}
+
+	// Enable CPU profile if requested.
+	if *cpuProfile != "" {
+		f := mustCreate(*cpuProfile)
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	m := server.Main{
@@ -162,4 +175,17 @@ func main() {
 	if err := m.Run(ctx); err != nil {
 		glog.Exitf("Server exited with error: %v", err)
 	}
+
+	if *memProfile != "" {
+		f := mustCreate(*memProfile)
+		pprof.WriteHeapProfile(f)
+	}
+}
+
+func mustCreate(fileName string) *os.File {
+	f, err := os.Create(fileName)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	return f
 }
