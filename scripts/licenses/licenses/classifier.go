@@ -70,7 +70,6 @@ func NewClassifier(confidenceThreshold float64) (*Classifier, error) {
 }
 
 // Identify returns the name of a license, given its file path.
-// Pass this name to TypeFromName() to determine the license type.
 func (c *Classifier) Identify(licensePath string) (string, error) {
 	content, err := ioutil.ReadFile(licensePath)
 	if err != nil {
