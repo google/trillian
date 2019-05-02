@@ -16,17 +16,23 @@ cache:
 
 
 env:
-  - WITH_COVERAGE=true
-  - GOFLAGS='-race'
-  - GOFLAGS='-race --tags=batched_queue'
-  - GOFLAGS='-race' WITH_ETCD=true
-  - GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
-  - WITH_DOCKER_TESTS=true
+  - PRESUB_TESTS=true WITH_COVERAGE=true
+  - PRESUB_TESTS=true GOFLAGS='-race'
+  - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue'
+  - PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true
+  - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
+  - INTEG_TESTS=true WITH_COVERAGE=true
+  - INTEG_TESTS=true GOFLAGS='-race'
+  - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'
+  - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true
+  - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
+  - BAZEL_TESTS=true
+  - DOCKER_TESTS=true
 
 matrix:
   fast_finish: true
   allow_failures:
-    - env: WITH_DOCKER_TESTS=true
+    - env: DOCKER_TESTS=true
 
 services:
   - docker
@@ -73,12 +79,14 @@ install:
   # install bazel
   - |
     (
-      BAZEL_VERSION='0.18.0'
-      URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
-      wget -O install.sh ${URL}
-      chmod +x install.sh
-      ./install.sh --user
-      rm -f install.sh
+    if [[ "${BAZEL_TESTS}" == "true" ]]; then
+        BAZEL_VERSION='0.18.0'
+        URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
+        wget -O install.sh ${URL}
+        chmod +x install.sh
+        ./install.sh --user
+        rm -f install.sh
+      fi
     )
 
 before_script:
@@ -90,30 +98,37 @@ script:
   - set -e
   - cd "$HOME/gopath/src/github.com/google/trillian"
   - export GO_TEST_TIMEOUT=20m
-  - ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
   - |
+    if [[ "${PRESUB_TESTS}" == "true" ]]; then
+      ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
       # Check re-generation didn't change anything. Skip protoc-generated files
       # because protoc is not deterministic when generating file descriptors.
       echo "Checking that generated files are the same as checked-in versions."
       git diff --exit-code -- ':!*.pb.go' ':!*_string.go'
+    fi
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
         export ETCD_DIR="${GOPATH}/bin"
       fi
   - |
+    if [[ "${INTEG_TESTS}" == "true" ]]; then
       ./integration/integration_test.sh
       cd "$HOME/gopath/src/github.com/google/certificate-transparency-go"
       ./trillian/integration/integration_test.sh
       cd $HOME/gopath/src/github.com/google/trillian
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
+    fi
   - |
       # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
       # support is enabled. This requires running softhsm in a Docker container.
       # See https://github.com/rolandshoemaker/docker-hsm for an example.
-      if [[ "${WITH_DOCKER_TESTS}" == "true" ]]; then
+      if [[ "${DOCKER_TESTS}" == "true" ]]; then
         ./integration/docker_compose_integration_test.sh
       fi
-  - bazel --batch build //:*
+  - |
+      if [[ "${BAZEL_TESTS}" == "true" ]]; then
+        bazel --batch build //:*
+      fi
   - set +e
 
 after_success:
