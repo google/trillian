@@ -81,7 +81,7 @@ func csvMain(cmd *cobra.Command, args []string) error {
 			if licenseURL == "Unknown" {
 				glog.Errorf("Error discovering URL for %q: %v", lib.LicensePath, errs)
 			}
-			licenseName, _, err = lib.ClassifyLicense(classifier)
+			licenseName, _, err = classifier.Identify(lib.LicensePath)
 			if err != nil {
 				return err
 			}

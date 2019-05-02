@@ -89,7 +89,7 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		libDir := filepath.Dir(lib.LicensePath)
 		libSaveDir := filepath.Join(savePath, unvendor(lib.Name()))
 		// Detect what type of license this library has and fulfill its requirements, e.g. copy license, copyright notice, source code, etc.
-		licenseName, licenseType, err := lib.ClassifyLicense(classifier)
+		licenseName, licenseType, err := classifier.Identify(lib.LicensePath)
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		case licenses.Forbidden:
 			return fmt.Errorf("forbidden license %q used by this library: %s", licenseName, lib)
 		default:
-			return fmt.Errorf("%q license is of an unknown type", licenseName)
+			return fmt.Errorf("%q license is of an unknown type: %q", licenseName, licenseType)
 		}
 		if copySrc {
 			if err := copy.Copy(libDir, libSaveDir); err != nil {

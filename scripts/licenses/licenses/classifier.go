@@ -22,34 +22,32 @@ import (
 )
 
 // Type identifies a class of software license.
-type Type int
+type Type string
 
 // License types
 const (
-	// Unknown type of license.
-	Unknown = Type(iota)
 	// Restricted licenses require mandatory source distribution if we ship a
 	// product that includes third-party code protected by such a license.
-	Restricted
+	Restricted = Type("restricted")
 	// Reciprocal licenses allow usage of software made available under such
 	// licenses freely in *unmodified* form. If the third-party source code is
 	// modified in any way these modifications to the original third-party
 	// source code must be made available.
-	Reciprocal
+	Reciprocal = Type("reciprocal")
 	// Notice licenses contain few restrictions, allowing original or modified
 	// third-party software to be shipped in any product without endangering or
 	// encumbering our source code. All of the licenses in this category do,
 	// however, have an "original Copyright notice" or "advertising clause",
 	// wherein any external distributions must include the notice or clause
 	// specified in the license.
-	Notice
+	Notice = Type("notice")
 	// Permissive licenses are even more lenient than a 'notice' license.
 	// Not even a copyright notice is required for license compliance.
-	Permissive
+	Permissive = Type("permissive")
 	// Unencumbered covers licenses that basically declare that the code is "free for any use".
-	Unencumbered
+	Unencumbered = Type("unencumbered")
 	// Forbidden licenses are forbidden to be used.
-	Forbidden
+	Forbidden = Type("FORBIDDEN")
 )
 
 // Classifier can detect the type of a software license.
@@ -69,15 +67,16 @@ func NewClassifier(confidenceThreshold float64) (*Classifier, error) {
 	}, nil
 }
 
-// Identify returns the name of a license, given its file path.
-func (c *Classifier) Identify(licensePath string) (string, error) {
+// Identify returns the name and type of a license, given its file path.
+func (c *Classifier) Identify(licensePath string) (string, Type, error) {
 	content, err := ioutil.ReadFile(licensePath)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	matches := c.classifier.MultipleMatch(string(content), true)
 	if len(matches) == 0 {
-		return "", fmt.Errorf("unknown license")
+		return "", "", fmt.Errorf("unknown license")
 	}
-	return matches[0].Name, nil
+	licenseName := matches[0].Name
+	return licenseName, Type(licenseclassifier.LicenseType(licenseName)), nil
 }

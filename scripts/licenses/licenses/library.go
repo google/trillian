@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/google/licenseclassifier"
 )
 
 var (
@@ -123,30 +122,6 @@ func (l *Library) Name() string {
 
 func (l *Library) String() string {
 	return l.Name()
-}
-
-// ClassifyLicense returns the name and type of license that applies to this library.
-func (l *Library) ClassifyLicense(classifier *Classifier) (string, Type, error) {
-	licenseName, err := classifier.Identify(l.LicensePath)
-	if err != nil {
-		return "", Unknown, fmt.Errorf("error identifying %q: %v", l.LicensePath, err)
-	}
-	licenseType := Unknown
-	switch licenseclassifier.LicenseType(licenseName) {
-	case "restricted":
-		licenseType = Restricted
-	case "reciprocal":
-		licenseType = Reciprocal
-	case "notice":
-		licenseType = Notice
-	case "permissive":
-		licenseType = Permissive
-	case "unencumbered":
-		licenseType = Unencumbered
-	case "FORBIDDEN":
-		licenseType = Forbidden
-	}
-	return licenseName, licenseType, nil
 }
 
 // ImportPackage returns information about the package identified by the given import path.
