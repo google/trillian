@@ -53,6 +53,10 @@ type TrillianMapServerOptions struct {
 	// UseSingleTransaction specifies whether updates to a map should be
 	// attempted within a single transaction.
 	UseSingleTransaction bool
+
+	// UseLargePreload enables the performance workaround applied when
+	// UseSingleTransaction is set.
+	UseLargePreload bool
 }
 
 // TrillianMapServer implements the RPC API defined in the proto
@@ -263,6 +267,23 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 				HashedValue: l.LeafHash,
 			})
 		}
+
+		if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
+			readRev, err := tx.ReadRevision(ctx)
+			if err != nil {
+				return err
+			}
+			nids := make([]storage.NodeID, 0, len(hkv)*256)
+			for _, i := range hkv {
+				nid := storage.NewNodeIDFromHash(i.HashedKey)
+				sibs := (&nid).Siblings()
+				nids = append(nids, sibs...)
+			}
+			if _, err := tx.GetMerkleNodes(ctx, readRev, nids); err != nil {
+				return err
+			}
+		}
+
 		if err = smtWriter.SetLeaves(ctx, hkv); err != nil {
 			return err
 		}

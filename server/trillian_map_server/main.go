@@ -72,6 +72,8 @@ var (
 	// Profiling related flags.
 	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
 	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
+
+	largePreload = flag.Bool("large_preload_fix", true, "Experimental: work-around locking performance issues when using useSingleTransaction mode")
 )
 
 func main() {
@@ -150,6 +152,7 @@ func main() {
 			mapServer := server.NewTrillianMapServer(registry,
 				server.TrillianMapServerOptions{
 					UseSingleTransaction: *useSingleTransaction,
+					UseLargePreload:      *largePreload,
 				})
 			if err := mapServer.IsHealthy(); err != nil {
 				return err
