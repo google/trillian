@@ -16,7 +16,7 @@ cache:
 
 
 env:
-  - WITH_COVERAGE=true
+  - WITH_COVERAGE=true WITH_BAZEL=true
   - GOFLAGS='-race'
   - GOFLAGS='-race --tags=batched_queue'
   - GOFLAGS='-race' WITH_ETCD=true
@@ -73,12 +73,14 @@ install:
   # install bazel
   - |
     (
-      BAZEL_VERSION='0.18.0'
-      URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
-      wget -O install.sh ${URL}
-      chmod +x install.sh
-      ./install.sh --user
-      rm -f install.sh
+    if [[ "${WITH_BAZEL}" == "true" ]]; then
+        BAZEL_VERSION='0.18.0'
+        URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
+        wget -O install.sh ${URL}
+        chmod +x install.sh
+        ./install.sh --user
+        rm -f install.sh
+      fi
     )
 
 before_script:
@@ -113,7 +115,10 @@ script:
       if [[ "${WITH_DOCKER_TESTS}" == "true" ]]; then
         ./integration/docker_compose_integration_test.sh
       fi
-  - bazel --batch build //:*
+  - |
+      if [[ "${WITH_BAZEL}" == "true" ]]; then
+        bazel --batch build //:*
+      fi
   - set +e
 
 after_success:
