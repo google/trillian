@@ -651,40 +651,61 @@ func TestBitPanics(t *testing.T) {
 
 func TestString(t *testing.T) {
 	for i, tc := range []struct {
-		n    NodeID
-		want string
+		n       NodeID
+		want    string
+		wantKey string
 	}{
 		{
-			n:    NewEmptyNodeID(32),
-			want: "",
+			n:       NewEmptyNodeID(32),
+			want:    "",
+			wantKey: "0:",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("345678"), 24, 32, 32),
-			want: "00110100010101100111100000000000",
+			n:       NewNodeIDWithPrefix(h26("345678"), 24, 32, 32),
+			want:    "00110100010101100111100000000000",
+			wantKey: "32:34567800",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("12345678"), 32, 32, 64),
-			want: "00010010001101000101011001111000",
+			n:       NewNodeIDWithPrefix(h26("12345678"), 32, 32, 64),
+			want:    "00010010001101000101011001111000",
+			wantKey: "32:12345678",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("345678"), 15, 16, 24),
-			want: fmt.Sprintf("%016b", (0x345678<<1)&0xfffd),
+			n:       NewNodeIDWithPrefix(h26("345678"), 15, 16, 24),
+			want:    fmt.Sprintf("%016b", (0x345678<<1)&0xfffd),
+			wantKey: "16:acf0",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("1234"), 15, 16, 16),
-			want: "0010010001101000",
+			n:       NewNodeIDWithPrefix(h26("1234"), 15, 16, 16),
+			want:    "0010010001101000",
+			wantKey: "16:2468",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("f2"), 8, 8, 24),
-			want: "11110010",
+			n:       NewNodeIDWithPrefix(h26("f2"), 8, 8, 24),
+			want:    "11110010",
+			wantKey: "8:f2",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("1234"), 16, 16, 16),
-			want: "0001001000110100",
+			n:       NewNodeIDWithPrefix(h26("1234"), 16, 16, 16),
+			want:    "0001001000110100",
+			wantKey: "16:1234",
+		},
+		{
+			n:       NewNodeIDFromHash([]byte("this is a hash")),
+			want:    "0111010001101000011010010111001100100000011010010111001100100000011000010010000001101000011000010111001101101000",
+			wantKey: "112:7468697320697320612068617368",
+		},
+		{
+			n:       NewNodeIDFromBigInt(5, big.NewInt(20), 16),
+			want:    "00000",
+			wantKey: "5:00",
 		},
 	} {
 		if got, want := tc.n.String(), tc.want; got != want {
 			t.Errorf("%v: String():  %v,  want '%v'", i, got, want)
+		}
+		if got, want := tc.n.AsKey(), tc.wantKey; got != want {
+			t.Errorf("%v: AsKey():  %v,  want '%v'", i, got, want)
 		}
 	}
 }
@@ -833,4 +854,18 @@ func mustDecode(h string) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func BenchmarkString(b *testing.B) {
+	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
+	for i := 0; i < b.N; i++ {
+		nID.String()
+	}
+}
+
+func BenchmarkAsKey(b *testing.B) {
+	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
+	for i := 0; i < b.N; i++ {
+		nID.AsKey()
+	}
 }

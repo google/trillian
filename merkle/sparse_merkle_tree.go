@@ -408,7 +408,7 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 		sibs := nid.Siblings()
 		indexToSibs[string(index)] = sibs
 		for _, sib := range sibs {
-			if sibID := sib.String(); !includedNodes[sibID] {
+			if sibID := sib.AsKey(); !includedNodes[sibID] {
 				includedNodes[sibID] = true
 				allSibs = append(allSibs, sib)
 			}
@@ -420,8 +420,8 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 	}
 	nodeMap := make(map[string]*storage.Node)
 	for i, n := range nodes {
-		glog.V(2).Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.String()), n.Hash)
-		nodeMap[n.NodeID.String()] = &nodes[i]
+		glog.V(2).Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.AsKey()), n.Hash)
+		nodeMap[n.NodeID.AsKey()] = &nodes[i]
 	}
 
 	r := map[string]([][]byte){}
@@ -433,7 +433,7 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 		// For each proof element:
 		for i := range ri {
 			proofID := sibs[i]
-			pNode := nodeMap[proofID.String()]
+			pNode := nodeMap[proofID.AsKey()]
 			if pNode == nil {
 				// No node for this level from storage, so use the nil hash.
 				continue
