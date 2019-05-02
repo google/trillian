@@ -10,6 +10,11 @@ The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
 binaries now have CPU and heap profiling flags. Profiling is off by default.
 For more details see the
 [Go Blog](https://blog.golang.org/profiling-go-programs).
+### Map performance tweaks
+
+The map mode has had some performance tweaks added:
+* A workaround for locking issues which affect the map when it's used in
+  single-transaction mode.
 
 ### Introduce BatchInclusionProof function
 
