@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/scripts/licenses/licenses"
@@ -61,6 +60,8 @@ func init() {
 }
 
 func saveMain(cmd *cobra.Command, args []string) error {
+	importPath := args[0]
+
 	if overwriteSavePath {
 		if err := os.RemoveAll(savePath); err != nil {
 			return err
@@ -76,23 +77,13 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Import the main package and find all of the libraries that it uses.
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	pkg, err := build.Import(args[0], wd, 0)
-	if err != nil {
-		return err
-	}
 	classifier, err := licenses.NewClassifier(confidenceThreshold)
 	if err != nil {
 		return err
 	}
+
 	var unlicensedPkgs []*build.Package
-	buildCtx := build.Default
-	buildCtx.BuildTags = append(buildCtx.BuildTags, strings.Split(buildTags, " ")...)
-	libs, err := licenses.Libraries(&buildCtx, pkg)
+	libs, err := libraries(importPath)
 	if err != nil {
 		return err
 	}

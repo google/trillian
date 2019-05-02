@@ -17,8 +17,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"os"
 	"strings"
+
+	"github.com/google/trillian/scripts/licenses/licenses"
 
 	"bitbucket.org/creachadair/shell"
 	"github.com/golang/glog"
@@ -50,6 +53,24 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		glog.Exit(err)
 	}
+}
+
+// Libraries returns the libraries used by the package identified by importPath.
+// The import path is assumed to be in the context of the current working
+// directory, so vendoring and relative import paths will work.
+func libraries(importPath string) ([]*licenses.Library, error) {
+	// Import the main package and find all of the libraries that it uses.
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	pkg, err := build.Import(importPath, wd, 0)
+	if err != nil {
+		return nil, err
+	}
+	buildCtx := build.Default
+	buildCtx.BuildTags = append(buildCtx.BuildTags, strings.Split(buildTags, " ")...)
+	return licenses.Libraries(&buildCtx, pkg)
 }
 
 func parseGoBuildFlags(flagset *pflag.FlagSet) error {

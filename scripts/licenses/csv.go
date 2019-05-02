@@ -16,9 +16,7 @@ package main
 
 import (
 	"encoding/csv"
-	"go/build"
 	"os"
-	"strings"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/scripts/licenses/licenses"
@@ -43,23 +41,15 @@ func init() {
 }
 
 func csvMain(cmd *cobra.Command, args []string) error {
+	importPath := args[0]
 	writer := csv.NewWriter(os.Stdout)
-	// Import the main package and find all of the libraries that it uses.
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	pkg, err := build.Import(args[0], wd, 0)
-	if err != nil {
-		return err
-	}
+
 	classifier, err := licenses.NewClassifier(confidenceThreshold)
 	if err != nil {
 		return err
 	}
-	buildCtx := build.Default
-	buildCtx.BuildTags = append(buildCtx.BuildTags, strings.Split(buildTags, " ")...)
-	libs, err := licenses.Libraries(&buildCtx, pkg)
+
+	libs, err := libraries(importPath)
 	if err != nil {
 		return err
 	}
