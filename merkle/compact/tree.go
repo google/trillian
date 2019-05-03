@@ -26,17 +26,6 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 )
 
-// RootHashMismatchError indicates an unexpected root hash value.
-type RootHashMismatchError struct {
-	ExpectedHash []byte
-	ActualHash   []byte
-}
-
-// Error formats the error into a string.
-func (r RootHashMismatchError) Error() string {
-	return fmt.Sprintf("root hash mismatch: got %v, expected %v", r.ActualHash, r.ExpectedHash)
-}
-
 // NodeID identifies a node of a Merkle tree.
 type NodeID struct {
 	Level uint
@@ -115,7 +104,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 
 	if !bytes.Equal(r.root, expectedRoot) {
 		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
-		return nil, RootHashMismatchError{ActualHash: r.root, ExpectedHash: expectedRoot}
+		return nil, fmt.Errorf("root hash mismatch: got %v, expected %v", r.root, expectedRoot)
 	}
 	glog.V(1).Infof("Resuming at size %d, with root: %s", r.size, base64.StdEncoding.EncodeToString(r.root[:]))
 	return &r, nil
