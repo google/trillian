@@ -17,7 +17,54 @@ package licenses
 import (
 	"go/build"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func TestLibaries(t *testing.T) {
+	for _, test := range []struct {
+		desc       string
+		importPath string
+		workingDir string
+		importMode build.ImportMode
+		wantLibs   []string
+	}{
+		{
+			desc:       "Detects direct dependency",
+			importPath: "github.com/google/trillian/scripts/licenses/licenses/testdata/direct",
+			wantLibs: []string{
+				"github.com/google/trillian/scripts/licenses/licenses/testdata/indirect",
+			},
+		},
+		{
+			desc:       "Detects transitive dependency",
+			importPath: "github.com/google/trillian/scripts/licenses/licenses/testdata",
+			wantLibs: []string{
+				"github.com/google/trillian/scripts/licenses/licenses/testdata/direct",
+				"github.com/google/trillian/scripts/licenses/licenses/testdata/indirect",
+			},
+		},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			pkg, err := build.Import(test.importPath, test.workingDir, test.importMode)
+			if err != nil {
+				t.Fatalf("build.Import(%q, %q, %v) = (_, %q), want (_, nil)", test.importPath, test.workingDir, test.importMode, err)
+			}
+			gotLibs, err := Libraries(&build.Default, pkg)
+			if err != nil {
+				t.Fatalf("Libraries(_, %v) = (_, %q), want (_, nil)", pkg, err)
+			}
+			var gotLibNames []string
+			for _, lib := range gotLibs {
+				gotLibNames = append(gotLibNames, lib.Name())
+			}
+			if diff := cmp.Diff(test.wantLibs, gotLibNames, cmpopts.SortSlices(func(x, y string) bool { return x < y })); diff != "" {
+				t.Errorf("Libraries(_, %v): diff (-want +got)\n%s", pkg, diff)
+			}
+		})
+	}
+}
 
 func TestLibraryName(t *testing.T) {
 	for _, test := range []struct {
