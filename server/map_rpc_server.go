@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/types"
 
 	"github.com/golang/glog"
+	"go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -37,6 +38,8 @@ import (
 const (
 	// Used internally by GetLeaves.
 	mostRecentRevision = -1
+
+	traceSpanRoot = "github.com/google/trillian/server/map_rpc_server"
 )
 
 var (
@@ -214,6 +217,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 	ctx, span := spanFor(ctx, "SetLeaves")
 	defer span.End()
+
 	mapID := req.MapId
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
@@ -306,6 +310,9 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 }
 
 func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyValue) error {
+	ctx, span := spanFor(ctx, "doPreload")
+	defer span.End()
+
 	readRev, err := tx.ReadRevision(ctx)
 	if err != nil {
 		return err
