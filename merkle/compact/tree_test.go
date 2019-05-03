@@ -130,13 +130,8 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
 	// data
 	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, fixedHashGetNodesFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
-	_, ok := err.(RootHashMismatchError)
-
-	if err == nil || !ok {
-		t.Errorf("Did not return correct error type on root mismatch: %v", err)
-	}
-	if !strings.Contains(err.Error(), "mismatch") {
-		t.Errorf("Error %q doesn't mention mismatch", err.Error())
+	if err == nil || !strings.HasPrefix(err.Error(), "root hash mismatch") {
+		t.Errorf("Did not return correct error on root mismatch: %v", err)
 	}
 }
 
