@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -272,24 +273,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		// single-transaction mode by preloading all the nodes we know the
 		// sparse merkle writer is going to need.
 		if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
-			readRev, err := tx.ReadRevision(ctx)
-			if err != nil {
-				return err
-			}
-			nidSet := make(map[string]bool)
-			nids := make([]storage.NodeID, 0, len(hkv)*256)
-			for _, i := range hkv {
-				nid := storage.NewNodeIDFromHash(i.HashedKey)
-				sibs := (&nid).Siblings()
-				for _, sib := range sibs {
-					sibID := sib.String()
-					if _, ok := nidSet[sibID]; !ok {
-						nidSet[sibID] = true
-						nids = append(nids, sib)
-					}
-				}
-			}
-			if _, err := tx.GetMerkleNodes(ctx, readRev, nids); err != nil {
+			if err := doPreload(ctx, tx, hkv); err != nil {
 				return err
 			}
 		}
@@ -319,6 +303,54 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
+}
+
+func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyValue) error {
+	readRev, err := tx.ReadRevision(ctx)
+	if err != nil {
+		return err
+	}
+	nidSet := make(map[string]bool)
+	type nodeAndID struct {
+		id   string
+		node storage.NodeID
+	}
+	c := make(chan nodeAndID, 2048)
+	var wg sync.WaitGroup
+
+	for _, i := range hkv {
+		wg.Add(1)
+		go func() {
+			nid := storage.NewNodeIDFromHash(i.HashedKey)
+			sibs := (&nid).Siblings()
+			for _, sib := range sibs {
+				sibID := sib.String()
+				sib := sib
+				c <- nodeAndID{sibID, sib}
+			}
+			wg.Done()
+		}()
+	}
+
+	done := make(chan bool)
+	nids := make([]storage.NodeID, 0, len(hkv)*256)
+	go func() {
+		for nai := range c {
+			if _, ok := nidSet[nai.id]; !ok {
+				nidSet[nai.id] = true
+				nids = append(nids, nai.node)
+			}
+		}
+		done <- true
+	}()
+
+	wg.Wait()
+	close(c)
+
+	<-done
+
+	_, err = tx.GetMerkleNodes(ctx, readRev, nids)
+	return err
 }
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
