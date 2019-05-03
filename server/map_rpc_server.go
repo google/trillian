@@ -30,7 +30,6 @@ import (
 	"github.com/google/trillian/types"
 
 	"github.com/golang/glog"
-	"go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
