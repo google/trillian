@@ -73,6 +73,7 @@ install:
   - go get github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
   - go get github.com/golang/mock/mockgen
   - go get golang.org/x/tools/cmd/stringer
+  - go get github.com/uber/prototool/cmd/prototool
   # install vendored etcd binary
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
