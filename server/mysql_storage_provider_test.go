@@ -18,11 +18,11 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/google/trillian/util/flagsaver"
+	"github.com/google/trillian/testonly/flagsaver"
 )
 
 func TestMySQLStorageProviderErrorPersistence(t *testing.T) {
-	defer flagsaver.Save().Restore()
+	defer flagsaver.Save().MustRestore()
 	if err := flag.Set("mysql_uri", "&bogus*:::?"); err != nil {
 		t.Errorf("Failed to set flag: %v", err)
 	}

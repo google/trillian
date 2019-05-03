@@ -22,9 +22,9 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
+	"github.com/google/trillian/testonly/flagsaver"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/testonly/setup"
-	"github.com/google/trillian/util/flagsaver"
 	"google.golang.org/grpc"
 
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -50,7 +50,7 @@ func TestGetTreePublicKey(t *testing.T) {
 	}
 
 	// Set the flags.
-	defer flagsaver.Save().Restore()
+	defer flagsaver.Save().MustRestore()
 	setup.SetFlag(t, "admin_server", logEnv.Address)
 	setup.SetFlag(t, "log_id", fmt.Sprint(log.TreeId))
 
