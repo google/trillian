@@ -112,8 +112,13 @@ main() {
   if [[ "${run_lint}" -eq 1 ]]; then
     check_cmd golangci-lint \
       'have you installed github.com/golangci/golangci-lint?' || exit 1
-    check_cmd prototool-lint \
-      'have you installed github.com/uber/prototool/cmd/prototool?' || exit 1
+    if ! type -p "prototool" > /dev/null; then
+      TMP="$(mktemp -d)"
+      trap 'rm -rf "${TMP}"' EXIT
+      cd "${TMP}"
+      GO111MODULE=on go get github.com/uber/prototool/cmd/prototool@v1.6
+      cd -
+    fi
 
     echo 'running golangci-lint'
     golangci-lint run
