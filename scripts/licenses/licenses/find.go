@@ -17,7 +17,7 @@ package licenses
 import (
 	"fmt"
 	"go/build"
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"regexp"
 )
@@ -31,17 +31,13 @@ func Find(pkg *build.Package) (string, error) {
 func findUpwards(dir string, r *regexp.Regexp, stopAt []*regexp.Regexp) (string, error) {
 	start := dir
 	for !matchAny(stopAt, dir) {
-		d, err := os.Open(dir)
-		if err != nil {
-			return "", err
-		}
-		files, err := d.Readdirnames(0)
+		files, err := ioutil.ReadDir(dir)
 		if err != nil {
 			return "", err
 		}
 		for _, f := range files {
-			if r.MatchString(f) {
-				return filepath.Join(dir, f), nil
+			if r.MatchString(f.Name()) {
+				return filepath.Join(dir, f.Name()), nil
 			}
 		}
 		dir = filepath.Dir(dir)
