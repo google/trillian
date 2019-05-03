@@ -241,7 +241,7 @@ go install -ldflags "-X 'main.version=$(git describe --tags)' -X 'main.commit=$(
 cd -
 ```
 
-### Install [prototool](https://github.com/uber/prototool#installation)
+#### Install [prototool](https://github.com/uber/prototool#installation)
 ```bash
 go get -u github.com/uber/prototool/cmd/prototool
 ```
