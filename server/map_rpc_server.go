@@ -285,7 +285,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 					sibID := sib.String()
 					if _, ok := nidSet[sibID]; !ok {
 						nidSet[sibID] = true
-						nids = append(nids, sibs...)
+						nids = append(nids, sib)
 					}
 				}
 			}
