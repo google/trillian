@@ -37,8 +37,6 @@ import (
 const (
 	// Used internally by GetLeaves.
 	mostRecentRevision = -1
-
-	traceSpanRoot = "github.com/google/trillian/server/map_rpc_server"
 )
 
 var (
@@ -326,8 +324,8 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyVa
 
 	for _, i := range hkv {
 		wg.Add(1)
-		go func() {
-			nid := storage.NewNodeIDFromHash(i.HashedKey)
+		go func(k []byte) {
+			nid := storage.NewNodeIDFromHash(k)
 			sibs := (&nid).Siblings()
 			for _, sib := range sibs {
 				sibID := sib.String()
@@ -335,7 +333,7 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyVa
 				c <- nodeAndID{sibID, sib}
 			}
 			wg.Done()
-		}()
+		}(i.HashedKey)
 	}
 
 	done := make(chan bool)
