@@ -118,10 +118,13 @@ func (r *Range) AppendRange(other *Range, visitor VisitFn) error {
 	return r.appendImpl(other.end, other.hashes[0], other.hashes[1:], visitor)
 }
 
-// GetRootHash returns the root hash of the Merkle tree represented by
-// this compact range. Requires the range to start at index 0. If the
-// range is empty, returns nil.
-func (r *Range) GetRootHash() ([]byte, error) {
+// GetRootHash returns the root hash of the Merkle tree represented by this
+// compact range. Requires the range to start at index 0. If the range is
+// empty, returns nil.
+//
+// If visitor is not nil, it is called with all "ephemeral" nodes (i.e. the
+// ones rooting imperfect subtrees) along the right border of the tree.
+func (r *Range) GetRootHash(visitor VisitFn) ([]byte, error) {
 	if r.begin != 0 {
 		return nil, fmt.Errorf("begin=%d, want 0", r.begin)
 	}
@@ -130,8 +133,17 @@ func (r *Range) GetRootHash() ([]byte, error) {
 		return nil, nil
 	}
 	hash := r.hashes[ln-1]
-	for i := ln - 2; i >= 0; i-- {
+	// All non-perfect subtree hashes along the right border of the tree
+	// correspond to the parents of all perfect subtree nodes except the lowest
+	// one (therefore the loop skips it).
+	for i, size := ln-2, r.end; i >= 0; i-- {
 		hash = r.f.Hash(r.hashes[i], hash)
+		if visitor != nil {
+			size &= size - 1                              // Delete the previous node.
+			level := uint(bits.TrailingZeros64(size)) + 1 // Compute the parent level.
+			index := size >> level                        // And its horizontal index.
+			visitor(level, index, hash)
+		}
 	}
 	return hash, nil
 }

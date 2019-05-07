@@ -362,7 +362,7 @@ func TestGetRootHash(t *testing.T) {
 			for i := uint64(0); i < size; i++ {
 				rng.Append(tree.leaf(i), nil)
 			}
-			root, err := rng.GetRootHash()
+			root, err := rng.GetRootHash(nil)
 			if err != nil {
 				t.Fatalf("GetRootHash: %v", err)
 			}
@@ -374,7 +374,7 @@ func TestGetRootHash(t *testing.T) {
 
 	// Should accept only [0, N) ranges.
 	rng := factory.NewEmptyRange(10)
-	if _, err := rng.GetRootHash(); err == nil {
+	if _, err := rng.GetRootHash(nil); err == nil {
 		t.Error("GetRootHash succeeded unexpectedly")
 	}
 }
@@ -409,7 +409,7 @@ func TestGetRootHashGolden(t *testing.T) {
 					t.Fatalf("Append(%d): %v", i, err)
 				}
 			}
-			hash, err := rng.GetRootHash()
+			hash, err := rng.GetRootHash(nil)
 			if err != nil {
 				t.Fatalf("GetRootHash: %v", err)
 			}
