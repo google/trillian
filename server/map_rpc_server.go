@@ -274,7 +274,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		// single-transaction mode by preloading all the nodes we know the
 		// sparse merkle writer is going to need.
 		if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
-			if err := doPreload(ctx, tx, hkv); err != nil {
+			if err := doPreload(ctx, tx, hasher.BitLen(), hkv); err != nil {
 				return err
 			}
 		}
@@ -306,7 +306,12 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
 }
 
-func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyValue) error {
+// doPreload causes the subtreeCache in tx to become populated with all subtrees
+// on the Merkle path for the indices specified in hkv.
+// This is a performance workaround for locking issues which occur when the
+// sparse Merkle tree code is used with a single transaction (and therefore
+// a single subtreeCache too).
+func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []merkle.HashKeyValue) error {
 	ctx, span := spanFor(ctx, "doPreload")
 	defer span.End()
 
@@ -325,6 +330,7 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyVa
 	for _, i := range hkv {
 		wg.Add(1)
 		go func(k []byte) {
+			defer wg.Done()
 			nid := storage.NewNodeIDFromHash(k)
 			sibs := (&nid).Siblings()
 			for _, sib := range sibs {
@@ -332,12 +338,11 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyVa
 				sib := sib
 				c <- nodeAndID{sibID, sib}
 			}
-			wg.Done()
 		}(i.HashedKey)
 	}
 
 	done := make(chan bool)
-	nids := make([]storage.NodeID, 0, len(hkv)*256)
+	nids := make([]storage.NodeID, 0, len(hkv)*treeDepth)
 	go func() {
 		for nai := range c {
 			if _, ok := nidSet[nai.id]; !ok {
@@ -345,7 +350,7 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyVa
 				nids = append(nids, nai.node)
 			}
 		}
-		done <- true
+		close(done)
 	}()
 
 	wg.Wait()
