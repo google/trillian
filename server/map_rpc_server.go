@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -213,6 +214,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 	ctx, span := spanFor(ctx, "SetLeaves")
 	defer span.End()
+
 	mapID := req.MapId
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
@@ -272,24 +274,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		// single-transaction mode by preloading all the nodes we know the
 		// sparse merkle writer is going to need.
 		if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
-			readRev, err := tx.ReadRevision(ctx)
-			if err != nil {
-				return err
-			}
-			nidSet := make(map[string]bool)
-			nids := make([]storage.NodeID, 0, len(hkv)*256)
-			for _, i := range hkv {
-				nid := storage.NewNodeIDFromHash(i.HashedKey)
-				sibs := (&nid).Siblings()
-				for _, sib := range sibs {
-					sibID := sib.String()
-					if _, ok := nidSet[sibID]; !ok {
-						nidSet[sibID] = true
-						nids = append(nids, sib)
-					}
-				}
-			}
-			if _, err := tx.GetMerkleNodes(ctx, readRev, nids); err != nil {
+			if err := doPreload(ctx, tx, hasher.BitLen(), hkv); err != nil {
 				return err
 			}
 		}
@@ -319,6 +304,67 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
+}
+
+// doPreload causes the subtreeCache in tx to become populated with all subtrees
+// on the Merkle path for the indices specified in hkv.
+// This is a performance workaround for locking issues which occur when the
+// sparse Merkle tree code is used with a single transaction (and therefore
+// a single subtreeCache too).
+func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []merkle.HashKeyValue) error {
+	ctx, span := spanFor(ctx, "doPreload")
+	defer span.End()
+
+	readRev, err := tx.ReadRevision(ctx)
+	if err != nil {
+		return err
+	}
+
+	nids := calcAllSiblingsParallel(ctx, treeDepth, hkv)
+	_, err = tx.GetMerkleNodes(ctx, readRev, nids)
+	return err
+}
+
+func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.HashKeyValue) []storage.NodeID {
+	type nodeAndID struct {
+		id   string
+		node storage.NodeID
+	}
+	c := make(chan nodeAndID, 2048)
+	var wg sync.WaitGroup
+
+	// Kick off producers.
+	for _, i := range hkv {
+		wg.Add(1)
+		go func(k []byte) {
+			defer wg.Done()
+			nid := storage.NewNodeIDFromHash(k)
+			sibs := (&nid).Siblings()
+			for _, sib := range sibs {
+				sibID := sib.AsKey()
+				sib := sib
+				c <- nodeAndID{sibID, sib}
+			}
+		}(i.HashedKey)
+	}
+
+	// monitor for all the producers being complete to close the channel.
+	go func() {
+		wg.Wait()
+		close(c)
+	}()
+
+	nidSet := make(map[string]bool)
+	nids := make([]storage.NodeID, 0, len(hkv)*treeDepth)
+	// consume the produced IDs until the channel is closed.
+	for nai := range c {
+		if _, ok := nidSet[nai.id]; !ok {
+			nidSet[nai.id] = true
+			nids = append(nids, nai.node)
+		}
+	}
+
+	return nids
 }
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
