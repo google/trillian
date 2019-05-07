@@ -326,7 +326,6 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []m
 }
 
 func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.HashKeyValue) []storage.NodeID {
-	nidSet := make(map[string]bool)
 	type nodeAndID struct {
 		id   string
 		node storage.NodeID
@@ -334,6 +333,7 @@ func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.Ha
 	c := make(chan nodeAndID, 2048)
 	var wg sync.WaitGroup
 
+	// Kick off producers.
 	for _, i := range hkv {
 		wg.Add(1)
 		go func(k []byte) {
@@ -348,22 +348,21 @@ func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.Ha
 		}(i.HashedKey)
 	}
 
-	done := make(chan bool)
-	nids := make([]storage.NodeID, 0, len(hkv)*treeDepth)
+	// monitor for all the producers being complete to close the channel.
 	go func() {
-		for nai := range c {
-			if _, ok := nidSet[nai.id]; !ok {
-				nidSet[nai.id] = true
-				nids = append(nids, nai.node)
-			}
-		}
-		close(done)
+		wg.Wait()
+		close(c)
 	}()
 
-	wg.Wait()
-	close(c)
-
-	<-done
+	nidSet := make(map[string]bool)
+	nids := make([]storage.NodeID, 0, len(hkv)*treeDepth)
+	// consume the produced IDs until the channel is closed.
+	for nai := range c {
+		if _, ok := nidSet[nai.id]; !ok {
+			nidSet[nai.id] = true
+			nids = append(nids, nai.node)
+		}
+	}
 
 	return nids
 }
