@@ -319,6 +319,13 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []m
 	if err != nil {
 		return err
 	}
+
+	nids := calcAllSiblingsParallel(ctx, treeDepth, hkv)
+	_, err = tx.GetMerkleNodes(ctx, readRev, nids)
+	return err
+}
+
+func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.HashKeyValue) []storage.NodeID {
 	nidSet := make(map[string]bool)
 	type nodeAndID struct {
 		id   string
@@ -358,8 +365,7 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []m
 
 	<-done
 
-	_, err = tx.GetMerkleNodes(ctx, readRev, nids)
-	return err
+	return nids
 }
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
