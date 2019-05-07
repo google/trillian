@@ -343,7 +343,7 @@ func testSparseTreeCalculatedRootWithWriter(ctx context.Context, t *testing.T, _
 	if err := w.SetLeaves(ctx, leaves); err != nil {
 		t.Fatalf("Got error adding leaves: %v", err)
 	}
-	root, err := w.CalculateRoot()
+	root, err := w.CalculateRoot(ctx)
 	if err != nil {
 		t.Fatalf("Failed to commit map changes: %v", err)
 	}
@@ -593,7 +593,7 @@ func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 			t.Fatalf("Failed to batch %d: %v", x, err)
 		}
 	}
-	root, err := w.CalculateRoot()
+	root, err := w.CalculateRoot(ctx)
 	if err != nil {
 		t.Fatalf("Failed to calculate root hash: %v", err)
 	}
