@@ -341,7 +341,7 @@ func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.Ha
 			nid := storage.NewNodeIDFromHash(k)
 			sibs := (&nid).Siblings()
 			for _, sib := range sibs {
-				sibID := sib.String()
+				sibID := sib.AsKey()
 				sib := sib
 				c <- nodeAndID{sibID, sib}
 			}
