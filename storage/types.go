@@ -17,13 +17,18 @@ package storage
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/bits"
+	"strconv"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage/storagepb"
 )
+
+const hexChars = "0123456789abcdef"
 
 // Node represents a single node in a Merkle tree.
 type Node struct {
@@ -267,7 +272,7 @@ func (n *NodeID) Bit(i int) uint {
 // String returns a string representation of the binary value of the NodeID.
 // The left-most bit is the MSB (i.e. nearer the root of the tree). The
 // length of the returned string will always be the same as the prefix length
-// of the node.
+// of the node. For a string ID to use as a map key see AsKey().
 func (n *NodeID) String() string {
 	var r bytes.Buffer
 	limit := n.PathLenBits() - n.PrefixLenBits
@@ -275,6 +280,34 @@ func (n *NodeID) String() string {
 		r.WriteRune(rune('0' + n.Bit(i)))
 	}
 	return r.String()
+}
+
+// AsKey returns a string identifier for this NodeID suitable for
+// short term use e.g. as a Map key. It is more efficient to use this than
+// String() as it's not constrained to return a binary string.
+func (n *NodeID) AsKey() string {
+	var b strings.Builder
+	fullBytes := n.PrefixLenBits / 8
+	bitsLeft := n.PrefixLenBits % 8
+
+	// Note: all Builder write methods are documented never to return errors.
+	// Write the length first.
+	b.WriteString(strconv.Itoa(n.PrefixLenBits))
+	b.WriteRune(':')
+	// We can do all the full bytes in one go.
+	if fullBytes > 0 {
+		buf := make([]byte, hex.EncodedLen(fullBytes))
+		hex.Encode(buf, n.Path[:fullBytes])
+		b.Write(buf)
+	}
+	// If there's bits left over write them out.
+	if bitsLeft > 0 {
+		bits := n.Path[fullBytes] & leftmask[bitsLeft]
+		b.WriteByte(hexChars[bits>>4])
+		b.WriteByte(hexChars[bits&0xf])
+	}
+
+	return b.String()
 }
 
 // CoordString returns a string representation assuming that the NodeID represents a
