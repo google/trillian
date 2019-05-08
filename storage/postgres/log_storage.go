@@ -851,10 +851,10 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		LogRoot:          newRoot,
 		LogRootSignature: rootSignatureBytes,
 		// TODO(gbelvin): Remove deprecated fields
-		TimestampNanos: int64(logRoot.TimestampNanos), //timestamp,
-		RootHash:       logRoot.RootHash, //rootHash,
-		TreeSize:       int64(logRoot.TreeSize), //treeSize,
-		TreeRevision:   int64(logRoot.Revision), //treeRevision,
+		//TimestampNanos: int64(logRoot.TimestampNanos), //timestamp,
+		//RootHash:       logRoot.RootHash, //rootHash,
+		//TreeSize:       int64(logRoot.TreeSize), //treeSize,
+		//TreeRevision:   int64(logRoot.Revision), //treeRevision,
 	}, nil
 }
 
