@@ -216,23 +216,20 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 	}
 
 	nodeMap := make(map[compact.NodeID][]byte)
-	store := func(level uint, index uint64, hash []byte) {
-		nodeMap[compact.NodeID{Level: level, Index: index}] = hash
+	store := func(level int, index int64, hash []byte) {
+		nodeMap[compact.NodeID{Level: uint(level), Index: uint64(index)}] = hash
 	}
 
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
-		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) error {
-			store(uint(depth), uint64(index), hash)
-			return nil
-		})
+		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, store)
 		if err != nil {
 			return nil, err
 		} else if leaf.LeafIndex != seq {
 			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", seq, leaf.LeafIndex)
 		}
 		// Store leaf hash in the Merkle tree too.
-		store(0, uint64(seq), leaf.MerkleLeafHash)
+		store(0, seq, leaf.MerkleLeafHash)
 	}
 
 	return nodeMap, nil

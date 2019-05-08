@@ -25,7 +25,6 @@ import (
 
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
@@ -75,9 +74,7 @@ func TestAddingLeaves(t *testing.T) {
 			idx := 0
 			for _, br := range tc.breaks {
 				for ; idx < br; idx++ {
-					if _, _, err := tree.AddLeaf(inputs[idx], func(int, int64, []byte) error {
-						return nil
-					}); err != nil {
+					if _, _, err := tree.AddLeaf(inputs[idx], func(int, int64, []byte) {}); err != nil {
 						t.Fatalf("AddLeaf: %v", err)
 					}
 					if err := checkUnusedNodesInvariant(tree); err != nil {
@@ -135,24 +132,12 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	}
 }
 
-func nodeKey(level uint, index uint64) (string, error) {
-	n, err := storage.NewNodeIDForTreeCoords(int64(level), int64(index), 64)
-	if err != nil {
-		return "", err
-	}
-	return n.String(), nil
-}
-
 func TestCompactVsFullTree(t *testing.T) {
 	imt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
-	nodes := make(map[string][]byte)
+	nodes := make(map[NodeID][]byte)
 
 	getNode := func(id NodeID) ([]byte, error) {
-		k, err := nodeKey(id.Level, id.Index)
-		if err != nil {
-			t.Errorf("failed to get node key: %v", err)
-		}
-		return nodes[k], nil
+		return nodes[id], nil
 	}
 
 	for i := int64(0); i < 1024; i++ {
@@ -186,13 +171,9 @@ func TestCompactVsFullTree(t *testing.T) {
 		}
 
 		cSeq, cHash, err := cmt.AddLeaf(newLeaf,
-			func(depth int, index int64, hash []byte) error {
-				k, err := nodeKey(uint(depth), uint64(index))
-				if err != nil {
-					return fmt.Errorf("failed to create nodeID: %v", err)
-				}
+			func(depth int, index int64, hash []byte) {
+				k := NodeID{Level: uint(depth), Index: uint64(index)}
 				nodes[k] = hash
-				return nil
 			})
 		if err != nil {
 			t.Fatalf("mt update failed: %v", err)
@@ -217,9 +198,7 @@ func TestCompactVsFullTree(t *testing.T) {
 	cmt := NewTree(rfc6962.DefaultHasher)
 	for i := int64(0); i < imt.LeafCount(); i++ {
 		newLeaf := []byte(fmt.Sprintf("Leaf %d", i))
-		seq, _, err := cmt.AddLeaf(newLeaf, func(depth int, index int64, hash []byte) error {
-			return nil
-		})
+		seq, _, err := cmt.AddLeaf(newLeaf, func(depth int, index int64, hash []byte) {})
 		if err != nil {
 			t.Fatalf("AddLeaf(%d)=_,_,%v, want _,_,nil", i, err)
 		}
@@ -257,9 +236,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		tree := NewTree(rfc6962.DefaultHasher)
 		for i := int64(0); i < test.size; i++ {
 			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
-			tree.AddLeaf(l, func(int, int64, []byte) error {
-				return nil
-			})
+			tree.AddLeaf(l, func(int, int64, []byte) {})
 		}
 		if gotRoot := tree.CurrentRoot(); !bytes.Equal(gotRoot, test.wantRoot) {
 			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(gotRoot), b64e(test.wantRoot))
