@@ -267,17 +267,13 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HashLeaf(%v): %v", leaf, err)
 		}
-		_, err = cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) error {
-			n, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 8)
-			if err != nil {
-				return fmt.Errorf("failed to create nodeID for cmt tree: %v", err)
-			}
+		_, err = cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) {
+			n := stestonly.MustCreateNodeIDForTreeCoords(int64(depth), index, 8)
 			// Don't store leaves or the subtree root in InternalNodes
 			if depth > 0 && depth < 8 {
 				_, sfx := c.splitNodeID(n)
 				cmtStorage.InternalNodes[sfx.String()] = h
 			}
-			return nil
 		})
 		if err != nil {
 			t.Fatalf("merkle tree update failed: %v", err)
