@@ -82,7 +82,9 @@ if err != nil {
 }
 ```
 
-### Configurable number of connections for MySQL
+### MySQL changes
+
+#### Configurable number of connections for MySQL
 
 Two new flags have been added that limit connections to MySQL database servers:
 
@@ -93,6 +95,11 @@ By default, there is no maximum number of database connections. However, the
 database server will likely impose limits on the number of connections. The
 default limit on idle connections is controlled by
 [Go's `sql` package](https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns).
+
+#### Enfored no concurrent use of MySQL tx
+
+Concurrently using a single MySQL transaction can cause the driver to error
+out, so we now attempt to prevent this from happening.
 
 ### Removal of length limits for a tree's `display_name` and `description`
 
