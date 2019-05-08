@@ -375,8 +375,8 @@ func (n *NodeID) Neighbor() *NodeID {
 // (including this one) on the path up to the root. The array is of length
 // PrefixLenBits and is ordered such that the nodes closest to the leaves are
 // earlier in the array.
-// These nodes are the ones that would be required for a Merkle proof for this
-// node.
+// These nodes are the ones that would be required for a Merkle tree inclusion
+// proof for this node.
 func (n *NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
