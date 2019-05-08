@@ -99,7 +99,6 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 		r.nodes[id.Level] = hashes[i]
 	}
 	r.recalculateRoot(func(uint, uint64, []byte) {})
-
 	if !bytes.Equal(r.root, expectedRoot) {
 		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
 		return nil, fmt.Errorf("root hash mismatch: got %v, expected %v", r.root, expectedRoot)
