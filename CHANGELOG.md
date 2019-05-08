@@ -4,14 +4,125 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
-### Client Verification
-The map client now verifies that every map leaf is being requested at most once.
-This catches potential errors before they go to the server.
+### Add Profiling Flags to Binaries
+
+The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
+binaries now have CPU and heap profiling flags. Profiling is off by default.
+For more details see the
+[Go Blog](https://blog.golang.org/profiling-go-programs).
+### Map performance tweaks
+
+The map mode has had some performance tweaks added:
+* A workaround for locking issues which affect the map when it's used in
+  single-transaction mode.
+
+### Introduce BatchInclusionProof function
+
+Added a batch version of the Merkle Tree InclusionProof function.
+
+Updated the map RPC for getLeaves to use the new batch function to improve
+efficiency.
+
+### Google Cloud Spanner support
+
+Google Cloud Spanner is now a supported storage backend for maps.
+
+The admin API calls to list trees backed by Cloud Spanner trees are fixed.
+
+### RPC Server Transaction Leaks Fixed
+
+There were some cases where the Log RPC server could leak storage transactions
+in error situations. These have now been fixed. If you have a custom storage
+implementation review the fixes made to the MySQL Log storage to see if they
+need to be applied to your code (`storage/mysql/log_storage.go`). The Map
+server had similar issues but these were fixed without requiring changes to
+storage code.
+
+### GetLatestSignedLogRoot With Consistency Proof
+
+`GetLatestSignedLogRoot` in the LogServer will return a consistency proof if
+`first_tree_size` > 0. This reduces the number of RPC calls from logClient from
+2 to 1 in `client.getAndVerifyLatestRoot`.
+
+### Testing
+
+Support has been added for testing against a locally running mysql docker image,
+in addition to a locally running mysql instance.
+
+### Deprecated Fields Removed From SignedLogRoot Proto
+
+*Important Note*: For use in Certificate Transparency this version of the
+logserver binary won't work properly with an older CTFE. Make sure to update the
+CTFE servers to a current version (built from a git checkout after March 20th
+2019) before deploying logservers that include this change or deploy them
+together with this release. Failure to do this can result in 5XX errors being
+returned to clients when the old handler code tries to access fields in
+responses that no longer exist.
+
+All the fields marked as deprecated in this proto have been removed. All the
+same fields are available via the TLS marshalled log root in the proto. Updating
+affected code is straightforward.
+
+Normally, clients will want to verify that the signed root is correctly signed.
+This is the preferred way to interact with the root data.
+
+There is a utility function provided that will verify the signature and unpack
+the TLS data. It works well in conjunction with a `LogVerifier`. The public key
+of the server is required.
+
+```go
+verifier := client.NewLogVerifier(rfc6962.DefaultHasher, pk, crypto.SHA256)
+root, err := crypto.VerifySignedLogRoot(verifier.PubKey, verifier.SigHash, resp.SignedLogRoot)
+if err != nil {
+  // Signature verified and unmarshalled correctly. The struct may now
+  // be used.
+  if root.TreeSize > 0 {
+    // Non empty tree.
+  }
+}
+```
+
+### MySQL changes
+
+#### Configurable number of connections for MySQL
+
+Two new flags have been added that limit connections to MySQL database servers:
+
+-   `--mysql_max_conns` - limits the total number of database connections
+-   `--mysql_max_idle_conns` - limits the number of idle database connections
+
+By default, there is no maximum number of database connections. However, the
+database server will likely impose limits on the number of connections. The
+default limit on idle connections is controlled by
+[Go's `sql` package](https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns).
+
+#### Enfored no concurrent use of MySQL tx
+
+Concurrently using a single MySQL transaction can cause the driver to error
+out, so we now attempt to prevent this from happening.
+
+### Removal of length limits for a tree's `display_name` and `description`
+
+Previously, these were restricted to 20 bytes and 200 bytes respectively. These
+limits have been removed. However, the underlying storage implementation may
+still impose its own limitations.
+
+### Server validation of leaf hashes
+
+The log server now checks that leaf hashes are the correct length and returns
+an InvalidArgument error if they are not. Previously, GetLeavesByHash would
+simply not return any matching leaves for invalid hashes, and
+GetInclusionProofByHash would return a NotFound error.
+
+### Map client
+
+A [MapClient](client/map_client.go) has been added to simplify interacting with
+the map server.
 
 ### Database Schema
 
-This version includes a change to the MySQL and Postgres database schemas
-to add an index on the `SequencedLeafData` table.  This improves performance for
+This version includes a change to the MySQL and Postgres database schemas to add
+an index on the `SequencedLeafData` table. This improves performance for
 inclusion proof queries.
 
 ### Deployments
@@ -35,11 +146,28 @@ the existing Kubernetes services and redeploy them, otherwise you'll see an
 error similar to `The Service "trillian-log-service" is invalid: spec.clusterIP:
 Invalid value: "": field is immutable`.
 
+A working [Docker Compose](https://docs.docker.com/compose/) configuration is
+now available and can be used to bring up a local Trillian deployment for
+testing and experimental purposes:
+
+```shell
+docker-compose -f examples/deployment/docker-compose.yml up
+```
+
+The Terraform, Kubernetes and Docker configuration files, as well as various
+scripts, all now use the same, consistently-named environment variables for
+MySQL-related data (e.g. `MYSQL_DATABASE`). The variable names are based on
+those for the
+[MySQL Docker image](https://hub.docker.com/_/mysql#environment-variables).
+
+Docker images have been upgraded from Go 1.9 to 1.11. They now use ["Distroless"
+base images](https://github.com/GoogleContainerTools/distroless).
+
 ### Dropped metrics
 
 Quota metrics with specs of the form `users/<user>/read` and
-`users/<user>/write` are no longer exported by the Trillian binaries (as
-they lead to excessive storage requirements for Trillian metrics).
+`users/<user>/write` are no longer exported by the Trillian binaries (as they
+lead to excessive storage requirements for Trillian metrics).
 
 ### Fix Operation Loop Hang
 
@@ -51,15 +179,44 @@ until process exit if any error occurred.
 gometalinter has been replaced with golangci-lint for improved performance and
 Go module support.
 
-### Storage API change
+### Compact Merkle tree data structures
+
+The CompactMerkleTree has been moved from `github.com/google/trillian/merkle` to
+`github.com/google/trillian/merkle/compact` and renamed `Tree`.
+
+A new powerful data structure named Compact Range has been added to the same
+package. It is a generalization of the previous compact Merkle tree structure.
+
+### Storage API changes
 
 The internal storage API is modified so that the ReadOnlyTreeTX.ReadRevision and
 TreeWriter.WriteRevision entrypoints take a context.Context parameter and return
 an optional error.
 
+The `SubtreeCache.GetNodeHash()` method is no longer exported.
+
+The memory storage provider has been refactored to make it more consistent with
+the other storage providers.
+
+The `LogMetadata.GetUnsequencedCounts()` method has been removed.
+
+`NodeReader.GetMerkleNodes` now must return `Node` objects in the same order as
+node IDs requested. Storage implementations known to us already adhere to this
+requirement.
+
 ### Maphammer improvements
 
 The maphammer test tool for the experimental Trillian Map has been enhanced.
+
+### Default values changed for some signer flags
+
+The following flags for the signer have new default values:
+
+-   `--sequencer_interval`: changed from 10 seconds to 100 milliseconds
+-   `--batch_size`: changed from 50 to 1000
+
+These changes improve the signer's throughput and latency under typical
+conditions.
 
 ### Master election refactoring
 
@@ -72,9 +229,16 @@ The `--master_check_interval` flag is removed from `logsigner`.
 `logsigner` switched to using a new master election interface contained in
 `util/election2` package. The interfaces in `util/election` are removed.
 
+### `CONIKS_SHA256` hash strategy added
+
+Support has been added for a CONIKS sparse tree hasher with SHA256 as the hash
+algorithm. Set a tree's `hash_strategy` to `CONIKS_SHA256` to use it.
+
 ### Performance
 
 The performance of `SetLeaves` requests on the Map has been slightly improved.
+The performance of `GetConsistencyProof` requests has been improved when using
+MySQL.
 
 ### Logging
 
@@ -83,6 +247,12 @@ returning the same information via the returned error. The caller may still
 choose to log this information. This allows storage implementations that retry
 transactions to suppress warnings when a transaction initially fails but a retry
 succeeds.
+
+Some incorrectly-formatted log messages have been fixed.
+
+### Documentation
+
+[API documentation in Markdown format](docs/api.md) is now available.
 
 ### Other
 
@@ -115,6 +285,16 @@ access as this was an unexpected side effect. Clients now have explicit control
 of when the root is updated by calling `UpdateRoot`.
 
 A root parameter is now required when log clients are constructed.
+
+The client will now only retry requests that fail with the following errors:
+
+-   Aborted
+-   DeadlineExceeded
+-   ResourceExhausted
+-   Unavailable
+
+There is one exception - it will also retry InitLog/InitMap requests that fail
+due to a FailedPrecondition error.
 
 ### Other
 

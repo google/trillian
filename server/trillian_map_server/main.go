@@ -17,6 +17,9 @@ package main
 import (
 	"context"
 	"flag"
+	_ "net/http/pprof" // Register pprof HTTP handlers.
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/golang/glog"
@@ -35,8 +38,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	// Register pprof HTTP handlers
-	_ "net/http/pprof"
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
@@ -67,6 +68,11 @@ var (
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 
 	useSingleTransaction = flag.Bool("single_transaction", false, "Experimental: use a single transaction when updating the map")
+	largePreload         = flag.Bool("large_preload_fix", true, "Experimental: work-around locking performance issues when using useSingleTransaction mode")
+
+	// Profiling related flags.
+	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
+	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
 )
 
 func main() {
@@ -115,6 +121,13 @@ func main() {
 		},
 	}
 
+	// Enable CPU profile if requested.
+	if *cpuProfile != "" {
+		f := mustCreate(*cpuProfile)
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	m := server.Main{
 		RPCEndpoint:  *rpcEndpoint,
 		HTTPEndpoint: *httpEndpoint,
@@ -138,6 +151,7 @@ func main() {
 			mapServer := server.NewTrillianMapServer(registry,
 				server.TrillianMapServerOptions{
 					UseSingleTransaction: *useSingleTransaction,
+					UseLargePreload:      *largePreload,
 				})
 			if err := mapServer.IsHealthy(); err != nil {
 				return err
@@ -163,4 +177,17 @@ func main() {
 	if err := m.Run(ctx); err != nil {
 		glog.Exitf("Server exited with error: %v", err)
 	}
+
+	if *memProfile != "" {
+		f := mustCreate(*memProfile)
+		pprof.WriteHeapProfile(f)
+	}
+}
+
+func mustCreate(fileName string) *os.File {
+	f, err := os.Create(fileName)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	return f
 }

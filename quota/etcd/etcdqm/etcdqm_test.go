@@ -124,7 +124,7 @@ func TestManager_GetTokens(t *testing.T) {
 			t.Errorf("%v: GetTokens() returned err = %v", test.desc, err)
 			continue
 		}
-		if err := differ.assertDiff(ctx, -test.numTokens); err != nil {
+		if err := differ.assertDiff(ctx, "GetTokens", -test.numTokens); err != nil {
 			t.Errorf("%v: assertDiff: %v", test.desc, err)
 		}
 	}
@@ -239,7 +239,7 @@ func TestManager_PutTokens(t *testing.T) {
 			t.Errorf("%v: PutTokens() returned err = %v", test.desc, err)
 			continue
 		}
-		if err := differ.assertDiff(ctx, test.numTokens); err != nil {
+		if err := differ.assertDiff(ctx, "PutTokens", test.numTokens); err != nil {
 			t.Errorf("%v: assertDiff: %v", test.desc, err)
 		}
 	}
@@ -374,10 +374,10 @@ func (d *quotaDiffer) snapshot(ctx context.Context) error {
 	return err
 }
 
-func (d *quotaDiffer) assertDiff(ctx context.Context, want int) error {
+func (d *quotaDiffer) assertDiff(ctx context.Context, desc string, want int) error {
 	currentTokens, err := d.qs.Peek(ctx, d.names)
 	if err != nil {
-		return fmt.Errorf("Peek() returned err = %v", err)
+		return fmt.Errorf("in %s: Peek() returned err = %v", desc, err)
 	}
 	want64 := int64(want)
 	for k, v := range currentTokens {

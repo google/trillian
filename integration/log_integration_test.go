@@ -85,8 +85,8 @@ func TestLiveLogIntegration(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := trillian.NewTrillianLogClient(conn)
-	if err := RunLogIntegration(client, params); err != nil {
+	lc := trillian.NewTrillianLogClient(conn)
+	if err := RunLogIntegration(lc, params); err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
 }

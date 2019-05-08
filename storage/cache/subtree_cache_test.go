@@ -71,11 +71,11 @@ func TestSplitNodeID(t *testing.T) {
 			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
 			continue
 		}
-		if got, want := int(s.Bits), tc.outSuffixBits; got != want {
+		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
 			t.Errorf("splitNodeID(%v): suffix.Bits %v, want %v", n, got, want)
 			continue
 		}
-		if got, want := s.Path, tc.outSuffix; !bytes.Equal(got, want) {
+		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
 			t.Errorf("splitNodeID(%v): suffix.Path %x, want %x", n, got, want)
 		}
 	}
@@ -159,7 +159,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	}
 }
 
-func noFetch(storage.NodeID) (*storagepb.SubtreeProto, error) {
+func noFetch(_ storage.NodeID) (*storagepb.SubtreeProto, error) {
 	return nil, errors.New("not supposed to read anything")
 }
 
@@ -267,17 +267,13 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HashLeaf(%v): %v", leaf, err)
 		}
-		_, err = cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) error {
-			n, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 8)
-			if err != nil {
-				return fmt.Errorf("failed to create nodeID for cmt tree: %v", err)
-			}
+		_, err = cmt.AddLeafHash(leafHash, func(level uint, index uint64, h []byte) {
+			n := stestonly.MustCreateNodeIDForTreeCoords(int64(level), int64(index), 8)
 			// Don't store leaves or the subtree root in InternalNodes
-			if depth > 0 && depth < 8 {
+			if level > 0 && level < 8 {
 				_, sfx := c.splitNodeID(n)
 				cmtStorage.InternalNodes[sfx.String()] = h
 			}
-			return nil
 		})
 		if err != nil {
 			t.Fatalf("merkle tree update failed: %v", err)

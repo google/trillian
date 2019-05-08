@@ -89,7 +89,7 @@ func (s *HStar2) HStar2Nodes(prefix []byte, subtreeDepth int, values []HStar2Lea
 		return nil, ErrSubtreeOverrun
 	}
 	sort.Sort(ByIndex{values})
-	offset := storage.NewNodeIDFromPrefixSuffix(prefix, storage.Suffix{}, s.hasher.BitLen()).BigInt()
+	offset := storage.NewNodeIDFromPrefixSuffix(prefix, storage.EmptySuffix, s.hasher.BitLen()).BigInt()
 	return s.hStar2b(depth, totalDepth, values, offset, get, set)
 }
 
@@ -124,7 +124,9 @@ func (s *HStar2) hStar2b(depth, maxDepth int, values []HStar2LeafHash, offset *b
 		return nil, err
 	}
 	h := s.hasher.HashChildren(lhs, rhs)
-	s.set(offset, depth, h, set)
+	if err := s.set(offset, depth, h, set); err != nil {
+		return nil, err
+	}
 	return h, nil
 }
 

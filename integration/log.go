@@ -524,9 +524,9 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.StartLeaf; l < params.LeafCount; l++ {
-		compactTree.AddLeaf(leafMap[l].LeafValue, func(int, int64, []byte) error {
-			return nil
-		})
+		if _, _, err := compactTree.AddLeaf(leafMap[l].LeafValue, func(uint, uint64, []byte) {}); err != nil {
+			return nil, err
+		}
 		if _, _, err := merkleTree.AddLeaf(leafMap[l].LeafValue); err != nil {
 			return nil, err
 		}

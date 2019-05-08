@@ -47,13 +47,10 @@ func NewMapClientFromTree(client trillian.TrillianMapClient, config *trillian.Tr
 func (c *MapClient) GetAndVerifyLatestMapRoot(ctx context.Context) (*types.MapRootV1, error) {
 	rootResp, err := c.Conn.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: c.MapID})
 	if err != nil {
-		return nil, status.Errorf(status.Code(err), "GetSignedMapRoot(%v): %v", c.MapID, err)
+		s := status.Convert(err)
+		return nil, status.Errorf(s.Code(), "GetSignedMapRoot(%v): %v", c.MapID, s.Message())
 	}
-	mapRoot, err := c.VerifySignedMapRoot(rootResp.GetMapRoot())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", c.MapID, err)
-	}
-	return mapRoot, nil
+	return c.VerifySignedMapRoot(rootResp.GetMapRoot())
 }
 
 // GetAndVerifyMapLeaves verifies and returns the requested map leaves.
@@ -67,7 +64,8 @@ func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte)
 		Index: indexes,
 	})
 	if err != nil {
-		return nil, status.Errorf(status.Code(err), "map.GetLeaves(): %v", err)
+		s := status.Convert(err)
+		return nil, status.Errorf(s.Code(), "map.GetLeaves(): %v", s.Message())
 	}
 	return c.VerifyMapLeavesResponse(indexes, -1, getResp)
 }
@@ -84,7 +82,8 @@ func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revisio
 		Revision: revision,
 	})
 	if err != nil {
-		return nil, status.Errorf(status.Code(err), "map.GetLeaves(): %v", err)
+		s := status.Convert(err)
+		return nil, status.Errorf(s.Code(), "map.GetLeaves(): %v", s.Message())
 	}
 	return c.VerifyMapLeavesResponse(indexes, revision, getResp)
 }
@@ -100,4 +99,20 @@ func hasDuplicates(indexes [][]byte) error {
 		set[string(i)] = true
 	}
 	return nil
+}
+
+// SetAndVerifyMapLeaves calls SetLeaves and verifies the signature of the returned map root.
+func (c *MapClient) SetAndVerifyMapLeaves(ctx context.Context, leaves []*trillian.MapLeaf, metadata []byte) (*types.MapRootV1, error) {
+	// Set new leaf values.
+	req := &trillian.SetMapLeavesRequest{
+		MapId:    c.MapID,
+		Leaves:   leaves,
+		Metadata: metadata,
+	}
+	setResp, err := c.Conn.SetLeaves(ctx, req)
+	if err != nil {
+		s := status.Convert(err)
+		return nil, status.Errorf(s.Code(), "map.SetLeaves(MapId: %v): %v", c.MapID, s.Message())
+	}
+	return c.VerifySignedMapRoot(setResp.GetMapRoot())
 }

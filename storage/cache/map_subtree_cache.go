@@ -46,8 +46,8 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				return err
 			}
 			// TODO(gdbelvin): test against subtree depth.
-			if sfx.Bits%depthQuantum != 0 {
-				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits)
+			if sfx.Bits()%depthQuantum != 0 {
+				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits())
 			}
 
 			leaves = append(leaves, merkle.HStar2LeafHash{

@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
@@ -542,8 +543,11 @@ func TestAdminServer_TreeGC(t *testing.T) {
 	success := false
 	const attempts = 3
 	for i := 0; i < attempts; i++ {
-		treeGC.RunOnce(ctx)
-		_, err := ts.adminClient.GetTree(ctx, &trillian.GetTreeRequest{TreeId: tree.TreeId})
+		_, err := treeGC.RunOnce(ctx)
+		if err != nil {
+			t.Error(err)
+		}
+		_, err = ts.adminClient.GetTree(ctx, &trillian.GetTreeRequest{TreeId: tree.TreeId})
 		if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
 			success = true
 			break
@@ -566,13 +570,17 @@ type testServer struct {
 
 func (ts *testServer) closeAll() {
 	if ts.conn != nil {
-		ts.conn.Close()
+		if err := ts.conn.Close(); err != nil {
+			glog.Errorf("testServer: conn.Close()=%v", err)
+		}
 	}
 	if ts.server != nil {
 		ts.server.GracefulStop()
 	}
 	if ts.lis != nil {
-		ts.lis.Close()
+		if err := ts.lis.Close(); err != nil {
+			glog.Errorf("testServer: lis.Close()=%v", err)
+		}
 	}
 }
 
@@ -605,7 +613,11 @@ func setupAdminServer(ctx context.Context, t *testing.T) (*testServer, error) {
 		)),
 	)
 	trillian.RegisterTrillianAdminServer(ts.server, sa.New(registry, nil /* allowedTreeTypes */))
-	go ts.server.Serve(ts.lis)
+	go func() {
+		if err := ts.server.Serve(ts.lis); err != nil {
+			glog.Errorf("server.Serve()=%v", err)
+		}
+	}()
 
 	ts.conn, err = grpc.Dial(ts.lis.Addr().String(), grpc.WithInsecure())
 	if err != nil {

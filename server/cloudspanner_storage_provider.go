@@ -85,7 +85,7 @@ func configFromFlags() spanner.ClientConfig {
 	return r
 }
 
-func newCloudSpannerStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
+func newCloudSpannerStorageProvider(_ monitoring.MetricFactory) (StorageProvider, error) {
 	csMu.Lock()
 	defer csMu.Unlock()
 
@@ -103,6 +103,7 @@ func newCloudSpannerStorageProvider(mf monitoring.MetricFactory) (StorageProvide
 	return csStorageInstance, nil
 }
 
+// LogStorage builds and returns a new storage.LogStorage using CloudSpanner.
 func (s *cloudSpannerProvider) LogStorage() storage.LogStorage {
 	warn()
 	opts := cloudspanner.LogStorageOptions{}
@@ -120,6 +121,7 @@ func (s *cloudSpannerProvider) LogStorage() storage.LogStorage {
 	return cloudspanner.NewLogStorageWithOpts(s.client, opts)
 }
 
+// MapStorage builds and returns a new storage.MapStorage using CloudSpanner.
 func (s *cloudSpannerProvider) MapStorage() storage.MapStorage {
 	warn()
 	opts := cloudspanner.MapStorageOptions{}
@@ -129,11 +131,14 @@ func (s *cloudSpannerProvider) MapStorage() storage.MapStorage {
 	return cloudspanner.NewMapStorageWithOpts(s.client, opts)
 }
 
+// AdminStorage builds and returns a new storage.AdminStorage using CloudSpanner.
 func (s *cloudSpannerProvider) AdminStorage() storage.AdminStorage {
 	warn()
 	return cloudspanner.NewAdminStorage(s.client)
 }
 
+// Close shuts down this provider. Calls to the other methods will fail
+// after this.
 func (s *cloudSpannerProvider) Close() error {
 	s.client.Close()
 	return nil

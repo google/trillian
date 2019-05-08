@@ -44,6 +44,8 @@ message DigitallySigned {
     RSA = 1;
     // ECDSA signature scheme.
     ECDSA = 3;
+    // Ed25519 signature scheme.
+    ED25519 = 7;
   }
 
   // hash_algorithm contains the hash algorithm used.

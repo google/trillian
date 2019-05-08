@@ -26,14 +26,37 @@ import "google/protobuf/timestamp.proto";
 import "google/rpc/status.proto";
 import "trillian.proto";
 
-// Provides access to a Verifiable Log data structure as defined in the
-// [Verifiable Data Structures](docs/papers/VerifiableDataStructures.pdf) paper.
+// The TrillianLog service provides access to an append-only Log data structure
+// as described in the [Verifiable Data
+// Structures](docs/papers/VerifiableDataStructures.pdf) paper.
 //
-// The API supports adding new entries to be integrated into the log's tree. It
-// does not provide arbitrary tree modifications. Additionally, it has read
-// operations such as obtaining tree leaves, inclusion/consistency proofs etc.
+// The API supports adding new entries to the Merkle tree for a specific Log
+// instance (identified by its log_id) in two modes:
+//  - For a normal log, new leaf entries are queued up for subsequent
+//    inclusion in the log, and the leaves are assigned consecutive leaf_index
+//    values as part of that integration process.
+//  - For a 'pre-ordered log', new entries have an already-defined leaf
+//    ordering, and leaves are only integrated into the Merkle tree when a
+//    contiguous range of leaves is available.
+//
+// The API also supports read operations to retrieve leaf contents, and to
+// provide cryptographic proofs of leaf inclusion and of the append-only nature
+// of the Log.
+//
+// Each API request also includes a charge_to field, which allows API users
+// to provide quota identifiers that should be "charged" for each API request
+// (and potentially rejected with codes.ResourceExhausted).
+//
+// Various operations on the API also allows for 'server skew', which can occur
+// when different API requests happen to be handled by different server instances
+// that may not all be up to date.  An API request that is relative to a specific
+// tree size may reach a server instance that is not yet aware of this tree size;
+// in this case the server will typically return an OK response that contains:
+//  - a signed log root that indicates the tree size that it is aware of
+//  - an empty response otherwise.
 service TrillianLog {
-  // Adds a single leaf to the queue.
+  // QueueLeaf adds a single leaf to the queue of pending leaves for a normal
+  // log.
   rpc QueueLeaf(QueueLeafRequest) returns (QueueLeafResponse) {
     option (google.api.http) = {
       post: "/v1beta1/logs/{log_id}/leaves"
@@ -41,8 +64,8 @@ service TrillianLog {
     };
   }
 
-  // Adds a single leaf with an assigned sequence number.
-  // Warning: This RPC is under development, don't use it.
+  // AddSequencedLeaf adds a single leaf with an assigned sequence number to a
+  // pre-ordered log.
   rpc AddSequencedLeaf(AddSequencedLeafRequest)
       returns (AddSequencedLeafResponse) {
     option (google.api.http) = {
@@ -51,30 +74,36 @@ service TrillianLog {
     };
   }
 
-  //
-  // No direct equivalent at the storage level.
-  //
 
-  // Returns inclusion proof for a leaf with a given index in a given tree.
-  // If the requested tree_size is larger than the server is aware of,
-  // the response will include the known log root and an empty proof.
+  // GetInclusionProof returns an inclusion proof for a leaf with a given index
+  // in a particular tree.
+  //
+  // If the requested tree_size is larger than the server is aware of, the
+  // response will include the latest known log root and an empty proof.
   rpc GetInclusionProof(GetInclusionProofRequest)
       returns (GetInclusionProofResponse) {
     option (google.api.http) = {
       get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
     };
   }
-  // Returns inclusion proof for a leaf with a given Merkle hash in a given
-  // tree.
+
+  // GetInclusionProofByHash returns an inclusion proof for any leaves that have
+  // the given Merkle hash in a particular tree.
+  //
+  // If any of the leaves that match the given Merkle has have a leaf index that
+  // is beyond the requested tree size, the corresponding proof entry will be empty.
   rpc GetInclusionProofByHash(GetInclusionProofByHashRequest)
       returns (GetInclusionProofByHashResponse) {
     option (google.api.http) = {
       get: "/v1beta1/logs/{log_id}/leaves:inclusion_by_hash"
     };
   }
-  // Returns consistency proof between two versions of a given tree.
+
+  // GetConsistencyProof returns a consistency proof between different sizes of
+  // a particular tree.
+  //
   // If the requested tree size is larger than the server is aware of,
-  // the response will include the known log root and an empty proof.
+  // the response will include the latest known log root and an empty proof.
   rpc GetConsistencyProof(GetConsistencyProofRequest)
       returns (GetConsistencyProofResponse) {
     option (google.api.http) = {
@@ -82,8 +111,12 @@ service TrillianLog {
     };
   }
 
-  // Returns the latest signed log root for a given tree. Corresponds to the
-  // ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
+  // GetLatestSignedLogRoot returns the latest signed log root for a given tree,
+  // and optionally also includes a consistency proof from an earlier tree size
+  // to the new size of the tree.
+  //
+  // If the earlier tree size is larger than the server is aware of,
+  // an InvalidArgument error is returned.
   rpc GetLatestSignedLogRoot(GetLatestSignedLogRootRequest)
       returns (GetLatestSignedLogRootResponse) {
     option (google.api.http) = {
@@ -91,10 +124,13 @@ service TrillianLog {
     };
   }
 
-  // Returns the total number of leaves that have been integrated into the
-  // given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
-  // storage interface.
+  // GetSequencedLeafCount returns the total number of leaves that have been
+  // integrated into the given tree.
+  //
   // DO NOT USE - FOR DEBUGGING/TEST ONLY
+  //
+  // (Use GetLatestSignedLogRoot then de-serialize the Log Root and use
+  // use the tree size field within.)
   rpc GetSequencedLeafCount(GetSequencedLeafCountRequest)
       returns (GetSequencedLeafCountResponse) {
     option (google.api.http) = {
@@ -102,9 +138,12 @@ service TrillianLog {
     };
   }
 
-  // Returns log entry and the corresponding inclusion proof for a given leaf
-  // index in a given tree. If the requested tree is unavailable but the leaf is
-  // in scope for the current tree, return a proof in that tree instead.
+  // GetEntryAndProof returns a log leaf and the corresponding inclusion proof
+  // to a specified tree size, for a given leaf index in a particular tree.
+  //
+  // If the requested tree size is unavailable but the leaf is
+  // in scope for the current tree, the returned proof will be for the
+  // current tree size rather than the requested tree size.
   rpc GetEntryAndProof(GetEntryAndProofRequest)
       returns (GetEntryAndProofResponse) {
     option (google.api.http) = {
@@ -112,38 +151,36 @@ service TrillianLog {
     };
   }
 
-  //
-  // Initialisation APIs.
-  //
-
+  // InitLog initializes a particular tree, creating the initial signed log
+  // root (which will be of size 0).
   rpc InitLog(InitLogRequest) returns (InitLogResponse) {
     option (google.api.http) = {
       post: "/v1beta1/logs/{log_id}:init"
     };
   }
 
-  //
-  // Batch APIs. Correspond to `storage.ReadOnlyLogTreeTX` batch queries.
-  //
 
-  // Adds a batch of leaves to the queue.
+  // QueueLeaf adds a batch of leaves to the queue of pending leaves for a
+  // normal log.
   rpc QueueLeaves(QueueLeavesRequest) returns (QueueLeavesResponse) {}
 
-  // Stores leaves from the provided batch and associates them with the log
-  // positions according to the `LeafIndex` field. The indices must be
-  // contiguous.
-  //
-  // Warning: This RPC is under development, don't use it.
+  // AddSequencedLeaves adds a batch of leaves with assigned sequence numbers
+  // to a pre-ordered log.  The indices of the provided leaves must be contiguous.
   rpc AddSequencedLeaves(AddSequencedLeavesRequest)
       returns (AddSequencedLeavesResponse) {}
 
-  // Returns a batch of leaves located in the provided positions.
+  // GetLeavesByIndex returns a batch of leaves whose leaf indices are provided
+  // in the request.
   rpc GetLeavesByIndex(GetLeavesByIndexRequest)
       returns (GetLeavesByIndexResponse) {}
-  // Returns a batch of leaves in a sequential range.
+
+  // GetLeavesByRange returns a batch of leaves whose leaf indices are in a
+  // sequential range.
   rpc GetLeavesByRange(GetLeavesByRangeRequest)
       returns (GetLeavesByRangeResponse) {}
-  // Returns a batch of leaves by their `merkle_leaf_hash` values.
+
+  // GetLeavesByHash returns a batch of leaves which are identified by their
+  // Merkle leaf hash values.
   rpc GetLeavesByHash(GetLeavesByHashRequest)
       returns (GetLeavesByHashResponse) {}
 }
@@ -175,6 +212,10 @@ message QueueLeafRequest {
 }
 
 message QueueLeafResponse {
+  // queued_leaf describes the leaf which is or will be incorporated into the
+  // Log.  If the submitted leaf was already present in the Log (as indicated by
+  // its leaf identity hash), then the returned leaf will be the pre-existing
+  // leaf entry rather than the submitted leaf.
   QueuedLogLeaf queued_leaf = 2;
 }
 
@@ -208,6 +249,8 @@ message GetInclusionProofResponse {
 
 message GetInclusionProofByHashRequest {
   int64 log_id = 1;
+  // The leaf hash field provides the Merkle tree hash of the leaf entry
+  // to be retrieved.
   bytes leaf_hash = 2;
   int64 tree_size = 3;
   bool order_by_sequence = 4;
@@ -216,7 +259,9 @@ message GetInclusionProofByHashRequest {
 
 message GetInclusionProofByHashResponse {
   // Logs can potentially contain leaves with duplicate hashes so it's possible
-  // for this to return multiple proofs.
+  // for this to return multiple proofs.  If the leaf index for a particular
+  // instance of the requested Merkle leaf hash is beyond the requested tree
+  // size, the corresponding proof entry will be missing.
   repeated Proof proof = 2;
   SignedLogRoot signed_log_root = 3;
 }
@@ -242,12 +287,23 @@ message GetConsistencyProofResponse {
 message GetLatestSignedLogRootRequest {
   int64 log_id = 1;
   ChargeTo charge_to = 2;
+  // If first_tree_size is non-zero, the response will include a consistency
+  // proof between first_tree_size and the new tree size (if not smaller).
+  int64 first_tree_size = 3;
 }
 
 message GetLatestSignedLogRootResponse {
   SignedLogRoot signed_log_root = 2;
+  // proof is filled in with a consistency proof if first_tree_size in
+  // GetLatestSignedLogRootRequest is non-zero (and within the tree size
+  // available at the server).
+  Proof proof = 3;
 }
 
+// DO NOT USE - FOR DEBUGGING/TEST ONLY
+//
+// (Use GetLatestSignedLogRoot then de-serialize the Log Root and use
+// use the tree size field within.)
 message GetSequencedLeafCountRequest {
   int64 log_id = 1;
   ChargeTo charge_to = 2;
@@ -308,7 +364,7 @@ message GetLeavesByIndexRequest {
 }
 
 message GetLeavesByIndexResponse {
-  // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
+  // TODO(gbelvin): Response syntax does not allow for some requested leaves to be available, and some not (but using QueuedLogLeaf might)
   repeated LogLeaf leaves = 2;
   SignedLogRoot signed_log_root = 3;
 }
@@ -331,18 +387,20 @@ message GetLeavesByRangeResponse {
 
 message GetLeavesByHashRequest {
   int64 log_id = 1;
+  // The Merkle leaf hash of the leaf to be retrieved.
   repeated bytes leaf_hash = 2;
+  // If order_by_sequence is set then leaves will be returned in order of ascending
+  // leaf index.
   bool order_by_sequence = 3;
   ChargeTo charge_to = 5;
 }
 
 message GetLeavesByHashResponse {
-  // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
   repeated LogLeaf leaves = 2;
   SignedLogRoot signed_log_root = 3;
 }
 
-// A result of submitting an entry to the log. Output only.
+// QueuedLogLeaf provides the result of submitting an entry to the log.
 // TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
 message QueuedLogLeaf {
   // The leaf as it was stored by Trillian. Empty unless `status.code` is:
@@ -361,59 +419,86 @@ message QueuedLogLeaf {
   google.rpc.Status status = 2;
 }
 
-// A leaf of the log's Merkle tree, corresponds to a single log entry. Each leaf
-// has a unique `leaf_index` in the scope of this tree.
+// LogLeaf describes a leaf in the Log's Merkle tree, corresponding to a single log entry.
+// Each leaf has a unique leaf index in the scope of this tree.  Clients submitting new
+// leaf entries should only set the following fields:
+//   - leaf_value
+//   - extra_data (optionally)
+//   - leaf_identity_hash (optionally)
+//   - leaf_index (iff the log is a PREORDERED_LOG)
 message LogLeaf {
-  // Output only. The hash over `leaf_data`.
+  // merkle_leaf_hash holds the Merkle leaf hash over leaf_value.  This is
+  // calculated by the Trillian server when leaves are added to the tree, using
+  // the defined hashing algorithm and strategy for the tree; as such, the client
+  // does not need to set it on leaf submissions.
   bytes merkle_leaf_hash = 1;
 
-  // Required. The arbitrary data associated with this log entry. Validity of
-  // this field is governed by the call site (personality).
+  // leaf_value holds the data that forms the value of the Merkle tree leaf.
+  // The client should set this field on all leaf submissions, and is
+  // responsible for ensuring its validity (the Trillian server treats it as an
+  // opaque blob).
   bytes leaf_value = 2;
-  // The arbitrary metadata, e.g., a timestamp.
+
+  // extra_data holds additional data associated with the Merkle tree leaf.
+  // The client may set this data on leaf submissions, and the Trillian server
+  // will return it on subsequent read operations. However, the contents of
+  // this field are not covered by and do not affect the Merkle tree hash
+  // calculations.
   bytes extra_data = 3;
 
-  // Output only in `LOG` mode. Required in `PREORDERED_LOG` mode.
-  // The index of the leaf in the Merkle tree, i.e., the position of the
-  // corresponding entry in the log. For normal logs this value will be
-  // assigned by the LogSigner.
+  // leaf_index indicates the index of this leaf in the Merkle tree.
+  // This field is returned on all read operations, but should only be
+  // set for leaf submissions in PREORDERED_LOG mode (for a normal log
+  // the leaf index is assigned by Trillian when the submitted leaf is
+  // integrated into the Merkle tree).
   int64 leaf_index = 4;
 
-  // The hash over the identity of this leaf. If empty, assumed to be the same
-  // as `merkle_leaf_hash`. It is a mechanism for the personality to provide a
-  // hint to Trillian that two leaves should be considered "duplicates" even
-  // though their `leaf_value`s differ.
+  // leaf_identity_hash provides a hash value that indicates the client's
+  // concept of which leaf entries should be considered identical.
   //
-  // E.g., in a CT personality multiple `add-chain` calls for an identical
-  // certificate would produce differing `leaf_data` bytes (due to the
-  // presence of SCT elements), with just this information Trillian would be
-  // unable to determine that. Within the context of the CT personality, these
-  // entries are dupes, so it sets `leaf_identity_hash` to `H(cert)`, which
-  // allows Trillian to detect the duplicates.
+  // This mechanism allows the client personality to indicate that two leaves
+  // should be considered "duplicates" even though their `leaf_value`s differ.
+  //
+  // If this is not set on leaf submissions, the Trillian server will take its
+  // value to be the same as merkle_leaf_hash (and thus only leaves with
+  // identical leaf_value contents will be considered identical).
+  //
+  // For example, in Certificate Transparency each certificate submission is
+  // associated with a submission timestamp, but subsequent submissions of the
+  // same certificate should be considered identical.  This is achieved
+  // by setting the leaf identity hash to a hash over (just) the certificate,
+  // whereas the Merkle leaf hash encompasses both the certificate and its
+  // submission time -- allowing duplicate certificates to be detected.
+  //
   //
   // Continuing the CT example, for a CT mirror personality (which must allow
   // dupes since the source log could contain them), the part of the
   // personality which fetches and submits the entries might set
   // `leaf_identity_hash` to `H(leaf_index||cert)`.
+  //
   // TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing
   // identity hash dupes in `PREORDERED_LOG` mode, for it can later be
   // upgraded to `LOG` which will need to correctly detect duplicates with
   // older entries when new ones get queued.
   bytes leaf_identity_hash = 5;
 
-  // Output only. The time at which this leaf was passed to `QueueLeaves`.
-  // This value will be determined and set by the LogServer. Equals zero if
-  // the entry was submitted without queuing.
+  // queue_timestamp holds the time at which this leaf was queued for
+  // inclusion in the Log, or zero if the entry was submitted without
+  // queuing. Clients should not set this field on submissions.
   google.protobuf.Timestamp queue_timestamp = 6;
-  // Output only. The time at which this leaf was integrated into the tree.
-  // This value will be determined and set by the LogSigner.
+
+  // integrate_timestamp holds the time at which this leaf was integrated into
+  // the tree.  Clients should not set this field on submissions.
   google.protobuf.Timestamp integrate_timestamp = 7;
 }
 
-// A consistency or inclusion proof for a Merkle tree. Output only.
+// Proof holds a consistency or inclusion proof for a Merkle tree, as returned
+// by the API.
 message Proof {
+  // leaf_index indicates the requested leaf index when this message is used for
+  // a leaf inclusion proof.  This field is set to zero when this message is
+  // used for a consistency proof.
   int64 leaf_index = 1;
-  // Contained internal node details, no longer provided to clients.
-  reserved 2;
+  reserved 2; // Contained internal node details (removed)
   repeated bytes hashes = 3;
 }

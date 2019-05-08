@@ -163,10 +163,16 @@ type mapTreeTX struct {
 }
 
 func (m *mapTreeTX) ReadRevision(ctx context.Context) (int64, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	return int64(m.readRevision), nil
 }
 
 func (m *mapTreeTX) WriteRevision(ctx context.Context) (int64, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	if m.treeTX.writeRevision < 0 {
 		return m.treeTX.writeRevision, errors.New("mapTreeTX write revision not populated")
 	}
@@ -174,6 +180,9 @@ func (m *mapTreeTX) WriteRevision(ctx context.Context) (int64, error) {
 }
 
 func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
@@ -197,6 +206,9 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 // If an index is not found, no corresponding entry is returned.
 // Each MapLeaf.Index is overwritten with the index the leaf was found at.
 func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	// If no indexes are requested, return an empty set.
 	if len(indexes) == 0 {
 		return []trillian.MapLeaf{}, nil
@@ -252,6 +264,9 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 }
 
 func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var mapperMetaBytes []byte
@@ -275,6 +290,9 @@ func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trill
 }
 
 func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var mapperMetaBytes []byte
@@ -316,6 +334,9 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 }
 
 func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	var r types.MapRootV1
 	if err := r.UnmarshalBinary(root.MapRoot); err != nil {
 		return err

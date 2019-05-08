@@ -1,0 +1,19 @@
+# Paths to exclude when searching for Protobuf files.
+excludes:
+- vendor
+
+# Protoc directives.
+protoc:
+  # The Protobuf version to use from https://github.com/protocolbuffers/protobuf/releases.
+  # You probably want to set this to make your builds completely reproducible.
+  version: 3.5.1
+
+  # Additional paths to include with -I to protoc.
+  # By default, the directory of the config file is included,
+  # or the current directory if there is no config file.
+  includes:
+  - ../../googleapis/googleapis
+
+# Lint directives.
+lint:
+  group: google

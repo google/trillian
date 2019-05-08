@@ -18,7 +18,7 @@ fi
 echo "Running test"
 cd "${INTEGRATION_DIR}"
 set +e
-go test ${GOFLAGS} \
+go test \
   -timeout=${GO_TEST_TIMEOUT:-5m} \
   ./maptest  --map_rpc_server="${TRILLIAN_SERVER}"
 RESULT=$?

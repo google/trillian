@@ -4,6 +4,18 @@ package trees
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Unknown-0]
+	_ = x[Admin-1]
+	_ = x[Query-2]
+	_ = x[QueueLog-3]
+	_ = x[SequenceLog-4]
+	_ = x[UpdateMap-5]
+}
+
 const _OpType_name = "UnknownAdminQueryQueueLogSequenceLogUpdateMap"
 
 var _OpType_index = [...]uint8{0, 7, 12, 17, 25, 36, 45}

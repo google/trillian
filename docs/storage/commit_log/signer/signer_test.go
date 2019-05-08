@@ -25,7 +25,10 @@ func TestSTH(t *testing.T) {
 	if got, want := enc, `{"sz":12,"tm":100,"off":0}`; got != want {
 		t.Errorf("sth.String=%q; want %q", got, want)
 	}
-	dec := sthFromString(enc)
+	dec, err := sthFromString(enc)
+	if err != nil {
+		t.Errorf("sthFromString()=%v, want: nil", err)
+	}
 	if !reflect.DeepEqual(dec, &sth) {
 		t.Errorf("sthFromString(%q)=%+v; want %+v", enc, *dec, sth)
 	}

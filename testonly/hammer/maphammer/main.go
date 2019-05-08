@@ -81,8 +81,12 @@ func hammerTime() {
 	mcData, _ := base64.StdEncoding.DecodeString(mc)
 	b := bytes.NewReader(mcData)
 	r, _ := gzip.NewReader(b)
-	io.Copy(os.Stdout, r)
-	r.Close()
+	if _, err := io.Copy(os.Stdout, r); err != nil {
+		return
+	}
+	if err := r.Close(); err != nil {
+		return
+	}
 	fmt.Print("\n\nLet me hammer him today?\n\n")
 }
 
@@ -133,19 +137,6 @@ func main() {
 	if glog.V(1) {
 		hammerTime()
 	}
-	fmt.Print("\n\nIf they'd let me have my way I could have flayed him into shape.\n")
-	for i := 0; i < 8; i++ {
-		time.Sleep(100 * time.Millisecond)
-		fmt.Print(".")
-	}
-	fmt.Print("\n\n")
-	mc := "H4sIAAAAAAAA/5yXMa70KgyF+1kFBR3WaTNCQmloKAK9F8PanzAkgQxJ7vute6UJCR8H24D5qBdD+QfQPT7aO3CCeKL+C7DovWX+E1CNbngCzuTMgXfIEUgg+3cjol/m7ZR/Bm9dv+cbYDKD/wkEHKcjhajN/E/A4Je1WOqAyJsCUhyAF+IUCGeMMcyaWdseqLZt27JJSeMEFtfjCgRAh0VjTKRb26gM9z06lK4/wFMGfJEXRs8Pn+StAI07X8CeGgXYvYJf5WuDW2Cy8oU7iSAcxM/YCUiQ8cFhDkT0CS4C3rj9XQHuxAI8/W45WRTHa+/1ihnQM0df4oNk4g60MusdaLHbl2HXKD8jMzN+rTRT/bkEp1orAdbWoT9K5T2RAIba2rDQzOzRx0vByzD7M5tOuW2B+Sjk3odbPugxnb1rAjAPLWy68cjVSX9g7N0mKiK/ZzRG3AWIE0jTLRg7QzfFBfcdhh7WHJwRYgFOfH+Yrhishbc+fZnXXIHrOOhVaRGZCnaXOtuISuK5kEtYPvQCbKFgjlBPQOQlWwEGegHWaET1AnSLhOVDywvw62PkFKM3j1OG0VmA0PbJ1TbGGL38Ra/uviIJW1UIdrdpo1QFZYjOGD1uHU6L3oFhemyXxI4C8fXZC7JfbeidZbWrQcGqabpSQFXUsZ5jvIjsgDLjClRgNwXKbDtJqC3e65lC0uxqYiuwnqyVUIPhR9/7XeSPGXZ1MX9kG/p5X+X57dLcph3jNResbjMu+yEC5yFwzf8xlhFHdyC1V3potWEXKEAkbY9dUyE37/vpEbD7ts8gFF4VKGcKKC3HtoomIW6d5oHY9J/hR06HwAoEpUDS9fC7P3fu9t/VSz52wVHIOjmX6ThTRFfSuVQBdp/ufeEgtUX7TB7W1PFa5QDY3Y/eRx+/9+VctZqRJQ+xsj4c2Nc2lnXdTkCy1p6BZWCUxLZLcj3vqG0AYg6SJ62GfgHWBHTMI+9QWDRa5pXuN73fFqdZm85/aqi+ALIuccj2JhKXdmt0qtMdNpe+nAORdczBXje94bisf2S0zLak30MFC7LZpYE5u1aQW5jXoi5bei7aIciQWIdMs6UHWLMwJ5cb7vUWUArcnF2Wkzi4TMfeRtatSzmhQ6k2i+8m15RZ0S59bc7OGc0XC9m5OtWJuDtgzTESaO0/mMBE9qzrw8WnXgysYHc77mP319HH2+juvPMCgVtlfwLe2H8BAAD///XdWNEGEAAA"
-	mcData, _ := base64.StdEncoding.DecodeString(mc)
-	b := bytes.NewReader(mcData)
-	r, _ := gzip.NewReader(b)
-	io.Copy(os.Stdout, r)
-	r.Close()
-	fmt.Print("\n\nLet me hammer him today?\n\n")
 
 	dialOpts := []grpc.DialOption{grpc.WithInsecure()}
 	if *outLog != "" {
