@@ -98,7 +98,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	for i, id := range ids {
 		r.nodes[id.Level] = hashes[i]
 	}
-	r.recalculateRoot(func(depth int, index int64, hash []byte) {})
+	r.recalculateRoot(func(uint, uint64, []byte) {})
 
 	if !bytes.Equal(r.root, expectedRoot) {
 		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
@@ -140,20 +140,18 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-type setNodeFunc func(depth int, index int64, hash []byte)
-
-func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
+func (t *Tree) recalculateRoot(visit VisitFn) error {
 	if t.size == 0 {
 		return nil
 	}
 
-	index := t.size
+	index := uint64(t.size)
 
 	var newRoot []byte
 	first := true
 	mask := int64(1)
-	numBits := bits.Len64(uint64(t.size))
-	for bit := 0; bit < numBits; bit++ {
+	numBits := uint(bits.Len64(uint64(t.size)))
+	for bit := uint(0); bit < numBits; bit++ {
 		index >>= 1
 		if t.size&mask != 0 {
 			if first {
@@ -161,7 +159,7 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 				first = false
 			} else {
 				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
-				setNodeFn(bit+1, index, newRoot)
+				visit(bit+1, index, newRoot)
 			}
 		}
 		mask <<= 1
@@ -173,17 +171,17 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 // AddLeaf calculates the Merkle leaf hash of the given leaf data and appends it
 // to the tree.
 //
-// setNodeFn is a callback which will be called multiple times with the full
-// MerkleTree coordinates of nodes whose hash should be updated.
+// visit is a callback which will be called multiple times with the coordinates
+// of the Merkle tree nodes whose hash should be updated.
 //
 // Returns the index of the new leaf (equal to t.Size()-1) and the Merkle leaf
 // hash for the new leaf.
-func (t *Tree) AddLeaf(data []byte, setNodeFn setNodeFunc) (int64, []byte, error) {
+func (t *Tree) AddLeaf(data []byte, visit VisitFn) (int64, []byte, error) {
 	h, err := t.hasher.HashLeaf(data)
 	if err != nil {
 		return 0, nil, err
 	}
-	seq, err := t.AddLeafHash(h, setNodeFn)
+	seq, err := t.AddLeafHash(h, visit)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -192,21 +190,21 @@ func (t *Tree) AddLeaf(data []byte, setNodeFn setNodeFunc) (int64, []byte, error
 
 // AddLeafHash appends the specified Merkle leaf hash to the tree.
 //
-// setNodeFn is a callback which will be called multiple times with the full MerkleTree coordinates
-// of nodes whose hash should be updated.
+// visit is a callback which will be called multiple times with the coordinates
+// of the Merkle tree nodes whose hash should be updated.
 //
 // Returns the index of the new leaf (equal to t.Size()-1).
-func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error) {
+func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (int64, error) {
 	defer func() {
 		t.size++
 		// TODO(pavelkalinnikov): Handle recalculateRoot errors.
-		t.recalculateRoot(setNodeFn)
+		t.recalculateRoot(visit)
 	}()
 
 	assignedSeq := t.size
-	index := assignedSeq
+	index := uint64(assignedSeq)
 
-	setNodeFn(0, index, leafHash)
+	visit(0, index, leafHash)
 
 	if t.size == 0 {
 		// new tree
@@ -216,7 +214,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 
 	// Initialize our running hash value to the leaf hash.
 	hash := leafHash
-	bit := 0
+	bit := uint(0)
 	// Iterate over the bits in our existing tree size.
 	for mask := t.size; mask > 0; mask >>= 1 {
 		index >>= 1
@@ -226,18 +224,18 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 			// Don't re-write the leaf hash node (we've done it above already)
 			if bit > 0 {
 				// Store the (non-leaf) hash node
-				setNodeFn(bit, index, hash)
+				visit(bit, index, hash)
 			}
 			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = t.hasher.HashChildren(t.nodes[bit], hash)
 		// Store the resulting parent hash.
-		setNodeFn(bit+1, index, hash)
+		visit(bit+1, index, hash)
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
 		t.nodes[bit] = nil
 		// Figure out if we're done:
-		if bit+1 >= len(t.nodes) {
+		if bit+1 >= uint(len(t.nodes)) {
 			// If we're extending the node list then add a new entry with our
 			// running hash, and we're done.
 			t.nodes = append(t.nodes, hash)

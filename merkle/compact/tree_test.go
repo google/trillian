@@ -74,7 +74,7 @@ func TestAddingLeaves(t *testing.T) {
 			idx := 0
 			for _, br := range tc.breaks {
 				for ; idx < br; idx++ {
-					if _, _, err := tree.AddLeaf(inputs[idx], func(int, int64, []byte) {}); err != nil {
+					if _, _, err := tree.AddLeaf(inputs[idx], func(uint, uint64, []byte) {}); err != nil {
 						t.Fatalf("AddLeaf: %v", err)
 					}
 					if err := checkUnusedNodesInvariant(tree); err != nil {
@@ -171,9 +171,8 @@ func TestCompactVsFullTree(t *testing.T) {
 		}
 
 		cSeq, cHash, err := cmt.AddLeaf(newLeaf,
-			func(depth int, index int64, hash []byte) {
-				k := NodeID{Level: uint(depth), Index: uint64(index)}
-				nodes[k] = hash
+			func(level uint, index uint64, hash []byte) {
+				nodes[NodeID{Level: level, Index: index}] = hash
 			})
 		if err != nil {
 			t.Fatalf("mt update failed: %v", err)
@@ -198,7 +197,7 @@ func TestCompactVsFullTree(t *testing.T) {
 	cmt := NewTree(rfc6962.DefaultHasher)
 	for i := int64(0); i < imt.LeafCount(); i++ {
 		newLeaf := []byte(fmt.Sprintf("Leaf %d", i))
-		seq, _, err := cmt.AddLeaf(newLeaf, func(depth int, index int64, hash []byte) {})
+		seq, _, err := cmt.AddLeaf(newLeaf, func(uint, uint64, []byte) {})
 		if err != nil {
 			t.Fatalf("AddLeaf(%d)=_,_,%v, want _,_,nil", i, err)
 		}
@@ -236,7 +235,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		tree := NewTree(rfc6962.DefaultHasher)
 		for i := int64(0); i < test.size; i++ {
 			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
-			tree.AddLeaf(l, func(int, int64, []byte) {})
+			tree.AddLeaf(l, func(uint, uint64, []byte) {})
 		}
 		if gotRoot := tree.CurrentRoot(); !bytes.Equal(gotRoot, test.wantRoot) {
 			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(gotRoot), b64e(test.wantRoot))
