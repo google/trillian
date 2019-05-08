@@ -821,7 +821,9 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
                 ctx,
                 "select current_tree_data,root_signature from trees where tree_id = $1",
                 t.treeID).Scan(&jsonObj,&rootSignatureBytes)
-	
+	if jsonObj == nil { //this fixes the createtree workflow
+		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
+	}
 	var logRoot types.LogRootV1
 	json.Unmarshal(jsonObj,&logRoot)
   /*	
