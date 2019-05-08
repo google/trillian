@@ -86,7 +86,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 	}
 	leaves, err := sequencer.IntegrateBatch(ctx, tree, info.BatchSize, s.guardWindow, maxRootDuration)
 	if err != nil {
-		return 0, fmt.Errorf("failed to integrate batch for %v: %v ---%v %v", logID, err,info.BatchSize,maxRootDuration)
+		return 0, fmt.Errorf("failed to integrate batch for %v: %v", logID, err)
 	}
 	return leaves, nil
 }
