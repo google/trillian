@@ -287,7 +287,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			glog.V(1).Infof("Rolled %d transactions up into single commit", atomic.LoadUint64(&txRolledUp))
 		}
 
-		rootHash, err := smtWriter.CalculateRoot()
+		rootHash, err := smtWriter.CalculateRoot(ctx)
 		if err != nil {
 			return fmt.Errorf("CalculateRoot(): %v", err)
 		}
