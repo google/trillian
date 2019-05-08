@@ -148,10 +148,7 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		// the batch for each ID. Use that to create a new FakeNodeReader.
 		nodes := make([]storage.Node, 0, len(nodeMap))
 		for id, hash := range nodeMap {
-			nID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
-			if err != nil {
-				panic(fmt.Errorf("failed to create NodeID for %+v: %v", id, err))
-			}
+			nID := MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
 			node := storage.Node{NodeID: nID, Hash: hash, NodeRevision: batch.TreeRevision}
 			nodes = append(nodes, node)
 		}
