@@ -83,6 +83,12 @@ func TestNewFromSpec(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			desc: "Ed25519",
+			keySpec: &keyspb.Specification{
+				Params: &keyspb.Specification_Ed25519Params{},
+			},
+		},
+		{
 			desc:    "No params",
 			keySpec: &keyspb.Specification{},
 			wantErr: true,

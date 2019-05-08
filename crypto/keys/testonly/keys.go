@@ -20,16 +20,17 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
 
+	"github.com/google/certificate-transparency-go/asn1"
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
+	"golang.org/x/crypto/ed25519"
 )
 
 // MustMarshalPublicPEMToDER reads a PEM-encoded public key and returns it in DER encoding.
@@ -66,8 +67,18 @@ func MustMarshalPrivatePEMToDER(keyPEM, password string) []byte {
 // then verifies that this signature is correct.
 func SignAndVerify(signer crypto.Signer, pubKey crypto.PublicKey) error {
 	hasher := crypto.SHA256
-	digest := sha256.Sum256([]byte("test"))
-	signature, err := signer.Sign(rand.Reader, digest[:], hasher)
+	msg := []byte("test")
+	digest := sha256.Sum256(msg)
+
+	var signature []byte
+	var err error
+	switch pubKey.(type) {
+	case ed25519.PublicKey:
+		// Ed25519 performs two passes over the data and so takes the whole message not just the digest.
+		signature, err = signer.Sign(rand.Reader, msg, crypto.Hash(0))
+	default:
+		signature, err = signer.Sign(rand.Reader, digest[:], hasher)
+	}
 	if err != nil {
 		return err
 	}
@@ -77,6 +88,8 @@ func SignAndVerify(signer crypto.Signer, pubKey crypto.PublicKey) error {
 		return verifyECDSA(pubKey, digest[:], signature)
 	case *rsa.PublicKey:
 		return verifyRSA(pubKey, digest[:], signature, hasher, hasher)
+	case ed25519.PublicKey:
+		return verifyEd25519(pubKey, msg, signature)
 	default:
 		return fmt.Errorf("unknown public key type: %T", pubKey)
 	}
@@ -108,6 +121,13 @@ func verifyRSA(pubKey *rsa.PublicKey, digest, sig []byte, hasher crypto.Hash, op
 	return rsa.VerifyPKCS1v15(pubKey, hasher, digest, sig)
 }
 
+func verifyEd25519(pubKey ed25519.PublicKey, digest, sig []byte) error {
+	if !ed25519.Verify(pubKey, digest, sig) {
+		return errors.New("Ed25519 signature failed verification")
+	}
+	return nil
+}
+
 // CheckKeyMatchesSpec verifies that the key conforms to the specification.
 // If it does not, an error is returned.
 func CheckKeyMatchesSpec(key crypto.PrivateKey, spec *keyspb.Specification) error {
@@ -122,6 +142,11 @@ func CheckKeyMatchesSpec(key crypto.PrivateKey, spec *keyspb.Specification) erro
 			return checkRsaKeyMatchesParams(key, params.RsaParams)
 		}
 		return fmt.Errorf("%T, want *rsa.PrivateKey", key)
+	case *keyspb.Specification_Ed25519Params:
+		if _, ok := key.(ed25519.PrivateKey); ok {
+			return nil
+		}
+		return fmt.Errorf("%T, want *ed25519.PrivateKey", key)
 	}
 
 	return fmt.Errorf("%T is not a supported keyspb.Specification.Params type", spec.Params)

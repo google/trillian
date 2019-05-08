@@ -18,11 +18,12 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"crypto/x509"
 	"fmt"
 
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
+	"golang.org/x/crypto/ed25519"
 )
 
 // FromProto takes a PrivateKey protobuf message and returns the private key contained within.
@@ -75,6 +76,8 @@ func UnmarshalPrivateKey(keyDER []byte) (crypto.Signer, error) {
 			return key2, nil
 		case *rsa.PrivateKey:
 			return key2, nil
+		case ed25519.PrivateKey:
+			return key2, nil
 		}
 		return nil, fmt.Errorf("der: unsupported private key type: %T", key2)
 	}
@@ -114,6 +117,8 @@ func MarshalPrivateKey(key crypto.Signer) ([]byte, error) {
 		return x509.MarshalECPrivateKey(key)
 	case *rsa.PrivateKey:
 		return x509.MarshalPKCS1PrivateKey(key), nil
+	case ed25519.PrivateKey:
+		return x509.MarshalPKCS8PrivateKey(key)
 	}
 
 	return nil, fmt.Errorf("der: unsupported key type: %T", key)

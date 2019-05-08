@@ -48,7 +48,7 @@ type MapStorageOptions struct {
 }
 
 // NewMapStorage initialises and returns a new MapStorage.
-func NewMapStorage(ctx context.Context, client *spanner.Client) storage.MapStorage {
+func NewMapStorage(_ context.Context, client *spanner.Client) storage.MapStorage {
 	return NewMapStorageWithOpts(client, MapStorageOptions{})
 }
 

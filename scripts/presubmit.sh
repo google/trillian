@@ -85,18 +85,13 @@ main() {
   fi
 
   if [[ "${run_build}" -eq 1 ]]; then
-    local goflags=''
-    if [[ "${GOFLAGS:+x}" ]]; then
-      goflags="${GOFLAGS}"
-    fi
-
     echo 'running go build'
-    go build ${goflags} ./...
+    go build ./...
 
     echo 'running go test'
     # Install test deps so that individual test runs below can reuse them.
     echo 'installing test deps'
-    go test ${goflags} -i ./...
+    go test -i ./...
 
     if [[ ${coverage} -eq 1 ]]; then
         local coverflags="-covermode=atomic -coverprofile=coverage.txt"
@@ -105,13 +100,11 @@ main() {
             -short \
             -timeout=${GO_TEST_TIMEOUT:-5m} \
             ${coverflags} \
-            ${goflags} \
 	    ./... -alsologtostderr
     else
       go test \
         -short \
         -timeout=${GO_TEST_TIMEOUT:-5m} \
-        ${goflags} \
         ./... -alsologtostderr
     fi
   fi
@@ -119,9 +112,13 @@ main() {
   if [[ "${run_lint}" -eq 1 ]]; then
     check_cmd golangci-lint \
       'have you installed github.com/golangci/golangci-lint?' || exit 1
+    check_cmd prototool \
+      'have you installed github.com/uber/prototool/cmd/prototool?' || exit 1
 
     echo 'running golangci-lint'
     golangci-lint run
+    echo 'running prototool lint'
+    prototool lint
     echo 'checking license headers'
     ./scripts/check_license.sh ${go_srcs}
   fi

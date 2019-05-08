@@ -16,37 +16,117 @@ package storage
 
 import (
 	"encoding/base64"
+	"fmt"
+)
+
+// key is used to look up variable length suffix values in the map.
+type key struct {
+	// The depth of this entry in bits (must be > 0).
+	depth byte
+	// The value of the path at this depth.
+	value byte
+}
+
+var (
+	// EmptySuffix is a reusable suffix of zero bits. To avoid special cases
+	// there is a single byte path attached to it and there is no way to create
+	// a Suffix with a nil or empty path.
+	EmptySuffix = NewSuffix(0, []byte{0})
+	// fromRaw maps a bit length and single byte path to a Suffix.
+	fromRaw = make(map[key]*Suffix)
+	// fromString maps a base64 encoded string representation to a Suffix.
+	fromString = make(map[string]*Suffix)
 )
 
 // Suffix represents the tail of a NodeID. It is the path within the subtree.
 // The portion of the path that extends beyond the subtree is not part of this suffix.
+// We keep a cache of the Suffix values use by log trees, which will have a
+// depth between 1 and 8 bits. These are reused to avoid constant reallocation
+// and base64 conversion overhead.
 type Suffix struct {
 	// bits is the number of bits in the node ID suffix.
 	// TODO(gdbelvin): make bits an integer.
-	Bits byte
+	bits byte
 	// path is the suffix itself.
-	Path []byte
+	path []byte
+	// asString is the string representation of the suffix.
+	asString string
+}
+
+// NewSuffix creates a new Suffix. The primary use for them is to get their
+// String value to use as a key so we compute that once up front.
+func NewSuffix(bits byte, path []byte) *Suffix {
+	// Use a shared value for a short suffix if we have one, they're immutable.
+	if bits <= 8 {
+		if sfx, ok := fromRaw[key{bits, path[0]}]; ok {
+			return sfx
+		}
+	}
+
+	r := make([]byte, 1, len(path)+1)
+	r[0] = bits
+	r = append(r, path...)
+	s := base64.StdEncoding.EncodeToString(r)
+
+	return &Suffix{bits: bits, path: append(make([]byte, 0, len(path)), path...), asString: s}
+}
+
+// Bits returns the number of significant bits in the Suffix path.
+func (s Suffix) Bits() byte {
+	return s.bits
+}
+
+// Path returns a copy of the Suffix path.
+func (s Suffix) Path() []byte {
+	return append(make([]byte, 0, len(s.path)), s.path...)
 }
 
 // String returns a string that represents Suffix.
 // This is a base64 encoding of the following format:
 // [ 1 byte for depth || path bytes ]
 func (s Suffix) String() string {
-	r := make([]byte, 1, 1+(len(s.Path)))
-	r[0] = s.Bits
-	r = append(r, s.Path...)
-	return base64.StdEncoding.EncodeToString(r)
+	return s.asString
 }
 
 // ParseSuffix converts a suffix string back into a Suffix.
-func ParseSuffix(s string) (Suffix, error) {
-	b, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		return Suffix{}, err
+func ParseSuffix(s string) (*Suffix, error) {
+	if sfx, ok := fromString[s]; ok {
+		// Matches a precalculated value, use that.
+		return sfx, nil
 	}
 
-	return Suffix{
-		Bits: byte(b[0]),
-		Path: b[1:],
-	}, nil
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewSuffix(byte(b[0]), b[1:]), nil
+}
+
+// Precalculate all the one byte suffix values (from depths 1-8) so they can be
+// reused either on construction or parsing.
+func init() {
+	path := make([]byte, 1)
+	// There are 8 levels of depth to process.
+	for d := 8; d >= 1; d-- {
+		// And at each depth there's 2^d valid combinations of bits. E.g at
+		// depth 1 there's one valid bit so two possibilities.
+		for i := 0; i < 1<<uint(d); i++ {
+			// Don't need to mask off lower bits outside the valid ones because we
+			// know they're already zero.
+			path[0] = byte(i << uint(8-d))
+			sfx := NewSuffix(byte(d), path)
+			// As an extra check there should be no collisions in the Suffix values
+			// that we build so map entries should not be overwritten.
+			k := key{byte(d), path[0]}
+			if _, ok := fromRaw[k]; ok {
+				panic(fmt.Errorf("cache collision for: %v", k))
+			}
+			fromRaw[k] = sfx
+			if _, ok := fromString[sfx.String()]; ok {
+				panic(fmt.Errorf("cache collision for: %s", sfx.String()))
+			}
+			fromString[sfx.String()] = sfx
+		}
+	}
 }

@@ -29,7 +29,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/util/flagsaver"
+	"github.com/google/trillian/testonly/flagsaver"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -157,7 +157,7 @@ func runTest(t *testing.T, tests []*testCase) {
 				t.Fatalf("Error starting fake server: %v", err)
 			}
 			defer stopFakeServer()
-			defer flagsaver.Save().Restore()
+			defer flagsaver.Save().MustRestore()
 			*adminServerAddr = s.Addr
 			if tc.setFlags != nil {
 				tc.setFlags()

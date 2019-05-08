@@ -30,13 +30,6 @@ import (
 // to test code reading from multiple tree revisions. It cannot live in the main testonly
 // package as this creates import cycles.
 
-// NodeMapping is a struct we use because we can't use NodeIDs as map keys. Callers pass this
-// and FakeNodeReader internally manages derived keys.
-type NodeMapping struct {
-	NodeID storage.NodeID
-	Node   storage.Node
-}
-
 // FakeNodeReader is an implementation of storage.NodeReader that's preloaded with a set of
 // NodeID -> Node mappings and will return only those. Requesting any other nodes results in
 // an error. For use in tests only, does not implement any other storage APIs.
@@ -46,21 +39,19 @@ type FakeNodeReader struct {
 	nodeMap      map[string]storage.Node
 }
 
-// NewFakeNodeReader creates and returns a FakeNodeReader with the supplied nodeID -> Node
-// mappings assuming that all the nodes are at a specified tree revision. All the nodeIDs
+// NewFakeNodeReader creates and returns a FakeNodeReader with the supplied nodes
+// assuming that all the nodes are at a specified tree revision. All the node IDs
 // must be distinct.
-func NewFakeNodeReader(mappings []NodeMapping, treeSize, treeRevision int64) *FakeNodeReader {
+func NewFakeNodeReader(nodes []storage.Node, treeSize, treeRevision int64) *FakeNodeReader {
 	nodeMap := make(map[string]storage.Node)
 
-	for _, mapping := range mappings {
-		_, ok := nodeMap[mapping.NodeID.String()]
-
-		if ok {
-			// Duplicate mapping - the test data is invalid so don't continue
-			glog.Fatalf("NewFakeNodeReader duplicate mapping for: %s in:\n%v", mapping.NodeID.String(), mappings)
+	for _, node := range nodes {
+		id := node.NodeID.String()
+		if _, ok := nodeMap[id]; ok {
+			// Duplicate mapping - the test data is invalid so don't continue.
+			glog.Fatalf("NewFakeNodeReader duplicate mapping for: %s in:\n%v", id, nodes)
 		}
-
-		nodeMap[mapping.NodeID.String()] = mapping.Node
+		nodeMap[id] = node
 	}
 
 	return &FakeNodeReader{nodeMap: nodeMap, treeSize: treeSize, treeRevision: treeRevision}
@@ -139,19 +130,12 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		}
 
 		lastBatchRevision = batch.TreeRevision
-		nodeMap := make(map[string]storage.Node)
+		nodeMap := make(map[compact.NodeID][]byte)
 		for _, leaf := range batch.Leaves {
 			// We're only interested in the side effects of adding leaves - the node updates
-			tree.AddLeaf([]byte(leaf), func(depth int, index int64, hash []byte) error {
-				nID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 64)
-
-				if err != nil {
-					return fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
-						depth, index)
-				}
-
-				nodeMap[nID.String()] = storage.Node{NodeID: nID, NodeRevision: batch.TreeRevision, Hash: hash}
-				return nil
+			tree.AddLeaf([]byte(leaf), func(depth int, index int64, hash []byte) {
+				nID := compact.NodeID{Level: uint(depth), Index: uint64(index)}
+				nodeMap[nID] = hash
 			})
 		}
 
@@ -160,15 +144,16 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 			panic(fmt.Errorf("NewMultiFakeNodeReaderFromLeaves() got root: %x, want: %x (%v)", got, want, batch))
 		}
 
-		// Unroll the update map to []NodeMappings to retain the most recent node update within
+		// Unroll the update map to []storage.Node to retain the most recent node update within
 		// the batch for each ID. Use that to create a new FakeNodeReader.
-		mappings := make([]NodeMapping, 0, len(nodeMap))
-
-		for _, node := range nodeMap {
-			mappings = append(mappings, NodeMapping{NodeID: node.NodeID, Node: node})
+		nodes := make([]storage.Node, 0, len(nodeMap))
+		for id, hash := range nodeMap {
+			nID := MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
+			node := storage.Node{NodeID: nID, Hash: hash, NodeRevision: batch.TreeRevision}
+			nodes = append(nodes, node)
 		}
 
-		readers = append(readers, *NewFakeNodeReader(mappings, tree.Size(), batch.TreeRevision))
+		readers = append(readers, *NewFakeNodeReader(nodes, tree.Size(), batch.TreeRevision))
 	}
 
 	return NewMultiFakeNodeReader(readers)

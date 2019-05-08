@@ -22,18 +22,26 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/types"
+	"golang.org/x/crypto/ed25519"
 )
+
+const noHash = crypto.Hash(0)
 
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
 	KeyHint []byte
-	Hash    crypto.Hash
-	Signer  crypto.Signer
+	// If Hash is noHash (zero), the signer expects to be given the full message not a hashed digest.
+	Hash   crypto.Hash
+	Signer crypto.Signer
 }
 
 // NewSigner returns a new signer. The signer will set the KeyHint field, when available, with KeyID.
 func NewSigner(keyID int64, signer crypto.Signer, hash crypto.Hash) *Signer {
+	if _, ok := signer.(ed25519.PrivateKey); ok {
+		// Ed25519 signing requires the full message.
+		hash = noHash
+	}
 	return &Signer{
 		KeyHint: types.SerializeKeyHint(keyID),
 		Hash:    hash,
@@ -55,8 +63,12 @@ func (s *Signer) Public() crypto.PublicKey {
 	return s.Signer.Public()
 }
 
-// Sign obtains a signature after first hashing the input data.
+// Sign obtains a signature over the input data; this typically (but not always)
+// involves first hashing the input data.
 func (s *Signer) Sign(data []byte) ([]byte, error) {
+	if s.Hash == noHash {
+		return s.Signer.Sign(rand.Reader, data, noHash)
+	}
 	h := s.Hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
@@ -80,11 +92,6 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 		KeyHint:          s.KeyHint,
 		LogRoot:          logRoot,
 		LogRootSignature: signature,
-		// TODO(gbelvin): Remove deprecated fields
-		TimestampNanos: int64(r.TimestampNanos),
-		RootHash:       r.RootHash,
-		TreeSize:       int64(r.TreeSize),
-		TreeRevision:   int64(r.Revision),
 	}, nil
 }
 

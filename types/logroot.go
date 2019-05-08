@@ -99,7 +99,7 @@ func SerializeKeyHint(logID int64) []byte {
 // ParseKeyHint converts a keyhint into a keyID.
 func ParseKeyHint(hint []byte) (int64, error) {
 	if len(hint) != 8 {
-		return 0, fmt.Errorf("hint is %v bytes, want %v", len(hint), 4)
+		return 0, fmt.Errorf("hint is %v bytes, want %v", len(hint), 8)
 	}
 	keyID := int64(binary.BigEndian.Uint64(hint))
 	if keyID < 0 {

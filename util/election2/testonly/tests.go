@@ -64,7 +64,7 @@ func checkDone(ctx context.Context, t *testing.T, wait time.Duration) {
 
 // runElectionAwait tests the Await call with different pre-conditions.
 func runElectionAwait(t *testing.T, f election2.Factory) {
-	awaitErr := errors.New("Await error")
+	awaitErr := errors.New("await error")
 	for _, tc := range []struct {
 		desc    string
 		block   bool
@@ -152,7 +152,7 @@ func runElectionWithMastership(t *testing.T, f election2.Factory) {
 
 // runElectionResign tests the Resign call.
 func runElectionResign(t *testing.T, f election2.Factory) {
-	resignErr := errors.New("Resign error")
+	resignErr := errors.New("resign error")
 	for _, tc := range []struct {
 		desc     string
 		beMaster bool
@@ -198,7 +198,7 @@ func runElectionResign(t *testing.T, f election2.Factory) {
 
 // runElectionClose tests the Close call.
 func runElectionClose(t *testing.T, f election2.Factory) {
-	closeErr := errors.New("Close error")
+	closeErr := errors.New("close error")
 	for _, tc := range []struct {
 		desc     string
 		beMaster bool

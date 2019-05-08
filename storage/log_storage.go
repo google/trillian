@@ -110,7 +110,10 @@ type LogTreeTX interface {
 	// employing this property. Consult the call sites of this method to be sure.
 	DequeueLeaves(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error)
 
-	// TODO(pavelkalinnikov): Comment properly.
+	// AddSequencedLeaves stores the passed in leaves at the log positions
+	// specified in the `LeafIndex` field. The indices must be contiguous.
+	//
+	// See LogStorage.AddSequencedLeaves comment for more details.
 	AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
 
 	// UpdateSequencedLeaves associates the leaves with the sequence numbers
@@ -194,11 +197,4 @@ type LogMetadata interface {
 	// GetActiveLogIDs returns a list of the IDs of all the logs that are
 	// configured in storage and are eligible to have entries sequenced.
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
-
-	// GetUnsequencedCounts returns a map of the number of unsequenced entries
-	// by log ID.
-	//
-	// This call is likely to be VERY expensive and take a long time to complete.
-	// Consider carefully whether you really need to call it!
-	GetUnsequencedCounts(ctx context.Context) (CountByLogID, error)
 }

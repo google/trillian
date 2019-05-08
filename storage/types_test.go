@@ -16,6 +16,7 @@ package storage
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -57,6 +58,108 @@ func TestMaskLeft(t *testing.T) {
 	}
 }
 
+func TestNewEmptyNodeIDPanic(t *testing.T) {
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// Only multiples of 8 bits should be accepted.
+			want := b%8 != 0
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = NewEmptyNodeID(b)
+		})
+	}
+}
+
+func TestNodeIDWithPrefixPanic(t *testing.T) {
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// It should panic if nodeIDLenBits is not a multiple of 8.
+			want := b%8 != 0
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = NewNodeIDWithPrefix(0x12345, 32, b, 64)
+		})
+	}
+}
+
+// TestNewNodeIDFromPrefixPanic tests the cases where this will panic. To
+// succeed these must all be true:
+// 1.) totalDepth must be a multiple of 8 and not negative.
+// 2.) subDepth must be a multiple of 8 and not negative.
+// 3.) depth must be >= 0.
+func TestNewNodeIDFromPrefixPanic(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		depth      int
+		subDepth   int
+		totalDepth int
+		wantPanic  bool
+	}{
+		{
+			name:       "ok",
+			depth:      64,
+			totalDepth: 64,
+			subDepth:   64,
+		},
+		{
+			name:       "depthnegative",
+			depth:      -1,
+			totalDepth: 64,
+			subDepth:   64,
+			wantPanic:  true,
+		},
+		{
+			name:       "subdepthbad",
+			depth:      64,
+			totalDepth: 64,
+			subDepth:   63,
+			wantPanic:  true,
+		},
+		{
+			name:       "subdepthnegative",
+			depth:      64,
+			totalDepth: 64,
+			subDepth:   -1,
+			wantPanic:  true,
+		},
+		{
+			name:       "totaldepthbad",
+			depth:      64,
+			totalDepth: 63,
+			subDepth:   64,
+			wantPanic:  true,
+		},
+		{
+			name:       "totaldepthnegative",
+			depth:      64,
+			totalDepth: -1,
+			subDepth:   64,
+			wantPanic:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !tc.wantPanic) || (got == nil && tc.wantPanic) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, tc.wantPanic)
+				}
+			}()
+			_ = NewNodeIDFromPrefix([]byte("prefix"), tc.depth, 0, tc.subDepth, tc.totalDepth)
+		})
+	}
+}
+
 func TestNewNodeIDFromBigInt(t *testing.T) {
 	for _, tc := range []struct {
 		depth      int
@@ -79,6 +182,30 @@ func TestNewNodeIDFromBigInt(t *testing.T) {
 			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): depth %v, want %v",
 				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
 		}
+		// We should be able to get the same big.Int back. This is used in
+		// the HStar2 implementation so should be tested.
+		if got, want := n.BigInt(), tc.index; want.Cmp(got) != 0 {
+			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): got: %v, want: %v",
+				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
+		}
+	}
+}
+
+func TestNewNodeIDFromBigIntPanic(t *testing.T) {
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// Only multiples of 8 bits should be accepted. This method also
+			// fails for 0 bits, unlike NewNodeIDFromPrefix.
+			want := (b%8 != 0) || b == 0
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = NewNodeIDFromBigInt(12, big.NewInt(234), b)
+		})
 	}
 }
 
@@ -122,12 +249,12 @@ func TestSplit(t *testing.T) {
 				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue
 		}
-		if got, want := int(s.Bits), tc.outSuffixBits; got != want {
+		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
 			t.Errorf("%d, %x.Split(%v, %v): suffix.Bits %v, want %d",
 				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue
 		}
-		if got, want := s.Path, tc.outSuffix; !bytes.Equal(got, want) {
+		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
 			t.Errorf("%d, %x.Split(%v, %v).Path: %x, want %x",
 				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue
@@ -144,6 +271,68 @@ func TestSplit(t *testing.T) {
 		if got, want := newNode.PrefixLenBits, n.PrefixLenBits; got != want {
 			t.Errorf("NewNodeIDFromPrefix(%x, %v).PrefixLenBits: %x, want %x", p, s, got, want)
 		}
+	}
+}
+
+func TestSplitPanics(t *testing.T) {
+	n, err := NewNodeIDForTreeCoords(8, 4567, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The 2 cases where split should panic are 1.) There are more bits left
+	// after the prefix point than have been requested. 2.) Trying to split zero
+	// (or -ve) bits off the end of the NodeID.
+	for _, tc := range []struct {
+		name      string
+		pBytes    int
+		sBits     int
+		wantPanic bool
+	}{
+		{
+			name:   "split8bits",
+			pBytes: 6,
+			sBits:  8,
+		},
+		{
+			name:   "split16bits",
+			pBytes: 5,
+			sBits:  16,
+		},
+		{
+			name:      "split15bits",
+			pBytes:    5,
+			sBits:     15,
+			wantPanic: true, // There's 16 bits left, which is more than requested.
+		},
+		{
+			name:      "splitnothing",
+			pBytes:    7, // This is 56 bits - same as the PrefixLength so nothing left.
+			sBits:     0,
+			wantPanic: true,
+		},
+		{
+			name:      "split1bit",
+			pBytes:    7, // This is 56 bits - same as the PrefixLength so nothing left.
+			sBits:     1, // When there's nothing left any number of bits fails.
+			wantPanic: true,
+		},
+		{
+			name:      "splitoutofbounds",
+			pBytes:    9, // There aren't 72 bits in the path.
+			sBits:     0,
+			wantPanic: true,
+		},
+	} {
+		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !tc.wantPanic) || (got == nil && tc.wantPanic) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, tc.wantPanic)
+				}
+			}()
+			_, _ = n.Split(tc.pBytes, tc.sBits)
+		})
 	}
 }
 
@@ -229,6 +418,127 @@ func TestNewNodeIDForTreeCoords(t *testing.T) {
 		if got, want := n.String(), v.want; got != want {
 			t.Errorf("NewNodeIDForTreeCoords(%d, %x, %d).String(): '%v', want '%v'",
 				v.height, v.index, v.maxBits, got, want)
+		}
+	}
+}
+
+// TestEquivalentTreeCoords uses the log coordinate scheme to ensure that
+// the 8 cases of partial byte IDs are tested for equivalence.
+func TestEquivalentTreeCoords(t *testing.T) {
+	index := int64(18457) // Arbitrary index.
+	for l := int64(0); l < 8; l++ {
+		n1, err := NewNodeIDForTreeCoords(l, index, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for lDelta := int64(0); lDelta < 2; lDelta++ {
+			for iDelta := int64(-1); iDelta < 2; iDelta++ {
+				n2, err := NewNodeIDForTreeCoords(l+lDelta, index+iDelta, 64)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if lDelta == 0 && iDelta == 0 {
+					// Nodes with the same coordinates must be equivalent.
+					if !n1.Equivalent(n2) || !n2.Equivalent(n1) {
+						t.Errorf("NodeIDs for same coords not equivalent at level %d", l)
+					}
+
+					continue
+				}
+				// Different but 'nearby' coordinates must be different NodeIDs.
+				if n1.Equivalent(n2) || n2.Equivalent(n1) {
+					t.Errorf("NodeIDs unexpectedly equivalent at level %d %d %d", l, lDelta, iDelta)
+				}
+			}
+		}
+
+		index >>= 1
+	}
+}
+
+func TestEquivalentTrailingBits(t *testing.T) {
+	// Set up node IDs with 56 significant bits and length 64.
+	n1 := NewNodeIDWithPrefix(h26("12345678"), 56, 56, 64)
+	n2 := NewNodeIDWithPrefix(h26("12345678"), 56, 56, 64)
+	// Whatever we do to the last byte of the path shouldn't affect their
+	// equivalence.
+	for b := 0; b < 256; b++ {
+		n2.Path[7] = byte(b)
+		if !n1.Equivalent(n2) || !n2.Equivalent(n1) {
+			t.Errorf("Not equivalent but should be: %v %v", n1, n2)
+		}
+	}
+	// But if we modify the last but one byte they're now different.
+	for b := 1; b < 256; b++ {
+		n2.Path[6] = n1.Path[6] ^ byte(b)
+		if n1.Equivalent(n2) || n2.Equivalent(n1) {
+			t.Errorf("Equivalent but should not be: %v %v", n1, n2)
+		}
+	}
+}
+
+// TestNodeIDFromHash tests some specific bit patterns of different lengths
+// and that Equivalent is consistent.
+func TestNodeEquivalentFromHash(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		str1 string
+		str2 string
+		want bool
+	}{
+		{
+			name: "ok",
+			str1: "abcdef0987654321",
+			str2: "abcdef0987654321",
+			want: true,
+		},
+		{
+			name: "ok 8 bit",
+			str1: "c7",
+			str2: "c7",
+			want: true,
+		},
+		{
+			name: "different 8 bit",
+			str1: "c7",
+			str2: "d7",
+		},
+		{
+			name: "ok 16 bit",
+			str1: "1201",
+			str2: "1201",
+			want: true,
+		},
+		{
+			name: "different 16 bit",
+			str1: "1201",
+			str2: "0201",
+		},
+		{
+			name: "different but same length",
+			str1: "abcdef0987654321",
+			str2: "abcdef0987654320",
+		},
+		{
+			name: "different length",
+			str1: "abcdef0987654321",
+			str2: "abcdef09876543",
+		},
+		{
+			name: "different midway",
+			str1: "abcdef0987654321",
+			str2: "abcdef0887654321",
+		},
+	} {
+		h1 := mustDecode(tc.str1)
+		h2 := mustDecode(tc.str2)
+
+		n1 := NewNodeIDFromHash(h1)
+		n2 := NewNodeIDFromHash(h2)
+
+		if n1.Equivalent(n2) != tc.want || n2.Equivalent(n1) != tc.want {
+			t.Errorf("TestNodeIDFromHash mismatch: %v", tc)
 		}
 	}
 }
@@ -321,42 +631,81 @@ func TestBit(t *testing.T) {
 	}
 }
 
+func TestBitPanics(t *testing.T) {
+	n := NewNodeIDWithPrefix(95, 8, 8, 8)
+	for b := 0; b < 64; b++ {
+		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
+			// Testing anything larger than the 7th bit should fail.
+			want := b >= 8
+			// Unfortunately we have to test for panics.
+			defer func() {
+				got := recover()
+				if (got != nil && !want) || (got == nil && want) {
+					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+				}
+			}()
+			_ = n.Bit(b)
+		})
+	}
+}
+
 func TestString(t *testing.T) {
 	for i, tc := range []struct {
-		n    NodeID
-		want string
+		n       NodeID
+		want    string
+		wantKey string
 	}{
 		{
-			n:    NewEmptyNodeID(32),
-			want: "",
+			n:       NewEmptyNodeID(32),
+			want:    "",
+			wantKey: "0:",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("345678"), 24, 32, 32),
-			want: "00110100010101100111100000000000",
+			n:       NewNodeIDWithPrefix(h26("345678"), 24, 32, 32),
+			want:    "00110100010101100111100000000000",
+			wantKey: "32:34567800",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("12345678"), 32, 32, 64),
-			want: "00010010001101000101011001111000",
+			n:       NewNodeIDWithPrefix(h26("12345678"), 32, 32, 64),
+			want:    "00010010001101000101011001111000",
+			wantKey: "32:12345678",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("345678"), 15, 16, 24),
-			want: fmt.Sprintf("%016b", (0x345678<<1)&0xfffd),
+			n:       NewNodeIDWithPrefix(h26("345678"), 15, 16, 24),
+			want:    fmt.Sprintf("%016b", (0x345678<<1)&0xfffd),
+			wantKey: "16:acf0",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("1234"), 15, 16, 16),
-			want: "0010010001101000",
+			n:       NewNodeIDWithPrefix(h26("1234"), 15, 16, 16),
+			want:    "0010010001101000",
+			wantKey: "16:2468",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("f2"), 8, 8, 24),
-			want: "11110010",
+			n:       NewNodeIDWithPrefix(h26("f2"), 8, 8, 24),
+			want:    "11110010",
+			wantKey: "8:f2",
 		},
 		{
-			n:    NewNodeIDWithPrefix(h26("1234"), 16, 16, 16),
-			want: "0001001000110100",
+			n:       NewNodeIDWithPrefix(h26("1234"), 16, 16, 16),
+			want:    "0001001000110100",
+			wantKey: "16:1234",
+		},
+		{
+			n:       NewNodeIDFromHash([]byte("this is a hash")),
+			want:    "0111010001101000011010010111001100100000011010010111001100100000011000010010000001101000011000010111001101101000",
+			wantKey: "112:7468697320697320612068617368",
+		},
+		{
+			n:       NewNodeIDFromBigInt(5, big.NewInt(20), 16),
+			want:    "00000",
+			wantKey: "5:00",
 		},
 	} {
 		if got, want := tc.n.String(), tc.want; got != want {
 			t.Errorf("%v: String():  %v,  want '%v'", i, got, want)
+		}
+		if got, want := tc.n.AsKey(), tc.wantKey; got != want {
+			t.Errorf("%v: AsKey():  %v,  want '%v'", i, got, want)
 		}
 	}
 }
@@ -445,6 +794,18 @@ func TestNodeEquivalent(t *testing.T) {
 			want: false,
 		},
 		{
+			// Different Prefix 2
+			n1:   NewNodeIDWithPrefix(h26("1234"), l, l, l),
+			n2:   NewNodeIDWithPrefix(h26("1235"), l, l, l),
+			want: false,
+		},
+		{
+			// Different Prefix 3
+			n1:   NewNodeIDWithPrefix(h26("1234"), l, l, l),
+			n2:   NewNodeIDWithPrefix(h26("2234"), l, l, l),
+			want: false,
+		},
+		{
 			// Different max len, but that's ok because the prefixes are identical
 			n1:   NewNodeIDWithPrefix(h26("1234"), l, l, l),
 			n2:   NewNodeIDWithPrefix(h26("1234"), l, l, l*2),
@@ -452,6 +813,10 @@ func TestNodeEquivalent(t *testing.T) {
 		},
 	} {
 		if got, want := tc.n1.Equivalent(tc.n2), tc.want; got != want {
+			t.Errorf("Equivalent(%v, %v): %v, want %v",
+				tc.n1, tc.n2, got, want)
+		}
+		if got, want := tc.n2.Equivalent(tc.n1), tc.want; got != want {
 			t.Errorf("Equivalent(%v, %v): %v, want %v",
 				tc.n1, tc.n2, got, want)
 		}
@@ -481,4 +846,26 @@ func h26(h string) uint64 {
 		panic(err)
 	}
 	return i
+}
+
+func mustDecode(h string) []byte {
+	b, err := hex.DecodeString(h)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func BenchmarkString(b *testing.B) {
+	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
+	for i := 0; i < b.N; i++ {
+		_ = nID.String()
+	}
+}
+
+func BenchmarkAsKey(b *testing.B) {
+	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
+	for i := 0; i < b.N; i++ {
+		_ = nID.AsKey()
+	}
 }

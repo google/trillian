@@ -131,7 +131,7 @@ func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
 // unless ID is 0 bits long, Suffix must always contain at least one bit.
-func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, storage.Suffix) {
+func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, *storage.Suffix) {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
 	return id.Split(sInfo.prefixBytes, sInfo.depth)
 }
@@ -293,7 +293,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
 	sfxKey := sx.String()
-	if int32(sx.Bits) == c.Depth {
+	if int32(sx.Bits()) == c.Depth {
 		nh = c.Leaves[sfxKey]
 	} else {
 		nh = c.InternalNodes[sfxKey]
@@ -341,7 +341,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
 	sfxKey := sx.String()
-	if int32(sx.Bits) == c.Depth {
+	if int32(sx.Bits()) == c.Depth {
 		// If the value being set is identical to the one we read from storage, then
 		// leave the cache state alone, and return.  This will prevent a write (and
 		// subtree revision bump) for identical data.

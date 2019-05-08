@@ -54,6 +54,10 @@ type TrillianMapServerOptions struct {
 	// UseSingleTransaction specifies whether updates to a map should be
 	// attempted within a single transaction.
 	UseSingleTransaction bool
+
+	// UseLargePreload enables the performance workaround applied when
+	// UseSingleTransaction is set.
+	UseLargePreload bool
 }
 
 // TrillianMapServer implements the RPC API defined in the proto
@@ -109,11 +113,11 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevision")
 	if err != nil {
 		return nil, fmt.Errorf("could not create database snapshot: %v", err)
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRevision")
 
 	var root *trillian.SignedMapRoot
 	if revision < 0 {
@@ -145,6 +149,9 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	for i, l := range leaves {
 		leavesByIndex[string(l.Index)] = &leaves[i]
 	}
+	if len(indices) != len(leavesByIndex) {
+		glog.V(1).Infof("%v: request had %v indices, %v of these are unique", mapID, len(indices), len(leavesByIndex))
+	}
 	glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), len(leaves))
 
 	// Add empty leaf values for indices that were not returned.
@@ -156,29 +163,16 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	// Fetch inclusion proofs in parallel.
 	smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
-	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
-	errs := make(chan error, len(indices))
-	var wg sync.WaitGroup
-	wg.Add(len(indices))
-	for i, index := range indices {
-		// TODO(gbelvin): Replace with a batch inclusion proof reader.
-		go func(i int, index []byte) {
-			defer wg.Done()
-			l := leavesByIndex[string(index)]
-			proof, err := smtReader.InclusionProof(ctx, revision, l.Index)
-			if err != nil {
-				errs <- fmt.Errorf("could not get inclusion proof for leaf %x: %v", l.Index, err)
-				return
-			}
-			inclusions[i] = &trillian.MapLeafInclusion{
-				Leaf:      l,
-				Inclusion: proof,
-			}
-		}(i, index)
+	proofs, err := smtReader.BatchInclusionProof(ctx, revision, indices)
+	if err != nil {
+		return nil, err
 	}
-	wg.Wait()
-	if len(errs) != 0 {
-		return nil, <-errs // Only return the first error.
+	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
+	for i, index := range indices {
+		inclusions[i] = &trillian.MapLeafInclusion{
+			Leaf:      leavesByIndex[string(index)],
+			Inclusion: proofs[string(index)],
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -220,6 +214,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 	ctx, span := spanFor(ctx, "SetLeaves")
 	defer span.End()
+
 	mapID := req.MapId
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
@@ -274,6 +269,16 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 				HashedValue: l.LeafHash,
 			})
 		}
+
+		// Work around a performance issue when using the map in
+		// single-transaction mode by preloading all the nodes we know the
+		// sparse merkle writer is going to need.
+		if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
+			if err := doPreload(ctx, tx, hasher.BitLen(), hkv); err != nil {
+				return err
+			}
+		}
+
 		if err = smtWriter.SetLeaves(ctx, hkv); err != nil {
 			return err
 		}
@@ -282,7 +287,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			glog.V(1).Infof("Rolled %d transactions up into single commit", atomic.LoadUint64(&txRolledUp))
 		}
 
-		rootHash, err := smtWriter.CalculateRoot()
+		rootHash, err := smtWriter.CalculateRoot(ctx)
 		if err != nil {
 			return fmt.Errorf("CalculateRoot(): %v", err)
 		}
@@ -299,6 +304,67 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
+}
+
+// doPreload causes the subtreeCache in tx to become populated with all subtrees
+// on the Merkle path for the indices specified in hkv.
+// This is a performance workaround for locking issues which occur when the
+// sparse Merkle tree code is used with a single transaction (and therefore
+// a single subtreeCache too).
+func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []merkle.HashKeyValue) error {
+	ctx, span := spanFor(ctx, "doPreload")
+	defer span.End()
+
+	readRev, err := tx.ReadRevision(ctx)
+	if err != nil {
+		return err
+	}
+
+	nids := calcAllSiblingsParallel(ctx, treeDepth, hkv)
+	_, err = tx.GetMerkleNodes(ctx, readRev, nids)
+	return err
+}
+
+func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.HashKeyValue) []storage.NodeID {
+	type nodeAndID struct {
+		id   string
+		node storage.NodeID
+	}
+	c := make(chan nodeAndID, 2048)
+	var wg sync.WaitGroup
+
+	// Kick off producers.
+	for _, i := range hkv {
+		wg.Add(1)
+		go func(k []byte) {
+			defer wg.Done()
+			nid := storage.NewNodeIDFromHash(k)
+			sibs := (&nid).Siblings()
+			for _, sib := range sibs {
+				sibID := sib.AsKey()
+				sib := sib
+				c <- nodeAndID{sibID, sib}
+			}
+		}(i.HashedKey)
+	}
+
+	// monitor for all the producers being complete to close the channel.
+	go func() {
+		wg.Wait()
+		close(c)
+	}()
+
+	nidSet := make(map[string]bool)
+	nids := make([]storage.NodeID, 0, len(hkv)*treeDepth)
+	// consume the produced IDs until the channel is closed.
+	for nai := range c {
+		if _, ok := nidSet[nai.id]; !ok {
+			nidSet[nai.id] = true
+			nids = append(nids, nai.node)
+		}
+	}
+
+	return nids
 }
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
@@ -328,11 +394,11 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetSignedMapRoot")
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetSignedMapRoot")
 
 	r, err := tx.LatestSignedMapRoot(ctx)
 	if err != nil {
@@ -361,11 +427,11 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	tx, err := t.snapshotForTree(ctx, tree, "GetSignedMapRootByRevision")
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Close()
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetSignedMapRootByRevision")
 
 	r, err := tx.GetSignedMapRoot(ctx, req.Revision)
 	if err != nil {
@@ -443,4 +509,21 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 	return &trillian.InitMapResponse{
 		Created: rev0Root,
 	}, nil
+}
+
+func (t *TrillianMapServer) closeAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyMapTreeTX, op string) {
+	err := tx.Close()
+	if err != nil {
+		glog.Warningf("%v: Close failed for %v: %v", logID, op, err)
+	}
+}
+
+func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.Tree, method string) (storage.ReadOnlyMapTreeTX, error) {
+	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
+	if err != nil && tx != nil {
+		// Special case to handle ErrTreeNeedsInit, which leaves the TX open.
+		// To avoid leaking it make sure it's closed.
+		defer t.closeAndLog(ctx, tree.TreeId, tx, method)
+	}
+	return tx, err
 }

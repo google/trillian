@@ -31,6 +31,7 @@ import (
 var (
 	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	maxConns = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
+	maxIdle  = flag.Int("mysql_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
 
 	mysqlOnce            sync.Once
 	mysqlOnceErr         error
@@ -57,6 +58,9 @@ func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, erro
 		}
 		if *maxConns > 0 {
 			db.SetMaxOpenConns(*maxConns)
+		}
+		if *maxIdle >= 0 {
+			db.SetMaxIdleConns(*maxIdle)
 		}
 		mySQLstorageInstance = &mysqlProvider{
 			db: db,

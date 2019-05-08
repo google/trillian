@@ -160,7 +160,10 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 // Pass nil for trusted if this is the first time querying this log.
 func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
 	resp, err := c.client.GetLatestSignedLogRoot(ctx,
-		&trillian.GetLatestSignedLogRootRequest{LogId: c.LogID})
+		&trillian.GetLatestSignedLogRootRequest{
+			LogId:         c.LogID,
+			FirstTreeSize: int64(trusted.TreeSize),
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -184,33 +187,10 @@ func (c *LogClient) getAndVerifyLatestRoot(ctx context.Context, trusted *types.L
 		// Tree has not been updated.
 		return &logRoot, nil
 	}
-	// Fetch a consistency proof if this isn't the first root we've seen.
-	var consistency *trillian.GetConsistencyProofResponse
-	if trusted.TreeSize > 0 {
-		// Get consistency proof.
-		consistency, err = c.client.GetConsistencyProof(ctx,
-			&trillian.GetConsistencyProofRequest{
-				LogId:          c.LogID,
-				FirstTreeSize:  int64(trusted.TreeSize),
-				SecondTreeSize: int64(logRoot.TreeSize),
-			})
-		if err != nil {
-			return nil, err
-		}
-		// If this request hit a more out-of-date server instance than the GetSLR request,
-		// there may be an empty proof and an earlier SLR.
-		var proofRoot types.LogRootV1
-		if err := proofRoot.UnmarshalBinary(consistency.GetSignedLogRoot().GetLogRoot()); err != nil {
-			return nil, err
-		}
-		if proofRoot.TreeSize < logRoot.TreeSize {
-			return nil, fmt.Errorf("response for ConsistencyProof has a smaller (%d) root than requested (%d)", proofRoot.TreeSize, logRoot.TreeSize)
-		}
-	}
 
 	// Verify root update if the tree / the latest signed log root isn't empty.
 	if logRoot.TreeSize > 0 {
-		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(), consistency.GetProof().GetHashes()); err != nil {
+		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(), resp.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}
 	}
