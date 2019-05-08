@@ -66,19 +66,25 @@ func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*S
 	return NewSparseMerkleTreeReader(rev, maphasher.Default, tx), tx
 }
 
-func runOnProducer(tx storage.MapTreeTX) func(context.Context, func(context.Context, storage.MapTreeTX) error) error {
-	defer tx.Close()
+type producerTXRunner struct {
+	tx storage.MapTreeTX
+}
 
-	return func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-		return f(ctx, tx)
-	}
+func (r *producerTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
+	return f(ctx, r.tx)
+}
+
+func (r *producerTXRunner) Close() {
+	r.tx.Close()
 }
 
 func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, treeID, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
 	tx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(rev, nil)
 	tx.EXPECT().Close().MinTimes(1)
-	tree, err := NewSparseMerkleTreeWriter(ctx, treeID, rev, maphasher.Default, runOnProducer(tx))
+	txRunner := &producerTXRunner{tx: tx}
+	defer txRunner.Close()
+	tree, err := NewSparseMerkleTreeWriter(ctx, treeID, rev, maphasher.Default, txRunner)
 	if err != nil {
 		panic(err)
 	}
