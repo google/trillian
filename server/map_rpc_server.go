@@ -141,42 +141,76 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}
 	revision = int64(mapRoot.Revision)
 
-	leaves, err := tx.Get(ctx, revision, indices)
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch leaves: %v", err)
-	}
+	// Fetch leaves and their inclusion proofs concurrently:
+	wg := sync.WaitGroup{}
+
+	////////////////////////////////////////////////////
+	// Leaves
 	leavesByIndex := make(map[string]*trillian.MapLeaf)
-	for i, l := range leaves {
-		leavesByIndex[string(l.Index)] = &leaves[i]
-	}
-	if len(indices) != len(leavesByIndex) {
-		glog.V(1).Infof("%v: request had %v indices, %v of these are unique", mapID, len(indices), len(leavesByIndex))
-	}
-	glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), len(leaves))
+	errCh := make(chan error, 2)
 
-	// Add empty leaf values for indices that were not returned.
-	for _, index := range indices {
-		if _, ok := leavesByIndex[string(index)]; !ok {
-			leavesByIndex[string(index)] = &trillian.MapLeaf{Index: index}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		leaves, err := tx.Get(ctx, revision, indices)
+		if err != nil {
+			errCh <- fmt.Errorf("could not fetch leaves: %v", err)
+			return
 		}
+		for i, l := range leaves {
+			leavesByIndex[string(l.Index)] = &leaves[i]
+		}
+		if len(indices) != len(leavesByIndex) {
+			glog.V(1).Infof("%v: request had %v indices, %v of these are unique", mapID, len(indices), len(leavesByIndex))
+		}
+		glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), len(leaves))
+
+		// Add empty leaf values for indices that were not returned.
+		for _, index := range indices {
+			if _, ok := leavesByIndex[string(index)]; !ok {
+				leavesByIndex[string(index)] = &trillian.MapLeaf{Index: index}
+			}
+		}
+	}()
+	////////////////////////////////////////////////////
+
+	////////////////////////////////////////////////////
+	// Inclusion proofs
+	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
+	var proofs map[string][][]byte
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		var err error
+		// Fetch inclusion proofs in parallel.
+		smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
+		proofs, err = smtReader.BatchInclusionProof(ctx, revision, indices)
+		if err != nil {
+			errCh <- err
+		}
+	}()
+	////////////////////////////////////////////////////
+
+	wg.Wait()
+	close(errCh)
+
+	select {
+	case err := <-errCh:
+		return nil, err
+	default:
 	}
 
-	// Fetch inclusion proofs in parallel.
-	smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
-	proofs, err := smtReader.BatchInclusionProof(ctx, revision, indices)
-	if err != nil {
-		return nil, err
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit db transaction: %v", err)
 	}
-	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
+
 	for i, index := range indices {
 		inclusions[i] = &trillian.MapLeafInclusion{
 			Leaf:      leavesByIndex[string(index)],
 			Inclusion: proofs[string(index)],
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("could not commit db transaction: %v", err)
 	}
 
 	return &trillian.GetMapLeavesResponse{
