@@ -133,9 +133,8 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		nodeMap := make(map[compact.NodeID][]byte)
 		for _, leaf := range batch.Leaves {
 			// We're only interested in the side effects of adding leaves - the node updates
-			tree.AddLeaf([]byte(leaf), func(depth int, index int64, hash []byte) {
-				nID := compact.NodeID{Level: uint(depth), Index: uint64(index)}
-				nodeMap[nID] = hash
+			tree.AddLeaf([]byte(leaf), func(level uint, index uint64, hash []byte) {
+				nodeMap[compact.NodeID{Level: level, Index: index}] = hash
 			})
 		}
 
