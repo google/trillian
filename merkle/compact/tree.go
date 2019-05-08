@@ -98,9 +98,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	for i, id := range ids {
 		r.nodes[id.Level] = hashes[i]
 	}
-	r.recalculateRoot(func(depth int, index int64, hash []byte) error {
-		return nil
-	})
+	r.recalculateRoot(func(depth int, index int64, hash []byte) {})
 
 	if !bytes.Equal(r.root, expectedRoot) {
 		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
@@ -142,7 +140,7 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-type setNodeFunc func(depth int, index int64, hash []byte) error
+type setNodeFunc func(depth int, index int64, hash []byte)
 
 func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 	if t.size == 0 {
@@ -163,9 +161,7 @@ func (t *Tree) recalculateRoot(setNodeFn setNodeFunc) error {
 				first = false
 			} else {
 				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
-				if err := setNodeFn(bit+1, index, newRoot); err != nil {
-					return err
-				}
+				setNodeFn(bit+1, index, newRoot)
 			}
 		}
 		mask <<= 1
@@ -210,9 +206,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 	assignedSeq := t.size
 	index := assignedSeq
 
-	if err := setNodeFn(0, index, leafHash); err != nil {
-		return 0, err
-	}
+	setNodeFn(0, index, leafHash)
 
 	if t.size == 0 {
 		// new tree
@@ -232,18 +226,14 @@ func (t *Tree) AddLeafHash(leafHash []byte, setNodeFn setNodeFunc) (int64, error
 			// Don't re-write the leaf hash node (we've done it above already)
 			if bit > 0 {
 				// Store the (non-leaf) hash node
-				if err := setNodeFn(bit, index, hash); err != nil {
-					return 0, err
-				}
+				setNodeFn(bit, index, hash)
 			}
 			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = t.hasher.HashChildren(t.nodes[bit], hash)
 		// Store the resulting parent hash.
-		if err := setNodeFn(bit+1, index, hash); err != nil {
-			return 0, err
-		}
+		setNodeFn(bit+1, index, hash)
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
 		t.nodes[bit] = nil
 		// Figure out if we're done:
