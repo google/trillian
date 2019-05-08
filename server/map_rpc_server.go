@@ -380,7 +380,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
 }
 
-// txRunner satisfies the merkle.runTXFunc interface.
+// txRunner satisfies the merkle.TXRunner interface.
 type txRunner struct {
 	tree       *trillian.Tree
 	tx         storage.MapTreeTX
