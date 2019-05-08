@@ -1,6 +1,18 @@
 # TRILLIAN Changelog
 
 ## HEAD
+(Either 2.1.0 or 1.3.0)
+This is a minor change to add postgres support for log_storage
+
+### PostgreSQL updates
+Finished the code for log_storage for postgres allowing users to select
+this as the storage solution of choice for ct logging.  
+
+Users can use storage.sql if they want to support multiple trees in the same
+database or storage_unsafe.sql if they only plan on supporting one and performance
+is important.
+
+## v2.0.0
 
 Not yet released; provisionally v2.0.0 (may change).
 
