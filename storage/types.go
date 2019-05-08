@@ -362,6 +362,8 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 }
 
 // Neighbor returns the same node with the bit at PrefixLenBits flipped.
+// In terms of a tree traversal, this is the parent node's other child node
+// in the binary tree (often termed sibling node).
 func (n *NodeID) Neighbor() *NodeID {
 	height := n.PathLenBits() - n.PrefixLenBits
 	n.FlipRightBit(height)
@@ -369,6 +371,12 @@ func (n *NodeID) Neighbor() *NodeID {
 }
 
 // Siblings returns the siblings of the given node.
+// In terms of a tree traversal, this returns the Neighbour() of every node
+// (including this one) on the path up to the root. The array is of length
+// PrefixLenBits and is ordered such that the nodes closest to the leaves are
+// earlier in the array.
+// These nodes are the ones that would be required for a Merkle tree inclusion
+// proof for this node.
 func (n *NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
