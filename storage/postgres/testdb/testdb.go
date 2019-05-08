@@ -34,8 +34,8 @@ import (
 
 var (
 	trillianSQL = testonly.RelativeToPackage("../storage.sql")
-	pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
-	dbName      = flag.String("db_name", "test2", "The database name to be used when checking for pg connectivity")
+	pgOpts      = flag.String("pg_opts", "host=ctstorage.postgres.database.azure.com user=bigjim@ctstorage port=5432", "Database options to be included when connecting to the db")
+	dbName      = flag.String("db_name", "ct_ppe", "The database name to be used when checking for pg connectivity")
 )
 
 // PGAvailable indicates whether a default PG database is available.
@@ -80,6 +80,9 @@ func Test3(ctx context.Context) {
 	var jsonObj []byte
 	data.Scan(&jsonObj)
 	var d2 DataTwo
+	if jsonObj == nil {
+		fmt.Println("not found lol")
+	}
 	json.Unmarshal(jsonObj,&d2)
 	fmt.Println("result,", string(jsonObj),d2)
 }
