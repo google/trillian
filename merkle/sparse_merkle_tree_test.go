@@ -71,11 +71,8 @@ type producerTXRunner struct {
 }
 
 func (r *producerTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-	return f(ctx, r.tx)
-}
-
-func (r *producerTXRunner) Close() {
 	r.tx.Close()
+	return f(ctx, r.tx)
 }
 
 func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, treeID, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
@@ -83,7 +80,6 @@ func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Contr
 	tx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(rev, nil)
 	tx.EXPECT().Close().MinTimes(1)
 	txRunner := &producerTXRunner{tx: tx}
-	defer txRunner.Close()
 	tree, err := NewSparseMerkleTreeWriter(ctx, treeID, rev, maphasher.Default, txRunner)
 	if err != nil {
 		panic(err)
