@@ -52,9 +52,9 @@ func newTree(t *testing.T, size uint64) (*tree, VisitFn) {
 	nodes := make([][]treeNode, levels)
 	tr := &tree{size: size, nodes: nodes}
 	// Attach a visitor to the nodes and the testing handler.
-	visit := func(level uint, index uint64, hash []byte) {
-		if err := tr.visit(level, index, hash); err != nil {
-			t.Errorf("visit(%d,%d): %v", level, index, err)
+	visit := func(id NodeID, hash []byte) {
+		if err := tr.visit(id.Level, id.Index, hash); err != nil {
+			t.Errorf("visit %+v: %v", id, err)
 		}
 	}
 
@@ -163,7 +163,7 @@ func TestMergeForward(t *testing.T) {
 	rng := factory.NewEmptyRange(0)
 	tree.verifyRange(t, rng, true)
 	for i := uint64(0); i < numNodes; i++ {
-		visit(0, i, tree.leaf(i))
+		visit(NewNodeID(0, i), tree.leaf(i))
 		rng.Append(tree.leaf(i), visit)
 		tree.verifyRange(t, rng, true)
 	}
@@ -177,7 +177,7 @@ func TestMergeBackwards(t *testing.T) {
 	rng := factory.NewEmptyRange(numNodes)
 	tree.verifyRange(t, rng, true)
 	for i := numNodes; i > 0; i-- {
-		visit(0, i-1, tree.leaf(i-1))
+		visit(NewNodeID(0, i-1), tree.leaf(i-1))
 		prepend := factory.NewEmptyRange(i - 1)
 		tree.verifyRange(t, prepend, true)
 		prepend.Append(tree.leaf(i-1), visit)
@@ -204,7 +204,7 @@ func TestMergeInBatches(t *testing.T) {
 		rng := factory.NewEmptyRange(i)
 		tree.verifyRange(t, rng, true)
 		for node := i; node < i+batch && node < numNodes; node++ {
-			visit(0, node, tree.leaf(node))
+			visit(NewNodeID(0, node), tree.leaf(node))
 			if err := rng.Append(tree.leaf(node), visit); err != nil {
 				t.Fatalf("Append: %v", err)
 			}
@@ -237,7 +237,7 @@ func TestMergeRandomly(t *testing.T) {
 			mergeAll = func(begin, end uint64) *Range {
 				rng := factory.NewEmptyRange(begin)
 				if begin+1 == end {
-					visit(0, begin, tree.leaf(begin))
+					visit(NewNodeID(0, begin), tree.leaf(begin))
 					if err := rng.Append(tree.leaf(begin), visit); err != nil {
 						t.Fatalf("Append(%d): %v", begin, err)
 					}
@@ -381,9 +381,8 @@ func TestGetRootHash(t *testing.T) {
 
 func TestGetRootHashGolden(t *testing.T) {
 	type node struct {
-		level uint
-		index uint64
-		hash  string
+		id   NodeID
+		hash string
 	}
 
 	// TODO(pavelkalinnikov): Values are copied from tree_test. Commonize them.
@@ -395,7 +394,7 @@ func TestGetRootHashGolden(t *testing.T) {
 		{
 			size:      10,
 			wantRoot:  "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=",
-			wantNodes: []node{{4, 0, "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4="}},
+			wantNodes: []node{{NewNodeID(4, 0), "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4="}},
 		},
 		{size: 15, wantRoot: "j4SulYmocFuxdeyp12xXCIgK6PekBcxzAIj4zbQzNEI="},
 		{size: 16, wantRoot: "c+4Uc6BCMOZf/v3NZK1kqTUJe+bBoFtOhP+P3SayKRE=", wantNodes: []node{}},
@@ -403,21 +402,21 @@ func TestGetRootHashGolden(t *testing.T) {
 			size:     100,
 			wantRoot: "dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY=",
 			wantNodes: []node{
-				{6, 1, "/K5I3bQ6Wz/beVi9IFKizZ073WqI8kGqstdkbmMcTXI="},
-				{7, 0, "dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY="},
+				{NewNodeID(6, 1), "/K5I3bQ6Wz/beVi9IFKizZ073WqI8kGqstdkbmMcTXI="},
+				{NewNodeID(7, 0), "dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY="},
 			},
 		},
 		{
 			size:     255,
 			wantRoot: "SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0=",
 			wantNodes: []node{
-				{2, 63, "EphrHrAU2E+H65CW1o2SwiJVA1dNragVhsMsOkyBdZ4="},
-				{3, 31, "fwen9eGNKOdGYC7L1GSwMKBlyjIIZBlsKVkmPGtsZEY="},
-				{4, 15, "Iq5blg5fdl93qbEUzBBEiGMoP7zyzbwf14JuB5YBidM="},
-				{5, 7, "D6s+gn79wNsgmdvBv0fVIYCougsU+PUSdtLGrWGmyO4="},
-				{6, 3, "swSuozoE2E7iTV9cnNGcnjbLEeDq+5ep2hRJuI0pTtI="},
-				{7, 1, "xv1RcZ3JpQusUjlsGQzsV9kWuITo3aLNpEsKymbFhak="},
-				{8, 0, "SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0="},
+				{NewNodeID(2, 63), "EphrHrAU2E+H65CW1o2SwiJVA1dNragVhsMsOkyBdZ4="},
+				{NewNodeID(3, 31), "fwen9eGNKOdGYC7L1GSwMKBlyjIIZBlsKVkmPGtsZEY="},
+				{NewNodeID(4, 15), "Iq5blg5fdl93qbEUzBBEiGMoP7zyzbwf14JuB5YBidM="},
+				{NewNodeID(5, 7), "D6s+gn79wNsgmdvBv0fVIYCougsU+PUSdtLGrWGmyO4="},
+				{NewNodeID(6, 3), "swSuozoE2E7iTV9cnNGcnjbLEeDq+5ep2hRJuI0pTtI="},
+				{NewNodeID(7, 1), "xv1RcZ3JpQusUjlsGQzsV9kWuITo3aLNpEsKymbFhak="},
+				{NewNodeID(8, 0), "SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0="},
 			},
 		},
 		{size: 256, wantRoot: "qFI0t/tZ1MdOYgyPpPzHFiZVw86koScXy9q3FU5casA=", wantNodes: []node{}},
@@ -425,11 +424,11 @@ func TestGetRootHashGolden(t *testing.T) {
 			size:     1000,
 			wantRoot: "RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ=",
 			wantNodes: []node{
-				{6, 15, "CBbiN/le+CpZNxEmCVIgfQSl/ZTapYxUOsdKTkiVjtc="},
-				{7, 7, "npfCeOdllUJZLLRbvEkxlwY7enS6pRlChKVTJjHcevI="},
-				{8, 3, "5MVDHIWhLErkcLgceSnxZWOTG04QlhIkm3aUEOQLpWw="},
-				{9, 1, "6EoN2SheMl5oA3qymXw1Ltcp1ku/INU+rBqEe2+jIjI="},
-				{10, 0, "RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ="},
+				{NewNodeID(6, 15), "CBbiN/le+CpZNxEmCVIgfQSl/ZTapYxUOsdKTkiVjtc="},
+				{NewNodeID(7, 7), "npfCeOdllUJZLLRbvEkxlwY7enS6pRlChKVTJjHcevI="},
+				{NewNodeID(8, 3), "5MVDHIWhLErkcLgceSnxZWOTG04QlhIkm3aUEOQLpWw="},
+				{NewNodeID(9, 1), "6EoN2SheMl5oA3qymXw1Ltcp1ku/INU+rBqEe2+jIjI="},
+				{NewNodeID(10, 0), "RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ="},
 			},
 		},
 		{size: 4095, wantRoot: "cWRFdQhPcjn9WyBXE/r1f04ejxIm5lvg40DEpRBVS0w="},
@@ -450,8 +449,8 @@ func TestGetRootHashGolden(t *testing.T) {
 				}
 			}
 			visited := make([]node, 0, len(tc.wantNodes))
-			hash, err := rng.GetRootHash(func(level uint, index uint64, hash []byte) {
-				visited = append(visited, node{level: level, index: index, hash: base64.StdEncoding.EncodeToString(hash)})
+			hash, err := rng.GetRootHash(func(id NodeID, hash []byte) {
+				visited = append(visited, node{id: id, hash: base64.StdEncoding.EncodeToString(hash)})
 			})
 			if err != nil {
 				t.Fatalf("GetRootHash: %v", err)

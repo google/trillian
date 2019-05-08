@@ -37,14 +37,16 @@ type NodeID struct {
 	Index uint64
 }
 
+// NewNodeID returns a NodeID with the passed in node coordinates.
+func NewNodeID(level uint, index uint64) NodeID {
+	return NodeID{Level: level, Index: index}
+}
+
 // HashFn computes an internal node's hash using the hashes of its child nodes.
 type HashFn func(left, right []byte) []byte
 
-// VisitFn visits the (level, index) node with the specified hash. See NodeID
-// for details on how nodes are numbered.
-//
-// TODO(pavelkalinnikov): Use NodeID in this signature.
-type VisitFn func(level uint, index uint64, hash []byte)
+// VisitFn visits the node with the specified ID and hash.
+type VisitFn func(id NodeID, hash []byte)
 
 // RangeFactory allows creating compact ranges with the specified hash
 // function, which must not be nil, and must not be changed.
@@ -152,7 +154,7 @@ func (r *Range) GetRootHash(visitor VisitFn) ([]byte, error) {
 			size &= size - 1                              // Delete the previous node.
 			level := uint(bits.TrailingZeros64(size)) + 1 // Compute the parent level.
 			index := size >> level                        // And its horizontal index.
-			visitor(level, index, hash)
+			visitor(NodeID{Level: level, Index: index}, hash)
 		}
 	}
 	return hash, nil
@@ -215,7 +217,7 @@ func (r *Range) appendImpl(end uint64, seed []byte, hashes [][]byte, visitor Vis
 		}
 		index >>= 1
 		if visitor != nil {
-			visitor(h+1, index, seed)
+			visitor(NodeID{Level: h + 1, Index: index}, seed)
 		}
 	}
 
