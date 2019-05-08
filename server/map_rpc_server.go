@@ -142,13 +142,13 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	revision = int64(mapRoot.Revision)
 
 	// Fetch leaves and their inclusion proofs concurrently:
-	wg := sync.WaitGroup{}
+	wg := &sync.WaitGroup{}
 
 	////////////////////////////////////////////////////
 	// Leaves
 	leavesByIndex := make(map[string]*trillian.MapLeaf)
 	errCh := make(chan error, 2)
-
+	defer close(errCh)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -177,7 +177,6 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	////////////////////////////////////////////////////
 	// Inclusion proofs
-	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
 	var proofs map[string][][]byte
 	wg.Add(1)
 	go func() {
@@ -188,24 +187,26 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
 		proofs, err = smtReader.BatchInclusionProof(ctx, revision, indices)
 		if err != nil {
-			errCh <- err
+			errCh <- fmt.Errorf("could not fetch inclusion proofs: %v", err)
 		}
 	}()
 	////////////////////////////////////////////////////
 
 	wg.Wait()
-	close(errCh)
 
 	select {
-	case err := <-errCh:
-		return nil, err
+	case e := <-errCh:
+		return nil, e
 	default:
+		{
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("could not commit db transaction: %v", err)
 	}
 
+	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
 	for i, index := range indices {
 		inclusions[i] = &trillian.MapLeafInclusion{
 			Leaf:      leavesByIndex[string(index)],
