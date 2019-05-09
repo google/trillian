@@ -16,6 +16,7 @@
 package coniks
 
 import (
+	"bytes"
 	"crypto"
 	"encoding/binary"
 	"fmt"
@@ -60,11 +61,13 @@ func (m *hasher) EmptyRoot() []byte {
 func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	depth := m.BitLen() - height
 
+	buf := new(bytes.Buffer)
 	h := m.New()
-	h.Write(emptyIdentifier)
-	binary.Write(h, binary.BigEndian, uint64(treeID))
-	h.Write(m.maskIndex(index, depth))
-	binary.Write(h, binary.BigEndian, uint32(depth))
+	buf.Write(emptyIdentifier)
+	binary.Write(buf, binary.BigEndian, uint64(treeID))
+	m.maskIndex(buf, index, depth)
+	binary.Write(buf, binary.BigEndian, uint32(depth))
+	h.Write(buf.Bytes())
 	r := h.Sum(nil)
 	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, r)
 	return r
@@ -74,12 +77,14 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 // H(Identifier || treeID || depth || index || dataHash)
 func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error) {
 	depth := m.BitLen()
+	buf := new(bytes.Buffer)
 	h := m.New()
-	h.Write(leafIdentifier)
-	binary.Write(h, binary.BigEndian, uint64(treeID))
-	h.Write(m.maskIndex(index, depth))
-	binary.Write(h, binary.BigEndian, uint32(depth))
-	h.Write(leaf)
+	buf.Write(leafIdentifier)
+	binary.Write(buf, binary.BigEndian, uint64(treeID))
+	m.maskIndex(buf, index, depth)
+	binary.Write(buf, binary.BigEndian, uint32(depth))
+	buf.Write(leaf)
+	h.Write(buf.Bytes())
 	p := h.Sum(nil)
 	glog.V(5).Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
 	return p, nil
@@ -88,9 +93,11 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, erro
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is  H(l || r).
 func (m *hasher) HashChildren(l, r []byte) []byte {
+	buf := new(bytes.Buffer)
 	h := m.New()
-	h.Write(l)
-	h.Write(r)
+	buf.Write(l)
+	buf.Write(r)
+	h.Write(buf.Bytes())
 	p := h.Sum(nil)
 	glog.V(5).Infof("HashChildren(%x, %x): %x", l, r, p)
 	return p
@@ -106,10 +113,10 @@ func (m *hasher) BitLen() int {
 // is 0. leftmask is only used to mask the last byte.
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
-// maskIndex returns index with only the left depth bits set.
-// index must be of size m.Size() and 0 <= depth <= m.BitLen().
-// e.g.
-func (m *hasher) maskIndex(index []byte, depth int) []byte {
+// maskIndex writes the masked value directly to a Buffer (which never
+// returns an error on writes). This avoids the need to allocate space for and
+// copy a value that will then be discarded immediately.
+func (m *hasher) maskIndex(b *bytes.Buffer, index []byte, depth int) {
 	if got, want := len(index), m.Size(); got != want {
 		panic(fmt.Sprintf("index len: %d, want %d", got, want))
 	}
@@ -117,14 +124,11 @@ func (m *hasher) maskIndex(index []byte, depth int) []byte {
 		panic(fmt.Sprintf("depth: %d, want <= %d && > 0", got, want))
 	}
 
-	// Create an empty index Size() bytes long.
-	ret := make([]byte, m.Size())
 	if depth > 0 {
 		// Copy the first depthBytes.
 		depthBytes := (depth + 7) >> 3
-		copy(ret, index[:depthBytes])
+		b.Write(index[:depthBytes])
 		// Mask off unwanted bits in the last byte.
-		ret[depthBytes-1] = ret[depthBytes-1] & leftmask[depth%8]
+		b.WriteByte(index[depthBytes-1] & leftmask[depth%8])
 	}
-	return ret
 }
