@@ -64,7 +64,7 @@ func libraries(importPath string) ([]*licenses.Library, error) {
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := build.Import(importPath, wd, 0)
+	pkg, err := build.Import(importPath, wd, build.ImportMode(0))
 	if err != nil {
 		return nil, err
 	}
