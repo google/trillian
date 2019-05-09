@@ -28,6 +28,13 @@ import (
 
 var (
 	gitRegexp = regexp.MustCompile(`^\.git$`)
+
+	gitRepoPathPrefixes = map[string]string{
+		"github.com":            "blob/master/",
+		"bitbucket.org":         "src/master/",
+		"go.googlesource.com":   "+/refs/heads/master/",
+		"code.googlesource.com": "+/refs/heads/master/",
+	}
 )
 
 // GitFileURL returns the URL of a file stored in a Git repository.
@@ -48,16 +55,12 @@ func GitFileURL(filePath string, remote string) (*url.URL, error) {
 	}
 	repoURL.Host = strings.TrimSuffix(repoURL.Host, ".")
 	repoURL.Path = strings.TrimSuffix(repoURL.Path, ".git")
-	switch repoURL.Host {
-	case "github.com":
-		repoURL.Path = path.Join(repoURL.Path, "blob/master/", filepath.ToSlash(relFilePath))
-	case "bitbucket.org":
-		repoURL.Path = path.Join(repoURL.Path, "src/master/", filepath.ToSlash(relFilePath))
-	case "go.googlesource.com", "code.googlesource.com":
-		repoURL.Path = path.Join(repoURL.Path, "+/refs/heads/master/", filepath.ToSlash(relFilePath))
-	default:
+	if prefix, ok := gitRepoPathPrefixes[repoURL.Host]; ok {
+		repoURL.Path = path.Join(repoURL.Path, prefix, filepath.ToSlash(relFilePath))
+	} else {
 		return nil, fmt.Errorf("unrecognised Git repository host: %q", repoURL)
 	}
+
 	return repoURL, nil
 }
 
