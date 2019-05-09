@@ -23,15 +23,15 @@ import (
 
 // NodeID identifies a node of a Merkle tree.
 //
-// The level is the distance from the node down to the leaves, and index is its
-// horizontal position within this level ordered from left to right. Consider a
-// tree example below where the nodes are labeled as [<level> <index>].
+// The level is the longest distance from the node down to the leaves, and
+// index is its horizontal position in this level ordered from left to right.
+// Consider an example below where nodes are labeled as [<level> <index>].
 //
-//            [2 0]
-//           /     \
-//        [1 0]   [1 1]
-//       /   \     /   \
-//   [0 0] [0 1] [0 2] [0 3]
+//           [2 0]
+//          /     \
+//       [1 0]     \
+//       /   \      \
+//   [0 0]  [0 1]  [0 2]
 type NodeID struct {
 	Level uint
 	Index uint64
