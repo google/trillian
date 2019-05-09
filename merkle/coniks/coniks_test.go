@@ -123,7 +123,9 @@ func TestMaskIndex(t *testing.T) {
 		{index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 159, want: h2b("000102030405060708090A0B0C0D0E0F10111212")},
 		{index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 160, want: h2b("000102030405060708090A0B0C0D0E0F10111213")},
 	} {
-		if got, want := h.maskIndex(tc.index, tc.depth), tc.want; !bytes.Equal(got, want) {
+		buf := new(bytes.Buffer)
+		h.maskIndex(buf, tc.index, tc.depth)
+		if got, want := buf.Bytes(), tc.want; !bytes.Equal(got, want) {
 			t.Errorf("maskIndex(%x, %v): %x, want %x", tc.index, tc.depth, got, want)
 		}
 	}

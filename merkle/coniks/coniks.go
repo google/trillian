@@ -35,10 +35,11 @@ func init() {
 var (
 	leafIdentifier  = []byte("L")
 	emptyIdentifier = []byte("E")
+	// Default is the standard CONIKS hasher.
+	Default = New(crypto.SHA512_256)
+	// Some zeroes, to avoid allocating temporary slices.
+	zeroes = make([]byte, 256)
 )
-
-// Default is the standard CONIKS hasher.
-var Default = New(crypto.SHA512_256)
 
 // hasher implements the sparse merkle tree hashing algorithm specified in the CONIKS paper.
 type hasher struct {
@@ -124,11 +125,19 @@ func (m *hasher) maskIndex(b *bytes.Buffer, index []byte, depth int) {
 		panic(fmt.Sprintf("depth: %d, want <= %d && > 0", got, want))
 	}
 
+	prevLen := b.Len()
 	if depth > 0 {
 		// Copy the first depthBytes.
 		depthBytes := (depth + 7) >> 3
-		b.Write(index[:depthBytes])
+		if depth > 1 {
+			b.Write(index[:depthBytes-1])
+		}
 		// Mask off unwanted bits in the last byte.
 		b.WriteByte(index[depthBytes-1] & leftmask[depth%8])
+	}
+	// Pad to the correct length with zeroes.
+	needZeros := prevLen + len(index) - b.Len()
+	if needZeros > 0 {
+		b.Write(zeroes[:needZeros])
 	}
 }
