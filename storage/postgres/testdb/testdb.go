@@ -13,8 +13,6 @@
 // limitations under the License.
 
 // Package testdb creates new databases for tests.
-// To use: update the pg_opts in file or call with flags but be sure to include the host, user and updated port.  Also, in the get_conn below, be sure to
-// update the password.  I didn't update that workflow because I'm not sure of all the places this test is used.
 package testdb
 
 import (
@@ -39,7 +37,6 @@ var (
 
 // PGAvailable indicates whether a default PG database is available.
 func PGAvailable() bool {
-	fmt.Println(getConnStr(*dbName))
 	db, err := sql.Open("postgres", getConnStr(*dbName))
 	if err != nil {
 		log.Printf("sql.Open(): %v", err)
@@ -77,7 +74,6 @@ func TestSQL(ctx context.Context) string {
 
 // newEmptyDB creates a new, empty database.
 func newEmptyDB(ctx context.Context) (*sql.DB, error) {
-	fmt.Println("new Db")
 	db, err := sql.Open("postgres", getConnStr(*dbName))
 	if err != nil {
 		return nil, err
@@ -85,12 +81,10 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 
 	// Create a randomly-named database and then connect using the new name.
 	name := fmt.Sprintf("trl_%v", time.Now().UnixNano())
-	fmt.Println("Name", name)
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
 		return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
-	fmt.Println("past statement")
 	db.Close()
 	db, err = sql.Open("postgres", getConnStr(name))
 	if err != nil {
@@ -104,7 +98,6 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 // generated.
 // NewTrillianDB is equivalent to Default().NewTrillianDB(ctx).
 func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
-	fmt.Println("Fail on fake context")
 	db, err := newEmptyDB(ctx)
 	if err != nil {
 		return nil, err

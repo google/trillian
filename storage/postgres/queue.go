@@ -36,7 +36,7 @@ const (
                         AND bucket=0
                         AND queue_timestamp_nanos<=$2
                         ORDER BY queue_timestamp_nanos,leaf_identity_hash ASC LIMIT $3`
-	insertUnsequencedEntrySQL = "select ignore_duplicates($1,$2,$3,$4)" //"INSERT INTO unsequenced(tree_id,Bucket,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos) VALUES($1,0,$2,$3,$4)"
+	insertUnsequencedEntrySQL = "select insert_leaf_data_ignore_duplicates($1,$2,$3,$4)"
 	deleteUnsequencedSQL      = "DELETE FROM unsequenced WHERE tree_id = $1 and bucket=0 and queue_timestamp_nanos = $2 and leaf_identity_hash=$3"
 )
 

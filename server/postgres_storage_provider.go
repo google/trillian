@@ -66,7 +66,7 @@ func newPGProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
 }
 
 func (s *pgProvider) LogStorage() storage.LogStorage {
-	return postgres.NewLogStorage(s.db, s.mf) //panic("Not Implemented")
+	return postgres.NewLogStorage(s.db, s.mf)
 }
 
 func (s *pgProvider) MapStorage() storage.MapStorage {

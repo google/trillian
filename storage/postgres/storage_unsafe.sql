@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS unsequenced(
   PRIMARY KEY (queue_timestamp_nanos, leaf_identity_hash)
 );
 
-CREATE OR REPLACE FUNCTION public.ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, leaf_value bytea, extra_data bytea, queue_timestamp_nanos bigint)
+CREATE OR REPLACE FUNCTION public.insert_leaf_data_ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, leaf_value bytea, extra_data bytea, queue_timestamp_nanos bigint)
  RETURNS boolean
  LANGUAGE plpgsql
 AS $function$
@@ -149,15 +149,18 @@ AS $function$
     end;
 $function$
 
-CREATE OR REPLACE FUNCTION public.ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, merkle_leaf_hash bytea, queue_timestamp_nanos bigint)
+CREATE OR REPLACE FUNCTION public.insert_leaf_data_ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, merkle_leaf_hash bytea, queue_timestamp_nanos bigint)
  RETURNS boolean
  LANGUAGE plpgsql
 AS $function$
     begin
         INSERT INTO unsequenced(tree_id,bucket,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos) VALUES(tree_id,0,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos);
         return true;
-    exception when others then
-      return false;
+    exception 
+        when unique_violation then
+                return false;
+        when others then
+                raise notice '% %', SQLERRM, SQLSTATE;
     end;
 $function$
 

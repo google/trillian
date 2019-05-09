@@ -41,7 +41,7 @@ import (
 
 const (
 	valuesPlaceholder5     = "($1,$2,$3,$4,$5)"
-	insertLeafDataSQL      = "select ignore_duplicates($1,$2,$3,$4,$5)"
+	insertLeafDataSQL      = "select insert_leaf_data_ignore_duplicates($1,$2,$3,$4,$5)"
 	insertSequencedLeafSQL = "INSERT INTO sequenced_leaf_data(tree_id,leaf_identity_hash,merkle_leaf_hash,sequence_number,integrate_timestamp_nanos) VALUES"
 
 	selectNonDeletedTreeIDByTypeAndStateSQL = `
@@ -134,8 +134,8 @@ type postgresLogStorage struct {
 	metricFactory monitoring.MetricFactory
 }
 
-// NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
-// It assumes storage.AdminStorage is backed by the same MySQL database as well.
+// NewLogStorage creates a storage.LogStorage instance for the specified PostgreSQL URL.
+// It assumes storage.AdminStorage is backed by the same PostgreSQL database as well.
 func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
@@ -1000,12 +1000,3 @@ func isDuplicateErr(err error) bool {
 		return false
 	}
 }
-
-// Copyright 2016 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
