@@ -25,6 +25,7 @@ func TestIdentify(t *testing.T) {
 		confidence  float64
 		wantLicense string
 		wantType    Type
+		wantErr     bool
 	}{
 		{
 			desc:        "Apache 2.0 license",
@@ -33,6 +34,19 @@ func TestIdentify(t *testing.T) {
 			wantLicense: "Apache-2.0",
 			wantType:    Notice,
 		},
+		{
+			desc:       "non-existent file",
+			file:       "non-existent-file",
+			confidence: 1,
+			wantErr:    true,
+		},
+		{
+			desc:        "empty file path",
+			file:        "",
+			confidence:  1,
+			wantLicense: "",
+			wantType:    Unknown,
+		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			c, err := NewClassifier(test.confidence)
@@ -40,7 +54,12 @@ func TestIdentify(t *testing.T) {
 				t.Fatalf("NewClassifier(%v) = (_, %q), want (_, nil)", test.confidence, err)
 			}
 			gotLicense, gotType, err := c.Identify(test.file)
-			if err != nil || gotLicense != test.wantLicense || gotType != test.wantType {
+			if gotErr := err != nil; gotErr != test.wantErr {
+				t.Fatalf("c.Identify(%q) = (_, _, %q), want err? %t", test.file, err, test.wantErr)
+			} else if gotErr {
+				return
+			}
+			if gotLicense != test.wantLicense || gotType != test.wantType {
 				t.Fatalf("c.Identify(%q) = (%q, %q, %v), want (%q, %q, <nil>)", test.file, gotLicense, gotType, err, test.wantLicense, test.wantType)
 			}
 		})
