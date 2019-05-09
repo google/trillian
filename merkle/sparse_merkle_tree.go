@@ -222,7 +222,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		defer spanEnd()
 
 		root = []byte{}
-		leaves := make([]HStar2LeafHash, 0, queueSize)
+		leaves := make([]*HStar2LeafHash, 0, queueSize)
 		nodesToStore := make([]storage.Node, 0, queueSize*2)
 
 		_, createNodesSpanEnd := spanFor(ctx, "buildSubtree.runTX.createNodeIDs")
@@ -237,7 +237,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 			nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.EmptySuffix, s.hasher.BitLen())
 			sibs = append(sibs, nodeID.Siblings()...)
 
-			leaves = append(leaves, HStar2LeafHash{
+			leaves = append(leaves, &HStar2LeafHash{
 				Index:    nodeID.BigInt(),
 				LeafHash: ih.hash,
 			})
