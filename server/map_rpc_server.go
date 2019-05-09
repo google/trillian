@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/trillian"
@@ -326,7 +325,6 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 		glog.V(2).Infof("%v: Writing at revision %v", mapID, writeRev)
 		txRunner := t.newTXRunner(tree, tx)
-		defer txRunner.Close()
 		smtWriter, err := merkle.NewSparseMerkleTreeWriter(ctx, req.MapId, writeRev, hasher, txRunner)
 		if err != nil {
 			return err
@@ -384,7 +382,6 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 type txRunner struct {
 	tree       *trillian.Tree
 	tx         storage.MapTreeTX
-	txRolledUp uint64
 	mapStorage storage.MapStorage
 	opts       TrillianMapServerOptions
 }
@@ -396,17 +393,9 @@ func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeT
 // RunTX runs a transaction given a transaction runner f.
 func (r *txRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 	if r.opts.UseSingleTransaction {
-		glog.V(1).Infof("Using enclosing tx for subtree operation %d", atomic.LoadUint64(&r.txRolledUp))
-		atomic.AddUint64(&r.txRolledUp, 1)
 		return f(ctx, r.tx)
 	}
 	return r.mapStorage.ReadWriteTransaction(ctx, r.tree, f)
-}
-
-func (r *txRunner) Close() {
-	if r.opts.UseSingleTransaction {
-		glog.V(1).Infof("Rolled %d transactions up into single commit", atomic.LoadUint64(&r.txRolledUp))
-	}
 }
 
 // doPreload causes the subtreeCache in tx to become populated with all subtrees
