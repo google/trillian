@@ -381,8 +381,9 @@ func TestGetRootHash(t *testing.T) {
 
 func TestGetRootHashGolden(t *testing.T) {
 	type node struct {
-		id   NodeID
-		hash string
+		level uint
+		index uint64
+		hash  string
 	}
 
 	// TODO(pavelkalinnikov): Values are copied from tree_test. Commonize them.
@@ -394,7 +395,7 @@ func TestGetRootHashGolden(t *testing.T) {
 		{
 			size:      10,
 			wantRoot:  "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=",
-			wantNodes: []node{{NewNodeID(4, 0), "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4="}},
+			wantNodes: []node{{4, 0, "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4="}},
 		},
 		{size: 15, wantRoot: "j4SulYmocFuxdeyp12xXCIgK6PekBcxzAIj4zbQzNEI="},
 		{size: 16, wantRoot: "c+4Uc6BCMOZf/v3NZK1kqTUJe+bBoFtOhP+P3SayKRE=", wantNodes: []node{}},
@@ -402,21 +403,21 @@ func TestGetRootHashGolden(t *testing.T) {
 			size:     100,
 			wantRoot: "dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY=",
 			wantNodes: []node{
-				{NewNodeID(6, 1), "/K5I3bQ6Wz/beVi9IFKizZ073WqI8kGqstdkbmMcTXI="},
-				{NewNodeID(7, 0), "dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY="},
+				{6, 1, "/K5I3bQ6Wz/beVi9IFKizZ073WqI8kGqstdkbmMcTXI="},
+				{7, 0, "dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY="},
 			},
 		},
 		{
 			size:     255,
 			wantRoot: "SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0=",
 			wantNodes: []node{
-				{NewNodeID(2, 63), "EphrHrAU2E+H65CW1o2SwiJVA1dNragVhsMsOkyBdZ4="},
-				{NewNodeID(3, 31), "fwen9eGNKOdGYC7L1GSwMKBlyjIIZBlsKVkmPGtsZEY="},
-				{NewNodeID(4, 15), "Iq5blg5fdl93qbEUzBBEiGMoP7zyzbwf14JuB5YBidM="},
-				{NewNodeID(5, 7), "D6s+gn79wNsgmdvBv0fVIYCougsU+PUSdtLGrWGmyO4="},
-				{NewNodeID(6, 3), "swSuozoE2E7iTV9cnNGcnjbLEeDq+5ep2hRJuI0pTtI="},
-				{NewNodeID(7, 1), "xv1RcZ3JpQusUjlsGQzsV9kWuITo3aLNpEsKymbFhak="},
-				{NewNodeID(8, 0), "SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0="},
+				{2, 63, "EphrHrAU2E+H65CW1o2SwiJVA1dNragVhsMsOkyBdZ4="},
+				{3, 31, "fwen9eGNKOdGYC7L1GSwMKBlyjIIZBlsKVkmPGtsZEY="},
+				{4, 15, "Iq5blg5fdl93qbEUzBBEiGMoP7zyzbwf14JuB5YBidM="},
+				{5, 7, "D6s+gn79wNsgmdvBv0fVIYCougsU+PUSdtLGrWGmyO4="},
+				{6, 3, "swSuozoE2E7iTV9cnNGcnjbLEeDq+5ep2hRJuI0pTtI="},
+				{7, 1, "xv1RcZ3JpQusUjlsGQzsV9kWuITo3aLNpEsKymbFhak="},
+				{8, 0, "SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0="},
 			},
 		},
 		{size: 256, wantRoot: "qFI0t/tZ1MdOYgyPpPzHFiZVw86koScXy9q3FU5casA=", wantNodes: []node{}},
@@ -424,11 +425,11 @@ func TestGetRootHashGolden(t *testing.T) {
 			size:     1000,
 			wantRoot: "RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ=",
 			wantNodes: []node{
-				{NewNodeID(6, 15), "CBbiN/le+CpZNxEmCVIgfQSl/ZTapYxUOsdKTkiVjtc="},
-				{NewNodeID(7, 7), "npfCeOdllUJZLLRbvEkxlwY7enS6pRlChKVTJjHcevI="},
-				{NewNodeID(8, 3), "5MVDHIWhLErkcLgceSnxZWOTG04QlhIkm3aUEOQLpWw="},
-				{NewNodeID(9, 1), "6EoN2SheMl5oA3qymXw1Ltcp1ku/INU+rBqEe2+jIjI="},
-				{NewNodeID(10, 0), "RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ="},
+				{6, 15, "CBbiN/le+CpZNxEmCVIgfQSl/ZTapYxUOsdKTkiVjtc="},
+				{7, 7, "npfCeOdllUJZLLRbvEkxlwY7enS6pRlChKVTJjHcevI="},
+				{8, 3, "5MVDHIWhLErkcLgceSnxZWOTG04QlhIkm3aUEOQLpWw="},
+				{9, 1, "6EoN2SheMl5oA3qymXw1Ltcp1ku/INU+rBqEe2+jIjI="},
+				{10, 0, "RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ="},
 			},
 		},
 		{size: 4095, wantRoot: "cWRFdQhPcjn9WyBXE/r1f04ejxIm5lvg40DEpRBVS0w="},
@@ -450,7 +451,7 @@ func TestGetRootHashGolden(t *testing.T) {
 			}
 			visited := make([]node, 0, len(tc.wantNodes))
 			hash, err := rng.GetRootHash(func(id NodeID, hash []byte) {
-				visited = append(visited, node{id: id, hash: base64.StdEncoding.EncodeToString(hash)})
+				visited = append(visited, node{level: id.Level, index: id.Index, hash: base64.StdEncoding.EncodeToString(hash)})
 			})
 			if err != nil {
 				t.Fatalf("GetRootHash: %v", err)
