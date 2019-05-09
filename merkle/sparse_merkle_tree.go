@@ -24,8 +24,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"go.opencensus.io/trace"
 )
 
 // For more information about how Sparse Merkle Trees work see the Revocation Transparency
@@ -162,8 +162,8 @@ func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix
 // SetLeaf sets a single leaf hash for incorporation into the sparse Merkle tree.
 // index is the full path of the leaf, starting from the root (not the subtree's root).
 func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) error {
-	ctx, span := spanFor(ctx, "SetLeaf")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "SetLeaf")
+	defer spanEnd()
 
 	depth := len(index) * 8
 	absSubtreeDepth := len(s.prefix)*8 + s.subtreeDepth
@@ -192,8 +192,8 @@ func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) 
 // CalculateRoot initiates the process of calculating the subtree root.
 // The leafGeneratorQueue is closed.
 func (s *subtreeWriter) CalculateRoot(ctx context.Context) {
-	ctx, span := spanFor(ctx, "subtreeWriter.CalculateRoot")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "subtreeWriter.CalculateRoot")
+	defer spanEnd()
 
 	close(s.leafGeneratorQueue)
 
@@ -212,20 +212,20 @@ func (s *subtreeWriter) RootHash() ([]byte, error) {
 // The root chan will have had exactly one entry placed in it, and have been
 // subsequently closed when this method exits.
 func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
-	ctx, span := spanFor(ctx, "buildSubtree")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "buildSubtree")
+	defer spanEnd()
 
 	defer close(s.root)
 	var root []byte
 	err := s.runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
-		ctx, span := spanFor(ctx, "buildSubtree.runTX")
-		defer span.End()
+		ctx, spanEnd := spanFor(ctx, "buildSubtree.runTX")
+		defer spanEnd()
 
 		root = []byte{}
 		leaves := make([]HStar2LeafHash, 0, queueSize)
 		nodesToStore := make([]storage.Node, 0, queueSize*2)
 
-		_, span = spanFor(ctx, "buildSubtree.runTX.createNodeIDs")
+		_, createNodesSpanEnd := spanFor(ctx, "buildSubtree.runTX.createNodeIDs")
 		// sibs will hold the list of sibling node IDs for all nodes we'll end up
 		// wanting to write - we'll use this to prewarm the subtree cache.
 		var sibs []storage.NodeID
@@ -248,16 +248,16 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					NodeRevision: s.treeRevision,
 				})
 		}
-		span.End()
+		createNodesSpanEnd()
 
-		preloadCtx, span := spanFor(ctx, "buildSubtree.runTX.preload")
+		preloadCtx, preloadSpanEnd := spanFor(ctx, "buildSubtree.runTX.preload")
 		// Prewarm the cache:
 		if _, err := tx.GetMerkleNodes(preloadCtx, s.treeRevision, sibs); err != nil {
 			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
-		span.End()
+		preloadSpanEnd()
 
-		hsCtx, span := spanFor(ctx, "buildSubtree.runTX.htar2")
+		hsCtx, hstar2SpanEnd := spanFor(ctx, "buildSubtree.runTX.hstar2")
 		// calculate new root, and intermediate nodes:
 		hs2 := NewHStar2(s.treeID, s.hasher)
 		var err error
@@ -298,7 +298,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					})
 				return nil
 			})
-		span.End() // hstar2
+		hstar2SpanEnd() // hstar2
 		if err != nil {
 			return err
 		}
@@ -383,8 +383,8 @@ func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers
 // RootAtRevision returns the sparse Merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) ([]byte, error) {
-	ctx, span := spanFor(ctx, "RootAtRevision")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "RootAtRevision")
+	defer spanEnd()
 
 	rootNodeID := storage.NewEmptyNodeID(256)
 	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []storage.NodeID{rootNodeID})
@@ -412,8 +412,8 @@ func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) (
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
 func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, index []byte) ([][]byte, error) {
-	ctx, span := spanFor(ctx, "InclusionProof")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "InclusionProof")
+	defer spanEnd()
 
 	proofs, err := s.BatchInclusionProof(ctx, rev, [][]byte{index})
 	if err != nil {
@@ -426,10 +426,10 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 // at the specified revision. The return value is a map of the string form of the key to the
 // inclusion proof for that key.
 func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int64, indices [][]byte) (map[string]([][]byte), error) {
-	ctx, span := spanFor(ctx, "BatchInclusionProof")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "BatchInclusionProof")
+	defer spanEnd()
 
-	_, span = spanFor(ctx, "BatchInclusionProof.calculateNodes")
+	_, calculateSpanEnd := spanFor(ctx, "BatchInclusionProof.calculateNodes")
 	indexToSibs := make(map[string][]storage.NodeID)
 	allSibs := make([]storage.NodeID, 0, len(indices)*s.hasher.BitLen())
 	includedNodes := map[string]bool{}
@@ -444,16 +444,16 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 			}
 		}
 	}
-	span.End()
+	calculateSpanEnd()
 
-	gnCtx, span := spanFor(ctx, "BatchInclusionProof.getMerkleNodes")
+	gnCtx, getNodesSpanEnd := spanFor(ctx, "BatchInclusionProof.getMerkleNodes")
 	nodes, err := s.tx.GetMerkleNodes(gnCtx, rev, allSibs)
 	if err != nil {
 		return nil, err
 	}
-	span.End()
+	getNodesSpanEnd()
 
-	_, span = spanFor(ctx, "BatchInclusionProof.postprocess")
+	_, postprocessSpanEnd := spanFor(ctx, "BatchInclusionProof.postprocess")
 	nodeMap := make(map[string]*storage.Node)
 	for i, n := range nodes {
 		glog.V(2).Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.AsKey()), n.Hash)
@@ -478,15 +478,15 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 		}
 		r[string(index)] = ri
 	}
-	span.End()
+	postprocessSpanEnd()
 
 	return r, nil
 }
 
 // SetLeaves adds a batch of leaves to the in-flight tree update.
 func (s *SparseMerkleTreeWriter) SetLeaves(ctx context.Context, leaves []HashKeyValue) error {
-	ctx, span := spanFor(ctx, "SetLeaves")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "SetLeaves")
+	defer spanEnd()
 
 	for _, l := range leaves {
 		if err := s.tree.SetLeaf(ctx, l.HashedKey, l.HashedValue); err != nil {
@@ -498,8 +498,8 @@ func (s *SparseMerkleTreeWriter) SetLeaves(ctx context.Context, leaves []HashKey
 
 // CalculateRoot calculates the new root hash including the newly added leaves.
 func (s *SparseMerkleTreeWriter) CalculateRoot(ctx context.Context) ([]byte, error) {
-	ctx, span := spanFor(ctx, "SparseMerkleTreeWriter.CalculateRoot")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "SparseMerkleTreeWriter.CalculateRoot")
+	defer spanEnd()
 
 	s.tree.CalculateRoot(ctx)
 	return s.tree.RootHash()
@@ -514,6 +514,6 @@ type HashKeyValue struct {
 	HashedValue []byte
 }
 
-func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
-	return trace.StartSpan(ctx, fmt.Sprintf("github.com/google/trillian/merkle/sparse_merkle_tree.%s", name))
+func spanFor(ctx context.Context, name string) (context.Context, func()) {
+	return monitoring.StartSpan(ctx, fmt.Sprintf("github.com/google/trillian/merkle/sparse_merkle_tree.%s", name))
 }

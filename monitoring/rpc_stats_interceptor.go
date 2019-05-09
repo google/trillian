@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/google/trillian/util/clock"
-	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 )
 
@@ -74,8 +73,8 @@ func (r *RPCStatsInterceptor) Interceptor() grpc.UnaryServerInterceptor {
 
 		// This interceptor wraps the request handler so we should track the
 		// additional latency it imposes.
-		ctx, span := trace.StartSpan(ctx, traceSpanRoot)
-		defer span.End()
+		ctx, spanEnd := StartSpan(ctx, traceSpanRoot)
+		defer spanEnd()
 
 		// Increase the request count for the method and start the clock
 		r.ReqCount.Inc(labels...)

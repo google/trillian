@@ -76,8 +76,8 @@ func NewTrillianMapServer(registry extension.Registry, opts TrillianMapServerOpt
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
 func (t *TrillianMapServer) IsHealthy() error {
-	ctx, span := spanFor(context.Background(), "IsHealthy")
-	defer span.End()
+	ctx, spanEnd := spanFor(context.Background(), "IsHealthy")
+	defer spanEnd()
 	return t.registry.MapStorage.CheckDatabaseAccessible(ctx)
 }
 
@@ -85,15 +85,15 @@ func (t *TrillianMapServer) IsHealthy() error {
 // return an inclusion proof to either the leaf, or nil if the leaf does not
 // exist.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (*trillian.GetMapLeavesResponse, error) {
-	ctx, span := spanFor(ctx, "GetLeaves")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "GetLeaves")
+	defer spanEnd()
 	return t.getLeavesByRevision(ctx, req.MapId, req.Index, mostRecentRevision)
 }
 
 // GetLeavesByRevision implements the GetLeavesByRevision RPC method.
 func (t *TrillianMapServer) GetLeavesByRevision(ctx context.Context, req *trillian.GetMapLeavesByRevisionRequest) (*trillian.GetMapLeavesResponse, error) {
-	ctx, span := spanFor(ctx, "GetLeavesByRevision")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "GetLeavesByRevision")
+	defer spanEnd()
 	if req.Revision < 0 {
 		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
 	}
@@ -247,8 +247,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		seen[k] = true
 	}
 
-	ctx, span := spanFor(ctx, "SetLeaves")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "SetLeaves")
+	defer spanEnd()
 
 	mapID := req.MapId
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
@@ -347,8 +347,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 // sparse Merkle tree code is used with a single transaction (and therefore
 // a single subtreeCache too).
 func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []merkle.HashKeyValue) error {
-	ctx, span := spanFor(ctx, "doPreload")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "doPreload")
+	defer spanEnd()
 
 	readRev, err := tx.ReadRevision(ctx)
 	if err != nil {
@@ -423,8 +423,8 @@ func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillia
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (*trillian.GetSignedMapRootResponse, error) {
-	ctx, span := spanFor(ctx, "GetSignedMapRoot")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "GetSignedMapRoot")
+	defer spanEnd()
 	tree, ctx, err := t.getTreeAndContext(ctx, req.MapId, optsMapRead)
 	if err != nil {
 		return nil, err
@@ -453,8 +453,8 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 // GetSignedMapRootByRevision implements the GetSignedMapRootByRevision RPC
 // method.
 func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req *trillian.GetSignedMapRootByRevisionRequest) (*trillian.GetSignedMapRootResponse, error) {
-	ctx, span := spanFor(ctx, "GetSignedMapRootByRevision")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "GetSignedMapRootByRevision")
+	defer spanEnd()
 	if req.Revision < 0 {
 		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
 	}
@@ -505,8 +505,8 @@ func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64,
 
 // InitMap implements the RPC Method of the same name.
 func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
-	ctx, span := spanFor(ctx, "InitMap")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "InitMap")
+	defer spanEnd()
 	mapID := req.MapId
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapInit)
 	if err != nil {
