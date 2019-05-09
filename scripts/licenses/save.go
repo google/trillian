@@ -33,7 +33,7 @@ var (
 
 	// savePath is where the output of the command is written to.
 	savePath string
-	// overwriteSavePath controls behaviour when the directory indicated by savepath already exists.
+	// overwriteSavePath controls behaviour when the directory indicated by savePath already exists.
 	// If true, the directory will be replaced. If false, the command will fail.
 	overwriteSavePath bool
 

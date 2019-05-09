@@ -17,7 +17,6 @@ package licenses
 import (
 	"fmt"
 	"go/build"
-	"regexp"
 	"sort"
 	"sync"
 
@@ -25,16 +24,6 @@ import (
 )
 
 var (
-	licenseRegexp = regexp.MustCompile(`^LICENSE(\.(txt|md))?$`)
-	srcDirRegexps = func() []*regexp.Regexp {
-		var rs []*regexp.Regexp
-		for _, s := range build.Default.SrcDirs() {
-			rs = append(rs, regexp.MustCompile("^"+regexp.QuoteMeta(s)+"$"))
-		}
-		return rs
-	}()
-	vendorRegexp = regexp.MustCompile(`.+/vendor(/)?$`)
-
 	pkgCache sync.Map
 )
 
@@ -154,21 +143,23 @@ func dependencies(ctx *build.Context, pkg *build.Package, deps map[string]*build
 		if imp == "C" {
 			return fmt.Errorf("%s has a dependency on C code, which cannot be inspected for further dependencies", pkg.ImportPath)
 		}
-		if _, ok := deps[imp]; !ok {
-			impPkg, err := importPackage(ctx, imp, pkg.Dir)
-			if err != nil {
-				return fmt.Errorf("%s -> %v", pkg.ImportPath, err)
-			}
-			deps[imp] = impPkg
-			if isStdLib(impPkg) {
-				// Don't delve into standard library dependencies - that'll just lead to dependencies on other parts of the standard library,
-				// which isn't of interest (no license requirements for the standard library).
-				continue
-			}
-			// Collect transitive dependencies
-			if err := dependencies(ctx, impPkg, deps); err != nil {
-				return fmt.Errorf("%s -> %v", pkg.ImportPath, err)
-			}
+		if _, ok := deps[imp]; ok {
+			// Already have this dependency in deps (and therefore all of its dependencies too)
+			continue
+		}
+		impPkg, err := importPackage(ctx, imp, pkg.Dir)
+		if err != nil {
+			return fmt.Errorf("%s -> %v", pkg.ImportPath, err)
+		}
+		deps[imp] = impPkg
+		if isStdLib(impPkg) {
+			// Don't delve into standard library dependencies - that'll just lead to dependencies on other parts of the standard library,
+			// which isn't of interest (no license requirements for the standard library).
+			continue
+		}
+		// Collect transitive dependencies
+		if err := dependencies(ctx, impPkg, deps); err != nil {
+			return fmt.Errorf("%s -> %v", pkg.ImportPath, err)
 		}
 	}
 	return nil

@@ -64,9 +64,7 @@ func NewClassifier(confidenceThreshold float64) (*Classifier, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Classifier{
-		classifier: c,
-	}, nil
+	return &Classifier{classifier: c}, nil
 }
 
 // Identify returns the name and type of a license, given its file path.

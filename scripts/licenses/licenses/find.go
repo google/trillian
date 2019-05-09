@@ -22,6 +22,18 @@ import (
 	"regexp"
 )
 
+var (
+	licenseRegexp = regexp.MustCompile(`^LICENSE(\.(txt|md))?$`)
+	srcDirRegexps = func() []*regexp.Regexp {
+		var rs []*regexp.Regexp
+		for _, s := range build.Default.SrcDirs() {
+			rs = append(rs, regexp.MustCompile("^"+regexp.QuoteMeta(s)+"$"))
+		}
+		return rs
+	}()
+	vendorRegexp = regexp.MustCompile(`.+/vendor(/)?$`)
+)
+
 // Find returns the file path of the license for this package.
 func Find(pkg *build.Package) (string, error) {
 	var stopAt []*regexp.Regexp
