@@ -35,8 +35,8 @@ import (
 
 var (
 	trillianSQL = testonly.RelativeToPackage("../storage.sql")
-	pgOpts      = flag.String("pg_opts", "host= user= port=5432", "Database options to be included when connecting to the db")
-	dbName      = flag.String("db_name", "", "The database name to be used when checking for pg connectivity")
+-       pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
+-       dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
 )
 
 // PGAvailable indicates whether a default PG database is available.
@@ -147,7 +147,7 @@ func sanitize(script string) string {
 }
 
 func getConnStr(name string) string {
-	return fmt.Sprintf("database=%s %s password=", name, *pgOpts)
+    return fmt.Sprintf("database=%s %s", name, *pgOpts)
 }
 
 // NewTrillianDBOrDie attempts to return a connection to a new postgres

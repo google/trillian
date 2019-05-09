@@ -111,7 +111,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	return checkResultOkAndRowCountIs(result, err, int64(len(leaves)))
 }
 
-func (m *mySQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+func (m *postgresLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
 	return m.getStmt(ctx, deleteUnsequencedSQL, num, "?", "?")
 }
 
