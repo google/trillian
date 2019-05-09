@@ -26,6 +26,8 @@ type Type string
 
 // License types
 const (
+	// Unknown license type.
+	Unknown = Type("")
 	// Restricted licenses require mandatory source distribution if we ship a
 	// product that includes third-party code protected by such a license.
 	Restricted = Type("restricted")
@@ -68,7 +70,11 @@ func NewClassifier(confidenceThreshold float64) (*Classifier, error) {
 }
 
 // Identify returns the name and type of a license, given its file path.
+// An empty license path results in an empty name and Unknown type.
 func (c *Classifier) Identify(licensePath string) (string, Type, error) {
+	if licensePath == "" {
+		return "", Unknown, nil
+	}
 	content, err := ioutil.ReadFile(licensePath)
 	if err != nil {
 		return "", "", err

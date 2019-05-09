@@ -82,17 +82,12 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var unlicensedPkgs []*build.Package
+	var pkgsWithUnknownLicense []*build.Package
 	libs, err := libraries(importPath)
 	if err != nil {
 		return err
 	}
 	for _, lib := range libs {
-		if lib.LicensePath == "" {
-			unlicensedPkgs = append(unlicensedPkgs, lib.Packages...)
-			continue
-		}
-		libDir := filepath.Dir(lib.LicensePath)
 		libSaveDir := filepath.Join(savePath, unvendor(lib.Name()))
 		// Detect what type of license this library has and fulfill its requirements, e.g. copy license, copyright notice, source code, etc.
 		licenseName, licenseType, err := classifier.Identify(lib.LicensePath)
@@ -102,6 +97,7 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		switch licenseType {
 		case licenses.Restricted, licenses.Reciprocal:
 			// Copy the entire source directory for the library.
+			libDir := filepath.Dir(lib.LicensePath)
 			if err := copySrc(libDir, libSaveDir); err != nil {
 				return err
 			}
@@ -112,12 +108,14 @@ func saveMain(cmd *cobra.Command, args []string) error {
 			}
 		case licenses.Forbidden:
 			return fmt.Errorf("forbidden license %q used by this library: %s", licenseName, lib)
+		case licenses.Unknown:
+			pkgsWithUnknownLicense = append(pkgsWithUnknownLicense, lib.Packages...)
 		default:
-			return fmt.Errorf("%q license is of an unknown type: %q", licenseName, licenseType)
+			glog.Fatalf("%q license is of an unrecognised type: %q", licenseName, licenseType)
 		}
 	}
-	if len(unlicensedPkgs) > 0 {
-		return fmt.Errorf("Unlicensed packages: %v", unlicensedPkgs)
+	if len(pkgsWithUnknownLicense) > 0 {
+		return fmt.Errorf("Packages with unknown license: %v", pkgsWithUnknownLicense)
 	}
 	return nil
 }
