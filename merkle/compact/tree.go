@@ -82,7 +82,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	for sz := uint64(size); sz != 0; sz &= sz - 1 {
 		level := uint(bits.TrailingZeros64(sz))
 		index := (sz - 1) >> level
-		ids = append(ids, NodeID{Level: level, Index: index})
+		ids = append(ids, NewNodeID(level, index))
 	}
 	hashes, err := getNodesFn(ids)
 	if err != nil {
@@ -94,7 +94,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	for i, id := range ids {
 		r.nodes[id.Level] = hashes[i]
 	}
-	r.recalculateRoot(func(uint, uint64, []byte) {})
+	r.recalculateRoot(func(NodeID, []byte) {})
 
 	if !bytes.Equal(r.root, expectedRoot) {
 		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
@@ -159,7 +159,7 @@ func (t *Tree) recalculateRoot(visit VisitFn) error {
 				first = false
 			} else {
 				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
-				visit(bit+1, index, newRoot)
+				visit(NewNodeID(bit+1, index), newRoot)
 			}
 		}
 		mask <<= 1
@@ -204,7 +204,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (int64, error) {
 	assignedSeq := t.size
 	index := uint64(assignedSeq)
 
-	visit(0, index, leafHash)
+	visit(NewNodeID(0, index), leafHash)
 
 	if t.size == 0 {
 		// new tree
@@ -224,14 +224,14 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (int64, error) {
 			// Don't re-write the leaf hash node (we've done it above already)
 			if bit > 0 {
 				// Store the (non-leaf) hash node
-				visit(bit, index, hash)
+				visit(NewNodeID(bit, index), hash)
 			}
 			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = t.hasher.HashChildren(t.nodes[bit], hash)
 		// Store the resulting parent hash.
-		visit(bit+1, index, hash)
+		visit(NewNodeID(bit+1, index), hash)
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
 		t.nodes[bit] = nil
 		// Figure out if we're done:
