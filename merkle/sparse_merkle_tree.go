@@ -125,17 +125,14 @@ func (s *subtreeWriter) newChildSubtreeWriter(ctx context.Context, p []byte) (Su
 // getOrCreateChildSubtree returns, or creates and returns, a subtree for the
 // specified childPrefix.
 func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix []byte) (Subtree, error) {
-	// TODO(al): figure out we actually need these copies and remove them if not.
-	//           If we do then tidy up with a copyBytes helper.
-	cp := append(make([]byte, 0, len(childPrefix)), childPrefix...)
-	childPrefixStr := string(cp)
+	childPrefixStr := string(childPrefix)
 	s.childMutex.Lock()
 	defer s.childMutex.Unlock()
 
 	subtree := s.children[childPrefixStr]
 	var err error
 	if subtree == nil {
-		subtree, err = s.newChildSubtreeWriter(ctx, cp)
+		subtree, err = s.newChildSubtreeWriter(ctx, childPrefix)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +148,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix
 				return nil, err
 			}
 			return &indexAndHash{
-				index: cp,
+				index: childPrefix,
 				hash:  h,
 			}, nil
 		}
@@ -344,10 +341,9 @@ func leafQueueSize(depths []int) int {
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
 func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte, depths []int, runTX runTXFunc, h hashers.MapHasher) (Subtree, error) {
 	tree := subtreeWriter{
-		treeID:       treeID,
-		treeRevision: rev,
-		// TODO(al): figure out if we actually need these copies and remove it not.
-		prefix:             append(make([]byte, 0, len(prefix)), prefix...),
+		treeID:             treeID,
+		treeRevision:       rev,
+		prefix:             prefix,
 		subtreeDepth:       depths[0],
 		remainingDepths:    depths[1:],
 		leafGeneratorQueue: make(chan leafGenerator, leafQueueSize(depths)),
