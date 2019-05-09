@@ -21,19 +21,27 @@ import (
 	"math/bits"
 )
 
-// HashFn computes an internal node's hash using the hashes of its child nodes.
-type HashFn func(left, right []byte) []byte
-
-// VisitFn visits the (level, index) node with the specified hash. The level is
-// the distance from the node down to the leaves, and index is its horizontal
-// position within the level. For example, see the diagram below where the
-// nodes of a 4-leaves tree are numbered with [<level> <index>] labels.
+// NodeID identifies a node of a Merkle tree.
+//
+// The level is the distance from the node down to the leaves, and index is its
+// horizontal position within this level ordered from left to right. Consider a
+// tree example below where the nodes are labeled as [<level> <index>].
 //
 //            [2 0]
 //           /     \
 //        [1 0]   [1 1]
 //       /   \     /   \
 //   [0 0] [0 1] [0 2] [0 3]
+type NodeID struct {
+	Level uint
+	Index uint64
+}
+
+// HashFn computes an internal node's hash using the hashes of its child nodes.
+type HashFn func(left, right []byte) []byte
+
+// VisitFn visits the (level, index) node with the specified hash. See NodeID
+// for details on how nodes are numbered.
 type VisitFn func(level uint, index uint64, hash []byte)
 
 // RangeFactory allows creating compact ranges with the specified hash

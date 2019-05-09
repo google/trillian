@@ -26,12 +26,6 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 )
 
-// NodeID identifies a node of a log type Merkle tree.
-type NodeID struct {
-	Level uint
-	Index uint64
-}
-
 // Tree is a compact Merkle tree representation. It uses O(log(size)) nodes to
 // represent the current on-disk tree.
 //
@@ -84,7 +78,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 
 	ids := make([]NodeID, 0, bits.OnesCount64(uint64(size)))
 	// Iterate over perfect subtrees along the right border of the tree. Those
-	// correspond to 1-bits of the tree size.
+	// correspond to the bits of the tree size that are set to one.
 	for sz := uint64(size); sz != 0; sz &= sz - 1 {
 		level := uint(bits.TrailingZeros64(sz))
 		index := (sz - 1) >> level
