@@ -49,9 +49,9 @@ const (
 
 	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM sequenced_leaf_data WHERE tree_id=?"
 	selectUnsequencedLeafCountSQL = "SELECT tree_id, COUNT(1) FROM unsequenced GROUP BY tree_id"
-	selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
-                        FROM tree_head WHERE tree_id=$1
-                        ORDER BY tree_head_timestamp DESC LIMIT 1`
+	//selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
+	//              FROM tree_head WHERE tree_id=$1
+	//              ORDER BY tree_head_timestamp DESC LIMIT 1`
 
 	selectLeavesByRangeSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
                         FROM leaf_data l,sequenced_leaf_data s
@@ -480,8 +480,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		dupCheckRow, err := t.tx.QueryContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
-		var resultData bool
-		resultData = true
+		var resultData = true
 		dupCheckRow.Scan(&resultData)
 		dupCheckRow.Close()
 		//if isDuplicateErr(err) {

@@ -53,7 +53,7 @@ const (
 		AND subtree.tree_id = <param>`
 	insertTreeHeadSQL = `INSERT INTO tree_head(tree_id,tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature)
                  VALUES($1,$2,$3,$4,$5,$6)`
-	selectTreeRevisionAtSizeOrLargerSQL = "SELECT tree_revision,tree_size FROM tree_head WHERE tree_id=$1 AND TreeSize>=$2 ORDER BY tree_revision LIMIT 1"
+	//selectTreeRevisionAtSizeOrLargerSQL = "SELECT tree_revision,tree_size FROM tree_head WHERE tree_id=$1 AND TreeSize>=$2 ORDER BY tree_revision LIMIT 1"
 )
 
 // pgTreeStorage contains the pgLogStorage implementation.

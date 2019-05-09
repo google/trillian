@@ -69,7 +69,7 @@ func TestSQL(ctx context.Context) string {
 	}
 	var resultData bool
 	result.Scan(&resultData)
-	if resultData == true {
+	if resultData {
 		fmt.Println("Result: ", resultData)
 	}
 	return "done"
