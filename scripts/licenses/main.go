@@ -30,6 +30,7 @@ import (
 )
 
 var (
+	// Flags shared between subcommands
 	confidenceThreshold float64
 	buildTags           string
 
