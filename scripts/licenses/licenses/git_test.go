@@ -43,6 +43,7 @@ func TestGitFileURL(t *testing.T) {
 		file    string
 		remote  string
 		wantURL string
+		wantErr error
 	}{
 		{
 			desc:    "License URL",
@@ -50,10 +51,22 @@ func TestGitFileURL(t *testing.T) {
 			remote:  "origin",
 			wantURL: "https://github.com/google/trillian/blob/master/LICENSE",
 		},
+		{
+			desc:    "Non-existent remote",
+			file:    filepath.Join(dir, "LICENSE"),
+			remote:  "foo",
+			wantErr: git.ErrRemoteNotFound,
+		},
 	} {
 		url, err := GitFileURL(test.file, test.remote)
-		if err != nil || url.String() != test.wantURL {
-			t.Fatalf("GitFileURL(%q, %q) = (%q, %q), want (%q, nil)", test.file, test.remote, url, err, test.wantURL)
+		if err != nil {
+			if err != test.wantErr {
+				t.Fatalf("GitFileURL(%q, %q) = (_, %q), want (_, %q)", test.file, test.remote, err, test.wantErr)
+			}
+			return
+		}
+		if url.String() != test.wantURL {
+			t.Fatalf("GitFileURL(%q, %q) = (%q, nil), want (%q, nil)", test.file, test.remote, url, test.wantURL)
 		}
 	}
 }
