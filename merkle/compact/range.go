@@ -154,7 +154,7 @@ func (r *Range) GetRootHash(visitor VisitFn) ([]byte, error) {
 			size &= size - 1                              // Delete the previous node.
 			level := uint(bits.TrailingZeros64(size)) + 1 // Compute the parent level.
 			index := size >> level                        // And its horizontal index.
-			visitor(NodeID{Level: level, Index: index}, hash)
+			visitor(NewNodeID(level, index), hash)
 		}
 	}
 	return hash, nil
@@ -217,7 +217,7 @@ func (r *Range) appendImpl(end uint64, seed []byte, hashes [][]byte, visitor Vis
 		}
 		index >>= 1
 		if visitor != nil {
-			visitor(NodeID{Level: h + 1, Index: index}, seed)
+			visitor(NewNodeID(h+1, index), seed)
 		}
 	}
 
