@@ -24,7 +24,9 @@ import (
 
 // Find returns the file path of the license for this package.
 func Find(pkg *build.Package) (string, error) {
-	stopAt := append(srcDirRegexps, vendorRegexp)
+	var stopAt []*regexp.Regexp
+	stopAt = append(stopAt, srcDirRegexps...)
+	stopAt = append(stopAt, vendorRegexp)
 	return findUpwards(pkg.Dir, licenseRegexp, stopAt)
 }
 
