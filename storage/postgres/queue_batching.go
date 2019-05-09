@@ -112,7 +112,15 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 }
 
 func (m *postgresLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, deleteUnsequencedSQL, num, "?", "?")
+        stmt := &statementSkeleton{ 
+          sql:                    deleteUnsequencedSQL,
+	  firstInsertion:         "%s",
+          firstPlaceholders:      1,
+	  restInsertion:          "%s",
+          restPlaceholders:       1,
+	  num:                    num,
+        }
+	return m.getStmt(ctx, stmt)
 }
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
