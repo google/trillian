@@ -26,12 +26,6 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 )
 
-// NodeID identifies a node of a Merkle tree.
-type NodeID struct {
-	Level uint
-	Index uint64
-}
-
 // Tree is a compact Merkle tree representation. It uses O(log(size)) nodes to
 // represent the current on-disk tree.
 //
@@ -83,7 +77,9 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	}
 
 	ids := make([]NodeID, 0, bits.OnesCount64(uint64(size)))
-	for sz := uint64(size); sz != 0; sz &= sz - 1 { // Iterate 1-bits of size.
+	// Iterate over perfect subtrees along the right border of the tree. Those
+	// correspond to the bits of the tree size that are set to one.
+	for sz := uint64(size); sz != 0; sz &= sz - 1 {
 		level := uint(bits.TrailingZeros64(sz))
 		index := (sz - 1) >> level
 		ids = append(ids, NodeID{Level: level, Index: index})
@@ -140,6 +136,10 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
+// recalculateRoot updates the current root hash, and calls visit function for
+// imperfect subtrees along the right border of the tree.
+//
+// TODO(pavelkalinnikov): Run this only once, after multiple AddLeaf calls.
 func (t *Tree) recalculateRoot(visit VisitFn) error {
 	if t.size == 0 {
 		return nil
@@ -263,7 +263,7 @@ func (t *Tree) Size() int64 {
 // representation of the tree. A tree whose size is a power of two has no
 // internal node hashes (just the root hash), so returns nil.
 //
-// TODO(pavelkalinnikov): Get rid of this format.
+// TODO(pavelkalinnikov): Get rid of this format, it is only used internally.
 func (t *Tree) Hashes() [][]byte {
 	if isPerfectTree(t.size) {
 		return nil
