@@ -39,7 +39,7 @@ var (
 
 	saveCmd = &cobra.Command{
 		Use:   "save <package>",
-		Short: "Prints all licenses that apply to a Go package and its dependencies",
+		Short: "Saves licenses, copyright notices and source code, as required by a Go package's dependencies, to a directory.",
 		Args:  cobra.ExactArgs(1),
 		RunE:  saveMain,
 	}
