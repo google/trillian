@@ -86,6 +86,7 @@ func main() {
 
 	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}
+	monitoring.SetNewSpanFunc(opencensus.NewSpanFunc)
 
 	if *tracing {
 		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID, *tracingPercent)
