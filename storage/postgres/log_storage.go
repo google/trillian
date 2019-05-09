@@ -47,7 +47,7 @@ const (
 	selectNonDeletedTreeIDByTypeAndStateSQL = `
                 SELECT tree_id FROM trees WHERE tree_type in ($1,$2) AND tree_state in ($3,$4) AND (deleted IS NULL OR deleted = false)`
 
-	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM sequenced_leaf_data WHERE tree_id=?"
+	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM sequenced_leaf_data WHERE tree_id=$1"
 	selectUnsequencedLeafCountSQL = "SELECT tree_id, COUNT(1) FROM unsequenced GROUP BY tree_id"
 	//selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
 	//              FROM tree_head WHERE tree_id=$1

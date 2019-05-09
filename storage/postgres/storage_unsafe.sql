@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS trees (
   public_key               BYTEA NOT NULL,
   deleted                  BOOLEAN NOT NULL DEFAULT FALSE,
   delete_time_millis       BIGINT,
+  current_tree_data        json,
+  root_signature	   BYTEA,
   PRIMARY KEY(tree_id)
 );
 
@@ -147,8 +149,7 @@ AS $function$
         when others then
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
-$function$
-
+$function$;
 CREATE OR REPLACE FUNCTION public.insert_leaf_data_ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, merkle_leaf_hash bytea, queue_timestamp_nanos bigint)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -162,6 +163,6 @@ AS $function$
         when others then
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
-$function$
+$function$;
 
 

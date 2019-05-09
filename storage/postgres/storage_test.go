@@ -27,15 +27,14 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/storage/postgres/testdb"
+	storageto "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-
-	tcrypto "github.com/google/trillian/crypto"
-	storageto "github.com/google/trillian/storage/testonly"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
@@ -271,13 +270,15 @@ func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trill
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	if !testdb.MySQLAvailable() {
-		glog.Errorf("MySQL not available, skipping all MySQL storage tests")
+	ec := 0
+	if !testdb.PGAvailable() {
+		glog.Errorf("PG not available, skipping all PG storage tests")
+		ec = 1
 		return
 	}
 	db = openTestDBOrDie()
 	defer db.Close()
 	//	cleanTestDB(db, m)
-	ec := m.Run()
+	ec = m.Run()
 	os.Exit(ec)
 }
