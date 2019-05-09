@@ -18,14 +18,14 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
-	"encoding/json"
-	"github.com/lib/pq"
+
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
@@ -34,55 +34,56 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/types"
+	"github.com/lib/pq"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-        valuesPlaceholder5 = "($1,$2,$3,$4,$5)"
-        insertLeafDataSQL      ="select ignore_duplicates($1,$2,$3,$4,$5)"; 
-        insertSequencedLeafSQL = "INSERT INTO sequenced_leaf_data(tree_id,leaf_identity_hash,merkle_leaf_hash,sequence_number,integrate_timestamp_nanos) VALUES"
+	valuesPlaceholder5     = "($1,$2,$3,$4,$5)"
+	insertLeafDataSQL      = "select ignore_duplicates($1,$2,$3,$4,$5)"
+	insertSequencedLeafSQL = "INSERT INTO sequenced_leaf_data(tree_id,leaf_identity_hash,merkle_leaf_hash,sequence_number,integrate_timestamp_nanos) VALUES"
 
-        selectNonDeletedTreeIDByTypeAndStateSQL = `
+	selectNonDeletedTreeIDByTypeAndStateSQL = `
                 SELECT tree_id FROM trees WHERE tree_type in ($1,$2) AND tree_state in ($3,$4) AND (deleted IS NULL OR deleted = false)`
 
-        selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM sequenced_leaf_data WHERE tree_id=?"
-        selectUnsequencedLeafCountSQL = "SELECT tree_id, COUNT(1) FROM unsequenced GROUP BY tree_id"
-        selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
+	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM sequenced_leaf_data WHERE tree_id=?"
+	selectUnsequencedLeafCountSQL = "SELECT tree_id, COUNT(1) FROM unsequenced GROUP BY tree_id"
+	selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
                         FROM tree_head WHERE tree_id=$1
                         ORDER BY tree_head_timestamp DESC LIMIT 1`
 
-        selectLeavesByRangeSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+	selectLeavesByRangeSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
                         FROM leaf_data l,sequenced_leaf_data s
                         WHERE l.leaf_identity_hash = s.leaf_identity_hash
-                        AND s.sequence_number >= $1 AND s.sequence_number < $2 AND l.tree_id = $3 AND s.tree_id = l.tree_id` + orderBysequence_numberSQL
+                        AND s.sequence_number >= $1 AND s.sequence_number < $2 AND l.tree_id = $3 AND s.tree_id = l.tree_id` + orderBySequenceNumberSQL
 
-        // These statements need to be expanded to provide the correct number of parameter placeholders.
-        selectLeavesByIndexSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+	// These statements need to be expanded to provide the correct number of parameter placeholders.
+	selectLeavesByIndexSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
                         FROM leaf_data l,sequenced_leaf_data s
                         WHERE l.leaf_identity_hash = s.leaf_identity_hash
                         AND s.sequence_number IN (` + placeholderSQL + `) AND l.tree_id = <param> AND s.tree_id = l.tree_id`
-        selectLeavesByMerkleHashSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+	selectLeavesByMerkleHashSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
                         FROM leaf_data l,sequenced_leaf_data s
                         WHERE l.leaf_identity_hash = s.leaf_identity_hash
                         AND s.merkle_leaf_hash IN (` + placeholderSQL + `) AND l.tree_id = <param> AND s.tree_id = l.tree_id`
-        // TODO(drysdale): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
-        dummymerkle_leaf_hash = "00000000000000000000000000000000"
-        // This statement returns a dummy Merkle leaf hash value (which must be
-        // of the right size) so that its signature matches that of the other
-        // leaf-selection statements.
-        selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummymerkle_leaf_hash + `',l.leaf_identity_hash,l.leaf_value,-1,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
+	// TODO(drysdale): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
+	dummymerkleLeafHash = "00000000000000000000000000000000"
+	// This statement returns a dummy Merkle leaf hash value (which must be
+	// of the right size) so that its signature matches that of the other
+	// leaf-selection statements.
+	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummymerkleLeafHash + `',l.leaf_identity_hash,l.leaf_value,-1,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
                         FROM leaf_data l LEFT JOIN sequenced_leaf_data s ON (l.leaf_identity_hash = s.leaf_identity_hash AND l.tree_id = s.tree_id)
                         WHERE l.leaf_identity_hash IN (` + placeholderSQL + `) AND l.tree_id = <param>`
 
-        // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
-        orderBysequence_numberSQL                     = " ORDER BY s.sequence_number"
-        selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBysequence_numberSQL
+	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
+	orderBySequenceNumberSQL                     = " ORDER BY s.sequence_number"
+	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
 
-        // Error code returned by driver when inserting a duplicate row
-        errNumDuplicate = "23505" //this is thrown because of the unique key constraint.  Effective check for duplicates
+	// Error code returned by driver when inserting a duplicate row
+	errNumDuplicate = "23505" //this is thrown because of the unique key constraint.  Effective check for duplicates
 
-        logIDLabel = "logid"
+	logIDLabel = "logid"
 )
 
 var (
@@ -140,9 +141,9 @@ func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 		mf = monitoring.InertMetricFactory{}
 	}
 	return &postgresLogStorage{
-		admin:            NewAdminStorage(db),
+		admin:         NewAdminStorage(db),
 		pgTreeStorage: newTreeStorage(db),
-		metricFactory:    mf,
+		metricFactory: mf,
 	}
 }
 
@@ -151,13 +152,13 @@ func (m *postgresLogStorage) CheckDatabaseAccessible(ctx context.Context) error 
 }
 
 func (m *postgresLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	stmt := &statementSkeleton{ 
-		sql:			selectLeavesByIndexSQL,
-		firstInsertion:		"%s",
-		firstPlaceholders: 	1,
-		restInsertion:		"%s",
-		restPlaceholders:	1,
-		num:			num,
+	stmt := &statementSkeleton{
+		sql:               selectLeavesByIndexSQL,
+		firstInsertion:    "%s",
+		firstPlaceholders: 1,
+		restInsertion:     "%s",
+		restPlaceholders:  1,
+		num:               num,
 	}
 	return m.getStmt(ctx, stmt)
 }
@@ -165,39 +166,39 @@ func (m *postgresLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) 
 func (m *postgresLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
 
-	        orderByStmt := &statementSkeleton{
-        	        sql:                    selectLeavesByMerkleHashOrderedBySequenceSQL,
-                	firstInsertion:         "%s",
-	                firstPlaceholders:      1,
-        	        restInsertion:          "%s",
-                	restPlaceholders:       1,
-	                num:                    num,
-	        }
+		orderByStmt := &statementSkeleton{
+			sql:               selectLeavesByMerkleHashOrderedBySequenceSQL,
+			firstInsertion:    "%s",
+			firstPlaceholders: 1,
+			restInsertion:     "%s",
+			restPlaceholders:  1,
+			num:               num,
+		}
 
 		return m.getStmt(ctx, orderByStmt)
 	}
-	
-        merkleHashStmt := &statementSkeleton{
-                sql:                  	selectLeavesByMerkleHashSQL,
-                firstInsertion:         "%s",
-                firstPlaceholders:      1,
-                restInsertion:          "%s",
-                restPlaceholders:       1,
-                num:                    num,
-        }
+
+	merkleHashStmt := &statementSkeleton{
+		sql:               selectLeavesByMerkleHashSQL,
+		firstInsertion:    "%s",
+		firstPlaceholders: 1,
+		restInsertion:     "%s",
+		restPlaceholders:  1,
+		num:               num,
+	}
 
 	return m.getStmt(ctx, merkleHashStmt)
 }
 
 func (m *postgresLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-        identityHashStmt := &statementSkeleton{
-                sql:                    selectLeavesByLeafIdentityHashSQL,
-                firstInsertion:         "%s",
-                firstPlaceholders:      1,
-                restInsertion:          "%s",
-                restPlaceholders:       1,
-                num:                    num,
-        }
+	identityHashStmt := &statementSkeleton{
+		sql:               selectLeavesByLeafIdentityHashSQL,
+		firstInsertion:    "%s",
+		firstPlaceholders: 1,
+		restInsertion:     "%s",
+		restPlaceholders:  1,
+		num:               num,
+	}
 
 	return m.getStmt(ctx, identityHashStmt)
 }
@@ -479,12 +480,12 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		dupCheckRow, err := t.tx.QueryContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
-	        var resultData bool
+		var resultData bool
 		resultData = true
 		dupCheckRow.Scan(&resultData)
 		dupCheckRow.Close()
 		//if isDuplicateErr(err) {
-		if resultData == false {
+		if !resultData {
 			// Remember the duplicate leaf, using the requested leaf for now.
 			existingLeaves[i] = leaf
 			existingCount++
@@ -515,8 +516,8 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			args...,
 		)
 		if err != nil {
-			glog.Warningf("Error inserting into Unsequenced: %s query %v arguements: %v", err,insertUnsequencedEntrySQL, args)
-			return nil, fmt.Errorf("Unsequenced: %v -- %v", err,args)
+			glog.Warningf("Error inserting into Unsequenced: %s query %v arguements: %v", err, insertUnsequencedEntrySQL, args)
+			return nil, fmt.Errorf("Unsequenced: %v -- %v", err, args)
 		}
 		leafDuration := time.Since(leafStart)
 		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)
@@ -538,7 +539,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	}
 	results, err := t.getLeafDataByIdentityHash(ctx, toRetrieve)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve existing leaves: %v %v", err,toRetrieve)
+		return nil, fmt.Errorf("failed to retrieve existing leaves: %v %v", err, toRetrieve)
 	}
 	if len(results) != len(toRetrieve) {
 		return nil, fmt.Errorf("failed to retrieve all existing leaves: got %d, want %d", len(results), len(toRetrieve))
@@ -611,9 +612,9 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
 		//if isDuplicateErr(err) {
-	//		res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
-			// Note: No rolling back to savepoint because there is no side effect.
-	//		continue
+		//		res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
+		// Note: No rolling back to savepoint because there is no side effect.
+		//		continue
 		//} else
 		if err != nil {
 			glog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
@@ -813,38 +814,38 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLog
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
 func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
-//	var timestamp, treeSize, treeRevision int64
+	//	var timestamp, treeSize, treeRevision int64
 	var rootSignatureBytes []byte
 	var jsonObj []byte
 
-        t.tx.QueryRowContext(
-                ctx,
-                "select current_tree_data,root_signature from trees where tree_id = $1",
-                t.treeID).Scan(&jsonObj,&rootSignatureBytes)
+	t.tx.QueryRowContext(
+		ctx,
+		"select current_tree_data,root_signature from trees where tree_id = $1",
+		t.treeID).Scan(&jsonObj, &rootSignatureBytes)
 	if jsonObj == nil { //this fixes the createtree workflow
 		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
 	}
 	var logRoot types.LogRootV1
-	json.Unmarshal(jsonObj,&logRoot)
-  /*	
-	if err := t.tx.QueryRowContext(
-		ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
-		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
-	); err == sql.ErrNoRows {
-		// It's possible there are no roots for this tree yet
-		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
-	}
+	json.Unmarshal(jsonObj, &logRoot)
+	/*
+		if err := t.tx.QueryRowContext(
+			ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
+			&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
+		); err == sql.ErrNoRows {
+			// It's possible there are no roots for this tree yet
+			return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
+		}
 
-	// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
-	logRoot, err := (&types.LogRootV1{
-		RootHash:       rootHash,
-		TimestampNanos: uint64(timestamp),
-		Revision:       uint64(treeRevision),
-		TreeSize:       uint64(treeSize),
-	}).MarshalBinary()
-	if err != nil {
-		return trillian.SignedLogRoot{}, err
-	}*/
+		// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
+		logRoot, err := (&types.LogRootV1{
+			RootHash:       rootHash,
+			TimestampNanos: uint64(timestamp),
+			Revision:       uint64(treeRevision),
+			TreeSize:       uint64(treeSize),
+		}).MarshalBinary()
+		if err != nil {
+			return trillian.SignedLogRoot{}, err
+		}*/
 	newRoot, _ := logRoot.MarshalBinary()
 	return trillian.SignedLogRoot{
 		KeyHint:          types.SerializeKeyHint(t.treeID),
@@ -869,7 +870,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 
 	}
 	//get a json copy of the tree_head
-        data,_ := json.Marshal(logRoot)
+	data, _ := json.Marshal(logRoot)
 	t.tx.ExecContext(
 		ctx,
 		"update trees set current_tree_data = $1,root_signature = $2 where tree_id = $3",
@@ -994,12 +995,13 @@ func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 func isDuplicateErr(err error) bool {
 	switch err := err.(type) {
 	case *pq.Error:
-		glog.Infof("checking %v %v %v",err.Code,errNumDuplicate, err.Code==errNumDuplicate)
+		glog.Infof("checking %v %v %v", err.Code, errNumDuplicate, err.Code == errNumDuplicate)
 		return err.Code == errNumDuplicate
 	default:
 		return false
 	}
 }
+
 // Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

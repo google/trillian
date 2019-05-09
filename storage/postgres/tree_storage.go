@@ -20,9 +20,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
-	"strconv"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -51,11 +51,9 @@ const (
 		ON subtree.subtree_id = x.subtree_id
 		AND subtree.subtree_revision = x.max_revision
 		AND subtree.tree_id = <param>`
-        insertTreeHeadSQL     = `INSERT INTO tree_head(tree_id,tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature)
+	insertTreeHeadSQL = `INSERT INTO tree_head(tree_id,tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature)
                  VALUES($1,$2,$3,$4,$5,$6)`
-        selectTreeRevisionAtSizeOrLargerSQL = "SELECT tree_revision,tree_size FROM tree_head WHERE tree_id=$1 AND TreeSize>=$2 ORDER BY tree_revision LIMIT 1"
-
-
+	selectTreeRevisionAtSizeOrLargerSQL = "SELECT tree_revision,tree_size FROM tree_head WHERE tree_id=$1 AND TreeSize>=$2 ORDER BY tree_revision LIMIT 1"
 )
 
 // pgTreeStorage contains the pgLogStorage implementation.
@@ -147,13 +145,13 @@ func (p *pgTreeStorage) getStmt(ctx context.Context, skeleton *statementSkeleton
 	}
 
 	statement, err := expandPlaceholderSQL(skeleton)
-	
-	var counter = skeleton.restPlaceholders*skeleton.num+1;
+
+	var counter = skeleton.restPlaceholders*skeleton.num + 1
 	for strings.Contains(statement, "<param>") {
-		statement = strings.Replace(statement,"<param>","$"+strconv.Itoa(counter),1)
-		counter += 1;
+		statement = strings.Replace(statement, "<param>", "$"+strconv.Itoa(counter), 1)
+		counter++
 	}
-	
+
 	if err != nil {
 		glog.Warningf("Failed to expand placeholder sql: %v", skeleton)
 		return nil, err
@@ -407,54 +405,50 @@ func (t *treeTX) Close() error {
 }
 
 func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-        return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
+	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
 }
 
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
-        for _, n := range nodes {
-                err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
-                        func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
-                                return t.getSubtree(ctx, t.writeRevision, nID)
-                        })
-                if err != nil {
-                        return err
-                }
-        }
-        return nil
+	for _, n := range nodes {
+		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
+			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
+				return t.getSubtree(ctx, t.writeRevision, nID)
+			})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-
 func (t *treeTX) IsOpen() bool {
-        return !t.closed
+	return !t.closed
 }
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
 func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
-        return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
-                return t.getSubtrees(ctx, rev, ids)
-        }
+	return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		return t.getSubtrees(ctx, rev, ids)
+	}
 }
-
 
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
-        // The Exec() might have just failed
-        if err != nil {
-                return err
-        }
+	// The Exec() might have just failed
+	if err != nil {
+		return err
+	}
 
-        // Otherwise we have to look at the result of the operation
-        rowsAffected, rowsError := res.RowsAffected()
+	// Otherwise we have to look at the result of the operation
+	rowsAffected, rowsError := res.RowsAffected()
 
-        if rowsError != nil {
-                return rowsError
-        }
+	if rowsError != nil {
+		return rowsError
+	}
 
-        if rowsAffected != count {
-                return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
-                        rowsAffected)
-        }
+	if rowsAffected != count {
+		return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
+			rowsAffected)
+	}
 
-        return nil
+	return nil
 }
-
-

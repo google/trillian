@@ -32,15 +32,14 @@ import (
 
 const (
 	// If this statement ORDER BY clause is changed refer to the comment in removeSequencedLeaves
-        selectQueuedLeavesSQL = `SELECT leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos,queue_id
+	selectQueuedLeavesSQL = `SELECT leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos,queue_id
                         FROM unsequenced
                         WHERE tree_id=$1
                         AND Bucket=0
                         AND queue_timestamp_nanos<=$2
                         ORDER BY queue_timestamp_nanos,leaf_identity_hash ASC LIMIT $3`
-        insertUnsequencedEntrySQL = `INSERT INTO unsequenced(tree_id,Bucket,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos,queue_id) VALUES($1,0,$2,$3,$4,$5)`
-        deleteUnsequencedSQL      = "DELETE FROM unsequenced WHERE queue_id IN (<placeholder>)"
-
+	insertUnsequencedEntrySQL = `INSERT INTO unsequenced(tree_id,Bucket,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos,queue_id) VALUES($1,0,$2,$3,$4,$5)`
+	deleteUnsequencedSQL      = "DELETE FROM unsequenced WHERE queue_id IN (<placeholder>)"
 )
 
 type dequeuedLeaf []byte
@@ -112,14 +111,14 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 }
 
 func (m *postgresLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-        stmt := &statementSkeleton{ 
-          sql:                    deleteUnsequencedSQL,
-	  firstInsertion:         "%s",
-          firstPlaceholders:      1,
-	  restInsertion:          "%s",
-          restPlaceholders:       1,
-	  num:                    num,
-        }
+	stmt := &statementSkeleton{
+		sql:               deleteUnsequencedSQL,
+		firstInsertion:    "%s",
+		firstPlaceholders: 1,
+		restInsertion:     "%s",
+		restPlaceholders:  1,
+		num:               num,
+	}
 	return m.getStmt(ctx, stmt)
 }
 

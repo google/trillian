@@ -29,14 +29,12 @@ import (
 	"time"
 
 	"github.com/google/trillian/testonly"
-
-	_ "github.com/lib/pq" // pg driver
 )
 
 var (
 	trillianSQL = testonly.RelativeToPackage("../storage.sql")
-       pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
-       dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
+	pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
+	dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
 )
 
 // PGAvailable indicates whether a default PG database is available.
@@ -59,24 +57,23 @@ func PGAvailable() bool {
 // for testing queries and how go returns results
 func TestSQL(ctx context.Context) string {
 	db, err := sql.Open("postgres", getConnStr(*dbName))
-	defer db.Close()
-	if err != nil { 
-		fmt.Println("Error: ",err)
-                return "error"
-        }
-	result, err := db.QueryContext(ctx,"select 1=1")
 	if err != nil {
-		fmt.Println("Error: ",err)
+		fmt.Println("Error: ", err)
+		return "error"
+	}
+	defer db.Close()
+	result, err := db.QueryContext(ctx, "select 1=1")
+	if err != nil {
+		fmt.Println("Error: ", err)
 		return "error"
 	}
 	var resultData bool
 	result.Scan(&resultData)
-	if resultData == true { 
-		fmt.Println("Result: ",resultData)
+	if resultData == true {
+		fmt.Println("Result: ", resultData)
 	}
 	return "done"
 }
-
 
 // newEmptyDB creates a new, empty database.
 func newEmptyDB(ctx context.Context) (*sql.DB, error) {
@@ -88,7 +85,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 
 	// Create a randomly-named database and then connect using the new name.
 	name := fmt.Sprintf("trl_%v", time.Now().UnixNano())
-	fmt.Println("Name",name)
+	fmt.Println("Name", name)
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
 		return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
@@ -112,7 +109,7 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	fmt.Println(trillianSQL)
 	sqlBytes, err := ioutil.ReadFile(trillianSQL)
 	if err != nil {
@@ -147,7 +144,7 @@ func sanitize(script string) string {
 }
 
 func getConnStr(name string) string {
-    return fmt.Sprintf("database=%s %s", name, *pgOpts)
+	return fmt.Sprintf("database=%s %s", name, *pgOpts)
 }
 
 // NewTrillianDBOrDie attempts to return a connection to a new postgres
