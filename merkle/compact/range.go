@@ -42,6 +42,8 @@ type HashFn func(left, right []byte) []byte
 
 // VisitFn visits the (level, index) node with the specified hash. See NodeID
 // for details on how nodes are numbered.
+//
+// TODO(pavelkalinnikov): Use NodeID in this signature.
 type VisitFn func(level uint, index uint64, hash []byte)
 
 // RangeFactory allows creating compact ranges with the specified hash
