@@ -70,7 +70,7 @@ func libraries(importPath string) ([]*licenses.Library, error) {
 		return nil, err
 	}
 	buildCtx := build.Default
-	buildCtx.BuildTags = append(buildCtx.BuildTags, strings.Split(buildTags, " ")...)
+	buildCtx.BuildTags = strings.Split(buildTags, " ")
 	return licenses.Libraries(&buildCtx, pkg)
 }
 
