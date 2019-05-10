@@ -41,7 +41,7 @@ const (
 	insufficientTokensReason = "insufficient_tokens"
 	getTreeStage             = "get_tree"
 	getTokensStage           = "get_tokens"
-	traceSpanRoot            = "github/com/google/trillian/server/interceptor"
+	traceSpanRoot            = "/trillian/server/int"
 )
 
 var (
@@ -158,7 +158,8 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 		return ctx, nil
 	}
 
-	ctx, spanEnd := spanFor(ctx, "Before")
+	// Don't want the Before to contain the action, so don't overwrite the ctx.
+	innerCtx, spanEnd := spanFor(ctx, "Before")
 	defer spanEnd()
 	info, err := newRPCInfo(req)
 	if err != nil {
@@ -173,12 +174,12 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 
 	if info.getTree {
 		tree, err := trees.GetTree(
-			ctx, tp.parent.admin, info.treeID, trees.NewGetOpts(trees.Admin, info.treeTypes...))
+			innerCtx, tp.parent.admin, info.treeID, trees.NewGetOpts(trees.Admin, info.treeTypes...))
 		if err != nil {
 			incRequestDeniedCounter(badTreeReason, info.treeID, info.quotaUsers)
 			return ctx, err
 		}
-		if err := ctx.Err(); err != nil {
+		if err := innerCtx.Err(); err != nil {
 			contextErrCounter.Inc(getTreeStage)
 			return ctx, err
 		}
@@ -186,7 +187,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 	}
 
 	if info.tokens > 0 && len(info.specs) > 0 {
-		err := tp.parent.qm.GetTokens(ctx, info.tokens, info.specs)
+		err := tp.parent.qm.GetTokens(innerCtx, info.tokens, info.specs)
 		if err != nil {
 			if !tp.parent.quotaDryRun {
 				incRequestDeniedCounter(insufficientTokensReason, info.treeID, info.quotaUsers)
@@ -195,7 +196,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 			glog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
 		quota.Metrics.IncAcquired(info.tokens, info.specs, err == nil)
-		if err = ctx.Err(); err != nil {
+		if err = innerCtx.Err(); err != nil {
 			contextErrCounter.Inc(getTokensStage)
 			return ctx, err
 		}

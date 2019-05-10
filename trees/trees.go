@@ -33,7 +33,7 @@ import (
 	tcrypto "github.com/google/trillian/crypto"
 )
 
-const traceSpanRoot = "github.com/google/trillian/trees"
+const traceSpanRoot = "/trillian/trees"
 
 type treeKey struct{}
 

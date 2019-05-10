@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-const traceSpanRoot = "github.com/google/trillian/monitoring.RPCStatsInterceptor"
+const traceSpanRoot = "/trillian/mon/"
 
 // RPCStatsInterceptor provides a gRPC interceptor that records statistics about the RPCs passing through it.
 type RPCStatsInterceptor struct {

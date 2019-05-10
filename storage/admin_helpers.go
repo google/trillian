@@ -22,7 +22,7 @@ import (
 	"github.com/google/trillian/monitoring"
 )
 
-const traceSpanRoot = "github.com/google/trillian/storage"
+const traceSpanRoot = "/trillian/storage"
 
 // GetTree reads a tree from storage using a snapshot transaction.
 // It's a convenience wrapper around RunInAdminSnapshot and AdminReader's GetTree.

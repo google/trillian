@@ -38,7 +38,7 @@ import (
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const (
 	proofMaxBitLen = 64
-	traceSpanRoot  = "github.com/google/trillian/server"
+	traceSpanRoot  = "/trillian"
 )
 
 var (
