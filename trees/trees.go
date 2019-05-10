@@ -25,8 +25,8 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -156,8 +156,8 @@ func validate(o GetOpts, tree *trillian.Tree) error {
 // The tree will be validated according to GetOpts before returned. Tree state is also considered
 // (for example, deleted tree will return NotFound errors).
 func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
-	ctx, span := spanFor(ctx, "GetTree")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "GetTree")
+	defer spanEnd()
 	tree, ok := FromContext(ctx)
 	if !ok || tree.TreeId != treeID {
 		var err error
@@ -215,6 +215,6 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 	return tcrypto.NewSigner(tree.GetTreeId(), signer, hash), nil
 }
 
-func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
-	return trace.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
+func spanFor(ctx context.Context, name string) (context.Context, func()) {
+	return monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }

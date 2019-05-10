@@ -30,7 +30,6 @@ import (
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
-	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -159,8 +158,8 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 		return ctx, nil
 	}
 
-	ctx, span := spanFor(ctx, "Before")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "Before")
+	defer spanEnd()
 	info, err := newRPCInfo(req)
 	if err != nil {
 		glog.Warningf("Failed to read tree info: %v", err)
@@ -209,8 +208,8 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 	if !enabledServices[serviceName(method)] {
 		return
 	}
-	_, span := spanFor(ctx, "After")
-	defer span.End()
+	_, spanEnd := spanFor(ctx, "After")
+	defer spanEnd()
 	switch {
 	case tp.info == nil:
 		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
@@ -254,8 +253,8 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 		// Run PutTokens in a separate goroutine and with a separate context.
 		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
 		go func() {
-			ctx, span := spanFor(context.Background(), "After.PutTokens")
-			defer span.End()
+			ctx, spanEnd := spanFor(context.Background(), "After.PutTokens")
+			defer spanEnd()
 			ctx, cancel := context.WithTimeout(ctx, PutTokensTimeout)
 			defer cancel()
 
@@ -508,12 +507,12 @@ type treeRequest interface {
 
 // ErrorWrapper is a grpc.UnaryServerInterceptor that wraps the errors emitted by the underlying handler.
 func ErrorWrapper(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	ctx, span := spanFor(ctx, "ErrorWrapper")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "ErrorWrapper")
+	defer spanEnd()
 	rsp, err := handler(ctx, req)
 	return rsp, errors.WrapError(err)
 }
 
-func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
-	return trace.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
+func spanFor(ctx context.Context, name string) (context.Context, func()) {
+	return monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }

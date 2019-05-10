@@ -15,6 +15,7 @@
 package opencensus
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -90,4 +91,12 @@ func applyConfig(percent int) error {
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(float64(percent) / 100.0)})
 	}
 	return nil
+}
+
+// StartSpan starts a new tracing span.
+// The returned context should be used for all child calls within the span, and
+// the returned func should be called to close the span.
+func StartSpan(ctx context.Context, name string) (context.Context, func()) {
+	ctx, span := trace.StartSpan(ctx, name)
+	return ctx, span.End
 }
