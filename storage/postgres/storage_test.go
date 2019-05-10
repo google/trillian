@@ -28,8 +28,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
-	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgres/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
@@ -77,6 +75,7 @@ func TestNodeRoundTrip(t *testing.T) {
 		})
 	}
 }
+
 /*
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
@@ -149,6 +148,7 @@ func createSomeNodes() []storage.Node {
 	}
 	return r
 }
+
 /*
 func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, error) {
 	tree := compact.NewTree(rfc6962.New(crypto.SHA256))
