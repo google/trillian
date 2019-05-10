@@ -94,7 +94,7 @@ func main() {
 	glog.Info("**** Log Signer Starting ****")
 
 	mf := prometheus.MetricFactory{}
-	monitoring.SetStartSpanFunc(opencensus.StartSpan)
+	monitoring.StartSpan = opencensus.StartSpan
 
 	sp, err := server.NewStorageProviderFromFlags(mf)
 	if err != nil {
