@@ -596,10 +596,10 @@ func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
-			false, /* snapshot */
-			test.wantCode == codes.OK, /* shouldCommit */
-			false /* commitErr */)
+			nil,   // keygen
+			false, // snapshot
+			test.wantCode == codes.OK,
+			false)
 		s := setup.server
 		tx := setup.tx
 		s.allowedTreeTypes = test.treeTypes
