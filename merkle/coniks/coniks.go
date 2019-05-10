@@ -129,12 +129,14 @@ func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
 	prevLen := b.Len()
 	if depth > 0 {
 		// Write the first depthBytes, if there are any complete bytes.
-		depthBytes := (depth + 7) >> 3
-		if depthBytes > 1 {
-			b.Write(index[:depthBytes-1])
+		depthBytes := depth >> 3
+		if depthBytes > 0 {
+			b.Write(index[:depthBytes])
 		}
-		// Mask off unwanted bits in the last byte.
-		b.WriteByte(index[depthBytes-1] & leftmask[depth%8])
+		// Mask off unwanted bits in the last byte, if there is an incomplete one.
+		if depth%8 != 0 {
+			b.WriteByte(index[depthBytes] & leftmask[depth%8])
+		}
 	}
 	// Pad to the correct length with zeros. Allow for future hashers that
 	// might be > 256 bits.
