@@ -123,7 +123,7 @@ func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
 		panic(fmt.Sprintf("index len: %d, want %d", got, want))
 	}
 	if got, want := depth, m.BitLen(); got < 0 || got > want {
-		panic(fmt.Sprintf("depth: %d, want <= %d && > 0", got, want))
+		panic(fmt.Sprintf("depth: %d, want <= %d && >= 0", got, want))
 	}
 
 	prevLen := b.Len()
