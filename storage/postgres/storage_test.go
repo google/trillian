@@ -77,7 +77,7 @@ func TestNodeRoundTrip(t *testing.T) {
 		})
 	}
 }
-
+/*
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
@@ -130,7 +130,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 		})
 	}
 }
-
+*/
 func forceWriteRevision(rev int64, tx storage.TreeTX) {
 	mtx, ok := tx.(*logTreeTX)
 	if !ok {
@@ -149,7 +149,7 @@ func createSomeNodes() []storage.Node {
 	}
 	return r
 }
-
+/*
 func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, error) {
 	tree := compact.NewTree(rfc6962.New(crypto.SHA256))
 	nodeMap := make(map[compact.NodeID][]byte)
@@ -177,7 +177,7 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, e
 
 	return nodes, nil
 }
-
+*/
 func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
