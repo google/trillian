@@ -24,6 +24,3 @@ import (
 // The default implementation of this method is a no-op; insert a real tracing span
 // implementation by setting this global variable to the relevant function at start of day.
 var StartSpan = func(ctx context.Context, msg string) (context.Context, func()) { return ctx, func() {} }
-
-// StartSpanFunc is the signature of a function which starts new tracing spans.
-type StartSpanFunc func(ctx context.Context, name string) (context.Context, func())
