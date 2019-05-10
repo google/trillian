@@ -41,7 +41,7 @@ const (
 	insufficientTokensReason = "insufficient_tokens"
 	getTreeStage             = "get_tree"
 	getTokensStage           = "get_tokens"
-	traceSpanRoot            = "github/com/google/trillian/server/interceptor"
+	traceSpanRoot            = "/trillian/server/int"
 )
 
 var (
