@@ -771,7 +771,7 @@ func TestServer_DeleteTree(t *testing.T) {
 			nil,   /* keygen */
 			false, /* snapshot */
 			true,  /* shouldCommit */
-			false /* commitErr */)
+			false)
 		req := &trillian.DeleteTreeRequest{TreeId: test.tree.TreeId}
 
 		tx := setup.tx
@@ -858,7 +858,7 @@ func TestServer_UndeleteTree(t *testing.T) {
 			nil,   /* keygen */
 			false, /* snapshot */
 			true,  /* shouldCommit */
-			false /* commitErr */)
+			false)
 		req := &trillian.UndeleteTreeRequest{TreeId: test.tree.TreeId}
 
 		tx := setup.tx
@@ -900,7 +900,7 @@ func TestServer_UndeleteTreeErrors(t *testing.T) {
 			nil,   /* keygen */
 			false, /* snapshot */
 			test.undeleteErr == nil, /* shouldCommit */
-			test.commitErr /* commitErr */)
+			test.commitErr)
 		req := &trillian.UndeleteTreeRequest{TreeId: 10}
 
 		tx := setup.tx
