@@ -813,7 +813,7 @@ func TestServer_DeleteTreeErrors(t *testing.T) {
 			nil,   /* keygen */
 			false, /* snapshot */
 			test.deleteErr == nil, /* shouldCommit */
-			test.commitErr /* commitErr */)
+			test.commitErr)
 		req := &trillian.DeleteTreeRequest{TreeId: 10}
 
 		tx := setup.tx
