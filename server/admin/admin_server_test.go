@@ -810,9 +810,9 @@ func TestServer_DeleteTreeErrors(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   // keygen */
-			false, // snapshot */
-			test.deleteErr == nil, /* shouldCommit */
+			nil,   // keygen 
+			false, // snapshot 
+			test.deleteErr == nil, // shouldCommit
 			test.commitErr)
 		req := &trillian.DeleteTreeRequest{TreeId: 10}
 
