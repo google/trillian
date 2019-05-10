@@ -66,7 +66,7 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	h := m.New()
 	buf.Write(emptyIdentifier)
 	binary.Write(buf, binary.BigEndian, uint64(treeID))
-	m.maskIndex(buf, index, depth)
+	m.writeMaskedIndex(buf, index, depth)
 	binary.Write(buf, binary.BigEndian, uint32(depth))
 	h.Write(buf.Bytes())
 	r := h.Sum(nil)
@@ -82,7 +82,7 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, erro
 	h := m.New()
 	buf.Write(leafIdentifier)
 	binary.Write(buf, binary.BigEndian, uint64(treeID))
-	m.maskIndex(buf, index, depth)
+	m.writeMaskedIndex(buf, index, depth)
 	binary.Write(buf, binary.BigEndian, uint32(depth))
 	buf.Write(leaf)
 	h.Write(buf.Bytes())
@@ -114,11 +114,11 @@ func (m *hasher) BitLen() int {
 // is 0. leftmask is only used to mask the last byte.
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
-// maskIndex writes the left depth bits of index directly to a Buffer (which never
+// writeMaskedIndex writes the left depth bits of index directly to a Buffer (which never
 // returns an error on writes). This is then padded with zero bits to the Size()
 // of the index values in use by this hashes. This avoids the need to allocate
 // space for and copy a value that will then be discarded immediately.
-func (m *hasher) maskIndex(b *bytes.Buffer, index []byte, depth int) {
+func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
 	if got, want := len(index), m.Size(); got != want {
 		panic(fmt.Sprintf("index len: %d, want %d", got, want))
 	}
