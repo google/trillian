@@ -21,7 +21,13 @@ import (
 // startSpanFunc is the signature of a function which can start tracing spans.
 type startSpanFunc func(context.Context, string) (context.Context, func())
 
-var startSpan startSpanFunc = func(ctx context.Context, name string) (context.Context, func()) { return ctx, func() {} }
+var startSpan startSpanFunc = noopStartSpan
+
+// noopStartSpan is a span starting function which does nothing, and is used as
+// the default implementation.
+func noopStartSpan(ctx context.Context, _ string) (context.Context, func()) {
+	return ctx, func() {}
+}
 
 // StartSpan starts a new tracing span using the given message.
 // The returned context should be used for all child calls within the span, and
