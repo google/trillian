@@ -897,9 +897,9 @@ func TestServer_UndeleteTreeErrors(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
-			false, /* snapshot */
-			test.undeleteErr == nil, /* shouldCommit */
+			nil,
+			false,
+			test.undeleteErr == nil,
 			test.commitErr)
 		req := &trillian.UndeleteTreeRequest{TreeId: 10}
 
