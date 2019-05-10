@@ -155,7 +155,8 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, e
 	nodeMap := make(map[compact.NodeID][]byte)
 	for l := 0; l < int(ts); l++ {
 		// We're only interested in the side effects of adding leaves - the node updates
-		visit := func(level uint, index uint64, hash []byte) {
+		var visit compact.VisitFn
+		visit = func(level uint, index uint64, hash []byte) {
 			nodeMap[compact.NodeID{Level: level, Index: index}] = hash
 		}
 

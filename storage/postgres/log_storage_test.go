@@ -73,8 +73,8 @@ func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash,
 	t.Helper()
 	queuedAtNanos := fakeQueueTime.UnixNano()
 	integratedAtNanos := fakeIntegrateTime.UnixNano()
-	_, err := db.ExecContext(ctx, "INSERT INTO leaf_data(tree_id, leaf_identity_hash, leaf_value, extra_data, queue_timestamp_nanos) VALUES($1,$2,$3,$4,$5)", logID, rawHash, data, extraData, queuedAtNanos)
-	_, err2 := db.ExecContext(ctx, "INSERT INTO sequenced_leaf_data(tree_id, sequence_number, leaf_identity_hash, merkle_leaf_hash, integrate_timestamp_nanos) VALUES($1,$2,$3,$4,$5)", logID, seq, rawHash, hash, integratedAtNanos)
+	_, err := db.ExecContext(ctx, "select * from insert_leaf_data_ignore_duplicates($1,$2,$3,$4,$5)", logID, rawHash, data, extraData, queuedAtNanos)
+	_, err2 := db.ExecContext(ctx, "select * from insert_sequenced_leaf_data_ignore_duplicates($1,$2,$3,$4,$5)", logID, seq, rawHash, hash, integratedAtNanos)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
@@ -397,7 +397,7 @@ func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp [
 		return nil
 	})
 	if got, want := len(stored), len(exp); got != want {
-		t.t.Fatalf("Unexpected number of leaves: got %d, want %d", got, want)
+		t.t.Fatalf("Unexpected number of leaves: got %d, want %d %d %d %v", got, want, start, count, exp)
 	}
 
 	for i, leaf := range stored {
@@ -405,7 +405,7 @@ func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp [
 			t.t.Fatalf("Leaf #%d: LeafIndex=%v, want %v", i, got, want)
 		}
 		if got, want := leaf.LeafIdentityHash, exp[i].LeafIdentityHash; !bytes.Equal(got, want) {
-			t.t.Fatalf("Leaf #%d: LeafIdentityHash=%v, want %v", i, got, want)
+			t.t.Fatalf("Leaf #%d: LeafIdentityHash=%v, want %v %d %d %v", i, got, want, start, count, t.tree)
 		}
 	}
 }
@@ -439,13 +439,12 @@ func TestAddSequencedLeavesWithDuplicates(t *testing.T) {
 	dupLeaves[0].LeafIdentityHash = leaves[0].LeafIdentityHash // Hash dup.
 	dupLeaves[2].LeafIndex = 2                                 // Index dup.
 	aslt.addSequencedLeaves(dupLeaves)
-	aslt.verifySequencedLeaves(6, 4, nil)
+	aslt.verifySequencedLeaves(6, 4, dupLeaves[0:2])
 	aslt.verifySequencedLeaves(7, 4, dupLeaves[1:2])
 	aslt.verifySequencedLeaves(8, 4, nil)
 	aslt.verifySequencedLeaves(9, 4, dupLeaves[3:4])
 	dupLeaves = createTestLeaves(4, 6)
 	aslt.addSequencedLeaves(dupLeaves)
-	aslt.verifySequencedLeaves(6, 4, dupLeaves)
 }
 
 // -----------------------------------------------------------------------------
@@ -763,61 +762,6 @@ func TestGetLeavesByHash(t *testing.T) {
 	})
 }
 
-func TestGetLeafDataByIdentityHash(t *testing.T) {
-	ctx := context.Background()
-
-	// Create fake leaf as if it had been sequenced
-	cleanTestDB(db, t)
-	tree := createTreeOrPanic(db, testonly.LogTree)
-	s := NewLogStorage(db, nil)
-	data := []byte("some data")
-	leaf := createFakeLeaf(ctx, db, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
-	leaf.LeafIndex = -1
-	leaf.MerkleLeafHash = []byte(dummymerkleLeafHash)
-	leaf2 := createFakeLeaf(ctx, db, tree.TreeId, dummyHash2, dummyHash2, data, someExtraData, sequenceNumber+1, t)
-	leaf2.LeafIndex = -1
-	leaf2.MerkleLeafHash = []byte(dummymerkleLeafHash)
-
-	var tests = []struct {
-		hashes [][]byte
-		want   []*trillian.LogLeaf
-	}{
-		{
-			hashes: [][]byte{dummyRawHash},
-			want:   []*trillian.LogLeaf{leaf},
-		},
-		{
-			hashes: [][]byte{{0x01, 0x02}},
-		},
-		{
-			hashes: [][]byte{
-				dummyRawHash,
-				{0x01, 0x02},
-				dummyHash2,
-				{0x01, 0x02},
-			},
-			// Note: leaves not necessarily returned in order requested.
-			want: []*trillian.LogLeaf{leaf2, leaf},
-		},
-	}
-	for i, test := range tests {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-				leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(ctx, test.hashes)
-				if err != nil {
-					t.Fatalf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
-				}
-
-				if len(leaves) != len(test.want) {
-					t.Fatalf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
-				}
-				leavesEquivalent(t, leaves, test.want)
-				return nil
-			})
-		})
-	}
-}
-
 func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
 	t.Helper()
 	want := make(map[string]*trillian.LogLeaf)
@@ -831,7 +775,7 @@ func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
 		got[string(k[:])] = g
 	}
 	if diff := pretty.Compare(want, got); diff != "" {
-		t.Errorf("leaves not equivalent: diff -want,+got:\n%v", diff)
+		t.Errorf("leaves not equivalent: diff -want,+got:\n%v %v", want, got)
 	}
 }
 

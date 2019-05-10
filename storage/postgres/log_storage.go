@@ -42,7 +42,7 @@ import (
 const (
 	valuesPlaceholder5     = "($1,$2,$3,$4,$5)"
 	insertLeafDataSQL      = "select insert_leaf_data_ignore_duplicates($1,$2,$3,$4,$5)"
-	insertSequencedLeafSQL = "INSERT INTO sequenced_leaf_data(tree_id,leaf_identity_hash,merkle_leaf_hash,sequence_number,integrate_timestamp_nanos) VALUES"
+	insertSequencedLeafSQL = "select insert_sequenced_leaf_data_ignore_duplicates($1,$2,$3,$4,$5)"
 
 	selectNonDeletedTreeIDByTypeAndStateSQL = `
                 SELECT tree_id FROM trees WHERE tree_type in ($1,$2) AND tree_state in ($3,$4) AND (deleted IS NULL OR deleted = false)`
@@ -478,12 +478,19 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
 		dupCheckRow, err := t.tx.QueryContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
+		if err != nil {
+			return nil, fmt.Errorf("dupecheck failed: %v", err)
+		}
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
-		var resultData = true
-		dupCheckRow.Scan(&resultData)
+		resultData := false
+		for dupCheckRow.Next() {
+			dupCheckRow.Scan(&resultData)
+			if !resultData {
+				break
+			}
+		}
 		dupCheckRow.Close()
-		//if isDuplicateErr(err) {
 		if !resultData {
 			// Remember the duplicate leaf, using the requested leaf for now.
 			existingLeaves[i] = leaf
@@ -507,7 +514,6 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
-		//tree_id,Bucket,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos,queue_id) VALUES($1,0,$2,$3,$4,$5)
 		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, queueTimestamp)...)
 		_, err = t.tx.ExecContext(
 			ctx,
@@ -620,18 +626,25 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return nil, err
 		}
 
-		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
-			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
+		dupCheckRow, err := t.tx.QueryContext(ctx, insertSequencedLeafSQL,
+			t.treeID, leaf.LeafIndex, leaf.LeafIdentityHash, leaf.MerkleLeafHash, 0)
 		// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
-
-		if isDuplicateErr(err) {
+		resultData := true
+		for dupCheckRow.Next() {
+			dupCheckRow.Scan(&resultData)
+			if !resultData {
+				break
+			}
+		}
+		dupCheckRow.Close()
+		if !resultData {
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
 			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
 				glog.Errorf("Error rolling back to savepoint: %s", err)
 				return nil, err
 			}
 		} else if err != nil {
-			glog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
+			glog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s %s", i, err, leaf.LeafIdentityHash)
 			return nil, err
 		}
 

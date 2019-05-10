@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS sequenced_leaf_data(
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   merkle_leaf_hash          BYTEA NOT NULL,
   integrate_timestamp_nanos BIGINT NOT NULL,
-  PRIMARY KEY(tree_id, sequence_number),
+  PRIMARY KEY(tree_id,sequence_number),
   FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE,
   FOREIGN KEY(tree_id, leaf_identity_hash) REFERENCES leaf_data(tree_id, leaf_identity_hash) ON DELETE CASCADE
 );--end
@@ -151,7 +151,7 @@ AS $function$
 	return true;
     exception
         when unique_violation then
-                return false;
+		return false;
         when others then
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
@@ -172,4 +172,20 @@ AS $function$
     end;
 $function$;--end
 
+
+
+CREATE OR REPLACE FUNCTION public.insert_sequenced_leaf_data_ignore_duplicates(tree_id bigint, sequence_number bigint, leaf_identity_hash bytea, merkle_leaf_hash bytea, integrate_timestamp_nanos bigint)
+ RETURNS boolean
+ LANGUAGE plpgsql
+AS $function$
+    begin
+       INSERT INTO sequenced_leaf_data(tree_id, sequence_number, leaf_identity_hash, merkle_leaf_hash, integrate_timestamp_nanos) VALUES(tree_id, sequence_number, leaf_identity_hash, merkle_leaf_hash, integrate_timestamp_nanos);
+	return true;
+    exception
+        when unique_violation then
+                return false;
+        when others then
+                raise notice '% %', SQLERRM, SQLSTATE;
+    end;
+$function$;--end
 
