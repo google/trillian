@@ -811,8 +811,7 @@ func (t *TrillianLogRPCServer) recordIndexPercent(leafIndex int64, treeSize uint
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, func()) {
-	ctx, spanEnd := monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
-	return ctx, spanEnd
+	return monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }
 
 func (t *TrillianLogRPCServer) snapshotForTree(ctx context.Context, tree *trillian.Tree, method string) (storage.ReadOnlyLogTreeTX, error) {

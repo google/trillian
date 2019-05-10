@@ -16,28 +16,14 @@ package monitoring
 
 import (
 	"context"
-	"sync"
 )
 
-// StartSpan is the global entry point for Trillian code to create new tracing spans.
-var (
-	once      sync.Once
-	startSpan StartSpanFunc = func(ctx context.Context, _ string) (context.Context, func()) { return ctx, func() {} }
-)
-
-// SetStartSpanFunc allows the tracing span implementation to be set.
-// This function will set the global tracing function to the one supplied by
-// the first caller, future calls to this function will have no effect.
-func SetStartSpanFunc(s StartSpanFunc) {
-	once.Do(func() {
-		startSpan = s
-	})
-}
-
-// StartSpan starts a new tracing span.
-func StartSpan(ctx context.Context, name string) (context.Context, func()) {
-	return startSpan(ctx, name)
-}
+// StartSpan starts a new tracing span using the given message.
+// The returned context should be used for all child calls within the span, and
+// the returned func should be called to close the span.
+// The default implementation of this method is a no-op; insert a real tracing span
+// implementation by setting this global variable to the relevant function at start of day.
+var StartSpan = func(ctx context.Context, msg string) (context.Context, func()) { return ctx, func() {} }
 
 // StartSpanFunc is the signature of a function which starts new tracing spans.
 type StartSpanFunc func(ctx context.Context, name string) (context.Context, func())
