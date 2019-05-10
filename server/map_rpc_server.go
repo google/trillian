@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
@@ -64,6 +65,9 @@ type TrillianMapServerOptions struct {
 type TrillianMapServer struct {
 	registry extension.Registry
 	opts     TrillianMapServerOptions
+
+	setLeafCounter monitoring.Counter
+	getLeafCounter monitoring.Counter
 }
 
 // NewTrillianMapServer creates a new RPC server backed by registry
@@ -71,7 +75,25 @@ func NewTrillianMapServer(registry extension.Registry, opts TrillianMapServerOpt
 	if opts.UseSingleTransaction {
 		glog.Warning("Using experimental single-transaction mode for map server.")
 	}
-	return &TrillianMapServer{registry: registry, opts: opts}
+	mf := registry.MetricFactory
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
+
+	return &TrillianMapServer{
+		registry: registry,
+		opts:     opts,
+		setLeafCounter: mf.NewCounter(
+			"set_leaves",
+			"Number of map leaves requested to be set",
+			"map_id",
+		),
+		getLeafCounter: mf.NewCounter(
+			"get_leaves",
+			"Number of map leaves request to be read",
+			"map_id",
+		),
+	}
 }
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
@@ -112,6 +134,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}
 
 	ctx = trees.NewContext(ctx, tree)
+	t.getLeafCounter.Add(float64(len(indices)), string(mapID))
 
 	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevision")
 	if err != nil {
@@ -251,6 +274,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	defer spanEnd()
 
 	mapID := req.MapId
+	t.setLeafCounter.Add(float64(len(req.Leaves)), string(mapID))
+
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
 		return nil, err
