@@ -38,7 +38,7 @@ var (
 	// Default is the standard CONIKS hasher.
 	Default = New(crypto.SHA512_256)
 	// Some zeroes, to avoid allocating temporary slices.
-	zeroes = make([]byte, 256)
+	zeroes = make([]byte, 32)
 )
 
 // hasher implements the sparse merkle tree hashing algorithm specified in the CONIKS paper.
@@ -135,9 +135,15 @@ func (m *hasher) maskIndex(b *bytes.Buffer, index []byte, depth int) {
 		// Mask off unwanted bits in the last byte.
 		b.WriteByte(index[depthBytes-1] & leftmask[depth%8])
 	}
-	// Pad to the correct length with zeroes.
+	// Pad to the correct length with zeros. Allow for future hashers that
+	// might be > 256 bits.
 	needZeros := prevLen + len(index) - b.Len()
-	if needZeros > 0 {
+	for needZeros > 0 {
+		chunkSize := needZeros
+		if chunkSize > 32 {
+			chunkSize = 32
+		}
 		b.Write(zeroes[:needZeros])
+		needZeros -= chunkSize
 	}
 }
