@@ -34,7 +34,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/types"
-	"github.com/lib/pq"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -81,7 +80,6 @@ const (
 	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
 
 	// Error code returned by driver when inserting a duplicate row
-	errNumDuplicate = "23505" //this is thrown because of the unique key constraint.  Effective check for duplicates
 
 	logIDLabel = "logid"
 )
@@ -498,10 +496,6 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			queuedDupCounter.Inc(label)
 			glog.Warningf("Found duplicate %v %v", t.treeID, leaf)
 			continue
-		}
-		if err != nil {
-			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
-			return nil, err
 		}
 
 		// Create the work queue entry
@@ -1002,14 +996,4 @@ func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
 }
 func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
-}
-
-func isDuplicateErr(err error) bool {
-	switch err := err.(type) {
-	case *pq.Error:
-		glog.Infof("checking %v %v %v", err.Code, errNumDuplicate, err.Code == errNumDuplicate)
-		return err.Code == errNumDuplicate
-	default:
-		return false
-	}
 }

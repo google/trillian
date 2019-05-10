@@ -193,27 +193,6 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
-func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
-	var missing []storage.Node
-	gotMap := make(map[string]storage.Node)
-	for _, n := range got {
-		gotMap[n.NodeID.String()] = n
-	}
-	for _, n := range want {
-		_, ok := gotMap[n.NodeID.String()]
-		if !ok {
-			missing = append(missing, n)
-		}
-		delete(gotMap, n.NodeID.String())
-	}
-	// Unpack the extra nodes to return both as slices
-	extra := make([]storage.Node, 0, len(gotMap))
-	for _, v := range gotMap {
-		extra = append(extra, v)
-	}
-	return missing, extra
-}
-
 func openTestDBOrDie() *sql.DB {
 	db, err := testdb.NewTrillianDB(context.TODO())
 	if err != nil {
@@ -273,7 +252,6 @@ func TestMain(m *testing.M) {
 	ec := 0
 	if !testdb.PGAvailable() {
 		glog.Errorf("PG not available, skipping all PG storage tests")
-		ec = 1
 		return
 	}
 	db = openTestDBOrDie()

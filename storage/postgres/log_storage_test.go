@@ -762,23 +762,6 @@ func TestGetLeavesByHash(t *testing.T) {
 	})
 }
 
-func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
-	t.Helper()
-	want := make(map[string]*trillian.LogLeaf)
-	for _, w := range wantLeaves {
-		k := sha256.Sum256([]byte(w.String()))
-		want[string(k[:])] = w
-	}
-	got := make(map[string]*trillian.LogLeaf)
-	for _, g := range gotLeaves {
-		k := sha256.Sum256([]byte(g.String()))
-		got[string(k[:])] = g
-	}
-	if diff := pretty.Compare(want, got); diff != "" {
-		t.Errorf("leaves not equivalent: diff -want,+got:\n%v %v", want, got)
-	}
-}
-
 func TestGetLeavesByIndex(t *testing.T) {
 	ctx := context.Background()
 
