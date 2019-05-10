@@ -114,9 +114,10 @@ func (m *hasher) BitLen() int {
 // is 0. leftmask is only used to mask the last byte.
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
-// maskIndex writes the masked value directly to a Buffer (which never
-// returns an error on writes). This avoids the need to allocate space for and
-// copy a value that will then be discarded immediately.
+// maskIndex writes the left depth bits of index directly to a Buffer (which never
+// returns an error on writes). This is then padded with zero bits to the Size()
+// of the index values in use by this hashes. This avoids the need to allocate
+// space for and copy a value that will then be discarded immediately.
 func (m *hasher) maskIndex(b *bytes.Buffer, index []byte, depth int) {
 	if got, want := len(index), m.Size(); got != want {
 		panic(fmt.Sprintf("index len: %d, want %d", got, want))
@@ -127,9 +128,9 @@ func (m *hasher) maskIndex(b *bytes.Buffer, index []byte, depth int) {
 
 	prevLen := b.Len()
 	if depth > 0 {
-		// Copy the first depthBytes.
+		// Write the first depthBytes, if there are any complete bytes.
 		depthBytes := (depth + 7) >> 3
-		if depth > 1 {
+		if depthBytes > 1 {
 			b.Write(index[:depthBytes-1])
 		}
 		// Mask off unwanted bits in the last byte.
@@ -143,7 +144,7 @@ func (m *hasher) maskIndex(b *bytes.Buffer, index []byte, depth int) {
 		if chunkSize > 32 {
 			chunkSize = 32
 		}
-		b.Write(zeroes[:needZeros])
+		b.Write(zeroes[:chunkSize])
 		needZeros -= chunkSize
 	}
 }
