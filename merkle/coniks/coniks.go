@@ -62,7 +62,7 @@ func (m *hasher) EmptyRoot() []byte {
 func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	depth := m.BitLen() - height
 
-	buf := new(bytes.Buffer)
+	buf := bytes.NewBuffer(make([]byte, 0, 32))
 	h := m.New()
 	buf.Write(emptyIdentifier)
 	binary.Write(buf, binary.BigEndian, uint64(treeID))
@@ -78,7 +78,7 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 // H(Identifier || treeID || depth || index || dataHash)
 func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error) {
 	depth := m.BitLen()
-	buf := new(bytes.Buffer)
+	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
 	buf.Write(leafIdentifier)
 	binary.Write(buf, binary.BigEndian, uint64(treeID))
@@ -94,7 +94,7 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, erro
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is  H(l || r).
 func (m *hasher) HashChildren(l, r []byte) []byte {
-	buf := new(bytes.Buffer)
+	buf := bytes.NewBuffer(make([]byte, 0, 32+len(l)+len(r)))
 	h := m.New()
 	buf.Write(l)
 	buf.Write(r)
