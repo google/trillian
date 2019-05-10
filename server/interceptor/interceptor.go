@@ -158,7 +158,8 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 		return ctx, nil
 	}
 
-	ctx, spanEnd := spanFor(ctx, "Before")
+	// Don't want the Before to contain the action, so don't overwrite the ctx.
+	_, spanEnd := spanFor(ctx, "Before")
 	defer spanEnd()
 	info, err := newRPCInfo(req)
 	if err != nil {
