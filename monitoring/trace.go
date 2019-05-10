@@ -18,9 +18,23 @@ import (
 	"context"
 )
 
+// startSpanFunc is the signature of a function which can start tracing spans.
+type startSpanFunc func(context.Context, string) (context.Context, func())
+
+var startSpan startSpanFunc = func(ctx context.Context, name string) (context.Context, func()) { return ctx, func() {} }
+
 // StartSpan starts a new tracing span using the given message.
 // The returned context should be used for all child calls within the span, and
 // the returned func should be called to close the span.
+//
 // The default implementation of this method is a no-op; insert a real tracing span
 // implementation by setting this global variable to the relevant function at start of day.
-var StartSpan = func(ctx context.Context, msg string) (context.Context, func()) { return ctx, func() {} }
+func StartSpan(ctx context.Context, name string) (context.Context, func()) {
+	return startSpan(ctx, name)
+}
+
+// SetStartSpan sets the function used to start tracing spans.
+// This may be used to add runtime support for different tracing implementation.
+func SetStartSpan(f startSpanFunc) {
+	startSpan = f
+}
