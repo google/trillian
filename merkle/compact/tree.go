@@ -169,7 +169,7 @@ func (t *Tree) recalculateRoot(visit VisitFn) error {
 }
 
 // AddLeaf calculates the Merkle leaf hash of the given leaf data and appends
-// it to the tree. Returns Merkle hash of the new leaf.
+// it to the tree. Returns the Merkle hash of the new leaf.
 //
 // visit is a callback which will be called multiple times with the coordinates
 // of the Merkle tree nodes whose hash should be updated.

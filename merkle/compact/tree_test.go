@@ -170,13 +170,13 @@ func TestCompactVsFullTree(t *testing.T) {
 			t.Errorf("AddLeaf(): %v", err)
 		}
 
-		cSeq := cmt.Size()
 		cHash, err := cmt.AddLeaf(newLeaf, func(id NodeID, hash []byte) {
 			nodes[id] = hash
 		})
 		if err != nil {
 			t.Fatalf("mt update failed: %v", err)
 		}
+		cSeq := cmt.Size() - 1 // The index of the last inserted leaf.
 
 		// In-Memory tree is 1-based for sequence numbers, since it's based on the original CT C++ impl.
 		if got, want := iSeq, i+1; got != want {
@@ -202,7 +202,7 @@ func TestCompactVsFullTree(t *testing.T) {
 			t.Fatalf("AddLeaf(%d)=_,_,%v, want _,_,nil", i, err)
 		}
 		if got, want := cmt.Size(), i+1; got != want {
-			t.Fatalf("new size=%d, want %d", got, want)
+			t.Fatalf("new tree size=%d, want %d", got, want)
 		}
 	}
 	if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
