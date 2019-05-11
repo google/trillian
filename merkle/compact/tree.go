@@ -168,33 +168,27 @@ func (t *Tree) recalculateRoot(visit VisitFn) error {
 	return nil
 }
 
-// AddLeaf calculates the Merkle leaf hash of the given leaf data and appends it
-// to the tree.
+// AddLeaf calculates the Merkle leaf hash of the given leaf data and appends
+// it to the tree. Returns Merkle hash of the new leaf.
 //
 // visit is a callback which will be called multiple times with the coordinates
 // of the Merkle tree nodes whose hash should be updated.
-//
-// Returns the index of the new leaf (equal to t.Size()-1) and the Merkle leaf
-// hash for the new leaf.
-func (t *Tree) AddLeaf(data []byte, visit VisitFn) (int64, []byte, error) {
+func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
 	h, err := t.hasher.HashLeaf(data)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
-	seq, err := t.AddLeafHash(h, visit)
-	if err != nil {
-		return 0, nil, err
+	if err := t.AddLeafHash(h, visit); err != nil {
+		return nil, err
 	}
-	return seq, h, err
+	return h, err
 }
 
 // AddLeafHash appends the specified Merkle leaf hash to the tree.
 //
 // visit is a callback which will be called multiple times with the coordinates
 // of the Merkle tree nodes whose hash should be updated.
-//
-// Returns the index of the new leaf (equal to t.Size()-1).
-func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (int64, error) {
+func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) error {
 	defer func() {
 		t.size++
 		// TODO(pavelkalinnikov): Handle recalculateRoot errors.
@@ -209,7 +203,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (int64, error) {
 	if t.size == 0 {
 		// new tree
 		t.nodes = append(t.nodes, leafHash)
-		return assignedSeq, nil
+		return nil
 	}
 
 	// Initialize our running hash value to the leaf hash.
@@ -226,7 +220,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (int64, error) {
 				// Store the (non-leaf) hash node
 				visit(NewNodeID(bit, index), hash)
 			}
-			return assignedSeq, nil
+			return nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = t.hasher.HashChildren(t.nodes[bit], hash)
@@ -239,19 +233,19 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (int64, error) {
 			// If we're extending the node list then add a new entry with our
 			// running hash, and we're done.
 			t.nodes = append(t.nodes, hash)
-			return assignedSeq, nil
+			return nil
 		} else if mask&0x02 == 0 {
 			// If the node above us is unused at this tree size, then store our
 			// running hash there, and we're done.
 			t.nodes[bit+1] = hash
-			return assignedSeq, nil
+			return nil
 		}
 		// Otherwise, go around again.
 		bit++
 	}
 	// We should never get here, because that'd mean we had a running hash which
 	// we've not stored somewhere.
-	return 0, fmt.Errorf("AddLeaf failed running hash not cleared: h: %v seq: %d", leafHash, assignedSeq)
+	return fmt.Errorf("AddLeaf failed running hash not cleared: h: %v seq: %d", leafHash, assignedSeq)
 }
 
 // Size returns the current size of the tree.

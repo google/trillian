@@ -68,7 +68,8 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 			if h == nil {
 				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
 			}
-			seq, err := cmt.AddLeafHash(h, func(id compact.NodeID, h []byte) {
+			seq := cmt.Size()
+			if err := cmt.AddLeafHash(h, func(id compact.NodeID, h []byte) {
 				if id.Level == logStrataDepth && id.Index == 0 {
 					// no space for the root in the node cache
 					return
@@ -84,8 +85,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 					sfxKey := sfx.String()
 					st.InternalNodes[sfxKey] = h
 				}
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 			if got, expected := seq, leafIndex; got != expected {
