@@ -431,8 +431,12 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 
 		// Create the log root ready for signing
+		root, err := merkleTree.CurrentRoot()
+		if err != nil {
+			return fmt.Errorf("%v: failed to compute new root hash: %v", tree.TreeId, err)
+		}
 		newLogRoot = &types.LogRootV1{
-			RootHash:       merkleTree.CurrentRoot(),
+			RootHash:       root,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
 			TreeSize:       uint64(merkleTree.Size()),
 			Revision:       uint64(newVersion),

@@ -50,6 +50,15 @@ func checkUnusedNodesInvariant(t *Tree) error {
 	return nil
 }
 
+func mustGetRoot(t *testing.T, mt *Tree) []byte {
+	t.Helper()
+	hash, err := mt.CurrentRoot()
+	if err != nil {
+		t.Fatalf("CurrentRoot: %v", err)
+	}
+	return hash
+}
+
 func TestAddingLeaves(t *testing.T) {
 	inputs := testonly.MerkleTreeLeafTestInputs()
 	roots := testonly.MerkleTreeLeafTestRootHashes()
@@ -85,15 +94,15 @@ func TestAddingLeaves(t *testing.T) {
 					t.Errorf("Size()=%d, want %d", got, want)
 				}
 				if br > 0 {
-					if got, want := tree.CurrentRoot(), roots[br-1]; !bytes.Equal(got, want) {
-						t.Errorf("CurrentRoot()=%v, want %v", got, want)
+					if got, want := mustGetRoot(t, tree), roots[br-1]; !bytes.Equal(got, want) {
+						t.Errorf("root=%v, want %v", got, want)
 					}
 					if diff := pretty.Compare(tree.Hashes(), hashes[br-1]); diff != "" {
 						t.Errorf("post-Hashes() diff:\n%v", diff)
 					}
 				} else {
-					if got, want := tree.CurrentRoot(), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
-						t.Errorf("CurrentRoot()=%x, want %x (empty)", got, want)
+					if got, want := mustGetRoot(t, tree), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
+						t.Errorf("root=%x, want %x (empty)", got, want)
 					}
 				}
 			}
@@ -159,7 +168,7 @@ func TestCompactVsFullTree(t *testing.T) {
 		if err != nil {
 			t.Errorf("interation %d: failed to create CMT with state: %v", i, err)
 		}
-		if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
+		if a, b := imt.CurrentRoot().Hash(), mustGetRoot(t, cmt); !bytes.Equal(a, b) {
 			t.Errorf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
 		}
 
@@ -188,7 +197,7 @@ func TestCompactVsFullTree(t *testing.T) {
 		if a, b := iHash.Hash(), cHash; !bytes.Equal(a, b) {
 			t.Errorf("iteration %d: Got leaf hash %v from in-memory tree, but %v from compact tree", i, a, b)
 		}
-		if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
+		if a, b := imt.CurrentRoot().Hash(), mustGetRoot(t, cmt); !bytes.Equal(a, b) {
 			t.Errorf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
 		}
 	}
@@ -205,7 +214,7 @@ func TestCompactVsFullTree(t *testing.T) {
 			t.Fatalf("new tree size=%d, want %d", got, want)
 		}
 	}
-	if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
+	if a, b := imt.CurrentRoot().Hash(), mustGetRoot(t, cmt); !bytes.Equal(a, b) {
 		t.Errorf("got in-memory root of %v, but compact tree has root %v", a, b)
 	}
 }
@@ -237,7 +246,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
 			tree.AddLeaf(l, func(NodeID, []byte) {})
 		}
-		if gotRoot := tree.CurrentRoot(); !bytes.Equal(gotRoot, test.wantRoot) {
+		if gotRoot := mustGetRoot(t, tree); !bytes.Equal(gotRoot, test.wantRoot) {
 			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(gotRoot), b64e(test.wantRoot))
 		}
 		t.Log(tree)
@@ -248,7 +257,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 			for i, got := range hashes {
 				var want []byte
 				if i == (len(hashes) - 1) {
-					want = tree.CurrentRoot()
+					want = mustGetRoot(t, tree)
 				}
 				if !bytes.Equal(got, want) {
 					t.Errorf("Test(treesize=%v).nodes[i]=%x, want %x", test.size, got, want)

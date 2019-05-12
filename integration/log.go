@@ -534,8 +534,12 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a
 	// "can't happen" situation.
-	if !bytes.Equal(compactTree.CurrentRoot(), merkleTree.CurrentRoot().Hash()) {
-		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", compactTree.CurrentRoot(), merkleTree.CurrentRoot())
+	root, err := compactTree.CurrentRoot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute compact tree root: %v", err)
+	}
+	if !bytes.Equal(root, merkleTree.CurrentRoot().Hash()) {
+		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, merkleTree.CurrentRoot())
 	}
 
 	return merkleTree, nil

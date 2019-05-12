@@ -92,7 +92,11 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
 			}
 		}
-		st.RootHash = cmt.CurrentRoot()
+		root, err := cmt.CurrentRoot()
+		if err != nil {
+			return fmt.Errorf("failed to compute root hash: %v", err)
+		}
+		st.RootHash = root
 
 		// Additional check - after population we should have the same number of internal nodes
 		// as before the subtree was written to storage. Either because they were loaded from
