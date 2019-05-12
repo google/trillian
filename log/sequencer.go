@@ -227,8 +227,6 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 		if err := mt.AddLeafHash(leaf.MerkleLeafHash, store); err != nil {
 			return nil, err
 		}
-		// Store leaf hash in the Merkle tree too.
-		store(compact.NewNodeID(0, uint64(idx)), leaf.MerkleLeafHash)
 	}
 
 	return nodeMap, nil
