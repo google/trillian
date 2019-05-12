@@ -171,37 +171,46 @@ func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
 	return hash, nil
 }
 
-// AddLeaf calculates the Merkle leaf hash of the given leaf data and appends
-// it to the tree. Returns the Merkle hash of the new leaf.
+// AppendLeaf calculates the Merkle leaf hash of the given leaf data and
+// appends it to the tree. Returns the Merkle hash of the new leaf.
 //
 // visit is a callback which will be called, if not nil, multiple times with
-// the coordinates of the Merkle tree nodes whose hash should be updated.
+// the coordinates of the Merkle tree nodes whose hash should be updated, i.e.
+// all the newly introduced perfect-subtree nodes including the leaf node.
 //
 // If returns an error then the Tree is no longer usable.
-func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
+func (t *Tree) AppendLeaf(data []byte, visit VisitFn) ([]byte, error) {
 	h := t.hasher.HashLeaf(data)
-	if err := t.AddLeafHash(h, visit); err != nil {
+	if err := t.AppendLeafHash(h, visit); err != nil {
 		return nil, err
 	}
 	return h, nil
 }
 
-// AddLeafHash appends the specified Merkle leaf hash to the tree.
+// AddLeaf is the same as AppendLeaf, except it also visits "ephemeral"
+// non-perfect-subtree node hashes along the right border of the tree.
+//
+// TODO(pavelkalinnikov): Deprecated, remove it.
+func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
+	hash, err := t.AppendLeaf(data, visit)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.calculateRoot(visit); err != nil {
+		return nil, err
+	}
+	return hash, nil
+}
+
+// AppendLeafHash appends the specified Merkle leaf hash to the tree.
 //
 // visit is a callback which will be called, if not nil, multiple times with
-// the coordinates of the Merkle tree nodes whose hash should be updated.
+// the coordinates of the Merkle tree nodes whose hash should be updated, i.e.
+// all the newly introduced perfect-subtree nodes including the leaf node.
 //
 // If returns an error then the Tree is no longer usable.
-func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
-	defer func() {
-		if res != nil {
-			return
-		}
-		t.size++
-		if _, err := t.calculateRoot(visit); err != nil {
-			res = err
-		}
-	}()
+func (t *Tree) AppendLeafHash(leafHash []byte, visit VisitFn) error {
+	defer func() { t.size++ }()
 
 	assignedSeq := t.size
 	index := uint64(assignedSeq)
@@ -258,6 +267,18 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
 	// We should never get here, because that'd mean we had a running hash which
 	// we've not stored somewhere.
 	return fmt.Errorf("AddLeaf failed running hash not cleared: h: %v seq: %d", leafHash, assignedSeq)
+}
+
+// AddLeafHash is the same as AppendLeafHash, except it also visits "ephemeral"
+// non-perfect-subtree node hashes along the right border of the tree.
+//
+// TODO(pavelkalinnikov): Deprecated, remove it.
+func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) error {
+	if err := t.AppendLeafHash(leafHash, visit); err != nil {
+		return err
+	}
+	_, err := t.calculateRoot(visit)
+	return err
 }
 
 // Size returns the current size of the tree.
