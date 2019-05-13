@@ -17,6 +17,7 @@ package cache
 import (
 	"bytes"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"sync"
 
@@ -24,6 +25,8 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )
+
+var populateConcurrency = flag.Int("populate_subtree_concurrency", 256, "Max number of concurrent workers concurrently populating subtrees")
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
 type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
@@ -77,6 +80,8 @@ type SubtreeCache struct {
 	mutex *sync.RWMutex
 	// populate is used to rebuild internal nodes when subtrees are loaded from storage.
 	populate storage.PopulateSubtreeFunc
+	// populateConcurrency sets the amount of concurrency when repopulating subtrees.
+	populateConcurrency int
 	// prepare is used for preparation work when subtrees are about to be written to storage.
 	prepare storage.PrepareSubtreeWriteFunc
 }
@@ -115,13 +120,18 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 		panic(fmt.Errorf("strata indicate tree of depth %d, but expected %d", got, want))
 	}
 
+	if *populateConcurrency <= 0 {
+		panic(fmt.Errorf("populate_subtree_concurrency must be set to >= 1"))
+	}
+
 	return SubtreeCache{
-		stratumInfo:   sInfo,
-		subtrees:      make(map[string]*storagepb.SubtreeProto),
-		dirtyPrefixes: make(map[string]bool),
-		mutex:         new(sync.RWMutex),
-		populate:      populateSubtree,
-		prepare:       prepareSubtreeWrite,
+		stratumInfo:         sInfo,
+		subtrees:            make(map[string]*storagepb.SubtreeProto),
+		dirtyPrefixes:       make(map[string]bool),
+		mutex:               new(sync.RWMutex),
+		populate:            populateSubtree,
+		populateConcurrency: *populateConcurrency,
+		prepare:             prepareSubtreeWrite,
 	}
 }
 
@@ -171,12 +181,21 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	}
 
 	ch := make(chan *storagepb.SubtreeProto, len(want))
+	workTokens := make(chan bool, s.populateConcurrency)
+	for i := 0; i < s.populateConcurrency; i++ {
+		workTokens <- true
+	}
 	wg := &sync.WaitGroup{}
 
 	for _, t := range subtrees {
 		t := t
 		wg.Add(1)
 		go func() {
+			// wait for a token before starting work
+			_ = <-workTokens
+			// return it when done
+			defer func() { workTokens <- true }()
+
 			defer wg.Done()
 			s.populate(t)
 			ch <- t
@@ -186,6 +205,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	go func() {
 		wg.Wait()
 		close(ch)
+		close(workTokens)
 	}()
 
 	for t := range ch {
