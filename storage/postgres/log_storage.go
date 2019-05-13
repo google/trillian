@@ -483,7 +483,10 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		observe(queueInsertLeafLatency, insertDuration, label)
 		resultData := false
 		for dupCheckRow.Next() {
-			dupCheckRow.Scan(&resultData)
+			err := dupCheckRow.Scan(&resultData)
+			if err != nil {
+				return nil, fmt.Errorf("dupecheck failed: %v", err)
+			}
 			if !resultData {
 				break
 			}
