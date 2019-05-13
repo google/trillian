@@ -139,7 +139,12 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		}
 
 		// Sanity check the tree root hash against the one we expect to see.
-		if got, want := tree.CurrentRoot(), batch.ExpectedRoot; !bytes.Equal(got, want) {
+		root, err := tree.CurrentRoot()
+		if err != nil {
+			// TODO(pavelkalinnikov): Use testing.T.Fatalf instead of panic.
+			panic(fmt.Errorf("CurrentRoot: %v", err))
+		}
+		if got, want := root, batch.ExpectedRoot; !bytes.Equal(got, want) {
 			panic(fmt.Errorf("NewMultiFakeNodeReaderFromLeaves() got root: %x, want: %x (%v)", got, want, batch))
 		}
 

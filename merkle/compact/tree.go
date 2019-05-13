@@ -32,7 +32,6 @@ import (
 // TODO(pavelkalinnikov): Remove it, use compact.Range instead.
 type Tree struct {
 	hasher hashers.LogHasher
-	root   []byte
 	// The list of "dangling" left-hand nodes, where entry [0] is the leaf.
 	// So: nodes[0] is the hash of a subtree of size 1 = 1<<0, if included.
 	//     nodes[1] is the hash of a subtree of size 2 = 1<<1, if included.
@@ -43,7 +42,7 @@ type Tree struct {
 	// 16 + 4 + 1, so nodes[1] == nodes[3] == nil.
 	//
 	// For a tree whose size is a perfect power of two, only the last
-	// entry in nodes will be set (and it will match root).
+	// entry in nodes will be set (which is also the root hash).
 	nodes [][]byte
 	size  int64
 }
@@ -72,7 +71,6 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	r := Tree{
 		hasher: hasher,
 		nodes:  make([][]byte, sizeBits),
-		root:   hasher.EmptyRoot(),
 		size:   size,
 	}
 
@@ -94,13 +92,18 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	for i, id := range ids {
 		r.nodes[id.Level] = hashes[i]
 	}
-	r.recalculateRoot(func(NodeID, []byte) {})
 
-	if !bytes.Equal(r.root, expectedRoot) {
-		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
-		return nil, fmt.Errorf("root hash mismatch: got %v, expected %v", r.root, expectedRoot)
+	// TODO(pavelkalinnikov): This check should be done externally.
+	root, err := r.CurrentRoot()
+	if err != nil {
+		return nil, err
 	}
-	glog.V(1).Infof("Resuming at size %d, with root: %s", r.size, base64.StdEncoding.EncodeToString(r.root[:]))
+	if !bytes.Equal(root, expectedRoot) {
+		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(root))
+		return nil, fmt.Errorf("root hash mismatch: got %v, expected %v", root, expectedRoot)
+	}
+
+	glog.V(1).Infof("Resuming at size %d, with root: %s", r.size, base64.StdEncoding.EncodeToString(root))
 	return &r, nil
 }
 
@@ -108,21 +111,20 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 func NewTree(hasher hashers.LogHasher) *Tree {
 	return &Tree{
 		hasher: hasher,
-		root:   hasher.EmptyRoot(),
 		nodes:  make([][]byte, 0),
 		size:   0,
 	}
 }
 
 // CurrentRoot returns the current root hash.
-func (t *Tree) CurrentRoot() []byte {
-	return t.root
+func (t *Tree) CurrentRoot() ([]byte, error) {
+	return t.calculateRoot(func(NodeID, []byte) {})
 }
 
 // String describes the internal state of the compact Tree.
 func (t *Tree) String() string {
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("Tree Nodes @ %d root=%x\n", t.size, t.root))
+	buf.WriteString(fmt.Sprintf("Tree Nodes @ %d\n", t.size))
 	mask := int64(1)
 	numBits := bits.Len64(uint64(t.size))
 	for bit := 0; bit < numBits; bit++ {
@@ -136,18 +138,18 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-// recalculateRoot updates the current root hash, and calls visit function for
-// imperfect subtrees along the right border of the tree.
+// calculateRoot computes the current root hash. It calls visit function for
+// imperfect subtrees along the right border of the tree while calculating it.
 //
 // TODO(pavelkalinnikov): Run this only once, after multiple AddLeaf calls.
-func (t *Tree) recalculateRoot(visit VisitFn) error {
+func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
 	if t.size == 0 {
-		return nil
+		return t.hasher.EmptyRoot(), nil
 	}
 
 	index := uint64(t.size)
 
-	var newRoot []byte
+	var hash []byte
 	first := true
 	mask := int64(1)
 	numBits := uint(bits.Len64(uint64(t.size)))
@@ -155,17 +157,16 @@ func (t *Tree) recalculateRoot(visit VisitFn) error {
 		index >>= 1
 		if t.size&mask != 0 {
 			if first {
-				newRoot = t.nodes[bit]
+				hash = t.nodes[bit]
 				first = false
 			} else {
-				newRoot = t.hasher.HashChildren(t.nodes[bit], newRoot)
-				visit(NewNodeID(bit+1, index), newRoot)
+				hash = t.hasher.HashChildren(t.nodes[bit], hash)
+				visit(NewNodeID(bit+1, index), hash)
 			}
 		}
 		mask <<= 1
 	}
-	t.root = newRoot
-	return nil
+	return hash, nil
 }
 
 // AddLeaf calculates the Merkle leaf hash of the given leaf data and appends
@@ -198,7 +199,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
 			return
 		}
 		t.size++
-		if err := t.recalculateRoot(visit); err != nil {
+		if _, err := t.calculateRoot(visit); err != nil {
 			res = err
 		}
 	}()

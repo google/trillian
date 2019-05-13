@@ -292,7 +292,11 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		if err := populateTheThing(&s); err != nil {
 			t.Fatalf("failed populate subtree: %v", err)
 		}
-		if got, expected := s.RootHash, cmt.CurrentRoot(); !bytes.Equal(got, expected) {
+		root, err := cmt.CurrentRoot()
+		if err != nil {
+			t.Fatalf("CurrentRoot: %v", err)
+		}
+		if got, expected := s.RootHash, root; !bytes.Equal(got, expected) {
 			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())
 		}
 
