@@ -34,6 +34,7 @@ func TestLibaries(t *testing.T) {
 			desc:       "Detects direct dependency",
 			importPath: "github.com/google/trillian/scripts/licenses/licenses/testdata/direct",
 			wantLibs: []string{
+				"github.com/google/trillian/scripts/licenses/licenses/testdata/direct",
 				"github.com/google/trillian/scripts/licenses/licenses/testdata/indirect",
 			},
 		},
@@ -41,6 +42,7 @@ func TestLibaries(t *testing.T) {
 			desc:       "Detects transitive dependency",
 			importPath: "github.com/google/trillian/scripts/licenses/licenses/testdata",
 			wantLibs: []string{
+				"github.com/google/trillian/scripts/licenses/licenses/testdata",
 				"github.com/google/trillian/scripts/licenses/licenses/testdata/direct",
 				"github.com/google/trillian/scripts/licenses/licenses/testdata/indirect",
 			},

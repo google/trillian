@@ -36,41 +36,31 @@ type Library struct {
 // Libraries returns the collection of libraries used by this package, directly or transitively.
 // A library is a collection of one or more packages covered by the same license file.
 // Packages not covered by a license will be returned as individual libraries.
-// Packages covered by the same license as pkg will be ignored.
 // Standard library packages will be ignored.
 func Libraries(ctx *build.Context, pkg *build.Package) ([]*Library, error) {
-	pkgLicense, err := Find(pkg)
-	if err != nil {
-		return nil, err
-	}
-	deps := make(map[string]*build.Package)
-	if err := dependencies(ctx, pkg, deps); err != nil {
+	pkgs := map[string]*build.Package{pkg.ImportPath: pkg}
+	if err := dependencies(ctx, pkg, pkgs); err != nil {
 		return nil, err
 	}
 	pkgsByLicense := make(map[string][]*build.Package)
-	for _, d := range deps {
-		if isStdLib(d) {
+	for _, p := range pkgs {
+		if isStdLib(p) {
 			// No license requirements for the Go standard library.
 			continue
 		}
-		licensePath, err := Find(d)
+		licensePath, err := Find(p)
 		if err != nil {
-			glog.Errorf("Failed to find license for %s: %v", d.ImportPath, err)
+			glog.Errorf("Failed to find license for %s: %v", p.ImportPath, err)
 		}
-		if licensePath == pkgLicense {
-			// Skip dependencies that share a license file with pkg.
-			// These are not external libraries.
-			continue
-		}
-		pkgsByLicense[licensePath] = append(pkgsByLicense[licensePath], d)
+		pkgsByLicense[licensePath] = append(pkgsByLicense[licensePath], p)
 	}
 	var libraries []*Library
 	for licensePath, pkgs := range pkgsByLicense {
 		if licensePath == "" {
 			// No license for these packages - return each one as a separate library.
-			for _, pkg := range pkgs {
+			for _, p := range pkgs {
 				libraries = append(libraries, &Library{
-					Packages: []*build.Package{pkg},
+					Packages: []*build.Package{p},
 				})
 			}
 			continue
