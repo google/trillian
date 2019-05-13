@@ -191,12 +191,12 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		t := t
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			// wait for a token before starting work
 			<-workTokens
 			// return it when done
 			defer func() { workTokens <- true }()
 
-			defer wg.Done()
 			s.populate(t)
 			ch <- t
 		}()
