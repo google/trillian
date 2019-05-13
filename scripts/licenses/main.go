@@ -56,7 +56,7 @@ func main() {
 	}
 }
 
-// Libraries returns the libraries used by the package identified by importPath.
+// libraries returns the libraries used by the package identified by importPath.
 // The import path is assumed to be in the context of the current working
 // directory, so vendoring and relative import paths will work.
 func libraries(importPath string) ([]*licenses.Library, error) {
@@ -74,7 +74,7 @@ func libraries(importPath string) ([]*licenses.Library, error) {
 	return licenses.Libraries(&buildCtx, pkg)
 }
 
-// ParseGoBuildFlags will parse the $GOFLAGS environment variable for recognised
+// parseGoBuildFlags will parse the $GOFLAGS environment variable for recognised
 // flags and adopt their values.
 func parseGoBuildFlags(flagset *pflag.FlagSet) error {
 	// Temporarily ensure that unknown flags are not treated as an error, because

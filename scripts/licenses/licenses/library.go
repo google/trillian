@@ -113,7 +113,7 @@ func (l *Library) String() string {
 	return l.Name()
 }
 
-// ImportPackage returns information about the package identified by the given import path.
+// importPackage returns information about the package identified by the given import path.
 // If there is a "vendor" directory in workingDir, packages in that directory will take precedence
 // over packages with the same import path found elsewhere.
 func importPackage(ctx *build.Context, importPath string, workingDir string) (*build.Package, error) {
@@ -131,12 +131,12 @@ func importPackage(ctx *build.Context, importPath string, workingDir string) (*b
 	return pkg, nil
 }
 
-// IsStdLib returns true if this package is part of the Go standard library.
+// isStdLib returns true if this package is part of the Go standard library.
 func isStdLib(pkg *build.Package) bool {
 	return pkg.Root == build.Default.GOROOT
 }
 
-// Dependencies finds the Go packages used by this package, directly or transitively.
+// dependencies finds the Go packages used by this package, directly or transitively.
 // They are added to the provided deps map.
 func dependencies(ctx *build.Context, pkg *build.Package, deps map[string]*build.Package) error {
 	for _, imp := range pkg.Imports {
