@@ -1,0 +1,9 @@
+default-character-set=utf8mb4
+default-collation=utf8mb4_general_ci
+schema=trillian
+
+[dev]
+host=127.0.0.1
+port=3306
+schema=test
+new-schemas=false
