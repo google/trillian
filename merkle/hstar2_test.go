@@ -16,10 +16,13 @@ package merkle
 
 import (
 	"bytes"
+	"crypto"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"testing"
 
+	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
@@ -50,11 +53,11 @@ var simpleTestVector = []struct {
 
 // createHStar2Leaves returns a []HStar2LeafHash formed by the mapping of index, value ...
 // createHStar2Leaves panics if len(iv) is odd. Duplicate i/v pairs get over written.
-func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) ([]HStar2LeafHash, error) {
+func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) ([]*HStar2LeafHash, error) {
 	if len(iv)%2 != 0 {
 		panic(fmt.Sprintf("merkle: createHstar2Leaves got odd number of iv pairs: %v", len(iv)))
 	}
-	m := make(map[string]HStar2LeafHash)
+	m := make(map[string]*HStar2LeafHash)
 	var index []byte
 	for i, b := range iv {
 		if i%2 == 0 {
@@ -65,13 +68,13 @@ func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) ([
 		if err != nil {
 			return nil, err
 		}
-		m[fmt.Sprintf("%x", index)] = HStar2LeafHash{
+		m[fmt.Sprintf("%x", index)] = &HStar2LeafHash{
 			Index:    new(big.Int).SetBytes(index),
 			LeafHash: leafHash,
 		}
 	}
 
-	r := make([]HStar2LeafHash, 0, len(m))
+	r := make([]*HStar2LeafHash, 0, len(m))
 	for _, v := range m {
 		r = append(r, v)
 	}
@@ -138,8 +141,8 @@ func TestHStar2GetSet(t *testing.T) {
 // Create intermediate "root" values for the passed in HStar2LeafHashes.
 // These "root" hashes are from (assumed distinct) subtrees of size
 // 256-prefixSize, and can be passed in as leaves to top-subtree calculation.
-func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HStar2LeafHash {
-	var ret []HStar2LeafHash
+func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []*HStar2LeafHash) []*HStar2LeafHash {
+	var ret []*HStar2LeafHash
 	hasher := maphasher.Default
 	s := NewHStar2(treeID, hasher)
 	for i := range lh {
@@ -150,12 +153,12 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 			prefix = append([]byte{0}, prefix...)
 		}
 		prefix = prefix[:prefixSize/8] // We only want the first prefixSize bytes.
-		root, err := s.HStar2Nodes(prefix, subtreeDepth, []HStar2LeafHash{lh[i]}, nil, nil)
+		root, err := s.HStar2Nodes(prefix, subtreeDepth, []*HStar2LeafHash{lh[i]}, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
 
-		ret = append(ret, HStar2LeafHash{
+		ret = append(ret, &HStar2LeafHash{
 			Index:    storage.NewNodeIDFromPrefixSuffix(prefix, storage.EmptySuffix, hasher.BitLen()).BigInt(),
 			LeafHash: root,
 		})
@@ -196,8 +199,38 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 	s := NewHStar2(treeID, maphasher.Default)
 
-	_, err := s.HStar2Nodes(make([]byte, 31), 9, []HStar2LeafHash{}, nil, nil)
+	_, err := s.HStar2Nodes(make([]byte, 31), 9, []*HStar2LeafHash{}, nil, nil)
 	if got, want := err, ErrSubtreeOverrun; got != want {
 		t.Fatalf("Hstar2Nodes(): %v, want %v", got, want)
 	}
+}
+
+func BenchmarkHStar2Root(b *testing.B) {
+	hs2 := NewHStar2(42, coniks.New(crypto.SHA256))
+	for i := 0; i < b.N; i++ {
+		_, err := hs2.HStar2Root(256, leafHashes(b, 200))
+		if err != nil {
+			b.Fatalf("hstar2 root failed: %v", err)
+		}
+	}
+}
+
+func leafHashes(b *testing.B, n int) []*HStar2LeafHash {
+	b.Helper()
+	// Use a fixed sequence to ensure runs are comparable
+	r := rand.New(rand.NewSource(42424242))
+	lh := make([]*HStar2LeafHash, 0, n)
+
+	for l := 0; l < n; l++ {
+		h := make([]byte, 32)
+		if _, err := r.Read(h); err != nil {
+			b.Fatalf("Failed to make random leaf hashes: %v", err)
+		}
+		lh = append(lh, &HStar2LeafHash{
+			LeafHash: h,
+			Index:    big.NewInt(r.Int63()),
+		})
+	}
+
+	return lh
 }
