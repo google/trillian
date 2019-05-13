@@ -172,7 +172,6 @@ func TestMain(m *testing.M) {
 	}
 	db = openTestDBOrDie()
 	defer db.Close()
-	//	cleanTestDB(db, m)
 	ec = m.Run()
 	os.Exit(ec)
 }
