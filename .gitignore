@@ -13,6 +13,7 @@
 /ct_server
 /dump_tree
 /etcdiscover
+/license
 /loglb
 /maphammer
 /mapreplay

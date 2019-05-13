@@ -465,30 +465,37 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 	}
 
 	// Let quota.Manager know about newly-sequenced entries.
-	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
-	// Implementations are tasked with filtering quotas that shouldn't be replenished.
-	// TODO(codingllama): Consider adding a source-aware replenish method
-	// (eg, qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no ambiguity as to
-	// where the tokens come from.
-	if numLeaves > 0 {
-		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
-		specs := []quota.Spec{
-			{Group: quota.Tree, Kind: quota.Read, TreeID: tree.TreeId},
-			{Group: quota.Tree, Kind: quota.Write, TreeID: tree.TreeId},
-			{Group: quota.Global, Kind: quota.Read},
-			{Group: quota.Global, Kind: quota.Write},
-		}
-		glog.V(2).Infof("%v: Replenishing %v tokens (numLeaves = %v)", tree.TreeId, tokens, numLeaves)
-		err := s.qm.PutTokens(ctx, tokens, specs)
-		if err != nil {
-			glog.Warningf("%v: Failed to replenish %v tokens: %v", tree.TreeId, tokens, err)
-		}
-		quota.Metrics.IncReplenished(tokens, specs, err == nil)
-	}
+	s.replenishQuota(ctx, numLeaves, tree.TreeId)
 
 	seqCounter.Add(float64(numLeaves), label)
 	if newSLR != nil {
 		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", tree.TreeId, numLeaves, newLogRoot.TreeSize, newLogRoot.Revision)
 	}
 	return numLeaves, nil
+}
+
+// replenishQuota replenishes all quotas, such as {Tree/Global, Read/Write},
+// that are possibly influenced by sequencing numLeaves entries for the passed
+// in tree ID. Implementations are tasked with filtering quotas that shouldn't
+// be replenished.
+//
+// TODO(codingllama): Consider adding a source-aware replenish method (e.g.,
+// qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no
+// ambiguity as to where the tokens come from.
+func (s Sequencer) replenishQuota(ctx context.Context, numLeaves int, treeID int64) {
+	if numLeaves > 0 {
+		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
+		specs := []quota.Spec{
+			{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},
+			{Group: quota.Tree, Kind: quota.Write, TreeID: treeID},
+			{Group: quota.Global, Kind: quota.Read},
+			{Group: quota.Global, Kind: quota.Write},
+		}
+		glog.V(2).Infof("%v: replenishing %d tokens (numLeaves = %d)", treeID, tokens, numLeaves)
+		err := s.qm.PutTokens(ctx, tokens, specs)
+		if err != nil {
+			glog.Warningf("%v: failed to replenish %d tokens: %v", treeID, tokens, err)
+		}
+		quota.Metrics.IncReplenished(tokens, specs, err == nil)
+	}
 }
