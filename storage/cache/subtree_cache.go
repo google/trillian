@@ -169,8 +169,26 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	if err != nil {
 		return err
 	}
+
+	ch := make(chan *storagepb.SubtreeProto, len(want))
+	wg := &sync.WaitGroup{}
+
 	for _, t := range subtrees {
-		s.populate(t)
+		t := t
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.populate(t)
+			ch <- t
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for t := range ch {
 		s.subtrees[string(t.Prefix)] = t
 		delete(want, string(t.Prefix))
 	}
