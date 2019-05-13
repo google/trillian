@@ -196,6 +196,11 @@ The CompactMerkleTree has been moved from `github.com/google/trillian/merkle` to
 A new powerful data structure named Compact Range has been added to the same
 package. It is a generalization of the previous compact Merkle tree structure.
 
+`AddLeaf*` methods of `compact.Tree` have been replaced with the corresponding
+`AppendLeaf*` methods, which do not report hashes of ephemeral nodes along the
+right border of the Merkle tree. The `CalculateRoot` method should be used in
+conjunction with appends if the caller needs to get those hashes.
+
 ### Storage API changes
 
 The internal storage API is modified so that the ReadOnlyTreeTX.ReadRevision and
