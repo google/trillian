@@ -159,9 +159,6 @@ func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix
 // SetLeaf sets a single leaf hash for incorporation into the sparse Merkle tree.
 // index is the full path of the leaf, starting from the root (not the subtree's root).
 func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) error {
-	ctx, spanEnd := spanFor(ctx, "SetLeaf")
-	defer spanEnd()
-
 	depth := len(index) * 8
 	absSubtreeDepth := len(s.prefix)*8 + s.subtreeDepth
 
