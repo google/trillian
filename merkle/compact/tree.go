@@ -173,6 +173,8 @@ func (t *Tree) recalculateRoot(visit VisitFn) error {
 //
 // visit is a callback which will be called multiple times with the coordinates
 // of the Merkle tree nodes whose hash should be updated.
+//
+// If returns an error then the Tree is no longer usable.
 func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
 	h, err := t.hasher.HashLeaf(data)
 	if err != nil {
@@ -188,11 +190,17 @@ func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
 //
 // visit is a callback which will be called multiple times with the coordinates
 // of the Merkle tree nodes whose hash should be updated.
-func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) error {
+//
+// If returns an error then the Tree is no longer usable.
+func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
 	defer func() {
+		if res != nil {
+			return
+		}
 		t.size++
-		// TODO(pavelkalinnikov): Handle recalculateRoot errors.
-		t.recalculateRoot(visit)
+		if err := t.recalculateRoot(visit); err != nil {
+			res = err
+		}
 	}()
 
 	assignedSeq := t.size
