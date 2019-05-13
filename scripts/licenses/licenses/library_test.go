@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestLibaries(t *testing.T) {
+func TestLibraries(t *testing.T) {
 	for _, test := range []struct {
 		desc       string
 		importPath string
