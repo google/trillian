@@ -118,7 +118,7 @@ func NewTree(hasher hashers.LogHasher) *Tree {
 
 // CurrentRoot returns the current root hash.
 func (t *Tree) CurrentRoot() ([]byte, error) {
-	return t.calculateRoot(nil)
+	return t.CalculateRoot(nil)
 }
 
 // String describes the internal state of the compact Tree.
@@ -138,11 +138,11 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-// calculateRoot computes the current root hash. It calls visit function for
+// CalculateRoot computes the current root hash. It calls visit function for
 // imperfect subtrees along the right border of the tree while calculating it.
 //
 // TODO(pavelkalinnikov): Run this only once, after multiple AddLeaf calls.
-func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
+func (t *Tree) CalculateRoot(visit VisitFn) ([]byte, error) {
 	if t.size == 0 {
 		return t.hasher.EmptyRoot(), nil
 	}
@@ -196,7 +196,7 @@ func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := t.calculateRoot(visit); err != nil {
+	if _, err := t.CalculateRoot(visit); err != nil {
 		return nil, err
 	}
 	return hash, nil
@@ -277,7 +277,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) error {
 	if err := t.AppendLeafHash(leafHash, visit); err != nil {
 		return err
 	}
-	_, err := t.calculateRoot(visit)
+	_, err := t.CalculateRoot(visit)
 	return err
 }
 
