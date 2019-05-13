@@ -24,14 +24,14 @@ import (
 )
 
 var (
-	gitRemotes []string
-
 	csvCmd = &cobra.Command{
 		Use:   "csv <package>",
 		Short: "Prints all licenses that apply to a Go package and its dependencies",
 		Args:  cobra.ExactArgs(1),
 		RunE:  csvMain,
 	}
+
+	gitRemotes []string
 )
 
 func init() {

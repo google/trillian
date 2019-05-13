@@ -30,13 +30,13 @@ import (
 )
 
 var (
-	// Flags shared between subcommands
-	confidenceThreshold float64
-	buildTags           string
-
 	rootCmd = &cobra.Command{
 		Use: "licenses",
 	}
+
+	// Flags shared between subcommands
+	confidenceThreshold float64
+	buildTags           string
 )
 
 func init() {

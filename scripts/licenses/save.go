@@ -28,6 +28,13 @@ import (
 )
 
 var (
+	saveCmd = &cobra.Command{
+		Use:   "save <package>",
+		Short: "Saves licenses, copyright notices and source code, as required by a Go package's dependencies, to a directory.",
+		Args:  cobra.ExactArgs(1),
+		RunE:  saveMain,
+	}
+
 	noticeRegexp = regexp.MustCompile(`^NOTICE(\.(txt|md))?$`)
 
 	// savePath is where the output of the command is written to.
@@ -35,13 +42,6 @@ var (
 	// overwriteSavePath controls behaviour when the directory indicated by savePath already exists.
 	// If true, the directory will be replaced. If false, the command will fail.
 	overwriteSavePath bool
-
-	saveCmd = &cobra.Command{
-		Use:   "save <package>",
-		Short: "Saves licenses, copyright notices and source code, as required by a Go package's dependencies, to a directory.",
-		Args:  cobra.ExactArgs(1),
-		RunE:  saveMain,
-	}
 )
 
 func init() {
