@@ -38,6 +38,5 @@ func TestMain(m *testing.M) {
 	defer cancel()
 	db = testdb.NewTrillianDBOrDie(ctx)
 	defer db.Close()
-	ec := m.Run()
-	os.Exit(ec)
+	os.Exit(m.Run())
 }
