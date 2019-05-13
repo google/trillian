@@ -378,23 +378,31 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
 }
 
-// txRunner satisfies the merkle.TXRunner interface.
-type txRunner struct {
-	tree       *trillian.Tree
-	tx         storage.MapTreeTX
-	mapStorage storage.MapStorage
-	opts       TrillianMapServerOptions
+func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeTX) merkle.TXRunner {
+	if t.opts.UseSingleTransaction {
+		return &singleTXRunner{tx: tx}
+	}
+	return &multiTXRunner{tree: tree, mapStorage: t.registry.MapStorage}
 }
 
-func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeTX) *txRunner {
-	return &txRunner{tree: tree, mapStorage: t.registry.MapStorage, opts: t.opts}
+// singleTXRunner satisfies the merkle.TXRunner interface.
+type singleTXRunner struct {
+	tx storage.MapTreeTX
 }
 
 // RunTX runs a transaction given a transaction runner f.
-func (r *txRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-	if r.opts.UseSingleTransaction {
-		return f(ctx, r.tx)
-	}
+func (r *singleTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
+	return f(ctx, r.tx)
+}
+
+// multiTXRunner satisfies the merkle.TXRunner interface.
+type multiTXRunner struct {
+	tree       *trillian.Tree
+	mapStorage storage.MapStorage
+}
+
+// RunTX runs a transaction given a transaction runner f.
+func (r *multiTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 	return r.mapStorage.ReadWriteTransaction(ctx, r.tree, f)
 }
 
