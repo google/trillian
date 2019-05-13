@@ -159,9 +159,6 @@ func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix
 // SetLeaf sets a single leaf hash for incorporation into the sparse Merkle tree.
 // index is the full path of the leaf, starting from the root (not the subtree's root).
 func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) error {
-	ctx, spanEnd := spanFor(ctx, "SetLeaf")
-	defer spanEnd()
-
 	depth := len(index) * 8
 	absSubtreeDepth := len(s.prefix)*8 + s.subtreeDepth
 
@@ -425,7 +422,7 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 	ctx, spanEnd := spanFor(ctx, "BatchInclusionProof")
 	defer spanEnd()
 
-	_, calculateSpanEnd := spanFor(ctx, "BatchInclusionProof.calculateNodes")
+	_, calculateSpanEnd := spanFor(ctx, "binc.calculateNodes")
 	indexToSibs := make(map[string][]storage.NodeID)
 	allSibs := make([]storage.NodeID, 0, len(indices)*s.hasher.BitLen())
 	includedNodes := map[string]bool{}
@@ -442,14 +439,14 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 	}
 	calculateSpanEnd()
 
-	gnCtx, getNodesSpanEnd := spanFor(ctx, "BatchInclusionProof.getMerkleNodes")
+	gnCtx, getNodesSpanEnd := spanFor(ctx, "binc.getMerkleNodes")
 	nodes, err := s.tx.GetMerkleNodes(gnCtx, rev, allSibs)
 	if err != nil {
 		return nil, err
 	}
 	getNodesSpanEnd()
 
-	_, postprocessSpanEnd := spanFor(ctx, "BatchInclusionProof.postprocess")
+	_, postprocessSpanEnd := spanFor(ctx, "binc.postprocess")
 	nodeMap := make(map[string]*storage.Node)
 	for i, n := range nodes {
 		glog.V(2).Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.AsKey()), n.Hash)
@@ -494,7 +491,7 @@ func (s *SparseMerkleTreeWriter) SetLeaves(ctx context.Context, leaves []HashKey
 
 // CalculateRoot calculates the new root hash including the newly added leaves.
 func (s *SparseMerkleTreeWriter) CalculateRoot(ctx context.Context) ([]byte, error) {
-	ctx, spanEnd := spanFor(ctx, "SparseMerkleTreeWriter.CalculateRoot")
+	ctx, spanEnd := spanFor(ctx, "writer.CalculateRoot")
 	defer spanEnd()
 
 	s.tree.CalculateRoot(ctx)
@@ -511,5 +508,5 @@ type HashKeyValue struct {
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, func()) {
-	return monitoring.StartSpan(ctx, fmt.Sprintf("github.com/google/trillian/merkle/sparse_merkle_tree.%s", name))
+	return monitoring.StartSpan(ctx, fmt.Sprintf("/trillian/m_sparse.%s", name))
 }
