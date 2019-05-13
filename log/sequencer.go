@@ -224,9 +224,13 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 		if size := mt.Size(); size != idx {
 			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
-		if err := mt.AddLeafHash(leaf.MerkleLeafHash, store); err != nil {
+		if err := mt.AppendLeafHash(leaf.MerkleLeafHash, store); err != nil {
 			return nil, err
 		}
+	}
+	// TODO(pavelkalinnikov): Reuse the returned root hash in IntegrateBatch.
+	if _, err := mt.CalculateRoot(store); err != nil {
+		return nil, err
 	}
 
 	return nodeMap, nil
