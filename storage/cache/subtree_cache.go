@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
+// TODO(al): move this up the stack
 var populateConcurrency = flag.Int("populate_subtree_concurrency", 256, "Max number of concurrent workers concurrently populating subtrees")
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
