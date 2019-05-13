@@ -165,13 +165,11 @@ func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trill
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	ec := 0
 	if !testdb.PGAvailable() {
 		glog.Errorf("PG not available, skipping all PG storage tests")
 		return
 	}
 	db = openTestDBOrDie()
 	defer db.Close()
-	ec = m.Run()
-	os.Exit(ec)
+	os.Exit(m.Run())
 }
