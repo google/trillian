@@ -131,12 +131,13 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 
 		lastBatchRevision = batch.TreeRevision
 		nodeMap := make(map[compact.NodeID][]byte)
+		store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 		for _, leaf := range batch.Leaves {
-			// We're only interested in the side effects of adding leaves - the node updates
-			tree.AddLeaf([]byte(leaf), func(id compact.NodeID, hash []byte) {
-				nodeMap[id] = hash
-			})
+			// Only interested in side effects of AppendLeaf - the node updates.
+			tree.AppendLeaf([]byte(leaf), store)
 		}
+		// TODO(pavelkalinnikov): Handle errors (although they should not happen).
+		tree.CalculateRoot(store) // Store the ephemeral nodes as well.
 
 		// Sanity check the tree root hash against the one we expect to see.
 		root, err := tree.CurrentRoot()
