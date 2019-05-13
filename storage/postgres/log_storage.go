@@ -611,13 +611,6 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL,
 			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, timestamp.UnixNano())
 		// TODO(pavelkalinnikov): Detach PREORDERED_LOG integration latency metric.
-
-		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
-		//if isDuplicateErr(err) {
-		//		res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
-		// Note: No rolling back to savepoint because there is no side effect.
-		//		continue
-		//} else
 		if err != nil {
 			glog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
 			return nil, err
@@ -836,35 +829,11 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 	}
 	var logRoot types.LogRootV1
 	json.Unmarshal(jsonObj, &logRoot)
-	/*
-		if err := t.tx.QueryRowContext(
-			ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
-			&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
-		); err == sql.ErrNoRows {
-			// It's possible there are no roots for this tree yet
-			return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
-		}
-
-		// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
-		logRoot, err := (&types.LogRootV1{
-			RootHash:       rootHash,
-			TimestampNanos: uint64(timestamp),
-			Revision:       uint64(treeRevision),
-			TreeSize:       uint64(treeSize),
-		}).MarshalBinary()
-		if err != nil {
-			return trillian.SignedLogRoot{}, err
-		}*/
 	newRoot, _ := logRoot.MarshalBinary()
 	return trillian.SignedLogRoot{
 		KeyHint:          types.SerializeKeyHint(t.treeID),
 		LogRoot:          newRoot,
 		LogRootSignature: rootSignatureBytes,
-		// TODO(gbelvin): Remove deprecated fields
-		//TimestampNanos: int64(logRoot.TimestampNanos), //timestamp,
-		//RootHash:       logRoot.RootHash, //rootHash,
-		//TreeSize:       int64(logRoot.TreeSize), //treeSize,
-		//TreeRevision:   int64(logRoot.Revision), //treeRevision,
 	}, nil
 }
 
