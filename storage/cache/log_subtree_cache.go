@@ -58,6 +58,23 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 		if st.InternalNodes == nil || len(st.Leaves) == maxLeaves {
 			st.InternalNodes = make(map[string][]byte)
 		}
+		store := func(id compact.NodeID, hash []byte) {
+			if id.Level == logStrataDepth && id.Index == 0 {
+				// no space for the root in the node cache
+				return
+			}
+
+			// Don't put leaves into the internal map and only update if we're rebuilding internal
+			// nodes. If the subtree was saved with internal nodes then we don't touch the map.
+			if id.Level > 0 && len(st.Leaves) == maxLeaves {
+				subDepth := logStrataDepth - int(id.Level)
+				// TODO(Martin2112): See if we can possibly avoid the expense hiding inside NewNodeIDFromPrefix.
+				nodeID := storage.NewNodeIDFromPrefix(st.Prefix, subDepth, int64(id.Index), logStrataDepth, maxLogDepth)
+				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
+				sfxKey := sfx.String()
+				st.InternalNodes[sfxKey] = hash
+			}
+		}
 
 		// We need to update the subtree root hash regardless of whether it's fully populated
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
@@ -68,28 +85,11 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 			if h == nil {
 				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
 			}
-			seq := cmt.Size()
-			if err := cmt.AddLeafHash(h, func(id compact.NodeID, h []byte) {
-				if id.Level == logStrataDepth && id.Index == 0 {
-					// no space for the root in the node cache
-					return
-				}
-
-				// Don't put leaves into the internal map and only update if we're rebuilding internal
-				// nodes. If the subtree was saved with internal nodes then we don't touch the map.
-				if id.Level > 0 && len(st.Leaves) == maxLeaves {
-					subDepth := logStrataDepth - int(id.Level)
-					// TODO(Martin2112): See if we can possibly avoid the expense hiding inside NewNodeIDFromPrefix.
-					nodeID := storage.NewNodeIDFromPrefix(st.Prefix, subDepth, int64(id.Index), logStrataDepth, maxLogDepth)
-					_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
-					sfxKey := sfx.String()
-					st.InternalNodes[sfxKey] = h
-				}
-			}); err != nil {
-				return err
+			if size, expected := cmt.Size(), leafIndex; size != expected {
+				return fmt.Errorf("got size of %d, but expected %d", size, expected)
 			}
-			if got, expected := seq, leafIndex; got != expected {
-				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
+			if err := cmt.AddLeafHash(h, store); err != nil {
+				return err
 			}
 		}
 		root, err := cmt.CurrentRoot()
