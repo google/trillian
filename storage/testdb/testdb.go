@@ -35,6 +35,7 @@ import (
 var (
 	trillianSQL   = testonly.RelativeToPackage("../mysql/storage.sql")
 	dataSourceURI = flag.String("test_mysql_uri", "root@tcp(127.0.0.1)/", "The MySQL uri to use when running tests")
+	mysqlMaxConns = flag.Int("test_mysql_max_conns", 100, "Maximum number of connections to open to the MySQL server used when running tests")
 )
 
 // MySQLAvailable indicates whether a default MySQL database is available.
@@ -72,6 +73,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(*mysqlMaxConns)
 
 	return db, db.Ping()
 }
