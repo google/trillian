@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -82,15 +81,15 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var pkgsWithUnknownLicense []*build.Package
 	libs, err := libraries(importPath)
 	if err != nil {
 		return err
 	}
+	libsWithBadLicenses := make(map[licenses.Type][]*licenses.Library)
 	for _, lib := range libs {
 		libSaveDir := filepath.Join(savePath, unvendor(lib.Name()))
 		// Detect what type of license this library has and fulfill its requirements, e.g. copy license, copyright notice, source code, etc.
-		licenseName, licenseType, err := classifier.Identify(lib.LicensePath)
+		_, licenseType, err := classifier.Identify(lib.LicensePath)
 		if err != nil {
 			return err
 		}
@@ -106,16 +105,12 @@ func saveMain(cmd *cobra.Command, args []string) error {
 			if err := copyNotices(lib.LicensePath, libSaveDir); err != nil {
 				return err
 			}
-		case licenses.Forbidden:
-			return fmt.Errorf("forbidden license %q used by this library: %s", licenseName, lib)
-		case licenses.Unknown:
-			pkgsWithUnknownLicense = append(pkgsWithUnknownLicense, lib.Packages...)
 		default:
-			glog.Fatalf("%q license is of an unrecognised type: %q", licenseName, licenseType)
+			libsWithBadLicenses[licenseType] = append(libsWithBadLicenses[licenseType], lib)
 		}
 	}
-	if len(pkgsWithUnknownLicense) > 0 {
-		return fmt.Errorf("Packages with unknown license: %v", pkgsWithUnknownLicense)
+	if len(libsWithBadLicenses) > 0 {
+		return fmt.Errorf("one or more libraries have an incompatible/unknown license: %q", libsWithBadLicenses)
 	}
 	return nil
 }

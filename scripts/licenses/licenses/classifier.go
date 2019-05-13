@@ -52,6 +52,17 @@ const (
 	Forbidden = Type("FORBIDDEN")
 )
 
+func (t Type) String() string {
+	switch t {
+	case Unknown:
+		// licenseclassifier uses an empty string to indicate an unknown license
+		// type, which is unclear to users when printed as a string.
+		return "unknown"
+	default:
+		return string(t)
+	}
+}
+
 // Classifier can detect the type of a software license.
 type Classifier struct {
 	classifier *licenseclassifier.License
