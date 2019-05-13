@@ -140,8 +140,6 @@ func (t *Tree) String() string {
 
 // CalculateRoot computes the current root hash. It calls visit function for
 // imperfect subtrees along the right border of the tree while calculating it.
-//
-// TODO(pavelkalinnikov): Run this only once, after multiple AddLeaf calls.
 func (t *Tree) CalculateRoot(visit VisitFn) ([]byte, error) {
 	if t.size == 0 {
 		return t.hasher.EmptyRoot(), nil
