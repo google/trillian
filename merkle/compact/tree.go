@@ -194,8 +194,11 @@ func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
 // If returns and error then the Tree is no longer usable.
 func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
 	defer func() {
+		if res != nil {
+			return
+		}
 		t.size++
-		if err := t.recalculateRoot(visit); err != nil && res == nil {
+		if err := t.recalculateRoot(visit); err != nil {
 			res = err
 		}
 	}()
