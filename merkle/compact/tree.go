@@ -32,19 +32,8 @@ import (
 // TODO(pavelkalinnikov): Remove it, use compact.Range instead.
 type Tree struct {
 	hasher hashers.LogHasher
-	// The list of "dangling" left-hand nodes, where entry [0] is the leaf.
-	// So: nodes[0] is the hash of a subtree of size 1 = 1<<0, if included.
-	//     nodes[1] is the hash of a subtree of size 2 = 1<<1, if included.
-	//     nodes[2] is the hash of a subtree of size 4 = 1<<2, if included.
-	//     ....
-	// Nodes are included if the tree size includes that power of two.
-	// For example, a tree of size 21 is built from subtrees of sizes
-	// 16 + 4 + 1, so nodes[1] == nodes[3] == nil.
-	//
-	// For a tree whose size is a perfect power of two, only the last
-	// entry in nodes will be set (which is also the root hash).
-	nodes [][]byte
-	size  int64
+	nodes  [][]byte
+	size   int64
 }
 
 func isPerfectTree(size int64) bool {
@@ -266,6 +255,24 @@ func (t *Tree) Hashes() [][]byte {
 	if isPerfectTree(t.size) {
 		return nil
 	}
+	return t.getNodes()
+}
+
+// getNodes returns the list of "dangling" left-hand nodes on the right border
+// of the tree. They are indexed from the bottom, so the entry [0] is a leaf.
+//
+// So: nodes[0] is the hash of a subtree of size 1 = 1<<0, if included.
+//     nodes[1] is the hash of a subtree of size 2 = 1<<1, if included.
+//     nodes[2] is the hash of a subtree of size 4 = 1<<2, if included.
+//     ....
+//
+// Nodes are included if the tree size includes that power of two. For example,
+// a tree of size 21 is built from subtrees of sizes 16 + 4 + 1, and thus
+// nodes[1] == nodes[3] == nil.
+//
+// For a tree whose size is a perfect power of two, only the last entry in
+// nodes is set, and it also matches the tree root hash.
+func (t *Tree) getNodes() [][]byte {
 	n := make([][]byte, len(t.nodes))
 	copy(n, t.nodes)
 	return n
