@@ -131,6 +131,7 @@ The [db\_server Docker image](examples/deployment/docker/db_server/Dockerfile)
 is now based on
 [the MySQL 5.7 image from the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/google/mysql5),
 rather than the [official MySQL 5.7 image](https://hub.docker.com/_/mysql).
+This Dockerfile supercedes Dockerfile.db, which has been removed.
 
 There is now a [mysql.cnf file](examples/deployment/docker/db_server/mysql.cnf)
 alongside the Dockerfile that makes it easy to build the image with a custom
