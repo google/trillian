@@ -175,7 +175,7 @@ lead to excessive storage requirements for Trillian metrics).
 
 #### Add timeout to sequencing loop
 
-Added a timeout to the context in the sequencing loop.
+Added a timeout to the context in the sequencing loop, with a default of 60s.
 
 #### Fix Operation Loop Hang
 
