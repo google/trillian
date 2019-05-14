@@ -283,3 +283,7 @@ func benchmarkAddLeafHash(b *testing.B, visit VisitFn) {
 func BenchmarkAddLeafHash(b *testing.B) {
 	benchmarkAddLeafHash(b, func(NodeID, []byte) {})
 }
+
+func BenchmarkAddLeafHashNoVisitor(b *testing.B) {
+	benchmarkAddLeafHash(b, nil)
+}

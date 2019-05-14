@@ -161,7 +161,9 @@ func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
 				first = false
 			} else {
 				hash = t.hasher.HashChildren(t.nodes[bit], hash)
-				visit(NewNodeID(bit+1, index), hash)
+				if visit != nil {
+					visit(NewNodeID(bit+1, index), hash)
+				}
 			}
 		}
 		mask <<= 1
@@ -172,8 +174,8 @@ func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
 // AddLeaf calculates the Merkle leaf hash of the given leaf data and appends
 // it to the tree. Returns the Merkle hash of the new leaf.
 //
-// visit is a callback which will be called multiple times with the coordinates
-// of the Merkle tree nodes whose hash should be updated.
+// visit is a callback which will be called, if not nil, multiple times with
+// the coordinates of the Merkle tree nodes whose hash should be updated.
 //
 // If returns an error then the Tree is no longer usable.
 func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
@@ -189,8 +191,8 @@ func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
 
 // AddLeafHash appends the specified Merkle leaf hash to the tree.
 //
-// visit is a callback which will be called multiple times with the coordinates
-// of the Merkle tree nodes whose hash should be updated.
+// visit is a callback which will be called, if not nil, multiple times with
+// the coordinates of the Merkle tree nodes whose hash should be updated.
 //
 // If returns an error then the Tree is no longer usable.
 func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
@@ -207,7 +209,9 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
 	assignedSeq := t.size
 	index := uint64(assignedSeq)
 
-	visit(NewNodeID(0, index), leafHash)
+	if visit != nil {
+		visit(NewNodeID(0, index), leafHash)
+	}
 
 	if t.size == 0 {
 		// new tree
@@ -225,7 +229,7 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
 			// Just store the running hash here; we're done.
 			t.nodes[bit] = hash
 			// Don't re-write the leaf hash node (we've done it above already)
-			if bit > 0 {
+			if bit > 0 && visit != nil {
 				// Store the (non-leaf) hash node
 				visit(NewNodeID(bit, index), hash)
 			}
@@ -234,7 +238,9 @@ func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = t.hasher.HashChildren(t.nodes[bit], hash)
 		// Store the resulting parent hash.
-		visit(NewNodeID(bit+1, index), hash)
+		if visit != nil {
+			visit(NewNodeID(bit+1, index), hash)
+		}
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
 		t.nodes[bit] = nil
 		// Figure out if we're done:
