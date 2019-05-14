@@ -118,7 +118,7 @@ func NewTree(hasher hashers.LogHasher) *Tree {
 
 // CurrentRoot returns the current root hash.
 func (t *Tree) CurrentRoot() ([]byte, error) {
-	return t.calculateRoot(func(NodeID, []byte) {})
+	return t.calculateRoot(nil)
 }
 
 // String describes the internal state of the compact Tree.
