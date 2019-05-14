@@ -118,8 +118,8 @@ running and configured to:
    --port=3306` connects OK)
  - not require a password for the `root` user
 
-You can then set up the [expected tables](storage/mysql/storage.sql) in a `test`
-database like so:
+You can then set up the [expected tables](storage/mysql/schema/storage.sql) in a
+`test` database like so:
 
 ```bash
 ./scripts/resetdb.sh
