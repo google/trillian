@@ -266,3 +266,20 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		}
 	}
 }
+
+func benchmarkAddLeafHash(b *testing.B, visit VisitFn) {
+	const size = 1024
+	for n := 0; n < b.N; n++ {
+		tree := NewTree(rfc6962.DefaultHasher)
+		for i := 0; i < size; i++ {
+			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
+			if _, err := tree.AddLeaf(l, visit); err != nil {
+				b.Fatalf("AddLeaf: %v", err)
+			}
+		}
+	}
+}
+
+func BenchmarkAddLeafHash(b *testing.B) {
+	benchmarkAddLeafHash(b, func(NodeID, []byte) {})
+}
