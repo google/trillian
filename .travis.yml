@@ -74,8 +74,9 @@ install:
       github.com/uber/prototool/cmd/prototool
       golang.org/x/tools/cmd/stringer
   # install vendored etcd binary
-  - go install ./vendor/github.com/coreos/etcd/cmd/etcd
-  - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
+  - go install
+      ./vendor/github.com/coreos/etcd/cmd/etcd
+      ./vendor/github.com/coreos/etcd/cmd/etcdctl
   # install bazel
   - |
     (
