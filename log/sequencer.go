@@ -105,6 +105,7 @@ type Sequencer struct {
 	logStorage storage.LogStorage
 	signer     *tcrypto.Signer
 	qm         quota.Manager
+	tc         TreeCache
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
@@ -130,15 +131,19 @@ func NewSequencer(
 		logStorage: logStorage,
 		signer:     signer,
 		qm:         qm,
+		tc:         NewTreeCache(),
 	}
 }
 
 // initCompactRangeFromStorage builds a compact range that matches the latest
 // data in the database. Ensures that the root hash matches the passed in root.
-func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
+func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, treeID int64, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
 	fact := compact.RangeFactory{Hash: s.hasher.HashChildren}
 	if root.TreeSize == 0 {
 		return fact.NewEmptyRange(0), nil
+	}
+	if ct := s.tc.CompactRange(treeID, root); ct != nil {
+		return ct, nil
 	}
 
 	ids := compact.TreeNodes(root.TreeSize)
@@ -225,7 +230,7 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 
 // updateCompactRange adds the passed in leaves to the compact range. Returns a
 // map of all updated tree nodes, and the new root hash.
-func (s Sequencer) updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
+func (s Sequencer) updateCompactRange(cr *compact.Range, treeID int64, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
@@ -247,6 +252,7 @@ func (s Sequencer) updateCompactRange(cr *compact.Range, leaves []*trillian.LogL
 	if err != nil {
 		return nil, nil, err
 	}
+	s.tc.Update(treeID, cr)
 	return nodeMap, hash, nil
 }
 
@@ -393,7 +399,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		stageStart = s.timeSource.Now()
-		cr, err := s.initCompactRangeFromStorage(ctx, &currentRoot, tx)
+		cr, err := s.initCompactRangeFromStorage(ctx, tree.TreeId, &currentRoot, tx)
 		if err != nil {
 			return fmt.Errorf("%v: compact range init failed: %v", tree.TreeId, err)
 		}
@@ -416,7 +422,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		if err := s.prepareLeaves(sequencedLeaves, cr.End(), label); err != nil {
 			return err
 		}
-		nodeMap, newRoot, err := s.updateCompactRange(cr, sequencedLeaves, label)
+		nodeMap, newRoot, err := s.updateCompactRange(cr, tree.TreeId, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
