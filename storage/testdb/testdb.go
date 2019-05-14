@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	trillianSQL   = testonly.RelativeToPackage("../mysql/storage.sql")
+	trillianSQL   = testonly.RelativeToPackage("../mysql/schema/storage.sql")
 	dataSourceURI = flag.String("test_mysql_uri", "root@tcp(127.0.0.1)/", "The MySQL uri to use when running tests")
 )
 
