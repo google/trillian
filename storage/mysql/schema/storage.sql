@@ -36,12 +36,13 @@ CREATE TABLE `TreeControl` (
   CONSTRAINT `TreeControl_ibfk_1` FOREIGN KEY (`TreeId`) REFERENCES `Trees` (`TreeId`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Key columns must be in ASC order in order to benefit from group-by/min-max optimization in MySQL.
 CREATE TABLE `Subtree` (
   `TreeId` bigint(20) NOT NULL,
   `SubtreeId` varbinary(255) NOT NULL,
   `Nodes` mediumblob NOT NULL,
   `SubtreeRevision` int(11) NOT NULL,
-  PRIMARY KEY (`TreeId`,`SubtreeId`,`SubtreeRevision`) COMMENT 'Key columns must be in ASC order in order to benefit from group-by/min-max optimization in MySQL.',
+  PRIMARY KEY (`TreeId`,`SubtreeId`,`SubtreeRevision`),
   CONSTRAINT `Subtree_ibfk_1` FOREIGN KEY (`TreeId`) REFERENCES `Trees` (`TreeId`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -66,15 +67,20 @@ CREATE TABLE `TreeHead` (
 -- Creating index at same time as table allows some storage engines to better
 -- optimize physical storage layout. Most engines allow multiple nulls in a
 -- unique index but some may not.
-
+--
 -- A leaf that has not been sequenced has a row in this table. If duplicate leaves
 -- are allowed they will all reference this row.
+--
+-- LeafIdentityHash: This is a personality specific hash of some subset of the leaf data. It's only purpose is to allow Trillian to identify duplicate entries in the context of the personality.
+-- LeafValue: This is the data stored in the leaf for example in CT it contains a DER encoded X.509 certificate but is application dependent.
+-- ExtraData: This is extra data that the application can associate with the leaf should it wish to. This data is not included in signing and hashing.
+-- QueueTimestampNanos: The timestamp from when this leaf data was first queued for inclusion.
 CREATE TABLE `LeafData` (
   `TreeId` bigint(20) NOT NULL,
-  `LeafIdentityHash` varbinary(255) NOT NULL COMMENT 'This is a personality specific hash of some subset of the leaf data. It''s only purpose is to allow Trillian to identify duplicate entries in the context of the personality.',
-  `LeafValue` longblob NOT NULL COMMENT 'This is the data stored in the leaf for example in CT it contains a DER encoded X.509 certificate but is application dependent.',
-  `ExtraData` longblob COMMENT 'This is extra data that the application can associate with the leaf should it wish to. This data is not included in signing and hashing.',
-  `QueueTimestampNanos` bigint(20) NOT NULL COMMENT 'The timestamp from when this leaf data was first queued for inclusion.',
+  `LeafIdentityHash` varbinary(255) NOT NULL,
+  `LeafValue` longblob NOT NULL,
+  `ExtraData` longblob,
+  `QueueTimestampNanos` bigint(20) NOT NULL,
   PRIMARY KEY (`TreeId`,`LeafIdentityHash`),
   CONSTRAINT `LeafData_ibfk_1` FOREIGN KEY (`TreeId`) REFERENCES `Trees` (`TreeId`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -85,11 +91,14 @@ CREATE TABLE `LeafData` (
 -- on the log parameters and we can't insert into this table until we have the sequence number
 -- which is not available at the time we queue the entry. We need both hashes because the
 -- LeafData table is keyed by the raw data hash.
+--
+-- LeafIdentityHash: This is a personality specific has of some subset of the leaf data. It''s only purpose is to allow Trillian to identify duplicate entries in the context of the personality.
+-- MerkleLeafHash: This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for CT this hash will include the leaf prefix byte as well as the leaf data.
 CREATE TABLE `SequencedLeafData` (
   `TreeId` bigint(20) NOT NULL,
   `SequenceNumber` bigint(20) unsigned NOT NULL,
-  `LeafIdentityHash` varbinary(255) NOT NULL COMMENT 'This is a personality specific has of some subset of the leaf data. It''s only purpose is to allow Trillian to identify duplicate entries in the context of the personality.',
-  `MerkleLeafHash` varbinary(255) NOT NULL COMMENT 'This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for CT this hash will include the leaf prefix byte as well as the leaf data.',
+  `LeafIdentityHash` varbinary(255) NOT NULL,
+  `MerkleLeafHash` varbinary(255) NOT NULL,
   `IntegrateTimestampNanos` bigint(20) NOT NULL,
   PRIMARY KEY (`TreeId`,`SequenceNumber`),
   KEY `TreeId` (`TreeId`,`LeafIdentityHash`),
@@ -99,13 +108,17 @@ CREATE TABLE `SequencedLeafData` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+-- Bucket: The bucket field is to allow the use of time based ring bucketed schemes if desired. If unused this should be set to zero for all entries.
+-- LeafIdentityHash: This is a personality specific hash of some subset of the leaf data. It''s only purpose is to allow Trillian to identify duplicate entries in the context of the personality.
+-- MerkleLeafHash: This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for CT this hash will include the leaf prefix byte as well as the leaf data.
+-- QueueID: This is a SHA256 hash of the TreeID, LeafIdentityHash and QueueTimestampNanos. It is used for batched deletes from the table when trillian_log_server and trillian_log_signer are built with the batched_queue tag.
 CREATE TABLE `Unsequenced` (
   `TreeId` bigint(20) NOT NULL,
-  `Bucket` int(11) NOT NULL COMMENT 'The bucket field is to allow the use of time based ring bucketed schemes if desired. If unused this should be set to zero for all entries.',
-  `LeafIdentityHash` varbinary(255) NOT NULL COMMENT 'This is a personality specific hash of some subset of the leaf data. It''s only purpose is to allow Trillian to identify duplicate entries in the context of the personality.',
-  `MerkleLeafHash` varbinary(255) NOT NULL COMMENT 'This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for CT this hash will include the leaf prefix byte as well as the leaf data.',
+  `Bucket` int(11) NOT NULL,
+  `LeafIdentityHash` varbinary(255) NOT NULL,
+  `MerkleLeafHash` varbinary(255) NOT NULL,
   `QueueTimestampNanos` bigint(20) NOT NULL,
-  `QueueID` varbinary(32) DEFAULT NULL COMMENT 'This is a SHA256 hash of the TreeID, LeafIdentityHash and QueueTimestampNanos. It is used for batched deletes from the table when trillian_log_server and trillian_log_signer are built with the batched_queue tag.',
+  `QueueID` varbinary(32) DEFAULT NULL,
   PRIMARY KEY (`TreeId`,`Bucket`,`QueueTimestampNanos`,`LeafIdentityHash`),
   UNIQUE KEY `QueueID` (`QueueID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -115,10 +128,11 @@ CREATE TABLE `Unsequenced` (
 -- Map specific stuff here
 -- ---------------------------------------------
 
+-- MapRevision is stored negated to invert ordering in the primary key index st. more recent revisions come first.
 CREATE TABLE `MapLeaf` (
   `TreeId` bigint(20) NOT NULL,
   `KeyHash` varbinary(255) NOT NULL,
-  `MapRevision` bigint(20) NOT NULL COMMENT 'MapRevision is stored negated to invert ordering in the primary key index st. more recent revisions come first.',
+  `MapRevision` bigint(20) NOT NULL,
   `LeafValue` longblob NOT NULL,
   PRIMARY KEY (`TreeId`,`KeyHash`,`MapRevision`),
   CONSTRAINT `MapLeaf_ibfk_1` FOREIGN KEY (`TreeId`) REFERENCES `Trees` (`TreeId`) ON DELETE CASCADE
