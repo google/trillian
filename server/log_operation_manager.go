@@ -35,6 +35,8 @@ import (
 const logIDLabel = "logid"
 
 var (
+	DefaultTimeout = 60 * time.Second
+
 	once              sync.Once
 	knownLogs         monitoring.Gauge
 	resignations      monitoring.Counter
@@ -90,6 +92,9 @@ type LogOperationInfo struct {
 	RunInterval time.Duration
 	// NumWorkers is the number of worker goroutines to run in parallel.
 	NumWorkers int
+	// Timeout sets an optional timeout on each operation run.
+	// If unset, default to the value of DefaultTimeout.
+	Timeout time.Duration
 }
 
 // LogOperationManager controls scheduling activities for logs.
@@ -116,6 +121,9 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 	once.Do(func() {
 		createMetrics(info.Registry.MetricFactory)
 	})
+	if info.Timeout == 0 {
+		info.Timeout = DefaultTimeout
+	}
 	return &LogOperationManager{
 		info:                info,
 		logOperation:        logOperation,
@@ -264,7 +272,10 @@ func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, activeI
 }
 
 func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
-	activeIDs, err := l.getActiveLogIDs(ctx)
+	runCtx, cancel := context.WithTimeout(ctx, l.info.Timeout)
+	defer cancel()
+
+	activeIDs, err := l.getActiveLogIDs(runCtx)
 	if err != nil {
 		return fmt.Errorf("failed to list active log IDs: %v", err)
 	}
@@ -285,7 +296,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 		ex.jobs <- logID
 	}
 	close(ex.jobs) // Cause executor's run to terminate when it has drained the jobs.
-	ex.run(ctx)
+	ex.run(runCtx)
 	return nil
 }
 
