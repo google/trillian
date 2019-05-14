@@ -114,6 +114,8 @@ main() {
       'have you installed github.com/golangci/golangci-lint?' || exit 1
     check_cmd prototool \
       'have you installed github.com/uber/prototool/cmd/prototool?' || exit 1
+    check_cmd skeema \
+      'have you installed github.com/skeema/skeema?' || exit 1
 
     echo 'running golangci-lint'
     golangci-lint run
@@ -121,6 +123,10 @@ main() {
     prototool lint
     echo 'checking license headers'
     ./scripts/check_license.sh ${go_srcs}
+    echo 'checking database schema'
+    # TODO(RJPercival): Lint against version of schema in master branch,
+    # to detect backwards-incompatible changes.
+    (cd storage/mysql/schema && skeema lint dev)
   fi
 
   if [[ "${run_generate}" -eq 1 ]]; then

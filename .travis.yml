@@ -71,6 +71,7 @@ install:
       github.com/golang/protobuf/protoc-gen-go
       github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
       github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+      github.com/skeema/skeema
       github.com/uber/prototool/cmd/prototool
       golang.org/x/tools/cmd/stringer
   # install vendored etcd binary
