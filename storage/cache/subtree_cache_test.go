@@ -247,7 +247,8 @@ func TestCacheFlush(t *testing.T) {
 
 func TestRepopulateLogSubtree(t *testing.T) {
 	populateTheThing := populateLogSubtreeNodes(rfc6962.DefaultHasher)
-	cmt := compact.NewTree(rfc6962.DefaultHasher)
+	fact := compact.RangeFactory{Hash: rfc6962.DefaultHasher.HashChildren}
+	cr := fact.NewEmptyRange(0)
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
@@ -272,7 +273,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}
-		if err := cmt.AddLeafHash(leafHash, store); err != nil {
+		if err := cr.Append(leafHash, store); err != nil {
 			t.Fatalf("merkle tree update failed: %v", err)
 		}
 
@@ -290,9 +291,9 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		if err := populateTheThing(&s); err != nil {
 			t.Fatalf("failed populate subtree: %v", err)
 		}
-		root, err := cmt.CurrentRoot()
+		root, err := cr.GetRootHash(nil)
 		if err != nil {
-			t.Fatalf("CurrentRoot: %v", err)
+			t.Fatalf("GetRootHash: %v", err)
 		}
 		if got, expected := s.RootHash, root; !bytes.Equal(got, expected) {
 			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())

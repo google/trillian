@@ -44,7 +44,6 @@ func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 // below for PrepareLogSubtreeWrite.
 func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
-		cmt := compact.NewTree(hasher)
 		if st.Depth < 1 {
 			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
 		}
@@ -76,6 +75,9 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 			}
 		}
 
+		fact := compact.RangeFactory{Hash: hasher.HashChildren}
+		cr := fact.NewEmptyRange(0)
+
 		// We need to update the subtree root hash regardless of whether it's fully populated
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
 			nodeID := storage.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
@@ -85,14 +87,14 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 			if h == nil {
 				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
 			}
-			if size, expected := cmt.Size(), leafIndex; size != expected {
+			if size, expected := int64(cr.End()), leafIndex; size != expected {
 				return fmt.Errorf("got size of %d, but expected %d", size, expected)
 			}
-			if err := cmt.AddLeafHash(h, store); err != nil {
+			if err := cr.Append(h, store); err != nil {
 				return err
 			}
 		}
-		root, err := cmt.CurrentRoot()
+		root, err := cr.GetRootHash(store)
 		if err != nil {
 			return fmt.Errorf("failed to compute root hash: %v", err)
 		}
