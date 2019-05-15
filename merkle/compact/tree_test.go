@@ -16,7 +16,6 @@ package compact
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"math/bits"
 	"reflect"
@@ -44,15 +43,6 @@ func checkSizeInvariant(t *Tree) error {
 		}
 	}
 	return nil
-}
-
-func mustGetRoot(t *testing.T, mt *Tree) []byte {
-	t.Helper()
-	hash, err := mt.CurrentRoot()
-	if err != nil {
-		t.Fatalf("CurrentRoot: %v", err)
-	}
-	return hash
 }
 
 func TestAddingLeaves(t *testing.T) {
@@ -90,15 +80,15 @@ func TestAddingLeaves(t *testing.T) {
 					t.Errorf("Size()=%d, want %d", got, want)
 				}
 				if br > 0 {
-					if got, want := mustGetRoot(t, tree), roots[br]; !bytes.Equal(got, want) {
-						t.Errorf("root=%v, want %v", got, want)
+					if err := tree.VerifyRoot(roots[br]); err != nil {
+						t.Errorf("VerifyRoot: %v", err)
 					}
 					if diff := pretty.Compare(tree.hashes(), hashes[br]); diff != "" {
 						t.Errorf("post-hashes() diff:\n%v", diff)
 					}
 				} else {
-					if got, want := mustGetRoot(t, tree), to.EmptyRootHash(); !bytes.Equal(got, want) {
-						t.Errorf("root=%x, want %x (empty)", got, want)
+					if err := tree.VerifyRoot(to.EmptyRootHash()); err != nil {
+						t.Errorf("VerifyRoot: %v", err)
 					}
 				}
 			}
@@ -136,12 +126,17 @@ func fixedHashGetNodesFunc(ids []NodeID) [][]byte {
 	return hashes
 }
 
-func TestLoadingTreeFailsBadRootHash(t *testing.T) {
+func TestVerifyRootFails(t *testing.T) {
 	hashes := fixedHashGetNodesFunc(TreeNodes(237))
+	tree, err := NewTreeWithState(rfc6962.DefaultHasher, 237, hashes)
+	if err != nil {
+		t.Fatalf("NewTreeWithState: %v", err)
+	}
 
-	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
-	// data
-	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, hashes, []byte("nomatch!nomatch!nomatch!nomatch!"))
+	// Supply a root hash that can't possibly match the result of the SHA 256
+	// hashing on our dummy data.
+	expected := []byte("nomatch!nomatch!nomatch!nomatch!")
+	err = tree.VerifyRoot(expected)
 	if err == nil || !strings.HasPrefix(err.Error(), "root hash mismatch") {
 		t.Errorf("Did not return correct error on root mismatch: %v", err)
 	}
@@ -161,12 +156,12 @@ func TestCompactVsFullTree(t *testing.T) {
 
 	for i := int64(0); i < 1024; i++ {
 		hashes := getHashes(TreeNodes(uint64(imt.LeafCount())))
-		cmt, err := NewTreeWithState(rfc6962.DefaultHasher, imt.LeafCount(), hashes, imt.CurrentRoot().Hash())
+		cmt, err := NewTreeWithState(rfc6962.DefaultHasher, imt.LeafCount(), hashes)
 		if err != nil {
 			t.Errorf("interation %d: failed to create CMT with state: %v", i, err)
 		}
-		if a, b := imt.CurrentRoot().Hash(), mustGetRoot(t, cmt); !bytes.Equal(a, b) {
-			t.Errorf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
+		if err := cmt.VerifyRoot(imt.CurrentRoot().Hash()); err != nil {
+			t.Errorf("iteration %d: VerifyRoot: %v", i, err)
 		}
 
 		newLeaf := []byte(fmt.Sprintf("Leaf %d", i))
@@ -190,8 +185,8 @@ func TestCompactVsFullTree(t *testing.T) {
 		if a, b := iHash.Hash(), cHash; !bytes.Equal(a, b) {
 			t.Errorf("iteration %d: Got leaf hash %v from in-memory tree, but %v from compact tree", i, a, b)
 		}
-		if a, b := imt.CurrentRoot().Hash(), mustGetRoot(t, cmt); !bytes.Equal(a, b) {
-			t.Errorf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
+		if err := cmt.VerifyRoot(imt.CurrentRoot().Hash()); err != nil {
+			t.Errorf("iteration %d: VerifyRoot: %v", i, err)
 		}
 	}
 
@@ -207,14 +202,12 @@ func TestCompactVsFullTree(t *testing.T) {
 			t.Fatalf("new tree size=%d, want %d", got, want)
 		}
 	}
-	if a, b := imt.CurrentRoot().Hash(), mustGetRoot(t, cmt); !bytes.Equal(a, b) {
-		t.Errorf("got in-memory root of %v, but compact tree has root %v", a, b)
+	if err := cmt.VerifyRoot(imt.CurrentRoot().Hash()); err != nil {
+		t.Errorf("VerifyRoot: %v", err)
 	}
 }
 
 func TestRootHashForVariousTreeSizes(t *testing.T) {
-	b64e := func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
-
 	for _, tc := range []struct {
 		size     int64
 		wantRoot []byte
@@ -238,8 +231,8 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 				l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
 				tree.AppendLeaf(l, nil)
 			}
-			if got, want := mustGetRoot(t, tree), tc.wantRoot; !bytes.Equal(got, want) {
-				t.Errorf("got root %v, want %v", b64e(got), b64e(want))
+			if err := tree.VerifyRoot(tc.wantRoot); err != nil {
+				t.Errorf("VerifyRoot: %v", err)
 			}
 			t.Log(tree)
 			if sz := tc.size; sz != 0 && sz&(sz-1) == 0 {
@@ -248,8 +241,8 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 				if got, want := len(hashes), 1; got != want {
 					t.Fatalf("got %d hashes, want %d", got, want)
 				}
-				if got, want := hashes[0], mustGetRoot(t, tree); !bytes.Equal(got, want) {
-					t.Errorf("hashes[0] = %v, want %v", b64e(got), b64e(want))
+				if err := tree.VerifyRoot(hashes[0]); err != nil {
+					t.Errorf("VerifyRoot: %v", err)
 				}
 			}
 		})

@@ -18,11 +18,9 @@ package compact
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"math/bits"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
 )
 
@@ -35,37 +33,17 @@ type Tree struct {
 	rng    *Range
 }
 
-// NewTreeWithState creates a new compact Tree for the passed in size.
-//
-// This can fail if the number of hashes does not correspond to the tree size,
-// or the calculated root hash does not match the passed in expected value.
-//
-// hashes is the list of node hashes that comprise the compact tree. The list
-// of the corresponding node IDs that the caller can use to retrieve these
-// hashes can be obtained using the TreeNodes function.
-//
-// The expectedRoot is the known-good tree root of the tree at the specified
-// size, and is used to verify the initial state.
-func NewTreeWithState(hasher hashers.LogHasher, size int64, hashes [][]byte, expectedRoot []byte) (*Tree, error) {
+// NewTreeWithState creates a new compact Tree for the passed in tree size.
+// Fails if the number of hashes does not correspond to the size. The hashes
+// slice is the list of node hashes that comprise this compact tree. The order
+// and IDs of these nodes are determined by the TreeNodes function.
+func NewTreeWithState(hasher hashers.LogHasher, size int64, hashes [][]byte) (*Tree, error) {
 	fact := RangeFactory{Hash: hasher.HashChildren}
 	rng, err := fact.NewRange(0, uint64(size), hashes)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO(pavelkalinnikov): This check should be done externally.
-	t := Tree{hasher: hasher, rng: rng}
-	root, err := t.CurrentRoot()
-	if err != nil {
-		return nil, err
-	}
-	if !bytes.Equal(root, expectedRoot) {
-		glog.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(root))
-		return nil, fmt.Errorf("root hash mismatch: got %v, expected %v", root, expectedRoot)
-	}
-
-	glog.V(1).Infof("Loaded tree at size %d, root: %s", rng.End(), base64.StdEncoding.EncodeToString(root))
-	return &t, nil
+	return &Tree{hasher: hasher, rng: rng}, nil
 }
 
 // NewTree creates a new compact Tree with size zero.
@@ -78,6 +56,16 @@ func NewTree(hasher hashers.LogHasher) *Tree {
 // CurrentRoot returns the current root hash.
 func (t *Tree) CurrentRoot() ([]byte, error) {
 	return t.CalculateRoot(nil)
+}
+
+// VerifyRoot checks that the tree root hash matches the expected one.
+func (t *Tree) VerifyRoot(expected []byte) error {
+	if root, err := t.CurrentRoot(); err != nil {
+		return err
+	} else if !bytes.Equal(root, expected) {
+		return fmt.Errorf("root hash mismatch: got %x, expected %x", root, expected)
+	}
+	return nil
 }
 
 // String describes the internal state of the compact Tree.

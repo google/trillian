@@ -161,7 +161,13 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *t
 		hashes[i] = node.Hash
 	}
 
-	return compact.NewTreeWithState(s.hasher, int64(root.TreeSize), hashes, root.RootHash)
+	mt, err := compact.NewTreeWithState(s.hasher, int64(root.TreeSize), hashes)
+	if err != nil {
+		return nil, err
+	} else if err := mt.VerifyRoot(root.RootHash); err != nil {
+		return nil, err
+	}
+	return mt, nil
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
