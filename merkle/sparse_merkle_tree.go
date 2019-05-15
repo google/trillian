@@ -455,8 +455,8 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 	for i, n := range nodes {
 		if glog.V(2) {
 			glog.Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.AsKey()), n.Hash)
-			nodeMap[n.NodeID.AsKey()] = &nodes[i]
 		}
+		nodeMap[n.NodeID.AsKey()] = &nodes[i]
 	}
 
 	r := map[string]([][]byte){}
