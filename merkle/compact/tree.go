@@ -39,42 +39,18 @@ func isPerfectTree(size int64) bool {
 	return size != 0 && (size&(size-1) == 0)
 }
 
-// GetNodesFunc is a function prototype which can look up particular nodes
-// within a non-compact Merkle tree. Used by the compact Tree to populate
-// itself with correct state when starting up with a non-empty tree.
-type GetNodesFunc func(ids []NodeID) ([][]byte, error)
-
 // NewTreeWithState creates a new compact Tree for the passed in size.
 //
-// This can fail if the nodes required to recreate the tree state cannot be
-// fetched or the calculated root hash after population does not match the
-// expected value.
+// This can fail if the number of hashes does not correspond to the tree size,
+// or the calculated root hash does not match the passed in expected value.
 //
-// getNodesFn will be called with the coordinates of internal Merkle tree nodes
-// whose hash values are required to initialize the internal state of the
-// compact Tree. The expectedRoot is the known-good tree root of the tree at
-// the specified size, and is used to verify the initial state.
-func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesFunc, expectedRoot []byte) (*Tree, error) {
-	ids := make([]NodeID, 0, bits.OnesCount64(uint64(size)))
-	// Iterate over perfect subtrees along the right border of the tree. Those
-	// correspond to the bits of the tree size that are set to one.
-	for sz := uint64(size); sz != 0; sz &= sz - 1 {
-		level := uint(bits.TrailingZeros64(sz))
-		index := (sz - 1) >> level
-		ids = append(ids, NewNodeID(level, index))
-	}
-	hashes, err := getNodesFn(ids)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch nodes: %v", err)
-	}
-	if got, want := len(hashes), len(ids); got != want {
-		return nil, fmt.Errorf("got %d hashes, needed %d", got, want)
-	}
-	// Note: Right border nodes of compact.Range are ordered from root to leaves.
-	for i, j := 0, len(hashes)-1; i < j; i, j = i+1, j-1 {
-		hashes[i], hashes[j] = hashes[j], hashes[i]
-	}
-
+// hashes is the list of node hashes that comprise the compact tree. The list
+// of the corresponding node IDs that the caller can use to retrieve these
+// hashes can be obtained using the TreeNodes function.
+//
+// The expectedRoot is the known-good tree root of the tree at the specified
+// size, and is used to verify the initial state.
+func NewTreeWithState(hasher hashers.LogHasher, size int64, hashes [][]byte, expectedRoot []byte) (*Tree, error) {
 	fact := RangeFactory{Hash: hasher.HashChildren}
 	rng, err := fact.NewRange(0, uint64(size), hashes)
 	if err != nil {
@@ -209,4 +185,23 @@ func (t *Tree) getNodes() [][]byte {
 		n[level] = hashes[i]
 	}
 	return n
+}
+
+// TreeNodes returns the list of node IDs that comprise a compact tree, in the
+// same order they are used in compact.Tree and compact.Range, i.e. ordered
+// from upper to lower levels.
+func TreeNodes(size uint64) []NodeID {
+	ids := make([]NodeID, 0, bits.OnesCount64(size))
+	// Iterate over perfect subtrees along the right border of the tree. Those
+	// correspond to the bits of the tree size that are set to one.
+	for sz := size; sz != 0; sz &= sz - 1 {
+		level := uint(bits.TrailingZeros64(sz))
+		index := (sz - 1) >> level
+		ids = append(ids, NewNodeID(level, index))
+	}
+	// Note: Right border nodes of compact.Range are ordered from root to leaves.
+	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
+		ids[i], ids[j] = ids[j], ids[i]
+	}
+	return ids
 }
