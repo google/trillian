@@ -284,11 +284,15 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 
 // getNodeHash returns a single node hash from the cache.
 func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
-	glog.V(3).Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
+	if glog.V(3) {
+		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
+	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	data, err := s.getNodeHashUnderLock(id, getSubtree)
-	glog.V(3).Infof("cache: getNodeHash(path=%x, prefixLen=%d) => %x, %v }", id.Path, id.PrefixLenBits, data, err)
+	if glog.V(3) {
+		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) => %x, %v }", id.Path, id.PrefixLenBits, data, err)
+	}
 	return data, err
 }
 
@@ -352,7 +356,9 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 
 // SetNodeHash sets a node hash in the cache.
 func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
-	glog.V(3).Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
+	if glog.V(3) {
+		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
+	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := s.splitNodeID(id)
@@ -444,7 +450,9 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 
 func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
-	glog.V(2).Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
+	if glog.V(2) {
+		glog.Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
+	}
 	// storage didn't have one for us, so we'll store an empty proto here
 	// incase we try to update it later on (we won't flush it back to
 	// storage unless it's been written to.)

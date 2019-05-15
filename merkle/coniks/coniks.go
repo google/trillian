@@ -70,7 +70,9 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	binary.Write(buf, binary.BigEndian, uint32(depth))
 	h.Write(buf.Bytes())
 	r := h.Sum(nil)
-	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, r)
+	if glog.V(5) {
+		glog.Infof("HashEmpty(%x, %d): %x", index, depth, r)
+	}
 	return r
 }
 
@@ -87,7 +89,9 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, erro
 	buf.Write(leaf)
 	h.Write(buf.Bytes())
 	p := h.Sum(nil)
-	glog.V(5).Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
+	if glog.V(5) {
+		glog.Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
+	}
 	return p, nil
 }
 
@@ -100,7 +104,9 @@ func (m *hasher) HashChildren(l, r []byte) []byte {
 	buf.Write(r)
 	h.Write(buf.Bytes())
 	p := h.Sum(nil)
-	glog.V(5).Infof("HashChildren(%x, %x): %x", l, r, p)
+	if glog.V(5) {
+		glog.Infof("HashChildren(%x, %x): %x", l, r, p)
+	}
 	return p
 }
 
