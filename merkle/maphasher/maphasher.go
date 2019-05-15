@@ -65,7 +65,9 @@ func (m *MapHasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", height))
 	}
 	depth := m.BitLen() - height
-	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, m.nullHashes[height])
+	if glog.V(5) {
+		glog.Infof("HashEmpty(%x, %d): %x", index, depth, m.nullHashes[height])
+	}
 	return m.nullHashes[height]
 }
 
@@ -76,7 +78,9 @@ func (m *MapHasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, e
 	h.Write([]byte{leafHashPrefix})
 	h.Write(leaf)
 	r := h.Sum(nil)
-	glog.V(5).Infof("HashLeaf(%x): %x", index, r)
+	if glog.V(5) {
+		glog.Infof("HashLeaf(%x): %x", index, r)
+	}
 	return r, nil
 }
 
@@ -88,7 +92,9 @@ func (m *MapHasher) HashChildren(l, r []byte) []byte {
 	h.Write(l)
 	h.Write(r)
 	p := h.Sum(nil)
-	glog.V(5).Infof("HashChildren(%x, %x): %x", l, r, p)
+	if glog.V(5) {
+		glog.Infof("HashChildren(%x, %x): %x", l, r, p)
+	}
 	return p
 }
 

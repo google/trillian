@@ -258,8 +258,10 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		root, err = hs2.HStar2Nodes(s.prefix, s.subtreeDepth, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
-				glog.V(4).Infof("buildSubtree.get(%x, %d) nid: %x, %v",
-					index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
+				if glog.V(4) {
+					glog.Infof("buildSubtree.get(%x, %d) nid: %x, %v",
+						index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
+				}
 				nodes, err := tx.GetMerkleNodes(hsCtx, s.treeRevision, []storage.NodeID{nodeID})
 				if err != nil {
 					return nil, err
@@ -282,8 +284,10 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					return nil
 				}
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
-				glog.V(4).Infof("buildSubtree.set(%x, %v) nid: %x, %v : %x",
-					index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits, h)
+				if glog.V(4) {
+					glog.Infof("buildSubtree.set(%x, %v) nid: %x, %v : %x",
+						index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits, h)
+				}
 				nodesToStore = append(nodesToStore,
 					storage.Node{
 						NodeID:       nodeID,
@@ -449,8 +453,10 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 	_, postprocessSpanEnd := spanFor(ctx, "binc.postprocess")
 	nodeMap := make(map[string]*storage.Node)
 	for i, n := range nodes {
-		glog.V(2).Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.AsKey()), n.Hash)
-		nodeMap[n.NodeID.AsKey()] = &nodes[i]
+		if glog.V(2) {
+			glog.Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.AsKey()), n.Hash)
+			nodeMap[n.NodeID.AsKey()] = &nodes[i]
+		}
 	}
 
 	r := map[string]([][]byte){}
