@@ -179,8 +179,10 @@ func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
 	copy(path[unusedHighBytes:], index.Bytes())
 
 	// TODO(gdbelvin): consider masking off insignificant bits past depth.
-	glog.V(5).Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
-		depth, index.Bytes(), totalDepth, depth, path)
+	if glog.V(5) {
+		glog.Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
+			depth, index.Bytes(), totalDepth, depth, path)
+	}
 
 	return NodeID{
 		Path:          path,
