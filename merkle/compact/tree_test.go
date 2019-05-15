@@ -293,6 +293,9 @@ func benchmarkAppendLeaf(b *testing.B, visit VisitFn) {
 				b.Fatalf("AppendLeaf: %v", err)
 			}
 		}
+		if _, err := tree.CalculateRoot(visit); err != nil {
+			b.Fatalf("CalculateRoot: %v", err)
+		}
 	}
 }
 
