@@ -310,6 +310,29 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	}
 }
 
+func BenchmarkRepopulateLogSubtree(b *testing.B) {
+	hasher := rfc6962.DefaultHasher
+	s := storagepb.SubtreeProto{
+		Leaves:            make(map[string][]byte),
+		Depth:             int32(defaultLogStrata[0]),
+		InternalNodeCount: 254,
+	}
+	for i := 0; i < 256; i++ {
+		leaf := []byte(fmt.Sprintf("leaf %d", i))
+		hash := hasher.HashLeaf(leaf)
+		nodeID := storage.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, int64(i), logStrataDepth, maxLogDepth)
+		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
+		s.Leaves[sfx.String()] = hash
+	}
+
+	populate := populateLogSubtreeNodes(hasher)
+	for n := 0; n < b.N; n++ {
+		if err := populate(&s); err != nil {
+			b.Fatalf("failed populate subtree: %v", err)
+		}
+	}
+}
+
 func TestPrefixLengths(t *testing.T) {
 	strata := []int{8, 8, 16, 32, 64, 128}
 	stratumInfo := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
