@@ -527,16 +527,11 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		merkleTree.AddLeaf(leafMap[l].LeafValue)
 	}
 
-	// If the two reference results disagree there's no point in continuing the checks. This is a
-	// "can't happen" situation.
-	root, err := compactTree.CurrentRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to compute compact tree root: %v", err)
+	// If the two reference results disagree there's no point in continuing the
+	// checks. This is a "can't happen" situation.
+	if err := compactTree.VerifyRoot(merkleTree.CurrentRoot().Hash()); err != nil {
+		return nil, fmt.Errorf("failed to verify root hash: %v", err)
 	}
-	if !bytes.Equal(root, merkleTree.CurrentRoot().Hash()) {
-		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, merkleTree.CurrentRoot())
-	}
-
 	return merkleTree, nil
 }
 
