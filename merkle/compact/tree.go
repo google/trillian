@@ -138,8 +138,10 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-// CalculateRoot computes the current root hash. It calls visit function for
-// imperfect subtrees along the right border of the tree while calculating it.
+// CalculateRoot computes the current root hash. If visit function is not nil,
+// then CalculateRoot calls it for all imperfect subtree roots on the right
+// border of the tree (also called "ephemeral" nodes), ordered from lowest to
+// highest levels.
 func (t *Tree) CalculateRoot(visit VisitFn) ([]byte, error) {
 	if t.size == 0 {
 		return t.hasher.EmptyRoot(), nil
@@ -170,13 +172,8 @@ func (t *Tree) CalculateRoot(visit VisitFn) ([]byte, error) {
 }
 
 // AppendLeaf calculates the Merkle leaf hash of the given leaf data and
-// appends it to the tree. Returns the Merkle hash of the new leaf.
-//
-// visit is a callback which will be called, if not nil, multiple times with
-// the coordinates of the Merkle tree nodes whose hash should be updated, i.e.
-// all the newly introduced perfect-subtree nodes including the leaf node.
-//
-// If returns an error then the Tree is no longer usable.
+// appends it to the tree. Returns the Merkle hash of the new leaf. See
+// AppendLeafHash for details on how the visit function is used.
 func (t *Tree) AppendLeaf(data []byte, visit VisitFn) ([]byte, error) {
 	h := t.hasher.HashLeaf(data)
 	if err := t.AppendLeafHash(h, visit); err != nil {
@@ -185,11 +182,14 @@ func (t *Tree) AppendLeaf(data []byte, visit VisitFn) ([]byte, error) {
 	return h, nil
 }
 
-// AppendLeafHash appends the specified Merkle leaf hash to the tree.
+// AppendLeafHash appends a leaf node with the specified hash to the tree.
 //
-// visit is a callback which will be called, if not nil, multiple times with
-// the coordinates of the Merkle tree nodes whose hash should be updated, i.e.
-// all the newly introduced perfect-subtree nodes including the leaf node.
+// If visit function is not nil, it will be called for each updated Merkle tree
+// node which became a root of a perfect subtree after adding the new leaf.
+// Note that this includes the leaf node itself. Ephemeral nodes (roots of
+// imperfect subtrees) on the right border of the tree are not visited for
+// efficiency reasons, but one can do so by calling the CalculateRoot method -
+// typically, after a series of AppendLeafHash calls.
 //
 // If returns an error then the Tree is no longer usable.
 func (t *Tree) AppendLeafHash(leafHash []byte, visit VisitFn) error {
