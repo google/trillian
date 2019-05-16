@@ -185,7 +185,7 @@ func TestNewNodeIDFromBigInt(t *testing.T) {
 		// We should be able to get the same big.Int back. This is used in
 		// the HStar2 implementation so should be tested.
 		if got, want := n.BigInt(), tc.index; want.Cmp(got) != 0 {
-			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): got: %v, want: %v",
+			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v):got:\n%v, want:\n%v",
 				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
 		}
 	}
@@ -201,7 +201,7 @@ func TestNewNodeIDFromBigIntPanic(t *testing.T) {
 			defer func() {
 				got := recover()
 				if (got != nil && !want) || (got == nil && want) {
-					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
+					t.Errorf("Incorrect panic behaviour (b=%d) got: %v, want: %v", b, got, want)
 				}
 			}()
 			_ = NewNodeIDFromBigInt(12, big.NewInt(234), b)
@@ -891,4 +891,19 @@ func BenchmarkSuffix(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = n.Suffix(10, 176)
 	}
+}
+
+func runBenchmarkNewNodeIDFromBigInt(b *testing.B, f func(int, *big.Int, int) NodeID) {
+	b.Helper()
+	for i := 0; i < b.N; i++ {
+		_ = f(256, new(big.Int).SetBytes(h2b("00")), 256)
+	}
+}
+
+func BenchmarkNewNodeIDFromBigIntOld(b *testing.B) {
+	runBenchmarkNewNodeIDFromBigInt(b, newNodeIDFromBigIntOld)
+}
+
+func BenchmarkNewNodeIDFromBigIntNew(b *testing.B) {
+	runBenchmarkNewNodeIDFromBigInt(b, NewNodeIDFromBigInt)
 }
