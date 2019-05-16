@@ -173,15 +173,17 @@ func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
 		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
 	}
 
+	// TODO(al): We _could_ use Bits() and avoid the extra copy/alloc.
+	b := index.Bytes()
 	// Put index in the LSB bits of path.
 	path := make([]byte, totalDepth/8)
-	unusedHighBytes := len(path) - len(index.Bytes())
-	copy(path[unusedHighBytes:], index.Bytes())
+	unusedHighBytes := len(path) - len(b)
+	copy(path[unusedHighBytes:], b)
 
 	// TODO(gdbelvin): consider masking off insignificant bits past depth.
 	if glog.V(5) {
 		glog.Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
-			depth, index.Bytes(), totalDepth, depth, path)
+			depth, b, totalDepth, depth, path)
 	}
 
 	return NodeID{
