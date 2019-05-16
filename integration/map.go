@@ -301,10 +301,7 @@ func (mi *MapInfo) checkSingleLeafResponse(rsp *trillian.GetMapLeavesResponse, k
 	if got := rsp.MapLeafInclusion[0].Leaf.Index; !bytes.Equal(got, key) {
 		return fmt.Errorf("unexpected leaf key %x from get-map-leaves", got)
 	}
-	wantHash, err := mi.verifier.Hasher.HashLeaf(mi.id, key, want)
-	if err != nil {
-		return fmt.Errorf("failed to hash leaf %x=>%x: %v", key, want, err)
-	}
+	wantHash := mi.verifier.Hasher.HashLeaf(mi.id, key, want)
 	// The hash for an empty leaf may be nil or wantHash.
 	if got := rsp.MapLeafInclusion[0].Leaf.LeafHash; !bytes.Equal(got, wantHash) && (len(want) != 0 || len(got) != 0) {
 		return fmt.Errorf("unexpected leaf hash %x from get-map-leaves, want %x", got, wantHash)

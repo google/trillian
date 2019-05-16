@@ -43,10 +43,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 		}
 	}
 
-	leafHash, err := h.HashLeaf(treeID, leaf.Index, leaf.LeafValue)
-	if err != nil {
-		return fmt.Errorf("HashLeaf(): %v", err)
-	}
+	leafHash := h.HashLeaf(treeID, leaf.Index, leaf.LeafValue)
 	if len(leaf.LeafValue) == 0 && len(leaf.LeafHash) == 0 {
 		// This is an empty value that has never been set, and so has a LeafHash of nil
 		// (indicating that the effective hash value is h.HashEmpty(index, 0)).
