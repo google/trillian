@@ -574,7 +574,7 @@ func TestSetBit(t *testing.T) {
 	}
 }
 
-func TestFlipBit(t *testing.T) {
+func TestFlipRightBit(t *testing.T) {
 	for _, tc := range []struct {
 		index []byte
 		i     int
@@ -867,5 +867,12 @@ func BenchmarkAsKey(b *testing.B) {
 	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
 	for i := 0; i < b.N; i++ {
 		_ = nID.AsKey()
+	}
+}
+
+func BenchmarkFlipRightBit(b *testing.B) {
+	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
+	for i := 0; i < b.N; i++ {
+		nID.FlipRightBit(27)
 	}
 }
