@@ -110,18 +110,13 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 	return &trillian.QueueLeafResponse{QueuedLeaf: queueRsp.QueuedLeaves[0]}, nil
 }
 
-func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) error {
+func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) {
 	for _, leaf := range leaves {
-		var err error
-		leaf.MerkleLeafHash, err = hasher.HashLeaf(leaf.LeafValue)
-		if err != nil {
-			return err
-		}
+		leaf.MerkleLeafHash = hasher.HashLeaf(leaf.LeafValue)
 		if len(leaf.LeafIdentityHash) == 0 {
 			leaf.LeafIdentityHash = leaf.MerkleLeafHash
 		}
 	}
-	return nil
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -140,9 +135,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 
 	ctx = trees.NewContext(ctx, tree)
 
-	if err := hashLeaves(req.Leaves, hasher); err != nil {
-		return nil, err
-	}
+	hashLeaves(req.Leaves, hasher)
 
 	ret, err := t.registry.LogStorage.QueueLeaves(ctx, tree, req.Leaves, t.timeSource.Now())
 	if err != nil {
@@ -198,9 +191,7 @@ func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *tril
 		return nil, err
 	}
 
-	if err := hashLeaves(req.Leaves, hasher); err != nil {
-		return nil, err
-	}
+	hashLeaves(req.Leaves, hasher)
 
 	ctx = trees.NewContext(ctx, tree)
 	leaves, err := t.registry.LogStorage.AddSequencedLeaves(ctx, tree, req.Leaves, t.timeSource.Now())

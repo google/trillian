@@ -179,14 +179,11 @@ func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
 //
 // If returns an error then the Tree is no longer usable.
 func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
-	h, err := t.hasher.HashLeaf(data)
-	if err != nil {
-		return nil, err
-	}
+	h := t.hasher.HashLeaf(data)
 	if err := t.AddLeafHash(h, visit); err != nil {
 		return nil, err
 	}
-	return h, err
+	return h, nil
 }
 
 // AddLeafHash appends the specified Merkle leaf hash to the tree.
