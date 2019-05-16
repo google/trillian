@@ -46,7 +46,7 @@ var fakeTimeSource = clock.NewFake(fakeTime)
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)
-var leaf0Hash, _ = rfc6962.DefaultHasher.HashLeaf([]byte{})
+var leaf0Hash = rfc6962.DefaultHasher.HashLeaf([]byte{})
 var testLeaf0 = &trillian.LogLeaf{
 	MerkleLeafHash: leaf0Hash,
 	LeafValue:      nil,

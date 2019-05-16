@@ -53,11 +53,11 @@ func (t *Hasher) EmptyRoot() []byte {
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
-func (t *Hasher) HashLeaf(leaf []byte) ([]byte, error) {
+func (t *Hasher) HashLeaf(leaf []byte) []byte {
 	h := t.New()
 	h.Write([]byte{RFC6962LeafHashPrefix})
 	h.Write(leaf)
-	return h.Sum(nil), nil
+	return h.Sum(nil)
 }
 
 // hashChildrenOld returns the inner Merkle tree node hash of the two child nodes l and r.

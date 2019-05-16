@@ -39,9 +39,9 @@ import (
 
 var (
 	// These can be shared between tests as they're never modified
-	testLeaf16Data    = []byte("testdataforleaf")
-	testLeaf16Hash, _ = rfc6962.DefaultHasher.HashLeaf(testLeaf16Data)
-	testLeaf16        = &trillian.LogLeaf{
+	testLeaf16Data = []byte("testdataforleaf")
+	testLeaf16Hash = rfc6962.DefaultHasher.HashLeaf(testLeaf16Data)
+	testLeaf16     = &trillian.LogLeaf{
 		MerkleLeafHash:     testLeaf16Hash,
 		LeafValue:          testLeaf16Data,
 		ExtraData:          nil,

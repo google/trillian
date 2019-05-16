@@ -114,11 +114,7 @@ func (c *LogVerifier) VerifyInclusionAtIndex(trusted *types.LogRootV1, data []by
 	if trusted == nil {
 		return fmt.Errorf("VerifyInclusionAtIndex() error: trusted == nil")
 	}
-
-	leaf, err := c.BuildLeaf(data)
-	if err != nil {
-		return err
-	}
+	leaf := c.BuildLeaf(data)
 	return c.v.VerifyInclusionProof(leafIndex, int64(trusted.TreeSize),
 		proof, trusted.RootHash, leaf.MerkleLeafHash)
 }
@@ -140,13 +136,10 @@ func (c *LogVerifier) VerifyInclusionByHash(trusted *types.LogRootV1, leafHash [
 // BuildLeaf runs the leaf hasher over data and builds a leaf.
 // TODO(pavelkalinnikov): This can be misleading as it creates a partially
 // filled LogLeaf. Consider returning a pair instead, or leafHash only.
-func (c *LogVerifier) BuildLeaf(data []byte) (*trillian.LogLeaf, error) {
-	leafHash, err := c.Hasher.HashLeaf(data)
-	if err != nil {
-		return nil, err
-	}
+func (c *LogVerifier) BuildLeaf(data []byte) *trillian.LogLeaf {
+	leafHash := c.Hasher.HashLeaf(data)
 	return &trillian.LogLeaf{
 		LeafValue:      data,
 		MerkleLeafHash: leafHash,
-	}, nil
+	}
 }

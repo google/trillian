@@ -259,7 +259,7 @@ func TestVerifyInclusionProofSingleEntry(t *testing.T) {
 	v := NewLogVerifier(rfc6962.DefaultHasher)
 	data := []byte("data")
 	// Root and leaf hash for 1-entry tree are the same.
-	hash, _ := v.hasher.HashLeaf(data)
+	hash := v.hasher.HashLeaf(data)
 	// The corresponding inclusion proof is empty.
 	proof := [][]byte{}
 	emptyHash := []byte{}
@@ -308,10 +308,7 @@ func TestVerifyInclusionProof(t *testing.T) {
 	for i := 1; i < 6; i++ {
 		p := inclusionProofs[i]
 		t.Run(fmt.Sprintf("proof:%d", i), func(t *testing.T) {
-			leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaves[p.leaf-1])
-			if err != nil {
-				t.Fatalf("HashLeaf(): %v", err)
-			}
+			leafHash := rfc6962.DefaultHasher.HashLeaf(leaves[p.leaf-1])
 			if err := verifierCheck(&v, p.leaf-1, p.snapshot, p.proof, roots[p.snapshot-1], leafHash); err != nil {
 				t.Errorf("verifierCheck(): %s", err)
 			}

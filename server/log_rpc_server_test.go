@@ -41,7 +41,7 @@ import (
 )
 
 func newTestLeaf(data []byte, extra []byte, index int64) *trillian.LogLeaf {
-	hash, _ := th.HashLeaf(data)
+	hash := th.HashLeaf(data)
 	return &trillian.LogLeaf{
 		MerkleLeafHash: hash,
 		LeafValue:      data,

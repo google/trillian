@@ -172,13 +172,8 @@ func referenceMerkleTreeHash(inputs [][]byte, treehasher hashers.LogHasher) ([]b
 	if len(inputs) == 0 {
 		return treehasher.EmptyRoot(), nil
 	}
-
 	if len(inputs) == 1 {
-		leafHash, err := treehasher.HashLeaf(inputs[0])
-		if err != nil {
-			return nil, err
-		}
-		return leafHash, nil
+		return treehasher.HashLeaf(inputs[0]), nil
 	}
 
 	split := downToPowerOfTwo(int64(len(inputs)))
@@ -374,18 +369,14 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for l := 0; l < 3; l++ {
-		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l])); err != nil {
-			t.Fatalf("AddLeaf(%v): %v", leafInputs[l], err)
-		}
+		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
 	}
 
 	// Check the intermediate state
 	validateTree(mt, 2, t)
 
 	for l := 3; l < 8; l++ {
-		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l])); err != nil {
-			t.Fatalf("AddLeaf(%v): %v", leafInputs[l], err)
-		}
+		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
 	}
 
 	// Check the final state
@@ -397,9 +388,7 @@ func TestBuildTreeBuildTwoChunks(t *testing.T) {
 
 	// Add to the tree, checking after each leaf
 	for l := 0; l < 8; l++ {
-		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l])); err != nil {
-			t.Fatalf("AddLeaf(%v): %v", leafInputs[l], err)
-		}
+		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
 	}
 
 	validateTree(mt, 7, t)
@@ -456,9 +445,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			if _, _, err := mt.AddLeaf(data[l]); err != nil {
-				t.Fatalf("AddLeaf(%v): %v", data[l], err)
-			}
+			mt.AddLeaf(data[l])
 		}
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
@@ -489,9 +476,7 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			if _, _, err := mt.AddLeaf(data[l]); err != nil {
-				t.Fatalf("AddLeaf(%v): %v", data[l], err)
-			}
+			mt.AddLeaf(data[l])
 		}
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
@@ -535,9 +520,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			if _, _, err := mt.AddLeaf(data[l]); err != nil {
-				t.Fatalf("AddLeaf(%v): %v", data[l], err)
-			}
+			mt.AddLeaf(data[l])
 		}
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
@@ -575,9 +558,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
-			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
-		}
+		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
 	}
 
 	if mt.LeafCount() != 8 {
@@ -621,9 +602,7 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
-			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
-		}
+		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
 	}
 
 	mt2 := makeEmptyTree()
@@ -637,9 +616,7 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	}
 
 	for i := int64(0); i < 8; i++ {
-		if _, _, err := mt2.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
-			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
-		}
+		mt2.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
 
 		for j := int64(0); j <= i+1; j++ {
 			p1 := mt.PathToRootAtSnapshot(j, i+1)
@@ -671,9 +648,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
-			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
-		}
+		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
 	}
 
 	if mt.LeafCount() != 8 {
