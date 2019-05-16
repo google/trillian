@@ -251,9 +251,6 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 				return nil, err
 			}
 
-			if glog.V(vvLevel) {
-				glog.Infof("copy node at %s", nodeID.CoordString())
-			}
 			return append(fetches, NodeFetch{Rehash: false, NodeID: nodeID}), nil
 		}
 
@@ -273,17 +270,11 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 	// lastNode is now the index of a left sibling with no right sibling. This is where the
 	// rehashing starts
 	savedNodeID, err := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, lastNode^1, maxBitlen)
-	if glog.V(vvLevel) {
-		glog.Infof("root for recompute is: %s", savedNodeID.CoordString())
-	}
 	if err != nil {
 		return nil, err
 	}
 
 	if nodeLevel == level {
-		if glog.V(vvLevel) {
-			glog.Info("emit root (1)")
-		}
 		return append(fetches, NodeFetch{Rehash: true, NodeID: savedNodeID}), nil
 	}
 
@@ -306,9 +297,6 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 			}
 
 			if !rehash && !subRootEmitted {
-				if glog.V(vvLevel) {
-					glog.Info("emit root (2)")
-				}
 				fetches = append(fetches, NodeFetch{Rehash: true, NodeID: savedNodeID})
 				subRootEmitted = true
 			}
@@ -325,9 +313,6 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 		level++
 
 		if nodeLevel == level && !subRootEmitted {
-			if glog.V(vvLevel) {
-				glog.Info("emit root (3)")
-			}
 			return append(fetches, NodeFetch{Rehash: rehash, NodeID: savedNodeID}), nil
 		}
 
