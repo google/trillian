@@ -339,7 +339,8 @@ func (n *NodeID) Copy() *NodeID {
 
 // FlipRightBit flips the ith bit from LSB
 func (n *NodeID) FlipRightBit(i int) *NodeID {
-	n.SetBit(i, n.Bit(i)^1)
+	bIndex := (n.PathLenBits() - i - 1) / 8
+	n.Path[bIndex] ^= 1 << uint(i%8)
 	return n
 }
 
@@ -370,8 +371,7 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 // in the binary tree (often termed sibling node).
 func (n *NodeID) Neighbor() *NodeID {
 	height := n.PathLenBits() - n.PrefixLenBits
-	n.FlipRightBit(height)
-	return n
+	return n.FlipRightBit(height)
 }
 
 // Siblings returns the siblings of the given node.
