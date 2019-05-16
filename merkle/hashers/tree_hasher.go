@@ -45,7 +45,7 @@ type MapHasher interface {
 	// can be different between:
 	//  - a leaf that is unset
 	//  - a leaf that has been explicitly set, including set to []byte{}.
-	HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error)
+	HashLeaf(treeID int64, index []byte, leaf []byte) []byte
 	// HashChildren computes interior nodes, when at least one of the child
 	// subtrees is non-empty.
 	HashChildren(l, r []byte) []byte

@@ -177,11 +177,7 @@ func (m *MapContents) RootHash(treeID int64, hasher hashers.MapHasher) ([]byte, 
 	for k, v := range m.data {
 		prefixKey := bitString{bitLen: curBitLen}
 		copy(prefixKey.data[:], k[:])
-		var err error
-		curHashes[prefixKey], err = hasher.HashLeaf(treeID, k[:], []byte(v))
-		if err != nil {
-			return nil, err
-		}
+		curHashes[prefixKey] = hasher.HashLeaf(treeID, k[:], []byte(v))
 	}
 
 	for curBitLen > 0 {

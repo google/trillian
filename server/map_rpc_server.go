@@ -315,11 +315,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			if err := checkIndexSize(l.Index, hasher); err != nil {
 				return err
 			}
-			leafHash, err := hasher.HashLeaf(mapID, l.Index, l.LeafValue)
-			if err != nil {
-				return fmt.Errorf("HashLeaf(): %v", err)
-			}
-			l.LeafHash = leafHash
+			l.LeafHash = hasher.HashLeaf(mapID, l.Index, l.LeafValue)
 
 			if err = tx.Set(ctx, l.Index, *l); err != nil {
 				return err

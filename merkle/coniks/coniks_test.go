@@ -90,11 +90,7 @@ func TestHashLeaf(t *testing.T) {
 		// Test vector from Key Transparency
 		{0, h2b("1111111111111111111111111111111111111111111111111111111111111111"), []byte("leaf"), h2b("87f51e6ceb5a46947fedbd1de543482fb72f7459055d853a841566ef8e43c4a2")},
 	} {
-		leafHash, err := Default.HashLeaf(tc.treeID, tc.index, tc.leaf)
-		if err != nil {
-			t.Errorf("HashLeaf(): %v", err)
-			continue
-		}
+		leafHash := Default.HashLeaf(tc.treeID, tc.index, tc.leaf)
 		if got, want := leafHash, tc.want; !bytes.Equal(got, want) {
 			t.Errorf("HashLeaf(%v, %s, %s): %x, want %x", tc.treeID, tc.index, tc.leaf, got, want)
 		}

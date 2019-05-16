@@ -78,7 +78,7 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 
 // HashLeaf calculate the merkle tree leaf value:
 // H(Identifier || treeID || depth || index || dataHash)
-func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error) {
+func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
 	depth := m.BitLen()
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
@@ -92,7 +92,7 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, erro
 	if glog.V(5) {
 		glog.Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
 	}
-	return p, nil
+	return p
 }
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
