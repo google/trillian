@@ -876,3 +876,12 @@ func BenchmarkFlipRightBit(b *testing.B) {
 		nID.FlipRightBit(27)
 	}
 }
+
+func BenchmarkSplit(b *testing.B) {
+	n := NewNodeIDFromHash(h2b("0000000000000000000000000000000000000000000000000000000000000001"))
+	n.PrefixLenBits = 256
+	for i := 0; i < b.N; i++ {
+
+		_, _ = n.Split(10, 176)
+	}
+}
