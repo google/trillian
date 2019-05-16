@@ -284,6 +284,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 }
 
 func benchmarkAppendLeaf(b *testing.B, visit VisitFn) {
+	b.Helper()
 	const size = 1024
 	for n := 0; n < b.N; n++ {
 		tree := NewTree(rfc6962.DefaultHasher)
