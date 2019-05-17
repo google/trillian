@@ -103,7 +103,7 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 			return fmt.Errorf("NodeIDs are not the same,\nlhs = %v,\nrhs = %v", l, r)
 		}
 		if l, r := lhs[i].Hash, rhs[i].Hash; !bytes.Equal(l, r) {
-			return fmt.Errorf("Hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
+			return fmt.Errorf("hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
 		}
 	}
 	return nil
