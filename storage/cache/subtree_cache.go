@@ -158,7 +158,8 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	want := make(map[string]*storage.NodeID)
 	for _, id := range ids {
 		id := id
-		px, _ := s.splitNodeID(id)
+		sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
+		px := id.Prefix(sInfo.prefixBytes)
 		pxKey := string(px)
 		// TODO(al): fix for non-uniform strata
 		id.PrefixLenBits = len(px) * depthQuantum
