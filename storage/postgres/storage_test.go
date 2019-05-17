@@ -89,7 +89,7 @@ func createSomeNodes() []storage.Node {
 		r[i].NodeID = storage.NewNodeIDWithPrefix(uint64(i), 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
-		glog.Infof("Node to store: %v\n", r[i].NodeID)
+		glog.Infof("Node to store: %v", r[i].NodeID)
 	}
 	return r
 }
