@@ -402,29 +402,39 @@ func NewNodeIDFromPrefixSuffix(prefix []byte, suffix *Suffix, maxPathBits int) N
 	}
 }
 
+// Suffix returns a Node's suffix starting at prefixBytes.
+// This is the same Suffix that Split() would return, just without the overhead
+// of also creating the prefix.
+func (n *NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
+	if n.PrefixLenBits == 0 {
+		return EmptySuffix
+	}
+
+	b := n.PrefixLenBits - prefixBytes*8
+	if b > suffixBits {
+		panic(fmt.Sprintf("Suffix(): %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
+	}
+	if b <= 0 {
+		panic(fmt.Sprintf("Suffix(): %x(n.PrefixLenBits: %v - prefixBytes: %v *8) <= 0", n.Path, n.PrefixLenBits, prefixBytes))
+	}
+	suffixBytes := bytesForBits(b)
+	maskIndex := (b - 1) / 8
+	maskLowBits := (b-1)%8 + 1
+	sfxPath := make([]byte, suffixBytes)
+	copy(sfxPath, n.Path[prefixBytes:prefixBytes+suffixBytes])
+	sfxPath[maskIndex] &= ((0x01 << uint(maskLowBits)) - 1) << uint(8-maskLowBits)
+	return NewSuffix(byte(b), sfxPath)
+}
+
 // Split splits a NodeID into a prefix and a suffix at prefixBytes.
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, EmptySuffix
 	}
-	a := make([]byte, len(n.Path))
-	copy(a, n.Path)
+	a := make([]byte, prefixBytes)
+	copy(a, n.Path[:prefixBytes])
 
-	b := n.PrefixLenBits - prefixBytes*8
-	if b > suffixBits {
-		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
-	}
-	if b <= 0 {
-		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) <= 0", n.Path, n.PrefixLenBits, prefixBytes))
-	}
-	suffixBytes := bytesForBits(b)
-	maskIndex := (b - 1) / 8
-	maskLowBits := (b-1)%8 + 1
-	sfxPath := a[prefixBytes : prefixBytes+suffixBytes]
-	sfxPath[maskIndex] &= ((0x01 << uint(maskLowBits)) - 1) << uint(8-maskLowBits)
-	sfx := NewSuffix(byte(b), sfxPath)
-
-	return a[:prefixBytes], sfx
+	return a, n.Suffix(prefixBytes, suffixBits)
 }
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.
