@@ -188,4 +188,3 @@ AS $function$
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
 $function$;--end
-

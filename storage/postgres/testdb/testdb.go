@@ -31,7 +31,7 @@ import (
 
 var (
 	trillianSQL = testonly.RelativeToPackage("../storage.sql")
-	pgOpts      = flag.String("pg_opts", "password=!@34QWerASdf sslmode=disable", "Database options to be included when connecting to the db")
+	pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
 	dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
 )
 
@@ -103,7 +103,6 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
 		return nil, err
 	}
 
-	fmt.Println(trillianSQL)
 	sqlBytes, err := ioutil.ReadFile(trillianSQL)
 	if err != nil {
 		return nil, err

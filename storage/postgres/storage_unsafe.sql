@@ -150,6 +150,7 @@ AS $function$
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
 $function$;
+
 CREATE OR REPLACE FUNCTION public.insert_leaf_data_ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, merkle_leaf_hash bytea, queue_timestamp_nanos bigint)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -164,5 +165,3 @@ AS $function$
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
 $function$;
-
-
