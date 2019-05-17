@@ -246,12 +246,12 @@ func (t *Tree) Size() int64 {
 	return t.size
 }
 
-// Hashes returns a copy of the set of node hashes that comprise the compact
-// representation of the tree. A tree whose size is a power of two has no
-// internal node hashes (just the root hash), so returns nil.
+// hashes returns the set of node hashes that comprise the compact
+// representation of the tree, in the old format. A tree whose size is a power
+// of two has no internal node hashes (just the root hash), so nil is returned.
 //
 // TODO(pavelkalinnikov): Get rid of this format, it is only used internally.
-func (t *Tree) Hashes() [][]byte {
+func (t *Tree) hashes() [][]byte {
 	if isPerfectTree(t.size) {
 		return nil
 	}

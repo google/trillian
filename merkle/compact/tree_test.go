@@ -98,8 +98,8 @@ func TestAddingLeaves(t *testing.T) {
 					if got, want := mustGetRoot(t, tree), roots[br-1]; !bytes.Equal(got, want) {
 						t.Errorf("root=%v, want %v", got, want)
 					}
-					if diff := pretty.Compare(tree.Hashes(), hashes[br-1]); diff != "" {
-						t.Errorf("post-Hashes() diff:\n%v", diff)
+					if diff := pretty.Compare(tree.hashes(), hashes[br-1]); diff != "" {
+						t.Errorf("post-hashes() diff:\n%v", diff)
 					}
 				} else {
 					if got, want := mustGetRoot(t, tree), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
@@ -270,7 +270,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		if isPerfectTree(test.size) {
 			// A perfect tree should have a single hash at the highest bit that is just
 			// the root hash.
-			hashes := tree.Hashes()
+			hashes := tree.hashes()
 			for i, got := range hashes {
 				var want []byte
 				if i == (len(hashes) - 1) {
