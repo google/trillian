@@ -77,7 +77,7 @@ func TestSplitParseSuffixRoundtrip(t *testing.T) {
 		{h2b("12345678"), 253, h2b("fd")},
 	} {
 		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
-		_, sfx := nodeID.Split(len(tc.prefix), logStrataDepth)
+		sfx := nodeID.Suffix(len(tc.prefix), logStrataDepth)
 		sfxKey := sfx.String()
 
 		sfxP, err := ParseSuffix(sfxKey)
@@ -88,7 +88,7 @@ func TestSplitParseSuffixRoundtrip(t *testing.T) {
 		if got, want := sfx.Bits(), sfxP.Bits(); got != want {
 			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", sfxKey, got, want)
 		}
-		// This is the roundtrip test that the parsed value matches the Split().
+		// This is the roundtrip test that the parsed value matches the Suffix().
 		if got, want := sfx.Path(), sfxP.Path(); !bytes.Equal(got, want) {
 			t.Errorf("ParseSuffix(%s).Path: %x, want %x", sfxKey, got, want)
 		}
@@ -100,7 +100,7 @@ func TestSplitParseSuffixRoundtrip(t *testing.T) {
 	}
 }
 
-// TestSuffixKeyEquals ensures that NodeID.Split produces the same output as makeSuffixKey for the Log's use cases.
+// TestSuffixKeyEquals ensures that NodeID.Suffix produces the same output as makeSuffixKey for the Log's use cases.
 func TestSuffixKeyEquals(t *testing.T) {
 	for _, tc := range []struct {
 		prefix    []byte
@@ -128,7 +128,7 @@ func TestSuffixKeyEquals(t *testing.T) {
 		}
 
 		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
-		_, sfxB := nodeID.Split(len(tc.prefix), logStrataDepth)
+		sfxB := nodeID.Suffix(len(tc.prefix), logStrataDepth)
 		sfxBKey := sfxB.String()
 		sfxBBytes, err := base64.StdEncoding.DecodeString(sfxBKey)
 		if err != nil {

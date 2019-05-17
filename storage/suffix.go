@@ -68,7 +68,7 @@ func NewSuffix(bits byte, path []byte) *Suffix {
 	r = append(r, path...)
 	s := base64.StdEncoding.EncodeToString(r)
 
-	return &Suffix{bits: bits, path: append(make([]byte, 0, len(path)), path...), asString: s}
+	return &Suffix{bits: bits, path: r[1:], asString: s}
 }
 
 // Bits returns the number of significant bits in the Suffix path.
