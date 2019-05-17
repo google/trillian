@@ -881,7 +881,14 @@ func BenchmarkSplit(b *testing.B) {
 	n := NewNodeIDFromHash(h2b("0000000000000000000000000000000000000000000000000000000000000001"))
 	n.PrefixLenBits = 256
 	for i := 0; i < b.N; i++ {
-
 		_, _ = n.Split(10, 176)
+	}
+}
+
+func BenchmarkSuffix(b *testing.B) {
+	n := NewNodeIDFromHash(h2b("0000000000000000000000000000000000000000000000000000000000000001"))
+	n.PrefixLenBits = 256
+	for i := 0; i < b.N; i++ {
+		_ = n.Suffix(10, 176)
 	}
 }

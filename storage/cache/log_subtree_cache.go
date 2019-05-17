@@ -69,7 +69,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 				subDepth := logStrataDepth - int(id.Level)
 				// TODO(Martin2112): See if we can possibly avoid the expense hiding inside NewNodeIDFromPrefix.
 				nodeID := storage.NewNodeIDFromPrefix(st.Prefix, subDepth, int64(id.Index), logStrataDepth, maxLogDepth)
-				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
+				sfx := nodeID.Suffix(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				st.InternalNodes[sfxKey] = hash
 			}
@@ -81,7 +81,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 		// We need to update the subtree root hash regardless of whether it's fully populated
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
 			nodeID := storage.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
-			_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
+			sfx := nodeID.Suffix(len(st.Prefix), int(st.Depth))
 			sfxKey := sfx.String()
 			h := st.Leaves[sfxKey]
 			if h == nil {

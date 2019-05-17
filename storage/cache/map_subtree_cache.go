@@ -63,7 +63,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 					return nil
 				}
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, hasher.BitLen())
-				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
+				sfx := nodeID.Suffix(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				if glog.V(4) {
 					b, err := base64.StdEncoding.DecodeString(sfxKey)
