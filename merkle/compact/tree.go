@@ -118,7 +118,7 @@ func NewTree(hasher hashers.LogHasher) *Tree {
 
 // CurrentRoot returns the current root hash.
 func (t *Tree) CurrentRoot() ([]byte, error) {
-	return t.calculateRoot(nil)
+	return t.CalculateRoot(nil)
 }
 
 // String describes the internal state of the compact Tree.
@@ -138,11 +138,11 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-// calculateRoot computes the current root hash. It calls visit function for
-// imperfect subtrees along the right border of the tree while calculating it.
-//
-// TODO(pavelkalinnikov): Run this only once, after multiple AddLeaf calls.
-func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
+// CalculateRoot computes the current root hash. If visit function is not nil,
+// then CalculateRoot calls it for all imperfect subtree roots on the right
+// border of the tree (also called "ephemeral" nodes), ordered from lowest to
+// highest levels.
+func (t *Tree) CalculateRoot(visit VisitFn) ([]byte, error) {
 	if t.size == 0 {
 		return t.hasher.EmptyRoot(), nil
 	}
@@ -171,37 +171,29 @@ func (t *Tree) calculateRoot(visit VisitFn) ([]byte, error) {
 	return hash, nil
 }
 
-// AddLeaf calculates the Merkle leaf hash of the given leaf data and appends
-// it to the tree. Returns the Merkle hash of the new leaf.
-//
-// visit is a callback which will be called, if not nil, multiple times with
-// the coordinates of the Merkle tree nodes whose hash should be updated.
-//
-// If returns an error then the Tree is no longer usable.
-func (t *Tree) AddLeaf(data []byte, visit VisitFn) ([]byte, error) {
+// AppendLeaf calculates the Merkle leaf hash of the given leaf data and
+// appends it to the tree. Returns the Merkle hash of the new leaf. See
+// AppendLeafHash for details on how the visit function is used.
+func (t *Tree) AppendLeaf(data []byte, visit VisitFn) ([]byte, error) {
 	h := t.hasher.HashLeaf(data)
-	if err := t.AddLeafHash(h, visit); err != nil {
+	if err := t.AppendLeafHash(h, visit); err != nil {
 		return nil, err
 	}
 	return h, nil
 }
 
-// AddLeafHash appends the specified Merkle leaf hash to the tree.
+// AppendLeafHash appends a leaf node with the specified hash to the tree.
 //
-// visit is a callback which will be called, if not nil, multiple times with
-// the coordinates of the Merkle tree nodes whose hash should be updated.
+// If visit function is not nil, it will be called for each updated Merkle tree
+// node which became a root of a perfect subtree after adding the new leaf.
+// Note that this includes the leaf node itself. Ephemeral nodes (roots of
+// imperfect subtrees) on the right border of the tree are not visited for
+// efficiency reasons, but one can do so by calling the CalculateRoot method -
+// typically, after a series of AppendLeafHash calls.
 //
 // If returns an error then the Tree is no longer usable.
-func (t *Tree) AddLeafHash(leafHash []byte, visit VisitFn) (res error) {
-	defer func() {
-		if res != nil {
-			return
-		}
-		t.size++
-		if _, err := t.calculateRoot(visit); err != nil {
-			res = err
-		}
-	}()
+func (t *Tree) AppendLeafHash(leafHash []byte, visit VisitFn) error {
+	defer func() { t.size++ }()
 
 	assignedSeq := t.size
 	index := uint64(assignedSeq)

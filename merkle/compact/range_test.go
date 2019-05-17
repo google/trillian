@@ -33,6 +33,11 @@ var (
 	factory      = &RangeFactory{Hash: hashChildren}
 )
 
+// leafData returns test leaf data that depends on the passed in leaf index.
+func leafData(index uint64) []byte {
+	return []byte(fmt.Sprintf("data: %d", index))
+}
+
 // treeNode represents a Merkle tree node which roots a full binary subtree.
 type treeNode struct {
 	hash   []byte // The Merkle hash of the subtree.
@@ -63,7 +68,7 @@ func newTree(t *testing.T, size uint64) (*tree, VisitFn) {
 	}
 	// Compute leaf hashes.
 	for i := uint64(0); i < size; i++ {
-		nodes[0][i].hash = hashLeaf([]byte(fmt.Sprintf("data: %d", i)))
+		nodes[0][i].hash = hashLeaf(leafData(i))
 	}
 	// Compute internal node hashes.
 	for lvl := 1; lvl < levels; lvl++ {
