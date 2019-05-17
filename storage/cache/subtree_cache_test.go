@@ -66,7 +66,8 @@ func TestSplitNodeID(t *testing.T) {
 		n := storage.NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
-		p, s := c.splitNodeID(n)
+		sInfo := c.stratumInfoForNodeID(n)
+		p, s := n.Split(sInfo.prefixBytes, sInfo.depth)
 		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
 			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
 			continue
@@ -269,7 +270,8 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			n := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 8)
 			// Don't store leaves or the subtree root in InternalNodes
 			if id.Level > 0 && id.Level < 8 {
-				_, sfx := c.splitNodeID(n)
+				sInfo := c.stratumInfoForNodeID(n)
+				sfx := n.Suffix(sInfo.prefixBytes, sInfo.depth)
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}

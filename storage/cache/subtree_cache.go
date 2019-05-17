@@ -136,15 +136,12 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 	}
 }
 
-func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
-	return s.stratumInfo[numBits/depthQuantum]
+func (s *SubtreeCache) stratumInfoForNodeID(id storage.NodeID) stratumInfo {
+	return s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
 }
 
-// splitNodeID breaks a NodeID out into its prefix and suffix parts.
-// unless ID is 0 bits long, Suffix must always contain at least one bit.
-func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, *storage.Suffix) {
-	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
-	return id.Split(sInfo.prefixBytes, sInfo.depth)
+func (s *SubtreeCache) stratumInfoForPrefixLength(l int) stratumInfo {
+	return s.stratumInfo[l/depthQuantum]
 }
 
 // preload calculates the set of subtrees required to know the hashes of the
@@ -158,11 +155,10 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	want := make(map[string]*storage.NodeID)
 	for _, id := range ids {
 		id := id
-		sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
-		px := id.Prefix(sInfo.prefixBytes)
-		pxKey := string(px)
+		sInfo := s.stratumInfoForNodeID(id)
+		pxKey := id.PrefixAsKey(sInfo.prefixBytes)
 		// TODO(al): fix for non-uniform strata
-		id.PrefixLenBits = len(px) * depthQuantum
+		id.PrefixLenBits = sInfo.prefixBytes * depthQuantum
 		if _, ok := s.subtrees[pxKey]; !ok {
 			want[pxKey] = &id
 		}
@@ -299,14 +295,15 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 
 // getNodeHashUnderLock must be called with s.mutex locked.
 func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
-	px, sx := s.splitNodeID(id)
-	prefixKey := string(px)
+	sInfo := s.stratumInfoForNodeID(id)
+	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
 	c := s.subtrees[prefixKey]
 	if c == nil {
 		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
+		px := id.Prefix(sInfo.prefixBytes)
 		// Cache miss, so we'll try to fetch from storage.
 		subID := id
-		subID.PrefixLenBits = len(px) * depthQuantum // this won't work if depthQuantum changes
+		subID.PrefixLenBits = sInfo.prefixBytes * depthQuantum // this won't work if depthQuantum changes
 		var err error
 		c, err = getSubtree(subID)
 		if err != nil {
@@ -336,6 +333,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
+	sx := id.Suffix(sInfo.prefixBytes, sInfo.depth)
 	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
 		nh = c.Leaves[sfxKey]
@@ -362,8 +360,9 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	px, sx := s.splitNodeID(id)
-	prefixKey := string(px)
+
+	sInfo := s.stratumInfoForNodeID(id)
+	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
 	c := s.subtrees[prefixKey]
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
@@ -386,6 +385,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	}
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
+	sx := id.Suffix(sInfo.prefixBytes, sInfo.depth)
 	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
 		// If the value being set is identical to the one we read from storage, then
