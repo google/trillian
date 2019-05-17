@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS sequenced_leaf_data(
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   merkle_leaf_hash          BYTEA NOT NULL,
   integrate_timestamp_nanos BIGINT NOT NULL,
-  PRIMARY KEY(tree_id,sequence_number),
+  PRIMARY KEY(tree_id, sequence_number),
   FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE,
   FOREIGN KEY(tree_id, leaf_identity_hash) REFERENCES leaf_data(tree_id, leaf_identity_hash) ON DELETE CASCADE
 );--end
