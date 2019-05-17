@@ -78,7 +78,7 @@ func TestNodeRoundTrip(t *testing.T) {
 func forceWriteRevision(rev int64, tx storage.TreeTX) {
 	mtx, ok := tx.(*logTreeTX)
 	if !ok {
-		panic(nil)
+		panic(fmt.Sprintf("tx is %T, want *logTreeTX", tx))
 	}
 	mtx.treeTX.writeRevision = rev
 }
