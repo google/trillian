@@ -165,12 +165,12 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 	}
 }
 
-// NewNodeIDFromBigInt returns a NodeID of a big.Int with no prefix.
+// newNodeIDFromBigIntOld returns a NodeID of a big.Int with no prefix.
 // index contains the path's least significant bits.
 // depth indicates the number of bits from the most significant bit to treat as part of the path.
-func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
+func newNodeIDFromBigIntOld(depth int, index *big.Int, totalDepth int) NodeID {
 	if got, want := totalDepth%8, 0; got != want || got < want {
-		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
+		panic(fmt.Sprintf("storage NewNodeFromBitIntOld(): totalDepth mod 8: %v, want %v", got, want))
 	}
 
 	// TODO(al): We _could_ use Bits() and avoid the extra copy/alloc.
@@ -182,8 +182,48 @@ func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
 
 	// TODO(gdbelvin): consider masking off insignificant bits past depth.
 	if glog.V(5) {
-		glog.Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
+		glog.Infof("NewNodeIDFromBigIntOld(%v, %x, %v): %v, %x",
 			depth, b, totalDepth, depth, path)
+	}
+
+	return NodeID{
+		Path:          path,
+		PrefixLenBits: depth,
+	}
+}
+
+func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
+	if got, want := totalDepth%8, 0; got != want {
+		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
+	}
+
+	if totalDepth == 0 {
+		panic("storage NewNodeFromBitInt(): totalDepth must not be zero")
+	}
+
+	// Put index in the LSB bits of path.
+	// This code more-or-less pinched from nat.go in the golang math/big package:
+	const _S = bits.UintSize / 8
+	path := make([]byte, totalDepth/8)
+
+	iBits := index.Bits()
+	i := len(path)
+loop:
+	for _, d := range iBits {
+		for j := 0; j < _S; j++ {
+			i--
+			if i < 0 {
+				break loop
+			}
+			path[i] = byte(d)
+			d >>= 8
+		}
+	}
+
+	// TODO(gdbelvin): consider masking off insignificant bits past depth.
+	if glog.V(5) {
+		glog.Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
+			depth, index, totalDepth, depth, path)
 	}
 
 	return NodeID{
