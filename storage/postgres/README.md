@@ -10,7 +10,7 @@ change I made was to fully translate the MySQL queries to PostgreSQL compatible 
 and tidy up some of the extant tree storage code.
 
 storage_unsafe.sql really isn't unsafe, but I have pulled some of the safety
-rails from the tables to improve performance.  It also works under the notion that
+rails from the tables to improve performance.  It also works under the assumption that
 there will only be a single tree in a given database.  An improvement on this theme 
 would be to add all layers below the trees table in their own separate schemas.  
 This would further eliminate indexs and foreign key requirements, but it should
