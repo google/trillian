@@ -422,7 +422,9 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		SecondTreeSize: int64(root.TreeSize),
 	}
 	if uint64(req.FirstTreeSize) > root.TreeSize {
-		// no need to get consistency proof in this case
+		// The client has asked for a consistency proof to the current root from a size greater than the root.
+		// Return an error that includes the SLR we have available (and no consistency proof).
+		// Close the transaction because we will not be fetching a consistency proof.
 		if err := t.commitAndLog(ctx, req.LogId, tx, "GetLatestSignedLogRoot"); err != nil {
 			return nil, err
 		}

@@ -6,9 +6,9 @@ Not yet released; provisionally v2.0.0 (may change).
 
 ### Better Server Skew Behavior
 
-GetLatestSignedLogRoot will return `codes.Unavailable` when the requested
-`tree_size` is unavailable. The current SLR will be returned in the error
-details.
+GetLatestSignedLogRoot will return `codes.Unavailable` when `first_tree_size >
+0` and  the requested `first_tree_size` is unavailable. The current SLR will be
+returned in the error details.
 
 ### GetMapLeafByRevision API
 New GetMapLeafByRevision API for fetching a single map leaf. This allows there
