@@ -183,10 +183,9 @@ the original files; if you do, you'll need to install the prerequisites:
 
   - `mockgen` tool from https://github.com/golang/mock
   - `stringer` tool from https://golang.org/x/tools/cmd/stringer
-  - `protoc`, [Go support for protoc](https://github.com/golang/protobuf) and
-     [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) (see
-     documentation linked from the
-     [protobuf site](https://github.com/google/protobuf))
+  - `protoc`, [Go support for protoc](https://github.com/golang/protobuf),
+     [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) and
+     [protoc-gen-doc](https://github.com/pseudomuto/protoc-gen-doc).
   - protocol buffer definitions for standard Google APIs:
 
     ```bash
