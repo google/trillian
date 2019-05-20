@@ -32,17 +32,18 @@ import (
 // This check ensures that the compact Merkle tree contains the correct set of
 // nodes, i.e. the node on level i is present iff i-th bit of tree size is 1.
 func checkUnusedNodesInvariant(t *Tree) error {
-	size := t.size
+	size := t.Size()
+	nodes := t.getNodes()
 	sizeBits := bits.Len64(uint64(size))
-	if got, want := len(t.nodes), sizeBits; got != want {
+	if got, want := len(nodes), sizeBits; got != want {
 		return fmt.Errorf("nodes mismatch: have %v nodes, want %v", got, want)
 	}
 	for level := 0; level < sizeBits; level++ {
 		if size&1 == 1 {
-			if t.nodes[level] == nil {
+			if nodes[level] == nil {
 				return fmt.Errorf("missing node at level %d", level)
 			}
-		} else if t.nodes[level] != nil {
+		} else if nodes[level] != nil {
 			return fmt.Errorf("unexpected node at level %d", level)
 		}
 		size >>= 1
@@ -97,8 +98,8 @@ func TestAddingLeaves(t *testing.T) {
 					if got, want := mustGetRoot(t, tree), roots[br-1]; !bytes.Equal(got, want) {
 						t.Errorf("root=%v, want %v", got, want)
 					}
-					if diff := pretty.Compare(tree.Hashes(), hashes[br-1]); diff != "" {
-						t.Errorf("post-Hashes() diff:\n%v", diff)
+					if diff := pretty.Compare(tree.hashes(), hashes[br-1]); diff != "" {
+						t.Errorf("post-hashes() diff:\n%v", diff)
 					}
 				} else {
 					if got, want := mustGetRoot(t, tree), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
@@ -269,7 +270,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		if isPerfectTree(test.size) {
 			// A perfect tree should have a single hash at the highest bit that is just
 			// the root hash.
-			hashes := tree.Hashes()
+			hashes := tree.hashes()
 			for i, got := range hashes {
 				var want []byte
 				if i == (len(hashes) - 1) {
