@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
+	to "github.com/google/trillian/merkle/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
@@ -61,9 +62,9 @@ func mustGetRoot(t *testing.T, mt *Tree) []byte {
 }
 
 func TestAddingLeaves(t *testing.T) {
-	inputs := testonly.MerkleTreeLeafTestInputs()
-	roots := testonly.MerkleTreeLeafTestRootHashes()
-	hashes := testonly.CompactMerkleTreeLeafTestNodeHashes()
+	inputs := to.LeafInputs()
+	roots := to.RootHashes()
+	hashes := to.CompactTreesOld()
 
 	// Test the "same" thing in different ways, to ensure than any lazy update
 	// strategy being employed by the implementation doesn't affect the
@@ -95,14 +96,14 @@ func TestAddingLeaves(t *testing.T) {
 					t.Errorf("Size()=%d, want %d", got, want)
 				}
 				if br > 0 {
-					if got, want := mustGetRoot(t, tree), roots[br-1]; !bytes.Equal(got, want) {
+					if got, want := mustGetRoot(t, tree), roots[br]; !bytes.Equal(got, want) {
 						t.Errorf("root=%v, want %v", got, want)
 					}
-					if diff := pretty.Compare(tree.hashes(), hashes[br-1]); diff != "" {
+					if diff := pretty.Compare(tree.hashes(), hashes[br]); diff != "" {
 						t.Errorf("post-hashes() diff:\n%v", diff)
 					}
 				} else {
-					if got, want := mustGetRoot(t, tree), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
+					if got, want := mustGetRoot(t, tree), to.EmptyRootHash(); !bytes.Equal(got, want) {
 						t.Errorf("root=%x, want %x (empty)", got, want)
 					}
 				}
