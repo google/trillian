@@ -133,40 +133,35 @@ func NewSequencer(
 }
 
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
-	mt, err := compact.NewTreeWithState(s.hasher, int64(root.TreeSize), func(ids []compact.NodeID) ([][]byte, error) {
-		storIDs := make([]storage.NodeID, len(ids))
-		for i, id := range ids {
-			nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create nodeID: %v", err)
-			}
-			storIDs[i] = nodeID
-		}
-
-		nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), storIDs)
+	ids := compact.TreeNodes(root.TreeSize)
+	storIDs := make([]storage.NodeID, len(ids))
+	for i, id := range ids {
+		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
+			return nil, fmt.Errorf("failed to create nodeID: %v", err)
 		}
-		if got, want := len(nodes), len(storIDs); got != want {
-			return nil, fmt.Errorf("failed to get %d nodes at rev %d, got %d", want, root.Revision, got)
-		}
-		for i, id := range storIDs {
-			if !nodes[i].NodeID.Equivalent(id) {
-				return nil, fmt.Errorf("node ID mismatch at %d", i)
-			}
-		}
-
-		hashes := make([][]byte, len(nodes))
-		for i, node := range nodes {
-			hashes[i] = node.Hash
-		}
-		return hashes, nil
-	}, root.RootHash)
-
-	if err != nil {
-		return nil, fmt.Errorf("%x: %v", s.signer.KeyHint, err)
+		storIDs[i] = nodeID
 	}
-	return mt, nil
+
+	nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), storIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
+	}
+	if got, want := len(nodes), len(storIDs); got != want {
+		return nil, fmt.Errorf("failed to get %d nodes at rev %d, got %d", want, root.Revision, got)
+	}
+	for i, id := range storIDs {
+		if !nodes[i].NodeID.Equivalent(id) {
+			return nil, fmt.Errorf("node ID mismatch at %d", i)
+		}
+	}
+
+	hashes := make([][]byte, len(nodes))
+	for i, node := range nodes {
+		hashes[i] = node.Hash
+	}
+
+	return compact.NewTreeWithState(s.hasher, int64(root.TreeSize), hashes, root.RootHash)
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
@@ -241,8 +236,12 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot *t
 		return compact.NewTree(s.hasher), nil
 	}
 
-	// Initialize the compact tree state to match the latest root in the database
-	return s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
+	// Initialize the compact tree state to match the latest root in the database.
+	mt, err := s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
+	if err != nil {
+		return nil, fmt.Errorf("%x: %v", s.signer.KeyHint, err)
+	}
+	return mt, err
 }
 
 // sequencingTask provides sequenced LogLeaf entries, and updates storage
