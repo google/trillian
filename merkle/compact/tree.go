@@ -70,7 +70,7 @@ func NewTreeWithState(hasher hashers.LogHasher, size int64, getNodesFn GetNodesF
 	if got, want := len(hashes), len(ids); got != want {
 		return nil, fmt.Errorf("got %d hashes, needed %d", got, want)
 	}
-	// Note: Right border nodes of compact.Range are ordered top-to-bottom.
+	// Note: Right border nodes of compact.Range are ordered from root to leaves.
 	for i, j := 0, len(hashes)-1; i < j; i, j = i+1, j-1 {
 		hashes[i], hashes[j] = hashes[j], hashes[i]
 	}
@@ -110,7 +110,7 @@ func (t *Tree) CurrentRoot() ([]byte, error) {
 
 // String describes the internal state of the compact Tree.
 //
-// TODO(pavelkalinnikov): Remove this method, or move String to Range type.
+// TODO(pavelkalinnikov): Remove this method, or move it to Range type.
 func (t *Tree) String() string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("Tree Nodes @ %d\n", t.rng.End()))
