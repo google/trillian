@@ -17,6 +17,7 @@ package cache
 import (
 	"bytes"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"sync"
 
@@ -24,6 +25,9 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )
+
+// TODO(al): move this up the stack
+var populateConcurrency = flag.Int("populate_subtree_concurrency", 256, "Max number of concurrent workers concurrently populating subtrees")
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
 type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
@@ -77,6 +81,8 @@ type SubtreeCache struct {
 	mutex *sync.RWMutex
 	// populate is used to rebuild internal nodes when subtrees are loaded from storage.
 	populate storage.PopulateSubtreeFunc
+	// populateConcurrency sets the amount of concurrency when repopulating subtrees.
+	populateConcurrency int
 	// prepare is used for preparation work when subtrees are about to be written to storage.
 	prepare storage.PrepareSubtreeWriteFunc
 }
@@ -115,13 +121,18 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 		panic(fmt.Errorf("strata indicate tree of depth %d, but expected %d", got, want))
 	}
 
+	if *populateConcurrency <= 0 {
+		panic(fmt.Errorf("populate_subtree_concurrency must be set to >= 1"))
+	}
+
 	return SubtreeCache{
-		stratumInfo:   sInfo,
-		subtrees:      make(map[string]*storagepb.SubtreeProto),
-		dirtyPrefixes: make(map[string]bool),
-		mutex:         new(sync.RWMutex),
-		populate:      populateSubtree,
-		prepare:       prepareSubtreeWrite,
+		stratumInfo:         sInfo,
+		subtrees:            make(map[string]*storagepb.SubtreeProto),
+		dirtyPrefixes:       make(map[string]bool),
+		mutex:               new(sync.RWMutex),
+		populate:            populateSubtree,
+		populateConcurrency: *populateConcurrency,
+		prepare:             prepareSubtreeWrite,
 	}
 }
 
@@ -169,8 +180,36 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	if err != nil {
 		return err
 	}
+
+	ch := make(chan *storagepb.SubtreeProto, len(want))
+	workTokens := make(chan bool, s.populateConcurrency)
+	for i := 0; i < s.populateConcurrency; i++ {
+		workTokens <- true
+	}
+	wg := &sync.WaitGroup{}
+
 	for _, t := range subtrees {
-		s.populate(t)
+		t := t
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// wait for a token before starting work
+			<-workTokens
+			// return it when done
+			defer func() { workTokens <- true }()
+
+			s.populate(t)
+			ch <- t
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+		close(workTokens)
+	}()
+
+	for t := range ch {
 		s.subtrees[string(t.Prefix)] = t
 		delete(want, string(t.Prefix))
 	}
@@ -245,11 +284,15 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 
 // getNodeHash returns a single node hash from the cache.
 func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
-	glog.V(3).Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
+	if glog.V(3) {
+		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
+	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	data, err := s.getNodeHashUnderLock(id, getSubtree)
-	glog.V(3).Infof("cache: getNodeHash(path=%x, prefixLen=%d) => %x, %v }", id.Path, id.PrefixLenBits, data, err)
+	if glog.V(3) {
+		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) => %x, %v }", id.Path, id.PrefixLenBits, data, err)
+	}
 	return data, err
 }
 
@@ -313,7 +356,9 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 
 // SetNodeHash sets a node hash in the cache.
 func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
-	glog.V(3).Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
+	if glog.V(3) {
+		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
+	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := s.splitNodeID(id)
@@ -405,7 +450,9 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 
 func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
-	glog.V(2).Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
+	if glog.V(2) {
+		glog.Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
+	}
 	// storage didn't have one for us, so we'll store an empty proto here
 	// incase we try to update it later on (we won't flush it back to
 	// storage unless it's been written to.)

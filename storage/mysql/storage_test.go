@@ -154,13 +154,16 @@ func createSomeNodes() []storage.Node {
 func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, error) {
 	tree := compact.NewTree(rfc6962.New(crypto.SHA256))
 	nodeMap := make(map[compact.NodeID][]byte)
+	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 	for l := 0; l < int(ts); l++ {
-		// We're only interested in the side effects of adding leaves - the node updates
-		if _, _, err := tree.AddLeaf([]byte(fmt.Sprintf("Leaf %d", l)), func(level uint, index uint64, hash []byte) {
-			nodeMap[compact.NodeID{Level: level, Index: index}] = hash
-		}); err != nil {
+		// Only interested in side effects of AppendLeaf - the node updates.
+		if _, err := tree.AppendLeaf([]byte(fmt.Sprintf("Leaf %d", l)), store); err != nil {
 			return nil, err
 		}
+	}
+	// Store the ephemeral nodes as well.
+	if _, err := tree.CalculateRoot(store); err != nil {
+		return nil, err
 	}
 
 	// Unroll the map, which has deduped the updates for us and retained the latest
@@ -288,6 +291,5 @@ func TestMain(m *testing.M) {
 	DB = openTestDBOrDie()
 	defer DB.Close()
 	cleanTestDB(DB)
-	ec := m.Run()
-	os.Exit(ec)
+	os.Exit(m.Run())
 }

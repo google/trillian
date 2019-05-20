@@ -216,20 +216,21 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 	}
 
 	nodeMap := make(map[compact.NodeID][]byte)
-	store := func(level uint, index uint64, hash []byte) {
-		nodeMap[compact.NodeID{Level: level, Index: index}] = hash
-	}
+	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
-		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, store)
-		if err != nil {
-			return nil, err
-		} else if leaf.LeafIndex != seq {
-			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", seq, leaf.LeafIndex)
+		idx := leaf.LeafIndex
+		if size := mt.Size(); size != idx {
+			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
-		// Store leaf hash in the Merkle tree too.
-		store(0, uint64(seq), leaf.MerkleLeafHash)
+		if err := mt.AppendLeafHash(leaf.MerkleLeafHash, store); err != nil {
+			return nil, err
+		}
+	}
+	// TODO(pavelkalinnikov): Reuse the returned root hash in IntegrateBatch.
+	if _, err := mt.CalculateRoot(store); err != nil {
+		return nil, err
 	}
 
 	return nodeMap, nil
@@ -434,8 +435,12 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 
 		// Create the log root ready for signing
+		root, err := merkleTree.CurrentRoot()
+		if err != nil {
+			return fmt.Errorf("%v: failed to compute new root hash: %v", tree.TreeId, err)
+		}
 		newLogRoot = &types.LogRootV1{
-			RootHash:       merkleTree.CurrentRoot(),
+			RootHash:       root,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
 			TreeSize:       uint64(merkleTree.Size()),
 			Revision:       uint64(newVersion),
@@ -464,30 +469,37 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 	}
 
 	// Let quota.Manager know about newly-sequenced entries.
-	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
-	// Implementations are tasked with filtering quotas that shouldn't be replenished.
-	// TODO(codingllama): Consider adding a source-aware replenish method
-	// (eg, qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no ambiguity as to
-	// where the tokens come from.
-	if numLeaves > 0 {
-		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
-		specs := []quota.Spec{
-			{Group: quota.Tree, Kind: quota.Read, TreeID: tree.TreeId},
-			{Group: quota.Tree, Kind: quota.Write, TreeID: tree.TreeId},
-			{Group: quota.Global, Kind: quota.Read},
-			{Group: quota.Global, Kind: quota.Write},
-		}
-		glog.V(2).Infof("%v: Replenishing %v tokens (numLeaves = %v)", tree.TreeId, tokens, numLeaves)
-		err := s.qm.PutTokens(ctx, tokens, specs)
-		if err != nil {
-			glog.Warningf("%v: Failed to replenish %v tokens: %v", tree.TreeId, tokens, err)
-		}
-		quota.Metrics.IncReplenished(tokens, specs, err == nil)
-	}
+	s.replenishQuota(ctx, numLeaves, tree.TreeId)
 
 	seqCounter.Add(float64(numLeaves), label)
 	if newSLR != nil {
 		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", tree.TreeId, numLeaves, newLogRoot.TreeSize, newLogRoot.Revision)
 	}
 	return numLeaves, nil
+}
+
+// replenishQuota replenishes all quotas, such as {Tree/Global, Read/Write},
+// that are possibly influenced by sequencing numLeaves entries for the passed
+// in tree ID. Implementations are tasked with filtering quotas that shouldn't
+// be replenished.
+//
+// TODO(codingllama): Consider adding a source-aware replenish method (e.g.,
+// qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no
+// ambiguity as to where the tokens come from.
+func (s Sequencer) replenishQuota(ctx context.Context, numLeaves int, treeID int64) {
+	if numLeaves > 0 {
+		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
+		specs := []quota.Spec{
+			{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},
+			{Group: quota.Tree, Kind: quota.Write, TreeID: treeID},
+			{Group: quota.Global, Kind: quota.Read},
+			{Group: quota.Global, Kind: quota.Write},
+		}
+		glog.V(2).Infof("%v: replenishing %d tokens (numLeaves = %d)", treeID, tokens, numLeaves)
+		err := s.qm.PutTokens(ctx, tokens, specs)
+		if err != nil {
+			glog.Warningf("%v: failed to replenish %d tokens: %v", treeID, tokens, err)
+		}
+		quota.Metrics.IncReplenished(tokens, specs, err == nil)
+	}
 }

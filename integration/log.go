@@ -339,10 +339,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 			}
 			leafMap[leaf.LeafIndex] = leaf
 
-			hash, err := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
-			if err != nil {
-				return nil, fmt.Errorf("HashLeaf(%v): %v", leaf.LeafValue, err)
-			}
+			hash := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
 
 			if got, want := hex.EncodeToString(hash), hex.EncodeToString(leaf.MerkleLeafHash); got != want {
 				return nil, fmt.Errorf("leaf %d hash mismatch expected got: %s want: %s", leaf.LeafIndex, got, want)
@@ -524,18 +521,20 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.StartLeaf; l < params.LeafCount; l++ {
-		if _, _, err := compactTree.AddLeaf(leafMap[l].LeafValue, func(uint, uint64, []byte) {}); err != nil {
+		if _, err := compactTree.AppendLeaf(leafMap[l].LeafValue, nil); err != nil {
 			return nil, err
 		}
-		if _, _, err := merkleTree.AddLeaf(leafMap[l].LeafValue); err != nil {
-			return nil, err
-		}
+		merkleTree.AddLeaf(leafMap[l].LeafValue)
 	}
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a
 	// "can't happen" situation.
-	if !bytes.Equal(compactTree.CurrentRoot(), merkleTree.CurrentRoot().Hash()) {
-		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", compactTree.CurrentRoot(), merkleTree.CurrentRoot())
+	root, err := compactTree.CurrentRoot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute compact tree root: %v", err)
+	}
+	if !bytes.Equal(root, merkleTree.CurrentRoot().Hash()) {
+		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, merkleTree.CurrentRoot())
 	}
 
 	return merkleTree, nil

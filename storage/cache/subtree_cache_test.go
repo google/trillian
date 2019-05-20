@@ -247,7 +247,8 @@ func TestCacheFlush(t *testing.T) {
 
 func TestRepopulateLogSubtree(t *testing.T) {
 	populateTheThing := populateLogSubtreeNodes(rfc6962.DefaultHasher)
-	cmt := compact.NewTree(rfc6962.DefaultHasher)
+	fact := compact.RangeFactory{Hash: rfc6962.DefaultHasher.HashChildren}
+	cr := fact.NewEmptyRange(0)
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
@@ -263,19 +264,16 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		s.InternalNodes = make(map[string][]byte)
 
 		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
-		leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaf)
-		if err != nil {
-			t.Fatalf("HashLeaf(%v): %v", leaf, err)
-		}
-		_, err = cmt.AddLeafHash(leafHash, func(level uint, index uint64, h []byte) {
-			n := stestonly.MustCreateNodeIDForTreeCoords(int64(level), int64(index), 8)
+		leafHash := rfc6962.DefaultHasher.HashLeaf(leaf)
+		store := func(id compact.NodeID, hash []byte) {
+			n := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 8)
 			// Don't store leaves or the subtree root in InternalNodes
-			if level > 0 && level < 8 {
+			if id.Level > 0 && id.Level < 8 {
 				_, sfx := c.splitNodeID(n)
-				cmtStorage.InternalNodes[sfx.String()] = h
+				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
-		})
-		if err != nil {
+		}
+		if err := cr.Append(leafHash, store); err != nil {
 			t.Fatalf("merkle tree update failed: %v", err)
 		}
 
@@ -293,7 +291,11 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		if err := populateTheThing(&s); err != nil {
 			t.Fatalf("failed populate subtree: %v", err)
 		}
-		if got, expected := s.RootHash, cmt.CurrentRoot(); !bytes.Equal(got, expected) {
+		root, err := cr.GetRootHash(nil)
+		if err != nil {
+			t.Fatalf("GetRootHash: %v", err)
+		}
+		if got, expected := s.RootHash, root; !bytes.Equal(got, expected) {
 			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())
 		}
 
@@ -305,6 +307,29 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			}
 		} else if diff := pretty.Compare(cmtStorage.InternalNodes, s.InternalNodes); diff != "" {
 			t.Fatalf("(it %d) CMT/sparse internal nodes diff:\n%v", numLeaves, diff)
+		}
+	}
+}
+
+func BenchmarkRepopulateLogSubtree(b *testing.B) {
+	hasher := rfc6962.DefaultHasher
+	s := storagepb.SubtreeProto{
+		Leaves:            make(map[string][]byte),
+		Depth:             int32(defaultLogStrata[0]),
+		InternalNodeCount: 254,
+	}
+	for i := 0; i < 256; i++ {
+		leaf := []byte(fmt.Sprintf("leaf %d", i))
+		hash := hasher.HashLeaf(leaf)
+		nodeID := storage.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, int64(i), logStrataDepth, maxLogDepth)
+		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
+		s.Leaves[sfx.String()] = hash
+	}
+
+	populate := populateLogSubtreeNodes(hasher)
+	for n := 0; n < b.N; n++ {
+		if err := populate(&s); err != nil {
+			b.Fatalf("failed populate subtree: %v", err)
 		}
 	}
 }

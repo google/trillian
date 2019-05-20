@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	trillianSQL = testonly.RelativeToPackage("../storage.sql")
+	trillianSQL = testonly.RelativeToPackage("../schema/storage.sql")
 	pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
 	dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
 )

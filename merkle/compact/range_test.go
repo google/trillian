@@ -33,6 +33,11 @@ var (
 	factory      = &RangeFactory{Hash: hashChildren}
 )
 
+// leafData returns test leaf data that depends on the passed in leaf index.
+func leafData(index uint64) []byte {
+	return []byte(fmt.Sprintf("data: %d", index))
+}
+
 // treeNode represents a Merkle tree node which roots a full binary subtree.
 type treeNode struct {
 	hash   []byte // The Merkle hash of the subtree.
@@ -52,9 +57,9 @@ func newTree(t *testing.T, size uint64) (*tree, VisitFn) {
 	nodes := make([][]treeNode, levels)
 	tr := &tree{size: size, nodes: nodes}
 	// Attach a visitor to the nodes and the testing handler.
-	visit := func(level uint, index uint64, hash []byte) {
-		if err := tr.visit(level, index, hash); err != nil {
-			t.Errorf("visit(%d,%d): %v", level, index, err)
+	visit := func(id NodeID, hash []byte) {
+		if err := tr.visit(id.Level, id.Index, hash); err != nil {
+			t.Errorf("visit %+v: %v", id, err)
 		}
 	}
 
@@ -63,7 +68,7 @@ func newTree(t *testing.T, size uint64) (*tree, VisitFn) {
 	}
 	// Compute leaf hashes.
 	for i := uint64(0); i < size; i++ {
-		nodes[0][i].hash = hashLeaf([]byte(fmt.Sprintf("data: %d", i)))
+		nodes[0][i].hash = hashLeaf(leafData(i))
 	}
 	// Compute internal node hashes.
 	for lvl := 1; lvl < levels; lvl++ {
@@ -163,7 +168,7 @@ func TestMergeForward(t *testing.T) {
 	rng := factory.NewEmptyRange(0)
 	tree.verifyRange(t, rng, true)
 	for i := uint64(0); i < numNodes; i++ {
-		visit(0, i, tree.leaf(i))
+		visit(NewNodeID(0, i), tree.leaf(i))
 		rng.Append(tree.leaf(i), visit)
 		tree.verifyRange(t, rng, true)
 	}
@@ -177,7 +182,7 @@ func TestMergeBackwards(t *testing.T) {
 	rng := factory.NewEmptyRange(numNodes)
 	tree.verifyRange(t, rng, true)
 	for i := numNodes; i > 0; i-- {
-		visit(0, i-1, tree.leaf(i-1))
+		visit(NewNodeID(0, i-1), tree.leaf(i-1))
 		prepend := factory.NewEmptyRange(i - 1)
 		tree.verifyRange(t, prepend, true)
 		prepend.Append(tree.leaf(i-1), visit)
@@ -204,7 +209,7 @@ func TestMergeInBatches(t *testing.T) {
 		rng := factory.NewEmptyRange(i)
 		tree.verifyRange(t, rng, true)
 		for node := i; node < i+batch && node < numNodes; node++ {
-			visit(0, node, tree.leaf(node))
+			visit(NewNodeID(0, node), tree.leaf(node))
 			if err := rng.Append(tree.leaf(node), visit); err != nil {
 				t.Fatalf("Append: %v", err)
 			}
@@ -237,7 +242,7 @@ func TestMergeRandomly(t *testing.T) {
 			mergeAll = func(begin, end uint64) *Range {
 				rng := factory.NewEmptyRange(begin)
 				if begin+1 == end {
-					visit(0, begin, tree.leaf(begin))
+					visit(NewNodeID(0, begin), tree.leaf(begin))
 					if err := rng.Append(tree.leaf(begin), visit); err != nil {
 						t.Fatalf("Append(%d): %v", begin, err)
 					}
@@ -441,17 +446,14 @@ func TestGetRootHashGolden(t *testing.T) {
 			rng := factory.NewEmptyRange(0)
 			for i := 0; i < tc.size; i++ {
 				data := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
-				hash, err := rfc6962.DefaultHasher.HashLeaf(data)
-				if err != nil {
-					t.Fatalf("HashLeaf(%x): %v", data, err)
-				}
+				hash := hashLeaf(data)
 				if err := rng.Append(hash, nil); err != nil {
 					t.Fatalf("Append(%d): %v", i, err)
 				}
 			}
 			visited := make([]node, 0, len(tc.wantNodes))
-			hash, err := rng.GetRootHash(func(level uint, index uint64, hash []byte) {
-				visited = append(visited, node{level: level, index: index, hash: base64.StdEncoding.EncodeToString(hash)})
+			hash, err := rng.GetRootHash(func(id NodeID, hash []byte) {
+				visited = append(visited, node{level: id.Level, index: id.Index, hash: base64.StdEncoding.EncodeToString(hash)})
 			})
 			if err != nil {
 				t.Fatalf("GetRootHash: %v", err)
@@ -700,11 +702,7 @@ func TestEqual(t *testing.T) {
 }
 
 func hashLeaf(data []byte) []byte {
-	hash, err := rfc6962.DefaultHasher.HashLeaf(data)
-	if err != nil {
-		panic(fmt.Sprintf("rfc6962: HashLeaf: %v", err))
-	}
-	return hash
+	return rfc6962.DefaultHasher.HashLeaf(data)
 }
 
 func shorten(hash []byte) []byte {

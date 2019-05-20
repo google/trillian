@@ -65,19 +65,23 @@ func (m *MapHasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", height))
 	}
 	depth := m.BitLen() - height
-	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, m.nullHashes[height])
+	if glog.V(5) {
+		glog.Infof("HashEmpty(%x, %d): %x", index, depth, m.nullHashes[height])
+	}
 	return m.nullHashes[height]
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The hashed structure is leafHashPrefix||leaf.
-func (m *MapHasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error) {
+func (m *MapHasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
 	h := m.New()
 	h.Write([]byte{leafHashPrefix})
 	h.Write(leaf)
 	r := h.Sum(nil)
-	glog.V(5).Infof("HashLeaf(%x): %x", index, r)
-	return r, nil
+	if glog.V(5) {
+		glog.Infof("HashLeaf(%x): %x", index, r)
+	}
+	return r
 }
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
@@ -88,7 +92,9 @@ func (m *MapHasher) HashChildren(l, r []byte) []byte {
 	h.Write(l)
 	h.Write(r)
 	p := h.Sum(nil)
-	glog.V(5).Infof("HashChildren(%x, %x): %x", l, r, p)
+	if glog.V(5) {
+		glog.Infof("HashChildren(%x, %x): %x", l, r, p)
+	}
 	return p
 }
 
@@ -106,13 +112,7 @@ func (m *MapHasher) initNullHashes() {
 	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
 	nodes := m.Size()*8 + 1
 	r := make([][]byte, nodes)
-	h, err := m.HashLeaf(0, nil, nil)
-	if err != nil {
-		// This panic should be impossible to trigger.
-		// MapHasher.HashLeaf never returns an error.
-		panic(fmt.Sprintf("HashLeaf(): %v", err))
-	}
-	r[0] = h
+	r[0] = m.HashLeaf(0, nil, nil)
 	for i := 1; i < nodes; i++ {
 		r[i] = m.HashChildren(r[i-1], r[i-1])
 	}

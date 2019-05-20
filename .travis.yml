@@ -31,8 +31,6 @@ env:
 
 matrix:
   fast_finish: true
-  allow_failures:
-    - env: DOCKER_TESTS=true
 
 services:
   - docker
@@ -67,16 +65,18 @@ install:
   - go get ${GOFLAGS} -d -t ./...
   - go get -d -t github.com/google/certificate-transparency-go/...
   - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.16.0
-  - go get github.com/golang/protobuf/proto
-  - go get github.com/golang/protobuf/protoc-gen-go
-  - go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-  - go get github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-  - go get github.com/golang/mock/mockgen
-  - go get golang.org/x/tools/cmd/stringer
-  - go get github.com/uber/prototool/cmd/prototool
+  - go get
+      github.com/golang/mock/mockgen
+      github.com/golang/protobuf/proto
+      github.com/golang/protobuf/protoc-gen-go
+      github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+      github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+      github.com/uber/prototool/cmd/prototool
+      golang.org/x/tools/cmd/stringer
   # install vendored etcd binary
-  - go install ./vendor/github.com/coreos/etcd/cmd/etcd
-  - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
+  - go install
+      ./vendor/github.com/coreos/etcd/cmd/etcd
+      ./vendor/github.com/coreos/etcd/cmd/etcdctl
   # install bazel
   - |
     (

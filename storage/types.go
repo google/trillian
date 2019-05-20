@@ -165,22 +165,66 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 	}
 }
 
-// NewNodeIDFromBigInt returns a NodeID of a big.Int with no prefix.
+// newNodeIDFromBigIntOld returns a NodeID of a big.Int with no prefix.
 // index contains the path's least significant bits.
 // depth indicates the number of bits from the most significant bit to treat as part of the path.
-func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
+func newNodeIDFromBigIntOld(depth int, index *big.Int, totalDepth int) NodeID {
 	if got, want := totalDepth%8, 0; got != want || got < want {
+		panic(fmt.Sprintf("storage NewNodeFromBitIntOld(): totalDepth mod 8: %v, want %v", got, want))
+	}
+
+	// TODO(al): We _could_ use Bits() and avoid the extra copy/alloc.
+	b := index.Bytes()
+	// Put index in the LSB bits of path.
+	path := make([]byte, totalDepth/8)
+	unusedHighBytes := len(path) - len(b)
+	copy(path[unusedHighBytes:], b)
+
+	// TODO(gdbelvin): consider masking off insignificant bits past depth.
+	if glog.V(5) {
+		glog.Infof("NewNodeIDFromBigIntOld(%v, %x, %v): %v, %x",
+			depth, b, totalDepth, depth, path)
+	}
+
+	return NodeID{
+		Path:          path,
+		PrefixLenBits: depth,
+	}
+}
+
+func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
+	if got, want := totalDepth%8, 0; got != want {
 		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
 	}
 
+	if totalDepth == 0 {
+		panic("storage NewNodeFromBitInt(): totalDepth must not be zero")
+	}
+
 	// Put index in the LSB bits of path.
+	// This code more-or-less pinched from nat.go in the golang math/big package:
+	const _S = bits.UintSize / 8
 	path := make([]byte, totalDepth/8)
-	unusedHighBytes := len(path) - len(index.Bytes())
-	copy(path[unusedHighBytes:], index.Bytes())
+
+	iBits := index.Bits()
+	i := len(path)
+loop:
+	for _, d := range iBits {
+		for j := 0; j < _S; j++ {
+			i--
+			if i < 0 {
+				break loop
+			}
+			path[i] = byte(d)
+			d >>= 8
+		}
+	}
 
 	// TODO(gdbelvin): consider masking off insignificant bits past depth.
-	glog.V(5).Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
-		depth, index.Bytes(), totalDepth, depth, path)
+	if glog.V(5) {
+		glog.Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
+			depth, index, totalDepth, depth, path)
+	}
 
 	return NodeID{
 		Path:          path,
@@ -335,7 +379,8 @@ func (n *NodeID) Copy() *NodeID {
 
 // FlipRightBit flips the ith bit from LSB
 func (n *NodeID) FlipRightBit(i int) *NodeID {
-	n.SetBit(i, n.Bit(i)^1)
+	bIndex := (n.PathLenBits() - i - 1) / 8
+	n.Path[bIndex] ^= 1 << uint(i%8)
 	return n
 }
 
@@ -344,7 +389,7 @@ func (n *NodeID) FlipRightBit(i int) *NodeID {
 // is 0. leftmask is only used to mask the last byte.
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
-// MaskLeft returns NodeID with only the left n bits set
+// MaskLeft returns a new copy of NodeID with only the left n bits set.
 func (n *NodeID) MaskLeft(depth int) *NodeID {
 	r := make([]byte, len(n.Path))
 	if depth > 0 {
@@ -354,11 +399,14 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 		// Mask off unwanted bits in the last byte.
 		r[depthBytes-1] = r[depthBytes-1] & leftmask[depth%8]
 	}
+	b := n.PrefixLenBits
 	if depth < n.PrefixLenBits {
-		n.PrefixLenBits = depth
+		b = depth
 	}
-	n.Path = r
-	return n
+	return &NodeID{
+		PrefixLenBits: b,
+		Path:          r,
+	}
 }
 
 // Neighbor returns the same node with the bit at PrefixLenBits flipped.
@@ -366,8 +414,7 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 // in the binary tree (often termed sibling node).
 func (n *NodeID) Neighbor() *NodeID {
 	height := n.PathLenBits() - n.PrefixLenBits
-	n.FlipRightBit(height)
-	return n
+	return n.FlipRightBit(height)
 }
 
 // Siblings returns the siblings of the given node.
@@ -381,7 +428,7 @@ func (n *NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
 		depth := n.PrefixLenBits - height
-		sibs[height] = *(n.Copy().MaskLeft(depth).Neighbor())
+		sibs[height] = *(n.MaskLeft(depth).Neighbor())
 	}
 	return sibs
 }
@@ -398,29 +445,39 @@ func NewNodeIDFromPrefixSuffix(prefix []byte, suffix *Suffix, maxPathBits int) N
 	}
 }
 
+// Suffix returns a Node's suffix starting at prefixBytes.
+// This is the same Suffix that Split() would return, just without the overhead
+// of also creating the prefix.
+func (n *NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
+	if n.PrefixLenBits == 0 {
+		return EmptySuffix
+	}
+
+	b := n.PrefixLenBits - prefixBytes*8
+	if b > suffixBits {
+		panic(fmt.Sprintf("Suffix(): %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
+	}
+	if b <= 0 {
+		panic(fmt.Sprintf("Suffix(): %x(n.PrefixLenBits: %v - prefixBytes: %v *8) <= 0", n.Path, n.PrefixLenBits, prefixBytes))
+	}
+	suffixBytes := bytesForBits(b)
+	maskIndex := (b - 1) / 8
+	maskLowBits := (b-1)%8 + 1
+	sfxPath := make([]byte, suffixBytes)
+	copy(sfxPath, n.Path[prefixBytes:prefixBytes+suffixBytes])
+	sfxPath[maskIndex] &= ((0x01 << uint(maskLowBits)) - 1) << uint(8-maskLowBits)
+	return NewSuffix(byte(b), sfxPath)
+}
+
 // Split splits a NodeID into a prefix and a suffix at prefixBytes.
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, EmptySuffix
 	}
-	a := make([]byte, len(n.Path))
-	copy(a, n.Path)
+	a := make([]byte, prefixBytes)
+	copy(a, n.Path[:prefixBytes])
 
-	b := n.PrefixLenBits - prefixBytes*8
-	if b > suffixBits {
-		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
-	}
-	if b <= 0 {
-		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) <= 0", n.Path, n.PrefixLenBits, prefixBytes))
-	}
-	suffixBytes := bytesForBits(b)
-	maskIndex := (b - 1) / 8
-	maskLowBits := (b-1)%8 + 1
-	sfxPath := a[prefixBytes : prefixBytes+suffixBytes]
-	sfxPath[maskIndex] &= ((0x01 << uint(maskLowBits)) - 1) << uint(8-maskLowBits)
-	sfx := NewSuffix(byte(b), sfxPath)
-
-	return a[:prefixBytes], sfx
+	return a, n.Suffix(prefixBytes, suffixBits)
 }
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.

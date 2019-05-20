@@ -30,7 +30,6 @@ import (
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
-	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -42,7 +41,7 @@ const (
 	insufficientTokensReason = "insufficient_tokens"
 	getTreeStage             = "get_tree"
 	getTokensStage           = "get_tokens"
-	traceSpanRoot            = "github/com/google/trillian/server/interceptor"
+	traceSpanRoot            = "/trillian/server/int"
 )
 
 var (
@@ -159,8 +158,9 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 		return ctx, nil
 	}
 
-	ctx, span := spanFor(ctx, "Before")
-	defer span.End()
+	// Don't want the Before to contain the action, so don't overwrite the ctx.
+	innerCtx, spanEnd := spanFor(ctx, "Before")
+	defer spanEnd()
 	info, err := newRPCInfo(req)
 	if err != nil {
 		glog.Warningf("Failed to read tree info: %v", err)
@@ -174,12 +174,12 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 
 	if info.getTree {
 		tree, err := trees.GetTree(
-			ctx, tp.parent.admin, info.treeID, trees.NewGetOpts(trees.Admin, info.treeTypes...))
+			innerCtx, tp.parent.admin, info.treeID, trees.NewGetOpts(trees.Admin, info.treeTypes...))
 		if err != nil {
 			incRequestDeniedCounter(badTreeReason, info.treeID, info.quotaUsers)
 			return ctx, err
 		}
-		if err := ctx.Err(); err != nil {
+		if err := innerCtx.Err(); err != nil {
 			contextErrCounter.Inc(getTreeStage)
 			return ctx, err
 		}
@@ -187,7 +187,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 	}
 
 	if info.tokens > 0 && len(info.specs) > 0 {
-		err := tp.parent.qm.GetTokens(ctx, info.tokens, info.specs)
+		err := tp.parent.qm.GetTokens(innerCtx, info.tokens, info.specs)
 		if err != nil {
 			if !tp.parent.quotaDryRun {
 				incRequestDeniedCounter(insufficientTokensReason, info.treeID, info.quotaUsers)
@@ -196,7 +196,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 			glog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
 		quota.Metrics.IncAcquired(info.tokens, info.specs, err == nil)
-		if err = ctx.Err(); err != nil {
+		if err = innerCtx.Err(); err != nil {
 			contextErrCounter.Inc(getTokensStage)
 			return ctx, err
 		}
@@ -209,8 +209,8 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 	if !enabledServices[serviceName(method)] {
 		return
 	}
-	_, span := spanFor(ctx, "After")
-	defer span.End()
+	_, spanEnd := spanFor(ctx, "After")
+	defer spanEnd()
 	switch {
 	case tp.info == nil:
 		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
@@ -254,8 +254,8 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 		// Run PutTokens in a separate goroutine and with a separate context.
 		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
 		go func() {
-			ctx, span := spanFor(context.Background(), "After.PutTokens")
-			defer span.End()
+			ctx, spanEnd := spanFor(context.Background(), "After.PutTokens")
+			defer spanEnd()
 			ctx, cancel := context.WithTimeout(ctx, PutTokensTimeout)
 			defer cancel()
 
@@ -508,12 +508,12 @@ type treeRequest interface {
 
 // ErrorWrapper is a grpc.UnaryServerInterceptor that wraps the errors emitted by the underlying handler.
 func ErrorWrapper(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	ctx, span := spanFor(ctx, "ErrorWrapper")
-	defer span.End()
+	ctx, spanEnd := spanFor(ctx, "ErrorWrapper")
+	defer spanEnd()
 	rsp, err := handler(ctx, req)
 	return rsp, errors.WrapError(err)
 }
 
-func spanFor(ctx context.Context, name string) (context.Context, *trace.Span) {
-	return trace.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
+func spanFor(ctx context.Context, name string) (context.Context, func()) {
+	return monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }

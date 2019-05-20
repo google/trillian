@@ -39,7 +39,7 @@ func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher)
 func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
-		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
+		leaves := make([]*merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
 			sfx, err := storage.ParseSuffix(k64)
 			if err != nil {
@@ -50,7 +50,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits())
 			}
 
-			leaves = append(leaves, merkle.HStar2LeafHash{
+			leaves = append(leaves, &merkle.HStar2LeafHash{
 				Index:    storage.NewNodeIDFromPrefixSuffix(st.Prefix, sfx, hasher.BitLen()).BigInt(),
 				LeafHash: v,
 			})
@@ -63,7 +63,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 					return nil
 				}
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, hasher.BitLen())
-				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
+				sfx := nodeID.Suffix(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				if glog.V(4) {
 					b, err := base64.StdEncoding.DecodeString(sfxKey)

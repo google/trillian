@@ -117,10 +117,7 @@ func verifyGetMapLeavesResponse(mapVerifier *client.MapVerifier, getResp *trilli
 		index := incl.GetLeaf().GetIndex()
 		leafHash := incl.GetLeaf().GetLeafHash()
 
-		wantLeafHash, err := mapVerifier.Hasher.HashLeaf(mapVerifier.MapID, index, value)
-		if err != nil {
-			return err
-		}
+		wantLeafHash := mapVerifier.Hasher.HashLeaf(mapVerifier.MapID, index, value)
 		if !bytes.Equal(leafHash, wantLeafHash) {
 			if len(value) == 0 {
 				// The leaf value is empty; if this is because it has never been set then its

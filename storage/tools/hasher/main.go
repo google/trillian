@@ -72,11 +72,7 @@ func main() {
 	switch len(decoded) {
 	case 1:
 		// Leaf hash requested
-		hashLeaf, err := hasher.HashLeaf(decoded[0])
-		if err != nil {
-			glog.Exitf("HashLeaf(%v): %v", decoded[0], err)
-		}
-		hash = hashLeaf
+		hash = hasher.HashLeaf(decoded[0])
 
 	case 2:
 		// Node hash requested

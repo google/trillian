@@ -21,20 +21,32 @@ import (
 	"math/bits"
 )
 
+// NodeID identifies a node of a Merkle tree.
+//
+// The level is the longest distance from the node down to the leaves, and
+// index is its horizontal position in this level ordered from left to right.
+// Consider an example below where nodes are labeled as [<level> <index>].
+//
+//           [2 0]
+//          /     \
+//       [1 0]     \
+//       /   \      \
+//   [0 0]  [0 1]  [0 2]
+type NodeID struct {
+	Level uint
+	Index uint64
+}
+
+// NewNodeID returns a NodeID with the passed in node coordinates.
+func NewNodeID(level uint, index uint64) NodeID {
+	return NodeID{Level: level, Index: index}
+}
+
 // HashFn computes an internal node's hash using the hashes of its child nodes.
 type HashFn func(left, right []byte) []byte
 
-// VisitFn visits the (level, index) node with the specified hash. The level is
-// the distance from the node down to the leaves, and index is its horizontal
-// position within the level. For example, see the diagram below where the
-// nodes of a 4-leaves tree are numbered with [<level> <index>] labels.
-//
-//            [2 0]
-//           /     \
-//        [1 0]   [1 1]
-//       /   \     /   \
-//   [0 0] [0 1] [0 2] [0 3]
-type VisitFn func(level uint, index uint64, hash []byte)
+// VisitFn visits the node with the specified ID and hash.
+type VisitFn func(id NodeID, hash []byte)
 
 // RangeFactory allows creating compact ranges with the specified hash
 // function, which must not be nil, and must not be changed.
@@ -142,7 +154,7 @@ func (r *Range) GetRootHash(visitor VisitFn) ([]byte, error) {
 			size &= size - 1                              // Delete the previous node.
 			level := uint(bits.TrailingZeros64(size)) + 1 // Compute the parent level.
 			index := size >> level                        // And its horizontal index.
-			visitor(level, index, hash)
+			visitor(NewNodeID(level, index), hash)
 		}
 	}
 	return hash, nil
@@ -205,7 +217,7 @@ func (r *Range) appendImpl(end uint64, seed []byte, hashes [][]byte, visitor Vis
 		}
 		index >>= 1
 		if visitor != nil {
-			visitor(h+1, index, seed)
+			visitor(NewNodeID(h+1, index), seed)
 		}
 	}
 
