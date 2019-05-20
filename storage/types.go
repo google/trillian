@@ -237,31 +237,6 @@ func (n NodeID) BigInt() *big.Int {
 	return new(big.Int).SetBytes(n.Path)
 }
 
-// NewNodeIDWithPrefix creates a new NodeID of nodeIDLen bits with the prefixLen MSBs set to prefix.
-// NewNodeIDWithPrefix places the lower prefixLenBits of prefix in the most significant bits of path.
-// Path will have enough bytes to hold maxLenBits
-//
-func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits int) NodeID {
-	if got, want := nodeIDLenBits%8, 0; got != want {
-		panic(fmt.Sprintf("nodeIDLenBits mod 8: %v, want %v", got, want))
-	}
-	maxLenBytes := bytesForBits(maxLenBits)
-	p := NodeID{
-		Path:          make([]byte, maxLenBytes),
-		PrefixLenBits: nodeIDLenBits,
-	}
-
-	bit := maxLenBits - prefixLenBits
-	for i := 0; i < prefixLenBits; i++ {
-		if prefix&1 != 0 {
-			p.SetBit(bit, 1)
-		}
-		bit++
-		prefix >>= 1
-	}
-	return p
-}
-
 // NewNodeIDForTreeCoords creates a new NodeID for a Tree node with a specified depth and
 // index.
 // This method is used exclusively by the Log, and, since the Log model grows upwards from the
@@ -290,17 +265,6 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 	// we "reverse" depth here:
 	r.PrefixLenBits = int(maxPathBits - int(depth))
 	return r, nil
-}
-
-// SetBit sets the ith bit to true if b is non-zero, and false otherwise.
-// Note that the bit index 0 is the right most valid bit in the path.
-func (n *NodeID) SetBit(i int, b uint) {
-	bIndex := (n.PathLenBits() - i - 1) / 8
-	if b == 0 {
-		n.Path[bIndex] &= ^(1 << uint(i%8))
-	} else {
-		n.Path[bIndex] |= (1 << uint(i%8))
-	}
 }
 
 // Bit returns 1 if the zero indexed ith bit from the right (of the whole path
