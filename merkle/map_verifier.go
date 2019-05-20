@@ -67,7 +67,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 		// for the branch that we are on before combining it with the neighbor.
 		if len(runningHash) == 0 && len(pElement) != 0 {
 			depth := nID.PrefixLenBits - height
-			emptyBranch := nID.Copy().MaskLeft(depth)
+			emptyBranch := nID.MaskLeft(depth)
 			runningHash = h.HashEmpty(treeID, emptyBranch.Path, height)
 		}
 
@@ -83,7 +83,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 	}
 	if len(runningHash) == 0 {
 		depth := 0
-		emptyBranch := nID.Copy().MaskLeft(depth)
+		emptyBranch := nID.MaskLeft(depth)
 		runningHash = h.HashEmpty(treeID, emptyBranch.Path, h.BitLen())
 	}
 

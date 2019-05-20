@@ -389,7 +389,7 @@ func (n *NodeID) FlipRightBit(i int) *NodeID {
 // is 0. leftmask is only used to mask the last byte.
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
-// MaskLeft returns NodeID with only the left n bits set
+// MaskLeft returns a new copy of NodeID with only the left n bits set.
 func (n *NodeID) MaskLeft(depth int) *NodeID {
 	r := make([]byte, len(n.Path))
 	if depth > 0 {
@@ -399,11 +399,14 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 		// Mask off unwanted bits in the last byte.
 		r[depthBytes-1] = r[depthBytes-1] & leftmask[depth%8]
 	}
+	b := n.PrefixLenBits
 	if depth < n.PrefixLenBits {
-		n.PrefixLenBits = depth
+		b = depth
 	}
-	n.Path = r
-	return n
+	return &NodeID{
+		PrefixLenBits: b,
+		Path:          r,
+	}
 }
 
 // Neighbor returns the same node with the bit at PrefixLenBits flipped.
@@ -425,7 +428,7 @@ func (n *NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
 		depth := n.PrefixLenBits - height
-		sibs[height] = *(n.Copy().MaskLeft(depth).Neighbor())
+		sibs[height] = *(n.MaskLeft(depth).Neighbor())
 	}
 	return sibs
 }
