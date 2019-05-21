@@ -213,7 +213,9 @@ func TestCompactVsFullTree(t *testing.T) {
 }
 
 func TestRootHashForVariousTreeSizes(t *testing.T) {
-	tests := []struct {
+	b64e := func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
+
+	for _, tc := range []struct {
 		size     int64
 		wantRoot []byte
 	}{
@@ -229,34 +231,28 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		{4096, testonly.MustDecodeBase64("6uU/phfHg1n/GksYT6TO9aN8EauMCCJRl3dIK0HDs2M=")},
 		{10000, testonly.MustDecodeBase64("VZcav65F9haHVRk3wre2axFoBXRNeUh/1d9d5FQfxIg=")},
 		{65535, testonly.MustDecodeBase64("iPuVYJhP6SEE4gUFp8qbafd2rYv9YTCDYqAxCj8HdLM=")},
-	}
-
-	b64e := func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
-
-	for _, test := range tests {
-		tree := NewTree(rfc6962.DefaultHasher)
-		for i := int64(0); i < test.size; i++ {
-			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
-			tree.AppendLeaf(l, nil)
-		}
-		if gotRoot := mustGetRoot(t, tree); !bytes.Equal(gotRoot, test.wantRoot) {
-			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(gotRoot), b64e(test.wantRoot))
-		}
-		t.Log(tree)
-		if isPerfectTree(test.size) {
-			// A perfect tree should have a single hash at the highest bit that is just
-			// the root hash.
-			hashes := tree.hashes()
-			for i, got := range hashes {
-				var want []byte
-				if i == (len(hashes) - 1) {
-					want = mustGetRoot(t, tree)
+	} {
+		t.Run(fmt.Sprintf("size:%d", tc.size), func(t *testing.T) {
+			tree := NewTree(rfc6962.DefaultHasher)
+			for i := int64(0); i < tc.size; i++ {
+				l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
+				tree.AppendLeaf(l, nil)
+			}
+			if got, want := mustGetRoot(t, tree), tc.wantRoot; !bytes.Equal(got, want) {
+				t.Errorf("got root %v, want %v", b64e(got), b64e(want))
+			}
+			t.Log(tree)
+			if sz := tc.size; sz != 0 && sz&(sz-1) == 0 {
+				// A perfect tree should have a single hash matching the root.
+				hashes := tree.hashes()
+				if got, want := len(hashes), 1; got != want {
+					t.Fatalf("got %d hashes, want %d", got, want)
 				}
-				if !bytes.Equal(got, want) {
-					t.Errorf("Test(treesize=%v).nodes[i]=%x, want %x", test.size, got, want)
+				if got, want := hashes[0], mustGetRoot(t, tree); !bytes.Equal(got, want) {
+					t.Errorf("hashes[0] = %v, want %v", b64e(got), b64e(want))
 				}
 			}
-		}
+		})
 	}
 }
 
