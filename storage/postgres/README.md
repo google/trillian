@@ -14,4 +14,4 @@ rails from the tables to improve performance.  It also works under the notion th
 there will only be a single tree in a given database.  An improvement on this theme 
 would be to add all layers below the trees table in their own separate schemas.  
 This would further eliminate indexs and foreign key requirements, but it should
-be left for those who require enhanced performance.
+be left for those who require enhanced performance.  Storage.sql should be fine for most applications
