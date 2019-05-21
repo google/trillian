@@ -4,11 +4,11 @@
 -- ---------------------------------------------
 
 -- Tree Enums
-CREATE TYPE E_TREE_STATE AS ENUM('ACTIVE', 'FROZEN', 'DRAINING');--end
-CREATE TYPE E_TREE_TYPE AS ENUM('LOG', 'MAP', 'PREORDERED_LOG');--end
-CREATE TYPE E_HASH_STRATEGY AS ENUM('RFC6962_SHA256', 'TEST_MAP_HASHER', 'OBJECT_RFC6962_SHA256', 'CONIKS_SHA512_256', 'CONIKS_SHA256');--end
-CREATE TYPE E_HASH_ALGORITHM AS ENUM('SHA256');--end
-CREATE TYPE E_SIGNATURE_ALGORITHM AS ENUM('ECDSA', 'RSA');--end
+CREATE TYPE E_TREE_STATE AS ENUM('ACTIVE', 'FROZEN', 'DRAINING');
+CREATE TYPE E_TREE_TYPE AS ENUM('LOG', 'MAP', 'PREORDERED_LOG');
+CREATE TYPE E_HASH_STRATEGY AS ENUM('RFC6962_SHA256', 'TEST_MAP_HASHER', 'OBJECT_RFC6962_SHA256', 'CONIKS_SHA512_256', 'CONIKS_SHA256');
+CREATE TYPE E_HASH_ALGORITHM AS ENUM('SHA256');
+CREATE TYPE E_SIGNATURE_ALGORITHM AS ENUM('ECDSA', 'RSA');
 
 -- Tree parameters should not be changed after creation. Doing so can
 -- render the data in the tree unusable or inconsistent.
@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS trees (
   public_key               BYTEA NOT NULL,
   deleted                  BOOLEAN NOT NULL DEFAULT FALSE,
   delete_time_millis       BIGINT,
-  current_tree_data	   json,
+  current_tree_data        json,
   root_signature	   BYTEA,
   PRIMARY KEY(tree_id)
-);--end
+);
 
 -- This table contains tree parameters that can be changed at runtime such as for
 -- administrative purposes.
@@ -40,18 +40,16 @@ CREATE TABLE IF NOT EXISTS tree_control(
   signing_enabled           BOOLEAN NOT NULL,
   sequencing_enabled        BOOLEAN NOT NULL,
   sequence_interval_seconds INTEGER NOT NULL,
-  PRIMARY KEY(tree_id),
-  FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE
-);--end
+  PRIMARY KEY(tree_id)
+);
 
 CREATE TABLE IF NOT EXISTS subtree(
   tree_id               BIGINT NOT NULL,
   subtree_id            BYTEA NOT NULL,
   nodes                 BYTEA NOT NULL,
   subtree_revision      INTEGER NOT NULL,
-  PRIMARY KEY(tree_id, subtree_id, subtree_revision),
-  FOREIGN KEY(tree_id) REFERENCES Trees(tree_id) ON DELETE CASCADE
-);--end
+  PRIMARY KEY(subtree_id, subtree_revision)
+);
 
 -- The TreeRevisionIdx is used to enforce that there is only one STH at any
 -- tree revision
@@ -62,13 +60,12 @@ CREATE TABLE IF NOT EXISTS tree_head(
   root_hash              BYTEA NOT NULL,
   root_signature         BYTEA NOT NULL,
   tree_revision          BIGINT,
-  PRIMARY KEY(tree_id, tree_revision),
-  FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE
-);--end
+  PRIMARY KEY(tree_id, tree_revision)
+);
 
 -- TODO(vishal) benchmark this to see if it's a suitable replacement for not
 -- having a DESC scan on the primary key
-CREATE UNIQUE INDEX TreeHeadRevisionIdx ON tree_head(tree_id, tree_revision DESC);--end
+CREATE UNIQUE INDEX TreeHeadRevisionIdx ON tree_head(tree_id, tree_revision DESC);
 
 -- ---------------------------------------------
 -- Log specific stuff here
@@ -94,9 +91,8 @@ CREATE TABLE IF NOT EXISTS leaf_data(
   extra_data            BYTEA,
   -- The timestamp from when this leaf data was first queued for inclusion.
   queue_timestamp_nanos  BIGINT NOT NULL,
-  PRIMARY KEY(tree_id, leaf_identity_hash),
-  FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE
-);--end
+  PRIMARY KEY(leaf_identity_hash)
+);
 
 -- When a leaf is sequenced a row is added to this table. If logs allow duplicates then
 -- multiple rows will exist with different sequence numbers. The signed timestamp
@@ -115,12 +111,10 @@ CREATE TABLE IF NOT EXISTS sequenced_leaf_data(
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   merkle_leaf_hash          BYTEA NOT NULL,
   integrate_timestamp_nanos BIGINT NOT NULL,
-  PRIMARY KEY(tree_id, sequence_number),
-  FOREIGN KEY(tree_id) REFERENCES trees(tree_id) ON DELETE CASCADE,
-  FOREIGN KEY(tree_id, leaf_identity_hash) REFERENCES leaf_data(tree_id, leaf_identity_hash) ON DELETE CASCADE
-);--end
+  PRIMARY KEY(sequence_number)
+);
 
-CREATE INDEX SequencedLeafMerkleIdx ON sequenced_leaf_data(tree_id, merkle_leaf_hash);--end
+CREATE INDEX SequencedLeafMerkleIdx ON sequenced_leaf_data(tree_id, merkle_leaf_hash);
 
 CREATE TABLE IF NOT EXISTS unsequenced(
   tree_id               BIGINT NOT NULL,
@@ -139,8 +133,8 @@ CREATE TABLE IF NOT EXISTS unsequenced(
   -- for batched deletes from the table when trillian_log_server and trillian_log_signer are
   -- built with the batched_queue tag.
   queue_id              BYTEA DEFAULT NULL UNIQUE,
-  PRIMARY KEY (tree_id, bucket, queue_timestamp_nanos, leaf_identity_hash)
-);--end
+  PRIMARY KEY (queue_timestamp_nanos, leaf_identity_hash)
+);
 
 CREATE OR REPLACE FUNCTION public.insert_leaf_data_ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, leaf_value bytea, extra_data bytea, queue_timestamp_nanos bigint)
  RETURNS boolean
@@ -148,14 +142,14 @@ CREATE OR REPLACE FUNCTION public.insert_leaf_data_ignore_duplicates(tree_id big
 AS $function$
     begin
         INSERT INTO leaf_data(tree_id,leaf_identity_hash,leaf_value,extra_data,queue_timestamp_nanos) VALUES (tree_id,leaf_identity_hash,leaf_value,extra_data,queue_timestamp_nanos);
-	return true;
+        return true;
     exception
         when unique_violation then
-		return false;
+                return false;
         when others then
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
-$function$;--end
+$function$;
 
 CREATE OR REPLACE FUNCTION public.insert_leaf_data_ignore_duplicates(tree_id bigint, leaf_identity_hash bytea, merkle_leaf_hash bytea, queue_timestamp_nanos bigint)
  RETURNS boolean
@@ -164,27 +158,10 @@ AS $function$
     begin
         INSERT INTO unsequenced(tree_id,bucket,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos) VALUES(tree_id,0,leaf_identity_hash,merkle_leaf_hash,queue_timestamp_nanos);
         return true;
-    exception
+    exception 
         when unique_violation then
                 return false;
         when others then
                 raise notice '% %', SQLERRM, SQLSTATE;
     end;
-$function$;--end
-
-
-
-CREATE OR REPLACE FUNCTION public.insert_sequenced_leaf_data_ignore_duplicates(tree_id bigint, sequence_number bigint, leaf_identity_hash bytea, merkle_leaf_hash bytea, integrate_timestamp_nanos bigint)
- RETURNS boolean
- LANGUAGE plpgsql
-AS $function$
-    begin
-       INSERT INTO sequenced_leaf_data(tree_id, sequence_number, leaf_identity_hash, merkle_leaf_hash, integrate_timestamp_nanos) VALUES(tree_id, sequence_number, leaf_identity_hash, merkle_leaf_hash, integrate_timestamp_nanos);
-	return true;
-    exception
-        when unique_violation then
-                return false;
-        when others then
-                raise notice '% %', SQLERRM, SQLSTATE;
-    end;
-$function$;--end
+$function$;

@@ -27,8 +27,6 @@ import (
 	"time"
 
 	"github.com/google/trillian/testonly"
-
-	_ "github.com/lib/pq" // pg driver
 )
 
 var (
@@ -52,6 +50,28 @@ func PGAvailable() bool {
 	return true
 }
 
+//This just executes a simple query in the configured database.  Only used as a placeholder
+// for testing queries and how go returns results
+func TestSQL(ctx context.Context) string {
+	db, err := sql.Open("postgres", getConnStr(*dbName))
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return "error"
+	}
+	defer db.Close()
+	result, err := db.QueryContext(ctx, "select 1=1")
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return "error"
+	}
+	var resultData bool
+	result.Scan(&resultData)
+	if resultData {
+		fmt.Println("Result: ", resultData)
+	}
+	return "done"
+}
+
 // newEmptyDB creates a new, empty database.
 func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 	db, err := sql.Open("postgres", getConnStr(*dbName))
@@ -61,12 +81,10 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 
 	// Create a randomly-named database and then connect using the new name.
 	name := fmt.Sprintf("trl_%v", time.Now().UnixNano())
-
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
 		return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
-
 	db.Close()
 	db, err = sql.Open("postgres", getConnStr(name))
 	if err != nil {
@@ -90,7 +108,7 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
 		return nil, err
 	}
 
-	for _, stmt := range strings.Split(sanitize(string(sqlBytes)), ";") {
+	for _, stmt := range strings.Split(sanitize(string(sqlBytes)), ";--end") {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue
