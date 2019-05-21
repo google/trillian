@@ -151,40 +151,9 @@ func (t *Tree) Size() int64 {
 }
 
 // hashes returns the set of node hashes that comprise the compact
-// representation of the tree, in the old format. A tree whose size is a power
-// of two has no internal node hashes (just the root hash), so nil is returned.
-//
-// TODO(pavelkalinnikov): Get rid of this format, it is only used internally.
+// representation of the tree.
 func (t *Tree) hashes() [][]byte {
-	if isPerfectTree(int64(t.rng.End())) {
-		return nil
-	}
-	return t.getNodes()
-}
-
-// getNodes returns the list of "dangling" left-hand nodes on the right border
-// of the tree. They are indexed from the bottom, so the entry [0] is a leaf.
-//
-// So: nodes[0] is the hash of a subtree of size 1 = 1<<0, if included.
-//     nodes[1] is the hash of a subtree of size 2 = 1<<1, if included.
-//     nodes[2] is the hash of a subtree of size 4 = 1<<2, if included.
-//     ....
-//
-// Nodes are included if the tree size includes that power of two. For example,
-// a tree of size 21 is built from subtrees of sizes 16 + 4 + 1, and thus
-// nodes[1] == nodes[3] == nil.
-//
-// For a tree whose size is a perfect power of two, only the last entry in
-// nodes is set, and it also matches the tree root hash.
-func (t *Tree) getNodes() [][]byte {
-	size := t.rng.End()
-	hashes := t.rng.Hashes()
-	n := make([][]byte, bits.Len64(size))
-	for i := len(hashes) - 1; size != 0; i, size = i-1, size&(size-1) {
-		level := bits.TrailingZeros64(size)
-		n[level] = hashes[i]
-	}
-	return n
+	return t.rng.Hashes()
 }
 
 // TreeNodes returns the list of node IDs that comprise a compact tree, in the

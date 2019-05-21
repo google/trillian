@@ -77,23 +77,21 @@ func RootHashes() [][]byte {
 	}
 }
 
-// CompactTreesOld returns a slice of compact.Tree internal hashes, in the old
-// format, for all subsequent trees built from LeafInputs() using the RFC 6962
-// hashing strategy.
-//
-// TODO(pavelkalinnikov): Remove it.
-func CompactTreesOld() [][][]byte {
+// CompactTrees returns a slice of compact.Tree internal hashes for all
+// subsequent trees built from LeafInputs() using the RFC 6962 hashing
+// strategy.
+func CompactTrees() [][][]byte {
 	nh := NodeHashes()
 	return [][][]byte{
-		nil, // Empty tree.
-		nil, // Perfect tree size, 2^0.
-		nil, // Perfect tree size, 2^1.
-		{nh[0][2], nh[1][0]},
-		nil, // Perfect tree size, 2^2.
-		{nh[0][4], nil, nh[2][0]},
-		{nil, nh[1][2], nh[2][0]},
-		{nh[0][6], nh[1][2], nh[2][0]},
-		nil, // Perfect tree size, 2^3.
+		{}, // Empty tree.
+		{nh[0][0]},
+		{nh[1][0]},
+		{nh[1][0], nh[0][2]},
+		{nh[2][0]},
+		{nh[2][0], nh[0][4]},
+		{nh[2][0], nh[1][2]},
+		{nh[2][0], nh[1][2], nh[0][6]},
+		{nh[3][0]},
 	}
 }
 

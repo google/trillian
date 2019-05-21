@@ -30,24 +30,18 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 )
 
-// This check ensures that the compact Merkle tree contains the correct set of
-// nodes, i.e. the node on level i is present iff i-th bit of tree size is 1.
-func checkUnusedNodesInvariant(t *Tree) error {
-	size := t.Size()
-	nodes := t.getNodes()
-	sizeBits := bits.Len64(uint64(size))
-	if got, want := len(nodes), sizeBits; got != want {
-		return fmt.Errorf("nodes mismatch: have %v nodes, want %v", got, want)
+// checkSizeInvariant ensures that the compact Merkle tree has the right number
+// of non-empty node hashes.
+func checkSizeInvariant(t *Tree) error {
+	size := uint64(t.Size())
+	hashes := t.hashes()
+	if got, want := len(hashes), bits.OnesCount64(size); got != want {
+		return fmt.Errorf("hashes mismatch: have %v hashes, want %v", got, want)
 	}
-	for level := 0; level < sizeBits; level++ {
-		if size&1 == 1 {
-			if nodes[level] == nil {
-				return fmt.Errorf("missing node at level %d", level)
-			}
-		} else if nodes[level] != nil {
-			return fmt.Errorf("unexpected node at level %d", level)
+	for i, hash := range hashes {
+		if len(hash) == 0 {
+			return fmt.Errorf("missing node hash at index %d", i)
 		}
-		size >>= 1
 	}
 	return nil
 }
@@ -64,7 +58,7 @@ func mustGetRoot(t *testing.T, mt *Tree) []byte {
 func TestAddingLeaves(t *testing.T) {
 	inputs := to.LeafInputs()
 	roots := to.RootHashes()
-	hashes := to.CompactTreesOld()
+	hashes := to.CompactTrees()
 
 	// Test the "same" thing in different ways, to ensure than any lazy update
 	// strategy being employed by the implementation doesn't affect the
@@ -88,8 +82,8 @@ func TestAddingLeaves(t *testing.T) {
 					if _, err := tree.AppendLeaf(inputs[idx], nil); err != nil {
 						t.Fatalf("AppendLeaf: %v", err)
 					}
-					if err := checkUnusedNodesInvariant(tree); err != nil {
-						t.Fatalf("UnusedNodesInvariant check failed: %v", err)
+					if err := checkSizeInvariant(tree); err != nil {
+						t.Fatalf("SizeInvariant check failed: %v", err)
 					}
 				}
 				if got, want := tree.Size(), int64(br); got != want {
