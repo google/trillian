@@ -35,10 +35,6 @@ type Tree struct {
 	rng    *Range
 }
 
-func isPerfectTree(size int64) bool {
-	return size != 0 && (size&(size-1) == 0)
-}
-
 // NewTreeWithState creates a new compact Tree for the passed in size.
 //
 // This can fail if the number of hashes does not correspond to the tree size,
