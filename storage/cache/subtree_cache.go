@@ -158,10 +158,15 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	want := make(map[string]*storage.NodeID)
 	for _, id := range ids {
 		id := id
-		px, _ := s.splitNodeID(id)
-		pxKey := string(px)
-		// TODO(al): fix for non-uniform strata
-		id.PrefixLenBits = len(px) * depthQuantum
+		// We can use a prefix of the ID path directly rather than splitting the ID.
+		// We only need it to derive a key and we don't need the suffix.
+		sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
+		pxLen := sInfo.prefixBytes
+		pxKey := string(id.Path[:pxLen])
+		// TODO(al): fix for non-uniform strata. Note that there is already a
+		// baked-in assumption that the key derived from the prefix exactly
+		// matches the subtree prefix as returned from the fetch.
+		id.PrefixLenBits = pxLen * depthQuantum
 		if _, ok := s.subtrees[pxKey]; !ok {
 			want[pxKey] = &id
 		}
