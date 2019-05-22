@@ -24,9 +24,18 @@ load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 protobuf_deps()
 
 http_archive(
-    name = "googleapi",
-    url = "https://github.com/googleapis/googleapis/archive/master.zip",
+    name = "com_google_googleapis",
     strip_prefix = "googleapis-master",
+    url = "https://github.com/googleapis/googleapis/archive/master.zip",
+)
+
+load("@com_google_googleapis//:repository_rules.bzl", "switched_rules_by_language")
+
+switched_rules_by_language(
+    name = "com_google_googleapis_imports",
+    go = True,
+    java = True,
+    python = True,
 )
 
 http_archive(
@@ -34,4 +43,3 @@ http_archive(
     strip_prefix = "rules_go-7d17d496a6b32f6a573c6c22e29c58204eddf3d4",
     urls = ["https://github.com/bazelbuild/rules_go/archive/7d17d496a6b32f6a573c6c22e29c58204eddf3d4.zip"],
 )
-
