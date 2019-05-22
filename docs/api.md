@@ -50,6 +50,8 @@
   
 
 - [trillian_map_api.proto](#trillian_map_api.proto)
+    - [GetMapLeafByRevisionRequest](#trillian.GetMapLeafByRevisionRequest)
+    - [GetMapLeafResponse](#trillian.GetMapLeafResponse)
     - [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest)
     - [GetMapLeavesRequest](#trillian.GetMapLeavesRequest)
     - [GetMapLeavesResponse](#trillian.GetMapLeavesResponse)
@@ -767,6 +769,39 @@ The API supports sequencing in the Trillian Log Sequencer.
 
 
 
+<a name="trillian.GetMapLeafByRevisionRequest"></a>
+
+### GetMapLeafByRevisionRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| map_id | [int64](#int64) |  |  |
+| index | [bytes](#bytes) |  |  |
+| revision | [int64](#int64) |  |  |
+
+
+
+
+
+
+<a name="trillian.GetMapLeafResponse"></a>
+
+### GetMapLeafResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| map_leaf_inclusion | [MapLeafInclusion](#trillian.MapLeafInclusion) |  |  |
+| map_root | [SignedMapRoot](#trillian.SignedMapRoot) |  |  |
+
+
+
+
+
+
 <a name="trillian.GetMapLeavesByRevisionRequest"></a>
 
 ### GetMapLeavesByRevisionRequest
@@ -974,7 +1009,8 @@ defined in the Verifiable Data Structures paper.
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| GetLeaves | [GetMapLeavesRequest](#trillian.GetMapLeavesRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) | GetLeaves returns an inclusion proof for each index requested. For indexes that do not exist, the inclusion proof will use nil for the empty leaf value. |
+| GetLeafByRevision | [GetMapLeafByRevisionRequest](#trillian.GetMapLeafByRevisionRequest) | [GetMapLeafResponse](#trillian.GetMapLeafResponse) | GetLeaves returns an inclusion proof for each index requested. For indexes that do not exist, the inclusion proof will use nil for the empty leaf value. |
+| GetLeaves | [GetMapLeavesRequest](#trillian.GetMapLeavesRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
 | GetLeavesByRevision | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
 | SetLeaves | [SetMapLeavesRequest](#trillian.SetMapLeavesRequest) | [SetMapLeavesResponse](#trillian.SetMapLeavesResponse) | SetLeaves sets the values for the provided leaves, and returns the new map root if successful. Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request), the API user is required to retry the request before performing a different SetLeaves request. |
 | GetSignedMapRoot | [GetSignedMapRootRequest](#trillian.GetSignedMapRootRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |
