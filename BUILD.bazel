@@ -18,8 +18,8 @@ proto_library(
     ],
     deps = [
         ":trillian_proto",
-        "@googleapi//google/api:annotations_proto",
-        "@googleapi//google/rpc:status_proto",
+        "@com_google_googleapis//google/api:annotations_proto",
+        "@com_google_googleapis//google/rpc:status_proto",
         "@com_google_protobuf//:field_mask_proto",
     ],
 )
@@ -32,8 +32,8 @@ proto_library(
     ],
     deps = [
         ":trillian_proto",
-        "@googleapi//google/api:annotations_proto",
-        "@googleapi//google/rpc:status_proto",
+        "@com_google_googleapis//google/api:annotations_proto",
+        "@com_google_googleapis//google/rpc:status_proto",
         "@com_google_protobuf//:api_proto",
         "@com_google_protobuf//:timestamp_proto",
     ],
@@ -43,9 +43,9 @@ proto_library(
 proto_library(
     name = "trillian_proto",
     srcs = [
-        "trillian.proto",
         "crypto/keyspb/keyspb.proto",
         "crypto/sigpb/sigpb.proto",
+        "trillian.proto",
     ],
     deps = [
         "@com_google_protobuf//:any_proto",
@@ -54,4 +54,3 @@ proto_library(
         "@com_google_protobuf//:timestamp_proto",
     ],
 )
-
