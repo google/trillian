@@ -4,6 +4,10 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### GetMapLeafByRevision API
+New API for fetching a single map leaf separates batch APIs from single shot
+APIs.
+
 ### Add Profiling Flags to Binaries
 
 The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
