@@ -37,7 +37,6 @@ const (
 	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
 	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
-	selectTreeRevisionAtSizeOrLargerSQL = "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1"
 
 	selectSubtreeSQL = `
  SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
@@ -344,25 +343,6 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	}
 
 	return nil
-}
-
-// GetTreeRevisionIncludingSize returns the max node version for a tree at a particular size.
-// It is an error to request tree sizes larger than the currently published tree size.
-// For an inexact tree size this implementation always returns the next largest revision if an
-// exact one does not exist but it isn't required to do so.
-func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int64) (int64, int64, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	// Negative size is not sensible and a zero sized tree has no nodes so no revisions
-	if treeSize <= 0 {
-		return 0, 0, fmt.Errorf("invalid tree size: %d", treeSize)
-	}
-
-	var treeRevision, actualTreeSize int64
-	err := t.tx.QueryRowContext(ctx, selectTreeRevisionAtSizeOrLargerSQL, t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
-
-	return treeRevision, actualTreeSize, err
 }
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
