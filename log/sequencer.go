@@ -167,7 +167,7 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.Lo
 		hashes[i] = node.Hash
 	}
 
-	return compact.NewTreeWithState(s.hasher, int64(root.TreeSize), hashes, root.RootHash)
+	return compact.NewTreeWithState(s.hasher, root.TreeSize, hashes, root.RootHash)
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
@@ -218,7 +218,7 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
 		idx := leaf.LeafIndex
-		if size := mt.Size(); size != idx {
+		if size := int64(mt.Size()); size != idx {
 			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
 		if err := mt.AppendLeafHash(leaf.MerkleLeafHash, store); err != nil {
