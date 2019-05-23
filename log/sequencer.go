@@ -167,7 +167,7 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.Lo
 		hashes[i] = node.Hash
 	}
 
-	return compact.NewTreeWithState(s.hasher, int64(root.TreeSize), hashes, root.RootHash)
+	return compact.NewTreeWithState(s.hasher, root.TreeSize, hashes, root.RootHash)
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
@@ -182,7 +182,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newV
 	return nodes, nil
 }
 
-func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label string) error {
+func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string) error {
 	now := s.timeSource.Now()
 	integrateAt, err := ptypes.TimestampProto(now)
 	if err != nil {
@@ -190,7 +190,7 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label 
 	}
 	for i, leaf := range leaves {
 		// The leaf should already have the correct index before it's integrated.
-		if got, want := leaf.LeafIndex, begin+int64(i); got != want {
+		if got, want := leaf.LeafIndex, begin+uint64(i); got < 0 || got != int64(want) {
 			return fmt.Errorf("got invalid leaf index: %v, want: %v", got, want)
 		}
 		leaf.IntegrateTimestamp = integrateAt
@@ -218,7 +218,7 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
 		idx := leaf.LeafIndex
-		if size := mt.Size(); size != idx {
+		if size := mt.Size(); idx < 0 || idx != int64(size) {
 			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
 		if err := mt.AppendLeafHash(leaf.MerkleLeafHash, store); err != nil {
@@ -247,7 +247,7 @@ type sequencingTask interface {
 
 type sequencingTaskData struct {
 	label      string
-	treeSize   int64
+	treeSize   uint64
 	timeSource clock.TimeSource
 	tx         storage.LogTreeTX
 }
@@ -268,7 +268,10 @@ func (s *logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Ti
 
 	// Assign leaf sequence numbers.
 	for i, leaf := range leaves {
-		leaf.LeafIndex = s.treeSize + int64(i)
+		leaf.LeafIndex = int64(s.treeSize + uint64(i))
+		if got := leaf.LeafIndex; got < 0 {
+			return nil, fmt.Errorf("%v: leaf index overflow: %d", s.label, got)
+		}
 	}
 	return leaves, nil
 }
@@ -339,7 +342,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		taskData := &sequencingTaskData{
 			label:      label,
-			treeSize:   int64(currentRoot.TreeSize),
+			treeSize:   currentRoot.TreeSize,
 			timeSource: s.timeSource,
 			tx:         tx,
 		}
@@ -429,7 +432,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		newLogRoot = &types.LogRootV1{
 			RootHash:       newRoot,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
-			TreeSize:       uint64(merkleTree.Size()),
+			TreeSize:       merkleTree.Size(),
 			Revision:       uint64(newVersion),
 		}
 		seqTreeSize.Set(float64(newLogRoot.TreeSize), label)
