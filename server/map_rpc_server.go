@@ -385,23 +385,24 @@ func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeT
 	return &multiTXRunner{tree: tree, mapStorage: t.registry.MapStorage}
 }
 
-// singleTXRunner satisfies the merkle.TXRunner interface.
+// singleTXRunner executes f using a single transaction.
+// If f is large, this may incur a performance penalty.
 type singleTXRunner struct {
 	tx storage.MapTreeTX
 }
 
-// RunTX runs a transaction given a transaction runner f.
 func (r *singleTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 	return f(ctx, r.tx)
 }
 
-// multiTXRunner satisfies the merkle.TXRunner interface.
+// multiTXRunner executes f using many separate transactions.
+// This allows each invocation of f to proceed independently mutch faster.
+// However, If one transaction fails, the other will still succeed (In some cases this could cause data corruption).
 type multiTXRunner struct {
 	tree       *trillian.Tree
 	mapStorage storage.MapStorage
 }
 
-// RunTX runs a transaction given a transaction runner f.
 func (r *multiTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 	return r.mapStorage.ReadWriteTransaction(ctx, r.tree, f)
 }

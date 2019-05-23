@@ -40,10 +40,11 @@ type SparseMerkleTreeReader struct {
 	treeRevision int64
 }
 
-// TXRunner is the interface for a function which produces something which can
-// be passed as the last argument to MapStorage.ReadWriteTransaction.
+// TXRunner supplies the RunTX function.
+// TXRunner can be passed as the last argument to MapStorage.ReadWriteTransaction.
 type TXRunner interface {
-	RunTX(context.Context, func(context.Context, storage.MapTreeTX) error) error
+	// RunTX executes f and supplies a transaction object to operate on.
+	RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error
 }
 
 // SparseMerkleTreeWriter knows how to store/update a stored sparse Merkle tree

@@ -71,7 +71,7 @@ type producerTXRunner struct {
 }
 
 func (r *producerTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-	r.tx.Close()
+	defer r.tx.Close()
 	return f(ctx, r.tx)
 }
 
