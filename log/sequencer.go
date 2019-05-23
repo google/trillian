@@ -132,7 +132,13 @@ func NewSequencer(
 	}
 }
 
-func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
+// initMerkleTreeFromStorage builds a compact tree that matches the latest data
+// in the database. It ensures that the root hash matches the passed in root.
+func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
+	if root.TreeSize == 0 {
+		return compact.NewTree(s.hasher), nil
+	}
+
 	ids := compact.TreeNodes(root.TreeSize)
 	storIDs := make([]storage.NodeID, len(ids))
 	for i, id := range ids {
@@ -229,19 +235,6 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 	}
 
 	return nodeMap, nil
-}
-
-func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot *types.LogRootV1, tx storage.LogTreeTX) (*compact.Tree, error) {
-	if currentRoot.TreeSize == 0 {
-		return compact.NewTree(s.hasher), nil
-	}
-
-	// Initialize the compact tree state to match the latest root in the database.
-	mt, err := s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
-	if err != nil {
-		return nil, fmt.Errorf("%x: %v", s.signer.KeyHint, err)
-	}
-	return mt, err
 }
 
 // sequencingTask provides sequenced LogLeaf entries, and updates storage
@@ -386,7 +379,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 		merkleTree, err := s.initMerkleTreeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("%x: compact tree init failed: %v", s.signer.KeyHint, err)
 		}
 		seqInitTreeLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
