@@ -34,7 +34,6 @@ import (
 // NodeID -> Node mappings and will return only those. Requesting any other nodes results in
 // an error. For use in tests only, does not implement any other storage APIs.
 type FakeNodeReader struct {
-	treeSize     int64
 	treeRevision int64
 	nodeMap      map[string]storage.Node
 }
@@ -42,7 +41,7 @@ type FakeNodeReader struct {
 // NewFakeNodeReader creates and returns a FakeNodeReader with the supplied nodes
 // assuming that all the nodes are at a specified tree revision. All the node IDs
 // must be distinct.
-func NewFakeNodeReader(nodes []storage.Node, treeSize, treeRevision int64) *FakeNodeReader {
+func NewFakeNodeReader(nodes []storage.Node, treeRevision int64) *FakeNodeReader {
 	nodeMap := make(map[string]storage.Node)
 
 	for _, node := range nodes {
@@ -54,7 +53,7 @@ func NewFakeNodeReader(nodes []storage.Node, treeSize, treeRevision int64) *Fake
 		nodeMap[id] = node
 	}
 
-	return &FakeNodeReader{nodeMap: nodeMap, treeSize: treeSize, treeRevision: treeRevision}
+	return &FakeNodeReader{nodeMap: nodeMap, treeRevision: treeRevision}
 }
 
 // GetMerkleNodes implements the corresponding NodeReader API.
@@ -146,7 +145,7 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 			nodes = append(nodes, node)
 		}
 
-		readers = append(readers, *NewFakeNodeReader(nodes, tree.Size(), batch.TreeRevision))
+		readers = append(readers, *NewFakeNodeReader(nodes, batch.TreeRevision))
 	}
 
 	return NewMultiFakeNodeReader(readers)
