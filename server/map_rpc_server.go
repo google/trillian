@@ -104,15 +104,14 @@ func (t *TrillianMapServer) IsHealthy() error {
 }
 
 // GetLeaves implements the GetLeaves RPC method.  Each requested index will
-// return an inclusion proof to either the leaf, or nil if the leaf does not
-// exist.
+// return an inclusion proof to the leaf, or nil if the leaf does not exist.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (*trillian.GetMapLeavesResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "GetLeaves")
 	defer spanEnd()
 	return t.getLeavesByRevision(ctx, req.MapId, req.Index, mostRecentRevision)
 }
 
-// GetLeafByRevision returns an inclusion proof to either the leaf, or nil if the leaf does not exist.
+// GetLeafByRevision returns an inclusion proof to the leaf, or nil if the leaf does not exist.
 func (t *TrillianMapServer) GetLeafByRevision(ctx context.Context, req *trillian.GetMapLeafByRevisionRequest) (*trillian.GetMapLeafResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "GetLeafByRevision")
 	defer spanEnd()
