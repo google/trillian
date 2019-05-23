@@ -132,7 +132,13 @@ func NewSequencer(
 	}
 }
 
-func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
+// initMerkleTreeFromStorage builds a compact tree that matches the latest data
+// in the database. It ensures that the root hash matches the passed in root.
+func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
+	if root.TreeSize == 0 {
+		return compact.NewTree(s.hasher), nil
+	}
+
 	ids := compact.TreeNodes(root.TreeSize)
 	storIDs := make([]storage.NodeID, len(ids))
 	for i, id := range ids {
@@ -203,13 +209,9 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label 
 	return nil
 }
 
-func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, error) {
-	// TODO(pavelkalinnikov): Move this call to IntegrateBatch when gocyclo is
-	// happy with the function complexity.
-	if err := s.prepareLeaves(leaves, mt.Size(), label); err != nil {
-		return nil, err
-	}
-
+// updateCompactTree adds the passed in leaves to the compact tree. Returns a
+// map of all updated tree nodes, and the new root hash.
+func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
@@ -217,31 +219,18 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 	for _, leaf := range leaves {
 		idx := leaf.LeafIndex
 		if size := mt.Size(); size != idx {
-			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
+			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
 		if err := mt.AppendLeafHash(leaf.MerkleLeafHash, store); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	// TODO(pavelkalinnikov): Reuse the returned root hash in IntegrateBatch.
-	if _, err := mt.CalculateRoot(store); err != nil {
-		return nil, err
-	}
-
-	return nodeMap, nil
-}
-
-func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot *types.LogRootV1, tx storage.LogTreeTX) (*compact.Tree, error) {
-	if currentRoot.TreeSize == 0 {
-		return compact.NewTree(s.hasher), nil
-	}
-
-	// Initialize the compact tree state to match the latest root in the database.
-	mt, err := s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
+	hash, err := mt.CalculateRoot(store)
 	if err != nil {
-		return nil, fmt.Errorf("%x: %v", s.signer.KeyHint, err)
+		return nil, nil, err
 	}
-	return mt, err
+
+	return nodeMap, hash, nil
 }
 
 // sequencingTask provides sequenced LogLeaf entries, and updates storage
@@ -386,7 +375,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 		merkleTree, err := s.initMerkleTreeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("%x: compact tree init failed: %v", s.signer.KeyHint, err)
 		}
 		seqInitTreeLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
@@ -404,7 +393,10 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
-		nodeMap, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
+		if err := s.prepareLeaves(sequencedLeaves, merkleTree.Size(), label); err != nil {
+			return err
+		}
+		nodeMap, newRoot, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
@@ -433,13 +425,9 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		seqSetNodesLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
 
-		// Create the log root ready for signing
-		root, err := merkleTree.CurrentRoot()
-		if err != nil {
-			return fmt.Errorf("%v: failed to compute new root hash: %v", tree.TreeId, err)
-		}
+		// Create the log root ready for signing.
 		newLogRoot = &types.LogRootV1{
-			RootHash:       root,
+			RootHash:       newRoot,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
 			TreeSize:       uint64(merkleTree.Size()),
 			Revision:       uint64(newVersion),
