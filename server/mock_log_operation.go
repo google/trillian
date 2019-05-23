@@ -6,9 +6,8 @@ package server
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockLogOperation is a mock of LogOperation interface

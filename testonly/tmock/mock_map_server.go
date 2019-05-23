@@ -34,6 +34,21 @@ func (m *MockTrillianMapServer) EXPECT() *MockTrillianMapServerMockRecorder {
 	return m.recorder
 }
 
+// GetLeaf mocks base method
+func (m *MockTrillianMapServer) GetLeaf(arg0 context.Context, arg1 *trillian.GetMapLeafRequest) (*trillian.GetMapLeafResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLeaf", arg0, arg1)
+	ret0, _ := ret[0].(*trillian.GetMapLeafResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLeaf indicates an expected call of GetLeaf
+func (mr *MockTrillianMapServerMockRecorder) GetLeaf(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeaf", reflect.TypeOf((*MockTrillianMapServer)(nil).GetLeaf), arg0, arg1)
+}
+
 // GetLeafByRevision mocks base method
 func (m *MockTrillianMapServer) GetLeafByRevision(arg0 context.Context, arg1 *trillian.GetMapLeafByRevisionRequest) (*trillian.GetMapLeafResponse, error) {
 	m.ctrl.T.Helper()

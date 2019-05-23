@@ -67,6 +67,11 @@ message GetMapLeavesRequest {
   reserved 3;  // was 'revision'
 }
 
+message GetMapLeafRequest {
+  int64 map_id = 1;
+  bytes index = 2;
+}
+
 message GetMapLeafByRevisionRequest {
   int64 map_id = 1;
   bytes index = 2;
@@ -142,6 +147,7 @@ service TrillianMap {
   // GetLeaves returns an inclusion proof for each index requested.
   // For indexes that do not exist, the inclusion proof will use nil for the
   // empty leaf value.
+  rpc GetLeaf(GetMapLeafRequest) returns (GetMapLeafResponse) {}
   rpc GetLeafByRevision(GetMapLeafByRevisionRequest) returns (GetMapLeafResponse) {}
   rpc GetLeaves(GetMapLeavesRequest) returns (GetMapLeavesResponse) {}
   rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest)
