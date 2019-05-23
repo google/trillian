@@ -110,6 +110,20 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	}
 }
 
+func TestCacheGetNodesNoWork(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
+	// Nothing should be read from storage, fail if it is.
+	_, err := c.GetNodes(nil, func([]storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		return nil, errors.New("unexpected read")
+	})
+	if err != nil {
+		t.Errorf("GetNodes()=_, %v, want: no error", err)
+	}
+}
+
 func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
