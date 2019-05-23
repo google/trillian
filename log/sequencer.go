@@ -209,11 +209,13 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label 
 	return nil
 }
 
-func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, error) {
+// updateCompactTree adds the passed in leaves to the compact tree. Returns a
+// map of all updated tree nodes, and the new root hash.
+func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
 	// TODO(pavelkalinnikov): Move this call to IntegrateBatch when gocyclo is
 	// happy with the function complexity.
 	if err := s.prepareLeaves(leaves, mt.Size(), label); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	nodeMap := make(map[compact.NodeID][]byte)
@@ -223,18 +225,18 @@ func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLea
 	for _, leaf := range leaves {
 		idx := leaf.LeafIndex
 		if size := mt.Size(); size != idx {
-			return nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
+			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
 		if err := mt.AppendLeafHash(leaf.MerkleLeafHash, store); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	// TODO(pavelkalinnikov): Reuse the returned root hash in IntegrateBatch.
-	if _, err := mt.CalculateRoot(store); err != nil {
-		return nil, err
+	hash, err := mt.CalculateRoot(store)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return nodeMap, nil
+	return nodeMap, hash, nil
 }
 
 // sequencingTask provides sequenced LogLeaf entries, and updates storage
@@ -397,7 +399,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
-		nodeMap, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
+		nodeMap, newRoot, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
@@ -426,13 +428,9 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		seqSetNodesLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
 
-		// Create the log root ready for signing
-		root, err := merkleTree.CurrentRoot()
-		if err != nil {
-			return fmt.Errorf("%v: failed to compute new root hash: %v", tree.TreeId, err)
-		}
+		// Create the log root ready for signing.
 		newLogRoot = &types.LogRootV1{
-			RootHash:       root,
+			RootHash:       newRoot,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
 			TreeSize:       uint64(merkleTree.Size()),
 			Revision:       uint64(newVersion),
