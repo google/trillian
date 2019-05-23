@@ -212,12 +212,6 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin int64, label 
 // updateCompactTree adds the passed in leaves to the compact tree. Returns a
 // map of all updated tree nodes, and the new root hash.
 func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
-	// TODO(pavelkalinnikov): Move this call to IntegrateBatch when gocyclo is
-	// happy with the function complexity.
-	if err := s.prepareLeaves(leaves, mt.Size(), label); err != nil {
-		return nil, nil, err
-	}
-
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
@@ -399,6 +393,9 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
+		if err := s.prepareLeaves(sequencedLeaves, merkleTree.Size(), label); err != nil {
+			return err
+		}
 		nodeMap, newRoot, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
 		if err != nil {
 			return err
