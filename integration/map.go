@@ -270,9 +270,9 @@ func (mi *MapInfo) expectEmptyValues(ctx context.Context, keys ...[]byte) error 
 // associated LeafValue is the specified value.
 func (mi *MapInfo) expectValue(ctx context.Context, key, want []byte) error {
 	fmt.Printf("%d: GetLeaves(key=%x)\n", mi.id, key)
-	leavesRsp, err := mi.cl.GetLeaves(ctx, &trillian.GetMapLeavesRequest{MapId: mi.id, Index: [][]byte{key}})
+	leavesRsp, err := mi.cl.GetLeaf(ctx, &trillian.GetMapLeafRequest{MapId: mi.id, Index: key})
 	if err != nil {
-		return fmt.Errorf("failed to get-map-leaves: %v", err)
+		return fmt.Errorf("failed to get-map-leaf: %v", err)
 	}
 	return mi.checkSingleLeafResponse(leavesRsp, key, want)
 }
@@ -281,35 +281,32 @@ func (mi *MapInfo) expectValue(ctx context.Context, key, want []byte) error {
 // associated LeafValue is the specified value.
 func (mi *MapInfo) expectValueAtRev(ctx context.Context, rev int64, key, want []byte) error {
 	fmt.Printf("%d: GetLeavesAtRevision(rev=%d, key=%x)\n", mi.id, rev, key)
-	leavesRsp, err := mi.cl.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{MapId: mi.id, Revision: rev, Index: [][]byte{key}})
+	leavesRsp, err := mi.cl.GetLeafByRevision(ctx, &trillian.GetMapLeafByRevisionRequest{MapId: mi.id, Revision: rev, Index: key})
 	if err != nil {
-		return fmt.Errorf("failed to get-map-leaves-at-rev: %v", err)
+		return fmt.Errorf("failed to get-map-leaf-at-rev: %v", err)
 	}
 	return mi.checkSingleLeafResponse(leavesRsp, key, want)
 }
 
 // checkSingleLeaf response checks a response has exactly the leaf info expected.
-func (mi *MapInfo) checkSingleLeafResponse(rsp *trillian.GetMapLeavesResponse, key, want []byte) error {
+func (mi *MapInfo) checkSingleLeafResponse(rsp *trillian.GetMapLeafResponse, key, want []byte) error {
 	root, err := mi.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
 		return fmt.Errorf("failed to verify SMR in get-map-leaves-rsp: %v", err)
 	}
 	fmt.Printf("%d:   SMR(time=%q, rev=%d): roothash=%x\n", mi.id, timeFromNanos(root.TimestampNanos), root.Revision, root.RootHash)
-	if got, want := len(rsp.MapLeafInclusion), 1; got != want {
-		return fmt.Errorf("unexpected leaf count from get-map-leaves: %d", got)
-	}
-	if got := rsp.MapLeafInclusion[0].Leaf.Index; !bytes.Equal(got, key) {
+	if got := rsp.MapLeafInclusion.Leaf.Index; !bytes.Equal(got, key) {
 		return fmt.Errorf("unexpected leaf key %x from get-map-leaves", got)
 	}
 	wantHash := mi.verifier.Hasher.HashLeaf(mi.id, key, want)
 	// The hash for an empty leaf may be nil or wantHash.
-	if got := rsp.MapLeafInclusion[0].Leaf.LeafHash; !bytes.Equal(got, wantHash) && (len(want) != 0 || len(got) != 0) {
+	if got := rsp.MapLeafInclusion.Leaf.LeafHash; !bytes.Equal(got, wantHash) && (len(want) != 0 || len(got) != 0) {
 		return fmt.Errorf("unexpected leaf hash %x from get-map-leaves, want %x", got, wantHash)
 	}
-	if err := mi.verifier.VerifyMapLeafInclusionHash(root.RootHash, rsp.MapLeafInclusion[0]); err != nil {
+	if err := mi.verifier.VerifyMapLeafInclusionHash(root.RootHash, rsp.MapLeafInclusion); err != nil {
 		return fmt.Errorf("failed to verify inclusion proof for key=%x: %v", key, err)
 	}
-	got := rsp.MapLeafInclusion[0].Leaf.LeafValue
+	got := rsp.MapLeafInclusion.Leaf.LeafValue
 	fmt.Printf("%d:   Leaf[%x] = %q\n", mi.id, key, got)
 	if !bytes.Equal(got, want) {
 		return fmt.Errorf("unexpected leaf value %x from get-map-leaves, want %x", got, want)

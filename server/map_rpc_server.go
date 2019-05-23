@@ -119,7 +119,7 @@ func (t *TrillianMapServer) GetLeaf(ctx context.Context, req *trillian.GetMapLea
 	if err != nil {
 		return nil, err
 	}
-	if got := len(ret.MapLeafInclusion); got != 0 {
+	if got := len(ret.MapLeafInclusion); got != 1 {
 		return nil, status.Errorf(codes.Internal, "Requested 1 leaf, got %v leaves", got)
 	}
 	return &trillian.GetMapLeafResponse{
@@ -136,7 +136,7 @@ func (t *TrillianMapServer) GetLeafByRevision(ctx context.Context, req *trillian
 	if err != nil {
 		return nil, err
 	}
-	if got := len(ret.MapLeafInclusion); got != 0 {
+	if got := len(ret.MapLeafInclusion); got != 1 {
 		return nil, status.Errorf(codes.Internal, "Requested 1 leaf, got %v leaves", got)
 	}
 	return &trillian.GetMapLeafResponse{
