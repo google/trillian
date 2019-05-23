@@ -111,11 +111,28 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	return t.getLeavesByRevision(ctx, req.MapId, req.Index, mostRecentRevision)
 }
 
+// GetLeaf returns an inclusion proof to the leaf, or nil if the leaf does not exist.
+func (t *TrillianMapServer) GetLeaf(ctx context.Context, req *trillian.GetMapLeafRequest) (*trillian.GetMapLeafResponse, error) {
+	ctx, spanEnd := spanFor(ctx, "GetLeaf")
+	defer spanEnd()
+	ret, err := t.getLeavesByRevision(ctx, req.MapId, [][]byte{req.Index}, mostRecentRevision)
+	if err != nil {
+		return nil, err
+	}
+	if got := len(ret.MapLeafInclusion); got != 0 {
+		return nil, status.Errorf(codes.Internal, "Requested 1 leaf, got %v leaves", got)
+	}
+	return &trillian.GetMapLeafResponse{
+		MapRoot:          ret.MapRoot,
+		MapLeafInclusion: ret.MapLeafInclusion[0],
+	}, nil
+}
+
 // GetLeafByRevision returns an inclusion proof to the leaf, or nil if the leaf does not exist.
 func (t *TrillianMapServer) GetLeafByRevision(ctx context.Context, req *trillian.GetMapLeafByRevisionRequest) (*trillian.GetMapLeafResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "GetLeafByRevision")
 	defer spanEnd()
-	ret, err := t.getLeavesByRevision(ctx, req.MapId, [][]byte{req.Index}, mostRecentRevision)
+	ret, err := t.getLeavesByRevision(ctx, req.MapId, [][]byte{req.Index}, req.Revision)
 	if err != nil {
 		return nil, err
 	}
