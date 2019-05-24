@@ -469,7 +469,31 @@ func (n *NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
 	return NewSuffix(byte(b), sfxPath)
 }
 
+// Prefix returns a copy of NodeID's prefix.
+// This is the same value that would be returned from Split, but without the
+// overhead of calulating the suffix too.
+func (n *NodeID) Prefix(prefixBytes int) []byte {
+	if n.PrefixLenBits == 0 {
+		return []byte{}
+	}
+	a := make([]byte, prefixBytes)
+	copy(a, n.Path[:prefixBytes])
+
+	return a
+}
+
+// PrefixAsKey returns a NodeID's prefix in a format suitable for use as a map key.
+// This is the same value that would be returned from Split, but without the
+// overhead of calulating the suffix too.
+func (n *NodeID) PrefixAsKey(prefixBytes int) string {
+	if n.PrefixLenBits == 0 {
+		return ""
+	}
+	return string(n.Path[:prefixBytes])
+}
+
 // Split splits a NodeID into a prefix and a suffix at prefixBytes.
+// The returned prefix is a copy of the underlying bytes.
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, EmptySuffix
@@ -477,7 +501,7 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	a := make([]byte, prefixBytes)
 	copy(a, n.Path[:prefixBytes])
 
-	return a, n.Suffix(prefixBytes, suffixBits)
+	return n.Prefix(prefixBytes), n.Suffix(prefixBytes, suffixBits)
 }
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.
