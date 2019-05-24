@@ -182,6 +182,20 @@ var (
 		TreeSize:       22,
 	}
 	updatedSignedRoot21, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(updatedRoot21)
+
+	emptyRoot = &types.LogRootV1{
+		TimestampNanos: uint64(fakeTimeForTest.Add(-10 * time.Millisecond).UnixNano()),
+		TreeSize:       0,
+		Revision:       2,
+		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
+	}
+	signedEmptyRoot, _        = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(emptyRoot)
+	updatedSignedEmptyRoot, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(&types.LogRootV1{
+		TimestampNanos: uint64(fakeTimeForTest.UnixNano()),
+		TreeSize:       0,
+		Revision:       3,
+		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
+	})
 )
 
 var fakeTimeForTest = fakeTime()
@@ -573,6 +587,22 @@ func TestIntegrateBatch(t *testing.T) {
 				signer:           fixedSigner,
 			},
 			errStr: "commit",
+		},
+		{
+			desc: "sequence-empty",
+			params: testParameters{
+				logID:            154035,
+				writeRevision:    int64(emptyRoot.Revision) + 1,
+				dequeueLimit:     1,
+				shouldCommit:     true,
+				dequeuedLeaves:   noLeaves,
+				latestSignedRoot: signedEmptyRoot,
+				updatedLeaves:    &noLeaves,
+				merkleNodesSet:   &noNodes,
+				storeSignedRoot:  updatedSignedEmptyRoot,
+				signer:           fixedSigner,
+			},
+			maxRootDuration: 5 * time.Millisecond,
 		},
 		{
 			desc: "sequence-leaf-16",
