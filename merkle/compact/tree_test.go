@@ -254,28 +254,3 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		})
 	}
 }
-
-func benchmarkAppendLeaf(b *testing.B, visit VisitFn) {
-	b.Helper()
-	const size = 1024
-	for n := 0; n < b.N; n++ {
-		tree := NewTree(rfc6962.DefaultHasher)
-		for i := 0; i < size; i++ {
-			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
-			if _, err := tree.AppendLeaf(l, visit); err != nil {
-				b.Fatalf("AppendLeaf: %v", err)
-			}
-		}
-		if _, err := tree.CalculateRoot(visit); err != nil {
-			b.Fatalf("CalculateRoot: %v", err)
-		}
-	}
-}
-
-func BenchmarkAppendLeaf(b *testing.B) {
-	benchmarkAppendLeaf(b, func(NodeID, []byte) {})
-}
-
-func BenchmarkAppendLeafNoVisitor(b *testing.B) {
-	benchmarkAppendLeaf(b, nil)
-}

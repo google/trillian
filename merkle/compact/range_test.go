@@ -701,6 +701,23 @@ func TestEqual(t *testing.T) {
 	}
 }
 
+func BenchmarkAppend(b *testing.B) {
+	const size = 1024
+	for n := 0; n < b.N; n++ {
+		cr := factory.NewEmptyRange(0)
+		for i := 0; i < size; i++ {
+			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
+			hash := hashLeaf(l)
+			if err := cr.Append(hash, nil); err != nil {
+				b.Fatalf("Append: %v", err)
+			}
+		}
+		if _, err := cr.GetRootHash(nil); err != nil {
+			b.Fatalf("GetRootHash: %v", err)
+		}
+	}
+}
+
 func hashLeaf(data []byte) []byte {
 	return rfc6962.DefaultHasher.HashLeaf(data)
 }
