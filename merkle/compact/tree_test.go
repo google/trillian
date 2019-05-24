@@ -17,31 +17,12 @@ package compact
 import (
 	"bytes"
 	"fmt"
-	"math/bits"
 	"strings"
 	"testing"
 
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
-	to "github.com/google/trillian/merkle/testonly"
-	"github.com/kylelemons/godebug/pretty"
 )
-
-// checkSizeInvariant ensures that the compact Merkle tree has the right number
-// of non-empty node hashes.
-func checkSizeInvariant(t *Tree) error {
-	size := t.Size()
-	hashes := t.hashes()
-	if got, want := len(hashes), bits.OnesCount64(size); got != want {
-		return fmt.Errorf("hashes mismatch: have %v hashes, want %v", got, want)
-	}
-	for i, hash := range hashes {
-		if len(hash) == 0 {
-			return fmt.Errorf("missing node hash at index %d", i)
-		}
-	}
-	return nil
-}
 
 func mustGetRoot(t *testing.T, mt *Tree) []byte {
 	t.Helper()
@@ -50,57 +31,6 @@ func mustGetRoot(t *testing.T, mt *Tree) []byte {
 		t.Fatalf("CurrentRoot: %v", err)
 	}
 	return hash
-}
-
-func TestAddingLeaves(t *testing.T) {
-	inputs := to.LeafInputs()
-	roots := to.RootHashes()
-	hashes := to.CompactTrees()
-
-	// Test the "same" thing in different ways, to ensure than any lazy update
-	// strategy being employed by the implementation doesn't affect the
-	// API-visible calculation of root & size.
-	for _, tc := range []struct {
-		desc   string
-		breaks []int
-	}{
-		{desc: "one-by-one", breaks: []int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
-		{desc: "one-by-one-no-zero", breaks: []int{1, 2, 3, 4, 5, 6, 7, 8}},
-		{desc: "all-at-once", breaks: []int{8}},
-		{desc: "all-at-once-zero", breaks: []int{0, 8}},
-		{desc: "two-chunks", breaks: []int{3, 8}},
-		{desc: "two-chunks-zero", breaks: []int{0, 3, 8}},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			tree := NewTree(rfc6962.DefaultHasher)
-			idx := 0
-			for _, br := range tc.breaks {
-				for ; idx < br; idx++ {
-					if _, err := tree.AppendLeaf(inputs[idx], nil); err != nil {
-						t.Fatalf("AppendLeaf: %v", err)
-					}
-					if err := checkSizeInvariant(tree); err != nil {
-						t.Fatalf("SizeInvariant check failed: %v", err)
-					}
-				}
-				if got, want := tree.Size(), uint64(br); got != want {
-					t.Errorf("Size()=%d, want %d", got, want)
-				}
-				if br > 0 {
-					if got, want := mustGetRoot(t, tree), roots[br]; !bytes.Equal(got, want) {
-						t.Errorf("root=%v, want %v", got, want)
-					}
-					if diff := pretty.Compare(tree.hashes(), hashes[br]); diff != "" {
-						t.Errorf("post-hashes() diff:\n%v", diff)
-					}
-				} else {
-					if got, want := mustGetRoot(t, tree), to.EmptyRootHash(); !bytes.Equal(got, want) {
-						t.Errorf("root=%x, want %x (empty)", got, want)
-					}
-				}
-			}
-		})
-	}
 }
 
 // This returns something that won't result in a valid root hash match, doesn't really

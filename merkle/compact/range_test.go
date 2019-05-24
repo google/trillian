@@ -26,6 +26,8 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/merkle/testonly"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 var (
@@ -179,6 +181,39 @@ func TestAppend(t *testing.T) {
 				tree.verifyRange(t, cr, true)
 			}
 			tree.verifyAllVisited(t, cr)
+		})
+	}
+}
+
+func TestGoldenRanges(t *testing.T) {
+	inputs := testonly.LeafInputs()
+	roots := testonly.RootHashes()
+	hashes := testonly.CompactTrees()
+
+	for size, ln := 0, len(inputs); size <= ln; size++ {
+		t.Run(fmt.Sprintf("size:%d", size), func(t *testing.T) {
+			cr := factory.NewEmptyRange(0)
+			for i := 0; i < size; i++ {
+				if err := cr.Append(hashLeaf(inputs[i]), nil); err != nil {
+					t.Fatalf("Append: %v", err)
+				}
+			}
+			hash, err := cr.GetRootHash(nil)
+			if err != nil {
+				t.Fatalf("GetRootHash: %v", err)
+			}
+			if size == 0 {
+				if hash != nil {
+					t.Errorf("Expected nil hash, got %x", hash)
+				}
+				hash = rfc6962.DefaultHasher.EmptyRoot()
+			}
+			if want := roots[size]; !bytes.Equal(hash, want) {
+				t.Errorf("root hash mismatch: got %x, want %x", hash, want)
+			}
+			if diff := pretty.Compare(cr.Hashes(), hashes[size]); diff != "" {
+				t.Errorf("hashes mismatch:\n%v", diff)
+			}
 		})
 	}
 }
