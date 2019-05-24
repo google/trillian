@@ -126,23 +126,16 @@ func sibling(leaf int64) int64 {
 	return leaf + 1
 }
 
-// NewInMemoryMerkleTree creates a new empty Merkle Tree using the specified Hasher
+// NewInMemoryMerkleTree creates a new empty Merkle Tree using the specified Hasher.
 func NewInMemoryMerkleTree(hasher hashers.LogHasher) *InMemoryMerkleTree {
-	mt := InMemoryMerkleTree{}
-
-	mt.hasher = hasher
-	mt.levelCount = 0
-	mt.leavesProcessed = 0
-
-	return &mt
+	return &InMemoryMerkleTree{hasher: hasher}
 }
 
-// LeafHash returns the hash of the requested leaf.
+// LeafHash returns the hash of the requested leaf, or nil if it doesn't exist.
 func (mt *InMemoryMerkleTree) LeafHash(leaf int64) []byte {
 	if leaf == 0 || leaf > mt.LeafCount() {
 		return nil
 	}
-
 	return mt.tree[0][leaf-1].hash
 }
 
@@ -157,7 +150,7 @@ func (mt *InMemoryMerkleTree) NodeCount(level int64) int64 {
 	return int64(len(mt.tree[level]))
 }
 
-// LevelCount returns the number of levels in the current Merkle tree
+// LevelCount returns the number of levels in the Merkle tree.
 func (mt *InMemoryMerkleTree) LevelCount() int64 {
 	return mt.levelCount
 }
@@ -489,7 +482,7 @@ func (mt *InMemoryMerkleTree) pathFromNodeToRootAtSnapshot(node int64, level int
 
 // SnapshotConsistency gets the Merkle consistency proof between two snapshots.
 // Returns a slice of node hashes, ordered according to levels.
-// Returns an empty slice if snapshot1 is 0, snapshot 1 >= snapshot2,
+// Returns an empty slice if snapshot1 is 0, snapshot1 >= snapshot2,
 // or one of the snapshots requested is in the future.
 func (mt *InMemoryMerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int64) []TreeEntryDescriptor {
 	var proof []TreeEntryDescriptor
