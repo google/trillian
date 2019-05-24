@@ -391,12 +391,12 @@ func TestGetRootHashGolden(t *testing.T) {
 		hash  string
 	}
 
-	// TODO(pavelkalinnikov): Values are copied from tree_test. Commonize them.
 	for _, tc := range []struct {
 		size      int
 		wantRoot  string
 		wantNodes []node
 	}{
+		{size: 0, wantRoot: "", wantNodes: []node{}}, // TODO(pavelkalinnikov): Use hasher.EmptyRoot().
 		{
 			size:      10,
 			wantRoot:  "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=",
