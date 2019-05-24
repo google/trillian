@@ -109,7 +109,10 @@ func NewMultiFakeNodeReader(readers []FakeNodeReader) *MultiFakeNodeReader {
 // code. To help guard against this we check the tree root hash after each batch has been
 // processed. The supplied batches should be in ascending order of tree revision.
 func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader {
-	tree := compact.NewTree(rfc6962.DefaultHasher)
+	hasher := rfc6962.DefaultHasher
+	fact := compact.RangeFactory{Hash: hasher.HashChildren}
+	cr := fact.NewEmptyRange(0)
+
 	readers := make([]FakeNodeReader, 0, len(batches))
 
 	lastBatchRevision := int64(0)
@@ -123,13 +126,19 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		nodeMap := make(map[compact.NodeID][]byte)
 		store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 		for _, leaf := range batch.Leaves {
-			// Only interested in side effects of AppendLeaf - the node updates.
-			tree.AppendLeaf([]byte(leaf), store)
+			hash := hasher.HashLeaf([]byte(leaf))
+			// Store the new leaf node, and all new perfect nodes.
+			store(compact.NewNodeID(0, cr.End()), hash)
+			if err := cr.Append(hash, store); err != nil {
+				panic(fmt.Errorf("Append: %v", err))
+			}
 		}
 		// TODO(pavelkalinnikov): Use testing.T.Fatalf instead of panics.
-		root, err := tree.CalculateRoot(store) // Store the ephemeral nodes as well.
+		root, err := cr.GetRootHash(store) // Store the ephemeral nodes as well.
 		if err != nil {
-			panic(fmt.Errorf("CurrentRoot: %v", err))
+			panic(fmt.Errorf("GetRootHash: %v", err))
+		} else if cr.End() == 0 {
+			root = hasher.EmptyRoot()
 		}
 		// Sanity check the tree root hash against the one we expect to see.
 		if got, want := root, batch.ExpectedRoot; !bytes.Equal(got, want) {

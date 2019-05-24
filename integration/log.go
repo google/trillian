@@ -516,12 +516,15 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*merkle.InMemoryMerkleTree, error) {
 	// Build the same tree with two different Merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
-	compactTree := compact.NewTree(rfc6962.DefaultHasher)
-	merkleTree := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	hasher := rfc6962.DefaultHasher
+	fact := compact.RangeFactory{Hash: hasher.HashChildren}
+	cr := fact.NewEmptyRange(0)
+
+	merkleTree := merkle.NewInMemoryMerkleTree(hasher)
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.StartLeaf; l < params.LeafCount; l++ {
-		if _, err := compactTree.AppendLeaf(leafMap[l].LeafValue, nil); err != nil {
+		if err := cr.Append(hasher.HashLeaf(leafMap[l].LeafValue), nil); err != nil {
 			return nil, err
 		}
 		merkleTree.AddLeaf(leafMap[l].LeafValue)
@@ -529,9 +532,12 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a
 	// "can't happen" situation.
-	root, err := compactTree.CurrentRoot()
+	root, err := cr.GetRootHash(nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute compact tree root: %v", err)
+		return nil, fmt.Errorf("failed to compute compact range root: %v", err)
+	} else if cr.End() == 0 {
+		// TODO(pavelkalinnikov): Handle empty hash case in compact.Range.
+		root = hasher.EmptyRoot()
 	}
 	if !bytes.Equal(root, merkleTree.CurrentRoot().Hash()) {
 		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, merkleTree.CurrentRoot())
