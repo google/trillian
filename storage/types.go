@@ -469,7 +469,7 @@ func (n *NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
 	return NewSuffix(byte(b), sfxPath)
 }
 
-// Prefix returns a NodeID's prefix.
+// Prefix returns a copy of NodeID's prefix.
 // This is the same value that would be returned from Split, but without the
 // overhead of calulating the suffix too.
 func (n *NodeID) Prefix(prefixBytes int) []byte {
@@ -493,6 +493,7 @@ func (n *NodeID) PrefixAsKey(prefixBytes int) string {
 }
 
 // Split splits a NodeID into a prefix and a suffix at prefixBytes.
+// The returned prefix is a copy of the underlying bytes.
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, EmptySuffix
