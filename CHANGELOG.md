@@ -197,16 +197,12 @@ Go module support.
 
 ### Compact Merkle tree data structures
 
-The CompactMerkleTree has been moved from `github.com/google/trillian/merkle` to
-`github.com/google/trillian/merkle/compact` and renamed `Tree`.
-
-A new powerful data structure named Compact Range has been added to the same
-package. It is a generalization of the previous compact Merkle tree structure.
-
-`AddLeaf*` methods of `compact.Tree` have been replaced with the corresponding
-`AppendLeaf*` methods, which do not report hashes of ephemeral nodes along the
-right border of the Merkle tree. The `CalculateRoot` method should be used in
-conjunction with appends if the caller needs to get those hashes.
+`CompactMerkleTree` has been removed from `github.com/google/trillian/merkle`,
+and a new package `github.com/google/trillian/merkle/compact` was introduced.  A
+new powerful data structure named "compact range" has been added to that
+package, and is now used throughout the repository instead of the compact tree.
+It is a generalization of the previous structure, as it allows manipulating
+arbitrary sub-ranges of leaves rather than only prefixes.
 
 ### Storage API changes
 
