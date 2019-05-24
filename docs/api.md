@@ -50,6 +50,7 @@
   
 
 - [trillian_map_api.proto](#trillian_map_api.proto)
+    - [GetLastInRangeByRevisionRequest](#trillian.GetLastInRangeByRevisionRequest)
     - [GetMapLeafByRevisionRequest](#trillian.GetMapLeafByRevisionRequest)
     - [GetMapLeafRequest](#trillian.GetMapLeafRequest)
     - [GetMapLeafResponse](#trillian.GetMapLeafResponse)
@@ -770,6 +771,27 @@ The API supports sequencing in the Trillian Log Sequencer.
 
 
 
+<a name="trillian.GetLastInRangeByRevisionRequest"></a>
+
+### GetLastInRangeByRevisionRequest
+GetLastInRangeByRevisionRequest specifies a range in the map at a revision.
+The range is defined as the entire subtree below a particular point in the 
+Merkle tree. Another way of saying this is that the range matches all leaves
+that share a common prefix of `prefix_bits` with prefix.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| map_id | [int64](#int64) |  |  |
+| revision | [int64](#int64) |  |  |
+| prefix | [bytes](#bytes) |  |  |
+| prefix_bits | [int32](#int32) |  | prefix_bits is the number of bits to include, starting from the left, or most significant bit (MSB). |
+
+
+
+
+
+
 <a name="trillian.GetMapLeafByRevisionRequest"></a>
 
 ### GetMapLeafByRevisionRequest
@@ -1030,6 +1052,7 @@ defined in the Verifiable Data Structures paper.
 | GetLeafByRevision | [GetMapLeafByRevisionRequest](#trillian.GetMapLeafByRevisionRequest) | [GetMapLeafResponse](#trillian.GetMapLeafResponse) |  |
 | GetLeaves | [GetMapLeavesRequest](#trillian.GetMapLeavesRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
 | GetLeavesByRevision | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
+| GetLastInRangeByRevision | [GetLastInRangeByRevisionRequest](#trillian.GetLastInRangeByRevisionRequest) | [MapLeaf](#trillian.MapLeaf) | GetLastInRangeByRevision returns the last leaf in a requested range. |
 | SetLeaves | [SetMapLeavesRequest](#trillian.SetMapLeavesRequest) | [SetMapLeavesResponse](#trillian.SetMapLeavesResponse) | SetLeaves sets the values for the provided leaves, and returns the new map root if successful. Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request), the API user is required to retry the request before performing a different SetLeaves request. |
 | GetSignedMapRoot | [GetSignedMapRootRequest](#trillian.GetSignedMapRootRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |
 | GetSignedMapRootByRevision | [GetSignedMapRootByRevisionRequest](#trillian.GetSignedMapRootByRevisionRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |
