@@ -17,7 +17,6 @@ package compact
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/google/trillian/merkle"
@@ -31,27 +30,6 @@ func mustGetRoot(t *testing.T, mt *Tree) []byte {
 		t.Fatalf("CurrentRoot: %v", err)
 	}
 	return hash
-}
-
-// This returns something that won't result in a valid root hash match, doesn't really
-// matter what it is but it must be correct length for an SHA256 hash as if it was real
-func fixedHashGetNodesFunc(ids []NodeID) [][]byte {
-	hashes := make([][]byte, len(ids))
-	for i := range ids {
-		hashes[i] = []byte("12345678901234567890123456789012")
-	}
-	return hashes
-}
-
-func TestLoadingTreeFailsBadRootHash(t *testing.T) {
-	hashes := fixedHashGetNodesFunc(TreeNodes(237))
-
-	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
-	// data
-	_, err := NewTreeWithState(rfc6962.DefaultHasher, 237, hashes, []byte("nomatch!nomatch!nomatch!nomatch!"))
-	if err == nil || !strings.HasPrefix(err.Error(), "root hash mismatch") {
-		t.Errorf("Did not return correct error on root mismatch: %v", err)
-	}
 }
 
 func TestCompactVsFullTree(t *testing.T) {
