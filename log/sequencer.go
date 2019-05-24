@@ -169,11 +169,11 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 		hashes[i] = node.Hash
 	}
 
-	rng, err := fact.NewRange(0, root.TreeSize, hashes)
+	cr, err := fact.NewRange(0, root.TreeSize, hashes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compact.Range: %v", err)
 	}
-	hash, err := rng.GetRootHash(nil)
+	hash, err := cr.GetRootHash(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute the root hash: %v", err)
 	}
@@ -181,7 +181,7 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 	if want := root.RootHash; !bytes.Equal(hash, want) {
 		return nil, fmt.Errorf("root hash mismatch: got %x, want %x", hash, want)
 	}
-	return rng, nil
+	return cr, nil
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
@@ -225,25 +225,25 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 
 // updateCompactRange adds the passed in leaves to the compact range. Returns a
 // map of all updated tree nodes, and the new root hash.
-func (s Sequencer) updateCompactRange(mt *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
+func (s Sequencer) updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
 	// Update the tree state by integrating the leaves one by one.
 	for _, leaf := range leaves {
 		idx := leaf.LeafIndex
-		if size := mt.End(); idx < 0 || idx != int64(size) {
+		if size := cr.End(); idx < 0 || idx != int64(size) {
 			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
 		// Store the leaf hash in the Merkle tree.
 		store(compact.NewNodeID(0, uint64(idx)), leaf.MerkleLeafHash)
 		// Store all the new internal nodes.
-		if err := mt.Append(leaf.MerkleLeafHash, store); err != nil {
+		if err := cr.Append(leaf.MerkleLeafHash, store); err != nil {
 			return nil, nil, err
 		}
 	}
 	// Store ephemeral nodes on the right border of the tree as well.
-	hash, err := mt.GetRootHash(store)
+	hash, err := cr.GetRootHash(store)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -393,9 +393,9 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		stageStart = s.timeSource.Now()
-		merkleTree, err := s.initCompactRangeFromStorage(ctx, &currentRoot, tx)
+		cr, err := s.initCompactRangeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
-			return fmt.Errorf("%x: compact tree init failed: %v", s.signer.KeyHint, err)
+			return fmt.Errorf("%v: compact range init failed: %v", tree.TreeId, err)
 		}
 		seqInitTreeLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
@@ -413,10 +413,10 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
-		if err := s.prepareLeaves(sequencedLeaves, merkleTree.End(), label); err != nil {
+		if err := s.prepareLeaves(sequencedLeaves, cr.End(), label); err != nil {
 			return err
 		}
-		nodeMap, newRoot, err := s.updateCompactRange(merkleTree, sequencedLeaves, label)
+		nodeMap, newRoot, err := s.updateCompactRange(cr, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
@@ -446,14 +446,14 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 
 		// Create the log root ready for signing.
-		if merkleTree.End() == 0 {
+		if cr.End() == 0 {
 			// Override the nil root hash returned by the compact range.
 			newRoot = s.hasher.EmptyRoot()
 		}
 		newLogRoot = &types.LogRootV1{
 			RootHash:       newRoot,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
-			TreeSize:       merkleTree.End(),
+			TreeSize:       cr.End(),
 			Revision:       uint64(newVersion),
 		}
 		seqTreeSize.Set(float64(newLogRoot.TreeSize), label)
