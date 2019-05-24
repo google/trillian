@@ -152,17 +152,24 @@ func createSomeNodes() []storage.Node {
 }
 
 func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, error) {
-	tree := compact.NewTree(rfc6962.New(crypto.SHA256))
+	hasher := rfc6962.New(crypto.SHA256)
+	fact := compact.RangeFactory{Hash: hasher.HashChildren}
+	cr := fact.NewEmptyRange(0)
+
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
+
 	for l := 0; l < int(ts); l++ {
-		// Only interested in side effects of AppendLeaf - the node updates.
-		if _, err := tree.AppendLeaf([]byte(fmt.Sprintf("Leaf %d", l)), store); err != nil {
+		hash := hasher.HashLeaf([]byte(fmt.Sprintf("Leaf %d", l)))
+		// Store the new leaf node, and all new perfect nodes.
+		// TODO(pavelkalinnikov): Visit leaf hash in cr.Append.
+		store(compact.NewNodeID(0, cr.End()), hash)
+		if err := cr.Append(hash, store); err != nil {
 			return nil, err
 		}
 	}
 	// Store the ephemeral nodes as well.
-	if _, err := tree.CalculateRoot(store); err != nil {
+	if _, err := cr.GetRootHash(store); err != nil {
 		return nil, err
 	}
 
