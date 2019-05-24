@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/bits"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -251,31 +250,6 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 				if got, want := hashes[0], mustGetRoot(t, tree); !bytes.Equal(got, want) {
 					t.Errorf("hashes[0] = %v, want %v", b64e(got), b64e(want))
 				}
-			}
-		})
-	}
-}
-
-func TestTreeNodes(t *testing.T) {
-	for _, tc := range []struct {
-		size uint64
-		want []NodeID
-	}{
-		{size: 0, want: []NodeID{}},
-		{size: 1, want: []NodeID{{Level: 0, Index: 0}}},
-		{size: 2, want: []NodeID{{Level: 1, Index: 0}}},
-		{size: 3, want: []NodeID{{Level: 1, Index: 0}, {Level: 0, Index: 2}}},
-		{size: 4, want: []NodeID{{Level: 2, Index: 0}}},
-		{size: 5, want: []NodeID{{Level: 2, Index: 0}, {Level: 0, Index: 4}}},
-		{size: 15, want: []NodeID{{Level: 3, Index: 0}, {Level: 2, Index: 2}, {Level: 1, Index: 6}, {Level: 0, Index: 14}}},
-		{size: 100, want: []NodeID{{Level: 6, Index: 0}, {Level: 5, Index: 2}, {Level: 2, Index: 24}}},
-		{size: 513, want: []NodeID{{Level: 9, Index: 0}, {Level: 0, Index: 512}}},
-		{size: uint64(1) << 63, want: []NodeID{{Level: 63, Index: 0}}},
-		{size: (uint64(1) << 63) + (uint64(1) << 57), want: []NodeID{{Level: 63, Index: 0}, {Level: 57, Index: 64}}},
-	} {
-		t.Run(fmt.Sprintf("size:%d", tc.size), func(t *testing.T) {
-			if got, want := TreeNodes(tc.size), tc.want; !reflect.DeepEqual(got, tc.want) {
-				t.Fatalf("TreeNodes: got %v, want %v", got, want)
 			}
 		})
 	}
