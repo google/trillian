@@ -9,8 +9,8 @@
 ignore:
   - "**/mock_*.go"
   - "**/testonly"
-  - "docs/**/*"
-  - "examples/**/*"
-  - "integration/**/*"
-  - "testonly/**/*"
-  - "vendor/**/*"
+  - "docs"
+  - "examples"
+  - "integration"
+  - "testonly"
+  - "vendor"
