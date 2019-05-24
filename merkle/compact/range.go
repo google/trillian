@@ -21,27 +21,6 @@ import (
 	"math/bits"
 )
 
-// NodeID identifies a node of a Merkle tree.
-//
-// The level is the longest distance from the node down to the leaves, and
-// index is its horizontal position in this level ordered from left to right.
-// Consider an example below where nodes are labeled as [<level> <index>].
-//
-//           [2 0]
-//          /     \
-//       [1 0]     \
-//       /   \      \
-//   [0 0]  [0 1]  [0 2]
-type NodeID struct {
-	Level uint
-	Index uint64
-}
-
-// NewNodeID returns a NodeID with the passed in node coordinates.
-func NewNodeID(level uint, index uint64) NodeID {
-	return NodeID{Level: level, Index: index}
-}
-
 // HashFn computes an internal node's hash using the hashes of its child nodes.
 type HashFn func(left, right []byte) []byte
 

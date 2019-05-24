@@ -1,0 +1,57 @@
+// Copyright 2019 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package compact
+
+import "math/bits"
+
+// NodeID identifies a node of a Merkle tree.
+//
+// The level is the longest distance from the node down to the leaves, and
+// index is its horizontal position in this level ordered from left to right.
+// Consider an example below where nodes are labeled as [<level> <index>].
+//
+//           [2 0]
+//          /     \
+//       [1 0]     \
+//       /   \      \
+//   [0 0]  [0 1]  [0 2]
+type NodeID struct {
+	Level uint
+	Index uint64
+}
+
+// NewNodeID returns a NodeID with the passed in node coordinates.
+func NewNodeID(level uint, index uint64) NodeID {
+	return NodeID{Level: level, Index: index}
+}
+
+// TreeNodes returns the list of node IDs that comprise a compact tree, in the
+// same order they are used in compact.Tree and compact.Range, i.e. ordered
+// from upper to lower levels.
+func TreeNodes(size uint64) []NodeID {
+	ids := make([]NodeID, 0, bits.OnesCount64(size))
+	// Iterate over perfect subtrees along the right border of the tree. Those
+	// correspond to the bits of the tree size that are set to one.
+	for sz := size; sz != 0; sz &= sz - 1 {
+		level := uint(bits.TrailingZeros64(sz))
+		index := (sz - 1) >> level
+		ids = append(ids, NewNodeID(level, index))
+	}
+	// Note: Right border nodes of compact.Range are ordered from root to leaves.
+	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
+		ids[i], ids[j] = ids[j], ids[i]
+	}
+	return ids
+}
