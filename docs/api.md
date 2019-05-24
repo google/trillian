@@ -718,7 +718,7 @@ If any of the leaves that match the given Merkle has have a leaf index that is b
 If the requested tree size is larger than the server is aware of, the response will include the latest known log root and an empty proof. |
 | GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | GetLatestSignedLogRoot returns the latest signed log root for a given tree, and optionally also includes a consistency proof from an earlier tree size to the new size of the tree.
 
-If the earlier tree size is larger than the server is aware of, an InvalidArgument error is returned. |
+If first_tree_size &gt; latest SignedLogRoot.tree_size, the server will return gRPC `codes.Unavailable` with the latest SignedLogRoot attached in the gRPC status.Details(). |
 | GetSequencedLeafCount | [GetSequencedLeafCountRequest](#trillian.GetSequencedLeafCountRequest) | [GetSequencedLeafCountResponse](#trillian.GetSequencedLeafCountResponse) | GetSequencedLeafCount returns the total number of leaves that have been integrated into the given tree.
 
 DO NOT USE - FOR DEBUGGING/TEST ONLY

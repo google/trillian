@@ -1985,8 +1985,9 @@ type TrillianLogClient interface {
 	// and optionally also includes a consistency proof from an earlier tree size
 	// to the new size of the tree.
 	//
-	// If the earlier tree size is larger than the server is aware of,
-	// an InvalidArgument error is returned.
+	// If first_tree_size > latest SignedLogRoot.tree_size, the server will return
+	// gRPC `codes.Unavailable` with the latest SignedLogRoot attached in the
+	// gRPC status.Details().
 	GetLatestSignedLogRoot(ctx context.Context, in *GetLatestSignedLogRootRequest, opts ...grpc.CallOption) (*GetLatestSignedLogRootResponse, error)
 	// GetSequencedLeafCount returns the total number of leaves that have been
 	// integrated into the given tree.
@@ -2187,8 +2188,9 @@ type TrillianLogServer interface {
 	// and optionally also includes a consistency proof from an earlier tree size
 	// to the new size of the tree.
 	//
-	// If the earlier tree size is larger than the server is aware of,
-	// an InvalidArgument error is returned.
+	// If first_tree_size > latest SignedLogRoot.tree_size, the server will return
+	// gRPC `codes.Unavailable` with the latest SignedLogRoot attached in the
+	// gRPC status.Details().
 	GetLatestSignedLogRoot(context.Context, *GetLatestSignedLogRootRequest) (*GetLatestSignedLogRootResponse, error)
 	// GetSequencedLeafCount returns the total number of leaves that have been
 	// integrated into the given tree.
