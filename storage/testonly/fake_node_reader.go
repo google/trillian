@@ -137,7 +137,8 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		root, err := cr.GetRootHash(store) // Store the ephemeral nodes as well.
 		if err != nil {
 			panic(fmt.Errorf("GetRootHash: %v", err))
-		} else if cr.End() == 0 {
+		}
+		if cr.End() == 0 {
 			root = hasher.EmptyRoot()
 		}
 		// Sanity check the tree root hash against the one we expect to see.
