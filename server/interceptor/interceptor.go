@@ -419,6 +419,12 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		info.tokens = 1
 
 	// Map / readonly
+	case *trillian.GetMapLeafByRevisionRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = len(req.GetIndex())
+	case *trillian.GetMapLeafRequest:
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = len(req.GetIndex())
 	case *trillian.GetMapLeavesByRevisionRequest:
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
 		info.tokens = len(req.GetIndex())

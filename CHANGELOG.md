@@ -4,6 +4,13 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### GetMapLeafByRevision API
+New GetMapLeafByRevision API for fetching a single map leaf. This allows there
+to be a separate API end point for fetching a single leaf vs. the batch
+GetMapLeavesByRevision API which is much slower when many leaves are requested.
+This supports separate monitoring and alerting for different traffic patterns.
+
+
 ### Add Profiling Flags to Binaries
 
 The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
