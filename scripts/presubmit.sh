@@ -124,9 +124,7 @@ main() {
     echo 'checking license headers'
     ./scripts/check_license.sh ${go_srcs}
     echo 'checking database schema'
-    # TODO(RJPercival): Lint against version of schema in master branch,
-    # to detect backwards-incompatible changes.
-    (cd storage/mysql/schema && skeema lint dev)
+    ./scripts/lintdb.sh master
   fi
 
   if [[ "${run_generate}" -eq 1 ]]; then
