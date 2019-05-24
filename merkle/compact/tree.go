@@ -151,22 +151,3 @@ func (t *Tree) Size() uint64 {
 func (t *Tree) hashes() [][]byte {
 	return t.rng.Hashes()
 }
-
-// TreeNodes returns the list of node IDs that comprise a compact tree, in the
-// same order they are used in compact.Tree and compact.Range, i.e. ordered
-// from upper to lower levels.
-func TreeNodes(size uint64) []NodeID {
-	ids := make([]NodeID, 0, bits.OnesCount64(size))
-	// Iterate over perfect subtrees along the right border of the tree. Those
-	// correspond to the bits of the tree size that are set to one.
-	for sz := size; sz != 0; sz &= sz - 1 {
-		level := uint(bits.TrailingZeros64(sz))
-		index := (sz - 1) >> level
-		ids = append(ids, NewNodeID(level, index))
-	}
-	// Note: Right border nodes of compact.Range are ordered from root to leaves.
-	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
-		ids[i], ids[j] = ids[j], ids[i]
-	}
-	return ids
-}
