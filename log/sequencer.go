@@ -133,9 +133,9 @@ func NewSequencer(
 	}
 }
 
-// initMerkleTreeFromStorage builds a compact tree that matches the latest data
-// in the database. It ensures that the root hash matches the passed in root.
-func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
+// initCompactRangeFromStorage builds a compact range that matches the latest
+// data in the database. Ensures that the root hash matches the passed in root.
+func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
 	fact := compact.RangeFactory{Hash: s.hasher.HashChildren}
 	if root.TreeSize == 0 {
 		return fact.NewEmptyRange(0), nil
@@ -175,7 +175,7 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, root *types.Lo
 	}
 	hash, err := rng.GetRootHash(nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to restore the root hash: %v", err)
+		return nil, fmt.Errorf("failed to compute the root hash: %v", err)
 	}
 	// Note: Tree size != 0 at this point, so we don't consider the empty hash.
 	if want := root.RootHash; !bytes.Equal(hash, want) {
@@ -223,9 +223,9 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 	return nil
 }
 
-// updateCompactTree adds the passed in leaves to the compact tree. Returns a
+// updateCompactRange adds the passed in leaves to the compact range. Returns a
 // map of all updated tree nodes, and the new root hash.
-func (s Sequencer) updateCompactTree(mt *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
+func (s Sequencer) updateCompactRange(mt *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
@@ -393,7 +393,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		stageStart = s.timeSource.Now()
-		merkleTree, err := s.initMerkleTreeFromStorage(ctx, &currentRoot, tx)
+		merkleTree, err := s.initCompactRangeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
 			return fmt.Errorf("%x: compact tree init failed: %v", s.signer.KeyHint, err)
 		}
@@ -416,7 +416,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		if err := s.prepareLeaves(sequencedLeaves, merkleTree.End(), label); err != nil {
 			return err
 		}
-		nodeMap, newRoot, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
+		nodeMap, newRoot, err := s.updateCompactRange(merkleTree, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
