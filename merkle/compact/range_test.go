@@ -161,18 +161,26 @@ func (tr *tree) verifyAllVisited(t *testing.T, r *Range) {
 	}
 }
 
-// Merge up from [0,0) to [0, 177) by appending single entries.
-func TestMergeForward(t *testing.T) {
-	const numNodes = uint64(177)
-	tree, visit := newTree(t, numNodes)
-	rng := factory.NewEmptyRange(0)
-	tree.verifyRange(t, rng, true)
-	for i := uint64(0); i < numNodes; i++ {
-		visit(NewNodeID(0, i), tree.leaf(i))
-		rng.Append(tree.leaf(i), visit)
-		tree.verifyRange(t, rng, true)
+func TestAppend(t *testing.T) {
+	var sizes []uint64
+	for size := uint64(0); size <= 256; size++ {
+		sizes = append(sizes, size)
 	}
-	tree.verifyAllVisited(t, rng)
+	sizes = append(sizes, 555, 1040, 5431)
+
+	for _, size := range sizes {
+		t.Run(fmt.Sprintf("size:%d", size), func(t *testing.T) {
+			tree, visit := newTree(t, size)
+			cr := factory.NewEmptyRange(0)
+			tree.verifyRange(t, cr, true)
+			for i := uint64(0); i < size; i++ {
+				visit(NewNodeID(0, i), tree.leaf(i))
+				cr.Append(tree.leaf(i), visit)
+				tree.verifyRange(t, cr, true)
+			}
+			tree.verifyAllVisited(t, cr)
+		})
+	}
 }
 
 // Merge down from [339,340) to [0,340) by prepending single entries.

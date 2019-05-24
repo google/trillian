@@ -103,26 +103,6 @@ func TestAddingLeaves(t *testing.T) {
 	}
 }
 
-func TestAppendLeaf(t *testing.T) {
-	for _, size := range []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 177, 765} {
-		t.Run(fmt.Sprintf("size:%d", size), func(t *testing.T) {
-			tree, visit := newTree(t, size)
-			mt := NewTree(rfc6962.DefaultHasher)
-			for i := uint64(0); i < size; i++ {
-				hash, err := mt.AppendLeaf(leafData(i), visit)
-				if err != nil {
-					t.Fatalf("AppendLeaf(%d): %v", i, err)
-				}
-				if want := tree.leaf(i); !bytes.Equal(hash, want) {
-					t.Fatalf("Leaf hash mismatch: got %x, want %x", hash, want)
-				}
-			}
-			// Note: The passed in Range is not valid, it is a hack.
-			tree.verifyAllVisited(t, &Range{begin: 0, end: size})
-		})
-	}
-}
-
 // This returns something that won't result in a valid root hash match, doesn't really
 // matter what it is but it must be correct length for an SHA256 hash as if it was real
 func fixedHashGetNodesFunc(ids []NodeID) [][]byte {
