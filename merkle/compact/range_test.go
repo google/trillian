@@ -344,6 +344,44 @@ func TestNewRange(t *testing.T) {
 	tree.verifyRange(t, rng1, false)
 }
 
+func TestNewRangeWithStorage(t *testing.T) {
+	const numNodes = uint64(777)
+	tree, _ := newTree(t, numNodes)
+	root := tree.rootHash()
+
+	nodes := make(map[NodeID][]byte)
+	getHashes := func(ids []NodeID) [][]byte {
+		hashes := make([][]byte, len(ids))
+		for i, id := range ids {
+			hashes[i] = nodes[id]
+		}
+		return hashes
+	}
+
+	cr := factory.NewEmptyRange(0)
+	for i := uint64(0); i < numNodes; i++ {
+		nodes[NewNodeID(0, i)] = tree.leaf(i)
+		if err := cr.Append(tree.leaf(i), func(id NodeID, hash []byte) {
+			nodes[id] = hash
+		}); err != nil {
+			t.Fatalf("%d: Append: %v", i, err)
+		}
+		hashes := getHashes(TreeNodes(i + 1))
+		var err error
+		if cr, err = factory.NewRange(0, i+1, hashes); err != nil {
+			t.Fatalf("%d: NewRange: %v", i+1, err)
+		}
+	}
+
+	got, err := cr.GetRootHash(nil)
+	if err != nil {
+		t.Fatalf("GetRootHash: %v", err)
+	}
+	if !bytes.Equal(got, root) {
+		t.Fatalf("Got root hash %x, want %x", got, root)
+	}
+}
+
 func TestAppendRangeErrors(t *testing.T) {
 	anotherFactory := &RangeFactory{Hash: hashChildren}
 	nonEmpty1, _ := factory.NewRange(7, 8, [][]byte{[]byte("hash")})
