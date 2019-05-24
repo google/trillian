@@ -209,37 +209,69 @@ func TestNewNodeIDFromBigIntPanic(t *testing.T) {
 	}
 }
 
+// goldenSplitData is golden test data for operations which split up a given
+// NodeID in some way.
+var goldenSplitData = []struct {
+	inPath                 []byte
+	inPathLenBits          int
+	splitBytes, suffixBits int
+	outPrefix              []byte
+	outSuffixBits          int
+	outSuffix              []byte
+	unusedBytes            int
+}{
+	{h2b("1234567f"), 32, 3, 8, h2b("123456"), 8, h2b("7f"), 0},
+	{h2b("123456ff"), 29, 3, 8, h2b("123456"), 5, h2b("f8"), 0},
+	{h2b("123456ff"), 25, 3, 8, h2b("123456"), 1, h2b("80"), 0},
+	{h2b("12345678"), 16, 1, 8, h2b("12"), 8, h2b("34"), 2},
+	{h2b("12345678"), 9, 1, 8, h2b("12"), 1, h2b("00"), 2},
+	{h2b("12345678"), 8, 0, 8, h2b(""), 8, h2b("12"), 3},
+	{h2b("12345678"), 7, 0, 8, h2b(""), 7, h2b("12"), 3},
+	{h2b("12345678"), 0, 0, 8, h2b(""), 0, h2b("00"), 3},
+	{h2b("70"), 2, 0, 8, h2b(""), 2, h2b("40"), 0},
+	{h2b("70"), 3, 0, 8, h2b(""), 3, h2b("60"), 0},
+	{h2b("70"), 4, 0, 8, h2b(""), 4, h2b("70"), 0},
+	{h2b("70"), 5, 0, 8, h2b(""), 5, h2b("70"), 0},
+	{h2b("0003"), 16, 1, 8, h2b("00"), 8, h2b("03"), 0},
+	{h2b("0003"), 15, 1, 8, h2b("00"), 7, h2b("02"), 0},
+	{h2b("0001000000000000"), 16, 1, 8, h2b("00"), 8, h2b("01"), 6},
+	{h2b("0100000000000000"), 8, 0, 8, h2b(""), 8, h2b("01"), 7},
+	// Map subtree scenarios
+	{h2b("0100000000000000"), 16, 0, 16, h2b(""), 16, h2b("0100"), 6},
+	{h2b("0100000000000000"), 32, 0, 32, h2b(""), 32, h2b("01000000"), 4},
+	{h2b("0000000000000000000000000000000000000000000000000000000000000001"), 256, 10, 176, h2b("00000000000000000000"), 176, h2b("00000000000000000000000000000000000000000001"), 0},
+}
+
+func TestPrefix(t *testing.T) {
+	for _, tc := range goldenSplitData {
+		n := NewNodeIDFromHash(tc.inPath)
+		n.PrefixLenBits = tc.inPathLenBits
+
+		p := n.Prefix(tc.splitBytes)
+		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
+			t.Errorf("%d, %x.Prefix(%v): prefix %x, want %x",
+				tc.inPathLenBits, tc.inPath, tc.splitBytes, got, want)
+			continue
+		}
+	}
+}
+
+func TestPrefixAsKey(t *testing.T) {
+	for _, tc := range goldenSplitData {
+		n := NewNodeIDFromHash(tc.inPath)
+		n.PrefixLenBits = tc.inPathLenBits
+
+		p := n.PrefixAsKey(tc.splitBytes)
+		if got, want := p, string(tc.outPrefix); got != want {
+			t.Errorf("%d, %x.PrefixAsKey(%v): prefix %x, want %x",
+				tc.inPathLenBits, tc.inPath, tc.splitBytes, got, want)
+			continue
+		}
+	}
+}
+
 func TestSplit(t *testing.T) {
-	for _, tc := range []struct {
-		inPath                 []byte
-		inPathLenBits          int
-		splitBytes, suffixBits int
-		outPrefix              []byte
-		outSuffixBits          int
-		outSuffix              []byte
-		unusedBytes            int
-	}{
-		{h2b("1234567f"), 32, 3, 8, h2b("123456"), 8, h2b("7f"), 0},
-		{h2b("123456ff"), 29, 3, 8, h2b("123456"), 5, h2b("f8"), 0},
-		{h2b("123456ff"), 25, 3, 8, h2b("123456"), 1, h2b("80"), 0},
-		{h2b("12345678"), 16, 1, 8, h2b("12"), 8, h2b("34"), 2},
-		{h2b("12345678"), 9, 1, 8, h2b("12"), 1, h2b("00"), 2},
-		{h2b("12345678"), 8, 0, 8, h2b(""), 8, h2b("12"), 3},
-		{h2b("12345678"), 7, 0, 8, h2b(""), 7, h2b("12"), 3},
-		{h2b("12345678"), 0, 0, 8, h2b(""), 0, h2b("00"), 3},
-		{h2b("70"), 2, 0, 8, h2b(""), 2, h2b("40"), 0},
-		{h2b("70"), 3, 0, 8, h2b(""), 3, h2b("60"), 0},
-		{h2b("70"), 4, 0, 8, h2b(""), 4, h2b("70"), 0},
-		{h2b("70"), 5, 0, 8, h2b(""), 5, h2b("70"), 0},
-		{h2b("0003"), 16, 1, 8, h2b("00"), 8, h2b("03"), 0},
-		{h2b("0003"), 15, 1, 8, h2b("00"), 7, h2b("02"), 0},
-		{h2b("0001000000000000"), 16, 1, 8, h2b("00"), 8, h2b("01"), 6},
-		{h2b("0100000000000000"), 8, 0, 8, h2b(""), 8, h2b("01"), 7},
-		// Map subtree scenarios
-		{h2b("0100000000000000"), 16, 0, 16, h2b(""), 16, h2b("0100"), 6},
-		{h2b("0100000000000000"), 32, 0, 32, h2b(""), 32, h2b("01000000"), 4},
-		{h2b("0000000000000000000000000000000000000000000000000000000000000001"), 256, 10, 176, h2b("00000000000000000000"), 176, h2b("00000000000000000000000000000000000000000001"), 0},
-	} {
+	for _, tc := range goldenSplitData {
 		n := NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
