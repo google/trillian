@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package log includes code that is specific to Trillian's log mode, particularly code
-// for running sequencing operations.
 package log
 
 import (
@@ -41,7 +39,7 @@ import (
 const logIDLabel = "logid"
 
 var (
-	once                   sync.Once
+	sequencerOnce          sync.Once
 	seqBatches             monitoring.Counter
 	seqTreeSize            monitoring.Gauge
 	seqLatency             monitoring.Histogram
@@ -75,7 +73,8 @@ func quotaIncreaseFactor() float64 {
 	return QuotaIncreaseFactor
 }
 
-func createMetrics(mf monitoring.MetricFactory) {
+// TODO(pavelkalinnikov): Create all metrics in this package together.
+func createSequencerMetrics(mf monitoring.MetricFactory) {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
@@ -121,8 +120,8 @@ func NewSequencer(
 	signer *tcrypto.Signer,
 	mf monitoring.MetricFactory,
 	qm quota.Manager) *Sequencer {
-	once.Do(func() {
-		createMetrics(mf)
+	sequencerOnce.Do(func() {
+		createSequencerMetrics(mf)
 	})
 	return &Sequencer{
 		hasher:     hasher,
