@@ -623,7 +623,7 @@ func TestNeighbour(t *testing.T) {
 		{index: h2b("8000000000000000"), want: h2b("8000000000000001")},
 	} {
 		nID := NewNodeIDFromHash(tc.index)
-		if got, want := nID.Neighbor().Path, tc.want; !bytes.Equal(got, want) {
+		if got, want := nID.Neighbor(nID.PrefixLenBits).Path, tc.want; !bytes.Equal(got, want) {
 			t.Errorf("flipBit(%x): %x, want %x", tc.index, got, want)
 		}
 	}
