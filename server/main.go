@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package server holds code for running Trillian servers.
 package server
 
 import (

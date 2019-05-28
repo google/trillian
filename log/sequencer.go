@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package log includes code that is specific to Trillian's log mode, particularly code
-// for running sequencing operations.
 package log
 
 import (

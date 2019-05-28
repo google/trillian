@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package log holds the code that is specific to Trillian logs core operation,
+// particularly the code for sequencing.
 package log
 
 import (
