@@ -31,8 +31,7 @@ type MapLeaf struct {
 	// All indexes for a given Map must contain a constant number of bits.
 	// These are not numeric indices. Note that this is typically derived using a
 	// hash and thus the length of all indices in the map will match the number
-	// of bits in the hash function. Map entries do not have a well defined
-	// ordering and it's not possible to sequentially iterate over them.
+	// of bits in the hash function.
 	Index []byte `protobuf:"bytes,1,opt,name=index,proto3" json:"index,omitempty"`
 	// leaf_hash is the tree hash of leaf_value.  This does not need to be set
 	// on SetMapLeavesRequest; the server will fill it in.

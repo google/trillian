@@ -975,7 +975,7 @@ MapLeaf represents the data behind Map leaves.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| index | [bytes](#bytes) |  | index is the location of this leaf. All indexes for a given Map must contain a constant number of bits. These are not numeric indices. Note that this is typically derived using a hash and thus the length of all indices in the map will match the number of bits in the hash function. Map entries do not have a well defined ordering and it&#39;s not possible to sequentially iterate over them. |
+| index | [bytes](#bytes) |  | index is the location of this leaf. All indexes for a given Map must contain a constant number of bits. These are not numeric indices. Note that this is typically derived using a hash and thus the length of all indices in the map will match the number of bits in the hash function. |
 | leaf_hash | [bytes](#bytes) |  | leaf_hash is the tree hash of leaf_value. This does not need to be set on SetMapLeavesRequest; the server will fill it in. For an empty leaf (len(leaf_value)==0), there may be two possible values for this hash: - If the leaf has never been set, it counts as an empty subtree and a nil value is used. - If the leaf has been explicitly set to a zero-length entry, it no longer counts as empty and the value of hasher.HashLeaf(index, nil) will be used. |
 | leaf_value | [bytes](#bytes) |  | leaf_value is the data the tree commits to. |
 | extra_data | [bytes](#bytes) |  | extra_data holds related contextual data, but is not covered by any hash. |
