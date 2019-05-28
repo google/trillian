@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package log
 
 import (
 	"context"
@@ -27,7 +27,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
@@ -41,7 +40,6 @@ import (
 )
 
 // Arbitrary time for use in tests
-var fakeTime = time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC)
 var fakeTimeSource = clock.NewFake(fakeTime)
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
@@ -83,16 +81,6 @@ var (
 var zeroDuration = 0 * time.Second
 
 const writeRev = int64(24)
-
-// newSignerWithFixedSig returns a fake signer that always returns the specified signature.
-func newSignerWithFixedSig(sig []byte) crypto.Signer {
-	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
-	if err != nil {
-		panic(err)
-	}
-
-	return testonly.NewSignerWithFixedSig(key, sig)
-}
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	ctx := context.Background()

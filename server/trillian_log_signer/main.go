@@ -151,8 +151,8 @@ func main() {
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	log.QuotaIncreaseFactor = *quotaIncreaseFactor
-	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
-	info := server.LogOperationInfo{
+	sequencerManager := log.NewSequencerManager(registry, *sequencerGuardWindowFlag)
+	info := log.LogOperationInfo{
 		Registry:    registry,
 		BatchSize:   *batchSizeFlag,
 		NumWorkers:  *numSeqFlag,
@@ -165,7 +165,7 @@ func main() {
 			TimeSource:         clock.System,
 		},
 	}
-	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
+	sequencerTask := log.NewLogOperationManager(info, sequencerManager)
 	go sequencerTask.OperationLoop(ctx)
 
 	// Enable CPU profile if requested
