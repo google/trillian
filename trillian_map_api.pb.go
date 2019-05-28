@@ -464,7 +464,7 @@ func (m *GetMapLeavesResponse) GetMapRoot() *SignedMapRoot {
 // GetLastInRangeByRevisionRequest specifies a range in the map at a revision.
 // The range is defined as the entire subtree below a particular point in the
 // Merkle tree. Another way of saying this is that the range matches all leaves
-// that share a common prefix of `prefix_bits` with prefix.
+// that share a common prefix of `prefix_bits` with `prefix`.
 type GetLastInRangeByRevisionRequest struct {
 	MapId    int64  `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
 	Revision int64  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`

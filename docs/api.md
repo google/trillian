@@ -777,7 +777,7 @@ The API supports sequencing in the Trillian Log Sequencer.
 GetLastInRangeByRevisionRequest specifies a range in the map at a revision.
 The range is defined as the entire subtree below a particular point in the 
 Merkle tree. Another way of saying this is that the range matches all leaves
-that share a common prefix of `prefix_bits` with prefix.
+that share a common prefix of `prefix_bits` with `prefix`.
 
 
 | Field | Type | Label | Description |
