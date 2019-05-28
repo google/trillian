@@ -59,8 +59,8 @@ type LogEnv struct {
 	grpcServer      *grpc.Server
 	adminServer     *admin.Server
 	logServer       *server.TrillianLogRPCServer
-	LogOperation    log.LogOperation
-	Sequencer       *log.LogOperationManager
+	LogOperation    log.Operation
+	Sequencer       *log.OperationManager
 	sequencerCancel context.CancelFunc
 	ClientConn      *grpc.ClientConn // TODO(gbelvin): Deprecate.
 
@@ -129,9 +129,9 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 	// Create Sequencer.
 	sequencerManager := log.NewSequencerManager(registry, sequencerWindow)
 	var wg sync.WaitGroup
-	var sequencerTask *log.LogOperationManager
+	var sequencerTask *log.OperationManager
 	ctx, cancel := context.WithCancel(ctx)
-	info := log.LogOperationInfo{
+	info := log.OperationInfo{
 		Registry:    registry,
 		BatchSize:   batchSize,
 		NumWorkers:  numSequencers,
@@ -139,9 +139,9 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 		TimeSource:  timeSource,
 	}
 	// Start a live sequencer in a goroutine.
-	sequencerTask = log.NewLogOperationManager(info, sequencerManager)
+	sequencerTask = log.NewOperationManager(info, sequencerManager)
 	wg.Add(1)
-	go func(wg *sync.WaitGroup, om *log.LogOperationManager) {
+	go func(wg *sync.WaitGroup, om *log.OperationManager) {
 		defer wg.Done()
 		om.OperationLoop(ctx)
 	}(&wg, sequencerTask)

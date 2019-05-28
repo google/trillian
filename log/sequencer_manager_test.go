@@ -297,9 +297,9 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	sm.ExecutePass(ctx, logID, createTestInfo(registry))
 }
 
-func createTestInfo(registry extension.Registry) *LogOperationInfo {
+func createTestInfo(registry extension.Registry) *OperationInfo {
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
-	return &LogOperationInfo{
+	return &OperationInfo{
 		Registry:    registry,
 		BatchSize:   50,
 		RunInterval: time.Second,

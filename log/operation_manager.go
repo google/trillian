@@ -56,30 +56,30 @@ func createMetrics(mf monitoring.MetricFactory) {
 	entriesAdded = mf.NewCounter("entries_added", "Number of entries added to the log", logIDLabel)
 }
 
-// LogOperation defines a task that operates on a log. Examples are scheduling, signing,
+// Operation defines a task that operates on a log. Examples are scheduling, signing,
 // consistency checking or cleanup.
-type LogOperation interface {
+type Operation interface {
 	// Name returns the name of the task.
 	Name() string
 	// ExecutePass performs a single pass of processing on a single log.  It returns
 	// a count of items processed (for logging) and an error.
-	ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error)
+	ExecutePass(ctx context.Context, logID int64, info *OperationInfo) (int, error)
 }
 
-// LogOperationInfo bundles up information needed for running a set of LogOperations.
-type LogOperationInfo struct {
+// OperationInfo bundles up information needed for running a set of Operations.
+type OperationInfo struct {
 	// Registry provides access to Trillian storage.
 	Registry extension.Registry
 
-	// The following parameters are passed to individual LogOperations.
+	// The following parameters are passed to individual Operations.
 
 	// BatchSize is the processing batch size to be passed to tasks run by this manager
 	BatchSize int
-	// TimeSource should be used by the LogOperation to allow mocking for tests.
+	// TimeSource should be used by the Operation to allow mocking for tests.
 	TimeSource clock.TimeSource
 
-	// The following parameters govern the overall scheduling of LogOperations
-	// by a LogOperationManager.
+	// The following parameters govern the overall scheduling of Operations
+	// by a OperationManager.
 
 	// Election-related configuration.
 	ElectionConfig election.RunnerConfig
@@ -95,12 +95,12 @@ type LogOperationInfo struct {
 	Timeout time.Duration
 }
 
-// LogOperationManager controls scheduling activities for logs.
-type LogOperationManager struct {
-	info LogOperationInfo
+// OperationManager controls scheduling activities for logs.
+type OperationManager struct {
+	info OperationInfo
 
 	// logOperation is the task that gets run across active logs in the scheduling loop
-	logOperation LogOperation
+	logOperation Operation
 
 	// electionRunner tracks the goroutines that run per-log mastership elections
 	electionRunner      map[string]*election.Runner
@@ -114,15 +114,15 @@ type LogOperationManager struct {
 	logNames      map[int64]string
 }
 
-// NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *LogOperationManager {
+// NewOperationManager creates a new OperationManager instance.
+func NewOperationManager(info OperationInfo, logOperation Operation) *OperationManager {
 	once.Do(func() {
 		createMetrics(info.Registry.MetricFactory)
 	})
 	if info.Timeout == 0 {
 		info.Timeout = DefaultTimeout
 	}
-	return &LogOperationManager{
+	return &OperationManager{
 		info:                info,
 		logOperation:        logOperation,
 		electionRunner:      make(map[string]*election.Runner),
@@ -133,7 +133,7 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 
 // getActiveLogIDs returns IDs of all currently active logs, regardless of
 // mastership status.
-func (l *LogOperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error) {
+func (l *OperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error) {
 	tx, err := l.info.Registry.LogStorage.Snapshot(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %v", err)
@@ -153,7 +153,7 @@ func (l *LogOperationManager) getActiveLogIDs(ctx context.Context) ([]int64, err
 
 // logName maps a logID to a human-readable name, caching results along the way.
 // The human-readable name may non-unique so should only be used for diagnostics.
-func (l *LogOperationManager) logName(ctx context.Context, logID int64) string {
+func (l *OperationManager) logName(ctx context.Context, logID int64) string {
 	l.logNamesMutex.Lock()
 	defer l.logNamesMutex.Unlock()
 	if name, ok := l.logNames[logID]; ok {
@@ -174,7 +174,7 @@ func (l *LogOperationManager) logName(ctx context.Context, logID int64) string {
 	return l.logNames[logID]
 }
 
-func (l *LogOperationManager) heldInfo(ctx context.Context, logIDs []int64) string {
+func (l *OperationManager) heldInfo(ctx context.Context, logIDs []int64) string {
 	names := make([]string, 0, len(logIDs))
 	for _, logID := range logIDs {
 		names = append(names, l.logName(ctx, logID))
@@ -191,7 +191,7 @@ func (l *LogOperationManager) heldInfo(ctx context.Context, logIDs []int64) stri
 // masterFor returns the list of log IDs among allIDs that this instance is
 // master for. Note that the instance may hold mastership for logs that are not
 // listed in allIDs, but such logs are skipped.
-func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int64, error) {
+func (l *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int64, error) {
 	if l.info.Registry.ElectionFactory == nil {
 		return allIDs, nil
 	}
@@ -252,7 +252,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 
 // updateHeldIDs updates the process status with the number/list of logs that
 // the instance holds mastership for.
-func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, activeIDs []int64) {
+func (l *OperationManager) updateHeldIDs(ctx context.Context, logIDs, activeIDs []int64) {
 	l.heldMutex.Lock()
 	defer l.heldMutex.Unlock()
 	heldInfo := l.heldInfo(ctx, logIDs)
@@ -269,7 +269,7 @@ func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, activeI
 	}
 }
 
-func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
+func (l *OperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	runCtx, cancel := context.WithTimeout(ctx, l.info.Timeout)
 	defer cancel()
 
@@ -299,7 +299,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 }
 
 // OperationSingle performs a single pass of the manager.
-func (l *LogOperationManager) OperationSingle(ctx context.Context) {
+func (l *OperationManager) OperationSingle(ctx context.Context) {
 	if err := l.getLogsAndExecutePass(ctx); err != nil {
 		glog.Errorf("failed to perform operation: %v", err)
 	}
@@ -307,7 +307,7 @@ func (l *LogOperationManager) OperationSingle(ctx context.Context) {
 
 // OperationLoop starts the manager working. It continues until told to exit.
 // TODO(Martin2112): No mechanism for error reporting etc., this is OK for v1 but needs work
-func (l *LogOperationManager) OperationLoop(ctx context.Context) {
+func (l *OperationManager) OperationLoop(ctx context.Context) {
 	glog.Infof("Log operation manager starting")
 
 	// Outer loop, runs until terminated
@@ -371,11 +371,11 @@ loop:
 	glog.Infof("wait for termination of election runners...done")
 }
 
-// logOperationExecutor runs the specified LogOperation on the submitted logs
+// logOperationExecutor runs the specified Operation on the submitted logs
 // in a set of parallel workers.
 type logOperationExecutor struct {
-	op   LogOperation
-	info *LogOperationInfo
+	op   Operation
+	info *OperationInfo
 
 	// jobs holds logIDs to run log operation on.
 	// TODO(pavelkalinnikov): Use mastership context for each job to make them
@@ -384,7 +384,7 @@ type logOperationExecutor struct {
 	jobs chan int64
 }
 
-func newExecutor(op LogOperation, info *LogOperationInfo, jobs int) *logOperationExecutor {
+func newExecutor(op Operation, info *OperationInfo, jobs int) *logOperationExecutor {
 	if jobs < 0 {
 		jobs = 0
 	}

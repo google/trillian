@@ -39,8 +39,8 @@ const (
 	logIDWithNoDisplayName  = int64(99)
 )
 
-func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
-	return LogOperationInfo{
+func defaultOperationInfo(registry extension.Registry) OperationInfo {
+	return OperationInfo{
 		Registry:    registry,
 		BatchSize:   50,
 		NumWorkers:  1,
@@ -49,7 +49,7 @@ func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
 	}
 }
 
-func TestLogOperationManagerSnapshotFails(t *testing.T) {
+func TestOperationManagerSnapshotFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -60,16 +60,16 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 		LogStorage: fakeStorage,
 	}
 
-	mockLogOp := NewMockLogOperation(ctrl)
+	mockLogOp := NewMockOperation(ctrl)
 
 	ctx := context.Background()
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }
 
-func TestLogOperationManagerGetLogsFails(t *testing.T) {
+func TestOperationManagerGetLogsFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -83,16 +83,16 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 		LogStorage: fakeStorage,
 	}
 
-	mockLogOp := NewMockLogOperation(ctrl)
+	mockLogOp := NewMockOperation(ctrl)
 
 	ctx := context.Background()
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }
 
-func TestLogOperationManagerCommitFails(t *testing.T) {
+func TestOperationManagerCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -107,11 +107,11 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 		LogStorage: fakeStorage,
 	}
 
-	mockLogOp := NewMockLogOperation(ctrl)
+	mockLogOp := NewMockOperation(ctrl)
 
 	ctx := context.Background()
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }
@@ -121,7 +121,7 @@ type logOpInfoMatcher struct {
 }
 
 func (l logOpInfoMatcher) Matches(x interface{}) bool {
-	o, ok := x.(*LogOperationInfo)
+	o, ok := x.(*OperationInfo)
 	if !ok {
 		return false
 	}
@@ -171,7 +171,7 @@ func setupLogIDs(ctrl *gomock.Controller, logNames map[int64]string) (*storage.M
 	return fakeStorage, mockAdmin
 }
 
-func TestLogOperationManagerPassesIDs(t *testing.T) {
+func TestOperationManagerPassesIDs(t *testing.T) {
 	ctx := context.Background()
 	logID1 := int64(451)
 	logID2 := int64(145)
@@ -184,18 +184,18 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 		AdminStorage: mockAdmin,
 	}
 
-	mockLogOp := NewMockLogOperation(ctrl)
+	mockLogOp := NewMockOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Return(1, nil)
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Return(0, nil)
 
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }
 
-func TestLogOperationManagerExecutePassError(t *testing.T) {
+func TestOperationManagerExecutePassError(t *testing.T) {
 	ctx := context.Background()
 	logID1 := int64(451)
 	logID2 := int64(145)
@@ -210,7 +210,7 @@ func TestLogOperationManagerExecutePassError(t *testing.T) {
 		AdminStorage: mockAdmin,
 	}
 
-	mockLogOp := NewMockLogOperation(ctrl)
+	mockLogOp := NewMockOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Return(1, nil)
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Return(0, errors.New("test error"))
@@ -221,8 +221,8 @@ func TestLogOperationManagerExecutePassError(t *testing.T) {
 	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
 	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
 
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 	lom.OperationSingle(ctx)
 
 	// Check that logID1 has 1 successful signing run, 0 failed.
@@ -241,7 +241,7 @@ func TestLogOperationManagerExecutePassError(t *testing.T) {
 	}
 }
 
-func TestLogOperationManagerOperationLoopPassesIDs(t *testing.T) {
+func TestOperationManagerOperationLoopPassesIDs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -259,25 +259,25 @@ func TestLogOperationManagerOperationLoopPassesIDs(t *testing.T) {
 		AdminStorage: mockAdmin,
 	}
 
-	mockLogOp := NewMockLogOperation(ctrl)
+	mockLogOp := NewMockOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *OperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
 	}).Return(1, nil)
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *OperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
 	}).Return(0, nil)
 
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 	lom.OperationLoop(ctx)
 }
 
-func TestLogOperationManagerOperationLoopExecutePassError(t *testing.T) {
+func TestOperationManagerOperationLoopExecutePassError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -297,14 +297,14 @@ func TestLogOperationManagerOperationLoopExecutePassError(t *testing.T) {
 		AdminStorage: mockAdmin,
 	}
 
-	mockLogOp := NewMockLogOperation(ctrl)
+	mockLogOp := NewMockOperation(ctrl)
 	infoMatcher := logOpInfoMatcher{50}
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *OperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
 	}).Return(1, nil)
-	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *LogOperationInfo) {
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Do(func(_ context.Context, _ int64, _ *OperationInfo) {
 		if atomic.AddInt64(&logCount, 1) == 2 {
 			cancel()
 		}
@@ -316,8 +316,8 @@ func TestLogOperationManagerOperationLoopExecutePassError(t *testing.T) {
 	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
 	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
 
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 	lom.OperationLoop(ctx)
 
 	// Check that logID1 has 1 successful signing run, 0 failed.
@@ -347,9 +347,9 @@ func TestHeldInfo(t *testing.T) {
 		logIDWithNoDisplayName:  "",
 	})
 	registry := extension.Registry{LogStorage: fakeStorage, AdminStorage: mockAdmin}
-	mockLogOp := NewMockLogOperation(ctrl)
-	info := defaultLogOperationInfo(registry)
-	lom := NewLogOperationManager(info, mockLogOp)
+	mockLogOp := NewMockOperation(ctrl)
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp)
 
 	var tests = []struct {
 		in   []int64
@@ -391,11 +391,11 @@ func TestMasterFor(t *testing.T) {
 			testCtx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			registry := extension.Registry{ElectionFactory: test.factory}
-			info := LogOperationInfo{
+			info := OperationInfo{
 				Registry:   registry,
 				TimeSource: clock.System,
 			}
-			lom := NewLogOperationManager(info, nil)
+			lom := NewOperationManager(info, nil)
 
 			// Check mastership twice, to give the election threads a chance to get started and report.
 			lom.masterFor(testCtx, firstIDs)

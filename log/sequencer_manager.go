@@ -56,7 +56,7 @@ func (s *SequencerManager) Name() string {
 }
 
 // ExecutePass performs sequencing for the specified Log.
-func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error) {
+func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *OperationInfo) (int, error) {
 	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 	// so deferring it
 

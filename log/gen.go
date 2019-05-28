@@ -15,4 +15,4 @@
 // Package log holds code for core Trillian logs operation.
 package log
 
-//go:generate mockgen -self_package github.com/google/trillian/log -package log -destination mock_log_operation.go github.com/google/trillian/log LogOperation
+//go:generate mockgen -self_package github.com/google/trillian/log -package log -destination mock_operation.go github.com/google/trillian/log Operation
