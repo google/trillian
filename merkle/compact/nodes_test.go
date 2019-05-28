@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func TestTreeNodes(t *testing.T) {
+func TestRangeNodesForPrefix(t *testing.T) {
 	for _, tc := range []struct {
 		size uint64
 		want []NodeID
@@ -38,8 +38,8 @@ func TestTreeNodes(t *testing.T) {
 		{size: (uint64(1) << 63) + (uint64(1) << 57), want: []NodeID{{Level: 63, Index: 0}, {Level: 57, Index: 64}}},
 	} {
 		t.Run(fmt.Sprintf("size:%d", tc.size), func(t *testing.T) {
-			if got, want := TreeNodes(tc.size), tc.want; !reflect.DeepEqual(got, tc.want) {
-				t.Fatalf("TreeNodes: got %v, want %v", got, want)
+			if got, want := RangeNodesForPrefix(tc.size), tc.want; !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("RangeNodesForPrefix: got %v, want %v", got, want)
 			}
 		})
 	}
