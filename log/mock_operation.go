@@ -45,15 +45,3 @@ func (m *MockOperation) ExecutePass(arg0 context.Context, arg1 int64, arg2 *Oper
 func (mr *MockOperationMockRecorder) ExecutePass(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecutePass", reflect.TypeOf((*MockOperation)(nil).ExecutePass), arg0, arg1, arg2)
 }
-
-// Name mocks base method
-func (m *MockOperation) Name() string {
-	ret := m.ctrl.Call(m, "Name")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// Name indicates an expected call of Name
-func (mr *MockOperationMockRecorder) Name() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockOperation)(nil).Name))
-}
