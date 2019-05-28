@@ -606,27 +606,25 @@ func TestSetBit(t *testing.T) {
 	}
 }
 
-func TestFlipRightBit(t *testing.T) {
+func TestNeighbour(t *testing.T) {
 	for _, tc := range []struct {
 		index []byte
-		i     int
 		want  []byte
 	}{
-		{index: h2b("00"), i: 0, want: h2b("01")},
-		{index: h2b("00"), i: 7, want: h2b("80")},
-		{index: h2b("000b"), i: 0, want: h2b("000a")},
-		{index: h2b("000b"), i: 1, want: h2b("0009")},
-		{index: h2b("000b"), i: 2, want: h2b("000f")},
-		{index: h2b("000b"), i: 3, want: h2b("0003")},
-		{index: h2b("0001"), i: 0, want: h2b("0000")},
-		{index: h2b("8000"), i: 15, want: h2b("0000")},
-		{index: h2b("0000000000000001"), i: 0, want: h2b("0000000000000000")},
-		{index: h2b("0000000000010000"), i: 16, want: h2b("0000000000000000")},
-		{index: h2b("8000000000000000"), i: 63, want: h2b("0000000000000000")},
+		{index: h2b("00"), want: h2b("01")},
+		{index: h2b("000b"), want: h2b("000a")},
+		{index: h2b("000c"), want: h2b("000d")},
+		{index: h2b("000d"), want: h2b("000c")},
+		{index: h2b("0009"), want: h2b("0008")},
+		{index: h2b("0001"), want: h2b("0000")},
+		{index: h2b("8000"), want: h2b("8001")},
+		{index: h2b("0000000000000001"), want: h2b("0000000000000000")},
+		{index: h2b("0000000000010000"), want: h2b("0000000000010001")},
+		{index: h2b("8000000000000000"), want: h2b("8000000000000001")},
 	} {
 		nID := NewNodeIDFromHash(tc.index)
-		if got, want := nID.FlipRightBit(tc.i).Path, tc.want; !bytes.Equal(got, want) {
-			t.Errorf("flipBit(%x, %d): %x, want %x", tc.index, tc.i, got, want)
+		if got, want := nID.Neighbor().Path, tc.want; !bytes.Equal(got, want) {
+			t.Errorf("flipBit(%x): %x, want %x", tc.index, got, want)
 		}
 	}
 }
@@ -899,13 +897,6 @@ func BenchmarkAsKey(b *testing.B) {
 	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
 	for i := 0; i < b.N; i++ {
 		_ = nID.AsKey()
-	}
-}
-
-func BenchmarkFlipRightBit(b *testing.B) {
-	nID := NewNodeIDFromHash(h2b("000102030405060708090A0B0C0D0E0F10111213"))
-	for i := 0; i < b.N; i++ {
-		nID.FlipRightBit(27)
 	}
 }
 

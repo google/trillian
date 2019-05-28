@@ -26,6 +26,8 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/merkle/testonly"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 var (
@@ -161,18 +163,59 @@ func (tr *tree) verifyAllVisited(t *testing.T, r *Range) {
 	}
 }
 
-// Merge up from [0,0) to [0, 177) by appending single entries.
-func TestMergeForward(t *testing.T) {
-	const numNodes = uint64(177)
-	tree, visit := newTree(t, numNodes)
-	rng := factory.NewEmptyRange(0)
-	tree.verifyRange(t, rng, true)
-	for i := uint64(0); i < numNodes; i++ {
-		visit(NewNodeID(0, i), tree.leaf(i))
-		rng.Append(tree.leaf(i), visit)
-		tree.verifyRange(t, rng, true)
+func TestAppend(t *testing.T) {
+	var sizes []uint64
+	for size := uint64(0); size <= 256; size++ {
+		sizes = append(sizes, size)
 	}
-	tree.verifyAllVisited(t, rng)
+	sizes = append(sizes, 555, 1040, 5431)
+
+	for _, size := range sizes {
+		t.Run(fmt.Sprintf("size:%d", size), func(t *testing.T) {
+			tree, visit := newTree(t, size)
+			cr := factory.NewEmptyRange(0)
+			tree.verifyRange(t, cr, true)
+			for i := uint64(0); i < size; i++ {
+				visit(NewNodeID(0, i), tree.leaf(i))
+				cr.Append(tree.leaf(i), visit)
+				tree.verifyRange(t, cr, true)
+			}
+			tree.verifyAllVisited(t, cr)
+		})
+	}
+}
+
+func TestGoldenRanges(t *testing.T) {
+	inputs := testonly.LeafInputs()
+	roots := testonly.RootHashes()
+	hashes := testonly.CompactTrees()
+
+	for size, ln := 0, len(inputs); size <= ln; size++ {
+		t.Run(fmt.Sprintf("size:%d", size), func(t *testing.T) {
+			cr := factory.NewEmptyRange(0)
+			for i := 0; i < size; i++ {
+				if err := cr.Append(hashLeaf(inputs[i]), nil); err != nil {
+					t.Fatalf("Append: %v", err)
+				}
+			}
+			hash, err := cr.GetRootHash(nil)
+			if err != nil {
+				t.Fatalf("GetRootHash: %v", err)
+			}
+			if size == 0 {
+				if hash != nil {
+					t.Errorf("Expected nil hash, got %x", hash)
+				}
+				hash = rfc6962.DefaultHasher.EmptyRoot()
+			}
+			if want := roots[size]; !bytes.Equal(hash, want) {
+				t.Errorf("root hash mismatch: got %x, want %x", hash, want)
+			}
+			if diff := pretty.Compare(cr.Hashes(), hashes[size]); diff != "" {
+				t.Errorf("hashes mismatch:\n%v", diff)
+			}
+		})
+	}
 }
 
 // Merge down from [339,340) to [0,340) by prepending single entries.
@@ -301,6 +344,44 @@ func TestNewRange(t *testing.T) {
 	tree.verifyRange(t, rng1, false)
 }
 
+func TestNewRangeWithStorage(t *testing.T) {
+	const numNodes = uint64(777)
+	tree, _ := newTree(t, numNodes)
+	root := tree.rootHash()
+
+	nodes := make(map[NodeID][]byte)
+	getHashes := func(ids []NodeID) [][]byte {
+		hashes := make([][]byte, len(ids))
+		for i, id := range ids {
+			hashes[i] = nodes[id]
+		}
+		return hashes
+	}
+
+	cr := factory.NewEmptyRange(0)
+	for i := uint64(0); i < numNodes; i++ {
+		nodes[NewNodeID(0, i)] = tree.leaf(i)
+		if err := cr.Append(tree.leaf(i), func(id NodeID, hash []byte) {
+			nodes[id] = hash
+		}); err != nil {
+			t.Fatalf("%d: Append: %v", i, err)
+		}
+		hashes := getHashes(RangeNodesForPrefix(i + 1))
+		var err error
+		if cr, err = factory.NewRange(0, i+1, hashes); err != nil {
+			t.Fatalf("%d: NewRange: %v", i+1, err)
+		}
+	}
+
+	got, err := cr.GetRootHash(nil)
+	if err != nil {
+		t.Fatalf("GetRootHash: %v", err)
+	}
+	if !bytes.Equal(got, root) {
+		t.Fatalf("Got root hash %x, want %x", got, root)
+	}
+}
+
 func TestAppendRangeErrors(t *testing.T) {
 	anotherFactory := &RangeFactory{Hash: hashChildren}
 	nonEmpty1, _ := factory.NewRange(7, 8, [][]byte{[]byte("hash")})
@@ -391,12 +472,12 @@ func TestGetRootHashGolden(t *testing.T) {
 		hash  string
 	}
 
-	// TODO(pavelkalinnikov): Values are copied from tree_test. Commonize them.
 	for _, tc := range []struct {
 		size      int
 		wantRoot  string
 		wantNodes []node
 	}{
+		{size: 0, wantRoot: "", wantNodes: []node{}}, // TODO(pavelkalinnikov): Use hasher.EmptyRoot().
 		{
 			size:      10,
 			wantRoot:  "VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=",
@@ -698,6 +779,23 @@ func TestEqual(t *testing.T) {
 				t.Errorf("%+v.Equal(%+v) = %v, want %v", test.lhs, test.rhs, got, want)
 			}
 		})
+	}
+}
+
+func BenchmarkAppend(b *testing.B) {
+	const size = 1024
+	for n := 0; n < b.N; n++ {
+		cr := factory.NewEmptyRange(0)
+		for i := 0; i < size; i++ {
+			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
+			hash := hashLeaf(l)
+			if err := cr.Append(hash, nil); err != nil {
+				b.Fatalf("Append: %v", err)
+			}
+		}
+		if _, err := cr.GetRootHash(nil); err != nil {
+			b.Fatalf("GetRootHash: %v", err)
+		}
 	}
 }
 
