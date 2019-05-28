@@ -377,13 +377,6 @@ func (n *NodeID) Copy() *NodeID {
 	}
 }
 
-// FlipRightBit flips the ith bit from LSB
-func (n *NodeID) FlipRightBit(i int) *NodeID {
-	bIndex := (n.PathLenBits() - i - 1) / 8
-	n.Path[bIndex] ^= 1 << uint(i%8)
-	return n
-}
-
 // leftmask contains bitmasks indexed such that the left x bits are set. It is
 // indexed by byte position from 0-7 0 is special cased to 0xFF since 8 mod 8
 // is 0. leftmask is only used to mask the last byte.
@@ -412,9 +405,13 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 // Neighbor returns the same node with the bit at PrefixLenBits flipped.
 // In terms of a tree traversal, this is the parent node's other child node
 // in the binary tree (often termed sibling node).
+// TODO(Martin2112): This is only used by Siblings() in conjunction with
+// MaskLeft() and could be cleaned up further.
 func (n *NodeID) Neighbor() *NodeID {
 	height := n.PathLenBits() - n.PrefixLenBits
-	return n.FlipRightBit(height)
+	bIndex := (n.PathLenBits() - height - 1) / 8
+	n.Path[bIndex] ^= 1 << uint(height%8)
+	return n
 }
 
 // Siblings returns the siblings of the given node.
