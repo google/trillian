@@ -108,7 +108,6 @@ type OperationManager struct {
 	pendingResignations chan election.Resignation
 	runnerWG            sync.WaitGroup
 	tracker             *election.MasterTracker
-	heldMutex           sync.Mutex
 	lastHeld            []int64
 	// Cache of logID => name; assumed not to change during runtime
 	logNamesMutex sync.Mutex
@@ -254,8 +253,6 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 // updateHeldIDs updates the process status with the number/list of logs that
 // the instance holds mastership for.
 func (o *OperationManager) updateHeldIDs(ctx context.Context, logIDs, activeIDs []int64) {
-	o.heldMutex.Lock()
-	defer o.heldMutex.Unlock()
 	heldInfo := o.heldInfo(ctx, logIDs)
 	msg := fmt.Sprintf("Acting as master for %d / %d active logs: %s", len(logIDs), len(activeIDs), heldInfo)
 	if !reflect.DeepEqual(logIDs, o.lastHeld) {
