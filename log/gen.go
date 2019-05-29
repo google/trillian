@@ -14,4 +14,4 @@
 
 package log
 
-//go:generate mockgen -self_package github.com/google/trillian/log -package log -destination mock_operation.go github.com/google/trillian/log Operation
+//go:generate mockgen -write_package_comment=false -self_package github.com/google/trillian/log -package log -destination mock_operation.go github.com/google/trillian/log Operation
