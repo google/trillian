@@ -35,6 +35,7 @@ import (
 )
 
 var (
+	// DefaultTimeout is the default timeout on a single log operation run.
 	DefaultTimeout = 60 * time.Second
 
 	once              sync.Once
