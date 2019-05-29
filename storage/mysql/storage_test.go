@@ -143,7 +143,7 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 func createSomeNodes() []storage.Node {
 	r := make([]storage.Node, 4)
 	for i := range r {
-		r[i].NodeID = storage.NewNodeIDWithPrefix(uint64(i), 8, 8, 8)
+		r[i].NodeID = storage.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
 		glog.Infof("Node to store: %v\n", r[i].NodeID)
