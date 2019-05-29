@@ -50,11 +50,6 @@ func NewSequencerManager(registry extension.Registry, gw time.Duration) *Sequenc
 	}
 }
 
-// Name returns the name of the object.
-func (s *SequencerManager) Name() string {
-	return "Sequencer"
-}
-
 // ExecutePass performs sequencing for the specified Log.
 func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *OperationInfo) (int, error) {
 	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change

@@ -62,8 +62,6 @@ func createMetrics(mf monitoring.MetricFactory) {
 // Operation defines a task that operates on a log. Examples are scheduling, signing,
 // consistency checking or cleanup.
 type Operation interface {
-	// Name returns the name of the task.
-	Name() string
 	// ExecutePass performs a single pass of processing on a single log.  It returns
 	// a count of items processed (for logging) and an error.
 	ExecutePass(ctx context.Context, logID int64, info *OperationInfo) (int, error)
