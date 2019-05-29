@@ -34,6 +34,21 @@ func (m *MockTrillianMapServer) EXPECT() *MockTrillianMapServerMockRecorder {
 	return m.recorder
 }
 
+// GetLastInRangeByRevision mocks base method
+func (m *MockTrillianMapServer) GetLastInRangeByRevision(arg0 context.Context, arg1 *trillian.GetLastInRangeByRevisionRequest) (*trillian.MapLeaf, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastInRangeByRevision", arg0, arg1)
+	ret0, _ := ret[0].(*trillian.MapLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastInRangeByRevision indicates an expected call of GetLastInRangeByRevision
+func (mr *MockTrillianMapServerMockRecorder) GetLastInRangeByRevision(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastInRangeByRevision", reflect.TypeOf((*MockTrillianMapServer)(nil).GetLastInRangeByRevision), arg0, arg1)
+}
+
 // GetLeaf mocks base method
 func (m *MockTrillianMapServer) GetLeaf(arg0 context.Context, arg1 *trillian.GetMapLeafRequest) (*trillian.GetMapLeafResponse, error) {
 	m.ctrl.T.Helper()
