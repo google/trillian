@@ -402,16 +402,16 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 	}
 }
 
-// Neighbor returns the same node with the bit at PrefixLenBits flipped.
+// Neighbor returns a new copy of a node, applying a LeftMask operation and
+// with the bit at PrefixLenBits in the copy flipped.
 // In terms of a tree traversal, this is the parent node's other child node
 // in the binary tree (often termed sibling node).
-// TODO(Martin2112): This is only used by Siblings() in conjunction with
-// MaskLeft() and could be cleaned up further.
-func (n *NodeID) Neighbor() *NodeID {
-	height := n.PathLenBits() - n.PrefixLenBits
-	bIndex := (n.PathLenBits() - height - 1) / 8
-	n.Path[bIndex] ^= 1 << uint(height%8)
-	return n
+func (n *NodeID) Neighbor(depth int) *NodeID {
+	node := n.MaskLeft(depth)
+	height := node.PathLenBits() - node.PrefixLenBits
+	bIndex := (node.PathLenBits() - height - 1) / 8
+	node.Path[bIndex] ^= 1 << uint(height%8)
+	return node
 }
 
 // Siblings returns the siblings of the given node.
@@ -425,7 +425,7 @@ func (n *NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
 		depth := n.PrefixLenBits - height
-		sibs[height] = *(n.MaskLeft(depth).Neighbor())
+		sibs[height] = *n.Neighbor(depth)
 	}
 	return sibs
 }
