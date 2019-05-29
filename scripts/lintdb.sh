@@ -4,7 +4,7 @@
 #
 # This tool lints and diffs the local copy of an SQL schema file against the
 # version stored in the specified branch ("master" by default). If linting
-# detects a problem or the diff identifies a backwards-incompatble change,
+# detects a problem or the diff identifies a backwards-incompatible change,
 # the tool will exit with a non-zero exit code.
 
 die() {
