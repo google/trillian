@@ -4,6 +4,12 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+
+### GetLeavesByRevisionNoProof API
+Allow map clients to forgo fetching inclusion proofs.
+This dramatically speeds things up for clients that don't need verifiability.
+
+
 ### GetMapLeafByRevision API
 New GetMapLeafByRevision API for fetching a single map leaf. This allows there
 to be a separate API end point for fetching a single leaf vs. the batch
