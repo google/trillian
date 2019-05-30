@@ -64,6 +64,7 @@
     - [InitMapResponse](#trillian.InitMapResponse)
     - [MapLeaf](#trillian.MapLeaf)
     - [MapLeafInclusion](#trillian.MapLeafInclusion)
+    - [MapLeaves](#trillian.MapLeaves)
     - [SetMapLeavesRequest](#trillian.SetMapLeavesRequest)
     - [SetMapLeavesResponse](#trillian.SetMapLeavesResponse)
   
@@ -1001,6 +1002,21 @@ MapLeaf represents the data behind Map leaves.
 
 
 
+<a name="trillian.MapLeaves"></a>
+
+### MapLeaves
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| leaves | [MapLeaf](#trillian.MapLeaf) | repeated |  |
+
+
+
+
+
+
 <a name="trillian.SetMapLeavesRequest"></a>
 
 ### SetMapLeavesRequest
@@ -1052,6 +1068,7 @@ defined in the Verifiable Data Structures paper.
 | GetLeafByRevision | [GetMapLeafByRevisionRequest](#trillian.GetMapLeafByRevisionRequest) | [GetMapLeafResponse](#trillian.GetMapLeafResponse) |  |
 | GetLeaves | [GetMapLeavesRequest](#trillian.GetMapLeavesRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
 | GetLeavesByRevision | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
+| GetLeavesByRevisionNoProof | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [MapLeaves](#trillian.MapLeaves) | GetLeavesByRevisionNoProof returns the requested map leaves without inclusion proofs. This API is designed for internal use where verificaion is not needed. |
 | GetLastInRangeByRevision | [GetLastInRangeByRevisionRequest](#trillian.GetLastInRangeByRevisionRequest) | [MapLeaf](#trillian.MapLeaf) | GetLastInRangeByRevision returns the last leaf in a requested range. |
 | SetLeaves | [SetMapLeavesRequest](#trillian.SetMapLeavesRequest) | [SetMapLeavesResponse](#trillian.SetMapLeavesResponse) | SetLeaves sets the values for the provided leaves, and returns the new map root if successful. Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request), the API user is required to retry the request before performing a different SetLeaves request. |
 | GetSignedMapRoot | [GetSignedMapRootRequest](#trillian.GetSignedMapRootRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |

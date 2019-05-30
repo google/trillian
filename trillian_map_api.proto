@@ -48,6 +48,10 @@ message MapLeaf {
   bytes extra_data = 4;
 }
 
+message MapLeaves {
+  repeated MapLeaf leaves = 1;
+}
+
 message MapLeafInclusion {
   MapLeaf leaf = 1;
   // inclusion holds the inclusion proof for this leaf in the map root. It
@@ -163,8 +167,10 @@ service TrillianMap {
   rpc GetLeaf(GetMapLeafRequest) returns (GetMapLeafResponse) {}
   rpc GetLeafByRevision(GetMapLeafByRevisionRequest) returns (GetMapLeafResponse) {}
   rpc GetLeaves(GetMapLeavesRequest) returns (GetMapLeavesResponse) {}
-  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest)
-      returns (GetMapLeavesResponse) {}
+  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns (GetMapLeavesResponse) {}
+  // GetLeavesByRevisionNoProof returns the requested map leaves without inclusion proofs.
+  // This API is designed for internal use where verificaion is not needed.
+  rpc GetLeavesByRevisionNoProof(GetMapLeavesByRevisionRequest) returns (MapLeaves) {}
   // GetLastInRangeByRevision returns the last leaf in a requested range.
   rpc GetLastInRangeByRevision(GetLastInRangeByRevisionRequest) returns (MapLeaf) {
     option (google.api.http) = {
