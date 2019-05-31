@@ -205,13 +205,13 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 // Get returns a list of map leaves indicated by indexes.
 // If an index is not found, no corresponding entry is returned.
 // Each MapLeaf.Index is overwritten with the index the leaf was found at.
-func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, error) {
 	m.treeTX.mu.Lock()
 	defer m.treeTX.mu.Unlock()
 
 	// If no indexes are requested, return an empty set.
 	if len(indexes) == 0 {
-		return []trillian.MapLeaf{}, nil
+		return []*trillian.MapLeaf{}, nil
 	}
 	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
@@ -236,7 +236,7 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	}
 	defer rows.Close()
 
-	ret := make([]trillian.MapLeaf, 0, len(indexes))
+	ret := make([]*trillian.MapLeaf, 0, len(indexes))
 	nr := 0
 	er := 0
 	for rows.Next() {
@@ -257,7 +257,7 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 			return nil, err
 		}
 		mapLeaf.Index = mapKeyHash
-		ret = append(ret, mapLeaf)
+		ret = append(ret, &mapLeaf)
 		nr++
 	}
 	return ret, nil
