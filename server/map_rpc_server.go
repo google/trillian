@@ -216,7 +216,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 			return
 		}
 		for i, l := range leaves {
-			leavesByIndex[string(l.Index)] = &leaves[i]
+			leavesByIndex[string(l.Index)] = leaves[i]
 		}
 		if len(indices) != len(leavesByIndex) {
 			glog.V(1).Infof("%v: request had %v indices, %v of these are unique", mapID, len(indices), len(leavesByIndex))
