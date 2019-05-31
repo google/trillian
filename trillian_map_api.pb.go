@@ -981,7 +981,7 @@ type TrillianMapClient interface {
 	GetLeaves(ctx context.Context, in *GetMapLeavesRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
 	GetLeavesByRevision(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
 	// GetLeavesByRevisionNoProof returns the requested map leaves without inclusion proofs.
-	// This API is designed for internal use where verificaion is not needed.
+	// This API is designed for internal use where verification is not needed.
 	GetLeavesByRevisionNoProof(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(ctx context.Context, in *GetLastInRangeByRevisionRequest, opts ...grpc.CallOption) (*MapLeaf, error)
@@ -1103,7 +1103,7 @@ type TrillianMapServer interface {
 	GetLeaves(context.Context, *GetMapLeavesRequest) (*GetMapLeavesResponse, error)
 	GetLeavesByRevision(context.Context, *GetMapLeavesByRevisionRequest) (*GetMapLeavesResponse, error)
 	// GetLeavesByRevisionNoProof returns the requested map leaves without inclusion proofs.
-	// This API is designed for internal use where verificaion is not needed.
+	// This API is designed for internal use where verification is not needed.
 	GetLeavesByRevisionNoProof(context.Context, *GetMapLeavesByRevisionRequest) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(context.Context, *GetLastInRangeByRevisionRequest) (*MapLeaf, error)
