@@ -275,7 +275,6 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 			errCh <- fmt.Errorf("could not fetch inclusion proofs: %v", err)
 		}
 	}()
-
 	////////////////////////////////////////////////////
 
 	wg.Wait()
