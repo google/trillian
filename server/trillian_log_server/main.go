@@ -106,6 +106,7 @@ func main() {
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
+	defer sp.Close()
 
 	client, err := etcd.NewClientFromString(*server.EtcdServers)
 	if err != nil {
