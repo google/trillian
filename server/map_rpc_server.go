@@ -385,7 +385,7 @@ func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeT
 	return &multiTXRunner{tree: tree, mapStorage: t.registry.MapStorage}
 }
 
-// singleTXRunner executes f using a single transaction.
+// singleTXRunner executes all callse to Run with the same underlying transaction.
 // If f is large, this may incur a performance penalty.
 type singleTXRunner struct {
 	tx storage.MapTreeTX
@@ -395,7 +395,7 @@ func (r *singleTXRunner) RunTX(ctx context.Context, f func(context.Context, stor
 	return f(ctx, r.tx)
 }
 
-// multiTXRunner executes f using many separate transactions.
+// multiTXRunner executes each call to Run using its own transaction.
 // This allows each invocation of f to proceed independently mutch faster.
 // However, If one transaction fails, the other will still succeed (In some cases this could cause data corruption).
 type multiTXRunner struct {
