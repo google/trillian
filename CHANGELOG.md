@@ -4,12 +4,18 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+
+### GetLeavesByRevisionNoProof API
+Allow map clients to forgo fetching inclusion proofs.
+This dramatically speeds things up for clients that don't need verifiability.
+This situation occurs in some situation where a Trillian personality is
+interacting directly with the Trillian Map. 
+
 ### GetMapLeafByRevision API
 New GetMapLeafByRevision API for fetching a single map leaf. This allows there
 to be a separate API end point for fetching a single leaf vs. the batch
 GetMapLeavesByRevision API which is much slower when many leaves are requested.
 This supports separate monitoring and alerting for different traffic patterns.
-
 
 ### Add Profiling Flags to Binaries
 
