@@ -51,7 +51,7 @@ type ReadOnlyMapTreeTX interface {
 	// The returned array of MapLeaves will only contain entries for which values
 	// exist.  i.e. requesting a set of unknown keys would result in a
 	// zero-length array being returned.
-	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error)
+	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]*trillian.MapLeaf, error)
 }
 
 // MapTreeTX is the transactional interface for reading/modifying a Map.

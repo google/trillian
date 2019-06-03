@@ -806,10 +806,10 @@ func (mr *MockMapTreeTXMockRecorder) Commit() *gomock.Call {
 }
 
 // Get mocks base method
-func (m *MockMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]trillian.MapLeaf, error) {
+func (m *MockMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]*trillian.MapLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]trillian.MapLeaf)
+	ret0, _ := ret[0].([]*trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1405,10 +1405,10 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) Commit() *gomock.Call {
 }
 
 // Get mocks base method
-func (m *MockReadOnlyMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]trillian.MapLeaf, error) {
+func (m *MockReadOnlyMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]*trillian.MapLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]trillian.MapLeaf)
+	ret0, _ := ret[0].([]*trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

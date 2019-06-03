@@ -6,4 +6,5 @@
 
 # Default
 /*.proto                         @Martin2112 @AlCutter
+/trillian_map_api.proto          @Martin2112 @AlCutter @mhutchinson
 /storage/storagepb/storage.proto @Martin2112 @AlCutter

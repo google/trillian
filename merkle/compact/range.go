@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package compact provides compact Merkle tree data structures.
 package compact
 
 import (

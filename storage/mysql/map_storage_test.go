@@ -299,7 +299,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 			if got, want := len(readValues), 1; got != want {
 				t.Fatalf("Got %d values, expected %d", got, want)
 			}
-			if got, want := &readValues[0], &mapLeaf; !proto.Equal(got, want) {
+			if got, want := readValues[0], &mapLeaf; !proto.Equal(got, want) {
 				t.Fatalf("Read back %v, but expected %v", got, want)
 			}
 			return nil
@@ -411,7 +411,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 						if got, want := len(readValues), 1; got != want {
 							t.Fatalf("At i %d got %d values, expected %d", i, got, want)
 						}
-						if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
+						if got, want := readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
 							t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
 						}
 						return nil

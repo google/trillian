@@ -62,6 +62,7 @@ type TrillianMapServerOptions struct {
 
 // TrillianMapServer implements the RPC API defined in the proto
 type TrillianMapServer struct {
+	trillian.UnimplementedTrillianMapServer
 	registry extension.Registry
 	opts     TrillianMapServerOptions
 
@@ -154,6 +155,34 @@ func (t *TrillianMapServer) GetLeavesByRevision(ctx context.Context, req *trilli
 	return t.getLeavesByRevision(ctx, req.MapId, req.Index, req.Revision)
 }
 
+// GetLeavesByRevisionNoProof implements the GetLeavesByRevision RPC method.
+func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req *trillian.GetMapLeavesByRevisionRequest) (*trillian.MapLeaves, error) {
+	if req.Revision < 0 {
+		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
+	}
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapRead)
+	if err != nil {
+		return nil, fmt.Errorf("could not get map %v: %v", req.MapId, err)
+	}
+	for _, index := range req.Index {
+		if err := checkIndexSize(index, hasher); err != nil {
+			return nil, err
+		}
+	}
+	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevisionNoProof")
+	if err != nil {
+		return nil, fmt.Errorf("could not create database snapshot: %v", err)
+	}
+	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRevisionNoProof")
+
+	leaves, err := tx.Get(ctx, req.Revision, req.Index)
+	if err != nil {
+		return nil, err
+	}
+
+	return &trillian.MapLeaves{Leaves: leaves}, nil
+}
+
 func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64, indices [][]byte, revision int64) (*trillian.GetMapLeavesResponse, error) {
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapRead)
 	if err != nil {
@@ -214,7 +243,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 			return
 		}
 		for i, l := range leaves {
-			leavesByIndex[string(l.Index)] = &leaves[i]
+			leavesByIndex[string(l.Index)] = leaves[i]
 		}
 		if len(indices) != len(leavesByIndex) {
 			glog.V(1).Infof("%v: request had %v indices, %v of these are unique", mapID, len(indices), len(leavesByIndex))
