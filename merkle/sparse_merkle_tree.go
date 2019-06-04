@@ -40,9 +40,12 @@ type SparseMerkleTreeReader struct {
 	treeRevision int64
 }
 
-// runTXFunc is the interface for a function which produces something which can
-// be passed as the last argument to MapStorage.ReadWriteTransaction.
-type runTXFunc func(context.Context, func(context.Context, storage.MapTreeTX) error) error
+// TXRunner supplies the RunTX function.
+// TXRunner can be passed as the last argument to MapStorage.ReadWriteTransaction.
+type TXRunner interface {
+	// RunTX executes f and supplies a transaction object to operate on.
+	RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error
+}
 
 // SparseMerkleTreeWriter knows how to store/update a stored sparse Merkle tree
 // via a TreeStorage transaction.
@@ -111,7 +114,7 @@ type subtreeWriter struct {
 	// children is a map of child-subtrees by stringified prefix.
 	children map[string]Subtree
 
-	runTX        runTXFunc
+	txRunner     TXRunner
 	treeRevision int64
 
 	hasher hashers.MapHasher
@@ -119,7 +122,7 @@ type subtreeWriter struct {
 
 func (s *subtreeWriter) newChildSubtreeWriter(ctx context.Context, p []byte) (Subtree, error) {
 	myPrefix := bytes.Join([][]byte{s.prefix, p}, []byte{})
-	return newLocalSubtreeWriter(ctx, s.treeID, s.treeRevision, myPrefix, s.remainingDepths, s.runTX, s.hasher)
+	return newLocalSubtreeWriter(ctx, s.treeID, s.treeRevision, myPrefix, s.remainingDepths, s.txRunner, s.hasher)
 }
 
 // getOrCreateChildSubtree returns, or creates and returns, a subtree for the
@@ -211,7 +214,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 
 	defer close(s.root)
 	var root []byte
-	err := s.runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
+	err := s.txRunner.RunTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 		ctx, spanEnd := spanFor(ctx, "buildSubtree.runTX")
 		defer spanEnd()
 
@@ -340,7 +343,7 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
-func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte, depths []int, runTX runTXFunc, h hashers.MapHasher) (Subtree, error) {
+func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte, depths []int, txRunner TXRunner, h hashers.MapHasher) (Subtree, error) {
 	tree := subtreeWriter{
 		treeID:             treeID,
 		treeRevision:       rev,
@@ -350,7 +353,7 @@ func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte
 		leafGeneratorQueue: make(chan leafGenerator, leafQueueSize(depths)),
 		root:               make(chan rootHashOrError, 1),
 		children:           make(map[string]Subtree),
-		runTX:              runTX,
+		txRunner:           txRunner,
 		hasher:             h,
 	}
 
@@ -363,10 +366,10 @@ func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calculate/verify tree hashes, storing via tx.
-func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers.MapHasher, runTX runTXFunc) (*SparseMerkleTreeWriter, error) {
+func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers.MapHasher, txRunner TXRunner) (*SparseMerkleTreeWriter, error) {
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
-	tree, err := newLocalSubtreeWriter(ctx, treeID, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, runTX, h)
+	tree, err := newLocalSubtreeWriter(ctx, treeID, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, txRunner, h)
 	if err != nil {
 		return nil, err
 	}
