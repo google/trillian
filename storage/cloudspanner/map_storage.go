@@ -302,7 +302,7 @@ func (tx *mapTX) getMapLeaf(ctx context.Context, revision int64, index []byte) (
 // as the corresponding values in indexes.
 // An error will be returned if there is a problem with the underlying
 // storage.
-func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, error) {
 	// c will carry any retrieved MapLeaves.
 	c := make(chan *trillian.MapLeaf, len(indexes))
 	// errc will carry any errors while reading from spanner, although we'll only
@@ -323,14 +323,14 @@ func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]t
 	}
 
 	// Now wait for the goroutines to do their thing.
-	ret := make([]trillian.MapLeaf, 0, len(indexes))
+	ret := make([]*trillian.MapLeaf, 0, len(indexes))
 	for range indexes {
 		select {
 		case err := <-errc:
 			return nil, err
 		case l := <-c:
 			if l != nil {
-				ret = append(ret, *l)
+				ret = append(ret, l)
 			}
 		}
 	}

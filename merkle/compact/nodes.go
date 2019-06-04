@@ -37,10 +37,9 @@ func NewNodeID(level uint, index uint64) NodeID {
 	return NodeID{Level: level, Index: index}
 }
 
-// TreeNodes returns the list of node IDs that comprise a compact tree, in the
-// same order they are used in compact.Tree and compact.Range, i.e. ordered
-// from upper to lower levels.
-func TreeNodes(size uint64) []NodeID {
+// RangeNodesForPrefix returns the list of node IDs that comprise the [0, size)
+// compact range. Nodes are ordered from upper to lower levels.
+func RangeNodesForPrefix(size uint64) []NodeID {
 	ids := make([]NodeID, 0, bits.OnesCount64(size))
 	// Iterate over perfect subtrees along the right border of the tree. Those
 	// correspond to the bits of the tree size that are set to one.

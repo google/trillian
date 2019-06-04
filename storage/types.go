@@ -237,31 +237,6 @@ func (n NodeID) BigInt() *big.Int {
 	return new(big.Int).SetBytes(n.Path)
 }
 
-// NewNodeIDWithPrefix creates a new NodeID of nodeIDLen bits with the prefixLen MSBs set to prefix.
-// NewNodeIDWithPrefix places the lower prefixLenBits of prefix in the most significant bits of path.
-// Path will have enough bytes to hold maxLenBits
-//
-func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits int) NodeID {
-	if got, want := nodeIDLenBits%8, 0; got != want {
-		panic(fmt.Sprintf("nodeIDLenBits mod 8: %v, want %v", got, want))
-	}
-	maxLenBytes := bytesForBits(maxLenBits)
-	p := NodeID{
-		Path:          make([]byte, maxLenBytes),
-		PrefixLenBits: nodeIDLenBits,
-	}
-
-	bit := maxLenBits - prefixLenBits
-	for i := 0; i < prefixLenBits; i++ {
-		if prefix&1 != 0 {
-			p.SetBit(bit, 1)
-		}
-		bit++
-		prefix >>= 1
-	}
-	return p
-}
-
 // NewNodeIDForTreeCoords creates a new NodeID for a Tree node with a specified depth and
 // index.
 // This method is used exclusively by the Log, and, since the Log model grows upwards from the
@@ -290,17 +265,6 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 	// we "reverse" depth here:
 	r.PrefixLenBits = int(maxPathBits - int(depth))
 	return r, nil
-}
-
-// SetBit sets the ith bit to true if b is non-zero, and false otherwise.
-// Note that the bit index 0 is the right most valid bit in the path.
-func (n *NodeID) SetBit(i int, b uint) {
-	bIndex := (n.PathLenBits() - i - 1) / 8
-	if b == 0 {
-		n.Path[bIndex] &= ^(1 << uint(i%8))
-	} else {
-		n.Path[bIndex] |= (1 << uint(i%8))
-	}
 }
 
 // Bit returns 1 if the zero indexed ith bit from the right (of the whole path
@@ -377,13 +341,6 @@ func (n *NodeID) Copy() *NodeID {
 	}
 }
 
-// FlipRightBit flips the ith bit from LSB
-func (n *NodeID) FlipRightBit(i int) *NodeID {
-	bIndex := (n.PathLenBits() - i - 1) / 8
-	n.Path[bIndex] ^= 1 << uint(i%8)
-	return n
-}
-
 // leftmask contains bitmasks indexed such that the left x bits are set. It is
 // indexed by byte position from 0-7 0 is special cased to 0xFF since 8 mod 8
 // is 0. leftmask is only used to mask the last byte.
@@ -409,12 +366,16 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 	}
 }
 
-// Neighbor returns the same node with the bit at PrefixLenBits flipped.
+// Neighbor returns a new copy of a node, applying a LeftMask operation and
+// with the bit at PrefixLenBits in the copy flipped.
 // In terms of a tree traversal, this is the parent node's other child node
 // in the binary tree (often termed sibling node).
-func (n *NodeID) Neighbor() *NodeID {
-	height := n.PathLenBits() - n.PrefixLenBits
-	return n.FlipRightBit(height)
+func (n *NodeID) Neighbor(depth int) *NodeID {
+	node := n.MaskLeft(depth)
+	height := node.PathLenBits() - node.PrefixLenBits
+	bIndex := (node.PathLenBits() - height - 1) / 8
+	node.Path[bIndex] ^= 1 << uint(height%8)
+	return node
 }
 
 // Siblings returns the siblings of the given node.
@@ -428,7 +389,7 @@ func (n *NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
 		depth := n.PrefixLenBits - height
-		sibs[height] = *(n.MaskLeft(depth).Neighbor())
+		sibs[height] = *n.Neighbor(depth)
 	}
 	return sibs
 }

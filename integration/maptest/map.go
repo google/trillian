@@ -24,6 +24,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/kylelemons/godebug/pretty"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
@@ -573,6 +575,37 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 	}
 }
 
+func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
+	tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_TEST_MAP_HASHER)
+	if err != nil {
+		t.Fatalf("newTreeWithHasher(): %v", err)
+	}
+	batchSize := 10
+	numBatches := 2
+
+	leafMap := writeBatch(ctx, t, tmap, tree, batchSize, numBatches)
+	indexes := make([][]byte, 0, len(leafMap))
+	leaves := make([]*trillian.MapLeaf, 0, len(leafMap))
+	for i, l := range leafMap {
+		indexes = append(indexes, []byte(i))
+		leaves = append(leaves, l)
+	}
+
+	getResp, err := tmap.GetLeavesByRevisionNoProof(ctx, &trillian.GetMapLeavesByRevisionRequest{
+		MapId:    tree.TreeId,
+		Index:    indexes,
+		Revision: 1,
+	})
+	if err != nil {
+		t.Fatalf("GetLeavesByRevisionNoProof(): %v", err)
+	}
+
+	if got, want := getResp.Leaves, leaves; !cmp.Equal(got, want,
+		cmpopts.SortSlices(func(a, b *trillian.MapLeaf) bool { return bytes.Compare(a.Index, b.Index) < 0 })) {
+		t.Errorf("got - want: %v", cmp.Diff(got, want))
+	}
+}
+
 // RunInclusionBatch performs checks on Trillian Map inclusion proofs, after setting and getting leafs in
 // larger batches, checking also the SignedMapRoot revisions along the way, for a variety of hash strategies.
 func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
@@ -627,25 +660,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 		t.Fatalf("%s: isEmptyMap() err=%v want nil", desc, err)
 	}
 
-	// Generate leaves.
-	leafBatch := make([][]*trillian.MapLeaf, numBatches)
-	leafMap := make(map[string]*trillian.MapLeaf)
-	for i := range leafBatch {
-		leafBatch[i] = createBatchLeaves(i, batchSize)
-		for _, l := range leafBatch[i] {
-			leafMap[hex.EncodeToString(l.Index)] = l
-		}
-	}
-
-	// Write some data in batches
-	for _, b := range leafBatch {
-		if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-			MapId:  tree.TreeId,
-			Leaves: b,
-		}); err != nil {
-			t.Fatalf("%s: SetLeaves(): %v", desc, err)
-		}
-	}
+	leafMap := writeBatch(ctx, t, tmap, tree, batchSize, numBatches)
 
 	// Check your head
 	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: tree.TreeId})
@@ -698,4 +713,29 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 		}
 	}
 	return nil
+}
+
+func writeBatch(ctx context.Context, t *testing.T, tmap trillian.TrillianMapClient, tree *trillian.Tree, batchSize, numBatches int) map[string]*trillian.MapLeaf {
+	t.Helper()
+	// Generate leaves.
+	leafBatch := make([][]*trillian.MapLeaf, numBatches)
+	leafMap := make(map[string]*trillian.MapLeaf)
+	for i := range leafBatch {
+		leafBatch[i] = createBatchLeaves(i, batchSize)
+		for _, l := range leafBatch[i] {
+			leafMap[hex.EncodeToString(l.Index)] = l
+		}
+	}
+
+	// Write some data in batches
+	for _, b := range leafBatch {
+		if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+			MapId:  tree.TreeId,
+			Leaves: b,
+		}); err != nil {
+			t.Fatalf("SetLeaves(): %v", err)
+		}
+	}
+
+	return leafMap
 }

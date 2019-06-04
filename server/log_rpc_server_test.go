@@ -22,17 +22,21 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
+	"github.com/google/trillian/util/clock"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc/codes"
@@ -54,6 +58,9 @@ func newTestLeaf(data []byte, extra []byte, index int64) *trillian.LogLeaf {
 
 var (
 	th = rfc6962.DefaultHasher
+
+	fakeTime       = time.Date(2016, 5, 25, 10, 55, 5, 0, time.UTC)
+	fakeTimeSource = clock.NewFake(fakeTime)
 
 	logID1 = int64(1)
 	logID2 = int64(2)
@@ -2324,4 +2331,13 @@ func addTreeID(tree *trillian.Tree, treeID int64) *trillian.Tree {
 	newTree := proto.Clone(tree).(*trillian.Tree)
 	newTree.TreeId = treeID
 	return newTree
+}
+
+// newSignerWithFixedSig returns a fake signer that always returns the specified signature.
+func newSignerWithFixedSig(sig []byte) crypto.Signer {
+	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
+	if err != nil {
+		panic(err)
+	}
+	return testonly.NewSignerWithFixedSig(key, sig)
 }

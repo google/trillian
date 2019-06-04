@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package log
 
 import (
 	"context"
@@ -24,7 +24,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/trees"
 
@@ -51,13 +50,8 @@ func NewSequencerManager(registry extension.Registry, gw time.Duration) *Sequenc
 	}
 }
 
-// Name returns the name of the object.
-func (s *SequencerManager) Name() string {
-	return "Sequencer"
-}
-
 // ExecutePass performs sequencing for the specified Log.
-func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error) {
+func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *OperationInfo) (int, error) {
 	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 	// so deferring it
 
@@ -77,7 +71,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
 	}
 
-	sequencer := log.NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
+	sequencer := NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
 
 	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
 	if err != nil {
