@@ -39,7 +39,7 @@ const (
 		 VALUES(?,?,?,?,?,?)`
 
 	selectSubtreeSQL = `
- SELECT x.TreeId, x.SubtreeId, x.MaxRevision, Subtree.Nodes
+ SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
  FROM (
  	SELECT n.TreeId, n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
 	FROM Subtree n
@@ -235,11 +235,10 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
 
 	for rows.Next() {
-		var treeID int64
 		var subtreeIDBytes []byte
 		var subtreeRev int64
 		var nodesRaw []byte
-		if err := rows.Scan(&treeID, &subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
+		if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
 			glog.Warningf("Failed to scan merkle subtree: %s", err)
 			return nil, err
 		}
