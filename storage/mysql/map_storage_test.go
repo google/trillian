@@ -562,10 +562,12 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 
 func TestReadOnlyMapTX_Rollback(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
+	ctx := context.Background()
 
 	cleanTestDB(DB)
+	activeMap := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
-	tx, err := s.Snapshot(context.Background())
+	tx, err := s.SnapshotForTree(ctx, activeMap)
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 	}
