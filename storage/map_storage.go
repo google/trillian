@@ -73,9 +73,6 @@ type MapTreeTX interface {
 type ReadOnlyMapStorage interface {
 	DatabaseChecker
 
-	// Snapshot starts a read-only transaction not tied to any particular tree.
-	Snapshot(ctx context.Context) (ReadOnlyMapTX, error)
-
 	// SnapshotForTree starts a new read-only transaction.
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
