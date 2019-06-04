@@ -414,7 +414,7 @@ func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeT
 	return &multiTXRunner{tree: tree, mapStorage: t.registry.MapStorage}
 }
 
-// singleTXRunner executes all callse to Run with the same underlying transaction.
+// singleTXRunner executes all calls to Run with the same underlying transaction.
 // If f is large, this may incur a performance penalty.
 type singleTXRunner struct {
 	tx storage.MapTreeTX
