@@ -137,6 +137,25 @@ message SetMapLeavesResponse {
   SignedMapRoot map_root = 2;
 }
 
+message WriteMapLeavesRequest {
+  int64 map_id = 1;
+  // The leaves being set must have unique Index values within the request.
+  repeated MapLeaf leaves = 2;
+  bytes metadata = 3;
+  // The map revision to associate the leaves with. The request will fail if
+  // this revision already exists, does not match the current write revision, or
+  // is negative. If revision = 0 then the leaves will be written to the current
+  // write revision.
+  int64 revision = 4;
+}
+
+message WriteMapLeavesResponse {
+  // The map revision that the leaves will be published as.
+  // This may be accompanied by a proof that the write request has been included
+  // in an input log in the future.
+  int64 revision = 1;
+}
+
 message GetSignedMapRootRequest {
   int64 map_id = 1;
 }
@@ -199,4 +218,17 @@ service TrillianMap {
       post: "/v1beta1/maps/{map_id}:init"
     };
   }
+}
+
+// TrillianWriteMap defines a service to allow writes against a Verifiable Map
+// that will be readable via the TrillianMap service. The write API does not
+// expose any Merkle Tree properties. This allows key/value writes to be
+// decoupled from the Merkle Tree synthesis and publishing.
+service TrillianWriteMap {
+  // GetLeavesByRevision returns the requested map leaves without inclusion proofs.
+  // This API is designed for internal use where verification is not needed.
+  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns (MapLeaves) {}
+  // WriteLeaves sets the values for the provided leaves, and returns the new map
+  // revision if successful.
+  rpc WriteLeaves(WriteMapLeavesRequest) returns (WriteMapLeavesResponse) {}
 }
