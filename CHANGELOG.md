@@ -4,6 +4,10 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### TrillianWriteMap API
+New API service for writing to the Trillian Map. This allows APIs such as
+GetLeavesByRevisionNoProof to be removed from the read API, and these methods to
+be tuned & provisioned differently for read vs write performance.
 
 ### GetLeavesByRevisionNoProof API
 Allow map clients to forgo fetching inclusion proofs.
