@@ -72,6 +72,7 @@ require (
 	github.com/uber/prototool v1.7.0 // indirect
 	github.com/ugorji/go v0.0.0-20171019201919-bdcc60b419d1 // indirect
 	github.com/xiang90/probing v0.0.0-20160813154853-07dd2e8dfe18 // indirect
+	go.etcd.io/etcd v3.3.13+incompatible
 	go.opencensus.io v0.18.0
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	golang.org/x/net v0.0.0-20190311183353-d8887717615a

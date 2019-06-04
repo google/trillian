@@ -92,8 +92,8 @@ install:
     fi
 
   - if [ "$GO111MODULE" = "on" ]; then go install
-        github.com/coreos/etcd
-        github.com/coreos/etcd/etcdctl;
+        go.etcd.io/etcd
+        go.etcd.io/etcd/etcdctl;
     else go install
       ./vendor/github.com/coreos/etcd/cmd/etcd
       ./vendor/github.com/coreos/etcd/cmd/etcdctl;

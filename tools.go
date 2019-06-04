@@ -17,8 +17,6 @@
 package tools
 
 import (
-	_ "github.com/coreos/etcd/cmd/etcd"
-	_ "github.com/coreos/etcd/cmd/etcdctl"
 	_ "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen"
 	_ "github.com/golang/protobuf/proto"
@@ -27,5 +25,7 @@ import (
 	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
 	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 	_ "github.com/uber/prototool/cmd/prototool"
+	_ "go.etcd.io/etcd"
+	_ "go.etcd.io/etcd/etcdctl"
 	_ "golang.org/x/tools/cmd/stringer"
 )
