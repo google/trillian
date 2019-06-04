@@ -73,7 +73,7 @@
   
   
     - [TrillianMap](#trillian.TrillianMap)
-    - [TrillianWriteMap](#trillian.TrillianWriteMap)
+    - [TrillianMapWrite](#trillian.TrillianMapWrite)
   
 
 - [trillian_admin_api.proto](#trillian_admin_api.proto)
@@ -1063,8 +1063,8 @@ MapLeaf represents the data behind Map leaves.
 | ----- | ---- | ----- | ----------- |
 | map_id | [int64](#int64) |  |  |
 | leaves | [MapLeaf](#trillian.MapLeaf) | repeated | The leaves being set must have unique Index values within the request. |
-| metadata | [bytes](#bytes) |  |  |
-| revision | [int64](#int64) |  | The map revision to associate the leaves with. The request will fail if this revision already exists, does not match the current write revision, or is negative. If revision = 0 then the leaves will be written to the current write revision. |
+| metadata | [bytes](#bytes) |  | Metadata that the Map should associate with the new Map root after incorporating the leaf changes. The metadata will be reflected in the Map Root published for this revision. Map personalities should use metadata to persist any state needed later to continue mapping from an external data source. |
+| expect_revision | [int64](#int64) |  | The map revision to associate the leaves with. The request will fail if this revision already exists, does not match the current write revision, or is negative. If revision = 0 then the leaves will be written to the current write revision. |
 
 
 
@@ -1079,7 +1079,7 @@ MapLeaf represents the data behind Map leaves.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| revision | [int64](#int64) |  | The map revision that the leaves will be published as. This may be accompanied by a proof that the write request has been included in an input log in the future. |
+| revision | [int64](#int64) |  | The map revision that the leaves will be published at. This may be accompanied by a proof that the write request has been included in an input log in the future. |
 
 
 
@@ -1112,10 +1112,10 @@ defined in the Verifiable Data Structures paper.
 | InitMap | [InitMapRequest](#trillian.InitMapRequest) | [InitMapResponse](#trillian.InitMapResponse) |  |
 
 
-<a name="trillian.TrillianWriteMap"></a>
+<a name="trillian.TrillianMapWrite"></a>
 
-### TrillianWriteMap
-TrillianWriteMap defines a service to allow writes against a Verifiable Map
+### TrillianMapWrite
+TrillianMapWrite defines a service to allow writes against a Verifiable Map
 that will be readable via the TrillianMap service. The write API does not
 expose any Merkle Tree properties. This allows key/value writes to be
 decoupled from the Merkle Tree synthesis and publishing.
