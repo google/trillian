@@ -35,11 +35,11 @@ var (
 )
 
 // Find returns the file path of the license for this package.
-func Find(pkg *build.Package) (string, error) {
+func Find(dir string) (string, error) {
 	var stopAt []*regexp.Regexp
 	stopAt = append(stopAt, srcDirRegexps...)
 	stopAt = append(stopAt, vendorRegexp)
-	return findUpwards(pkg.Dir, licenseRegexp, stopAt)
+	return findUpwards(dir, licenseRegexp, stopAt)
 }
 
 func findUpwards(dir string, r *regexp.Regexp, stopAt []*regexp.Regexp) (string, error) {

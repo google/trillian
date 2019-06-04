@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -81,7 +82,7 @@ func saveMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	libs, err := libraries(importPath)
+	libs, err := licenses.Libraries(context.Background(), importPath)
 	if err != nil {
 		return err
 	}

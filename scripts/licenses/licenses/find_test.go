@@ -23,25 +23,19 @@ import (
 func TestFind(t *testing.T) {
 	for _, test := range []struct {
 		desc            string
-		importPath      string
-		workingDir      string
-		importMode      build.ImportMode
+		dir             string
 		wantLicensePath string
 	}{
 		{
 			desc:            "Trillian license",
-			importPath:      "github.com/google/trillian/scripts/licenses/licenses",
+			dir:             filepath.Join(build.Default.GOPATH, "src/github.com/google/trillian/scripts/licenses/licenses"),
 			wantLicensePath: filepath.Join(build.Default.GOPATH, "src/github.com/google/trillian/LICENSE"),
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			pkg, err := build.Import(test.importPath, test.workingDir, test.importMode)
-			if err != nil {
-				t.Fatalf("build.Import(%q, %q, %v) = (_, %q), want (_, nil)", test.importPath, test.workingDir, test.importMode, err)
-			}
-			licensePath, err := Find(pkg)
+			licensePath, err := Find(test.dir)
 			if err != nil || licensePath != test.wantLicensePath {
-				t.Fatalf("Find(%v) = (%#v, %q), want (%q, nil)", pkg, licensePath, err, test.wantLicensePath)
+				t.Fatalf("Find(%v) = (%#v, %q), want (%q, nil)", test.dir, licensePath, err, test.wantLicensePath)
 			}
 		})
 	}
