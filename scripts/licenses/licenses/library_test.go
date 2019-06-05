@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"golang.org/x/tools/go/packages"
 )
 
 func TestLibraries(t *testing.T) {
@@ -77,8 +76,8 @@ func TestLibraryName(t *testing.T) {
 		{
 			desc: "Library with 1 package",
 			lib: &Library{
-				Packages: []*packages.Package{
-					{PkgPath: "github.com/google/trillian/crypto"},
+				Packages: []string{
+					"github.com/google/trillian/crypto",
 				},
 			},
 			wantName: "github.com/google/trillian/crypto",
@@ -86,9 +85,9 @@ func TestLibraryName(t *testing.T) {
 		{
 			desc: "Library with 2 packages",
 			lib: &Library{
-				Packages: []*packages.Package{
-					{PkgPath: "github.com/google/trillian/crypto"},
-					{PkgPath: "github.com/google/trillian/server"},
+				Packages: []string{
+					"github.com/google/trillian/crypto",
+					"github.com/google/trillian/server",
 				},
 			},
 			wantName: "github.com/google/trillian",
@@ -96,8 +95,8 @@ func TestLibraryName(t *testing.T) {
 		{
 			desc: "Vendored library",
 			lib: &Library{
-				Packages: []*packages.Package{
-					{PkgPath: "github.com/google/trillian/vendor/coreos/etcd"},
+				Packages: []string{
+					"github.com/google/trillian/vendor/coreos/etcd",
 				},
 			},
 			wantName: "github.com/google/trillian/vendor/coreos/etcd",

@@ -28,8 +28,11 @@ import (
 
 // Library is a collection of packages covered by the same license file.
 type Library struct {
-	Packages    []*packages.Package
+	// LicensePath is the path of the file containing the library's license.
 	LicensePath string
+	// Packages contains import paths for Go packages in this library.
+	// It may not be the complete set of all packages in the library.
+	Packages []string
 }
 
 // PackagesError aggregates all Packages[].Errors into a single error.
@@ -107,26 +110,25 @@ func Libraries(ctx context.Context, importPaths ...string) ([]*Library, error) {
 			// No license for these packages - return each one as a separate library.
 			for _, p := range pkgs {
 				libraries = append(libraries, &Library{
-					Packages: []*packages.Package{p},
+					Packages: []string{p.PkgPath},
 				})
 			}
 			continue
 		}
-		libraries = append(libraries, &Library{
+		lib := &Library{
 			LicensePath: licensePath,
-			Packages:    pkgs,
-		})
+		}
+		for _, pkg := range pkgs {
+			lib.Packages = append(lib.Packages, pkg.PkgPath)
+		}
+		libraries = append(libraries, lib)
 	}
 	return libraries, nil
 }
 
 // Name is the common prefix of the import paths for all of the packages in this library.
 func (l *Library) Name() string {
-	var importPaths []string
-	for _, pkg := range l.Packages {
-		importPaths = append(importPaths, pkg.PkgPath)
-	}
-	return commonAncestor(importPaths)
+	return commonAncestor(l.Packages)
 }
 
 func commonAncestor(paths []string) string {
