@@ -46,6 +46,7 @@ func init() {
 }
 
 func main() {
+	flag.Parse()
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	if err := parseGoBuildFlags(rootCmd.PersistentFlags()); err != nil {
 		glog.Error(err)
