@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	_ "github.com/golang/glog"
 	"github.com/google/trillian/merkle/compact"
 )
 
