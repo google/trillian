@@ -192,6 +192,10 @@ func newNodeIDFromBigIntOld(depth int, index *big.Int, totalDepth int) NodeID {
 	}
 }
 
+// NewNodeIDFromBigInt creates a new node for a given depth and index, where
+// the index can exceed a 64-bit range. The total tree depth must be provided.
+// This occurs in the sparse Merkle tree implementation for maps as the lower
+// levels have up 2^(hash size) entries. For log trees see NewNodeIDForTreeCoords.
 func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
 	if got, want := totalDepth%8, 0; got != want {
 		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
@@ -331,7 +335,7 @@ func (n *NodeID) CoordString() string {
 	return fmt.Sprintf("[d:%d, i:%d]", d, i>>d)
 }
 
-// Copy returns a duplicate of NodeID
+// Copy returns a duplicate of NodeID.
 func (n *NodeID) Copy() *NodeID {
 	p := make([]byte, len(n.Path))
 	copy(p, n.Path)
@@ -432,7 +436,7 @@ func (n *NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
 
 // Prefix returns a copy of NodeID's prefix.
 // This is the same value that would be returned from Split, but without the
-// overhead of calulating the suffix too.
+// overhead of calculating the suffix too.
 func (n *NodeID) Prefix(prefixBytes int) []byte {
 	if n.PrefixLenBits == 0 {
 		return []byte{}
@@ -445,7 +449,7 @@ func (n *NodeID) Prefix(prefixBytes int) []byte {
 
 // PrefixAsKey returns a NodeID's prefix in a format suitable for use as a map key.
 // This is the same value that would be returned from Split, but without the
-// overhead of calulating the suffix too.
+// overhead of calculating the suffix too.
 func (n *NodeID) PrefixAsKey(prefixBytes int) string {
 	if n.PrefixLenBits == 0 {
 		return ""
