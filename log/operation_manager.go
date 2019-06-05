@@ -59,7 +59,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	failedSigningRuns = mf.NewCounter("failed_signing_runs", "Number of times a signing run has failed", logIDLabel)
 	// entriesAdded is the total number of entries that have been added to the
 	// log during the lifetime of a signer. This allows an operator to determine
-	// that the queue is empty for a particular log if signing runs are succeeding
+	// that the queue is empty for a particular log; if signing runs are succeeding
 	// but nothing is being processed then this counter will stop increasing.
 	entriesAdded = mf.NewCounter("entries_added", "Number of entries added to the log", logIDLabel)
 	// batchesAdded is the number of times a signing run caused entries to be
