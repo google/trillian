@@ -160,6 +160,16 @@ func main() {
 				return err
 			}
 			trillian.RegisterTrillianMapServer(s, mapServer)
+
+			if !*useSingleTransaction {
+				glog.Warning("Write API not recommended without single_transaction enabled")
+			}
+			writeServer := server.NewTrillianMapWriteServer(registry, mapServer)
+			if err := writeServer.IsHealthy(); err != nil {
+				return err
+			}
+			trillian.RegisterTrillianMapWriteServer(s, writeServer)
+
 			if *server.QuotaSystem == server.QuotaEtcd {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
