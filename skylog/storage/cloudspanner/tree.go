@@ -10,7 +10,7 @@ import (
 	"github.com/google/trillian/skylog/storage"
 )
 
-// TreeStorage allows reading and writing from a tree storage.
+// TreeStorage allows reading from and writing to a tree storage.
 type TreeStorage struct {
 	c    *spanner.Client
 	id   int64
@@ -25,12 +25,12 @@ func NewTreeStorage(c *spanner.Client, treeID int64, opts TreeOpts) *TreeStorage
 // Read fetches Merkle tree hashes of the passed in nodes from the storage.
 // TODO(pavelkalinnikov): Add nodes cache.
 func (t *TreeStorage) Read(ctx context.Context, ids []compact.NodeID) ([][]byte, error) {
-	var keys []spanner.KeySet
+	keys := make([]spanner.KeySet, 0, len(ids))
 	for _, id := range ids {
 		keys = append(keys, spanner.Key{t.id, t.opts.shardID(id), packNodeID(id)})
 	}
 	keySet := spanner.KeySets(keys...)
-	hashes := make([][]byte, len(ids))
+	hashes := make([][]byte, 0, len(ids))
 
 	iter := t.c.Single().Read(ctx, "TreeNodes", keySet, []string{"SubtreeHash"})
 	if err := iter.Do(func(r *spanner.Row) error {
@@ -46,12 +46,12 @@ func (t *TreeStorage) Read(ctx context.Context, ids []compact.NodeID) ([][]byte,
 	return hashes, nil
 }
 
-// Write puts all the passed in nodes to the tree storage.
+// Write stores all the passed-in nodes in the tree storage.
 func (t *TreeStorage) Write(ctx context.Context, nodes []storage.Node) error {
 	ms := make([]*spanner.Mutation, 0, len(nodes))
 	for _, node := range nodes {
 		ms = append(ms, spanner.InsertOrUpdate("TreeNodes",
-			[]string{"TreeId", "ShardId", "NodeId", "SubtreeHash"},
+			[]string{"TreeID", "ShardID", "NodeID", "SubtreeHash"},
 			[]interface{}{t.id, t.opts.shardID(node.ID), packNodeID(node.ID), node.Hash}))
 	}
 	_, err := t.c.Apply(ctx, ms)

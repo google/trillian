@@ -1,9 +1,9 @@
 -- TreeNodes stores Merkle tree nodes. The nodes are sharded according to
--- ShardId, which is computed based on the tree shape and write pattern, in
+-- ShardID, which is computed based on the tree shape and write pattern, in
 -- order to maximize writing parallelism.
 CREATE TABLE TreeNodes (
-  TreeId       INT64 NOT NULL,
-  ShardId      INT32 NOT NULL,
-  NodeId       UINT64 NOT NULL,
+  TreeID       INT64 NOT NULL,
+  ShardID      INT32 NOT NULL,
+  NodeID       UINT64 NOT NULL,
   SubtreeHash  BYTES(32) NOT NULL,
-) PRIMARY KEY (TreeId, ShardId, NodeId);
+) PRIMARY KEY (TreeID, ShardID, NodeID);
