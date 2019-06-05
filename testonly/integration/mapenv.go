@@ -49,6 +49,7 @@ type MapEnv struct {
 
 	// Trillian API clients.
 	Map   trillian.TrillianMapClient
+	Write trillian.TrillianMapWriteClient
 	Admin trillian.TrillianAdminClient
 }
 
@@ -62,6 +63,7 @@ func NewMapEnvFromConn(addr string) (*MapEnv, error) {
 	return &MapEnv{
 		clientConn: cc,
 		Map:        trillian.NewTrillianMapClient(cc),
+		Write:      trillian.NewTrillianMapWriteClient(cc),
 		Admin:      trillian.NewTrillianAdminClient(cc),
 	}, nil
 }
@@ -116,7 +118,9 @@ func NewMapEnvWithRegistry(registry extension.Registry, singleTX bool) (*MapEnv,
 		)),
 	)
 	mapServer := server.NewTrillianMapServer(registry, server.TrillianMapServerOptions{UseSingleTransaction: singleTX})
+	writeServer := server.NewTrillianMapWriteServer(registry, mapServer)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
+	trillian.RegisterTrillianMapWriteServer(grpcServer, writeServer)
 	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry, nil /* allowedTreeTypes */))
 	go grpcServer.Serve(lis)
 
@@ -133,6 +137,7 @@ func NewMapEnvWithRegistry(registry extension.Registry, singleTX bool) (*MapEnv,
 		grpcServer: grpcServer,
 		clientConn: cc,
 		Map:        trillian.NewTrillianMapClient(cc),
+		Write:      trillian.NewTrillianMapWriteClient(cc),
 		Admin:      trillian.NewTrillianAdminClient(cc),
 	}, nil
 }
