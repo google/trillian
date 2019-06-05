@@ -44,19 +44,25 @@ func Find(dir string) (string, error) {
 
 func findUpwards(dir string, r *regexp.Regexp, stopAt []*regexp.Regexp) (string, error) {
 	start := dir
+	// Stop once dir matches a stopAt regexp or dir is the filesystem root
 	for !matchAny(stopAt, dir) {
-		files, err := ioutil.ReadDir(dir)
+		dirContents, err := ioutil.ReadDir(dir)
 		if err != nil {
 			return "", err
 		}
-		for _, f := range files {
+		for _, f := range dirContents {
 			if r.MatchString(f.Name()) {
 				return filepath.Join(dir, f.Name()), nil
 			}
 		}
-		dir = filepath.Dir(dir)
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Can't go any higher up the directory tree.
+			break
+		}
+		dir = parent
 	}
-	return "", fmt.Errorf("no file matching %q found for %s", r, start)
+	return "", fmt.Errorf("no file/directory matching regexp %q found for %s", r, start)
 }
 
 func matchAny(patterns []*regexp.Regexp, s string) bool {
