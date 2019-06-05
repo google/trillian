@@ -108,7 +108,18 @@ func (o TreeOpts) shardID(id compact.NodeID) int32 {
 	return int32(offset % uint64(o.LeafShards))
 }
 
-// packNodeID encodes the ID of the node into a single integer.
+// packNodeID encodes the ID of the node into a single integer. The numbering
+// scheme assumes that we have a tree of up to 63 levels, i.e. 2^63 leaves, as
+// on the diagram below:
+//
+//   Level 63:          1
+//                     / \
+//   Level 62:        2   3
+//                   / \ / \
+//   Level 61:      4  5 6  7
+//     ...       ...   ...   ...
+//   Level  0:  (2^63) ... (2^64 - 1)
+//
 func packNodeID(id compact.NodeID) uint64 {
 	// TODO(pavelkalinnikov): Check bounds.
 	return uint64(1)<<(63-id.Level) | id.Index
