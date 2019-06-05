@@ -120,7 +120,7 @@ func (o TreeOpts) shardID(id compact.NodeID) int32 {
 //     ...       ...   ...   ...
 //   Level  0:  (2^63) ... (2^64 - 1)
 //
+// TODO(pavelkalinnikov): Check bounds.
 func packNodeID(id compact.NodeID) uint64 {
-	// TODO(pavelkalinnikov): Check bounds.
 	return uint64(1)<<(63-id.Level) | id.Index
 }
