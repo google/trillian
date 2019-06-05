@@ -67,8 +67,8 @@ func TestPackNodeID(t *testing.T) {
 		{id: compact.NewNodeID(60, 5), want: 13},
 		{id: compact.NewNodeID(32, 0), want: 2147483648},
 		{id: compact.NewNodeID(32, 1<<30), want: 3221225472},
-		{id: compact.NewNodeID(0, 0), want: 9223372036854775808},
-		{id: compact.NewNodeID(0, 1<<30), want: 9223372037928517632},
+		{id: compact.NewNodeID(0, 0), want: 1 << 63},
+		{id: compact.NewNodeID(0, 1<<30), want: 1<<63 + 1<<30},
 		{id: compact.NewNodeID(0, (1<<63)-1), want: 0xFFFFFFFFFFFFFFFF},
 	} {
 		t.Run(fmt.Sprintf("%+v", tc.id), func(t *testing.T) {
