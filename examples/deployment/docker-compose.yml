@@ -16,6 +16,7 @@ services:
       dockerfile: examples/deployment/docker/log_server/Dockerfile
       args:
         - GOFLAGS
+        - GO111MODULE
     command: [
       "--storage_system=mysql",
       "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
@@ -35,6 +36,7 @@ services:
       dockerfile: examples/deployment/docker/log_signer/Dockerfile
       args:
         - GOFLAGS
+        - GO111MODULE
     command: [
       "--storage_system=mysql",
       "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",
@@ -54,6 +56,7 @@ services:
       dockerfile: examples/deployment/docker/map_server/Dockerfile
       args:
         - GOFLAGS
+        - GO111MODULE
     command: [
       "--storage_system=mysql",
       "--mysql_uri=test:zaphod@tcp(mysql:3306)/test",

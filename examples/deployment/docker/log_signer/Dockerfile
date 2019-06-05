@@ -4,6 +4,8 @@ ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian
 
 ARG GOFLAGS=""
+ARG GO111MODULE=auto
+ENV GO111MODULE=$GO111MODULE
 RUN go get ./server/trillian_log_signer ./scripts/licenses
 RUN licenses save ./server/trillian_log_signer --save_path /THIRD_PARTY_NOTICES
 
