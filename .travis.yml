@@ -29,7 +29,18 @@ env:
   - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
   - BAZEL_TESTS=true
   - DOCKER_TESTS=true
-  - GO111MODULE=on
+  - GO111MODULE=on PRESUB_TESTS=true WITH_COVERAGE=true
+  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race'
+  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue'
+  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true
+  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
+  - GO111MODULE=on INTEG_TESTS=true WITH_COVERAGE=true
+  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race'
+  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'
+  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true
+  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
+  - GO111MODULE=on BAZEL_TESTS=true
+  - GO111MODULE=on DOCKER_TESTS=true
 
 matrix:
   fast_finish: true
