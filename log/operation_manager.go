@@ -45,6 +45,7 @@ var (
 	signingRuns       monitoring.Counter
 	failedSigningRuns monitoring.Counter
 	entriesAdded      monitoring.Counter
+	batchesAdded      monitoring.Counter
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
@@ -56,7 +57,17 @@ func createMetrics(mf monitoring.MetricFactory) {
 	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
 	signingRuns = mf.NewCounter("signing_runs", "Number of times a signing run has succeeded", logIDLabel)
 	failedSigningRuns = mf.NewCounter("failed_signing_runs", "Number of times a signing run has failed", logIDLabel)
+	// entriesAdded is the total number of entries that have been added to the
+	// log during the lifetime of a signer. This allows an operator to determine
+	// that the queue is empty for a particular log; if signing runs are succeeding
+	// but nothing is being processed then this counter will stop increasing.
 	entriesAdded = mf.NewCounter("entries_added", "Number of entries added to the log", logIDLabel)
+	// batchesAdded is the number of times a signing run caused entries to be
+	// integrated into the log. The value batchesAdded / signingRuns is an
+	// indication of how often the signer runs but does no work. The value of
+	// entriesAdded / batchesAdded is average batch size. These can be used for
+	// tuning sequencing or evaluating performance.
+	batchesAdded = mf.NewCounter("batches_added", "Number of times a non zero number of entries was added", logIDLabel)
 }
 
 // Operation defines a task that operates on a log. Examples are scheduling, signing,
@@ -429,10 +440,8 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 				if count > 0 {
 					d := clock.SecondsSince(e.info.TimeSource, start)
 					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
-					// This allows an operator to determine that the queue is empty for a
-					// particular log if signing runs are succeeding but nothing is being
-					// processed then this counter will stop increasing.
 					entriesAdded.Add(float64(count), label)
+					batchesAdded.Inc(label)
 				} else {
 					glog.V(1).Infof("%v: no items to process", logID)
 				}
