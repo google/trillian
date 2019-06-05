@@ -18,8 +18,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"runtime"
-	"sync"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
@@ -27,6 +25,7 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -111,42 +110,15 @@ func (m *MapVerifier) VerifyMapLeavesResponse(indexes [][]byte, revision int64, 
 		return nil, status.Errorf(codes.Internal, "got map revision %v, want %v", mapRoot.Revision, revision)
 	}
 
-	proofs := make(chan *trillian.MapLeafInclusion)
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		defer close(proofs)
-		for _, p := range resp.MapLeafInclusion {
-			select {
-			case proofs <- p:
-			case <-done:
-				return
-			}
-		}
-	}()
-	errors := make(chan error)
-	go func() {
-		defer close(errors)
-		var wg sync.WaitGroup
-		defer wg.Wait()
-		for w := 0; w < runtime.NumCPU(); w++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for p := range proofs {
-					select {
-					case errors <- m.VerifyMapLeafInclusionHash(mapRoot.RootHash, p):
-					case <-done:
-						return
-					}
-				}
-			}()
-		}
-	}()
-	for err := range errors {
-		if err != nil {
-			return nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
-		}
+	var g errgroup.Group
+	for _, p := range resp.MapLeafInclusion {
+		p := p
+		g.Go(func() error {
+			return m.VerifyMapLeafInclusionHash(mapRoot.RootHash, p)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
 	}
 
 	leaves := make([]*trillian.MapLeaf, 0, len(resp.MapLeafInclusion))
