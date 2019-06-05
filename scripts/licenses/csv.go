@@ -17,6 +17,7 @@ package main
 import (
 	"encoding/csv"
 	"os"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/scripts/licenses/licenses"
@@ -58,18 +59,18 @@ func csvMain(cmd *cobra.Command, args []string) error {
 		licenseName := "Unknown"
 		if lib.LicensePath != "" {
 			// Find a URL for the license file, based on the URL of a remote for the Git repository.
-			var errs []error
+			var errs []string
 			for _, remote := range gitRemotes {
 				url, err := licenses.GitFileURL(lib.LicensePath, remote)
 				if err != nil {
-					errs = append(errs, err)
+					errs = append(errs, err.Error())
 					continue
 				}
 				licenseURL = url.String()
 				break
 			}
 			if licenseURL == "Unknown" {
-				glog.Errorf("Error discovering URL for %q: %v", lib.LicensePath, errs)
+				glog.Errorf("Error discovering URL for %q:\n- %s", lib.LicensePath, strings.Join(errs, "\n- "))
 			}
 			licenseName, _, err = classifier.Identify(lib.LicensePath)
 			if err != nil {
