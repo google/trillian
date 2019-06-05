@@ -46,7 +46,7 @@ func (t *TreeStorage) Read(ctx context.Context, ids []compact.NodeID) ([][]byte,
 	keySet := spanner.KeySets(keys...)
 	hashes := make([][]byte, 0, len(ids))
 
-	iter := t.c.Single().Read(ctx, "TreeNodes", keySet, []string{"SubtreeHash"})
+	iter := t.c.Single().Read(ctx, "TreeNodes", keySet, []string{"NodeHash"})
 	if err := iter.Do(func(r *spanner.Row) error {
 		var hash []byte
 		if err := r.Column(0, &hash); err != nil {
@@ -64,8 +64,10 @@ func (t *TreeStorage) Read(ctx context.Context, ids []compact.NodeID) ([][]byte,
 func (t *TreeStorage) Write(ctx context.Context, nodes []storage.Node) error {
 	ms := make([]*spanner.Mutation, 0, len(nodes))
 	for _, node := range nodes {
+		// TODO(pavelkalinnikov): Consider doing just Insert when it is clear what
+		// semantic the callers need.
 		ms = append(ms, spanner.InsertOrUpdate("TreeNodes",
-			[]string{"TreeID", "ShardID", "NodeID", "SubtreeHash"},
+			[]string{"TreeID", "ShardID", "NodeID", "NodeHash"},
 			[]interface{}{t.id, t.opts.shardID(node.ID), packNodeID(node.ID), node.Hash}))
 	}
 	_, err := t.c.Apply(ctx, ms)
