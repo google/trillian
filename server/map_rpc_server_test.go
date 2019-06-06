@@ -32,6 +32,12 @@ import (
 
 const mapID1 = int64(1)
 
+// Assert that the RPC server implements the two Map API surfaces.
+var (
+	_ trillian.TrillianMapServer = &TrillianMapServer{}
+	_ trillian.TrillianMapWrite  = &TrillianMapServer{}
+)
+
 func TestIsHealthy(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
