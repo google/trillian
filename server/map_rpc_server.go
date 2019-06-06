@@ -319,8 +319,7 @@ func checkIndexSize(index []byte, hasher hashers.MapHasher) error {
 	return nil
 }
 
-// SetLeaves implements the SetLeaves RPC method.
-func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
+func (t *TrillianMapServer) writeLeaves(ctx context.Context, req *trillian.WriteMapLeavesRequest) (*trillian.SignedMapRoot, error) {
 	// Check leaves all have unique indices.
 	seen := make(map[string]bool)
 	for _, leaf := range req.Leaves {
@@ -331,7 +330,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		seen[k] = true
 	}
 
-	ctx, spanEnd := spanFor(ctx, "SetLeaves")
+	ctx, spanEnd := spanFor(ctx, "WriteLeaves")
 	defer spanEnd()
 
 	mapID := req.MapId
@@ -349,7 +348,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err != nil {
 			return err
 		}
-		if rev := req.Revision; rev != 0 && writeRev != rev {
+		if rev := req.ExpectRevision; rev != 0 && writeRev != rev {
 			return status.Errorf(codes.FailedPrecondition, "can't write to revision %v", rev)
 		}
 		glog.V(2).Infof("%v: Writing at revision %v", mapID, writeRev)
@@ -404,7 +403,40 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	if err != nil {
 		return nil, err
 	}
-	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
+	return newRoot, nil
+}
+
+// SetLeaves implements the SetLeaves RPC method.
+func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
+	wReq := &trillian.WriteMapLeavesRequest{
+		MapId:          req.MapId,
+		Leaves:         req.Leaves,
+		Metadata:       req.Metadata,
+		ExpectRevision: req.Revision,
+	}
+	sRoot, err := t.writeLeaves(ctx, wReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &trillian.SetMapLeavesResponse{MapRoot: sRoot}, nil
+}
+
+// WriteLeaves implements the MapWrite.WriteLeaves RPC method.
+func (t *TrillianMapServer) WriteLeaves(ctx context.Context, req *trillian.WriteMapLeavesRequest) (*trillian.WriteMapLeavesResponse, error) {
+	sRoot, err := t.writeLeaves(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	root := &types.MapRootV1{}
+	if err := root.UnmarshalBinary(sRoot.MapRoot); err != nil {
+		return nil, err
+	}
+
+	return &trillian.WriteMapLeavesResponse{
+		Revision: int64(root.Revision),
+	}, nil
 }
 
 func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeTX) merkle.TXRunner {
