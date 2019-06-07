@@ -3,7 +3,7 @@
 -- order to maximize writing parallelism.
 CREATE TABLE TreeNodes (
   TreeID   INT64 NOT NULL,
-  ShardID  INT32 NOT NULL,
-  NodeID   UINT64 NOT NULL,
+  ShardID  INT64 NOT NULL,
+  NodeID   INT64 NOT NULL,
   NodeHash BYTES(32) NOT NULL,
 ) PRIMARY KEY (TreeID, ShardID, NodeID);

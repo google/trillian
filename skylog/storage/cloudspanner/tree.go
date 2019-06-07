@@ -97,15 +97,15 @@ func (t *TreeStorage) Write(ctx context.Context, nodes []storage.Node) error {
 // TODO(pavelkalinnikov): Store the parameters in per-tree metadata.
 type TreeOpts struct {
 	ShardLevels uint // Between 1 and 65.
-	LeafShards  int32
+	LeafShards  int64
 }
 
-func (o TreeOpts) shardID(id compact.NodeID) int32 {
+func (o TreeOpts) shardID(id compact.NodeID) int64 {
 	if id.Level >= o.ShardLevels {
 		return o.LeafShards
 	}
 	offset := id.Index >> (o.ShardLevels - id.Level - 1)
-	return int32(offset % uint64(o.LeafShards))
+	return int64(offset) % o.LeafShards
 }
 
 // packNodeID encodes the ID of the node into a single integer. The numbering
@@ -121,6 +121,6 @@ func (o TreeOpts) shardID(id compact.NodeID) int32 {
 //   Level  0:  (2^63) ... (2^64 - 1)
 //
 // TODO(pavelkalinnikov): Check bounds.
-func packNodeID(id compact.NodeID) uint64 {
-	return uint64(1)<<(63-id.Level) | id.Index
+func packNodeID(id compact.NodeID) int64 {
+	return int64(1)<<(63-id.Level) | int64(id.Index)
 }
