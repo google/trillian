@@ -114,9 +114,10 @@ script:
   - |
     if [[ "${INTEG_TESTS}" == "true" ]]; then
       ./integration/integration_test.sh
-      cd "$HOME/gopath/src/github.com/google/certificate-transparency-go"
-      ./trillian/integration/integration_test.sh
-      cd $HOME/gopath/src/github.com/google/trillian
+      pushd .
+      cd `go list -f '{{ .Dir }}' github.com/google/certificate-transparency-go`
+      chmod +x ./trillian/integration/integration_test.sh
+      popd
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     fi
   - |
