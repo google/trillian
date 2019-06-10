@@ -518,7 +518,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			args...,
 		)
 		if err != nil {
-			glog.Warningf("Error inserting into Unsequenced: %s query %v arguements: %v", err, insertUnsequencedEntrySQL, args)
+			glog.Warningf("Error inserting into Unsequenced: %s query %v arguments: %v", err, insertUnsequencedEntrySQL, args)
 			return nil, fmt.Errorf("Unsequenced: %v -- %v", err, args)
 		}
 		leafDuration := time.Since(leafStart)
