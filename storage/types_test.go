@@ -69,8 +69,12 @@ func TestSetRight(t *testing.T) {
 		{val: 0xFF, index: h2b("000102030405060708090A0B0C0D0E0F10111212"), depth: 160, want: h2b("000102030405060708090A0B0C0D0E0F10111212")},
 	} {
 		nID := NewNodeIDFromHash(tc.index)
-		if got, want := nID.SetRight(tc.depth, tc.val).Path, tc.want; !bytes.Equal(got, want) {
-			t.Errorf("SetRight(%x, %v, 0x%X): %x, want %x", tc.index, tc.depth, tc.val, got, want)
+		gotNode := nID.SetLowerBits(tc.depth, tc.val)
+		if got, want := gotNode.Path, tc.want; !bytes.Equal(got, want) {
+			t.Errorf("SetLowerBits(%x, %v, 0x%X): %x, want %x", tc.index, tc.depth, tc.val, got, want)
+		}
+		if got, want := gotNode.PrefixLenBits, 160; got != want {
+			t.Errorf("SetLowerBits(%x, %v, 0x%X).PrefixLen: %v, want %v", tc.index, tc.depth, tc.val, got, want)
 		}
 	}
 }

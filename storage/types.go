@@ -370,8 +370,10 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 	}
 }
 
-// SetsRight all the bits to the right of depth to val.
-func (n *NodeID) SetRight(depth int, val byte) *NodeID {
+// SetLowerBits sets the lower bits after depth to val.
+// eg. To set the last nibble of 0x0000 to 1, call SetLowerBits(12, 0xFF).
+// SetLowerBits does not change the depth value.
+func (n *NodeID) SetLowerBits(depth int, val byte) *NodeID {
 	r := make([]byte, len(n.Path))
 	// Set the right bytes to val, excluding the overlap byte
 	depthBytes := bytesForBits(depth)
@@ -386,13 +388,9 @@ func (n *NodeID) SetRight(depth int, val byte) *NodeID {
 		right := val &^ leftmask[depth%8]
 		r[depthBytes-1] = left | right
 	}
-	b := n.PrefixLenBits
-	if depth < n.PrefixLenBits {
-		b = depth
-	}
 	return &NodeID{
 		Path:          r,
-		PrefixLenBits: b,
+		PrefixLenBits: n.PrefixLenBits,
 	}
 }
 
