@@ -78,6 +78,9 @@ func Libraries(ctx context.Context, importPaths ...string) ([]*Library, error) {
 			// No license requirements for the Go standard library.
 			return false
 		}
+		if len(p.OtherFiles) > 0 {
+			glog.Warningf("%q contains non-Go code that can't be inspected for further dependencies:\n%s", p.PkgPath, strings.Join(p.OtherFiles, "\n"))
+		}
 		var pkgDir string
 		switch {
 		case len(p.GoFiles) > 0:
