@@ -137,8 +137,9 @@ script:
       ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage} ${NO_LINTER:+--no-linters}
       # Check re-generation didn't change anything. Skip protoc-generated files
       # because protoc is not deterministic when generating file descriptors.
+      # Skip go.mod and go.sum because testing may add indirect dependencies that would be trimmed by 'go mod tidy'
       echo "Checking that generated files are the same as checked-in versions."
-      git diff --exit-code -- ':!*.pb.go' ':!*_string.go'
+      git diff --exit-code -- ':!*.pb.go' ':!*_string.go' '!go.*'
     fi
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
