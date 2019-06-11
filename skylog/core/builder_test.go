@@ -26,7 +26,7 @@ import (
 	"github.com/google/trillian/skylog/storage"
 )
 
-// TODO(pavelkalinnikov): Use GoMock?
+// TODO(pavelkalinnikov): Use GoMock instead.
 type mockTreeWriter struct {
 	calls [][]storage.Node
 }
@@ -53,7 +53,7 @@ func TestBuildWorker(t *testing.T) {
 	hashes := testonly.NodeHashes()
 	n := len(hashes[0])
 	if got, want := n, 8; got != want {
-		t.Fatalf("got %d leaves, want %d", got, want)
+		t.Fatalf("prerequisite: testonly.NodeHashes() returned %d leaves, want %d", got, want)
 	}
 	node := func(level uint, index uint64) storage.Node {
 		return storage.Node{ID: compact.NewNodeID(level, index), Hash: hashes[level][index]}
@@ -72,11 +72,11 @@ func TestBuildWorker(t *testing.T) {
 	rf := &compact.RangeFactory{Hash: rfc6962.DefaultHasher.HashChildren}
 	var wantAdds []storage.Node
 	for end := 0; end <= n; end++ {
-		// TODO(pavelkalinnikov): Add tests where Begin > 0.
+		// TODO(pavelkalinnikov): Add tests where RangeStart > 0.
 		t.Run(fmt.Sprintf("0:%d", end), func(t *testing.T) {
 			var tw mockTreeWriter
 			bw := NewBuildWorker(&tw, rf)
-			bj := BuildJob{Begin: 0, Hashes: hashes[0][0:end]}
+			bj := BuildJob{RangeStart: 0, Hashes: hashes[0][0:end]}
 			if _, err := bw.Process(context.Background(), bj); err != nil {
 				t.Fatalf("Process: %v", err)
 			}

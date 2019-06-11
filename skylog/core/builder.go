@@ -25,8 +25,8 @@ import (
 
 // BuildJob is a slice of leaf data hashes spanning a range of a Merkle tree.
 type BuildJob struct {
-	Begin  uint64   // The beginning of the range.
-	Hashes [][]byte // The leaf hashes.
+	RangeStart uint64   // The beginning of the range.
+	Hashes     [][]byte // The leaf hashes.
 }
 
 // BuildWorker processes tree building jobs.
@@ -45,7 +45,7 @@ func NewBuildWorker(tw storage.TreeWriter, rf *compact.RangeFactory) *BuildWorke
 // that can be inferred from them. Returns the compact range of the resulting
 // tree segment.
 func (b *BuildWorker) Process(ctx context.Context, job BuildJob) (*compact.Range, error) {
-	rng := b.rf.NewEmptyRange(job.Begin)
+	rng := b.rf.NewEmptyRange(job.RangeStart)
 	if len(job.Hashes) == 0 {
 		return rng, nil
 	}
@@ -55,7 +55,7 @@ func (b *BuildWorker) Process(ctx context.Context, job BuildJob) (*compact.Range
 	}
 	for i, hash := range job.Hashes {
 		// Add the leaf node.
-		visit(compact.NewNodeID(0, job.Begin+uint64(i)), hash)
+		visit(compact.NewNodeID(0, job.RangeStart+uint64(i)), hash)
 		// Add the internal tree nodes.
 		if err := rng.Append(hash, visit); err != nil {
 			return nil, fmt.Errorf("appending hash: %v", err)
