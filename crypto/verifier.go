@@ -81,7 +81,7 @@ func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {
 		return verifyRSA(pub, digest, sig, hasher, hasher)
 
 	default:
-		return fmt.Errorf("unknown private key type: %T", pub)
+		return fmt.Errorf("unknown public key type: %T", pub)
 	}
 }
 
