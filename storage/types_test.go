@@ -26,7 +26,7 @@ import (
 
 var h2b = testonly.MustHexDecode
 
-func TestSetRight(t *testing.T) {
+func TestSetLowerBits(t *testing.T) {
 	for _, tc := range []struct {
 		val   byte
 		index []byte
