@@ -654,6 +654,16 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 	}
 }
 
+// RunWriteBatchStress performs checks on Trillian Map's SetLeaves call.
+func RunWriteBatchStress(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, batchSize int, numBatches int) {
+	tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_TEST_MAP_HASHER)
+	if err != nil {
+		t.Fatalf("%v: newTreeWithHasher(): %v", trillian.HashStrategy_TEST_MAP_HASHER, err)
+	}
+
+	_ = writeBatch(ctx, t, tmap, tree, batchSize, numBatches)
+}
+
 // runMapBatchTest is a helper for RunInclusionBatch.
 func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trillian.TrillianMapClient, tree *trillian.Tree, batchSize, numBatches int) error {
 	t.Helper()

@@ -28,8 +28,10 @@ import (
 )
 
 var (
-	server   = flag.String("map_rpc_server", "", "Server address:port")
-	singleTX = flag.Bool("single_transaction", false, "Experimental: whether to update the map in a single transaction")
+	server        = flag.String("map_rpc_server", "", "Server address:port")
+	singleTX      = flag.Bool("single_transaction", true, "Experimental: whether to update the map in a single transaction")
+	stress        = flag.Bool("enable_stress", false, "Enable large stress tests")
+	stressBatches = flag.Int("stress_num_batches", 1, "Number of batches to write in MapWriteStress test")
 )
 
 func TestMapIntegration(t *testing.T) {
@@ -54,4 +56,28 @@ func TestMapIntegration(t *testing.T) {
 			test.Fn(ctx, t, env.Admin, env.Map)
 		})
 	}
+}
+
+func TestMapWriteStress(t *testing.T) {
+	if !*stress {
+		t.Skip("Skipped by default, enable me if with --enable_stress you know what you're doing")
+	}
+
+	ctx := context.Background()
+	var env *integration.MapEnv
+	var err error
+	if *server == "" {
+		if !testdb.MySQLAvailable() {
+			t.Skip("Skipping map integration test, MySQL not available")
+		}
+		env, err = integration.NewMapEnv(ctx, *singleTX)
+	} else {
+		env, err = integration.NewMapEnvFromConn(*server)
+	}
+	if err != nil {
+		log.Fatalf("Could not create MapEnv: %v", err)
+	}
+	defer env.Close()
+
+	RunWriteBatchStress(ctx, t, env.Admin, env.Map, 512, *stressBatches)
 }
