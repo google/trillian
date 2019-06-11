@@ -370,6 +370,30 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 	}
 }
 
+// SetLowerBits sets the lower bits after depth to val.
+// eg. To set the last nibble of 0x0000 to 1, call SetLowerBits(12, 0xFF).
+// SetLowerBits does not change the depth value.
+func (n *NodeID) SetLowerBits(depth int, val byte) *NodeID {
+	r := make([]byte, len(n.Path))
+	// Set the right bytes to val, excluding the overlap byte
+	depthBytes := bytesForBits(depth)
+	vals := bytes.Repeat([]byte{val}, len(n.Path)-depthBytes)
+	copy(r[depthBytes:], vals)
+
+	if depth > 0 {
+		// Copy the first depthBytes-1.
+		copy(r, n.Path[:depthBytes-1])
+		// Set the first leftmask bits of the last byte.
+		left := n.Path[depthBytes-1] & leftmask[depth%8]
+		right := val &^ leftmask[depth%8]
+		r[depthBytes-1] = left | right
+	}
+	return &NodeID{
+		Path:          r,
+		PrefixLenBits: n.PrefixLenBits,
+	}
+}
+
 // Neighbor returns a new copy of a node, applying a LeftMask operation and
 // with the bit at PrefixLenBits in the copy flipped.
 // In terms of a tree traversal, this is the parent node's other child node
