@@ -28,7 +28,7 @@ func TestTreeOpts(t *testing.T) {
 	for _, tc := range []struct {
 		opts TreeOpts
 		id   compact.NodeID
-		want int32
+		want int64
 	}{
 		{opts: opts, id: compact.NewNodeID(0, 0), want: 0},
 		{opts: opts, id: compact.NewNodeID(0, 1), want: 0},
@@ -73,7 +73,7 @@ func TestPackNodeID(t *testing.T) {
 		{id: compact.NewNodeID(0, (1<<63)-1), want: 0xFFFFFFFFFFFFFFFF},
 	} {
 		t.Run(fmt.Sprintf("%+v", tc.id), func(t *testing.T) {
-			if got, want := packNodeID(tc.id), tc.want; got != want {
+			if got, want := packNodeID(tc.id), int64(tc.want); got != want {
 				t.Fatalf("packNodeID: got %d, want %d", got, want)
 			}
 		})
