@@ -21,6 +21,20 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
+// SequenceReader allows reading from a sequence storage.
+type SequenceReader interface {
+	// Read fetches the specified [begin, end) range of entries, and returns them
+	// in order. May return a prefix of the requested range (potentially empty).
+	Read(ctx context.Context, begin, end uint64) ([]Entry, error)
+}
+
+// SequenceWriter allows writing to a sequence storage.
+type SequenceWriter interface {
+	// Write puts all the passed in entries to the sequence starting at the
+	// specified begin index.
+	Write(ctx context.Context, begin uint64, entries []Entry) error
+}
+
 // TreeReader allows reading from a tree storage.
 type TreeReader interface {
 	// Read fetches and returns the Merkle tree hashes of the specified nodes

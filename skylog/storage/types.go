@@ -21,3 +21,14 @@ type Node struct {
 	ID   compact.NodeID
 	Hash []byte
 }
+
+// Entry represents a single log entry, which is also a Merkle tree leaf.
+type Entry struct {
+	// Data holds the data that the log commits to.
+	Data []byte
+	// Extra holds data that is attached to the entry, but not committed to by
+	// the log, i.e. not accounted for when calculating Merkle tree hashes.
+	Extra []byte
+	// Hash is the Merkle tree leaf hash of the log entry Data.
+	Hash []byte
+}
