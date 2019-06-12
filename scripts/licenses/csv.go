@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"os"
 	"strings"
@@ -50,7 +51,7 @@ func csvMain(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	libs, err := libraries(importPath)
+	libs, err := licenses.Libraries(context.Background(), importPath)
 	if err != nil {
 		return err
 	}

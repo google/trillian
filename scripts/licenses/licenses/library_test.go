@@ -15,7 +15,7 @@
 package licenses
 
 import (
-	"go/build"
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -26,8 +26,6 @@ func TestLibraries(t *testing.T) {
 	for _, test := range []struct {
 		desc       string
 		importPath string
-		workingDir string
-		importMode build.ImportMode
 		wantLibs   []string
 	}{
 		{
@@ -49,20 +47,16 @@ func TestLibraries(t *testing.T) {
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			pkg, err := build.Import(test.importPath, test.workingDir, test.importMode)
+			gotLibs, err := Libraries(context.Background(), test.importPath)
 			if err != nil {
-				t.Fatalf("build.Import(%q, %q, %v) = (_, %q), want (_, nil)", test.importPath, test.workingDir, test.importMode, err)
-			}
-			gotLibs, err := Libraries(&build.Default, pkg)
-			if err != nil {
-				t.Fatalf("Libraries(_, %v) = (_, %q), want (_, nil)", pkg, err)
+				t.Fatalf("Libraries(_, %q) = (_, %q), want (_, nil)", test.importPath, err)
 			}
 			var gotLibNames []string
 			for _, lib := range gotLibs {
 				gotLibNames = append(gotLibNames, lib.Name())
 			}
 			if diff := cmp.Diff(test.wantLibs, gotLibNames, cmpopts.SortSlices(func(x, y string) bool { return x < y })); diff != "" {
-				t.Errorf("Libraries(_, %v): diff (-want +got)\n%s", pkg, diff)
+				t.Errorf("Libraries(_, %q): diff (-want +got)\n%s", test.importPath, diff)
 			}
 		})
 	}
@@ -82,8 +76,8 @@ func TestLibraryName(t *testing.T) {
 		{
 			desc: "Library with 1 package",
 			lib: &Library{
-				Packages: []*build.Package{
-					{ImportPath: "github.com/google/trillian/crypto"},
+				Packages: []string{
+					"github.com/google/trillian/crypto",
 				},
 			},
 			wantName: "github.com/google/trillian/crypto",
@@ -91,9 +85,9 @@ func TestLibraryName(t *testing.T) {
 		{
 			desc: "Library with 2 packages",
 			lib: &Library{
-				Packages: []*build.Package{
-					{ImportPath: "github.com/google/trillian/crypto"},
-					{ImportPath: "github.com/google/trillian/server"},
+				Packages: []string{
+					"github.com/google/trillian/crypto",
+					"github.com/google/trillian/server",
 				},
 			},
 			wantName: "github.com/google/trillian",
@@ -101,8 +95,8 @@ func TestLibraryName(t *testing.T) {
 		{
 			desc: "Vendored library",
 			lib: &Library{
-				Packages: []*build.Package{
-					{ImportPath: "github.com/google/trillian/vendor/coreos/etcd"},
+				Packages: []string{
+					"github.com/google/trillian/vendor/coreos/etcd",
 				},
 			},
 			wantName: "github.com/google/trillian/vendor/coreos/etcd",
