@@ -74,6 +74,9 @@ is now being used in production by several organizations. We will try to avoid
 any further incompatible code and schema changes but cannot guarantee that they
 will never be necessary.
 
+The current state of feature implementation is recorded in the
+[Feature implementation matrix](docs/Feature_Implementation_Matrix.md).
+
 To build and test Trillian you need:
 
  - Go 1.9 or later.
