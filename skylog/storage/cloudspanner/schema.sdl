@@ -1,3 +1,13 @@
+-- Entries stores sequenced entries of the log, which also correspond to leaves
+-- of the Merkle Tree.
+CREATE TABLE Entries (
+  TreeID     INT64 NOT NULL,
+  ShardID    INT64 NOT NULL,
+  EntryIndex INT64 NOT NULL,
+	Data       BYTES NOT NULL,
+	Extra      BYTES,
+) PRIMARY KEY (TreeID, ShardID, EntryIndex);
+
 -- TreeNodes stores Merkle tree nodes. The nodes are sharded according to
 -- ShardID, which is computed based on the tree shape and write pattern, in
 -- order to maximize writing parallelism.
