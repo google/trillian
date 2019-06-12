@@ -122,7 +122,7 @@ log_prep_test() {
   go build ${GOFLAGS} github.com/google/trillian/server/trillian_log_signer/
 
   # Wipe the test database
-  yes | "${TRILLIAN_PATH}/scripts/resetdb.sh"
+  yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
   local logserver_opts=''
   local logsigner_opts=''
@@ -284,7 +284,7 @@ map_prep_test() {
   go build ${GOFLAGS} github.com/google/trillian/server/trillian_map_server/
 
   # Wipe the test database
-  yes | "${TRILLIAN_PATH}/scripts/resetdb.sh"
+  yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
   # Start a set of Map RPC servers.
   for ((i=0; i < rpc_server_count; i++)); do
