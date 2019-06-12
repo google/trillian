@@ -43,7 +43,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
 	etcdutil "github.com/google/trillian/util/etcd"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
 	// Register key ProtoHandlers
@@ -164,15 +163,6 @@ func main() {
 		QuotaDryRun:  *quotaDryRun,
 		DBClose:      sp.Close,
 		Registry:     registry,
-		RegisterHandlerFn: func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
-			if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
-				return err
-			}
-			if *quota.System == etcd.QuotaManagerName {
-				return quotapb.RegisterQuotaHandlerFromEndpoint(ctx, mux, endpoint, opts)
-			}
-			return nil
-		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
 			logServer := server.NewTrillianLogRPCServer(registry, clock.System)
 			if err := logServer.IsHealthy(); err != nil {

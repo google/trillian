@@ -69,8 +69,6 @@ type Main struct {
 	StatsPrefix string
 	QuotaDryRun bool
 
-	// RegisterHandlerFn is called to register REST-proxy handlers.
-	RegisterHandlerFn func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error
 	// RegisterServerFn is called to register RPC servers.
 	RegisterServerFn func(*grpc.Server, extension.Registry) error
 
@@ -131,13 +129,6 @@ func (m *Main) Run(ctx context.Context) error {
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
 		gatewayMux := runtime.NewServeMux()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
-		if err := m.RegisterHandlerFn(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
-			return err
-		}
-		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
-			return err
-		}
 
 		http.Handle("/", gatewayMux)
 		http.Handle("/metrics", promhttp.Handler())
