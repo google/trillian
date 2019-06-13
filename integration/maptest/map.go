@@ -605,11 +605,6 @@ func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trill
 		t.Errorf("len: %v, want %v", got, want)
 	}
 
-	// Remove LeafHash because SetLeaves does not supply it.
-	for _, l := range getResp.Leaves {
-		l.LeafHash = nil
-	}
-
 	if got, want := getResp.Leaves, leaves; !cmp.Equal(got, want,
 		cmp.Comparer(proto.Equal),
 		cmpopts.SortSlices(func(a, b *trillian.MapLeaf) bool { return bytes.Compare(a.Index, b.Index) < 0 })) {
