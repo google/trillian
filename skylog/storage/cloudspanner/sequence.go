@@ -16,10 +16,13 @@ package cloudspanner
 
 import (
 	"context"
+	"errors"
 
 	"cloud.google.com/go/spanner"
 	"github.com/google/trillian/skylog/storage"
 )
+
+var errBreak = errors.New("break")
 
 // SequenceOpts configures the sequence storage sharding mechanism.
 type SequenceOpts struct {
@@ -47,8 +50,6 @@ func (s *SequenceStorage) Read(ctx context.Context, begin, end uint64) ([]storag
 		return nil, nil
 	}
 	// TODO(pavelkalinnikov): Restrict the range length.
-	// TODO(pavelkalinnikov): Don't return tail entries if all empty.
-	ret := make([]storage.Entry, end-begin)
 
 	// We only read entries from the shard that includes the begin-th entry.
 	// TODO(pavelkalinnikov): Unit-test this logic.
@@ -64,16 +65,22 @@ func (s *SequenceStorage) Read(ctx context.Context, begin, end uint64) ([]storag
 		Kind:  spanner.ClosedOpen,
 	}
 	iter := s.c.Single().Read(ctx, "Entries", keys, []string{"EntryIndex", "Data", "Extra"})
+
+	next := int64(begin)
+	ret := make([]storage.Entry, 0, end-begin)
 	if err := iter.Do(func(r *spanner.Row) error {
 		var index int64
 		var data, extra []byte
 		if err := r.Columns(&index, &data, &extra); err != nil {
 			return err
 		}
-		// TODO(pavelkalinnikov): Range check.
-		ret[uint64(index)-begin] = storage.Entry{Data: data, Extra: extra}
+		if index != next {
+			return errBreak
+		}
+		next++
+		ret = append(ret, storage.Entry{Data: data, Extra: extra})
 		return nil
-	}); err != nil {
+	}); err != nil && err != errBreak {
 		return nil, err
 	}
 
