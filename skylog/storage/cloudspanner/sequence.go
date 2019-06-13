@@ -53,7 +53,7 @@ func (s *SequenceStorage) Read(ctx context.Context, begin, end uint64) ([]storag
 	// We only read entries from the shard that includes the begin-th entry.
 	// TODO(pavelkalinnikov): Unit-test this logic.
 	offset := begin / s.opts.BatchSize
-	if next := (offset + 1) * s.opts.BatchSize; end < next {
+	if next := (offset + 1) * s.opts.BatchSize; next < end {
 		end = next
 	}
 	shardID := int64(offset % s.opts.Shards)
@@ -80,7 +80,7 @@ func (s *SequenceStorage) Read(ctx context.Context, begin, end uint64) ([]storag
 	return ret, nil
 }
 
-// Write puts all the passed in entries to the sequence starting at the
+// Write stores all the passed-in entries to the sequence starting at the
 // specified begin index.
 func (s *SequenceStorage) Write(ctx context.Context, begin uint64, entries []storage.Entry) error {
 	ms := make([]*spanner.Mutation, 0, len(entries))

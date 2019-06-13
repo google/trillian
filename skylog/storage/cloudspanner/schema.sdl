@@ -4,8 +4,8 @@ CREATE TABLE Entries (
   TreeID     INT64 NOT NULL,
   ShardID    INT64 NOT NULL,
   EntryIndex INT64 NOT NULL,
-	Data       BYTES NOT NULL,
-	Extra      BYTES,
+  Data       BYTES(MAX) NOT NULL,
+  Extra      BYTES(MAX),
 ) PRIMARY KEY (TreeID, ShardID, EntryIndex);
 
 -- TreeNodes stores Merkle tree nodes. The nodes are sharded according to

@@ -30,7 +30,7 @@ type SequenceReader interface {
 
 // SequenceWriter allows writing to a sequence storage.
 type SequenceWriter interface {
-	// Write puts all the passed in entries to the sequence starting at the
+	// Write stores all the passed-in entries to the sequence starting at the
 	// specified begin index.
 	Write(ctx context.Context, begin uint64, entries []Entry) error
 }
