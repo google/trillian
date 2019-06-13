@@ -58,9 +58,11 @@ func TestMapIntegration(t *testing.T) {
 	}
 }
 
+// TestMapWriteStress allows direct access for running just the write stress
+// test with a configurable number of batches.
 func TestMapWriteStress(t *testing.T) {
 	if !*stress {
-		t.Skip("Skipped by default, enable me if with --enable_stress you know what you're doing")
+		t.Skip("Skipped by default, enable me with --enable_stress if you know what you're doing")
 	}
 
 	ctx := context.Background()
@@ -79,5 +81,5 @@ func TestMapWriteStress(t *testing.T) {
 	}
 	defer env.Close()
 
-	RunWriteBatchStress(ctx, t, env.Admin, env.Map, 512, *stressBatches)
+	runWriteStressTest(ctx, t, env.Admin, env.Map, 512, *stressBatches)
 }
