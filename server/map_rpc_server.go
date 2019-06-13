@@ -667,8 +667,7 @@ func hasDuplicates(indexes [][]byte) error {
 	set := make(map[string]bool)
 	for _, i := range indexes {
 		if set[string(i)] {
-			return status.Errorf(codes.InvalidArgument,
-				"map.GetLeaves(): index %x requested more than once", i)
+			return status.Errorf(codes.InvalidArgument, "index %x requested more than once", i)
 		}
 		set[string(i)] = true
 	}
