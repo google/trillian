@@ -74,7 +74,7 @@ install:
         github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
         github.com/uber/prototool/cmd/prototool
         golang.org/x/tools/cmd/stringer
-        github.com/golangci/golangci-lint/cmd/golangci-lint;
+        github.com/golangci/golangci-lint/cmd/golangci-lint
         go.etcd.io/etcd
         go.etcd.io/etcd/etcdctl;
 
@@ -116,9 +116,13 @@ script:
   - |
     if [[ "${INTEG_TESTS}" == "true" ]]; then
       ./integration/integration_test.sh
-      pushd `go list -f '{{ .Dir }}' github.com/google/certificate-transparency-go`
+      # See if we would break ct-go by checking it out and updating the trillian dep.
+      TRILLIAN_DIR=$(pwd)
+      git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
+      pushd "$GOPATH/src/github.com/google/certificate-transparency-go" 
+      echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
       chmod +x ./trillian/integration/integration_test.sh
-      GO111MODULE=on ./trillian/integration/integration_test.sh
+      ./trillian/integration/integration_test.sh
       popd
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     fi
