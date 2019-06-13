@@ -605,10 +605,12 @@ func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trill
 		t.Errorf("len: %v, want %v", got, want)
 	}
 
-	if got, want := getResp.Leaves, leaves; !cmp.Equal(got, want,
+	opts := []cmp.Option{
 		cmp.Comparer(proto.Equal),
-		cmpopts.SortSlices(func(a, b *trillian.MapLeaf) bool { return bytes.Compare(a.Index, b.Index) < 0 })) {
-		t.Errorf("got - want: %v", cmp.Diff(got, want))
+		cmpopts.SortSlices(func(a, b *trillian.MapLeaf) bool { return bytes.Compare(a.Index, b.Index) < 0 }),
+	}
+	if got, want := getResp.Leaves, leaves; !cmp.Equal(got, want, opts...) {
+		t.Errorf("want - got: %v", cmp.Diff(want, got, opts...))
 	}
 }
 
