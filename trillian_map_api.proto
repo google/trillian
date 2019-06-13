@@ -85,6 +85,7 @@ message GetMapLeafByRevisionRequest {
 // with the difference that revision must be >=0.
 message GetMapLeavesByRevisionRequest {
   int64 map_id = 1;
+  // index(es) to query.  It is an error to request the same index more than once.
   repeated bytes index = 2;
   // revision >= 0.
   int64 revision = 3;
