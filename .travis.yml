@@ -15,8 +15,10 @@ cache:
     - "$HOME/google-cloud-sdk/"
     - "$HOME/gopath/pkg/mod"
 
-
 env:
+  global:
+  - GO111MODULE=on
+  matrix:
   - PRESUB_TESTS=true WITH_COVERAGE=true
   - PRESUB_TESTS=true GOFLAGS='-race' NO_LINTER=true
   - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue'NO_LINTER=true
@@ -30,18 +32,6 @@ env:
   - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
   - BAZEL_TESTS=true
   - DOCKER_TESTS=true
-  - GO111MODULE=on PRESUB_TESTS=true WITH_COVERAGE=true
-  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race' NO_LINTER=true
-  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' NO_LINTER=true
-  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true NO_LINTER=true
-  - GO111MODULE=on PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true NO_LINTER=true
-  - GO111MODULE=on INTEG_TESTS=true WITH_COVERAGE=true
-  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race'
-  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'
-  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true
-  - GO111MODULE=on INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
-  - GO111MODULE=on BAZEL_TESTS=true
-  - GO111MODULE=on DOCKER_TESTS=true
 
 matrix:
   fast_finish: true
@@ -77,17 +67,6 @@ install:
   - env GO111MODULE=on
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
-  - git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
-  - if [ "$GO111MODULE" != "on" ]; then go get ${GOFLAGS} -d -t ./...; fi
-  - if [ "$GO111MODULE" != "on" ]; then go get -d
-        github.com/golang/mock/mockgen
-        github.com/golang/protobuf/proto
-        github.com/golang/protobuf/protoc-gen-go
-        github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-        github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-        github.com/uber/prototool/cmd/prototool
-        golang.org/x/tools/cmd/stringer;
-    fi
   - go install
         github.com/golang/mock/mockgen
         github.com/golang/protobuf/proto
@@ -96,20 +75,10 @@ install:
         github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
         github.com/uber/prototool/cmd/prototool
         golang.org/x/tools/cmd/stringer
-
-  - if [ "$GO111MODULE" != "on" ]; then 
-      curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.0
-    else go install
-      github.com/golangci/golangci-lint/cmd/golangci-lint
-    fi
-
-  - if [ "$GO111MODULE" = "on" ]; then go install
+        github.com/golangci/golangci-lint/cmd/golangci-lint;
         go.etcd.io/etcd
         go.etcd.io/etcd/etcdctl;
-    else go install
-      ./vendor/github.com/coreos/etcd/cmd/etcd
-      ./vendor/github.com/coreos/etcd/cmd/etcdctl;
-    fi
+
   # install bazel
   - |
     (
