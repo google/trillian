@@ -93,6 +93,7 @@ func (s *SequenceStorage) Write(ctx context.Context, begin uint64, entries []sto
 	ms := make([]*spanner.Mutation, 0, len(entries))
 	for i, entry := range entries {
 		index := int64(begin) + int64(i)
+		// TODO(pavelkalinnikov): Split the transaction by shard ID.
 		shardID := index / int64(s.opts.BatchSize) % int64(s.opts.Shards)
 		// TODO(pavelkalinnikov): Consider doing just Insert when it is clear what
 		// semantic the callers need.
