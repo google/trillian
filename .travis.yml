@@ -63,7 +63,6 @@ install:
       unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
     )
   - export PATH="$(pwd)/../protoc/bin:$PATH"
-  - env GO111MODULE=on
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go install
