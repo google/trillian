@@ -19,19 +19,18 @@ env:
   global:
   - GO111MODULE=on
   matrix:
-  - PRESUB_TESTS=true WITH_COVERAGE=true
-  - PRESUB_TESTS=true GOFLAGS='-race' NO_LINTER=true
-  - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue'NO_LINTER=true
-
-  - PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true NO_LINTER=true
-  - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true NO_LINTER=true
-  - INTEG_TESTS=true WITH_COVERAGE=true
-  - INTEG_TESTS=true GOFLAGS='-race'
-  - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'
-  - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true
-  - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true
-  - BAZEL_TESTS=true
-  - DOCKER_TESTS=true
+  - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--coverage"
+  - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters"
+  - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters"
+  - PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true       PRESUBMIT_OPTS="--no-linters"
+  - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters"
+  - INTEG_TESTS=true                                       PRESUBMIT_OPTS="--coverage --no-linters"
+  - INTEG_TESTS=true GOFLAGS='-race'                       PRESUBMIT_OPTS="--no-linters"
+  - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'  PRESUBMIT_OPTS="--no-linters"
+  - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true        PRESUBMIT_OPTS="--no-linters"
+  - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters"
+  - BAZEL_TESTS=true                                       PRESUBMIT_OPTS="--no-linters"
+  - DOCKER_TESTS=true                                      PRESUBMIT_OPTS="--no-linters"
 
 matrix:
   fast_finish: true
@@ -103,7 +102,7 @@ script:
   - export GO_TEST_TIMEOUT=20m
   - |
     if [[ "${PRESUB_TESTS}" == "true" ]]; then
-      ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage} ${NO_LINTER:+--no-linters}
+      ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
       # Check re-generation didn't change anything. Skip protoc-generated files
       # because protoc is not deterministic when generating file descriptors.
       # Skip go.mod and go.sum because testing may add indirect dependencies that would be trimmed by 'go mod tidy'
