@@ -56,8 +56,8 @@ done
 
 echo "Updating jobs..."
 # Prepare configmap:
-kubectl delete configmap deploy-config || true
-envsubst < ${CONFIGMAP} | kubectl create -f -
+kubectl delete --namespace="${NAMESPACE}" configmap deploy-config || true
+envsubst < ${CONFIGMAP} | kubectl create --namespace="${NAMESPACE}" -f -
 
 # Launch with kubernetes
 kubeconfigs="trillian-log-deployment.yaml trillian-log-service.yaml trillian-log-signer-deployment.yaml trillian-log-signer-service.yaml"
@@ -66,8 +66,8 @@ if ${RUN_MAP}; then
 fi
 for thing in ${kubeconfigs}; do
   echo ${thing}
-  envsubst < ${DIR}/${thing} | kubectl apply -f -
+  envsubst < ${DIR}/${thing} | kubectl apply --namespace="${NAMESPACE}" -f -
 done
 
-kubectl get all
-kubectl get services
+kubectl get all --namespace="${NAMESPACE}"
+kubectl get services --namespace="${NAMESPACE}"
