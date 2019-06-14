@@ -19,6 +19,8 @@ spec:
       restartPolicy: Always
       containers:
       - name: trillian-logserver
+        # TODO(RJPercival): Pass STORAGE_FLAG via --config to protect any
+        # sensitive contents (e.g. passwords) from being seen in process list.
         args: [
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
@@ -31,8 +33,10 @@ spec:
         "--alsologtostderr"
         ]
         envFrom:
-          - configMapRef:
-              name: deploy-config
+        - configMapRef:
+            name: deploy-config
+        - secretRef:
+            name: trillian-secrets
         image: gcr.io/${PROJECT_ID}/log_server:${IMAGE_TAG}
         imagePullPolicy: Always
         resources:
