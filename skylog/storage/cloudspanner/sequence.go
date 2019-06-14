@@ -25,6 +25,18 @@ import (
 var errBreak = errors.New("break")
 
 // SequenceOpts configures the sequence storage sharding mechanism.
+//
+// Log entries are split into the configured number of Shards, where each shard
+// stores a periodic sub-sequence of batches of BatchSize. For example, if
+// Shards is 3, and BatchSize is 2 then the entries are sharded as follows:
+//
+//   0 0 1 1 2 2 0 0 1 1 ...
+//
+// Such schema optimizes for the case when entries are written in a nearly
+// sequential way. If many concurrent writes are happening, all shards will be
+// involved in parallel, and Cloud Spanner will add splits in between.
+//
+// TODO(pavelkalinnikov): Store the parameters in per-tree metadata.
 type SequenceOpts struct {
 	BatchSize uint64
 	Shards    uint64
