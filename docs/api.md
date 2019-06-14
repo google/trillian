@@ -855,7 +855,7 @@ with the difference that revision must be &gt;=0.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | map_id | [int64](#int64) |  |  |
-| index | [bytes](#bytes) | repeated |  |
+| index | [bytes](#bytes) | repeated | index(es) to query. It is an error to request the same index more than once. |
 | revision | [int64](#int64) |  | revision &gt;= 0. |
 
 

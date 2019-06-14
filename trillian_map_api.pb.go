@@ -350,7 +350,8 @@ func (m *GetMapLeafByRevisionRequest) GetRevision() int64 {
 // This message replaces the current implementation of GetMapLeavesRequest
 // with the difference that revision must be >=0.
 type GetMapLeavesByRevisionRequest struct {
-	MapId int64    `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
+	MapId int64 `protobuf:"varint,1,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
+	// index(es) to query.  It is an error to request the same index more than once.
 	Index [][]byte `protobuf:"bytes,2,rep,name=index,proto3" json:"index,omitempty"`
 	// revision >= 0.
 	Revision             int64    `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`

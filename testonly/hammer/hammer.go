@@ -545,7 +545,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 	}
 
 	n := s.chooseLeafCount(prng) // can be zero
-	indices := make([][]byte, n)
+	indexMap := make(map[string]bool)
 	for i := 0; i < n; i++ {
 		choice := choices[prng.Intn(len(choices))]
 		if contents.Empty() {
@@ -553,12 +553,16 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		}
 		switch choice {
 		case ExistingKey:
-			// No duplicate removal, so we can end up asking for same key twice in the same request.
 			key := contents.PickKey(prng)
-			indices[i] = key
+			indexMap[string(key)] = true
 		case NonexistentKey:
-			indices[i] = testonly.TransparentHash("non-existent-key")
+			key := testonly.TransparentHash("non-existent-key")
+			indexMap[string(key)] = true
 		}
+	}
+	indices := make([][]byte, 0, n)
+	for k := range indexMap {
+		indices = append(indices, []byte(k))
 	}
 
 	var rsp *trillian.GetMapLeavesResponse
