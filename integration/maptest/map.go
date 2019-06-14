@@ -17,13 +17,13 @@ package maptest
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"testing"
 
 	"github.com/golang/glog"
 	"github.com/kylelemons/godebug/pretty"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian"
@@ -55,6 +55,7 @@ var AllTests = TestTable{
 	{"LeafHistory", RunLeafHistory},
 	{"Inclusion", RunInclusion},
 	{"InclusionBatch", RunInclusionBatch},
+	{"RunGetLeafByRevisionNoProof", RunGetLeafByRevisionNoProof},
 }
 
 var (
@@ -581,7 +582,7 @@ func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trill
 		t.Fatalf("newTreeWithHasher(): %v", err)
 	}
 	batchSize := 10
-	numBatches := 2
+	numBatches := 3
 
 	leafMap := writeBatch(ctx, t, tmap, tree, batchSize, numBatches)
 	indexes := make([][]byte, 0, len(leafMap))
@@ -594,15 +595,22 @@ func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trill
 	getResp, err := tmap.GetLeavesByRevisionNoProof(ctx, &trillian.GetMapLeavesByRevisionRequest{
 		MapId:    tree.TreeId,
 		Index:    indexes,
-		Revision: 1,
+		Revision: int64(numBatches),
 	})
 	if err != nil {
 		t.Fatalf("GetLeavesByRevisionNoProof(): %v", err)
 	}
 
-	if got, want := getResp.Leaves, leaves; !cmp.Equal(got, want,
-		cmpopts.SortSlices(func(a, b *trillian.MapLeaf) bool { return bytes.Compare(a.Index, b.Index) < 0 })) {
-		t.Errorf("got - want: %v", cmp.Diff(got, want))
+	if got, want := len(getResp.Leaves), len(indexes); got != want {
+		t.Errorf("len: %v, want %v", got, want)
+	}
+
+	opts := []cmp.Option{
+		cmp.Comparer(proto.Equal),
+		cmpopts.SortSlices(func(a, b *trillian.MapLeaf) bool { return bytes.Compare(a.Index, b.Index) < 0 }),
+	}
+	if got, want := getResp.Leaves, leaves; !cmp.Equal(got, want, opts...) {
+		t.Errorf("want - got: %v", cmp.Diff(want, got, opts...))
 	}
 }
 
@@ -703,7 +711,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 		for _, incl := range getResp.MapLeafInclusion {
 			index := incl.GetLeaf().GetIndex()
 			leaf := incl.GetLeaf().GetLeafValue()
-			ev, ok := leafMap[hex.EncodeToString(index)]
+			ev, ok := leafMap[string(index)]
 			if !ok {
 				t.Errorf("%s: unexpected key returned: %s", desc, index)
 			}
@@ -723,7 +731,7 @@ func writeBatch(ctx context.Context, t *testing.T, tmap trillian.TrillianMapClie
 	for i := range leafBatch {
 		leafBatch[i] = createBatchLeaves(i, batchSize)
 		for _, l := range leafBatch[i] {
-			leafMap[hex.EncodeToString(l.Index)] = l
+			leafMap[string(l.Index)] = l
 		}
 	}
 

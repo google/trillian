@@ -180,6 +180,11 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 		return nil, err
 	}
 
+	// Remove LeafHash because SetLeaves does not supply it.
+	for _, l := range leaves {
+		l.LeafHash = nil
+	}
+
 	return &trillian.MapLeaves{Leaves: leaves}, nil
 }
 
