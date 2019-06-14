@@ -1,5 +1,6 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+export NAMESPACE=default
 export PROJECT_ID=trillian-opensource-ci
 export CLUSTER_NAME=trillian-opensource-ci
 export REGION=us-central1

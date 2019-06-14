@@ -93,10 +93,10 @@ done
 COREACCOUNT=$(gcloud config config-helper --format=json | jq -r '.configuration.properties.core.account')
 kubectl create clusterrolebinding etcd-cluster-admin-binding --clusterrole=cluster-admin --user="${COREACCOUNT}"
 
-kubectl apply -f ${DIR}/etcd-role-binding.yaml
-kubectl apply -f ${DIR}/etcd-role.yaml
-kubectl apply -f ${DIR}/etcd-deployment.yaml
+for f in "etcd-role-binding.yaml" "etcd-role.yaml" "etcd-deployment.yaml" "etcd-service.yaml"; do
+  envsubst < ${DIR}/${f} | kubectl apply --namespace="${NAMESPACE}" -f -
+done
 
 # Wait for Custom Resource Definitions (CRD) to be installed before creating Etcd cluster
 kubectl wait --for=condition=Established crd/etcdclusters.etcd.database.coreos.com
-kubectl apply -f ${DIR}/etcd-cluster.yaml
+envsubst < ${DIR}/etcd-cluster.yaml | kubectl --namespace="${NAMESPACE}" apply -f -
