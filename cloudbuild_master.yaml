@@ -2,7 +2,7 @@ timeout: 1800s
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
-  _CONFIG_MAP: examples/deployment/kubernetes/trillian-opensource-ci.yaml
+  _CONFIG_MAP: examples/deployment/kubernetes/trillian-ci-spanner.yaml
   _MYSQL_TAG: "5.7"
 steps:
 - id: pull_mysql
