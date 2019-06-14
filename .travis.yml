@@ -62,8 +62,8 @@ install:
   - export PATH="$(pwd)/../protoc/bin:$PATH"
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
+  - git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
   - go get ${GOFLAGS} -d -t ./...
-  - go get -d -t github.com/google/certificate-transparency-go/...
   - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.0
   - go get
       github.com/golang/mock/mockgen
@@ -116,7 +116,7 @@ script:
       ./integration/integration_test.sh
       pushd `go list -f '{{ .Dir }}' github.com/google/certificate-transparency-go`
       chmod +x ./trillian/integration/integration_test.sh
-      ./trillian/integration/integration_test.sh
+      GO111MODULE=on ./trillian/integration/integration_test.sh
       popd
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     fi
