@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Go Module Support
+
+Go Module support has been enabled. Please use GO111MODULE=on to build Trillian.
+Updating dependencies no longer requires updating the vendor directory.
+
 ### TrillianMapWrite API
 New API service for writing to the Trillian Map. This allows APIs such as
 GetLeavesByRevisionNoProof to be removed from the read API, and these methods to
