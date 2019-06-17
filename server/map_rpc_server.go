@@ -160,6 +160,9 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 	if req.Revision < 0 {
 		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
 	}
+	if err := hasDuplicates(req.Index); err != nil {
+		return nil, err
+	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapRead)
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", req.MapId, err)
@@ -180,10 +183,18 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 		return nil, err
 	}
 
+	// Remove LeafHash because SetLeaves does not supply it.
+	for _, l := range leaves {
+		l.LeafHash = nil
+	}
+
 	return &trillian.MapLeaves{Leaves: leaves}, nil
 }
 
 func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64, indices [][]byte, revision int64) (*trillian.GetMapLeavesResponse, error) {
+	if err := hasDuplicates(indices); err != nil {
+		return nil, err
+	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapRead)
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
@@ -321,14 +332,12 @@ func checkIndexSize(index []byte, hasher hashers.MapHasher) error {
 
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
-	// Check leaves all have unique indices.
-	seen := make(map[string]bool)
-	for _, leaf := range req.Leaves {
-		k := fmt.Sprintf("%x", leaf.Index)
-		if seen[k] {
-			return nil, status.Errorf(codes.InvalidArgument, "index %s duplicated", k)
-		}
-		seen[k] = true
+	indexes := make([][]byte, 0, len(req.Leaves))
+	for _, l := range req.Leaves {
+		indexes = append(indexes, l.Index)
+	}
+	if err := hasDuplicates(indexes); err != nil {
+		return nil, err
 	}
 
 	ctx, spanEnd := spanFor(ctx, "SetLeaves")
@@ -656,4 +665,16 @@ func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.
 		defer t.closeAndLog(ctx, tree.TreeId, tx, method)
 	}
 	return tx, err
+}
+
+// hasDuplicates returns an error if there are duplicates in indexes.
+func hasDuplicates(indexes [][]byte) error {
+	set := make(map[string]bool)
+	for _, i := range indexes {
+		if set[string(i)] {
+			return status.Errorf(codes.InvalidArgument, "index %x requested more than once", i)
+		}
+		set[string(i)] = true
+	}
+	return nil
 }

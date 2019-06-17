@@ -608,23 +608,23 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_TrillianLog_QueueLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, ""))
+	pattern_TrillianLog_QueueLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_AddSequencedLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced"))
+	pattern_TrillianLog_AddSequencedLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetInclusionProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "inclusion_proof"))
+	pattern_TrillianLog_GetInclusionProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "inclusion_proof", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetInclusionProofByHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "inclusion_by_hash"))
+	pattern_TrillianLog_GetInclusionProofByHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "inclusion_by_hash", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetConsistencyProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "consistency_proof"))
+	pattern_TrillianLog_GetConsistencyProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "consistency_proof", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetLatestSignedLogRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "roots"}, "latest"))
+	pattern_TrillianLog_GetLatestSignedLogRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "roots"}, "latest", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetSequencedLeafCount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced_count"))
+	pattern_TrillianLog_GetSequencedLeafCount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced_count", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetEntryAndProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, ""))
+	pattern_TrillianLog_GetEntryAndProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_InitLog_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "init"))
+	pattern_TrillianLog_InitLog_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "init", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
