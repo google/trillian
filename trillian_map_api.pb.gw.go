@@ -291,13 +291,13 @@ func RegisterTrillianMapHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_TrillianMap_GetLastInRangeByRevision_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"v1beta1", "maps", "map_id", "roots", "revision", "leaves"}, "last_in_range"))
+	pattern_TrillianMap_GetLastInRangeByRevision_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"v1beta1", "maps", "map_id", "roots", "revision", "leaves"}, "last_in_range", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianMap_GetSignedMapRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "maps", "map_id", "roots"}, "latest"))
+	pattern_TrillianMap_GetSignedMapRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "maps", "map_id", "roots"}, "latest", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianMap_GetSignedMapRootByRevision_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "maps", "map_id", "roots", "revision"}, ""))
+	pattern_TrillianMap_GetSignedMapRootByRevision_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "maps", "map_id", "roots", "revision"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianMap_InitMap_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "maps", "map_id"}, "init"))
+	pattern_TrillianMap_InitMap_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "maps", "map_id"}, "init", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
