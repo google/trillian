@@ -37,7 +37,7 @@ require (
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gostaticanalysis/analysisutil v0.0.0-20190329151158-56bca42c7635 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
-	github.com/grpc-ecosystem/grpc-gateway v1.9.1-0.20190526070802-e6f18d33a7b3
+	github.com/grpc-ecosystem/grpc-gateway v1.9.2-0.20190616165552-e7ba6a44e298
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jhump/protoreflect v1.4.2 // indirect
