@@ -75,7 +75,7 @@ install:
         golang.org/x/tools/cmd/stringer
         github.com/golangci/golangci-lint/cmd/golangci-lint
         go.etcd.io/etcd
-        go.etcd.io/etcd/etcdctl;
+        go.etcd.io/etcd/etcdctl
 
   # install bazel
   - |
