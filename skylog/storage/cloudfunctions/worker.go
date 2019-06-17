@@ -46,7 +46,8 @@ type BuildMessage struct {
 	Data []byte `json:"data"`
 }
 
-// BuildJob describes a Merke tree building job.
+// BuildJob describes a Merke tree building job. It instructs workers to build
+// a subtree covering leaves of the [Begin, End) range for the specified tree.
 type BuildJob struct {
 	TreeID int64  `json:"tree_id"`
 	Begin  uint64 `json:"begin"`
@@ -61,8 +62,8 @@ func BuildSubtree(ctx context.Context, msg BuildMessage) error {
 	}
 
 	log.Printf("Accepted job: %+v", job)
-	if job.End < job.Begin {
-		return errors.New("invalid job: begin > end")
+	if job.End <= job.Begin {
+		return errors.New("invalid job: end <= begin")
 	}
 
 	// TODO(pavelkalinnikov): Read hashes from storage.
