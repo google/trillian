@@ -56,11 +56,15 @@ type BuildJob struct {
 
 // BuildSubtree consumes builder job message.
 func BuildSubtree(ctx context.Context, msg BuildMessage) error {
+	client, err := spannerClient(ctx)
+	if err != nil {
+		return fmt.Errorf("connecting to Spanner failed: %v", err)
+	}
+
 	var job BuildJob
 	if err := json.Unmarshal(msg.Data, &job); err != nil {
 		return err
 	}
-
 	log.Printf("Accepted job: %+v", job)
 	if job.End <= job.Begin {
 		return errors.New("invalid job: end <= begin")
@@ -79,21 +83,25 @@ func BuildSubtree(ctx context.Context, msg BuildMessage) error {
 	ts := cs.NewTreeStorage(client, job.TreeID, opts)
 	bw := core.NewBuildWorker(ts, factory)
 
-	_, err := bw.Process(ctx, cJob)
+	_, err = bw.Process(ctx, cJob)
 	return err
 }
 
-func init() {
-	ctx := context.Background()
+// spannerClient creates a Could Spanner client, or returns the cached one.
+func spannerClient(ctx context.Context) (*spanner.Client, error) {
+	if client != nil {
+		return client, nil
+	}
 
 	db, ok := os.LookupEnv(spannerEnvVar)
 	if !ok {
-		log.Fatalf("Environment variable %s not found", spannerEnvVar)
+		return nil, fmt.Errorf("env variable %s not found", spannerEnvVar)
 	}
 
 	var err error
 	if client, err = spanner.NewClient(ctx, db); err != nil {
-		log.Fatalf("spanner.NewClient: %v", err)
+		return nil, fmt.Errorf("spanner.NewClient: %v", err)
 	}
 	log.Printf("Connected to Cloud Spanner: %s", db)
+	return client, err
 }
