@@ -4,6 +4,7 @@ ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian
 
 ARG GOFLAGS=""
+ENV GOFLAGS=$GOFLAGS
 ARG GO111MODULE=auto
 ENV GO111MODULE=$GO111MODULE
 RUN go get ./server/trillian_log_server ./scripts/licenses
