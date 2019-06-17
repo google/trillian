@@ -144,6 +144,9 @@ inclusion proof queries.
 
 ### Deployments
 
+The Trillian Docker images now accept GOFLAGS and GO111MODULE arguments
+and set them as environment variables inside the Docker container.
+
 The [db\_server Docker image](examples/deployment/docker/db_server/Dockerfile)
 is now based on
 [the MySQL 5.7 image from the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/google/mysql5),
