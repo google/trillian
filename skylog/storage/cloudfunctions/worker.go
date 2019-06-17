@@ -17,6 +17,7 @@ package cloudfunctions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -38,7 +39,14 @@ var (
 	client *spanner.Client
 )
 
-// BuildJob is the payload of a Merkle tree building event.
+// BuildMessage is the payload of a Merkle tree building Cloud Pub/Sub event.
+type BuildMessage struct {
+	// Data contains a JSON-encoded BuildJob.
+	// TODO(pavelkalinnikov): Consider protobuf instead.
+	Data []byte `json:"data"`
+}
+
+// BuildJob describes a Merke tree building job.
 type BuildJob struct {
 	TreeID int64  `json:"tree_id"`
 	Begin  uint64 `json:"begin"`
@@ -46,7 +54,13 @@ type BuildJob struct {
 }
 
 // BuildSubtree consumes builder job message.
-func BuildSubtree(ctx context.Context, job BuildJob) error {
+func BuildSubtree(ctx context.Context, msg BuildMessage) error {
+	var job BuildJob
+	if err := json.Unmarshal(msg.Data, &job); err != nil {
+		return err
+	}
+
+	log.Printf("Accepted job: %+v", job)
 	if job.End < job.Begin {
 		return errors.New("invalid job: begin > end")
 	}
@@ -80,4 +94,5 @@ func init() {
 	if client, err = spanner.NewClient(ctx, db); err != nil {
 		log.Fatalf("spanner.NewClient: %v", err)
 	}
+	log.Printf("Connected to Cloud Spanner: %s", db)
 }
