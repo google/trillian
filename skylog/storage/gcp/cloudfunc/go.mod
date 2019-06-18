@@ -1,4 +1,4 @@
-module github.com/google/trillian/skylog/storage/cloudfunctions
+module github.com/google/trillian/skylog/storage/gcp/cloudfunc
 
 go 1.12
 
