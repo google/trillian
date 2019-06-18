@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cloudfunctions wraps Merkle tree build worker into a Cloud Function.
-package cloudfunctions
+// Package cloudfunc wraps Merkle tree build worker into a Cloud Function.
+package cloudfunc
 
 import (
 	"context"
