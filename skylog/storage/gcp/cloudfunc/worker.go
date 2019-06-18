@@ -27,7 +27,7 @@ import (
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/skylog/core"
-	cs "github.com/google/trillian/skylog/storage/cloudspanner"
+	cs "github.com/google/trillian/skylog/storage/gcp/cloudspanner"
 )
 
 const spannerEnvVar = "SPANNER_DB"

@@ -10,6 +10,6 @@ require (
 	github.com/go-toolsmith/astp v1.0.0 // indirect
 	github.com/go-toolsmith/pkgload v1.0.0 // indirect
 	github.com/go-toolsmith/typep v1.0.0 // indirect
-	github.com/google/trillian v1.2.2-0.20190618135658-e4067aefa147
+	github.com/google/trillian v1.2.2-0.20190618152346-1cd948d456cf
 	github.com/grpc-ecosystem/grpc-gateway v1.9.2 // indirect
 )
