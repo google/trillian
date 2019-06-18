@@ -12,7 +12,7 @@
      - [Integration Tests](#integration-tests)
  - [Working on the Code](#working-on-the-code)
      - [Rebuilding Generated Code](#rebuilding-generated-code)
-     - [Updating Vendor Code](#updating-vendor-code)
+     - [Updating Dependencies](#updating-dependencies)
      - [Running Codebase Checks](#running-codebase-checks)
  - [Design](#design)
      - [Design Overview](#design-overview)
@@ -201,33 +201,24 @@ and run the following:
 go generate -x ./...  # hunts for //go:generate comments and runs them
 ```
 
-### Updating Vendor Code
+### Updating Dependencies
 
-The Trillian codebase includes a couple of external projects under the `vendor/`
-subdirectory, to ensure that builds use a fixed version (typically because the
-upstream repository does not guarantee back-compatibility between the tip
-`master` branch and the current stable release).  These external codebases are
-included as Git
-[subtrees](https://github.com/git/git/blob/master/contrib/subtree/git-subtree.txt).
-
-To update the code in one of these subtrees, perform steps like:
-
-```bash
-# Add master repo for upstream code as a Git remote.
-git remote add vendor-xyzzy https://github.com/orgname/xyzzy
-# Pull the updated code for the desired version tag from the remote, dropping history.
-# Trailing / in prefix is needed.
-git subtree pull --squash --prefix=vendor/github.com/orgname/xyzzy/ vendor-xyzzy vX.Y.Z
+The Trillian codebase uses go.mod to declare fixed versions of its dependencies. 
+With Go modules, updating a dependency simply involves running `go get`:
+```
+export GO111MODULE=on
+go get package/path       # Fetch the latest published version
+go get package/path@X.Y.Z # Fetch a specific published version
+go get package/path@HEAD  # Fetch the latest commit 
 ```
 
-If new `vendor/` subtree is required, perform steps similar to:
+To update ALL dependencies to the latest version run `go get -u`. 
+Be warned however, that this may undo any selected versions that resolve issues in other non-module repos. 
 
-```bash
-# Add master repo for upstream code as a Git remote.
-git remote add vendor-xyzzy https://github.com/orgname/xyzzy
-# Pull the desired version of the code in, dropping history.
-# Trailing / in --prefix is needed.
-git subtree add --squash --prefix=vendor/github.com/orgname/xyzzy/ vendor-xyzzy vX.Y.Z
+While running `go build` and `go test`, go will add any ambiguous transitive dependencies to `go.mod`
+To clean these up run:
+```
+go mod tidy
 ```
 
 ### Running Codebase Checks
@@ -237,15 +228,12 @@ and tests over the codebase.
 
 #### Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
 ```bash
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-cd $GOPATH/src/github.com/golangci/golangci-lint/cmd/golangci-lint
-go install -ldflags "-X 'main.version=$(git describe --tags)' -X 'main.commit=$(git rev-parse --short HEAD)' -X 'main.date=$(date)'"
-cd -
+go install github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 
 #### Install [prototool](https://github.com/uber/prototool#installation)
 ```bash
-go get -u github.com/uber/prototool/cmd/prototool
+go install github.com/uber/prototool/cmd/prototool
 ```
 
 #### Run code generation, build, test and linters
