@@ -38,20 +38,6 @@ const (
 	selectGetSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
 		 FROM MapHead WHERE TreeId=? AND MapRevision=?`
 	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
-	selectMapLeafSQL = `
- SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
- FROM MapLeaf t1
- INNER JOIN
- (
-	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
-	FROM MapLeaf t0
-	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
-	      t0.TreeId = ? AND t0.MapRevision <= ?
-	GROUP BY t0.TreeId, t0.KeyHash
- ) t2
- ON t1.TreeId=t2.TreeId
- AND t1.KeyHash=t2.KeyHash
- AND t1.MapRevision=t2.maxrev`
 )
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
@@ -213,6 +199,21 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	if len(indexes) == 0 {
 		return []*trillian.MapLeaf{}, nil
 	}
+	selectMapLeafSQL := `
+ SELECT t1.KeyHash, t1.LeafValue
+ FROM MapLeaf t1
+ INNER JOIN
+ (
+	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
+	FROM MapLeaf t0
+	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
+	      t0.TreeId = ? AND t0.MapRevision <= ?
+	GROUP BY t0.TreeId, t0.KeyHash
+ ) t2
+ ON t1.TreeId=t2.TreeId
+ AND t1.KeyHash=t2.KeyHash
+ AND t1.MapRevision=t2.maxrev`
+
 	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
@@ -237,30 +238,31 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	defer rows.Close()
 
 	ret := make([]*trillian.MapLeaf, 0, len(indexes))
-	nr := 0
-	er := 0
 	for rows.Next() {
-		var mapKeyHash []byte
-		var mapRevision int64
-		var flatData []byte
-		err = rows.Scan(&mapKeyHash, &mapRevision, &flatData)
+		var mapKeyHash, flatData []byte
+		err = rows.Scan(&mapKeyHash, &flatData)
 		if err != nil {
 			return nil, err
 		}
-		if len(flatData) == 0 {
-			er++
-			continue
-		}
-		var mapLeaf trillian.MapLeaf
-		err = proto.Unmarshal(flatData, &mapLeaf)
+		mapLeaf, err := unmarshalMapLeaf(flatData, mapKeyHash)
 		if err != nil {
 			return nil, err
 		}
-		mapLeaf.Index = mapKeyHash
-		ret = append(ret, &mapLeaf)
-		nr++
+		ret = append(ret, mapLeaf)
 	}
 	return ret, nil
+}
+
+func unmarshalMapLeaf(marshaledLeaf, mapKeyHash []byte) (*trillian.MapLeaf, error) {
+	if len(marshaledLeaf) == 0 {
+		return nil, errors.New("len(marshaledLeaf): 0 want > 0")
+	}
+	var mapLeaf trillian.MapLeaf
+	if err := proto.Unmarshal(marshaledLeaf, &mapLeaf); err != nil {
+		return nil, err
+	}
+	mapLeaf.Index = mapKeyHash
+	return &mapLeaf, nil
 }
 
 func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error) {
