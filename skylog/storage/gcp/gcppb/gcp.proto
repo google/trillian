@@ -13,4 +13,21 @@ message BuildJob {
   uint64 begin = 2;
   // The ending of the leaves range (exclusive).
   uint64 end = 3;
+
+  // The tree sharding scheme that the build worker should use. Since builders
+  // are stateless it is more efficient to pass it in from the master rather
+  // than fetch it from storage on each job invocation.
+  TreeSharding tree_sharding = 4;
+}
+
+// TreeSharding describes the tree nodes sharding scheme.
+//
+// The specified number of lower tree levels are split into the specified number
+// of shards, where each shard stores a periodic sub-structure of perfect
+// subtrees. There is one extra shard covering the upper tree levels.
+//
+// See the tree storage comments for more details.
+message TreeSharding {
+  uint32 levels = 1;
+  uint32 shards = 2;
 }
