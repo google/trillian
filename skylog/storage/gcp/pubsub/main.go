@@ -45,7 +45,8 @@ func runSender(ctx context.Context, cli *pubsub.Client) error {
 
 	lim := rate.NewLimiter(rate.Limit(*maxRate), *maxJobSize)
 	for index, next := *beginIndex, int64(0); index < *endIndex; index = next {
-		if next = index + int64(*maxJobSize); next > *endIndex {
+		next = index + int64(*maxJobSize)
+		if next > *endIndex {
 			next = *endIndex
 		}
 		job := pb.BuildJob{TreeId: *treeID, Begin: uint64(index), End: uint64(next)}
