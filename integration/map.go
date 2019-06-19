@@ -49,6 +49,7 @@ var (
 // MapInfo describes an in-progress integration test.
 type MapInfo struct {
 	cl       trillian.TrillianMapClient
+	wcl      trillian.TrillianMapWriteClient
 	id       int64
 	tree     *trillian.Tree
 	verifier *client.MapVerifier
@@ -56,13 +57,14 @@ type MapInfo struct {
 }
 
 // New builds a MapInfo to track the progress of an integration test run.
-func New(cl trillian.TrillianMapClient, tree *trillian.Tree) (*MapInfo, error) {
+func New(cl trillian.TrillianMapClient, wcl trillian.TrillianMapWriteClient, tree *trillian.Tree) (*MapInfo, error) {
 	verifier, err := client.NewMapVerifierFromTree(tree)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create map verifier: %v", err)
 	}
 	return &MapInfo{
 		cl:       cl,
+		wcl:      wcl,
 		id:       tree.TreeId,
 		tree:     tree,
 		verifier: verifier,
@@ -101,15 +103,15 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 
 	fmt.Printf("%d: ================ Revision 1 ==================\n", mi.id)
 	// Add a single leaf (key0=>value0) for revision 1.
-	fmt.Printf("%d: Set map[key0]=%q\n", mi.id, value0)
+	fmt.Printf("%d: Write map[key0]=%q\n", mi.id, value0)
 	leaves := []*trillian.MapLeaf{{Index: key0, LeafValue: value0}}
-	setRsp, err := mi.cl.SetLeaves(ctx, &trillian.SetMapLeavesRequest{MapId: mi.id, Leaves: leaves})
+	writeRsp, err := mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{MapId: mi.id, Leaves: leaves})
 	if err != nil {
-		return fmt.Errorf("failed to set-map-leaves: %v", err)
+		return fmt.Errorf("failed to write-leaves: %v", err)
 	}
 	mi.contents = mi.contents.UpdatedWith(1, leaves)
 
-	root1, err := mi.checkMapRoot(setRsp.MapRoot)
+	root1, err := mi.checkMapRootAtRevision(ctx, writeRsp.Revision)
 	if err != nil {
 		return fmt.Errorf("checks on SMR 1 failed: %v", err)
 	}
@@ -123,15 +125,15 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 
 	fmt.Printf("%d: ================ Revision 2 ==================\n", mi.id)
 	// Remove the single leaf by setting it to have empty contents, creating revision 2.
-	fmt.Printf("%d: Set map[key0]=''\n", mi.id)
+	fmt.Printf("%d: Write map[key0]=''\n", mi.id)
 	emptyLeaves := []*trillian.MapLeaf{{Index: key0, LeafValue: []byte{}}}
-	setRsp, err = mi.cl.SetLeaves(ctx, &trillian.SetMapLeavesRequest{MapId: mi.id, Leaves: emptyLeaves, Metadata: []byte("metadata-2")})
+	writeRsp, err = mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{MapId: mi.id, Leaves: emptyLeaves, Metadata: []byte("metadata-2")})
 	if err != nil {
-		return fmt.Errorf("failed to set-map-leaves: %v", err)
+		return fmt.Errorf("failed to write-leaves: %v", err)
 	}
 	mi.contents = mi.contents.UpdatedWith(2, emptyLeaves)
 
-	root2, err := mi.checkMapRoot(setRsp.MapRoot)
+	root2, err := mi.checkMapRootAtRevision(ctx, writeRsp.Revision)
 	if err != nil {
 		return fmt.Errorf("checks on SMR 2 failed: %v", err)
 	}
@@ -156,21 +158,21 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	}
 
 	fmt.Printf("%d: ================ Revision 3 ==================\n", mi.id)
-	// Set two leaves in one go to make revision 3.
-	fmt.Printf("%d: Set map[key0]=%q\n", mi.id, value1)
-	fmt.Printf("%d: Set map[key1]=%q\n", mi.id, value2)
+	// Write two leaves in one go to make revision 3.
+	fmt.Printf("%d: Write map[key0]=%q\n", mi.id, value1)
+	fmt.Printf("%d: Write map[key1]=%q\n", mi.id, value2)
 
 	newLeaves := []*trillian.MapLeaf{
 		{Index: key0, LeafValue: value1},
 		{Index: key1, LeafValue: value2},
 	}
-	setRsp, err = mi.cl.SetLeaves(ctx, &trillian.SetMapLeavesRequest{MapId: mi.id, Leaves: newLeaves, Metadata: []byte("metadata-3")})
+	writeRsp, err = mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{MapId: mi.id, Leaves: newLeaves, Metadata: []byte("metadata-3")})
 	if err != nil {
-		return fmt.Errorf("failed to set-map-leaves: %v", err)
+		return fmt.Errorf("failed to write-leaves: %v", err)
 	}
 	mi.contents = mi.contents.UpdatedWith(3, newLeaves)
 
-	root3, err := mi.checkMapRoot(setRsp.MapRoot)
+	root3, err := mi.checkMapRootAtRevision(ctx, writeRsp.Revision)
 	if err != nil {
 		return fmt.Errorf("checks on SMR 3 failed: %v", err)
 	}
@@ -202,8 +204,8 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	}
 
 	fmt.Printf("%d: ============== Invalid Requests ================\n", mi.id)
-	if _, err := mi.cl.SetLeaves(ctx, &trillian.SetMapLeavesRequest{MapId: mi.id + 1, Leaves: newLeaves}); err == nil {
-		return errors.New("succeeded in set-map-leaves for wrong MapId")
+	if _, err := mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{MapId: mi.id + 1, Leaves: newLeaves}); err == nil {
+		return errors.New("succeeded in write-leaves for wrong MapId")
 	}
 	if _, err := mi.cl.GetLeaves(ctx, &trillian.GetMapLeavesRequest{MapId: mi.id + 1, Index: [][]byte{key0}}); err == nil {
 		return errors.New("succeeded in get-map-leaves for wrong MapId")
@@ -213,6 +215,14 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (mi *MapInfo) checkMapRootAtRevision(ctx context.Context, revision int64) (*types.MapRootV1, error) {
+	smrRsp, err := mi.cl.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{MapId: mi.id, Revision: revision})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SMR at revision %v: %v", revision, err)
+	}
+	return mi.checkMapRoot(smrRsp.MapRoot)
 }
 
 func (mi *MapInfo) checkMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
