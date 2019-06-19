@@ -71,12 +71,25 @@ func BuildSubtree(ctx context.Context, msg BuildMessage) error {
 	}
 	cJob := core.BuildJob{RangeStart: job.Begin, Hashes: hashes}
 
-	opts := cs.TreeOpts{ShardLevels: 10, LeafShards: 16}
+	opts, err := treeOpts(&job)
+	if err != nil {
+		return err
+	}
 	ts := cs.NewTreeStorage(client, job.TreeId, opts)
 	bw := core.NewBuildWorker(ts, factory)
 
 	_, err = bw.Process(ctx, cJob)
 	return err
+}
+
+func treeOpts(job *pb.BuildJob) (cs.TreeOpts, error) {
+	ts := job.GetTreeSharding()
+	if ts == nil {
+		return cs.TreeOpts{}, errors.New("missing tree sharding info")
+	} else if ts.Levels <= 0 || ts.Shards <= 0 {
+		return cs.TreeOpts{}, errors.New("invalid tree sharding info")
+	}
+	return cs.TreeOpts{ShardLevels: uint(ts.Levels), LeafShards: int64(ts.Shards)}, nil
 }
 
 // spannerClient creates a Could Spanner client, or returns the cached one.
