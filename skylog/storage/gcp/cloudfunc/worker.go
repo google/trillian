@@ -17,17 +17,18 @@ package cloudfunc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 
 	"cloud.google.com/go/spanner"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/skylog/core"
 	cs "github.com/google/trillian/skylog/storage/gcp/cloudspanner"
+	pb "github.com/google/trillian/skylog/storage/gcp/gcppb"
 )
 
 const spannerEnvVar = "SPANNER_DB"
@@ -41,31 +42,22 @@ var (
 
 // BuildMessage is the payload of a Merkle tree building Cloud Pub/Sub event.
 type BuildMessage struct {
-	// Data contains a JSON-encoded BuildJob.
-	// TODO(pavelkalinnikov): Consider protobuf instead.
+	// Data contains an encoded BuildJob proto message.
 	Data []byte `json:"data"`
 }
 
-// BuildJob describes a Merke tree building job. It instructs workers to build
-// a subtree covering leaves of the [Begin, End) range for the specified tree.
-type BuildJob struct {
-	TreeID int64  `json:"tree_id"`
-	Begin  uint64 `json:"begin"`
-	End    uint64 `json:"end"`
-}
-
-// BuildSubtree consumes builder job message.
+// BuildSubtree consumes a builder job message.
 func BuildSubtree(ctx context.Context, msg BuildMessage) error {
 	client, err := spannerClient(ctx)
 	if err != nil {
 		return fmt.Errorf("connecting to Spanner failed: %v", err)
 	}
 
-	var job BuildJob
-	if err := json.Unmarshal(msg.Data, &job); err != nil {
+	var job pb.BuildJob
+	if err := proto.Unmarshal(msg.Data, &job); err != nil {
 		return err
 	}
-	log.Printf("Accepted job: %+v", job)
+	log.Printf("Accepted job: %s", proto.CompactTextString(&job))
 	if job.End <= job.Begin {
 		return errors.New("invalid job: end <= begin")
 	}
@@ -80,7 +72,7 @@ func BuildSubtree(ctx context.Context, msg BuildMessage) error {
 	cJob := core.BuildJob{RangeStart: job.Begin, Hashes: hashes}
 
 	opts := cs.TreeOpts{ShardLevels: 10, LeafShards: 16}
-	ts := cs.NewTreeStorage(client, job.TreeID, opts)
+	ts := cs.NewTreeStorage(client, job.TreeId, opts)
 	bw := core.NewBuildWorker(ts, factory)
 
 	_, err = bw.Process(ctx, cJob)
