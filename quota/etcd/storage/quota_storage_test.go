@@ -958,14 +958,7 @@ func setupTokens(ctx context.Context, qs *QuotaStorage, cfgs *storagepb.Configs,
 }
 
 func deepCopy(c1 *storagepb.Configs) *storagepb.Configs {
-	c2 := &storagepb.Configs{
-		Configs: make([]*storagepb.Config, 0, len(c1.Configs)),
-	}
-	for _, cfg := range c1.Configs {
-		cp := *cfg
-		c2.Configs = append(c2.Configs, &cp)
-	}
-	return c2
+	return proto.Clone(c1).(*storagepb.Configs)
 }
 
 func keys(m map[string]int64) []string {
@@ -978,6 +971,7 @@ func keys(m map[string]int64) []string {
 
 func updater(cfgs *storagepb.Configs) func(*storagepb.Configs) {
 	return func(c *storagepb.Configs) {
-		*c = *cfgs
+		(*c).Reset()
+		proto.Merge(c, cfgs)
 	}
 }
