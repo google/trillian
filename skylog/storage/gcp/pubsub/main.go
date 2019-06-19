@@ -28,13 +28,15 @@ import (
 )
 
 var (
-	projectID  = flag.String("project", "skylog-test", "The GCP project ID")
-	psTopic    = flag.String("topic", "build-jobs", "The Pub/Sub topic for build jobs")
-	treeID     = flag.Int64("tree_id", 1, "The ID of the tree under construction")
-	beginIndex = flag.Int64("begin", 0, "The beginning of the tree building range")
-	endIndex   = flag.Int64("end", 0, "The ending of the tree building range")
-	maxJobSize = flag.Int("job_size", 256, "The maximal number of entries in a build job")
-	maxRate    = flag.Float64("rate", 100000, "The average rate of adding entries per second")
+	projectID   = flag.String("project", "skylog-test", "The GCP project ID")
+	psTopic     = flag.String("topic", "build-jobs", "The Pub/Sub topic for build jobs")
+	treeID      = flag.Int64("tree_id", 1, "The ID of the tree under construction")
+	beginIndex  = flag.Int64("begin", 0, "The beginning of the tree building range")
+	endIndex    = flag.Int64("end", 0, "The ending of the tree building range")
+	maxJobSize  = flag.Int("job_size", 256, "The maximal number of entries in a build job")
+	maxRate     = flag.Float64("rate", 100000, "The average rate of adding entries per second")
+	shardLevels = flag.Int("shard_levels", 10, "The number of tree levels in a shard")
+	treeShards  = flag.Int("tree_shards", 16, "The number of shards in the tree storage")
 )
 
 func runSender(ctx context.Context, cli *pubsub.Client) error {
@@ -43,13 +45,15 @@ func runSender(ctx context.Context, cli *pubsub.Client) error {
 
 	var results []*pubsub.PublishResult
 
+	sharding := pb.TreeSharding{Levels: uint32(*shardLevels), Shards: uint32(*treeShards)}
+
 	lim := rate.NewLimiter(rate.Limit(*maxRate), *maxJobSize)
 	for index, next := *beginIndex, int64(0); index < *endIndex; index = next {
 		next = index + int64(*maxJobSize)
 		if next > *endIndex {
 			next = *endIndex
 		}
-		job := pb.BuildJob{TreeId: *treeID, Begin: uint64(index), End: uint64(next)}
+		job := pb.BuildJob{TreeId: *treeID, Begin: uint64(index), End: uint64(next), TreeSharding: &sharding}
 		msg, err := proto.Marshal(&job)
 		if err != nil {
 			return err
