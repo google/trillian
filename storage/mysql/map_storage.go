@@ -199,7 +199,7 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	if len(indexes) == 0 {
 		return []*trillian.MapLeaf{}, nil
 	}
-	selectMapLeafSQL := `
+	const selectMapLeafSQL = `
  SELECT t1.KeyHash, t1.LeafValue
  FROM MapLeaf t1
  INNER JOIN
@@ -240,8 +240,7 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	ret := make([]*trillian.MapLeaf, 0, len(indexes))
 	for rows.Next() {
 		var mapKeyHash, flatData []byte
-		err = rows.Scan(&mapKeyHash, &flatData)
-		if err != nil {
+		if err = rows.Scan(&mapKeyHash, &flatData); err != nil {
 			return nil, err
 		}
 		mapLeaf, err := unmarshalMapLeaf(flatData, mapKeyHash)
