@@ -239,7 +239,7 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMap
 
 // Set sets the leaf with the specified index to value.
 // Returns an error if there's a problem with the underlying storage.
-func (tx *mapTX) Set(ctx context.Context, index []byte, value trillian.MapLeaf) error {
+func (tx *mapTX) Set(ctx context.Context, index []byte, value *trillian.MapLeaf) error {
 	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)
 	if !ok {
 		return ErrWrongTXType

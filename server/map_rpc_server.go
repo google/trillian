@@ -375,7 +375,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			}
 			l.LeafHash = hasher.HashLeaf(mapID, l.Index, l.LeafValue)
 
-			if err = tx.Set(ctx, l.Index, *l); err != nil {
+			if err = tx.Set(ctx, l.Index, l); err != nil {
 				return err
 			}
 			hkv = append(hkv, merkle.HashKeyValue{
