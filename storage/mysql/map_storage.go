@@ -179,7 +179,7 @@ func (m *mapTreeTX) WriteRevision(ctx context.Context) (int64, error) {
 	return m.treeTX.writeRevision, nil
 }
 
-func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error {
+func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value *trillian.MapLeaf) error {
 	m.treeTX.mu.Lock()
 	defer m.treeTX.mu.Unlock()
 
@@ -187,7 +187,7 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
 	//           the failed set.
-	flatValue, err := proto.Marshal(&value)
+	flatValue, err := proto.Marshal(value)
 	if err != nil {
 		return nil
 	}

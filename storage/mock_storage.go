@@ -894,7 +894,7 @@ func (mr *MockMapTreeTXMockRecorder) Rollback() *gomock.Call {
 }
 
 // Set mocks base method
-func (m *MockMapTreeTX) Set(arg0 context.Context, arg1 []byte, arg2 trillian.MapLeaf) error {
+func (m *MockMapTreeTX) Set(arg0 context.Context, arg1 []byte, arg2 *trillian.MapLeaf) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Set", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)

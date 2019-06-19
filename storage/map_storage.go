@@ -66,7 +66,7 @@ type MapTreeTX interface {
 	// StoreSignedMapRoot stores root.
 	StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error
 	// Set sets key to leaf
-	Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error
+	Set(ctx context.Context, keyHash []byte, value *trillian.MapLeaf) error
 }
 
 // ReadOnlyMapStorage provides a narrow read-only view into a MapStorage.
