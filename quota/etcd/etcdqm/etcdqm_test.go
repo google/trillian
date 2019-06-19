@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/coreos/etcd/clientv3"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
@@ -352,7 +353,10 @@ func drain(ctx context.Context, qs *storage.QuotaStorage, cfgs *storagepb.Config
 }
 
 func reset(ctx context.Context, qs *storage.QuotaStorage, cfgs *storagepb.Configs) error {
-	if _, err := qs.UpdateConfigs(ctx, true /* reset */, func(c *storagepb.Configs) { *c = *cfgs }); err != nil {
+	if _, err := qs.UpdateConfigs(ctx, true /* reset */, func(c *storagepb.Configs) {
+		(*c).Reset()
+		proto.Merge(c, cfgs)
+	}); err != nil {
 		return fmt.Errorf("UpdateConfigs() returned err = %v", err)
 	}
 	return nil
