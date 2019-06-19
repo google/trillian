@@ -68,7 +68,6 @@ main() {
   cd ..  # at top level
 
   go_srcs="$(find . -name '*.go' | \
-    grep -v vendor/ | \
     grep -v mock_ | \
     grep -v .pb.go | \
     grep -v .pb.gw.go | \
