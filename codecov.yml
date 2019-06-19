@@ -13,4 +13,3 @@ ignore:
   - "examples"
   - "integration"
   - "testonly"
-  - "vendor"
