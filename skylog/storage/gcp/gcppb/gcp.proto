@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "github.com/google/trillian/skylog/storage/gcp/gcppb";
+
+package gcppb;
+
+// BuildJob is a Merke tree building job. It instructs workers to build a
+// subtree covering leaves of the [begin, end) range for the specified tree.
+message BuildJob {
+  // The tree ID to build a subtree of.
+  int64 tree_id = 1;
+  // The beginning of the leaves range (inclusive).
+  uint64 begin = 2;
+  // The ending of the leaves range (exclusive).
+  uint64 end = 3;
+}
