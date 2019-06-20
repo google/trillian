@@ -19,7 +19,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -409,7 +408,7 @@ func TestGetLeavesByRange(t *testing.T) {
 		if test.wantErr != "" {
 			t.Errorf("GetLeavesByRange(%d, %+d)=_,nil; want nil, err containing %q", req.StartIndex, req.Count, test.wantErr)
 		}
-		if got := rsp.Leaves; !reflect.DeepEqual(got, test.want) {
+		if got := rsp.Leaves; !leavesEqual(got, test.want) {
 			t.Errorf("GetLeavesByRange(%d, %+d)=%+v; want %+v", req.StartIndex, req.Count, got, test.want)
 		}
 	}
@@ -2313,4 +2312,18 @@ func newSignerWithFixedSig(sig []byte) crypto.Signer {
 		panic(err)
 	}
 	return testonly.NewSignerWithFixedSig(key, sig)
+}
+
+// leavesEqual compares slices of LogLeaf proto without using reflection.
+func leavesEqual(l1, l2 []*trillian.LogLeaf) bool {
+	if len(l1) != len(l2) {
+		return false
+	}
+	for i := 0; i < len(l1); i++ {
+		if !proto.Equal(l1[i], l2[i]) {
+			return false
+		}
+	}
+
+	return true
 }
