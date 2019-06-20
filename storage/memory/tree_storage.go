@@ -220,7 +220,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		if s.Prefix == nil {
 			panic(fmt.Errorf("nil prefix on %v", s))
 		}
-		k := subtreeKey(t.treeID, t.writeRevision, storage.NewNodeIDFromHash(s.Prefix))
+		k := subtreeKey(t.treeID, t.writeRevision, *storage.NewNodeIDFromHash(s.Prefix))
 		k.(*kv).v = s
 		t.tx.ReplaceOrInsert(k)
 	}
