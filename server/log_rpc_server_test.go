@@ -19,13 +19,13 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
@@ -409,7 +409,8 @@ func TestGetLeavesByRange(t *testing.T) {
 		if test.wantErr != "" {
 			t.Errorf("GetLeavesByRange(%d, %+d)=_,nil; want nil, err containing %q", req.StartIndex, req.Count, test.wantErr)
 		}
-		if got := rsp.Leaves; !reflect.DeepEqual(got, test.want) {
+
+		if got := rsp.Leaves; !cmp.Equal(got, test.want, cmp.Comparer(proto.Equal)) {
 			t.Errorf("GetLeavesByRange(%d, %+d)=%+v; want %+v", req.StartIndex, req.Count, got, test.want)
 		}
 	}
