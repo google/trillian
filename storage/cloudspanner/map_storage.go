@@ -144,7 +144,7 @@ type mapTX struct {
 }
 
 // sthToSMR converts a spannerpb.TreeHead to a trillian.SignedMapRoot.
-func sthToSMR(sth *spannerpb.TreeHead) (trillian.SignedMapRoot, error) {
+func sthToSMR(sth *spannerpb.TreeHead) (*trillian.SignedMapRoot, error) {
 	mapRoot, err := (&types.MapRootV1{
 		RootHash:       sth.RootHash,
 		TimestampNanos: uint64(sth.TsNanos),
@@ -152,10 +152,10 @@ func sthToSMR(sth *spannerpb.TreeHead) (trillian.SignedMapRoot, error) {
 		Metadata:       sth.Metadata,
 	}).MarshalBinary()
 	if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 
-	return trillian.SignedMapRoot{
+	return &trillian.SignedMapRoot{
 		MapRoot:   mapRoot,
 		Signature: sth.Signature,
 	}, nil
@@ -163,19 +163,19 @@ func sthToSMR(sth *spannerpb.TreeHead) (trillian.SignedMapRoot, error) {
 
 // LatestSignedMapRoot returns the freshest SignedMapRoot for this map at the
 // time the transaction was started.
-func (tx *mapTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error) {
+func (tx *mapTX) LatestSignedMapRoot(ctx context.Context) (*trillian.SignedMapRoot, error) {
 	currentSTH, err := tx.currentSTH(ctx)
 	if err != nil {
 		glog.Errorf("failed to determine current STH: %v", err)
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	writeRev, err := tx.writeRev(ctx)
 	if err != nil {
 		glog.Errorf("failed to determine write revision: %v", err)
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	if got, want := currentSTH.TreeRevision+1, writeRev; got != want {
-		return trillian.SignedMapRoot{}, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
+		return nil, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
 	}
 
 	// We already read the latest root as part of starting the transaction (in
@@ -339,7 +339,7 @@ func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*
 
 // GetSignedMapRoot returns the SignedMapRoot for revision.
 // An error will be returned if there is a problem with the underlying storage.
-func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error) {
+func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (*trillian.SignedMapRoot, error) {
 	query := spanner.NewStatement(
 		`SELECT t.TreeID, t.TimestampNanos, t.TreeSize, t.RootHash, t.RootSignature, t.TreeRevision, t.TreeMetadata FROM TreeHeads t
 				WHERE t.TreeID = @tree_id
@@ -360,13 +360,13 @@ func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian
 		return nil
 	})
 	if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	if th == nil {
 		if revision == 0 {
-			return trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit
+			return nil, storage.ErrTreeNeedsInit
 		}
-		return trillian.SignedMapRoot{}, status.Errorf(codes.NotFound, "map root %v not found", revision)
+		return nil, status.Errorf(codes.NotFound, "map root %v not found", revision)
 	}
 	return sthToSMR(th)
 }

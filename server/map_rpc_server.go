@@ -221,13 +221,13 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch the latest SignedMapRoot: %v", err)
 		}
-		root = &r
+		root = r
 	} else {
 		r, err := tx.GetSignedMapRoot(ctx, revision)
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch SignedMapRoot %v: %v", revision, err)
 		}
-		root = &r
+		root = r
 	}
 
 	var mapRoot types.MapRootV1
@@ -549,9 +549,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 		return nil, err
 	}
 
-	return &trillian.GetSignedMapRootResponse{
-		MapRoot: &r,
-	}, nil
+	return &trillian.GetSignedMapRootResponse{MapRoot: r}, nil
 }
 
 // GetSignedMapRootByRevision implements the GetSignedMapRootByRevision RPC
@@ -582,9 +580,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 		return nil, err
 	}
 
-	return &trillian.GetSignedMapRootResponse{
-		MapRoot: &r,
-	}, nil
+	return &trillian.GetSignedMapRootResponse{MapRoot: r}, nil
 }
 
 func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, hashers.MapHasher, error) {

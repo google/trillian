@@ -493,7 +493,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to get back new map root: %v", err)
 			}
-			if !proto.Equal(root, &root2) {
+			if !proto.Equal(root, root2) {
 				t.Fatalf("Getting root round trip failed: <%#v> and: <%#v>", root, root2)
 			}
 			return nil
@@ -527,7 +527,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read back new map root: %v", err)
 			}
-			if !proto.Equal(root, &root2) {
+			if !proto.Equal(root, root2) {
 				t.Fatalf("Root round trip failed: <%#v> and: <%#v>", root, root2)
 			}
 			return nil

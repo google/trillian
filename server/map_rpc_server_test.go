@@ -24,10 +24,11 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
-	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 const mapID1 = int64(1)
@@ -84,10 +85,10 @@ func TestInitMap(t *testing.T) {
 			mockTX := storage.NewMockMapTreeTX(ctrl)
 			fakeStorage := &stestonly.FakeMapStorage{TX: mockTX}
 			if tc.getRootErr != nil {
-				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, tc.getRootErr)
+				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(nil, tc.getRootErr)
 			} else {
 				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(
-					trillian.SignedMapRoot{MapRoot: tc.root}, nil)
+					&trillian.SignedMapRoot{MapRoot: tc.root}, nil)
 			}
 
 			mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -142,7 +143,7 @@ func TestGetSignedMapRoot_NotInitialised(t *testing.T) {
 		AdminStorage: fakeAdmin,
 	}, TrillianMapServerOptions{})
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
-	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
+	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(nil, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
 	smrResp, err := server.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: 12345})
@@ -163,18 +164,18 @@ func TestGetSignedMapRoot(t *testing.T) {
 	tests := []struct {
 		desc               string
 		req                *trillian.GetSignedMapRootRequest
-		mapRoot            trillian.SignedMapRoot
+		mapRoot            *trillian.SignedMapRoot
 		snapShErr, lsmrErr error
 	}{
 		{
 			desc:    "Map is empty, head at revision 0",
 			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: trillian.SignedMapRoot{Signature: []byte("notempty")},
+			mapRoot: &trillian.SignedMapRoot{Signature: []byte("notempty")},
 		},
 		{
 			desc:    "Map has leaves, head > revision 0",
 			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: trillian.SignedMapRoot{Signature: []byte("notempty2")},
+			mapRoot: &trillian.SignedMapRoot{Signature: []byte("notempty2")},
 		},
 		{
 			desc:    "LatestSignedMapRoot returns error",
@@ -219,7 +220,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
+			want := &trillian.GetSignedMapRootResponse{MapRoot: test.mapRoot}
 			if got := smrResp; !proto.Equal(got, want) {
 				diff := pretty.Compare(got, want)
 				t.Errorf("GetSignedMapRoot() got != want, diff:\n%v", diff)
@@ -241,7 +242,7 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 		AdminStorage: adminStorage,
 	}, TrillianMapServerOptions{})
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
-	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
+	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(nil, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
 	smrResp, err := server.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
@@ -263,7 +264,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	tests := []struct {
 		desc               string
 		req                *trillian.GetSignedMapRootByRevisionRequest
-		mapRoot            trillian.SignedMapRoot
+		mapRoot            *trillian.SignedMapRoot
 		snapShErr, lsmrErr error
 		wantErr            bool
 	}{
@@ -287,7 +288,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 		{
 			desc: "Request revision >0 for non-empty map",
 			req:  &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
-			mapRoot: trillian.SignedMapRoot{
+			mapRoot: &trillian.SignedMapRoot{
 				Signature: []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
 			},
 		},
@@ -327,7 +328,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
+			want := &trillian.GetSignedMapRootResponse{MapRoot: test.mapRoot}
 			if got := smrResp; !proto.Equal(got, want) {
 				diff := pretty.Compare(got, want)
 				t.Errorf("GetSignedMapRootByRevision() got != want, diff:\n%v", diff)
