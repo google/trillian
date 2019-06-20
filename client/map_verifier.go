@@ -15,38 +15,41 @@
 package client
 
 import (
-	"crypto"
 	"errors"
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/maps"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/trees"
-	"github.com/google/trillian/types"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 // MapVerifier allows verification of output from Trillian Maps; it is safe
 // for concurrent use (as its contents are fixed after construction).
 type MapVerifier struct {
+	*maps.RootVerifier
 	MapID int64
+	// RootVerifier verifies and unpacks the SMR.
 	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
 	Hasher hashers.MapHasher
-	// PubKey verifies the signature on the digest of MapRoot.
-	PubKey crypto.PublicKey
-	// SigHash computes the digest of MapRoot for signing.
-	SigHash crypto.Hash
 }
 
 // NewMapVerifierFromTree creates a new MapVerifier using the information
 // from a Trillian Tree object.
 func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
+	rootVerifier, err := maps.NewRootVerifierFromTree(config)
+	if err != nil {
+		return nil, err
+	}
+	return NewMapVerifier(config, rootVerifier)
+}
+
+// NewMapVerifierFromTree creates a new MapVerifier using the information
+// from a Trillian Tree object.
+func NewMapVerifier(config *trillian.Tree, rootVerifier *maps.RootVerifier) (*MapVerifier, error) {
 	if config == nil {
 		return nil, errors.New("client: NewMapVerifierFromTree(): nil config")
 	}
@@ -59,21 +62,10 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 		return nil, fmt.Errorf("failed creating MapHasher: %v", err)
 	}
 
-	mapPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
-	if err != nil {
-		return nil, fmt.Errorf("failed parsing Map public key: %v", err)
-	}
-
-	sigHash, err := trees.Hash(config)
-	if err != nil {
-		return nil, fmt.Errorf("client: NewMapVerifierFromTree(): Failed parsing Map signature hash: %v", err)
-	}
-
 	return &MapVerifier{
-		MapID:   config.TreeId,
-		Hasher:  mapHasher,
-		PubKey:  mapPubKey,
-		SigHash: sigHash,
+		RootVerifier: rootVerifier,
+		MapID:        config.TreeId,
+		Hasher:       mapHasher,
 	}, nil
 }
 
@@ -89,11 +81,6 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 // VerifyMapLeafInclusionHash verifies a MapLeafInclusion object against a root hash.
 func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *trillian.MapLeafInclusion) error {
 	return merkle.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
-}
-
-// VerifySignedMapRoot verifies the signature on a SignedMapRoot.
-func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
-	return tcrypto.VerifySignedMapRoot(m.PubKey, m.SigHash, smr)
 }
 
 // VerifyMapLeavesResponse verifies the responses of GetMapLeaves and GetMapLeavesByRevision.
