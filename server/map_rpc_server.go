@@ -478,7 +478,7 @@ func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.Ha
 		go func(k []byte) {
 			defer wg.Done()
 			nid := storage.NewNodeIDFromHash(k)
-			sibs := (&nid).Siblings()
+			sibs := nid.Siblings()
 			for _, sib := range sibs {
 				sibID := sib.AsKey()
 				sib := sib

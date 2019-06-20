@@ -63,7 +63,7 @@ func TestSplitNodeID(t *testing.T) {
 		{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
 		{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
 	} {
-		n := storage.NewNodeIDFromHash(tc.inPath)
+		n := *storage.NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
 		sInfo := c.stratumInfoForNodeID(n)
@@ -89,7 +89,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
-	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
+	nodeID := *storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := 0
@@ -119,9 +119,9 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
 	nodeIDs := []storage.NodeID{
-		storage.NewNodeIDFromHash([]byte("1234")),
-		storage.NewNodeIDFromHash([]byte("4567")),
-		storage.NewNodeIDFromHash([]byte("89ab")),
+		*storage.NewNodeIDFromHash([]byte("1234")),
+		*storage.NewNodeIDFromHash([]byte("4567")),
+		*storage.NewNodeIDFromHash([]byte("89ab")),
 	}
 
 	// Set up the expected reads:
@@ -172,14 +172,14 @@ func TestCacheFlush(t *testing.T) {
 	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
 	h := "0123456789abcdef0123456789abcdef"
-	nodeID := storage.NewNodeIDFromHash([]byte(h))
+	nodeID := *storage.NewNodeIDFromHash([]byte(h))
 	expectedSetIDs := make(map[string]string)
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := -1
 	for b := 0; b < nodeID.PrefixLenBits; b += defaultMapStrata[si] {
 		si++
-		e := storage.NewNodeIDFromHash([]byte(h))
+		e := *storage.NewNodeIDFromHash([]byte(h))
 		//e := nodeID
 		e.PrefixLenBits = b
 		expectedSetIDs[e.String()] = "expected"
@@ -377,7 +377,7 @@ func TestIdempotentWrites(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 
 	h := "0123456789abcdef0123456789abcdef"
-	nodeID := storage.NewNodeIDFromHash([]byte(h))
+	nodeID := *storage.NewNodeIDFromHash([]byte(h))
 	nodeID.PrefixLenBits = 40
 	subtreeID := nodeID
 	subtreeID.PrefixLenBits = 32
@@ -393,7 +393,7 @@ func TestIdempotentWrites(t *testing.T) {
 	// We should only see a single write attempt
 	m.EXPECT().SetSubtrees(gomock.Any()).Times(1).Do(func(trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
-			subID := storage.NewNodeIDFromHash(s.Prefix)
+			subID := *storage.NewNodeIDFromHash(s.Prefix)
 			state, ok := expectedSetIDs[subID.String()]
 			if !ok {
 				t.Errorf("Unexpected write to subtree %s", subID.String())

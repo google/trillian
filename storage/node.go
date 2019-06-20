@@ -108,8 +108,8 @@ func bytesForBits(numBits int) int {
 }
 
 // NewNodeIDFromHash creates a new NodeID for the given Hash.
-func NewNodeIDFromHash(h []byte) NodeID {
-	return NodeID{
+func NewNodeIDFromHash(h []byte) *NodeID {
+	return &NodeID{
 		Path:          h,
 		PrefixLenBits: len(h) * 8,
 	}
@@ -117,11 +117,11 @@ func NewNodeIDFromHash(h []byte) NodeID {
 
 // NewEmptyNodeID creates a new zero-length NodeID with sufficient underlying
 // capacity to store a maximum of maxLenBits.
-func NewEmptyNodeID(maxLenBits int) NodeID {
+func NewEmptyNodeID(maxLenBits int) *NodeID {
 	if got, want := maxLenBits%8, 0; got != want {
 		panic(fmt.Sprintf("storage: NewEmptyNodeID() maxLenBits mod 8: %v, want %v", got, want))
 	}
-	return NodeID{
+	return &NodeID{
 		Path:          make([]byte, maxLenBits/8),
 		PrefixLenBits: 0,
 	}
@@ -241,7 +241,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 	// In the storage model nodes closer to the leaves have longer nodeIDs, so
 	// we "reverse" depth here:
 	r.PrefixLenBits = int(maxPathBits - int(depth))
-	return r, nil
+	return *r, nil
 }
 
 // Bit returns 1 if the zero indexed ith bit from the right (of the whole path
