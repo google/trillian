@@ -24,6 +24,8 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -230,6 +232,31 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 		ret = append(ret, mapLeaf)
 	}
 	return ret, nil
+}
+
+func (m *mapTreeTX) GetLastInRange(ctx context.Context, rev int64, node *storage.NodeID) (*trillian.MapLeaf, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
+	min := node.SetLowerBits(node.PrefixLenBits, 0x00)
+	max := node.SetLowerBits(node.PrefixLenBits, 0xFF)
+
+	var keyHash, leafValue []byte
+	if err := m.ms.db.QueryRowContext(ctx,
+		`SELECT t1.KeyHash, t1.LeafValue
+		FROM MapLeaf as t1
+		WHERE t1.TreeId   = ? AND
+		      t1.KeyHash >= ? AND
+		      t1.KeyHash <= ?
+		ORDER BY t1.KeyHash DESC, t1.MapRevision DESC
+		LIMIT 1`,
+		m.treeID, min.Path, max.Path).
+		Scan(&keyHash, &leafValue); err == sql.ErrNoRows {
+		return nil, status.Errorf(codes.NotFound, "No MapLeaf in range [%x, %x]", min.Path, max.Path)
+	} else if err != nil {
+		return nil, err
+	}
+	return unmarshalMapLeaf(leafValue, keyHash)
 }
 
 func unmarshalMapLeaf(marshaledLeaf, mapKeyHash []byte) (*trillian.MapLeaf, error) {

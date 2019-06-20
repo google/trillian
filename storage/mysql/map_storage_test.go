@@ -28,8 +28,11 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
@@ -177,6 +180,92 @@ func TestMapReadWriteTransaction(t *testing.T) {
 				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
 			} else if hasErr {
 				return
+			}
+		})
+	}
+}
+
+func TestGetLastInRange(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+	ctx := context.Background()
+
+	nodeA := storage.NewNodeIDFromHash([]byte("index1111\x00"))
+	nodeB := storage.NewNodeIDFromHash([]byte("index1111\x01"))
+	nodeQuery := nodeA.MaskLeft(len("index1111") * 8)
+	//nodeC := storage.NewNodeIDFromHash([]byte("index1111\x0F"))
+
+	for _, tc := range []struct {
+		desc     string
+		node     *storage.NodeID
+		write    [][]*trillian.MapLeaf
+		want     *trillian.MapLeaf
+		wantCode codes.Code
+	}{
+		//{desc: "0leaf", node: nodeQuery, wantCode: codes.NotFound},
+		{desc: "1leaf", node: nodeQuery, want: &trillian.MapLeaf{Index: nodeA.Path, LeafValue: []byte("A")},
+			write: [][]*trillian.MapLeaf{{
+				&trillian.MapLeaf{Index: nodeA.Path, LeafValue: []byte("A")},
+			}},
+		},
+		{desc: "2leaves", node: nodeQuery, want: &trillian.MapLeaf{Index: nodeB.Path, LeafValue: []byte("B")},
+			write: [][]*trillian.MapLeaf{{
+				&trillian.MapLeaf{Index: nodeA.Path, LeafValue: []byte("A")},
+				&trillian.MapLeaf{Index: nodeB.Path, LeafValue: []byte("B")},
+			}},
+		},
+		{desc: "multirev", node: nodeQuery, want: &trillian.MapLeaf{Index: nodeB.Path, LeafValue: []byte("B2")},
+			write: [][]*trillian.MapLeaf{
+				{
+					&trillian.MapLeaf{Index: nodeA.Path, LeafValue: []byte("A1")},
+					&trillian.MapLeaf{Index: nodeB.Path, LeafValue: []byte("B1")},
+				},
+				{
+					&trillian.MapLeaf{Index: nodeA.Path, LeafValue: []byte("A2")},
+					&trillian.MapLeaf{Index: nodeB.Path, LeafValue: []byte("B2")},
+				},
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			cleanTestDB(DB)
+			tree := createInitializedMapForTests(ctx, t, DB)
+			s := NewMapStorage(DB)
+			for rev, leaves := range tc.write {
+				if err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
+					for _, leaf := range leaves {
+						if err := tx.Set(ctx, leaf.Index, leaf); err != nil {
+							t.Fatalf("Set(%s): %v", leaf.LeafValue, err)
+						}
+					}
+					smr := &types.MapRootV1{TimestampNanos: uint64(rev + 1), Revision: uint64(rev + 1)}
+					signer, err := trees.Signer(ctx, tree)
+					if err != nil {
+						t.Fatalf("trees.Signer(): %v", err)
+					}
+					root, err := signer.SignMapRoot(smr)
+					if err != nil {
+						t.Fatalf("SignMapRoot(): %v", err)
+					}
+					if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
+						t.Fatalf("StoreSignedMapRoot(%v): %v", smr, err)
+					}
+					return nil
+				}); err != nil {
+					t.Fatalf("ReadWriteTransaction(rev: %v): %v", rev, err)
+				}
+			}
+			rev := int64(len(tc.write)) + 1
+			if err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
+				leaf, err := tx.GetLastInRange(ctx, rev+1, tc.node)
+				if got := status.Code(err); got != tc.wantCode {
+					t.Fatalf("GetLastInRange(): %v, want %v", err, tc.wantCode)
+				}
+				if !proto.Equal(leaf, tc.want) {
+					t.Errorf("GetLastInRange(): %v, want %v", leaf, tc.want)
+				}
+				return nil
+			}); err != nil {
+				t.Errorf("ReadWriteTransaction(): %v", err)
 			}
 		})
 	}
