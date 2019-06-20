@@ -45,7 +45,7 @@ func runSender(ctx context.Context, cli *pubsub.Client) error {
 
 	var results []*pubsub.PublishResult
 
-	sharding := pb.TreeSharding{Levels: uint32(*shardLevels), Shards: uint32(*treeShards)}
+	sharding := &pb.TreeSharding{Levels: uint32(*shardLevels), Shards: uint32(*treeShards)}
 
 	lim := rate.NewLimiter(rate.Limit(*maxRate), *maxJobSize)
 	for index, next := *beginIndex, int64(0); index < *endIndex; index = next {
@@ -53,7 +53,7 @@ func runSender(ctx context.Context, cli *pubsub.Client) error {
 		if next > *endIndex {
 			next = *endIndex
 		}
-		job := pb.BuildJob{TreeId: *treeID, Begin: uint64(index), End: uint64(next), TreeSharding: &sharding}
+		job := pb.BuildJob{TreeId: *treeID, Begin: uint64(index), End: uint64(next), TreeSharding: sharding}
 		msg, err := proto.Marshal(&job)
 		if err != nil {
 			return err
