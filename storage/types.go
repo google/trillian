@@ -165,33 +165,6 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 	}
 }
 
-// newNodeIDFromBigIntOld returns a NodeID of a big.Int with no prefix.
-// index contains the path's least significant bits.
-// depth indicates the number of bits from the most significant bit to treat as part of the path.
-func newNodeIDFromBigIntOld(depth int, index *big.Int, totalDepth int) NodeID {
-	if got, want := totalDepth%8, 0; got != want || got < want {
-		panic(fmt.Sprintf("storage NewNodeFromBitIntOld(): totalDepth mod 8: %v, want %v", got, want))
-	}
-
-	// TODO(al): We _could_ use Bits() and avoid the extra copy/alloc.
-	b := index.Bytes()
-	// Put index in the LSB bits of path.
-	path := make([]byte, totalDepth/8)
-	unusedHighBytes := len(path) - len(b)
-	copy(path[unusedHighBytes:], b)
-
-	// TODO(gdbelvin): consider masking off insignificant bits past depth.
-	if glog.V(5) {
-		glog.Infof("NewNodeIDFromBigIntOld(%v, %x, %v): %v, %x",
-			depth, b, totalDepth, depth, path)
-	}
-
-	return NodeID{
-		Path:          path,
-		PrefixLenBits: depth,
-	}
-}
-
 // NewNodeIDFromBigInt creates a new node for a given depth and index, where
 // the index can exceed a 64-bit range. The total tree depth must be provided.
 // This occurs in the sparse Merkle tree implementation for maps as the lower

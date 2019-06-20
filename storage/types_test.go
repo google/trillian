@@ -891,10 +891,6 @@ func runBenchmarkNewNodeIDFromBigInt(b *testing.B, f func(int, *big.Int, int) No
 	}
 }
 
-func BenchmarkNewNodeIDFromBigIntOld(b *testing.B) {
-	runBenchmarkNewNodeIDFromBigInt(b, newNodeIDFromBigIntOld)
-}
-
 func BenchmarkNewNodeIDFromBigIntNew(b *testing.B) {
 	runBenchmarkNewNodeIDFromBigInt(b, NewNodeIDFromBigInt)
 }
