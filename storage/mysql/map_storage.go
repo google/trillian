@@ -334,7 +334,7 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 	}, nil
 }
 
-func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
+func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMapRoot) error {
 	m.treeTX.mu.Lock()
 	defer m.treeTX.mu.Unlock()
 

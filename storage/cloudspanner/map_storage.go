@@ -186,7 +186,7 @@ func (tx *mapTX) LatestSignedMapRoot(ctx context.Context) (*trillian.SignedMapRo
 // StoreSignedMapRoot stores the provided root.
 // This method will return an error if the caller attempts to store more than
 // one root per map for a given map revision.
-func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
+func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMapRoot) error {
 	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)
 	if !ok {
 		return ErrWrongTXType

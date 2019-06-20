@@ -922,7 +922,7 @@ func (mr *MockMapTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gom
 }
 
 // StoreSignedMapRoot mocks base method
-func (m *MockMapTreeTX) StoreSignedMapRoot(arg0 context.Context, arg1 trillian.SignedMapRoot) error {
+func (m *MockMapTreeTX) StoreSignedMapRoot(arg0 context.Context, arg1 *trillian.SignedMapRoot) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSignedMapRoot", arg0, arg1)
 	ret0, _ := ret[0].(error)

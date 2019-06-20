@@ -236,7 +236,7 @@ func TestMapRootUpdate(t *testing.T) {
 	} {
 		func() {
 			runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-				if err := tx.StoreSignedMapRoot(ctx, *tc.root); err != nil {
+				if err := tx.StoreSignedMapRoot(ctx, tc.root); err != nil {
 					t.Fatalf("%v: Failed to store signed map root: %v", tc.desc, err)
 				}
 				return nil
@@ -481,7 +481,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 	})
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-		if err := tx.StoreSignedMapRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -515,7 +515,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 	})
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-		if err := tx.StoreSignedMapRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -549,11 +549,11 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 			Revision:       5,
 			RootHash:       []byte(dummyHash),
 		})
-		if err := tx.StoreSignedMapRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed map root: %v", err)
 		}
 		// Shouldn't be able to do it again
-		if err := tx.StoreSignedMapRoot(ctx, *root); err == nil {
+		if err := tx.StoreSignedMapRoot(ctx, root); err == nil {
 			t.Fatal("Allowed duplicate signed map root")
 		}
 		return nil
@@ -596,7 +596,7 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 			Revision: 0,
 		})
 
-		if err := tx.StoreSignedMapRoot(ctx, *initialRoot); err != nil {
+		if err := tx.StoreSignedMapRoot(ctx, initialRoot); err != nil {
 			t.Fatalf("Failed to StoreSignedMapRoot: %v", err)
 		}
 		return nil
