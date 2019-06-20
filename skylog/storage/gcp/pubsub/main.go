@@ -37,6 +37,8 @@ var (
 	maxRate     = flag.Float64("rate", 100000, "The average rate of adding entries per second")
 	shardLevels = flag.Int("shard_levels", 10, "The number of tree levels in a shard")
 	treeShards  = flag.Int("tree_shards", 16, "The number of shards in the tree storage")
+	seqShards   = flag.Int("seq_shards", 16, "The number of shards in the sequence storage")
+	shardSize   = flag.Int("seq_shard_size", 512, "The stripe size of a periodic sequence shard")
 )
 
 func runSender(ctx context.Context, cli *pubsub.Client) error {
@@ -45,7 +47,8 @@ func runSender(ctx context.Context, cli *pubsub.Client) error {
 
 	var results []*pubsub.PublishResult
 
-	sharding := &pb.TreeSharding{Levels: uint32(*shardLevels), Shards: uint32(*treeShards)}
+	ts := &pb.TreeSharding{Levels: uint32(*shardLevels), Shards: uint32(*treeShards)}
+	ss := &pb.SequenceSharding{Shards: uint32(*seqShards), Size: uint64(*shardSize)}
 
 	lim := rate.NewLimiter(rate.Limit(*maxRate), *maxJobSize)
 	for index, next := *beginIndex, int64(0); index < *endIndex; index = next {
@@ -53,7 +56,13 @@ func runSender(ctx context.Context, cli *pubsub.Client) error {
 		if next > *endIndex {
 			next = *endIndex
 		}
-		job := pb.BuildJob{TreeId: *treeID, Begin: uint64(index), End: uint64(next), TreeSharding: sharding}
+		job := pb.BuildJob{
+			TreeId:       *treeID,
+			Begin:        uint64(index),
+			End:          uint64(next),
+			TreeSharding: ts,
+			SeqSharding:  ss,
+		}
 		msg, err := proto.Marshal(&job)
 		if err != nil {
 			return err
