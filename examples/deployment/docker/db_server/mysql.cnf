@@ -1,3 +1,4 @@
 [mysqld]
-
+open_files_limit = 8192
+max_connections = 1000
 # Add your MySQL configuration here.

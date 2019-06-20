@@ -17,6 +17,7 @@ package maptest
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"testing"
 
@@ -56,9 +57,13 @@ var AllTests = TestTable{
 	{"Inclusion", RunInclusion},
 	{"InclusionBatch", RunInclusionBatch},
 	{"RunGetLeafByRevisionNoProof", RunGetLeafByRevisionNoProof},
+	{"WriteStress", RunWriteStress},
 }
 
 var (
+	stressBatches   = flag.Int("stress_num_batches", 1, "Number of batches to write in WriteStress test")
+	stressBatchSize = flag.Int("stress_batch_size", 512, "Number of leaves per batch in WriteStress test")
+
 	h2b    = testonly.MustHexDecode
 	index0 = h2b("0000000000000000000000000000000000000000000000000000000000000000")
 	index1 = h2b("0000000000000000000000000000000000000000000000000000000000000001")
@@ -652,6 +657,21 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 			t.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
 		}
 	}
+}
+
+// RunWriteStress performs stress checks on Trillian Map's SetLeaves call.
+func RunWriteStress(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
+	runWriteStressTest(ctx, t, tadmin, tmap, *stressBatchSize, *stressBatches)
+}
+
+// runWriteStressTest is a helper for RunWriteStress, and TestMapWriteStress.
+func runWriteStressTest(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, batchSize int, numBatches int) {
+	tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_TEST_MAP_HASHER)
+	if err != nil {
+		t.Fatalf("%v: newTreeWithHasher(): %v", trillian.HashStrategy_TEST_MAP_HASHER, err)
+	}
+
+	_ = writeBatch(ctx, t, tmap, tree, batchSize, numBatches)
 }
 
 // runMapBatchTest is a helper for RunInclusionBatch.
