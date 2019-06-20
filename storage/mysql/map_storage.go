@@ -240,7 +240,7 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	ret := make([]*trillian.MapLeaf, 0, len(indexes))
 	for rows.Next() {
 		var mapKeyHash, flatData []byte
-		if err = rows.Scan(&mapKeyHash, &flatData); err != nil {
+		if err := rows.Scan(&mapKeyHash, &flatData); err != nil {
 			return nil, err
 		}
 		mapLeaf, err := unmarshalMapLeaf(flatData, mapKeyHash)
