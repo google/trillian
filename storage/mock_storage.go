@@ -821,10 +821,10 @@ func (mr *MockMapTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}
 }
 
 // GetSignedMapRoot mocks base method
-func (m *MockMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (trillian.SignedMapRoot, error) {
+func (m *MockMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSignedMapRoot", arg0, arg1)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -850,10 +850,10 @@ func (mr *MockMapTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedMapRoot mocks base method
-func (m *MockMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (trillian.SignedMapRoot, error) {
+func (m *MockMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedMapRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -922,7 +922,7 @@ func (mr *MockMapTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gom
 }
 
 // StoreSignedMapRoot mocks base method
-func (m *MockMapTreeTX) StoreSignedMapRoot(arg0 context.Context, arg1 trillian.SignedMapRoot) error {
+func (m *MockMapTreeTX) StoreSignedMapRoot(arg0 context.Context, arg1 *trillian.SignedMapRoot) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSignedMapRoot", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -1420,10 +1420,10 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 int
 }
 
 // GetSignedMapRoot mocks base method
-func (m *MockReadOnlyMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (trillian.SignedMapRoot, error) {
+func (m *MockReadOnlyMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSignedMapRoot", arg0, arg1)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1449,10 +1449,10 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedMapRoot mocks base method
-func (m *MockReadOnlyMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (trillian.SignedMapRoot, error) {
+func (m *MockReadOnlyMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedMapRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

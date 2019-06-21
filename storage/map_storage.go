@@ -41,9 +41,9 @@ type ReadOnlyMapTreeTX interface {
 
 	// GetSignedMapRoot returns the SignedMapRoot associated with the
 	// specified revision.
-	GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error)
+	GetSignedMapRoot(ctx context.Context, revision int64) (*trillian.SignedMapRoot, error)
 	// LatestSignedMapRoot returns the most recently created SignedMapRoot.
-	LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error)
+	LatestSignedMapRoot(ctx context.Context) (*trillian.SignedMapRoot, error)
 
 	// Get retrieves the values associated with the keyHashes, if any, at the
 	// specified revision.
@@ -64,7 +64,7 @@ type MapTreeTX interface {
 	TreeWriter
 
 	// StoreSignedMapRoot stores root.
-	StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error
+	StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMapRoot) error
 	// Set sets key to leaf
 	Set(ctx context.Context, keyHash []byte, value *trillian.MapLeaf) error
 }

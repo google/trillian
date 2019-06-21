@@ -221,13 +221,13 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch the latest SignedMapRoot: %v", err)
 		}
-		root = &r
+		root = r
 	} else {
 		r, err := tx.GetSignedMapRoot(ctx, revision)
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch SignedMapRoot %v: %v", revision, err)
 		}
-		root = &r
+		root = r
 	}
 
 	var mapRoot types.MapRootV1
@@ -408,7 +408,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 
 		// TODO(al): need an smtWriter.Rollback() or similar I think.
-		return tx.StoreSignedMapRoot(ctx, *newRoot)
+		return tx.StoreSignedMapRoot(ctx, newRoot)
 	})
 	if err != nil {
 		return nil, err
@@ -549,9 +549,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 		return nil, err
 	}
 
-	return &trillian.GetSignedMapRootResponse{
-		MapRoot: &r,
-	}, nil
+	return &trillian.GetSignedMapRootResponse{MapRoot: r}, nil
 }
 
 // GetSignedMapRootByRevision implements the GetSignedMapRootByRevision RPC
@@ -582,9 +580,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 		return nil, err
 	}
 
-	return &trillian.GetSignedMapRootResponse{
-		MapRoot: &r,
-	}, nil
+	return &trillian.GetSignedMapRootResponse{MapRoot: r}, nil
 }
 
 func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, hashers.MapHasher, error) {
@@ -639,7 +635,7 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 			return fmt.Errorf("makeSignedMapRoot(): %v", err)
 		}
 
-		return tx.StoreSignedMapRoot(ctx, *rev0Root)
+		return tx.StoreSignedMapRoot(ctx, rev0Root)
 	})
 	if err != nil {
 		return nil, err
