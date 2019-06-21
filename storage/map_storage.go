@@ -52,6 +52,12 @@ type ReadOnlyMapTreeTX interface {
 	// exist.  i.e. requesting a set of unknown keys would result in a
 	// zero-length array being returned.
 	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]*trillian.MapLeaf, error)
+
+	// GetLastInRange returns the MapLeaf with the highest index in range.
+	// The range is defined as the entire subtree below a particular point in the
+	// Merkle tree. Another way of saying this is that the range matches all leaves
+	// that share a common prefix of `prefixBits` with `prefix`.
+	GetLastInRange(ctx context.Context, rev int64, node *NodeID) (*trillian.MapLeaf, error)
 }
 
 // MapTreeTX is the transactional interface for reading/modifying a Map.

@@ -228,8 +228,9 @@ func TestGetLastInRange(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			cleanTestDB(DB)
-			tree := createInitializedMapForTests(ctx, t, DB)
 			s := NewMapStorage(DB)
+			as := NewAdminStorage(DB)
+			tree := createInitializedMapForTests(ctx, t, s, as)
 			for rev, leaves := range tc.write {
 				if err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 					for _, leaf := range leaves {
