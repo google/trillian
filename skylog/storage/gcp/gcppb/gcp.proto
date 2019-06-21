@@ -18,6 +18,9 @@ message BuildJob {
   // are stateless it is more efficient to pass it in from the master rather
   // than fetch it from storage on each job invocation.
   TreeSharding tree_sharding = 4;
+  // The sequence sharding scheme that the build worker should use. It is
+  // provided for the same reason as the tree sharding field.
+  SequenceSharding seq_sharding = 5;
 }
 
 // TreeSharding describes the tree nodes sharding scheme.
@@ -30,4 +33,15 @@ message BuildJob {
 message TreeSharding {
   uint32 levels = 1;
   uint32 shards = 2;
+}
+
+// SequenceSharding describes the sequenced log entries sharding scheme.
+//
+// The sequence is split into the specified number of shards, where each shard
+// stores a periodic sub-sequence consisting of stripes of the specified size.
+//
+// See the sequence storage comments for more details.
+message SequenceSharding {
+  uint32 shards = 1;
+  uint64 size = 2;
 }
