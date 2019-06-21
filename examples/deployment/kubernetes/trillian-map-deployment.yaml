@@ -53,7 +53,7 @@ spec:
         - name: google-cloud-key
           mountPath: /var/secrets/google
       - name: prometheus-to-sd
-        image: gcr.io/google-containers/prometheus-to-sd:v0.3.2
+        image: gcr.io/google-containers/prometheus-to-sd:v0.5.2
         ports:
           - name: profiler
             containerPort: 6060
