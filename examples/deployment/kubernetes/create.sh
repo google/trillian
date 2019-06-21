@@ -96,7 +96,6 @@ kubectl create clusterrolebinding etcd-cluster-admin-binding --clusterrole=clust
 kubectl apply -f ${DIR}/etcd-role-binding.yaml
 kubectl apply -f ${DIR}/etcd-role.yaml
 kubectl apply -f ${DIR}/etcd-deployment.yaml
-kubectl apply -f ${DIR}/etcd-service.yaml
 
 # TODO(al): wait for this properly somehow
 sleep 30
