@@ -115,7 +115,7 @@ main() {
       'have you installed github.com/uber/prototool/cmd/prototool?' || exit 1
 
     echo 'running golangci-lint'
-    golangci-lint run --deadline=5m
+    golangci-lint run --deadline=8m
     echo 'running prototool lint'
     prototool lint
     echo 'checking license headers'
