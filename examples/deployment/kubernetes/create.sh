@@ -97,8 +97,6 @@ kubectl apply -f ${DIR}/etcd-role-binding.yaml
 kubectl apply -f ${DIR}/etcd-role.yaml
 kubectl apply -f ${DIR}/etcd-deployment.yaml
 
-# TODO(al): wait for this properly somehow
-sleep 30
-
-# TODO(al): have to wait before doing this?
+# Wait for Custom Resource Definitions (CRD) to be installed before creating Etcd cluster
+kubectl wait --for=condition=Established crd/etcdclusters.etcd.database.coreos.com
 kubectl apply -f ${DIR}/etcd-cluster.yaml
