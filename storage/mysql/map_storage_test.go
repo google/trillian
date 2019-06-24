@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/storage/testharness"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
@@ -37,22 +38,20 @@ import (
 
 var fixedSigner = tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 
+func TestSuite(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+
+	cleanTestDB(DB)
+	s := NewMapStorage(DB)
+	testharness.TestMapStorage(t, s)
+}
+
 func MustSignMapRoot(root *types.MapRootV1) *trillian.SignedMapRoot {
 	r, err := fixedSigner.SignMapRoot(root)
 	if err != nil {
 		panic(fmt.Sprintf("SignMapRoot(): %v", err))
 	}
 	return r
-}
-
-func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
-
-	cleanTestDB(DB)
-	s := NewMapStorage(DB)
-	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
-		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
-	}
 }
 
 func TestMapSnapshot(t *testing.T) {
