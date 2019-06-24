@@ -41,6 +41,7 @@ steps:
   - --file=examples/deployment/docker/log_server/Dockerfile
   - --tag=gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
   - --cache-from=gcr.io/${PROJECT_ID}/log_server:latest
+  - --build-arg=GO111MODULE=on
   - .
   waitFor: ["-"]
 - id: build_log_signer
@@ -50,6 +51,7 @@ steps:
   - --file=examples/deployment/docker/log_signer/Dockerfile
   - --tag=gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
   - --cache-from=gcr.io/${PROJECT_ID}/log_signer:latest
+  - --build-arg=GO111MODULE=on
   - .
   waitFor: ["-"]
 - id: build_map_server
@@ -59,6 +61,7 @@ steps:
   - --file=examples/deployment/docker/map_server/Dockerfile
   - --tag=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
   - --cache-from=gcr.io/${PROJECT_ID}/map_server:latest
+  - --build-arg=GO111MODULE=on
   - .
   waitFor: ["-"]
 - id: push_log_server
