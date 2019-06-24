@@ -1,3 +1,4 @@
+timeout: 900s
 substitutions:
   _MYSQL_TAG: "5.7"
 steps:

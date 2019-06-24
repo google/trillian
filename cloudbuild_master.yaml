@@ -1,3 +1,4 @@
+timeout: 900s
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
