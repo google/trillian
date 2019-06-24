@@ -27,6 +27,7 @@ steps:
   - build
   - --file=examples/deployment/docker/db_server/Dockerfile
   - --tag=gcr.io/${PROJECT_ID}/db_server:${TAG_NAME}
+  - --build-arg=GO111MODULE=on
   - .
   waitFor:
   - push_mysql
@@ -36,6 +37,7 @@ steps:
   - build
   - --file=examples/deployment/docker/log_server/Dockerfile
   - --tag=gcr.io/${PROJECT_ID}/log_server:${TAG_NAME}
+  - --build-arg=GO111MODULE=on
   - .
   waitFor: ["-"]
 - id: build_log_signer
@@ -44,6 +46,7 @@ steps:
   - build
   - --file=examples/deployment/docker/log_signer/Dockerfile
   - --tag=gcr.io/${PROJECT_ID}/log_signer:${TAG_NAME}
+  - --build-arg=GO111MODULE=on
   - .
   waitFor: ["-"]
 - id: build_map_server
