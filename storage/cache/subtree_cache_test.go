@@ -16,6 +16,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -165,6 +166,7 @@ func noFetch(_ storage.NodeID) (*storagepb.SubtreeProto, error) {
 }
 
 func TestCacheFlush(t *testing.T) {
+	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -187,7 +189,7 @@ func TestCacheFlush(t *testing.T) {
 			t.Logf("read %v", n)
 		}).Return((*storagepb.SubtreeProto)(nil), nil)
 	}
-	m.EXPECT().SetSubtrees(gomock.Any()).Do(func(trees []*storagepb.SubtreeProto) {
+	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			subID := storage.NewNodeIDFromHash(s.Prefix)
 			if got, want := s.Depth, c.stratumInfoForPrefixLength(subID.PrefixLenBits).depth; got != int32(want) {
@@ -230,7 +232,7 @@ func TestCacheFlush(t *testing.T) {
 		nodeID.PrefixLenBits--
 	}
 
-	if err := c.Flush(m.SetSubtrees); err != nil {
+	if err := c.Flush(ctx, m.SetSubtrees); err != nil {
 		t.Fatalf("failed to flush cache: %v", err)
 	}
 
@@ -371,6 +373,7 @@ func TestGetStratumInfo(t *testing.T) {
 }
 
 func TestIdempotentWrites(t *testing.T) {
+	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -391,7 +394,7 @@ func TestIdempotentWrites(t *testing.T) {
 	}).Return((*storagepb.SubtreeProto)(nil), nil)
 
 	// We should only see a single write attempt
-	m.EXPECT().SetSubtrees(gomock.Any()).Times(1).Do(func(trees []*storagepb.SubtreeProto) {
+	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			subID := *storage.NewNodeIDFromHash(s.Prefix)
 			state, ok := expectedSetIDs[subID.String()]
@@ -432,7 +435,7 @@ func TestIdempotentWrites(t *testing.T) {
 			t.Fatalf("%d: failed to set node hash: %v", i, err)
 		}
 
-		if err := c.Flush(m.SetSubtrees); err != nil {
+		if err := c.Flush(ctx, m.SetSubtrees); err != nil {
 			t.Fatalf("%d: failed to flush cache: %v", i, err)
 		}
 	}

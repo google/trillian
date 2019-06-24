@@ -297,7 +297,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("could not commit db transaction: %v", err)
 	}
 
@@ -544,7 +544,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		glog.Warningf("%v: Commit failed for GetSignedMapRoot: %v", req.MapId, err)
 		return nil, err
 	}
@@ -575,7 +575,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		glog.Warningf("%v: Commit failed for GetSignedMapRootByRevision: %v", req.MapId, err)
 		return nil, err
 	}

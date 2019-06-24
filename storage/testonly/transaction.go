@@ -32,7 +32,7 @@ func RunOnLogTX(tx storage.LogTreeTX) func(ctx context.Context, treeID int64, f 
 		if err := f(ctx, tx); err != nil {
 			return err
 		}
-		return tx.Commit()
+		return tx.Commit(ctx)
 	}
 }
 
@@ -43,7 +43,7 @@ func RunOnMapTX(tx storage.MapTreeTX) func(ctx context.Context, treeID int64, f 
 		if err := f(ctx, tx); err != nil {
 			return err
 		}
-		return tx.Commit()
+		return tx.Commit(ctx)
 	}
 }
 

@@ -292,9 +292,9 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	if params.shouldCommit {
 		if !params.commitFails {
-			mockTx.EXPECT().Commit().Return(nil)
+			mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 		} else {
-			mockTx.EXPECT().Commit().Return(params.commitError)
+			mockTx.EXPECT().Commit(gomock.Any()).Return(params.commitError)
 		}
 	}
 	// Close is always called, regardless of explicit commits
@@ -779,7 +779,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			logTX.EXPECT().UpdateSequencedLeaves(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().SetMerkleNodes(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().StoreSignedLogRoot(any, any).AnyTimes().Return(nil)
-			logTX.EXPECT().Commit().Return(nil)
+			logTX.EXPECT().Commit(gomock.Any()).Return(nil)
 			logTX.EXPECT().Close().Return(nil)
 			logStorage := &stestonly.FakeLogStorage{TX: logTX}
 

@@ -156,7 +156,7 @@ func (o *OperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error)
 		return nil, fmt.Errorf("failed to get active logIDs: %v", err)
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit: %v", err)
 	}
 	return logIDs, nil

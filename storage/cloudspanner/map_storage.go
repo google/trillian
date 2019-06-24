@@ -124,7 +124,7 @@ func (ms *mapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.T
 		if err := f(ctx, tx); err != nil {
 			return err
 		}
-		if err := tx.flushSubtrees(); err != nil {
+		if err := tx.flushSubtrees(ctx); err != nil {
 			glog.Errorf("failed to tx.flushSubtrees(): %v", err)
 			return err
 		}

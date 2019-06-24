@@ -16,6 +16,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -36,7 +37,7 @@ type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
 type GetSubtreesFunc func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error)
 
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
-type SetSubtreesFunc func(s []*storagepb.SubtreeProto) error
+type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) error
 
 // stratumInfo represents a single stratum across the tree.
 // It it used inside the SubtreeCache to determine which Subtree prefix should
@@ -416,7 +417,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 }
 
 // Flush causes the cache to write all dirty Subtrees back to storage.
-func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
+func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) error {
 	glog.V(1).Info("cache: Flush")
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -444,7 +445,7 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 	if len(treesToWrite) == 0 {
 		return nil
 	}
-	err := setSubtrees(treesToWrite)
+	err := setSubtrees(ctx, treesToWrite)
 	glog.V(1).Infof("cache: Flush done %v", err)
 	return err
 }

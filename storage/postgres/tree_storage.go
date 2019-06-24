@@ -366,10 +366,10 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	return nil
 }
 
-func (t *treeTX) Commit() error {
+func (t *treeTX) Commit(ctx context.Context) error {
 	if t.writeRevision > -1 {
-		if err := t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error {
-			return t.storeSubtrees(context.TODO(), st)
+		if err := t.subtreeCache.Flush(ctx, func(ctx context.Context, st []*storagepb.SubtreeProto) error {
+			return t.storeSubtrees(ctx, st)
 		}); err != nil {
 			glog.Warningf("TX commit flush error: %v", err)
 			return err

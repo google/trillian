@@ -187,7 +187,7 @@ func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, 
 	return &readOnlyLogTX{m, &sync.Mutex{}, tx}, nil
 }
 
-func (t *readOnlyLogTX) Commit() error {
+func (t *readOnlyLogTX) Commit(_ context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -279,7 +279,7 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
@@ -297,7 +297,7 @@ func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian
 	if err != nil {
 		return nil, err
 	}
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -327,7 +327,7 @@ func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, 
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 

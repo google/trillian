@@ -101,7 +101,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil)
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)
@@ -160,7 +160,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil),
 			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil),
-			mockTx.EXPECT().Commit().Return(nil),
+			mockTx.EXPECT().Commit(gomock.Any()).Return(nil),
 			mockTx.EXPECT().Close().Return(nil),
 		)
 
@@ -234,7 +234,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
-	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(int64(testRoot0.Revision+1), nil)
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{testLeaf0}, nil)
@@ -276,7 +276,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil)
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)

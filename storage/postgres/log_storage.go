@@ -216,7 +216,7 @@ func (m *postgresLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogT
 	return &readOnlyLogTX{m, tx}, nil
 }
 
-func (t *readOnlyLogTX) Commit() error {
+func (t *readOnlyLogTX) Commit(_ context.Context) error {
 	return t.tx.Commit()
 }
 
@@ -298,7 +298,7 @@ func (m *postgresLogStorage) ReadWriteTransaction(ctx context.Context, tree *tri
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 func (m *postgresLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
@@ -310,7 +310,7 @@ func (m *postgresLogStorage) AddSequencedLeaves(ctx context.Context, tree *trill
 	if err != nil {
 		return nil, err
 	}
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -334,7 +334,7 @@ func (m *postgresLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tre
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 

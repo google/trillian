@@ -234,6 +234,7 @@ type Options struct {
 
 // Main runs the dump_tree tool
 func Main(args Options) string {
+	ctx := context.Background()
 	validateFlagsOrDie(args.Summary, args.RecordIO)
 
 	leafHashesFlag = args.LeafHashes
@@ -257,9 +258,9 @@ func Main(args Options) string {
 
 	// Read the latest STH back
 	var root types.LogRootV1
-	err := ls.ReadWriteTransaction(context.TODO(), tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+	err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		var err error
-		sth, err := tx.LatestSignedLogRoot(context.TODO())
+		sth, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil {
 			glog.Fatalf("LatestSignedLogRoot: %v", err)
 		}
@@ -281,11 +282,11 @@ func Main(args Options) string {
 	glog.Info("Producing output")
 
 	if args.Traverse {
-		return traverseTreeStorage(ls, tree, args.TreeSize, int64(root.Revision))
+		return traverseTreeStorage(ctx, ls, tree, args.TreeSize, int64(root.Revision))
 	}
 
 	if args.DumpLeaves {
-		return dumpLeaves(ls, tree, args.TreeSize)
+		return dumpLeaves(ctx, ls, tree, args.TreeSize)
 	}
 
 	var formatter func(*storagepb.SubtreeProto) string
@@ -415,7 +416,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 	glog.Info("Finished sequencing")
 }
 
-func traverseTreeStorage(ls storage.LogStorage, tree *trillian.Tree, ts int, rev int64) string {
+func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, ts int, rev int64) string {
 	out := new(bytes.Buffer)
 	nodesAtLevel := int64(ts)
 
@@ -424,7 +425,7 @@ func traverseTreeStorage(ls storage.LogStorage, tree *trillian.Tree, ts int, rev
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
 	defer func() {
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			glog.Fatalf("TX Commit(): %v", err)
 		}
 	}()
@@ -473,14 +474,14 @@ func traverseTreeStorage(ls storage.LogStorage, tree *trillian.Tree, ts int, rev
 	return out.String()
 }
 
-func dumpLeaves(ls storage.LogStorage, tree *trillian.Tree, ts int) string {
+func dumpLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, ts int) string {
 	out := new(bytes.Buffer)
 	tx, err := ls.SnapshotForTree(context.TODO(), tree)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
 	defer func() {
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			glog.Fatalf("TX Commit(): got: %v", err)
 		}
 	}()

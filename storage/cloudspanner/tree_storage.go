@@ -217,7 +217,7 @@ func (t *treeTX) writeRev(ctx context.Context) (int64, error) {
 
 // storeSubtrees adds buffered writes to the in-flight transaction to store the
 // passed in subtrees.
-func (t *treeTX) storeSubtrees(sts []*storagepb.SubtreeProto) error {
+func (t *treeTX) storeSubtrees(ctx context.Context, sts []*storagepb.SubtreeProto) error {
 	stx, ok := t.stx.(*spanner.ReadWriteTransaction)
 	if !ok {
 		return ErrWrongTXType
@@ -242,15 +242,15 @@ func (t *treeTX) storeSubtrees(sts []*storagepb.SubtreeProto) error {
 	return nil
 }
 
-func (t *treeTX) flushSubtrees() error {
-	return t.cache.Flush(t.storeSubtrees)
+func (t *treeTX) flushSubtrees(ctx context.Context) error {
+	return t.cache.Flush(ctx, t.storeSubtrees)
 }
 
 // Commit attempts to apply all actions perfomed to the underlying Spanner
 // transaction.  If this call returns an error, any values READ via this
 // transaction MUST NOT be used.
 // On return from the call, this transaction will be in a closed state.
-func (t *treeTX) Commit() error {
+func (t *treeTX) Commit(ctx context.Context) error {
 	t.mu.Lock()
 	defer func() {
 		t.stx = nil
@@ -266,7 +266,7 @@ func (t *treeTX) Commit() error {
 		stx.Close()
 		return nil
 	case *spanner.ReadWriteTransaction:
-		return t.flushSubtrees()
+		return t.flushSubtrees(ctx)
 	default:
 		return fmt.Errorf("internal error: unknown transaction type %T", stx)
 	}
@@ -491,7 +491,7 @@ type snapshotTX struct {
 	ls  *logStorage
 }
 
-func (t *snapshotTX) Commit() error {
+func (t *snapshotTX) Commit(ctx context.Context) error {
 	// No work required to commit snapshot transactions
 	return t.Close()
 }

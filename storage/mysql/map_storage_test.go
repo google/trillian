@@ -111,7 +111,7 @@ func TestMapSnapshot(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if err := tx.Commit(); err != nil {
+			if err := tx.Commit(ctx); err != nil {
 				t.Errorf("Commit()=_,%v; want _,nil", err)
 			}
 		})

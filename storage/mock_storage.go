@@ -440,17 +440,17 @@ func (mr *MockLogTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockLogTreeTX) Commit() error {
+func (m *MockLogTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockLogTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockLogTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockLogTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockLogTreeTX)(nil).Commit), arg0)
 }
 
 // DequeueLeaves mocks base method
@@ -777,17 +777,17 @@ func (mr *MockMapTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockMapTreeTX) Commit() error {
+func (m *MockMapTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockMapTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockMapTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockMapTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockMapTreeTX)(nil).Commit), arg0)
 }
 
 // Get mocks base method
@@ -1112,17 +1112,17 @@ func (mr *MockReadOnlyLogTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockReadOnlyLogTX) Commit() error {
+func (m *MockReadOnlyLogTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockReadOnlyLogTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockReadOnlyLogTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Commit), arg0)
 }
 
 // GetActiveLogIDs mocks base method
@@ -1192,17 +1192,17 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockReadOnlyLogTreeTX) Commit() error {
+func (m *MockReadOnlyLogTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockReadOnlyLogTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockReadOnlyLogTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Commit), arg0)
 }
 
 // GetLeavesByHash mocks base method
@@ -1376,17 +1376,17 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockReadOnlyMapTreeTX) Commit() error {
+func (m *MockReadOnlyMapTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockReadOnlyMapTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockReadOnlyMapTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).Commit), arg0)
 }
 
 // Get mocks base method

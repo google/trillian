@@ -98,7 +98,7 @@ func TestOperationManagerCommitFails(t *testing.T) {
 
 	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
 	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{}, nil)
-	mockTx.EXPECT().Commit().Return(errors.New("commit"))
+	mockTx.EXPECT().Commit(gomock.Any()).Return(errors.New("commit"))
 	mockTx.EXPECT().Close().Return(nil)
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	fakeStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
@@ -145,7 +145,7 @@ func setupLogIDs(ctrl *gomock.Controller, logNames map[int64]string) (*storage.M
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
 	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).AnyTimes().Return(ids, nil)
-	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
+	mockTx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(nil)
 	mockTx.EXPECT().Close().AnyTimes().Return(nil)
 	fakeStorage.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(mockTx, nil)
 
