@@ -18,9 +18,8 @@ import (
 	"context"
 
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
-	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/maps"
 	"github.com/google/trillian/trees"
 )
 
@@ -46,15 +45,10 @@ func (t *TrillianMapWriteServer) WriteLeaves(ctx context.Context, req *trillian.
 	if err != nil {
 		return nil, err
 	}
-	pub, err := der.UnmarshalPublicKey(tree.PublicKey.GetDer())
+	rootVerifier, err := maps.NewRootVerifierFromTree(tree)
 	if err != nil {
 		return nil, err
 	}
-	hash, err := trees.Hash(tree)
-	if err != nil {
-		return nil, err
-	}
-
 	setLeavesReq := trillian.SetMapLeavesRequest{
 		MapId:    req.MapId,
 		Leaves:   req.Leaves,
@@ -65,7 +59,7 @@ func (t *TrillianMapWriteServer) WriteLeaves(ctx context.Context, req *trillian.
 	if err != nil {
 		return nil, err
 	}
-	root, err := tcrypto.VerifySignedMapRoot(pub, hash, resp.MapRoot)
+	root, err := rootVerifier.VerifySignedMapRoot(resp.MapRoot)
 	if err != nil {
 		return nil, err
 	}
