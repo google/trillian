@@ -476,7 +476,7 @@ func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tree *trill
 
 func dumpLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, ts int) string {
 	out := new(bytes.Buffer)
-	tx, err := ls.SnapshotForTree(context.TODO(), tree)
+	tx, err := ls.SnapshotForTree(ctx, tree)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
@@ -487,7 +487,7 @@ func dumpLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree,
 	}()
 
 	for l := int64(0); l < int64(ts); l++ {
-		leaves, err := tx.GetLeavesByIndex(context.TODO(), []int64{l})
+		leaves, err := tx.GetLeavesByIndex(ctx, []int64{l})
 		if err != nil {
 			glog.Fatalf("GetLeavesByIndex for index %d got: %v", l, err)
 		}
