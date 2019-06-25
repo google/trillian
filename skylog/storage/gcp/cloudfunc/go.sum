@@ -189,8 +189,8 @@ github.com/google/martian v2.1.0+incompatible/go.mod h1:9I4somxYTbIHy5NJKHRl3wXi
 github.com/google/monologue v0.0.0-20190606152607-4b11a32b5934/go.mod h1:6NTfaQoUpg5QmPsCUWLR3ig33FHrKXhTtWzF0DVdmuk=
 github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
 github.com/google/trillian v1.2.2-0.20190612132142-05461f4df60a/go.mod h1:YPmUVn5NGwgnDUgqlVyFGMTgaWlnSvH7W5p+NdOG8UA=
-github.com/google/trillian v1.2.2-0.20190619133759-4511faac1a5c h1:vyexAq39KDshelZLvg0si5DykhtTFd/+RwsmOkMovQo=
-github.com/google/trillian v1.2.2-0.20190619133759-4511faac1a5c/go.mod h1:Z8gTwl38CCQjwQQ/RkrxUhfvSV+jkyyyAlzJ7AnUvhk=
+github.com/google/trillian v1.2.2-0.20190621140556-9386836a076e h1:NUNKk3Fo1x85LDTKjf3CWNTXyDmeTpOcuRRLCF8hp0Q=
+github.com/google/trillian v1.2.2-0.20190621140556-9386836a076e/go.mod h1:fAG44/F5EOVrCrTWDXAUkhTQsMMqZ4tmnY/JbYz1FaY=
 github.com/google/trillian-examples v0.0.0-20190603134952-4e75ba15216c/go.mod h1:WgL3XZ3pA8/9cm7yxqWrZE6iZkESB2ItGxy5Fo6k2lk=
 github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
