@@ -87,7 +87,7 @@ func treeOpts(job *pb.BuildJob) (cs.TreeOpts, error) {
 	if ts == nil {
 		return cs.TreeOpts{}, errors.New("missing tree sharding info")
 	} else if ts.Levels <= 0 || ts.Shards <= 0 {
-		return cs.TreeOpts{}, errors.New("invalid tree sharding info")
+		return cs.TreeOpts{}, fmt.Errorf("invalid tree sharding: %s", proto.CompactTextString(ts))
 	}
 	return cs.TreeOpts{ShardLevels: uint(ts.Levels), LeafShards: int64(ts.Shards)}, nil
 }
