@@ -5,8 +5,8 @@ WORKDIR /go/src/github.com/google/trillian
 
 ARG GOFLAGS=""
 ENV GOFLAGS=$GOFLAGS
-ARG GO111MODULE=auto
-ENV GO111MODULE=$GO111MODULE
+ENV GO111MODULE=on
+
 RUN go get ./server/trillian_log_server ./scripts/licenses
 RUN licenses save ./server/trillian_log_server --save_path /THIRD_PARTY_NOTICES
 
