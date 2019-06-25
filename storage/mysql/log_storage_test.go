@@ -145,7 +145,7 @@ func TestSnapshot(t *testing.T) {
 	as := NewAdminStorage(DB)
 	s := NewLogStorage(DB, nil)
 
-	frozenLog := createTree(ctx, t, as, testonly.LogTree)
+	frozenLog := mustCreateTree(ctx, t, as, testonly.LogTree)
 	createFakeSignedLogRoot(ctx, t, s, frozenLog, 0)
 	if _, err := storage.UpdateTree(ctx, as, frozenLog.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
@@ -153,9 +153,9 @@ func TestSnapshot(t *testing.T) {
 		t.Fatalf("Error updating frozen tree: %v", err)
 	}
 
-	activeLog := createTree(ctx, t, as, testonly.LogTree)
+	activeLog := mustCreateTree(ctx, t, as, testonly.LogTree)
 	createFakeSignedLogRoot(ctx, t, s, activeLog, 0)
-	mapTreeID := createTree(ctx, t, as, testonly.MapTree).TreeId
+	mapTreeID := mustCreateTree(ctx, t, as, testonly.MapTree).TreeId
 
 	tests := []struct {
 		desc    string
@@ -213,7 +213,7 @@ func TestReadWriteTransaction(t *testing.T) {
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
 	s := NewLogStorage(DB, nil)
-	activeLog := createTree(ctx, t, as, testonly.LogTree)
+	activeLog := mustCreateTree(ctx, t, as, testonly.LogTree)
 	createFakeSignedLogRoot(ctx, t, s, activeLog, 0)
 
 	tests := []struct {
@@ -273,7 +273,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
@@ -340,7 +340,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -381,7 +381,7 @@ type addSequencedLeavesTest struct {
 func initAddSequencedLeavesTest(ctx context.Context, t *testing.T) addSequencedLeavesTest {
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.PreorderedLogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.PreorderedLogTree)
 	s := NewLogStorage(DB, nil)
 	return addSequencedLeavesTest{t, s, tree}
 }
@@ -467,7 +467,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -486,7 +486,7 @@ func TestDequeueLeaves(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{
@@ -533,7 +533,7 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{
@@ -566,7 +566,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	leavesToDequeue1 := 3
@@ -640,7 +640,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{
@@ -685,7 +685,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	batchSize := 2
@@ -749,7 +749,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -771,7 +771,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	data := []byte("some data")
@@ -797,7 +797,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 	data := []byte("some data")
 	leaf := createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -870,7 +870,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	// Create fake leaf as if it had been sequenced, read it back and check contents
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	// The leaf indices are checked against the tree size so we need a root.
@@ -975,7 +975,7 @@ func testGetLeavesByRangeImpl(t *testing.T, create *trillian.Tree, tests []getLe
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, create)
+	tree := mustCreateTree(ctx, t, as, create)
 	s := NewLogStorage(DB, nil)
 
 	// Note: GetLeavesByRange loads the root internally to get the tree size.
@@ -1061,7 +1061,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	tx, err := s.SnapshotForTree(ctx, tree)
@@ -1075,7 +1075,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
@@ -1114,7 +1114,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
@@ -1145,7 +1145,7 @@ func TestLogRootUpdate(t *testing.T) {
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, testonly.LogTree)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
@@ -1309,8 +1309,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	// We'll create leaves for two different trees
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	log1 := createTree(ctx, t, as, testonly.LogTree)
-	log2 := createTree(ctx, t, as, testonly.LogTree)
+	log1 := mustCreateTree(ctx, t, as, testonly.LogTree)
+	log2 := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{

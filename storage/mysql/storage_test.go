@@ -42,7 +42,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, storageto.LogTree)
+	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -87,7 +87,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, storageto.LogTree)
+	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -245,6 +245,7 @@ func cleanTestDB(db *sql.DB) {
 }
 
 func createFakeSignedLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
+	t.Helper()
 	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 
 	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -262,8 +263,8 @@ func createFakeSignedLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 	}
 }
 
-// createTree creates the specified tree using AdminStorage.
-func createTree(ctx context.Context, t *testing.T, s storage.AdminStorage, tree *trillian.Tree) *trillian.Tree {
+// mustCreateTree creates the specified tree using AdminStorage.
+func mustCreateTree(ctx context.Context, t *testing.T, s storage.AdminStorage, tree *trillian.Tree) *trillian.Tree {
 	t.Helper()
 	tree, err := storage.CreateTree(ctx, s, tree)
 	if err != nil {

@@ -68,7 +68,7 @@ func TestMapSnapshot(t *testing.T) {
 	})
 
 	activeMap := createInitializedMapForTests(ctx, t, s, as)
-	logID := createTree(ctx, t, as, storageto.LogTree).TreeId
+	logID := mustCreateTree(ctx, t, as, storageto.LogTree).TreeId
 
 	tests := []struct {
 		desc    string
@@ -431,7 +431,7 @@ func TestGetSignedMapRootNotExist(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
-	tree := createTree(ctx, t, as, storageto.MapTree) // Uninitialized: no revision 0 MapRoot exists.
+	tree := mustCreateTree(ctx, t, as, storageto.MapTree) // Uninitialized: no revision 0 MapRoot exists.
 	s := NewMapStorage(DB)
 
 	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
@@ -595,7 +595,7 @@ func runMapTX(ctx context.Context, s storage.MapStorage, tree *trillian.Tree, t 
 
 func createInitializedMapForTests(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) *trillian.Tree {
 	t.Helper()
-	tree := createTree(ctx, t, as, storageto.MapTree)
+	tree := mustCreateTree(ctx, t, as, storageto.MapTree)
 
 	signer := tcrypto.NewSigner(tree.TreeId, testonly.NewSignerWithFixedSig(nil, []byte("sig")), crypto.SHA256)
 	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
