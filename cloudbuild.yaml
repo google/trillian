@@ -15,41 +15,45 @@ steps:
   - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
   waitFor:
   - pull_mysql
-- id: build_db_server
+- id: push_mysql
   name: gcr.io/cloud-builders/docker
   args:
-  - build
-  - --file=examples/deployment/docker/db_server/Dockerfile
-  - --tag=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
-  - .
+  - push
+  - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
   waitFor:
   - tag_mysql
-- id: build_log_server
-  name: gcr.io/cloud-builders/docker
+- id: build_db_server
+  name: gcr.io/kaniko-project/executor
   args:
-  - build
-  - --file=examples/deployment/docker/log_server/Dockerfile
-  - --tag=gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
-  - --build-arg=GO111MODULE=on
-  - .
+  - --dockerfile=examples/deployment/docker/db_server/Dockerfile
+  - --destination=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
+  - --cache=true
+  - --cache-ttl=24h
+  waitFor:
+  - push_mysql
+- id: build_log_server
+  name: gcr.io/kaniko-project/executor
+  args:
+  - --dockerfile=examples/deployment/docker/log_server/Dockerfile
+  - --destination=gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
+  - --cache=true
+  - --cache-ttl=24h
   waitFor: ["-"]
 - id: build_log_signer
-  name: gcr.io/cloud-builders/docker
+  name: gcr.io/kaniko-project/executor
   args:
-  - build
-  - --file=examples/deployment/docker/log_signer/Dockerfile
-  - --tag=gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
-  - --build-arg=GO111MODULE=on
-  - .
+  - --dockerfile=examples/deployment/docker/log_signer/Dockerfile
+  - --destination=gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
+  - --cache=true
+  - --cache-ttl=24h
   waitFor: ["-"]
 - id: build_map_server
-  name: gcr.io/cloud-builders/docker
+  name: gcr.io/kaniko-project/executor
   args:
-  - build
-  - --file=examples/deployment/docker/map_server/Dockerfile
-  - --tag=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
-  - --build-arg=GO111MODULE=on
-  - .
+  - --dockerfile=examples/deployment/docker/map_server/Dockerfile
+  - --destination=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
+  - --cache=true
+  - --cache-ttl=24h
   waitFor: ["-"]
 images:
 - gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
