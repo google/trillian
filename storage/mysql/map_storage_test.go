@@ -53,7 +53,7 @@ func TestMapSnapshot(t *testing.T) {
 	as := NewAdminStorage(DB)
 	s := NewMapStorage(DB)
 	frozenMap := createInitializedMapForTests(ctx, t, s, as)
-	updateTree(DB, frozenMap.TreeId, func(tree *trillian.Tree) {
+	storage.UpdateTree(ctx, as, frozenMap.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	})
 

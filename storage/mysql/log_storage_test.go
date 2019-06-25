@@ -143,17 +143,18 @@ func TestSnapshot(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
+	s := NewLogStorage(DB, nil)
 
 	frozenLog := createTree(ctx, t, as, testonly.LogTree)
-	createFakeSignedLogRoot(DB, frozenLog, 0)
-	if _, err := updateTree(DB, frozenLog.TreeId, func(tree *trillian.Tree) {
+	createFakeSignedLogRoot(ctx, t, s, frozenLog, 0)
+	if _, err := storage.UpdateTree(ctx, as, frozenLog.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	}); err != nil {
 		t.Fatalf("Error updating frozen tree: %v", err)
 	}
 
 	activeLog := createTree(ctx, t, as, testonly.LogTree)
-	createFakeSignedLogRoot(DB, activeLog, 0)
+	createFakeSignedLogRoot(ctx, t, s, activeLog, 0)
 	mapTreeID := createTree(ctx, t, as, testonly.MapTree).TreeId
 
 	tests := []struct {
@@ -181,7 +182,6 @@ func TestSnapshot(t *testing.T) {
 		},
 	}
 
-	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			tx, err := s.SnapshotForTree(ctx, test.tree)
@@ -212,8 +212,9 @@ func TestReadWriteTransaction(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
+	s := NewLogStorage(DB, nil)
 	activeLog := createTree(ctx, t, as, testonly.LogTree)
-	createFakeSignedLogRoot(DB, activeLog, 0)
+	createFakeSignedLogRoot(ctx, t, s, activeLog, 0)
 
 	tests := []struct {
 		desc        string
@@ -243,7 +244,6 @@ func TestReadWriteTransaction(t *testing.T) {
 		},
 	}
 
-	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			err := s.ReadWriteTransaction(ctx, test.tree, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -874,7 +874,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	// The leaf indices are checked against the tree size so we need a root.
-	createFakeSignedLogRoot(DB, tree, uint64(sequenceNumber+1))
+	createFakeSignedLogRoot(ctx, t, s, tree, uint64(sequenceNumber+1))
 
 	data := []byte("some data")
 	data2 := []byte("some other data")
@@ -976,9 +976,10 @@ func testGetLeavesByRangeImpl(t *testing.T, create *trillian.Tree, tests []getLe
 	cleanTestDB(DB)
 	as := NewAdminStorage(DB)
 	tree := createTree(ctx, t, as, create)
-	// Note: GetLeavesByRange loads the root internally to get the tree size.
-	createFakeSignedLogRoot(DB, tree, 14)
 	s := NewLogStorage(DB, nil)
+
+	// Note: GetLeavesByRange loads the root internally to get the tree size.
+	createFakeSignedLogRoot(ctx, t, s, tree, 14)
 
 	// Create leaves [0]..[19] but drop leaf [5] and set the tree size to 14.
 	for i := int64(0); i < 20; i++ {
