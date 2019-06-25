@@ -38,7 +38,7 @@ import (
 
 var fixedSigner = tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 
-func TestSuite(t *testing.T) {
+func TestMapSuite(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
@@ -52,67 +52,6 @@ func MustSignMapRoot(root *types.MapRootV1) *trillian.SignedMapRoot {
 		panic(fmt.Sprintf("SignMapRoot(): %v", err))
 	}
 	return r
-}
-
-func TestMapSnapshot(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
-
-	cleanTestDB(DB)
-	ctx := context.Background()
-	as := NewAdminStorage(DB)
-	s := NewMapStorage(DB)
-	frozenMap := createInitializedMapForTests(ctx, t, s, as)
-	storage.UpdateTree(ctx, as, frozenMap.TreeId, func(tree *trillian.Tree) {
-		tree.TreeState = trillian.TreeState_FROZEN
-	})
-
-	activeMap := createInitializedMapForTests(ctx, t, s, as)
-	logID := mustCreateTree(ctx, t, as, storageto.LogTree).TreeId
-
-	tests := []struct {
-		desc    string
-		tree    *trillian.Tree
-		wantErr bool
-	}{
-		{
-			desc:    "unknownSnapshot",
-			tree:    mapTree(-1),
-			wantErr: true,
-		},
-		{
-			desc: "activeMapSnapshot",
-			tree: activeMap,
-		},
-		{
-			desc: "frozenSnapshot",
-			tree: frozenMap,
-		},
-		{
-			desc:    "logSnapshot",
-			tree:    mapTree(logID),
-			wantErr: true,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			tx, err := s.SnapshotForTree(ctx, test.tree)
-			if err != nil {
-				t.Fatalf("SnapshotForTree()=_,%v; want _, nil", err)
-			}
-			defer tx.Close()
-
-			_, err = tx.LatestSignedMapRoot(ctx)
-			if gotErr := (err != nil); gotErr != test.wantErr {
-				t.Errorf("LatestSignedMapRoot()=_,%v; want _, err? %v", err, test.wantErr)
-			}
-			if err != nil {
-				return
-			}
-			if err := tx.Commit(ctx); err != nil {
-				t.Errorf("Commit()=_,%v; want _,nil", err)
-			}
-		})
-	}
 }
 
 func TestMapReadWriteTransaction(t *testing.T) {
