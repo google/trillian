@@ -18,6 +18,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
@@ -26,7 +28,7 @@ import (
 func TestWithPEMKeyFile(t *testing.T) {
 	pemPath, pemPassword := "../../testdata/log-rpc-server.privkey.pem", "towel"
 
-	wantTree := *defaultTree
+	wantTree := proto.Clone(defaultTree).(*trillian.Tree)
 	wantTree.PrivateKey = mustMarshalAny(&keyspb.PEMKeyFile{
 		Path:     pemPath,
 		Password: pemPassword,
@@ -60,7 +62,7 @@ func TestWithPEMKeyFile(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = pemPassword
 			},
-			wantTree: &wantTree,
+			wantTree: wantTree,
 		},
 	})
 }
@@ -78,7 +80,7 @@ func TestWithPrivateKey(t *testing.T) {
 		t.Fatalf("Error marshaling test private key to DER: %v", err)
 	}
 
-	wantTree := *defaultTree
+	wantTree := proto.Clone(defaultTree).(*trillian.Tree)
 	wantTree.PrivateKey = mustMarshalAny(&keyspb.PrivateKey{
 		Der: keyDER,
 	})
@@ -111,7 +113,7 @@ func TestWithPrivateKey(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = pemPassword
 			},
-			wantTree: &wantTree,
+			wantTree: wantTree,
 		},
 	})
 }

@@ -64,7 +64,7 @@ func mustMarshalAny(p proto.Message) *any.Any {
 }
 
 func TestCreateTree(t *testing.T) {
-	nonDefaultTree := *defaultTree
+	nonDefaultTree := proto.Clone(defaultTree).(*trillian.Tree)
 	nonDefaultTree.TreeType = trillian.TreeType_MAP
 	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 	nonDefaultTree.DisplayName = "Llamas Map"
@@ -84,7 +84,7 @@ func TestCreateTree(t *testing.T) {
 				*displayName = nonDefaultTree.DisplayName
 				*description = nonDefaultTree.Description
 			},
-			wantTree: &nonDefaultTree,
+			wantTree: nonDefaultTree,
 		},
 		{
 			desc: "mandatoryOptsNotSet",
@@ -132,7 +132,7 @@ func TestCreateTree(t *testing.T) {
 				nonDefaultTree.TreeType = trillian.TreeType_MAP
 				*treeType = nonDefaultTree.TreeType.String()
 			},
-			wantTree: &nonDefaultTree,
+			wantTree: nonDefaultTree,
 			initErr:  status.Errorf(codes.Unavailable, "map init failed"),
 			wantErr:  true,
 		},

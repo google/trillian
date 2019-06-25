@@ -19,6 +19,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
@@ -48,7 +49,7 @@ func TestNewMapVerifier(t *testing.T) {
 		wantErr bool
 	}{
 		{desc: "success", tree: tree},
-		{desc: "nil PublicKey", tree: func() *trillian.Tree { t := *tree; t.PublicKey = nil; return &t }(), wantErr: true},
+		{desc: "nil PublicKey", tree: func() *trillian.Tree { t := proto.Clone(tree).(*trillian.Tree); t.PublicKey = nil; return t }(), wantErr: true},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			if _, err := NewMapClientFromTree(env.Map, tc.tree); (err != nil) != tc.wantErr {

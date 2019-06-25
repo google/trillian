@@ -168,9 +168,9 @@ func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
 		{
 			desc: "CreateTree",
 			fn: func(s storage.AdminStorage) error {
-				tree := *testonly.LogTree
+				tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 				tree.StorageSettings = settings
-				_, err := storage.CreateTree(ctx, s, &tree)
+				_, err := storage.CreateTree(ctx, s, tree)
 				return err
 			},
 		},

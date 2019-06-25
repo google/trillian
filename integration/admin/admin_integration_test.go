@@ -138,7 +138,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 	}
 	defer ts.closeAll()
 
-	baseTree := *testonly.LogTree
+	baseTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 
 	// successTree specifies changes in all rw fields
 	successTree := &trillian.Tree{
@@ -148,7 +148,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 	}
 	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description"}}
 
-	successWant := baseTree
+	successWant := proto.Clone(baseTree).(*trillian.Tree)
 	successWant.TreeState = successTree.TreeState
 	successWant.DisplayName = successTree.DisplayName
 	successWant.Description = successTree.Description
@@ -162,8 +162,8 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 	}{
 		{
 			desc:       "success",
-			createTree: &baseTree,
-			wantTree:   &successWant,
+			createTree: baseTree,
+			wantTree:   successWant,
 			req:        &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
 		},
 		{
@@ -176,7 +176,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		},
 		{
 			desc:       "readonlyField",
-			createTree: &baseTree,
+			createTree: baseTree,
 			req: &trillian.UpdateTreeRequest{
 				Tree:       successTree,
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_type"}},
@@ -185,7 +185,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		},
 		{
 			desc:       "invalidUpdate",
-			createTree: &baseTree,
+			createTree: baseTree,
 			req: &trillian.UpdateTreeRequest{
 				Tree:       &trillian.Tree{}, // tree_state = UNKNOWN_TREE_STATE
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_state"}},
@@ -225,12 +225,12 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		}
 
 		// Copy storage-generated fields to the expected tree
-		want := *test.wantTree
+		want := proto.Clone(test.wantTree).(*trillian.Tree)
 		want.TreeId = tree.TreeId
 		want.CreateTime = tree.CreateTime
 		want.UpdateTime = tree.UpdateTime
-		if !proto.Equal(tree, &want) {
-			diff := pretty.Compare(tree, &want)
+		if !proto.Equal(tree, want) {
+			diff := pretty.Compare(tree, want)
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
 		}
 	}

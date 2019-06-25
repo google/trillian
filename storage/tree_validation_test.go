@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -423,10 +424,10 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			tree.TreeState = test.treeState
 		}
 
-		baseTree := *tree
+		baseTree := proto.Clone(tree).(*trillian.Tree)
 		test.updatefn(tree)
 
-		err := ValidateTreeForUpdate(ctx, &baseTree, tree)
+		err := ValidateTreeForUpdate(ctx, baseTree, tree)
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
 			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantErr = %v", test.desc, err, test.wantErr)

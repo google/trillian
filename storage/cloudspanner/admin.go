@@ -508,9 +508,9 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if err != nil {
 		return nil, err
 	}
-	beforeTree := *tree
+	beforeTree := proto.Clone(tree).(*trillian.Tree)
 	updateFunc(tree)
-	if err = storage.ValidateTreeForUpdate(ctx, &beforeTree, tree); err != nil {
+	if err = storage.ValidateTreeForUpdate(ctx, beforeTree, tree); err != nil {
 		return nil, err
 	}
 	if !proto.Equal(beforeTree.StorageSettings, tree.StorageSettings) {

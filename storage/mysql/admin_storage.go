@@ -246,7 +246,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	nowMillis := storage.ToMillisSinceEpoch(time.Now())
 	now := storage.FromMillisSinceEpoch(nowMillis)
 
-	newTree := *tree
+	newTree := proto.Clone(tree).(*trillian.Tree)
 	newTree.TreeId = id
 	newTree.CreateTime, err = ptypes.TimestampProto(now)
 	if err != nil {
@@ -340,7 +340,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 
-	return &newTree, nil
+	return newTree, nil
 }
 
 func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error) {
@@ -349,9 +349,9 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
-	beforeUpdate := *tree
+	beforeUpdate := proto.Clone(tree).(*trillian.Tree)
 	updateFunc(tree)
-	if err := storage.ValidateTreeForUpdate(ctx, &beforeUpdate, tree); err != nil {
+	if err := storage.ValidateTreeForUpdate(ctx, beforeUpdate, tree); err != nil {
 		return nil, err
 	}
 	if err := validateStorageSettings(tree); err != nil {
