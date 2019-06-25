@@ -60,18 +60,6 @@ func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
 }
 
-type readOnlyMapTX struct {
-	*sql.Tx
-}
-
-func (t *readOnlyMapTX) Close() error {
-	if err := t.Rollback(); err != nil && err != sql.ErrTxDone {
-		glog.Warningf("Rollback error on Close(): %v", err)
-		return err
-	}
-	return nil
-}
-
 func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool) (storage.MapTreeTX, error) {
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
