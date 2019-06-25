@@ -39,8 +39,10 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(DB)
-	tree := createTreeOrPanic(DB, storageto.LogTree)
+	as := NewAdminStorage(DB)
+	tree := createTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -82,8 +84,10 @@ func TestNodeRoundTrip(t *testing.T) {
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(DB)
-	tree := createTreeOrPanic(DB, storageto.LogTree)
+	as := NewAdminStorage(DB)
+	tree := createTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -261,20 +265,11 @@ func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 }
 
 // createTree creates the specified tree using AdminStorage.
-func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
-	ctx := context.Background()
-	s := NewAdminStorage(db)
+func createTree(ctx context.Context, t *testing.T, s storage.AdminStorage, tree *trillian.Tree) *trillian.Tree {
+	t.Helper()
 	tree, err := storage.CreateTree(ctx, s, tree)
 	if err != nil {
-		return nil, err
-	}
-	return tree, nil
-}
-
-func createTreeOrPanic(db *sql.DB, create *trillian.Tree) *trillian.Tree {
-	tree, err := createTree(db, create)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating tree: %v", err))
+		t.Fatalf("storage.CreateTree(): %v", err)
 	}
 	return tree
 }
