@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/spanner"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testharness"
 )
 
@@ -43,6 +44,32 @@ func GetTestDB(ctx context.Context, t *testing.T) *spanner.Client {
 
 func TestSuite(t *testing.T) {
 	ctx := context.Background()
-	s := NewMapStorage(ctx, GetTestDB(ctx, t))
-	testharness.TestMapStorage(t, s)
+	db := GetTestDB(ctx, t)
+
+	storageFactory := func(context.Context, *testing.T) (storage.MapStorage, storage.AdminStorage) {
+		cleanTestDB(ctx, t, db)
+		return NewMapStorage(ctx, db), NewAdminStorage(db)
+	}
+
+	testharness.TestMapStorage(t, storageFactory)
+}
+
+func cleanTestDB(ctx context.Context, t *testing.T, db *spanner.Client) {
+	if _, err := db.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		mutations := make([]*spanner.Mutation, 0)
+		for _, table := range []string{
+			"TreeRoots",
+			"TreeHeads",
+			"SubtreeData",
+			"LeafData",
+			"SequencedLeafData",
+			"Unsequenced",
+			"MapLeafData",
+		} {
+			mutations = append(mutations, spanner.Delete(table, spanner.AllKeys()))
+		}
+		return txn.BufferWrite(mutations)
+	}); err != nil {
+		t.Fatalf("Failed to clean databse: %v", err)
+	}
 }
