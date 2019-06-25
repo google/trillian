@@ -39,8 +39,10 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(DB)
-	tree := createTreeOrPanic(DB, storageto.LogTree)
+	as := NewAdminStorage(DB)
+	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -82,8 +84,10 @@ func TestNodeRoundTrip(t *testing.T) {
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(DB)
-	tree := createTreeOrPanic(DB, storageto.LogTree)
+	as := NewAdminStorage(DB)
+	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -240,11 +244,10 @@ func cleanTestDB(db *sql.DB) {
 	}
 }
 
-func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
+func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
+	t.Helper()
 	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 
-	ctx := context.Background()
-	l := NewLogStorage(db, nil)
 	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
 		if err != nil {
@@ -256,34 +259,18 @@ func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 		return nil
 	})
 	if err != nil {
-		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
+		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}
 }
 
-// createTree creates the specified tree using AdminStorage.
-func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
-	ctx := context.Background()
-	s := NewAdminStorage(db)
+// mustCreateTree creates the specified tree using AdminStorage.
+func mustCreateTree(ctx context.Context, t *testing.T, s storage.AdminStorage, tree *trillian.Tree) *trillian.Tree {
+	t.Helper()
 	tree, err := storage.CreateTree(ctx, s, tree)
 	if err != nil {
-		return nil, err
-	}
-	return tree, nil
-}
-
-func createTreeOrPanic(db *sql.DB, create *trillian.Tree) *trillian.Tree {
-	tree, err := createTree(db, create)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating tree: %v", err))
+		t.Fatalf("storage.CreateTree(): %v", err)
 	}
 	return tree
-}
-
-// updateTree updates the specified tree using AdminStorage.
-func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
-	ctx := context.Background()
-	s := NewAdminStorage(db)
-	return storage.UpdateTree(ctx, s, treeID, updateFn)
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().
