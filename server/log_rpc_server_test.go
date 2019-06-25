@@ -83,7 +83,7 @@ var (
 	fixedSigner   = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256)
 
 	tree1              = addTreeID(stestonly.LogTree, logID1)
-	getLogRootRequest1 = &trillian.GetLatestSignedLogRootRequest{LogId: logID1}
+	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 	revision1          = int64(5)
 	root1              = &types.LogRootV1{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, Revision: uint64(revision1)}
 	signedRoot1, _     = fixedSigner.SignLogRoot(root1)
@@ -576,13 +576,13 @@ func TestAddSequencedLeaves(t *testing.T) {
 }
 
 type latestRootTest struct {
-	req         *trillian.GetLatestSignedLogRootRequest
-	wantRoot    *trillian.GetLatestSignedLogRootResponse
+	req         trillian.GetLatestSignedLogRootRequest
+	wantRoot    trillian.GetLatestSignedLogRootResponse
 	errStr      string
 	noSnap      bool
 	snapErr     error
 	noRoot      bool
-	storageRoot *trillian.SignedLogRoot
+	storageRoot trillian.SignedLogRoot
 	rootErr     error
 	noCommit    bool
 	commitErr   error
@@ -619,8 +619,8 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 		{
 			// Test normal case where a root is returned correctly.
 			req:         getLogRootRequest1,
-			wantRoot:    &trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
-			storageRoot: proto.Clone(signedRoot1).(*trillian.SignedLogRoot),
+			wantRoot:    trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
+			storageRoot: *signedRoot1,
 		},
 	}
 
@@ -645,7 +645,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			LogStorage:   fakeStorage,
 		}
 		s := NewTrillianLogRPCServer(registry, fakeTimeSource)
-		got, err := s.GetLatestSignedLogRoot(context.Background(), test.req)
+		got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
 		if len(test.errStr) > 0 {
 			if err == nil || !strings.Contains(err.Error(), test.errStr) {
 				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
@@ -2063,7 +2063,7 @@ func TestInitLog(t *testing.T) {
 		getRootErr error
 		storeErr   error
 		wantInit   bool
-		slr        *trillian.SignedLogRoot
+		slr        trillian.SignedLogRoot
 		wantCode   codes.Code
 		wantErrStr string
 	}{
@@ -2075,7 +2075,7 @@ func TestInitLog(t *testing.T) {
 		{desc: "init new log", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, wantCode: codes.OK},
 		{desc: "init new preordered log", preordered: true, getRootErr: storage.ErrTreeNeedsInit, wantInit: true, wantCode: codes.OK},
 		{desc: "init new log, no err", wantInit: true, wantCode: codes.OK},
-		{desc: "init already initialised log", wantInit: false, slr: proto.Clone(signedRoot).(*trillian.SignedLogRoot), wantCode: codes.AlreadyExists},
+		{desc: "init already initialised log", wantInit: false, slr: *signedRoot, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -2278,9 +2278,9 @@ type storageParams struct {
 }
 
 func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
-	tree := proto.Clone(stestonly.LogTree).(*trillian.Tree)
+	tree := *stestonly.LogTree
 	if params.preordered {
-		tree = proto.Clone(stestonly.PreorderedLogTree).(*trillian.Tree)
+		tree = *stestonly.PreorderedLogTree
 	}
 	tree.TreeId = params.treeID
 
