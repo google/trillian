@@ -94,7 +94,7 @@ func TestInitMap(t *testing.T) {
 			mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
 			mockTX.EXPECT().Close().Return(nil)
 			if tc.wantInit {
-				mockTX.EXPECT().Commit().Return(nil)
+				mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 				mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
 			}
 
@@ -200,7 +200,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			if test.snapShErr == nil {
 				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(test.mapRoot, test.lsmrErr)
 				if test.lsmrErr == nil {
-					mockTX.EXPECT().Commit().Return(nil)
+					mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 				}
 				mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
 			}
@@ -308,7 +308,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 				if test.snapShErr == nil {
 					mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
 					if test.lsmrErr == nil {
-						mockTX.EXPECT().Commit().Return(nil)
+						mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 					}
 					mockTX.EXPECT().Close().Return(nil)
 					mockTX.EXPECT().IsOpen().AnyTimes().Return(false)

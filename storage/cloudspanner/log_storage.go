@@ -166,7 +166,7 @@ func (ls *logStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.T
 		if err := f(ctx, tx); err != nil {
 			return err
 		}
-		return tx.flushSubtrees()
+		return tx.flushSubtrees(ctx)
 	})
 	return err
 }

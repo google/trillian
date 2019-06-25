@@ -34,7 +34,7 @@ type ReadOnlyTreeTX interface {
 	ReadRevision(ctx context.Context) (int64, error)
 
 	// Commit attempts to commit any reads performed under this transaction.
-	Commit() error
+	Commit(context.Context) error
 
 	// Rollback aborts this transaction.
 	Rollback() error

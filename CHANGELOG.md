@@ -4,6 +4,16 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Storage Commit takes context.Context
+
+To support passing a context down to `NodeStorage.SetLeaves`, and remove various `context.TODO()`s, 
+the following functions have been modified to accept a `context.Context` parameter:
+
+- `storage/cache.NodeStorage.SetLeaves`
+- `storage/cache.SetSubtreesFunc`
+- `storage/cache.SubtreeCache.Flush`
+- `storage.ReadonlyLogTX.Commit`
+
 ### Go Module Support
 
 Go Module support has been enabled. Please use GO111MODULE=on to build Trillian.

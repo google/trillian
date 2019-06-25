@@ -28,7 +28,7 @@ type ReadOnlyLogTX interface {
 
 	// Commit ensures the data read by the TX is consistent in the database. Only after Commit the
 	// data read should be regarded as valid.
-	Commit() error
+	Commit(context.Context) error
 
 	// Rollback discards the read-only TX.
 	Rollback() error

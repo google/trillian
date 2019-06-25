@@ -139,7 +139,7 @@ func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 type mapTreeTX struct {

@@ -128,7 +128,7 @@ func (m *memoryLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX,
 	return &readOnlyLogTX{m.TreeStorage}, nil
 }
 
-func (t *readOnlyLogTX) Commit() error {
+func (t *readOnlyLogTX) Commit(context.Context) error {
 	return nil
 }
 
@@ -194,7 +194,7 @@ func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, tree *trill
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 func (m *memoryLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
@@ -225,7 +225,7 @@ func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree,
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 

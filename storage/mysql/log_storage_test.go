@@ -200,7 +200,7 @@ func TestSnapshot(t *testing.T) {
 			if err != nil {
 				t.Errorf("LatestSignedLogRoot() returned err = %v", err)
 			}
-			if err := tx.Commit(); err != nil {
+			if err := tx.Commit(ctx); err != nil {
 				t.Errorf("Commit() returned err = %v", err)
 			}
 		})
@@ -1047,7 +1047,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	if err != storage.ErrTreeNeedsInit {
 		t.Fatalf("SnapshotForTree gave %v, want %v", err, storage.ErrTreeNeedsInit)
 	}
-	commit(tx, t)
+	commit(ctx, tx, t)
 }
 
 func TestLatestSignedLogRoot(t *testing.T) {
@@ -1222,7 +1222,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetActiveLogIDs() returns err = %v", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		t.Errorf("Commit() returned err = %v", err)
 	}
 
@@ -1249,7 +1249,7 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetActiveLogIDs() = (_, %v), want = (_, nil)", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		t.Errorf("Commit() = %v, want = nil", err)
 	}
 
@@ -1403,12 +1403,12 @@ func runLogTX(s storage.LogStorage, tree *trillian.Tree, t *testing.T, f storage
 }
 
 type committableTX interface {
-	Commit() error
+	Commit(ctx context.Context) error
 }
 
-func commit(tx committableTX, t *testing.T) {
+func commit(ctx context.Context, tx committableTX, t *testing.T) {
 	t.Helper()
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		t.Errorf("Failed to commit tx: %v", err)
 	}
 }
