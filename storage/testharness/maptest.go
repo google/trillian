@@ -23,18 +23,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+
+	storageto "github.com/google/trillian/storage/testonly"
 )
 
-func GetStorageObjects(ctx context.Context, t *testing.T) (storage.MapStorage, storage.AdminStorage)
+type StorageFactory func(ctx context.Context, t *testing.T) (storage.MapStorage, storage.AdminStorage)
 
-func TestMapStorage(t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
+func TestMapStorage(t *testing.T, storageFactory StorageFactory) {
 	ctx := context.Background()
 	for _, f := range []func(context.Context, *testing.T, storage.MapStorage, storage.AdminStorage){
 		TestCheckDatabaseAccessible,
 		TestMapSnapshot,
 	} {
-		s, as := f(ctx, t)
+		s, as := storageFactory(ctx, t)
 		t.Run(functionName(f), func(t *testing.T) { f(ctx, t, s, as) })
 	}
 }

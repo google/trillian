@@ -40,10 +40,15 @@ var fixedSigner = tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byt
 
 func TestMapSuite(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
+	db := openTestDBOrDie()
+	defer db.Close()
 
-	cleanTestDB(DB)
-	s := NewMapStorage(DB)
-	testharness.TestMapStorage(t, s)
+	storageFactory := func(context.Context, *testing.T) (storage.MapStorage, storage.AdminStorage) {
+		cleanTestDB(db)
+		return NewMapStorage(db), NewAdminStorage(db)
+	}
+
+	testharness.TestMapStorage(t, storageFactory)
 }
 
 func MustSignMapRoot(root *types.MapRootV1) *trillian.SignedMapRoot {
