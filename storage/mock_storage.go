@@ -805,6 +805,21 @@ func (mr *MockMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockMapTreeTX)(nil).Get), arg0, arg1, arg2)
 }
 
+// GetLastInRange mocks base method
+func (m *MockMapTreeTX) GetLastInRange(arg0 context.Context, arg1 int64, arg2 *NodeID) (*trillian.MapLeaf, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastInRange", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*trillian.MapLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastInRange indicates an expected call of GetLastInRange
+func (mr *MockMapTreeTXMockRecorder) GetLastInRange(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastInRange", reflect.TypeOf((*MockMapTreeTX)(nil).GetLastInRange), arg0, arg1, arg2)
+}
+
 // GetMerkleNodes mocks base method
 func (m *MockMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
 	m.ctrl.T.Helper()
@@ -1402,6 +1417,21 @@ func (m *MockReadOnlyMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]b
 func (mr *MockReadOnlyMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).Get), arg0, arg1, arg2)
+}
+
+// GetLastInRange mocks base method
+func (m *MockReadOnlyMapTreeTX) GetLastInRange(arg0 context.Context, arg1 int64, arg2 *NodeID) (*trillian.MapLeaf, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastInRange", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*trillian.MapLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastInRange indicates an expected call of GetLastInRange
+func (mr *MockReadOnlyMapTreeTXMockRecorder) GetLastInRange(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastInRange", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).GetLastInRange), arg0, arg1, arg2)
 }
 
 // GetMerkleNodes mocks base method
