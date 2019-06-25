@@ -45,11 +45,21 @@ func MustSignMapRoot(root *types.MapRootV1) *trillian.SignedMapRoot {
 	return r
 }
 
-func TestMapSnapshot(t *testing.T) {
+func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
-	ctx := context.Background()
 
 	cleanTestDB(DB)
+	s := NewMapStorage(DB)
+	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
+		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	}
+}
+
+func TestMapSnapshot(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+
+	cleanTestDB(DB)
+	ctx := context.Background()
 	as := NewAdminStorage(DB)
 	s := NewMapStorage(DB)
 	frozenMap := createInitializedMapForTests(ctx, t, s, as)
