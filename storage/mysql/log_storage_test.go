@@ -146,7 +146,7 @@ func TestSnapshot(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	frozenLog := mustCreateTree(ctx, t, as, testonly.LogTree)
-	createFakeSignedLogRoot(ctx, t, s, frozenLog, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, frozenLog, 0)
 	if _, err := storage.UpdateTree(ctx, as, frozenLog.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	}); err != nil {
@@ -154,7 +154,7 @@ func TestSnapshot(t *testing.T) {
 	}
 
 	activeLog := mustCreateTree(ctx, t, as, testonly.LogTree)
-	createFakeSignedLogRoot(ctx, t, s, activeLog, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0)
 	mapTreeID := mustCreateTree(ctx, t, as, testonly.MapTree).TreeId
 
 	tests := []struct {
@@ -214,7 +214,7 @@ func TestReadWriteTransaction(t *testing.T) {
 	as := NewAdminStorage(DB)
 	s := NewLogStorage(DB, nil)
 	activeLog := mustCreateTree(ctx, t, as, testonly.LogTree)
-	createFakeSignedLogRoot(ctx, t, s, activeLog, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0)
 
 	tests := []struct {
 		desc        string
@@ -874,7 +874,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	// The leaf indices are checked against the tree size so we need a root.
-	createFakeSignedLogRoot(ctx, t, s, tree, uint64(sequenceNumber+1))
+	mustSignAndStoreLogRoot(ctx, t, s, tree, uint64(sequenceNumber+1))
 
 	data := []byte("some data")
 	data2 := []byte("some other data")
@@ -979,7 +979,7 @@ func testGetLeavesByRangeImpl(t *testing.T, create *trillian.Tree, tests []getLe
 	s := NewLogStorage(DB, nil)
 
 	// Note: GetLeavesByRange loads the root internally to get the tree size.
-	createFakeSignedLogRoot(ctx, t, s, tree, 14)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 14)
 
 	// Create leaves [0]..[19] but drop leaf [5] and set the tree size to 14.
 	for i := int64(0); i < 20; i++ {
