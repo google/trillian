@@ -333,6 +333,10 @@ func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*
 	return ret, nil
 }
 
+func (tx *mapTX) GetLastInRange(ctx context.Context, rev int64, node *storage.NodeID) (*trillian.MapLeaf, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
 // GetSignedMapRoot returns the SignedMapRoot for revision.
 // An error will be returned if there is a problem with the underlying storage.
 func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (*trillian.SignedMapRoot, error) {
