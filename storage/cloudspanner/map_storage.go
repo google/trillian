@@ -75,10 +75,6 @@ func (ms *mapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return checkDatabaseAccessible(ctx, ms.ts.client)
 }
 
-func (ms *mapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	return nil, ErrNotImplemented
-}
-
 func newMapCache(tree *trillian.Tree) (cache.SubtreeCache, error) {
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {

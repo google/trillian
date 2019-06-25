@@ -64,14 +64,6 @@ type readOnlyMapTX struct {
 	*sql.Tx
 }
 
-func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	tx, err := m.db.BeginTx(ctx, nil /* opts */)
-	if err != nil {
-		return nil, err
-	}
-	return &readOnlyMapTX{tx}, nil
-}
-
 func (t *readOnlyMapTX) Close() error {
 	if err := t.Rollback(); err != nil && err != sql.ErrTxDone {
 		glog.Warningf("Rollback error on Close(): %v", err)
