@@ -187,7 +187,7 @@ func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, 
 	return &readOnlyLogTX{m, &sync.Mutex{}, tx}, nil
 }
 
-func (t *readOnlyLogTX) Commit(_ context.Context) error {
+func (t *readOnlyLogTX) Commit(context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 

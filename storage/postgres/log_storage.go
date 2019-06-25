@@ -216,7 +216,7 @@ func (m *postgresLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogT
 	return &readOnlyLogTX{m, tx}, nil
 }
 
-func (t *readOnlyLogTX) Commit(_ context.Context) error {
+func (t *readOnlyLogTX) Commit(context.Context) error {
 	return t.tx.Commit()
 }
 

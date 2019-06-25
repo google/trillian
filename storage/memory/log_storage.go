@@ -128,7 +128,7 @@ func (m *memoryLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX,
 	return &readOnlyLogTX{m.TreeStorage}, nil
 }
 
-func (t *readOnlyLogTX) Commit(_ context.Context) error {
+func (t *readOnlyLogTX) Commit(context.Context) error {
 	return nil
 }
 
