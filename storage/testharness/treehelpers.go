@@ -22,8 +22,8 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-// createTree creates the specified tree using AdminStorage.
-func createTree(ctx context.Context, t *testing.T, s storage.AdminStorage, tree *trillian.Tree) *trillian.Tree {
+// mustCreateTree creates the specified tree using AdminStorage.
+func mustCreateTree(ctx context.Context, t *testing.T, s storage.AdminStorage, tree *trillian.Tree) *trillian.Tree {
 	t.Helper()
 	tree, err := storage.CreateTree(ctx, s, tree)
 	if err != nil {

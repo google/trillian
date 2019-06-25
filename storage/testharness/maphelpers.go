@@ -30,7 +30,7 @@ import (
 
 func createInitializedMapForTests(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) *trillian.Tree {
 	t.Helper()
-	tree := createTree(ctx, t, as, storageto.MapTree)
+	tree := mustCreateTree(ctx, t, as, storageto.MapTree)
 
 	signer := tcrypto.NewSigner(tree.TreeId, testonly.NewSignerWithFixedSig(nil, []byte("sig")), crypto.SHA256)
 	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
