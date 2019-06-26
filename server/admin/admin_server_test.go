@@ -264,7 +264,7 @@ func TestServer_GetTree(t *testing.T) {
 		if test.getErr {
 			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(nil, errors.New("GetTree failed"))
 		} else {
-			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(&storedTree, nil)
+			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(storedTree, nil)
 		}
 		wantErr := test.getErr || test.commitErr
 
