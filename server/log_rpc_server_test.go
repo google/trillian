@@ -576,6 +576,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 }
 
 type latestRootTest struct {
+	desc        string
 	req         trillian.GetLatestSignedLogRootRequest
 	wantRoot    trillian.GetLatestSignedLogRootResponse
 	errStr      string
@@ -590,11 +591,9 @@ type latestRootTest struct {
 }
 
 func TestGetLatestSignedLogRoot(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	tests := []latestRootTest{
 		{
+			desc: "snap_fail",
 			// Test error case when failing to get a snapshot from storage.
 			req:      getLogRootRequest1,
 			snapErr:  errors.New("SnapshotForTree() error"),
@@ -604,6 +603,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			noClose:  true,
 		},
 		{
+			desc: "storage_fail",
 			// Test error case when storage fails to provide a root.
 			req:      getLogRootRequest1,
 			errStr:   "LatestSigned",
@@ -611,12 +611,14 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 			noCommit: true,
 		},
 		{
+			desc: "read_error",
 			// Test error case where the log root could not be read
 			req:      getLogRootRequest1,
 			errStr:   "rpc error: code = Internal desc = Could not read current log root: logRootBytes too short",
 			noCommit: true,
 		},
 		{
+			desc: "ok",
 			// Test normal case where a root is returned correctly.
 			req:         getLogRootRequest1,
 			wantRoot:    trillian.GetLatestSignedLogRootResponse{SignedLogRoot: signedRoot1},
@@ -625,41 +627,46 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fakeStorage := storage.NewMockLogStorage(ctrl)
-		mockTX := storage.NewMockLogTreeTX(ctrl)
-		if !test.noSnap {
-			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, test.snapErr)
-		}
-		if !test.noRoot {
-			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(test.storageRoot, test.rootErr)
-		}
-		if !test.noCommit {
-			mockTX.EXPECT().Commit(gomock.Any()).Return(test.commitErr)
-		}
-		if !test.noClose {
-			mockTX.EXPECT().Close().Return(nil)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-		registry := extension.Registry{
-			AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
-			LogStorage:   fakeStorage,
-		}
-		s := NewTrillianLogRPCServer(registry, fakeTimeSource)
-		got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
-		if len(test.errStr) > 0 {
-			if err == nil || !strings.Contains(err.Error(), test.errStr) {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
+			fakeStorage := storage.NewMockLogStorage(ctrl)
+			mockTX := storage.NewMockLogTreeTX(ctrl)
+			if !test.noSnap {
+				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, test.snapErr)
 			}
-		} else {
-			if err != nil {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=_,%v, want: _,nil", test.req, err)
-				continue
+			if !test.noRoot {
+				mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(test.storageRoot, test.rootErr)
 			}
-			// Ensure we got the expected root back.
-			if !proto.Equal(got.SignedLogRoot, test.wantRoot.SignedLogRoot) {
-				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, test.wantRoot)
+			if !test.noCommit {
+				mockTX.EXPECT().Commit(gomock.Any()).Return(test.commitErr)
 			}
-		}
+			if !test.noClose {
+				mockTX.EXPECT().Close().Return(nil)
+			}
+
+			registry := extension.Registry{
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
+				LogStorage:   fakeStorage,
+			}
+			s := NewTrillianLogRPCServer(registry, fakeTimeSource)
+			got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
+			if len(test.errStr) > 0 {
+				if err == nil || !strings.Contains(err.Error(), test.errStr) {
+					t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("GetLatestSignedLogRoot(%+v)=_,%v, want: _,nil", test.req, err)
+					return
+				}
+				// Ensure we got the expected root back.
+				if !proto.Equal(got.SignedLogRoot, test.wantRoot.SignedLogRoot) {
+					t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, test.wantRoot)
+				}
+			}
+		})
 	}
 }
 
@@ -929,7 +936,7 @@ func TestGetProofByHashErrors(t *testing.T) {
 				tx := storage.NewMockLogTreeTX(c)
 				s.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(tx, nil)
 				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(nil, nil)
-				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, errors.New("SLR"))
+				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(&trillian.SignedLogRoot{}, errors.New("SLR"))
 				tx.EXPECT().Close().Return(nil)
 				tx.EXPECT().IsOpen().AnyTimes().Return(false)
 			},
@@ -2085,7 +2092,7 @@ func TestInitLog(t *testing.T) {
 			fakeStorage := &stestonly.FakeLogStorage{TX: mockTX}
 			if tc.snapErr == nil && tc.treeErr == nil {
 				if tc.getRootErr != nil {
-					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, tc.getRootErr)
+					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(&trillian.SignedLogRoot{}, tc.getRootErr)
 				} else {
 					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(tc.slr, nil)
 				}
