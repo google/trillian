@@ -501,7 +501,7 @@ func TestServer_CreateTree(t *testing.T) {
 					newTree.TreeId = 12345
 					newTree.CreateTime = nowPB
 					newTree.UpdateTime = nowPB
-				}).Return(&newTree, test.createErr)
+				}).Return(newTree, test.createErr)
 			}
 
 			// Copy test.req so that any changes CreateTree makes don't affect the original, which may be shared between tests.

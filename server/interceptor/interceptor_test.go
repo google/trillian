@@ -405,9 +405,9 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			admin := storage.NewMockAdminStorage(ctrl)
 			adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 			admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(&mapTree, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), preorderedTree.TreeId).AnyTimes().Return(&preorderedTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(mapTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), preorderedTree.TreeId).AnyTimes().Return(preorderedTree, nil)
 			adminTX.EXPECT().Close().AnyTimes().Return(nil)
 			adminTX.EXPECT().Commit().AnyTimes().Return(nil)
 
