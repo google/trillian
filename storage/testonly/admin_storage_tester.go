@@ -283,7 +283,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	unrelatedTree := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
 
 	referenceLog := proto.Clone(LogTree).(*trillian.Tree)
-	validLog := referenceLog
+	validLog := proto.Clone(referenceLog).(*trillian.Tree)
 	validLog.TreeState = trillian.TreeState_FROZEN
 	validLog.DisplayName = "Frozen Tree"
 	validLog.Description = "A Frozen Tree"
@@ -309,15 +309,16 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	}
 
 	referenceMap := proto.Clone(MapTree).(*trillian.Tree)
-	validMap := referenceMap
+	validMap := proto.Clone(referenceMap).(*trillian.Tree)
 	validMap.DisplayName = "Updated Map"
 	validMapFunc := func(tree *trillian.Tree) {
 		tree.DisplayName = validMap.DisplayName
 	}
 
 	newPrivateKey := &empty.Empty{}
-	privateKeyChangedButKeyMaterialSameTree := proto.Clone(LogTree).(*trillian.Tree)
-	privateKeyChangedButKeyMaterialSameTree.PrivateKey = testonly.MustMarshalAny(t, newPrivateKey)
+	privateKeyChangedButKeyMaterialSameTree := tweakedCopy(LogTree, func(tree *trillian.Tree) {
+		tree.PrivateKey = testonly.MustMarshalAny(t, newPrivateKey)
+	})
 	keys.RegisterHandler(newPrivateKey, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
 		return pem.UnmarshalPrivateKey(privateKeyPEM, privateKeyPass)
 	})
@@ -420,14 +421,15 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 			t.Errorf("%v: UpdateTime = %v, want >= %v", test.desc, updatedTree.UpdateTime, createdTree.UpdateTime)
 		}
 		// Copy storage-generated values to want before comparing
-		wantTree := proto.Clone(test.want).(*trillian.Tree)
-		wantTree.TreeId = updatedTree.TreeId
-		wantTree.CreateTime = updatedTree.CreateTime
-		wantTree.UpdateTime = updatedTree.UpdateTime
-		// Ignore storage_settings changes (OK to vary between implementations)
-		wantTree.StorageSettings = updatedTree.StorageSettings
+		wantTree := tweakedCopy(test.want, func(t *trillian.Tree) {
+			t.TreeId = updatedTree.TreeId
+			t.CreateTime = updatedTree.CreateTime
+			t.UpdateTime = updatedTree.UpdateTime
+			// Ignore storage_settings changes (OK to vary between implementations)
+			t.StorageSettings = updatedTree.StorageSettings
+		})
 		if !proto.Equal(updatedTree, wantTree) {
-			diff := pretty.Compare(updatedTree, &wantTree)
+			diff := pretty.Compare(updatedTree, wantTree)
 			t.Errorf("%v: updatedTree doesn't match wantTree:\n%s", test.desc, diff)
 		}
 
@@ -794,4 +796,10 @@ func makeTree(ctx context.Context, s storage.AdminStorage, spec spec) (*trillian
 	}
 
 	return tree, nil
+}
+
+func tweakedCopy(tree *trillian.Tree, modFn func(t *trillian.Tree)) *trillian.Tree {
+	newTree := proto.Clone(tree).(*trillian.Tree)
+	modFn(newTree)
+	return newTree
 }
