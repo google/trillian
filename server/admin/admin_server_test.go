@@ -32,6 +32,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
@@ -495,13 +496,12 @@ func TestServer_CreateTree(t *testing.T) {
 			nowPB := ptypes.TimestampNow()
 
 			if test.req.Tree != nil {
-				var newTree *trillian.Tree
-				tx.EXPECT().CreateTree(gomock.Any(), gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
-					newTree = proto.Clone(tree).(*trillian.Tree)
-					newTree.TreeId = 12345
-					newTree.CreateTime = nowPB
-					newTree.UpdateTime = nowPB
-				}).Return(newTree, test.createErr)
+				newTree := proto.Clone(test.req.Tree).(*trillian.Tree)
+				newTree.TreeId = 12345
+				newTree.CreateTime = nowPB
+				newTree.UpdateTime = nowPB
+				newTree.PublicKey, err = der.ToPublicProto(privateKey.Public())
+				tx.EXPECT().CreateTree(gomock.Any(), gomock.Any()).MaxTimes(1).Return(newTree, test.createErr)
 			}
 
 			// Copy test.req so that any changes CreateTree makes don't affect the original, which may be shared between tests.
@@ -525,7 +525,7 @@ func TestServer_CreateTree(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to marshal test public key as protobuf: %v", err)
 			}
-			if diff := pretty.Compare(tree, &wantTree); diff != "" {
+			if diff := cmp.Diff(tree, wantTree, cmp.Comparer(proto.Equal)); diff != "" {
 				t.Fatalf("post-CreateTree diff (-got +want):\n%v", diff)
 			}
 		})
