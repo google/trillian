@@ -402,7 +402,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	}
 
 	var root types.LogRootV1
-	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+	if err := root.UnmarshalBinary(slr.GetLogRoot()); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
