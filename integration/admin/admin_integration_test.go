@@ -292,45 +292,47 @@ func TestAdminServer_ListTrees(t *testing.T) {
 		{desc: "threeTrees", numTrees: 3},
 	}
 
-	createdTrees := []*trillian.Tree{}
+	var createdTrees []*trillian.Tree
 	for _, test := range tests {
-		if l := len(createdTrees); l > test.numTrees {
-			t.Fatalf("%v: numTrees = %v, but we already have %v stored trees", test.desc, test.numTrees, l)
-		} else if l < test.numTrees {
-			for i := l; i < test.numTrees; i++ {
-				var tree *trillian.Tree
-				if i%2 == 0 {
-					tree = testonly.LogTree
-				} else {
-					tree = testonly.MapTree
+		t.Run(test.desc, func(t *testing.T) {
+			if l := len(createdTrees); l > test.numTrees {
+				t.Fatalf("numTrees = %v, but we already have %v stored trees", test.numTrees, l)
+			} else if l < test.numTrees {
+				for i := l; i < test.numTrees; i++ {
+					var tree *trillian.Tree
+					if i%2 == 0 {
+						tree = proto.Clone(testonly.LogTree).(*trillian.Tree)
+					} else {
+						tree = proto.Clone(testonly.MapTree).(*trillian.Tree)
+					}
+					req := &trillian.CreateTreeRequest{Tree: tree}
+					resp, err := ts.adminClient.CreateTree(ctx, req)
+					if err != nil {
+						t.Fatalf("CreateTree(_, %v) = (_, %q), want = (_, nil)", req, err)
+					}
+					createdTrees = append(createdTrees, resp)
 				}
-				req := &trillian.CreateTreeRequest{Tree: tree}
-				resp, err := ts.adminClient.CreateTree(ctx, req)
-				if err != nil {
-					t.Fatalf("%v: CreateTree(_, %v) = (_, %q), want = (_, nil)", test.desc, req, err)
+				sortByTreeID(createdTrees)
+			}
+
+			resp, err := ts.adminClient.ListTrees(ctx, &trillian.ListTreesRequest{})
+			if err != nil {
+				t.Errorf("%v: ListTrees() = (_, %q), want = (_, nil)", test.desc, err)
+				return
+			}
+
+			got := resp.Tree
+			sortByTreeID(got)
+			if diff := cmp.Diff(got, createdTrees, cmp.Comparer(proto.Equal)); diff != "" {
+				t.Errorf("post-ListTrees diff:\n%v", diff)
+			}
+
+			for _, tree := range resp.Tree {
+				if tree.PrivateKey != nil {
+					t.Errorf("PrivateKey not redacted: %v", tree)
 				}
-				createdTrees = append(createdTrees, resp)
 			}
-			sortByTreeID(createdTrees)
-		}
-
-		resp, err := ts.adminClient.ListTrees(ctx, &trillian.ListTreesRequest{})
-		if err != nil {
-			t.Errorf("%v: ListTrees() = (_, %q), want = (_, nil)", test.desc, err)
-			continue
-		}
-
-		got := resp.Tree
-		sortByTreeID(got)
-		if diff := cmp.Diff(got, createdTrees, cmp.Comparer(proto.Equal)); diff != "" {
-			t.Errorf("%v: post-ListTrees diff:\n%v", test.desc, diff)
-		}
-
-		for _, tree := range resp.Tree {
-			if tree.PrivateKey != nil {
-				t.Errorf("%v: PrivateKey not redacted: %v", test.desc, tree)
-			}
-		}
+		})
 	}
 }
 
