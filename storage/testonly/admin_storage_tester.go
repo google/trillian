@@ -297,7 +297,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		tree.DisplayName = ""
 		tree.Description = ""
 	}
-	validLogWithoutOptionals := referenceLog
+	validLogWithoutOptionals := proto.Clone(referenceLog).(*trillian.Tree)
 	validLogWithoutOptionalsFunc(validLogWithoutOptionals)
 
 	invalidLogFunc := func(tree *trillian.Tree) {
