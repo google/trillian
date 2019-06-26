@@ -372,6 +372,19 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 5,
 		},
 		{
+			desc:   "batchWriteMapLeavesRequest",
+			method: "/trillian.TrillianMapWrite/WriteLeaves",
+			req: &trillian.WriteMapLeavesRequest{
+				MapId:  mapTree.TreeId,
+				Leaves: []*trillian.MapLeaf{{}, {}, {}, {}, {}},
+			},
+			specs: []quota.Spec{
+				{Group: quota.Tree, Kind: quota.Write, TreeID: mapTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantTokens: 5,
+		},
+		{
 			desc:   "quotaError",
 			method: "/trillian.TrillianLog/GetLatestSignedLogRoot",
 			req:    &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
