@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage"
@@ -123,7 +124,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			t.Errorf("%v: GetTree() = (_, %v), want = (_, nil)", test.desc, err)
 			continue
 		}
-		if diff := pretty.Compare(storedTree, createdTree); diff != "" {
+		if diff := cmp.Diff(storedTree, createdTree, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-stored +created):\n%v", test.desc, diff)
 		}
 	}
@@ -321,7 +322,7 @@ func TestAdminServer_ListTrees(t *testing.T) {
 
 		got := resp.Tree
 		sortByTreeID(got)
-		if diff := pretty.Compare(got, createdTrees); diff != "" {
+		if diff := cmp.Diff(got, createdTrees, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("%v: post-ListTrees diff:\n%v", test.desc, diff)
 		}
 
