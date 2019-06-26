@@ -127,7 +127,7 @@ func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 		if err != nil {
 			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
 		}
-		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
 		}
 		return nil

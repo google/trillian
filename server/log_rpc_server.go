@@ -238,7 +238,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	r := &trillian.GetInclusionProofResponse{SignedLogRoot: &slr}
+	r := &trillian.GetInclusionProofResponse{SignedLogRoot: slr}
 
 	if uint64(req.TreeSize) > root.TreeSize {
 		return r, nil
@@ -324,7 +324,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 
 	// TODO(gbelvin): Rename "Proof" -> "Proofs"
 	return &trillian.GetInclusionProofByHashResponse{
-		SignedLogRoot: &slr,
+		SignedLogRoot: slr,
 		Proof:         proofs,
 	}, nil
 }
@@ -360,7 +360,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
-	r := &trillian.GetConsistencyProofResponse{SignedLogRoot: &slr}
+	r := &trillian.GetConsistencyProofResponse{SignedLogRoot: slr}
 
 	if uint64(req.SecondTreeSize) > root.TreeSize {
 		return r, nil
@@ -406,7 +406,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	r := &trillian.GetLatestSignedLogRootResponse{SignedLogRoot: &slr}
+	r := &trillian.GetLatestSignedLogRootResponse{SignedLogRoot: slr}
 
 	if req.FirstTreeSize == 0 {
 		// no need to get consistency proof in this case
@@ -522,7 +522,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	return &trillian.GetLeavesByIndexResponse{Leaves: leaves, SignedLogRoot: &slr}, nil
+	return &trillian.GetLeavesByIndexResponse{Leaves: leaves, SignedLogRoot: slr}, nil
 }
 
 // GetLeavesByRange obtains leaves based on a range of sequence numbers within the tree.
@@ -554,7 +554,7 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	r := &trillian.GetLeavesByRangeResponse{SignedLogRoot: &slr}
+	r := &trillian.GetLeavesByRangeResponse{SignedLogRoot: slr}
 
 	if req.StartIndex < int64(root.TreeSize) {
 		leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
@@ -613,7 +613,7 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 
 	return &trillian.GetLeavesByHashResponse{
 		Leaves:        leaves,
-		SignedLogRoot: &slr,
+		SignedLogRoot: slr,
 	}, nil
 }
 
@@ -650,7 +650,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	r := &trillian.GetEntryAndProofResponse{SignedLogRoot: &slr}
+	r := &trillian.GetEntryAndProofResponse{SignedLogRoot: slr}
 
 	if req.TreeSize > int64(root.TreeSize) && req.LeafIndex < int64(root.TreeSize) {
 		// return latest proof we can manage
@@ -778,7 +778,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		}
 		newRoot = root
 
-		if err := tx.StoreSignedLogRoot(ctx, *newRoot); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, newRoot); err != nil {
 			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot()=%v", err)
 		}
 

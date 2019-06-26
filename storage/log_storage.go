@@ -61,7 +61,7 @@ type ReadOnlyLogTreeTX interface {
 	// will be in ascending sequence number order.
 	GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error)
 	// LatestSignedLogRoot returns the most recent SignedLogRoot, if any.
-	LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error)
+	LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error)
 }
 
 // LogTreeTX is the transactional interface for reading/updating a Log.
@@ -74,7 +74,7 @@ type LogTreeTX interface {
 	TreeWriter
 
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
-	StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error
+	StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error
 
 	// QueueLeaves enqueues leaves for later integration into the tree.
 	// If error is nil, the returned slice of leaves will be the same size as the

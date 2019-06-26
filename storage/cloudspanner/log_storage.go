@@ -310,18 +310,18 @@ func (tx *logTX) getLogStorageConfig() *spannerpb.LogStorageConfig {
 
 // LatestSignedLogRoot returns the freshest SignedLogRoot for this log at the
 // time the transaction was started.
-func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	currentSTH, err := tx.currentSTH(ctx)
 	if err != nil {
-		return trillian.SignedLogRoot{}, err
+		return nil, err
 	}
 	writeRev, err := tx.writeRev(ctx)
 	if err != nil {
-		return trillian.SignedLogRoot{}, err
+		return nil, err
 	}
 
 	if got, want := currentSTH.TreeRevision+1, writeRev; got != want {
-		return trillian.SignedLogRoot{}, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
+		return nil, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
 	}
 
 	// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
@@ -333,12 +333,12 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 		Metadata:       currentSTH.Metadata,
 	}).MarshalBinary()
 	if err != nil {
-		return trillian.SignedLogRoot{}, err
+		return nil, err
 	}
 
 	// We already read the latest root as part of starting the transaction (in
 	// order to calculate the writeRevision), so we just return that data here:
-	return trillian.SignedLogRoot{
+	return &trillian.SignedLogRoot{
 		KeyHint:          types.SerializeKeyHint(tx.treeID),
 		LogRoot:          logRoot,
 		LogRootSignature: currentSTH.Signature,
@@ -348,7 +348,7 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 // StoreSignedLogRoot stores the provided root.
 // This method will return an error if the caller attempts to store more than
 // one root per log for a given tree size.
-func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error {
+func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
 	writeRev, err := tx.writeRev(ctx)
 	if err == storage.ErrTreeNeedsInit {
 		writeRev = 0

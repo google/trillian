@@ -309,7 +309,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	}
 
 	if params.latestSignedRoot != nil {
-		mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*params.latestSignedRoot, params.latestSignedRootError)
+		mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(params.latestSignedRoot, params.latestSignedRootError)
 	}
 
 	if params.merkleNodesGet != nil {
@@ -330,7 +330,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	if !params.skipStoreSignedRoot {
 		if params.storeSignedRoot != nil {
-			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), *params.storeSignedRoot).Return(params.storeSignedRootError)
+			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), params.storeSignedRoot).Return(params.storeSignedRootError)
 		} else {
 			// At the moment if we're going to fail the operation we accept any root
 			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any()).Return(params.storeSignedRootError)
@@ -771,7 +771,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			// between Sequencer and quota.Manager.
 			logTX := storage.NewMockLogTreeTX(ctrl)
 			logTX.EXPECT().DequeueLeaves(any, any, any).Return(test.leaves, nil)
-			logTX.EXPECT().LatestSignedLogRoot(any).Return(*testSignedRoot16, nil)
+			logTX.EXPECT().LatestSignedLogRoot(any).Return(testSignedRoot16, nil)
 			if len(test.leaves) != 0 {
 				logTX.EXPECT().GetMerkleNodes(any, any, any).Return(compactTree16, nil)
 			}

@@ -356,7 +356,7 @@ type logTreeTX struct {
 	treeTX
 	ls   *postgresLogStorage
 	root types.LogRootV1
-	slr  trillian.SignedLogRoot
+	slr  *trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
@@ -810,12 +810,12 @@ func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes []
 	return t.getLeavesByHashInternal(ctx, leafHashes, tmpl, "leaf-identity")
 }
 
-func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	return t.slr, nil
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
-func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	//	var timestamp, treeSize, treeRevision int64
 	var rootSignatureBytes []byte
 	var jsonObj []byte
@@ -825,19 +825,19 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		"select current_tree_data,root_signature from trees where tree_id = $1",
 		t.treeID).Scan(&jsonObj, &rootSignatureBytes)
 	if jsonObj == nil { //this fixes the createtree workflow
-		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
+		return nil, storage.ErrTreeNeedsInit
 	}
 	var logRoot types.LogRootV1
 	json.Unmarshal(jsonObj, &logRoot)
 	newRoot, _ := logRoot.MarshalBinary()
-	return trillian.SignedLogRoot{
+	return &trillian.SignedLogRoot{
 		KeyHint:          types.SerializeKeyHint(t.treeID),
 		LogRoot:          newRoot,
 		LogRootSignature: rootSignatureBytes,
 	}, nil
 }
 
-func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error {
+func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)

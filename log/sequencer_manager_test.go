@@ -104,7 +104,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testSignedRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil)
 
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
@@ -157,7 +157,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 
 		fakeStorage.TX = mockTx
 		gomock.InOrder(
-			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil),
+			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testSignedRoot0, nil),
 			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil),
 			mockTx.EXPECT().Commit(gomock.Any()).Return(nil),
@@ -238,10 +238,10 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(int64(testRoot0.Revision+1), nil)
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{testLeaf0}, nil)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testSignedRoot0, nil)
 	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), []*trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(gomock.Any(), updatedNodes0).Return(nil)
-	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), *updatedSignedRoot).Return(nil)
+	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), updatedSignedRoot).Return(nil)
 
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
 	mockAdminTx.EXPECT().Commit().Return(nil)
@@ -279,7 +279,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testSignedRoot0, nil)
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime.Add(-time.Second*5)).Return([]*trillian.LogLeaf{}, nil)
 

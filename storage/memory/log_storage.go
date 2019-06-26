@@ -247,7 +247,7 @@ type logTreeTX struct {
 	treeTX
 	ls   *memoryLogStorage
 	root types.LogRootV1
-	slr  trillian.SignedLogRoot
+	slr  *trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
@@ -349,20 +349,20 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 	return ret, nil
 }
 
-func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	return t.slr, nil
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
-func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	r := t.tx.Get(sthKey(t.treeID, t.tree.currentSTH))
 	if r == nil {
-		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
+		return nil, storage.ErrTreeNeedsInit
 	}
-	return r.(*kv).v.(trillian.SignedLogRoot), nil
+	return r.(*kv).v.(*trillian.SignedLogRoot), nil
 }
 
-func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr trillian.SignedLogRoot) error {
+func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr *trillian.SignedLogRoot) error {
 	var root types.LogRootV1
 	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
 		return err

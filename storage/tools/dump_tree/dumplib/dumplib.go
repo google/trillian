@@ -212,7 +212,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 	}
 
 	err = ls.ReadWriteTransaction(ctx, createdTree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, *sthZero); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, sthZero); err != nil {
 			glog.Fatalf("StoreSignedLogRoot: %v", err)
 		}
 		return nil
