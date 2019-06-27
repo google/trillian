@@ -115,18 +115,18 @@ func TestValidateMask(t *testing.T) {
 func TestApplyMask(t *testing.T) {
 	// destSequencingConfig must match apiSequencingConfig after the test
 	// name is manually copied, as it's a readonly field.
-	destSequencingConfig := *storageTimeConfig
+	destSequencingConfig := proto.Clone(storageTimeConfig).(*storagepb.Config)
 	destSequencingConfig.Name = apiSequencingConfig.Name
 
 	// destTimeConfig must match apiTimeConfig after the test
-	destTimeConfig := *storageSequencingConfig
+	destTimeConfig := proto.Clone(storageSequencingConfig).(*storagepb.Config)
 	destTimeConfig.Name = apiTimeConfig.Name
 
-	destClearSequencing := *storageSequencingConfig
+	destClearSequencing := proto.Clone(storageSequencingConfig).(*storagepb.Config)
 	wantClearSequencing := destClearSequencing
 	wantClearSequencing.ReplenishmentStrategy = nil
 
-	destClearTime := *storageTimeConfig
+	destClearTime := proto.Clone(storageTimeConfig).(*storagepb.Config)
 	wantClearTime := destClearTime
 	wantClearTime.ReplenishmentStrategy = nil
 
@@ -149,30 +149,30 @@ func TestApplyMask(t *testing.T) {
 		{
 			desc: "sequencingBasedOverwrite",
 			src:  apiSequencingConfig,
-			dest: &destSequencingConfig,
+			dest: destSequencingConfig,
 			mask: sequencingBasedMask,
 			want: storageSequencingConfig,
 		},
 		{
 			desc: "timeBasedOverwrite",
 			src:  apiTimeConfig,
-			dest: &destTimeConfig,
+			dest: destTimeConfig,
 			mask: timeBasedMask,
 			want: storageTimeConfig,
 		},
 		{
 			desc: "clearSequencingIfNil",
 			src:  &quotapb.Config{},
-			dest: &destClearSequencing,
+			dest: destClearSequencing,
 			mask: &field_mask.FieldMask{Paths: []string{sequencingBasedPath}},
-			want: &wantClearSequencing,
+			want: wantClearSequencing,
 		},
 		{
 			desc: "clearTimeIfNil",
 			src:  &quotapb.Config{},
-			dest: &destClearTime,
+			dest: destClearTime,
 			mask: &field_mask.FieldMask{Paths: []string{timeBasedPath}},
-			want: &wantClearTime,
+			want: wantClearTime,
 		},
 	}
 	for _, test := range tests {
