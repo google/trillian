@@ -373,11 +373,11 @@ func modBucket(s concurrency.STM, cfg *storagepb.Config, now time.Time, add int6
 	key := bucketKey(cfg)
 
 	val := s.Get(key)
-	prevBucket := storagepb.Bucket{}
-	if err := proto.Unmarshal([]byte(val), &prevBucket); err != nil {
+	var prevBucket *storagepb.Bucket
+	if err := proto.Unmarshal([]byte(val), prevBucket); err != nil {
 		return 0, fmt.Errorf("error unmarshaling %v: %v", key, err)
 	}
-	newBucket := prevBucket
+	newBucket := proto.Clone(prevBucket).(*storagepb.Bucket)
 
 	if tb := cfg.GetTimeBased(); tb != nil {
 		if now.Unix() >= newBucket.LastReplenishMillisSinceEpoch/1e3+tb.ReplenishIntervalSeconds {
@@ -400,8 +400,8 @@ func modBucket(s concurrency.STM, cfg *storagepb.Config, now time.Time, add int6
 		newBucket.Tokens = cfg.MaxTokens
 	}
 
-	if !proto.Equal(&prevBucket, &newBucket) {
-		pb, err := proto.Marshal(&newBucket)
+	if !proto.Equal(prevBucket, newBucket) {
+		pb, err := proto.Marshal(newBucket)
 		if err != nil {
 			return 0, err
 		}

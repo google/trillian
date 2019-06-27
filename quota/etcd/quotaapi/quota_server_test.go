@@ -74,9 +74,9 @@ var (
 )
 
 func copyWithName(c *quotapb.Config, name string) *quotapb.Config {
-	cp := *c
+	cp := proto.Clone(c).(*quotapb.Config)
 	cp.Name = name
-	return &cp
+	return cp
 }
 
 func TestMain(m *testing.M) {
@@ -102,14 +102,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestServer_CreateConfig(t *testing.T) {
-	globalWrite2 := *globalWrite
+	globalWrite2 := proto.Clone(globalWrite).(*quotapb.Config)
 	globalWrite2.MaxTokens += 10
 	globalWrite2.CurrentTokens = globalWrite2.MaxTokens
 
-	overrideName := *globalWrite
+	overrideName := proto.Clone(globalWrite).(*quotapb.Config)
 	overrideName.Name = "ignored"
 
-	invalidConfig := *globalWrite
+	invalidConfig := proto.Clone(globalWrite).(*quotapb.Config)
 	invalidConfig.State = quotapb.Config_UNKNOWN_CONFIG_STATE
 
 	tests := []upsertTest{
@@ -131,7 +131,7 @@ func TestServer_CreateConfig(t *testing.T) {
 		{
 			desc:     "alreadyExists",
 			baseCfg:  globalWrite,
-			req:      &quotapb.CreateConfigRequest{Name: globalWrite.Name, Config: &globalWrite2},
+			req:      &quotapb.CreateConfigRequest{Name: globalWrite.Name, Config: globalWrite2},
 			wantCode: codes.AlreadyExists,
 			wantCfg:  globalWrite,
 		},
@@ -139,7 +139,7 @@ func TestServer_CreateConfig(t *testing.T) {
 			desc: "overrideName",
 			req: &quotapb.CreateConfigRequest{
 				Name:   globalWrite.Name,
-				Config: &overrideName,
+				Config: overrideName,
 			},
 			wantCfg: globalWrite,
 		},
@@ -147,7 +147,7 @@ func TestServer_CreateConfig(t *testing.T) {
 			desc: "invalidConfig",
 			req: &quotapb.CreateConfigRequest{
 				Name:   "quotas/global/read/config",
-				Config: &invalidConfig,
+				Config: invalidConfig,
 			},
 			wantCode: codes.InvalidArgument,
 		},
@@ -165,12 +165,12 @@ func TestServer_CreateConfig(t *testing.T) {
 }
 
 func TestServer_UpdateConfig(t *testing.T) {
-	disabledGlobalWrite := *globalWrite
+	disabledGlobalWrite := proto.Clone(globalWrite).(*quotapb.Config)
 	// Disabled quotas have "infinite" tokens
 	disabledGlobalWrite.CurrentTokens = int64(quota.MaxTokens)
 	disabledGlobalWrite.State = quotapb.Config_DISABLED
 
-	timeBasedGlobalWrite := *globalWrite
+	timeBasedGlobalWrite := proto.Clone(globalWrite).(*quotapb.Config)
 	timeBasedGlobalWrite.MaxTokens += 100
 	timeBasedGlobalWrite.CurrentTokens = globalWrite.MaxTokens
 	timeBasedGlobalWrite.ReplenishmentStrategy = &quotapb.Config_TimeBased{
@@ -194,7 +194,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 				Config:     &quotapb.Config{State: disabledGlobalWrite.State},
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"state"}},
 			},
-			wantCfg: &disabledGlobalWrite,
+			wantCfg: disabledGlobalWrite,
 		},
 		{
 			desc:    "timeBasedGlobalWrite",
@@ -207,11 +207,11 @@ func TestServer_UpdateConfig(t *testing.T) {
 				},
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"max_tokens", "time_based"}},
 			},
-			wantCfg: &timeBasedGlobalWrite,
+			wantCfg: timeBasedGlobalWrite,
 		},
 		{
 			desc:    "timeBasedGlobalWrite2",
-			baseCfg: &timeBasedGlobalWrite,
+			baseCfg: timeBasedGlobalWrite,
 			req: &quotapb.UpdateConfigRequest{
 				Name: timeBasedGlobalWrite.Name,
 				Config: &quotapb.Config{
@@ -219,7 +219,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 				},
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"time_based"}},
 			},
-			wantCfg: &timeBasedGlobalWrite2,
+			wantCfg: timeBasedGlobalWrite2,
 		},
 		{
 			desc: "unknownConfig",
@@ -331,7 +331,7 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 		t.Fatalf("Get() returned err = %v", err)
 	}
 
-	cfg := *globalWrite
+	cfg := proto.Clone(globalWrite).(*quotapb.Config)
 	cfg.MaxTokens += 10
 
 	tests := []struct {
@@ -343,7 +343,7 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 			desc: "resetFalse",
 			req: &quotapb.UpdateConfigRequest{
 				Name:       globalWrite.Name,
-				Config:     &cfg,
+				Config:     cfg,
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"max_tokens"}},
 			},
 			wantTokens: 1,
@@ -415,7 +415,7 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 	for _, cfg := range configs {
 		for num := 0; num < routinesPerConfig; num++ {
 			wg.Add(1)
-			go func(num int, want quotapb.Config) {
+			go func(num int, want *quotapb.Config) {
 				defer wg.Done()
 				baseTokens := 1 + rand.Intn(routinesPerConfig*100)
 				reset := num%2 == 0
@@ -434,12 +434,12 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 
 					want.CurrentTokens = got.CurrentTokens // Not important for this test
 					want.MaxTokens = tokens
-					if !proto.Equal(got, &want) {
+					if !proto.Equal(got, want) {
 						diff := pretty.Compare(got, &want)
 						t.Errorf("%v: post-UpdateConfig() diff (-got +want):\n%v", want.Name, diff)
 					}
 				}
-			}(num, *cfg)
+			}(num, cfg)
 		}
 	}
 	wg.Wait()
