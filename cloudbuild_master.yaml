@@ -126,9 +126,6 @@ steps:
   - -f=examples/deployment/kubernetes/trillian-log-service.yaml
   - -f=examples/deployment/kubernetes/trillian-log-signer-deployment.yaml
   - -f=examples/deployment/kubernetes/trillian-log-signer-service.yaml
-  - --prune
-  - --all
-  - --prune-whitelist=core/v1/ConfigMap
   env:
   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
