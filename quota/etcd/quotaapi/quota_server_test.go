@@ -180,7 +180,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 		},
 	}
 
-	timeBasedGlobalWrite2 := timeBasedGlobalWrite
+	timeBasedGlobalWrite2 := proto.Clone(timeBasedGlobalWrite).(*quotapb.Config)
 	timeBasedGlobalWrite2.CurrentTokens = timeBasedGlobalWrite.MaxTokens
 	timeBasedGlobalWrite2.GetTimeBased().TokensToReplenish += 50
 	timeBasedGlobalWrite2.GetTimeBased().ReplenishIntervalSeconds -= 20
@@ -355,18 +355,20 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if _, err := quotaClient.UpdateConfig(ctx, test.req); err != nil {
-			t.Errorf("%v: UpdateConfig() returned err = %v", test.desc, err)
-			continue
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			if _, err := quotaClient.UpdateConfig(ctx, test.req); err != nil {
+				t.Errorf("UpdateConfig() returned err = %v", err)
+				return
+			}
 
-		tokens, err := qs.Peek(ctx, []string{test.req.Name})
-		if err != nil {
-			t.Fatalf("%v: Peek() returned err = %v", test.desc, err)
-		}
-		if got := tokens[test.req.Name]; got != test.wantTokens {
-			t.Errorf("%v: %q has %v tokens, want = %v", test.desc, test.req.Name, got, test.wantTokens)
-		}
+			tokens, err := qs.Peek(ctx, []string{test.req.Name})
+			if err != nil {
+				t.Fatalf("Peek() returned err = %v", err)
+			}
+			if got := tokens[test.req.Name]; got != test.wantTokens {
+				t.Errorf("%q has %v tokens, want = %v", test.req.Name, got, test.wantTokens)
+			}
+		})
 	}
 }
 
