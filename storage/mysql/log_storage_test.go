@@ -255,7 +255,7 @@ func TestReadWriteTransaction(t *testing.T) {
 				if gotRev != test.wantTXRev {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, gotRev, test.wantTXRev)
 				}
-				if got, want := root.LogRoot, test.wantLogRoot; !bytes.Equal(got, want) {
+				if got, want := root.GetLogRoot(), test.wantLogRoot; !bytes.Equal(got, want) {
 					t.Errorf("%v: LogRoot: \n%x, want \n%x", test.desc, got, want)
 				}
 				return nil
