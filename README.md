@@ -86,7 +86,7 @@ To run many of the tests (and production deployment) you need:
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
    the data storage layer; see the [MySQL Setup](#mysql-setup) section.
 
-Note that this repository uses go modules to manage dependencies, go will fetch
+Note that this repository uses Go modules to manage dependencies; Go will fetch
 and install them automatically upon build/test.
 
 To fetch the code, dependencies, and build Trillian, run the following:
