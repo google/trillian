@@ -25,9 +25,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
+	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/storage/testharness"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
@@ -48,7 +48,7 @@ func TestMapSuite(t *testing.T) {
 		return NewMapStorage(db), NewAdminStorage(db)
 	}
 
-	testharness.TestMapStorage(t, storageFactory)
+	storagetest.TestMapStorage(t, storageFactory)
 }
 
 func MustSignMapRoot(t *testing.T, root *types.MapRootV1) *trillian.SignedMapRoot {

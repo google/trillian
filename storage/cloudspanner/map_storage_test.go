@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"cloud.google.com/go/spanner"
+	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/testharness"
 )
 
 // To run cloudspanner tests,
@@ -51,7 +51,7 @@ func TestSuite(t *testing.T) {
 		return NewMapStorage(ctx, db), NewAdminStorage(db)
 	}
 
-	testharness.TestMapStorage(t, storageFactory)
+	storagetest.TestMapStorage(t, storageFactory)
 }
 
 func cleanTestDB(ctx context.Context, t *testing.T, db *spanner.Client) {
