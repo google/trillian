@@ -18,6 +18,7 @@ cache:
 env:
   global:
   - GO111MODULE=on
+  - GOPROXY=https://proxy.golang.org
   matrix:
   - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--coverage"
   - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters"

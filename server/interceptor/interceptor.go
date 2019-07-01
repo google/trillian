@@ -55,12 +55,14 @@ var (
 	contextErrCounter    monitoring.Counter
 	metricsOnce          sync.Once
 	enabledServices      = map[string]bool{
-		"trillian.TrillianLog":   true,
-		"trillian.TrillianMap":   true,
-		"trillian.TrillianAdmin": true,
-		"TrillianLog":            true,
-		"TrillianMap":            true,
-		"TrillianAdmin":          true,
+		"trillian.TrillianLog":      true,
+		"trillian.TrillianMap":      true,
+		"trillian.TrillianMapWrite": true,
+		"trillian.TrillianAdmin":    true,
+		"TrillianLog":               true,
+		"TrillianMap":               true,
+		"TrillianMapWrite":          true,
+		"TrillianAdmin":             true,
 	}
 )
 
@@ -438,6 +440,10 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 
 	// Map / readwrite
 	case *trillian.SetMapLeavesRequest:
+		info.readonly = false
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
+		info.tokens = len(req.GetLeaves())
+	case *trillian.WriteMapLeavesRequest:
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
 		info.tokens = len(req.GetLeaves())

@@ -79,19 +79,25 @@ The current state of feature implementation is recorded in the
 
 To build and test Trillian you need:
 
- - Go 1.9 or later.
+ - Go 1.11 or later.
 
 To run many of the tests (and production deployment) you need:
 
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
    the data storage layer; see the [MySQL Setup](#mysql-setup) section.
 
-Use the standard Go tools to install other dependencies.
+Note that this repository uses Go modules to manage dependencies; Go will fetch
+and install them automatically upon build/test.
+
+To fetch the code, dependencies, and build Trillian, run the following:
 
 ```bash
-go get github.com/google/trillian
-cd $GOPATH/src/github.com/google/trillian
-go get -t -u -v ./...
+export GO111MODULE=auto
+
+git clone https://github.com/google/trillian.git
+cd trillian
+
+go build ./...
 ```
 
 To build and run tests, use:
@@ -100,13 +106,6 @@ To build and run tests, use:
 go test ./...
 ```
 
-Note that go seems to sometimes fail to fetch or update all dependencies (as of
-v1.10.2), so you may need to manually fetch missing ones, or update all Go
-source with:
-
-```bash
-go get -u -v all
-```
 
 The repository also includes multi-process integration tests, described in the
 [Integration Tests](#integration-tests) section below.

@@ -93,7 +93,7 @@ done
 COREACCOUNT=$(gcloud config config-helper --format=json | jq -r '.configuration.properties.core.account')
 kubectl create clusterrolebinding etcd-cluster-admin-binding --clusterrole=cluster-admin --user="${COREACCOUNT}"
 
-for f in "etcd-role-binding.yaml" "etcd-role.yaml" "etcd-deployment.yaml" "etcd-service.yaml"; do
+for f in "etcd-role-binding.yaml" "etcd-role.yaml" "etcd-deployment.yaml"; do
   envsubst < ${DIR}/${f} | kubectl apply --namespace="${NAMESPACE}" -f -
 done
 
