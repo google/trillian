@@ -51,10 +51,11 @@ func TestMapSuite(t *testing.T) {
 	testharness.TestMapStorage(t, storageFactory)
 }
 
-func MustSignMapRoot(root *types.MapRootV1) *trillian.SignedMapRoot {
+func MustSignMapRoot(t *testing.T, root *types.MapRootV1) *trillian.SignedMapRoot {
+	t.Helper()
 	r, err := fixedSigner.SignMapRoot(root)
 	if err != nil {
-		panic(fmt.Sprintf("SignMapRoot(): %v", err))
+		t.Fatalf("SignMapRoot(): %v", err)
 	}
 	return r
 }
@@ -143,7 +144,7 @@ func TestMapRootUpdate(t *testing.T) {
 	}{
 		{
 			desc: "Initial root",
-			root: MustSignMapRoot(&types.MapRootV1{
+			root: MustSignMapRoot(t, &types.MapRootV1{
 				TimestampNanos: 98765,
 				Revision:       5,
 				RootHash:       []byte(dummyHash),
@@ -151,7 +152,7 @@ func TestMapRootUpdate(t *testing.T) {
 		},
 		{
 			desc: "Root update",
-			root: MustSignMapRoot(&types.MapRootV1{
+			root: MustSignMapRoot(t, &types.MapRootV1{
 				TimestampNanos: 98766,
 				Revision:       6,
 				RootHash:       []byte(dummyHash),
@@ -159,7 +160,7 @@ func TestMapRootUpdate(t *testing.T) {
 		},
 		{
 			desc: "Root with default (empty) MapperMetadata",
-			root: MustSignMapRoot(&types.MapRootV1{
+			root: MustSignMapRoot(t, &types.MapRootV1{
 				TimestampNanos: 98768,
 				Revision:       7,
 				RootHash:       []byte(dummyHash),
@@ -167,7 +168,7 @@ func TestMapRootUpdate(t *testing.T) {
 		},
 		{
 			desc: "Root with non-default (populated) MapperMetadata",
-			root: MustSignMapRoot(&types.MapRootV1{
+			root: MustSignMapRoot(t, &types.MapRootV1{
 				TimestampNanos: 98769,
 				Revision:       8,
 				RootHash:       []byte(dummyHash),
@@ -424,7 +425,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 	tree := createInitializedMapForTests(ctx, t, s, as)
 
 	revision := int64(5)
-	root := MustSignMapRoot(&types.MapRootV1{
+	root := MustSignMapRoot(t, &types.MapRootV1{
 		TimestampNanos: 98765,
 		Revision:       uint64(revision),
 		RootHash:       []byte(dummyHash),
@@ -459,7 +460,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	s := NewMapStorage(DB)
 	tree := createInitializedMapForTests(ctx, t, s, as)
 
-	root := MustSignMapRoot(&types.MapRootV1{
+	root := MustSignMapRoot(t, &types.MapRootV1{
 		TimestampNanos: 98765,
 		Revision:       5,
 		RootHash:       []byte(dummyHash),
@@ -495,7 +496,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	tree := createInitializedMapForTests(ctx, t, s, as)
 
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-		root := MustSignMapRoot(&types.MapRootV1{
+		root := MustSignMapRoot(t, &types.MapRootV1{
 			TimestampNanos: 98765,
 			Revision:       5,
 			RootHash:       []byte(dummyHash),
