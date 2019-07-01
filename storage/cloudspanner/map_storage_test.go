@@ -28,7 +28,7 @@ import (
 // 1) Set the -test_cloud_spanner_database flag
 // 2) Set application default credentials `gcloud auth application-default login`
 
-var cloudDBPath = flag.String("test_cloud_spanner_database", "", "projects/my-project/instances/my-instance/database/my-db")
+var cloudDBPath = flag.String("test_cloud_spanner_database", "", "eg: projects/my-project/instances/my-instance/database/my-db")
 
 func GetTestDB(ctx context.Context, t *testing.T) *spanner.Client {
 	t.Helper()
