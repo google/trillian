@@ -32,7 +32,6 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
   - --destination=gcr.io/${PROJECT_ID}/db_server:latest
   - --cache=true
-  - --cache-ttl=24h
   waitFor:
   - push_mysql
 - id: build_log_server
@@ -42,7 +41,6 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
   - --destination=gcr.io/${PROJECT_ID}/log_server:latest
   - --cache=true
-  - --cache-ttl=24h
   waitFor: ["-"]
 - id: build_log_signer
   name: gcr.io/kaniko-project/executor
@@ -51,7 +49,6 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
   - --destination=gcr.io/${PROJECT_ID}/log_signer:latest
   - --cache=true
-  - --cache-ttl=24h
   waitFor: ["-"]
 - id: build_map_server
   name: gcr.io/kaniko-project/executor
@@ -60,7 +57,6 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
   - --destination=gcr.io/${PROJECT_ID}/map_server:latest
   - --cache=true
-  - --cache-ttl=24h
   waitFor: ["-"]
 - id: build_envsubst
   name: gcr.io/cloud-builders/docker
