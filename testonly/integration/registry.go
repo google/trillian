@@ -24,10 +24,12 @@ import (
 )
 
 // NewRegistryForTests returns an extension.Registry for integration tests.
-func NewRegistryForTests(ctx context.Context) (extension.Registry, error) {
-	db, err := testdb.NewTrillianDB(ctx)
+// Callers should call the returned cleanup function when they're finished
+// with the registry and its contents.
+func NewRegistryForTests(ctx context.Context) (extension.Registry, func(context.Context), error) {
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
-		return extension.Registry{}, err
+		return extension.Registry{}, nil, err
 	}
 
 	return extension.Registry{
@@ -35,5 +37,5 @@ func NewRegistryForTests(ctx context.Context) (extension.Registry, error) {
 		LogStorage:   mysql.NewLogStorage(db, nil),
 		MapStorage:   mysql.NewMapStorage(db),
 		QuotaManager: &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: mysqlqm.DefaultMaxUnsequenced},
-	}, nil
+	}, done, nil
 }

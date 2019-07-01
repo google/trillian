@@ -227,12 +227,12 @@ func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
 	return missing, extra
 }
 
-func openTestDBOrDie() *sql.DB {
-	db, err := testdb.NewTrillianDB(context.TODO())
+func openTestDBOrDie() (*sql.DB, func(context.Context)) {
+	db, done, err := testdb.NewTrillianDB(context.TODO())
 	if err != nil {
 		panic(err)
 	}
-	return db
+	return db, done
 }
 
 // cleanTestDB deletes all the entries in the database.
@@ -282,8 +282,12 @@ func TestMain(m *testing.M) {
 		glog.Errorf("MySQL not available, skipping all MySQL storage tests")
 		return
 	}
-	DB = openTestDBOrDie()
-	defer DB.Close()
-	cleanTestDB(DB)
-	os.Exit(m.Run())
+
+	var done func(context.Context)
+
+	DB, done = openTestDBOrDie()
+
+	status := m.Run()
+	done(context.TODO())
+	os.Exit(status)
 }

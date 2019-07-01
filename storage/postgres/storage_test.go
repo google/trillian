@@ -109,12 +109,12 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
-func openTestDBOrDie() *sql.DB {
-	db, err := testdb.NewTrillianDB(context.TODO())
+func openTestDBOrDie() (*sql.DB, func(context.Context)) {
+	db, done, err := testdb.NewTrillianDB(context.TODO())
 	if err != nil {
 		panic(err)
 	}
-	return db
+	return db, done
 }
 
 func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
@@ -169,7 +169,11 @@ func TestMain(m *testing.M) {
 		glog.Errorf("PG not available, skipping all PG storage tests")
 		return
 	}
-	db = openTestDBOrDie()
-	defer db.Close()
-	os.Exit(m.Run())
+
+	var done func(context.Context)
+	db, done = openTestDBOrDie()
+
+	status := m.Run()
+	done(context.TODO())
+	os.Exit(status)
 }
