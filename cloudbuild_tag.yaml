@@ -51,8 +51,4 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/map_server:${TAG_NAME}
   - --cache=true
   waitFor: ["-"]
-images:
-- gcr.io/${PROJECT_ID}/db_server:${TAG_NAME}
-- gcr.io/${PROJECT_ID}/log_server:${TAG_NAME}
-- gcr.io/${PROJECT_ID}/log_signer:${TAG_NAME}
-- gcr.io/${PROJECT_ID}/map_server:${TAG_NAME}
+

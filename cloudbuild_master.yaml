@@ -95,8 +95,4 @@ steps:
   - envsubst_kubernetes_configs
   - push_log_server
   - push_log_signer
-images:
-- gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
-- gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
-- gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
-- gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
+
