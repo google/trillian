@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/testonly"
 
 	_ "github.com/go-sql-driver/mysql" // mysql driver
@@ -53,10 +54,13 @@ func MySQLAvailable() bool {
 }
 
 // newEmptyDB creates a new, empty database.
-func newEmptyDB(ctx context.Context) (*sql.DB, error) {
+// returns the database handle and a clean-up function, or an error.
+// The returned clean-up function should be called once the caller is finished
+// using the DB, this function may delete the underlying instance.
+func newEmptyDB(ctx context.Context) (*sql.DB, func(), error) {
 	db, err := sql.Open("mysql", *dataSourceURI)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Create a randomly-named database and then connect using the new name.
@@ -64,26 +68,33 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
-		return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+		return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
 
 	db.Close()
 	db, err = sql.Open("mysql", *dataSourceURI+name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return db, db.Ping()
+	drop := func() {
+		if _, err := db.ExecContext(ctx, "DROP DATABASE %v", name); err != nil {
+			glog.Warningf("Failed to drop testdatabase %q: %v", name, err)
+		}
+	}
+
+	return db, drop, db.Ping()
 }
 
 // NewTrillianDB creates an empty database with the Trillian schema. The database name is randomly
 // generated.
 // NewTrillianDB is equivalent to Default().NewTrillianDB(ctx).
 func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
-	db, err := newEmptyDB(ctx)
+	db, done, err := newEmptyDB(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer done()
 
 	sqlBytes, err := ioutil.ReadFile(trillianSQL)
 	if err != nil {
