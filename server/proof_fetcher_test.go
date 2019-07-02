@@ -35,7 +35,7 @@ type rehashTest struct {
 	index   int64
 	nodes   []storage.Node
 	fetches []merkle.NodeFetch
-	output  trillian.Proof
+	output  *trillian.Proof
 }
 
 // An arbitrary tree revision to be used in tests.
@@ -63,7 +63,7 @@ func TestRehasher(t *testing.T) {
 			index:   126,
 			nodes:   []storage.Node{sn1, sn2, sn3},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 126,
 				Hashes:    [][]byte{h1, h2, h3},
 			},
@@ -73,7 +73,7 @@ func TestRehasher(t *testing.T) {
 			index:   999,
 			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 999,
 				Hashes:    [][]byte{h1, th.HashChildren(h3, h2), h4, h5},
 			},
@@ -83,7 +83,7 @@ func TestRehasher(t *testing.T) {
 			index:   11,
 			nodes:   []storage.Node{sn1, sn2, sn3},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 11,
 				Hashes:    [][]byte{h1, th.HashChildren(h3, h2)},
 			},
@@ -93,7 +93,7 @@ func TestRehasher(t *testing.T) {
 			index:   23,
 			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 23,
 				Hashes:    [][]byte{h1, th.HashChildren(h4, th.HashChildren(h3, h2)), h5},
 			},
@@ -103,7 +103,7 @@ func TestRehasher(t *testing.T) {
 			index:   45,
 			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 45,
 				Hashes:    [][]byte{th.HashChildren(h2, h1), h3, th.HashChildren(h5, h4)},
 			},
@@ -123,7 +123,7 @@ func TestRehasher(t *testing.T) {
 			t.Fatalf("rehash test %s unexpected error: %v", rehashTest.desc, err)
 		}
 
-		if !proto.Equal(&got, &want) {
+		if !proto.Equal(got, want) {
 			t.Errorf("rehash test %s:\ngot: %v\nwant: %v", rehashTest.desc, got, want)
 		}
 	}
