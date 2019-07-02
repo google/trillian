@@ -254,7 +254,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	r.Proof = &proof
+	r.Proof = proof
 
 	return r, nil
 }
@@ -310,7 +310,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		if err != nil {
 			return nil, err
 		}
-		proofs = append(proofs, &proof)
+		proofs = append(proofs, proof)
 		t.recordIndexPercent(leaf.LeafIndex, root.TreeSize)
 	}
 
@@ -453,7 +453,7 @@ func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize, 
 	if err != nil {
 		return nil, err
 	}
-	return &proof, nil
+	return proof, nil
 }
 
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
@@ -676,7 +676,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		t.recordIndexPercent(req.LeafIndex, root.TreeSize)
 
 		// Work is complete, we have everything we need for the response
-		r.Proof = &proof
+		r.Proof = proof
 		r.Leaf = leaves[0]
 	}
 
@@ -705,16 +705,16 @@ func (t *TrillianLogRPCServer) closeAndLog(ctx context.Context, logID int64, tx 
 // getInclusionProofForLeafIndex is used by multiple handlers. It does the storage fetching
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
-func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher, snapshot, leafIndex, treeSize int64) (trillian.Proof, error) {
+func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher, snapshot, leafIndex, treeSize int64) (*trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(snapshot, leafIndex, treeSize, proofMaxBitLen)
 	if err != nil {
-		return trillian.Proof{}, err
+		return nil, err
 	}
 
 	rev, err := tx.ReadRevision(ctx)
 	if err != nil {
-		return trillian.Proof{}, err
+		return nil, err
 	}
 	return fetchNodesAndBuildProof(ctx, tx, hasher, rev, leafIndex, proofNodeIDs)
 }

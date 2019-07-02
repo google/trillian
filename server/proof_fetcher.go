@@ -29,12 +29,12 @@ import (
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
 	proofNodes, err := fetchNodes(ctx, tx, treeRevision, proofNodeFetches)
 	if err != nil {
-		return trillian.Proof{}, err
+		return nil, err
 	}
 
 	r := &rehasher{th: th}
@@ -92,9 +92,9 @@ func (r *rehasher) endRehashing() {
 	}
 }
 
-func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
+func (r *rehasher) rehashedProof(leafIndex int64) (*trillian.Proof, error) {
 	r.endRehashing()
-	return trillian.Proof{
+	return &trillian.Proof{
 		LeafIndex: leafIndex,
 		Hashes:    r.proof,
 	}, r.proofError
