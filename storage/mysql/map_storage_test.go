@@ -38,7 +38,7 @@ import (
 
 var fixedSigner = tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 
-func TestMapSuite(t *testing.T) {
+func TestMapIntegration(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	db := openTestDBOrDie()
 	defer db.Close()
