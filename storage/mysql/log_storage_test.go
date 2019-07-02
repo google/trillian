@@ -255,7 +255,7 @@ func TestReadWriteTransaction(t *testing.T) {
 				if gotRev != test.wantTXRev {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, gotRev, test.wantTXRev)
 				}
-				if got, want := root.LogRoot, test.wantLogRoot; !bytes.Equal(got, want) {
+				if got, want := root.GetLogRoot(), test.wantLogRoot; !bytes.Equal(got, want) {
 					t.Errorf("%v: LogRoot: \n%x, want \n%x", test.desc, got, want)
 				}
 				return nil
@@ -1090,7 +1090,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	}
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -1102,7 +1102,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read back new log root: %v", err)
 			}
-			if !proto.Equal(root, &root2) {
+			if !proto.Equal(root, root2) {
 				t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 			}
 			return nil
@@ -1129,11 +1129,11 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	}
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		// Shouldn't be able to do it again
-		if err := tx.StoreSignedLogRoot(ctx, *root); err == nil {
+		if err := tx.StoreSignedLogRoot(ctx, root); err == nil {
 			t.Fatal("Allowed duplicate signed root")
 		}
 		return nil
@@ -1169,10 +1169,10 @@ func TestLogRootUpdate(t *testing.T) {
 	}
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
-		if err := tx.StoreSignedLogRoot(ctx, *root2); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, root2); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -1183,7 +1183,7 @@ func TestLogRootUpdate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read back new log root: %v", err)
 		}
-		if !proto.Equal(root2, &root3) {
+		if !proto.Equal(root2, root3) {
 			t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 		}
 		return nil

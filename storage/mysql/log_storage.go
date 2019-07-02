@@ -349,7 +349,7 @@ type logTreeTX struct {
 	treeTX
 	ls   *mySQLLogStorage
 	root types.LogRootV1
-	slr  trillian.SignedLogRoot
+	slr  *trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
@@ -818,7 +818,7 @@ func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes []
 	return t.getLeavesByHashInternal(ctx, leafHashes, tmpl, "leaf-identity")
 }
 
-func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()
 
@@ -826,7 +826,7 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLog
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
-func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
 	if err := t.tx.QueryRowContext(
@@ -834,7 +834,7 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
 	); err == sql.ErrNoRows {
 		// It's possible there are no roots for this tree yet
-		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
+		return nil, storage.ErrTreeNeedsInit
 	}
 
 	// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
@@ -845,17 +845,17 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		TreeSize:       uint64(treeSize),
 	}).MarshalBinary()
 	if err != nil {
-		return trillian.SignedLogRoot{}, err
+		return nil, err
 	}
 
-	return trillian.SignedLogRoot{
+	return &trillian.SignedLogRoot{
 		KeyHint:          types.SerializeKeyHint(t.treeID),
 		LogRoot:          logRoot,
 		LogRootSignature: rootSignatureBytes,
 	}, nil
 }
 
-func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error {
+func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()
 
@@ -866,7 +866,6 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 	}
 	if len(logRoot.Metadata) != 0 {
 		return fmt.Errorf("unimplemented: mysql storage does not support log root metadata")
-
 	}
 
 	res, err := t.tx.ExecContext(

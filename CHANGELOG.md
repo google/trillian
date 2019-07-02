@@ -4,6 +4,15 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+### Storage APIs GetSignedLogRoot / SetSignedLogRoot now take pointers
+
+This at the storage layer and does not affect the log server API.
+This is part of work to fix proto buffer usages where they are passed
+by value or compared by generic code like `reflect.DeepEquals()`. Passing
+them by value creates shallow copies that can share internal state. As the
+generated structs contain additional exported `XXX_` fields generic
+comparisons using all fields can produce incorrect results.
+
 ### Storage Commit takes context.Context
 
 To support passing a context down to `NodeStorage.SetLeaves`, and remove various `context.TODO()`s, 

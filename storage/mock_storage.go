@@ -558,10 +558,10 @@ func (mr *MockLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedLogRoot mocks base method
-func (m *MockLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (trillian.SignedLogRoot, error) {
+func (m *MockLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.SignedLogRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedLogRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedLogRoot)
+	ret0, _ := ret[0].(*trillian.SignedLogRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -631,7 +631,7 @@ func (mr *MockLogTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gom
 }
 
 // StoreSignedLogRoot mocks base method
-func (m *MockLogTreeTX) StoreSignedLogRoot(arg0 context.Context, arg1 trillian.SignedLogRoot) error {
+func (m *MockLogTreeTX) StoreSignedLogRoot(arg0 context.Context, arg1 *trillian.SignedLogRoot) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSignedLogRoot", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -1295,10 +1295,10 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedLogRoot mocks base method
-func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (trillian.SignedLogRoot, error) {
+func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.SignedLogRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedLogRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedLogRoot)
+	ret0, _ := ret[0].(*trillian.SignedLogRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

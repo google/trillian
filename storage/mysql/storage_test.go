@@ -253,7 +253,7 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 		if err != nil {
 			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
 		}
-		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
 		}
 		return nil

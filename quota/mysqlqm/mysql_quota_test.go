@@ -303,7 +303,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 			if err != nil {
 				return err
 			}
-			return tx.StoreSignedLogRoot(ctx, *slr)
+			return tx.StoreSignedLogRoot(ctx, slr)
 		})
 		if err != nil {
 			return nil, err
