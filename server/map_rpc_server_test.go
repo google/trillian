@@ -338,7 +338,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 }
 
 func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) storage.AdminStorage {
-	tree := *stestonly.MapTree
+	tree := proto.Clone(stestonly.MapTree).(*trillian.Tree)
 	tree.TreeId = treeID
 
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
@@ -346,7 +346,7 @@ func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) st
 		ReadOnlyTX: []storage.ReadOnlyAdminTX{adminTX},
 	}
 
-	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(times).Return(&tree, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(times).Return(tree, nil)
 	adminTX.EXPECT().Close().MaxTimes(times).Return(nil)
 	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)
 

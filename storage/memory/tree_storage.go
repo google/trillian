@@ -111,10 +111,10 @@ func (a kv) Less(b btree.Item) bool {
 }
 
 // newTree creates and initializes a tree struct.
-func newTree(t trillian.Tree) *tree {
+func newTree(t *trillian.Tree) *tree {
 	ret := &tree{
 		store: btree.New(degree),
-		meta:  &t,
+		meta:  proto.Clone(t).(*trillian.Tree),
 	}
 	k := unseqKey(t.TreeId)
 	k.(*kv).v = list.New()

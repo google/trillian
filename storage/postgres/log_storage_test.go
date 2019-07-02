@@ -1101,12 +1101,12 @@ func TestGetActiveLogIDs(t *testing.T) {
 	map1 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	map2 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	for _, tree := range []*trillian.Tree{log1, log2, log3, drainingLog, frozenLog, deletedLog, map1, map2, deletedMap} {
-		newTree, err := storage.CreateTree(ctx, admin, tree)
+	for _, tree := range []**trillian.Tree{&log1, &log2, &log3, &drainingLog, &frozenLog, &deletedLog, &map1, &map2, &deletedMap} {
+		newTree, err := storage.CreateTree(ctx, admin, *tree)
 		if err != nil {
 			t.Fatalf("CreateTree(%+v) returned err = %v", tree, err)
 		}
-		*tree = *newTree
+		*tree = newTree
 	}
 
 	// FROZEN is not a valid initial state, so we have to update it separately.

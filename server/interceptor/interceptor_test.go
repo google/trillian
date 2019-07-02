@@ -192,13 +192,13 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 
 func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 
-	logTree := *testonly.LogTree
+	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
 
-	mapTree := *testonly.MapTree
+	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	mapTree.TreeId = 11
 
-	preorderedTree := *testonly.PreorderedLogTree
+	preorderedTree := proto.Clone(testonly.PreorderedLogTree).(*trillian.Tree)
 	preorderedTree.TreeId = 12
 
 	charge1 := "alpaca"
@@ -418,9 +418,9 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			admin := storage.NewMockAdminStorage(ctrl)
 			adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 			admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(&mapTree, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), preorderedTree.TreeId).AnyTimes().Return(&preorderedTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(mapTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), preorderedTree.TreeId).AnyTimes().Return(preorderedTree, nil)
 			adminTX.EXPECT().Close().AnyTimes().Return(nil)
 			adminTX.EXPECT().Commit().AnyTimes().Return(nil)
 
@@ -445,8 +445,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 }
 
 func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
-
-	logTree := *testonly.LogTree
+	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
 
 	tests := []struct {
@@ -567,7 +566,7 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 			admin := storage.NewMockAdminStorage(ctrl)
 			adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 			admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
 			adminTX.EXPECT().Close().AnyTimes().Return(nil)
 			adminTX.EXPECT().Commit().AnyTimes().Return(nil)
 			putTokensCh := make(chan bool, 1)
@@ -644,7 +643,7 @@ func TestTrillianInterceptor_NotIntercepted(t *testing.T) {
 // difficult/impossible to get unless the methods are called separately (i.e., not via
 // UnaryInterceptor()).
 func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
-	logTree := *testonly.LogTree
+	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
 
 	qm := quota.Noop()
@@ -677,7 +676,7 @@ func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 			admin := storage.NewMockAdminStorage(ctrl)
 			adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 			admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
+			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
 			adminTX.EXPECT().Close().AnyTimes().Return(nil)
 			adminTX.EXPECT().Commit().AnyTimes().Return(nil)
 

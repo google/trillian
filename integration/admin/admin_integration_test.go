@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage"
@@ -123,7 +124,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			t.Errorf("%v: GetTree() = (_, %v), want = (_, nil)", test.desc, err)
 			continue
 		}
-		if diff := pretty.Compare(storedTree, createdTree); diff != "" {
+		if diff := cmp.Diff(storedTree, createdTree, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-stored +created):\n%v", test.desc, diff)
 		}
 	}
@@ -138,7 +139,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 	}
 	defer ts.closeAll()
 
-	baseTree := *testonly.LogTree
+	baseTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 
 	// successTree specifies changes in all rw fields
 	successTree := &trillian.Tree{
@@ -148,7 +149,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 	}
 	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description"}}
 
-	successWant := baseTree
+	successWant := proto.Clone(baseTree).(*trillian.Tree)
 	successWant.TreeState = successTree.TreeState
 	successWant.DisplayName = successTree.DisplayName
 	successWant.Description = successTree.Description
@@ -162,8 +163,8 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 	}{
 		{
 			desc:       "success",
-			createTree: &baseTree,
-			wantTree:   &successWant,
+			createTree: baseTree,
+			wantTree:   successWant,
 			req:        &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
 		},
 		{
@@ -176,7 +177,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		},
 		{
 			desc:       "readonlyField",
-			createTree: &baseTree,
+			createTree: baseTree,
 			req: &trillian.UpdateTreeRequest{
 				Tree:       successTree,
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_type"}},
@@ -185,7 +186,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		},
 		{
 			desc:       "invalidUpdate",
-			createTree: &baseTree,
+			createTree: baseTree,
 			req: &trillian.UpdateTreeRequest{
 				Tree:       &trillian.Tree{}, // tree_state = UNKNOWN_TREE_STATE
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_state"}},
@@ -225,12 +226,12 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		}
 
 		// Copy storage-generated fields to the expected tree
-		want := *test.wantTree
+		want := proto.Clone(test.wantTree).(*trillian.Tree)
 		want.TreeId = tree.TreeId
 		want.CreateTime = tree.CreateTime
 		want.UpdateTime = tree.UpdateTime
-		if !proto.Equal(tree, &want) {
-			diff := pretty.Compare(tree, &want)
+		if !proto.Equal(tree, want) {
+			diff := pretty.Compare(tree, want)
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
 		}
 	}
@@ -291,45 +292,47 @@ func TestAdminServer_ListTrees(t *testing.T) {
 		{desc: "threeTrees", numTrees: 3},
 	}
 
-	createdTrees := []*trillian.Tree{}
+	var createdTrees []*trillian.Tree
 	for _, test := range tests {
-		if l := len(createdTrees); l > test.numTrees {
-			t.Fatalf("%v: numTrees = %v, but we already have %v stored trees", test.desc, test.numTrees, l)
-		} else if l < test.numTrees {
-			for i := l; i < test.numTrees; i++ {
-				var tree *trillian.Tree
-				if i%2 == 0 {
-					tree = testonly.LogTree
-				} else {
-					tree = testonly.MapTree
+		t.Run(test.desc, func(t *testing.T) {
+			if l := len(createdTrees); l > test.numTrees {
+				t.Fatalf("numTrees = %v, but we already have %v stored trees", test.numTrees, l)
+			} else if l < test.numTrees {
+				for i := l; i < test.numTrees; i++ {
+					var tree *trillian.Tree
+					if i%2 == 0 {
+						tree = proto.Clone(testonly.LogTree).(*trillian.Tree)
+					} else {
+						tree = proto.Clone(testonly.MapTree).(*trillian.Tree)
+					}
+					req := &trillian.CreateTreeRequest{Tree: tree}
+					resp, err := ts.adminClient.CreateTree(ctx, req)
+					if err != nil {
+						t.Fatalf("CreateTree(_, %v) = (_, %q), want = (_, nil)", req, err)
+					}
+					createdTrees = append(createdTrees, resp)
 				}
-				req := &trillian.CreateTreeRequest{Tree: tree}
-				resp, err := ts.adminClient.CreateTree(ctx, req)
-				if err != nil {
-					t.Fatalf("%v: CreateTree(_, %v) = (_, %q), want = (_, nil)", test.desc, req, err)
+				sortByTreeID(createdTrees)
+			}
+
+			resp, err := ts.adminClient.ListTrees(ctx, &trillian.ListTreesRequest{})
+			if err != nil {
+				t.Errorf("%v: ListTrees() = (_, %q), want = (_, nil)", test.desc, err)
+				return
+			}
+
+			got := resp.Tree
+			sortByTreeID(got)
+			if diff := cmp.Diff(got, createdTrees, cmp.Comparer(proto.Equal)); diff != "" {
+				t.Errorf("post-ListTrees diff:\n%v", diff)
+			}
+
+			for _, tree := range resp.Tree {
+				if tree.PrivateKey != nil {
+					t.Errorf("PrivateKey not redacted: %v", tree)
 				}
-				createdTrees = append(createdTrees, resp)
 			}
-			sortByTreeID(createdTrees)
-		}
-
-		resp, err := ts.adminClient.ListTrees(ctx, &trillian.ListTreesRequest{})
-		if err != nil {
-			t.Errorf("%v: ListTrees() = (_, %q), want = (_, nil)", test.desc, err)
-			continue
-		}
-
-		got := resp.Tree
-		sortByTreeID(got)
-		if diff := pretty.Compare(got, createdTrees); diff != "" {
-			t.Errorf("%v: post-ListTrees diff:\n%v", test.desc, diff)
-		}
-
-		for _, tree := range resp.Tree {
-			if tree.PrivateKey != nil {
-				t.Errorf("%v: PrivateKey not redacted: %v", test.desc, tree)
-			}
-		}
+		})
 	}
 }
 

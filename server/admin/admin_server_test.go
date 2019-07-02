@@ -32,6 +32,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
@@ -58,7 +59,7 @@ func TestServer_BeginError(t *testing.T) {
 		t.Fatalf("Error generating test key: %v", err)
 	}
 
-	validTree := *testonly.LogTree
+	validTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 
 	// Need to remove the public key, as it won't correspond to the privateKey that was just generated.
 	validTree.PublicKey = nil
@@ -92,7 +93,7 @@ func TestServer_BeginError(t *testing.T) {
 		{
 			desc: "CreateTree",
 			fn: func(ctx context.Context, s *Server) error {
-				_, err := s.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: &validTree})
+				_, err := s.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: validTree})
 				return err
 			},
 		},
@@ -259,12 +260,12 @@ func TestServer_GetTree(t *testing.T) {
 		tx := setup.snapshotTX
 		s := setup.server
 
-		storedTree := *testonly.LogTree
+		storedTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 		storedTree.TreeId = 12345
 		if test.getErr {
 			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(nil, errors.New("GetTree failed"))
 		} else {
-			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(&storedTree, nil)
+			tx.EXPECT().GetTree(gomock.Any(), storedTree.TreeId).Return(storedTree, nil)
 		}
 		wantErr := test.getErr || test.commitErr
 
@@ -276,7 +277,7 @@ func TestServer_GetTree(t *testing.T) {
 			continue
 		}
 
-		wantTree := storedTree
+		wantTree := proto.Clone(storedTree).(*trillian.Tree)
 		wantTree.PrivateKey = nil // redacted
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
 			t.Errorf("%v: post-GetTree diff (-got +want):\n%v", test.desc, diff)
@@ -297,7 +298,7 @@ func TestServer_CreateTree(t *testing.T) {
 	}
 
 	// Need to change the public key to correspond with the ECDSA private key generated above.
-	validTree := *testonly.LogTree
+	validTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	// Except in key generation test cases, a keys.ProtoHandler will be registered that
 	// returns ecdsaPrivateKey when passed an empty proto.
 	wantKeyProto := &empty.Empty{}
@@ -310,31 +311,31 @@ func TestServer_CreateTree(t *testing.T) {
 		return pb
 	}()
 
-	mismatchedPublicKey := validTree
+	mismatchedPublicKey := proto.Clone(validTree).(*trillian.Tree)
 	mismatchedPublicKey.PublicKey = testonly.LogTree.GetPublicKey()
 
-	omittedPublicKey := validTree
+	omittedPublicKey := proto.Clone(validTree).(*trillian.Tree)
 	omittedPublicKey.PublicKey = nil
 
-	omittedPrivateKey := validTree
+	omittedPrivateKey := proto.Clone(validTree).(*trillian.Tree)
 	omittedPrivateKey.PrivateKey = nil
 
-	omittedKeys := omittedPublicKey
+	omittedKeys := proto.Clone(omittedPublicKey).(*trillian.Tree)
 	omittedKeys.PrivateKey = nil
 
-	invalidTree := validTree
+	invalidTree := proto.Clone(validTree).(*trillian.Tree)
 	invalidTree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
 
-	invalidHashAlgo := validTree
+	invalidHashAlgo := proto.Clone(validTree).(*trillian.Tree)
 	invalidHashAlgo.HashAlgorithm = sigpb.DigitallySigned_NONE
 
-	invalidHashStrategy := validTree
+	invalidHashStrategy := proto.Clone(validTree).(*trillian.Tree)
 	invalidHashStrategy.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
 
-	invalidSignatureAlgo := validTree
+	invalidSignatureAlgo := proto.Clone(validTree).(*trillian.Tree)
 	invalidSignatureAlgo.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
 
-	keySignatureMismatch := validTree
+	keySignatureMismatch := proto.Clone(validTree).(*trillian.Tree)
 	keySignatureMismatch.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 
 	tests := []struct {
@@ -347,7 +348,7 @@ func TestServer_CreateTree(t *testing.T) {
 	}{
 		{
 			desc:       "validTree",
-			req:        &trillian.CreateTreeRequest{Tree: &validTree},
+			req:        &trillian.CreateTreeRequest{Tree: validTree},
 			wantCommit: true,
 		},
 		{
@@ -357,18 +358,18 @@ func TestServer_CreateTree(t *testing.T) {
 		},
 		{
 			desc:    "mismatchedPublicKey",
-			req:     &trillian.CreateTreeRequest{Tree: &mismatchedPublicKey},
+			req:     &trillian.CreateTreeRequest{Tree: mismatchedPublicKey},
 			wantErr: "public and private keys are not a pair",
 		},
 		{
 			desc:    "omittedPrivateKey",
-			req:     &trillian.CreateTreeRequest{Tree: &omittedPrivateKey},
+			req:     &trillian.CreateTreeRequest{Tree: omittedPrivateKey},
 			wantErr: "private_key or key_spec is required",
 		},
 		{
 			desc: "privateKeySpec",
 			req: &trillian.CreateTreeRequest{
-				Tree: &omittedKeys,
+				Tree: omittedKeys,
 				KeySpec: &keyspb.Specification{
 					Params: &keyspb.Specification_EcdsaParams{},
 				},
@@ -379,7 +380,7 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc: "privateKeySpecButNoKeyGenerator",
 			req: &trillian.CreateTreeRequest{
-				Tree: &omittedKeys,
+				Tree: omittedKeys,
 				KeySpec: &keyspb.Specification{
 					Params: &keyspb.Specification_EcdsaParams{},
 				},
@@ -390,7 +391,7 @@ func TestServer_CreateTree(t *testing.T) {
 			// Tree specifies ECDSA signatures, but key specification provides RSA parameters.
 			desc: "privateKeySpecWithMismatchedAlgorithm",
 			req: &trillian.CreateTreeRequest{
-				Tree: &omittedKeys,
+				Tree: omittedKeys,
 				KeySpec: &keyspb.Specification{
 					Params: &keyspb.Specification_RsaParams{},
 				},
@@ -401,7 +402,7 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc: "privateKeySpecAndPrivateKeyProvided",
 			req: &trillian.CreateTreeRequest{
-				Tree: &validTree,
+				Tree: validTree,
 				KeySpec: &keyspb.Specification{
 					Params: &keyspb.Specification_EcdsaParams{},
 				},
@@ -412,7 +413,7 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc: "privateKeySpecAndPublicKeyProvided",
 			req: &trillian.CreateTreeRequest{
-				Tree: &omittedPrivateKey,
+				Tree: omittedPrivateKey,
 				KeySpec: &keyspb.Specification{
 					Params: &keyspb.Specification_EcdsaParams{},
 				},
@@ -422,38 +423,38 @@ func TestServer_CreateTree(t *testing.T) {
 		},
 		{
 			desc:       "omittedPublicKey",
-			req:        &trillian.CreateTreeRequest{Tree: &omittedPublicKey},
+			req:        &trillian.CreateTreeRequest{Tree: omittedPublicKey},
 			wantCommit: true,
 		},
 		{
 			desc:    "invalidHashAlgo",
-			req:     &trillian.CreateTreeRequest{Tree: &invalidHashAlgo},
+			req:     &trillian.CreateTreeRequest{Tree: invalidHashAlgo},
 			wantErr: "unexpected hash algorithm",
 		},
 		{
 			desc:    "invalidHashStrategy",
-			req:     &trillian.CreateTreeRequest{Tree: &invalidHashStrategy},
+			req:     &trillian.CreateTreeRequest{Tree: invalidHashStrategy},
 			wantErr: "unknown hasher",
 		},
 		{
 			desc:    "invalidSignatureAlgo",
-			req:     &trillian.CreateTreeRequest{Tree: &invalidSignatureAlgo},
+			req:     &trillian.CreateTreeRequest{Tree: invalidSignatureAlgo},
 			wantErr: "signature algorithm not supported",
 		},
 		{
 			desc:    "keySignatureMismatch",
-			req:     &trillian.CreateTreeRequest{Tree: &keySignatureMismatch},
+			req:     &trillian.CreateTreeRequest{Tree: keySignatureMismatch},
 			wantErr: "signature not supported by signer",
 		},
 		{
 			desc:      "createErr",
-			req:       &trillian.CreateTreeRequest{Tree: &invalidTree},
+			req:       &trillian.CreateTreeRequest{Tree: invalidTree},
 			createErr: errors.New("storage CreateTree failed"),
 			wantErr:   "storage CreateTree failed",
 		},
 		{
 			desc:       "commitError",
-			req:        &trillian.CreateTreeRequest{Tree: &validTree},
+			req:        &trillian.CreateTreeRequest{Tree: validTree},
 			commitErr:  true,
 			wantCommit: true,
 			wantErr:    "commit error",
@@ -495,13 +496,12 @@ func TestServer_CreateTree(t *testing.T) {
 			nowPB := ptypes.TimestampNow()
 
 			if test.req.Tree != nil {
-				var newTree trillian.Tree
-				tx.EXPECT().CreateTree(gomock.Any(), gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
-					newTree = *tree
-					newTree.TreeId = 12345
-					newTree.CreateTime = nowPB
-					newTree.UpdateTime = nowPB
-				}).Return(&newTree, test.createErr)
+				newTree := proto.Clone(test.req.Tree).(*trillian.Tree)
+				newTree.TreeId = 12345
+				newTree.CreateTime = nowPB
+				newTree.UpdateTime = nowPB
+				newTree.PublicKey, err = der.ToPublicProto(privateKey.Public())
+				tx.EXPECT().CreateTree(gomock.Any(), gomock.Any()).MaxTimes(1).Return(newTree, test.createErr)
 			}
 
 			// Copy test.req so that any changes CreateTree makes don't affect the original, which may be shared between tests.
@@ -516,7 +516,7 @@ func TestServer_CreateTree(t *testing.T) {
 				t.Fatalf("CreateTree() = (_, nil), want (_, %q)", test.wantErr)
 			}
 
-			wantTree := *test.req.Tree
+			wantTree := proto.Clone(test.req.Tree).(*trillian.Tree)
 			wantTree.TreeId = 12345
 			wantTree.CreateTime = nowPB
 			wantTree.UpdateTime = nowPB
@@ -525,7 +525,7 @@ func TestServer_CreateTree(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to marshal test public key as protobuf: %v", err)
 			}
-			if diff := pretty.Compare(tree, &wantTree); diff != "" {
+			if diff := cmp.Diff(tree, wantTree, cmp.Comparer(proto.Equal)); diff != "" {
 				t.Fatalf("post-CreateTree diff (-got +want):\n%v", diff)
 			}
 		})
@@ -623,7 +623,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	defer ctrl.Finish()
 
 	nowPB := ptypes.TimestampNow()
-	existingTree := *testonly.LogTree
+	existingTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	existingTree.TreeId = 12345
 	existingTree.CreateTime = nowPB
 	existingTree.UpdateTime = nowPB
@@ -645,7 +645,7 @@ func TestServer_UpdateTree(t *testing.T) {
 		Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration", "private_key"},
 	}
 
-	successWant := existingTree
+	successWant := proto.Clone(existingTree).(*trillian.Tree)
 	successWant.TreeState = successTree.TreeState
 	successWant.DisplayName = successTree.DisplayName
 	successWant.Description = successTree.Description
@@ -663,8 +663,8 @@ func TestServer_UpdateTree(t *testing.T) {
 		{
 			desc:        "success",
 			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
-			currentTree: &existingTree,
-			wantTree:    &successWant,
+			currentTree: existingTree,
+			wantTree:    successWant,
 			wantCommit:  true,
 		},
 		{
@@ -675,13 +675,13 @@ func TestServer_UpdateTree(t *testing.T) {
 		{
 			desc:        "nilUpdateMask",
 			req:         &trillian.UpdateTreeRequest{Tree: successTree},
-			currentTree: &existingTree,
+			currentTree: existingTree,
 			wantErr:     true,
 		},
 		{
 			desc:        "emptyUpdateMask",
 			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: &field_mask.FieldMask{}},
-			currentTree: &existingTree,
+			currentTree: existingTree,
 			wantErr:     true,
 		},
 		{
@@ -690,20 +690,20 @@ func TestServer_UpdateTree(t *testing.T) {
 				Tree:       successTree,
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_id"}},
 			},
-			currentTree: &existingTree,
+			currentTree: existingTree,
 			wantErr:     true,
 		},
 		{
 			desc:        "updateErr",
 			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
 			updateErr:   errors.New("error updating tree"),
-			currentTree: &existingTree,
+			currentTree: existingTree,
 			wantErr:     true,
 		},
 		{
 			desc:        "commitErr",
 			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
-			currentTree: &existingTree,
+			currentTree: existingTree,
 			commitErr:   true,
 			wantErr:     true,
 			wantCommit:  true,
