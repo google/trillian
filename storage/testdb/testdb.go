@@ -54,7 +54,7 @@ func MySQLAvailable() bool {
 }
 
 // newEmptyDB creates a new, empty database.
-// returns the database handle and a clean-up function, or an error.
+// It returns the database handle and a clean-up function, or an error.
 // The returned clean-up function should be called once the caller is finished
 // using the DB, the caller should not continue to use the returned DB after
 // calling this function as it may, for example, delete the underlying

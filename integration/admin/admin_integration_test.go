@@ -567,7 +567,7 @@ type testServer struct {
 	server *grpc.Server
 	conn   *grpc.ClientConn
 
-	dbDone func(context.Context)
+	cleanup func(context.Context)
 }
 
 func (ts *testServer) closeAll() {
@@ -584,8 +584,8 @@ func (ts *testServer) closeAll() {
 			glog.Errorf("testServer: lis.Close()=%v", err)
 		}
 	}
-	if ts.dbDone != nil {
-		ts.dbDone(context.TODO())
+	if ts.cleanup != nil {
+		ts.cleanup(context.TODO())
 	}
 }
 
@@ -608,7 +608,7 @@ func setupAdminServer(ctx context.Context, t *testing.T) (*testServer, error) {
 		return nil, err
 	}
 	ts.adminStorage = registry.AdminStorage
-	ts.dbDone = done
+	ts.cleanup = done
 
 	ti := interceptor.New(
 		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)

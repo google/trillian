@@ -288,6 +288,6 @@ func TestMain(m *testing.M) {
 	DB, done = openTestDBOrDie()
 
 	status := m.Run()
-	done(context.TODO())
+	done(context.Background())
 	os.Exit(status)
 }
