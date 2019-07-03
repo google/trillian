@@ -36,7 +36,7 @@ func RunMapStorageTests(t *testing.T, storageFactory MapStorageFactory) {
 }
 
 func mapTestFunctions(t *testing.T, x interface{}) map[string]MapStorageTest {
-	prefix := "Test"
+	const prefix = "Test"
 	xt := reflect.TypeOf(x)
 	xv := reflect.ValueOf(x)
 
@@ -47,7 +47,7 @@ func mapTestFunctions(t *testing.T, x interface{}) map[string]MapStorageTest {
 			continue
 		}
 		name := strings.TrimPrefix(methodName, "Test")
-		tests[name] = getTestFunc(t, xv, methodName)
+		tests[name] = getMapTestFunc(t, xv, methodName)
 	}
 	return tests
 }
