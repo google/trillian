@@ -48,7 +48,7 @@ func TestMapIntegration(t *testing.T) {
 		return NewMapStorage(db), NewAdminStorage(db)
 	}
 
-	storagetest.TestMapStorage(t, storageFactory)
+	storagetest.RunMapStorageTests(t, storageFactory)
 }
 
 func MustSignMapRoot(t *testing.T, root *types.MapRootV1) *trillian.SignedMapRoot {

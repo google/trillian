@@ -51,7 +51,7 @@ func TestSuite(t *testing.T) {
 		return NewMapStorage(ctx, db), NewAdminStorage(db)
 	}
 
-	storagetest.TestMapStorage(t, storageFactory)
+	storagetest.RunMapStorageTests(t, storageFactory)
 }
 
 func cleanTestDB(ctx context.Context, t *testing.T, db *spanner.Client) {

@@ -17,10 +17,6 @@ package storagetest
 
 import (
 	"context"
-	"path/filepath"
-	"reflect"
-	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/google/trillian"
@@ -29,34 +25,16 @@ import (
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
-type StorageFactory func(ctx context.Context, t *testing.T) (storage.MapStorage, storage.AdminStorage)
+// MapTests is a suite of tests to run against the storage.MapTest interface.
+type MapTests struct{}
 
-func TestMapStorage(t *testing.T, storageFactory StorageFactory) {
-	ctx := context.Background()
-	for _, f := range []func(context.Context, *testing.T, storage.MapStorage, storage.AdminStorage){
-		TestCheckDatabaseAccessible,
-		TestMapSnapshot,
-	} {
-		s, as := storageFactory(ctx, t)
-		t.Run(functionName(f), func(t *testing.T) { f(ctx, t, s, as) })
-	}
-}
-
-func functionName(i interface{}) string {
-	pc := reflect.ValueOf(i).Pointer()
-	nameFull := runtime.FuncForPC(pc).Name() // main.foo
-	nameEnd := filepath.Ext(nameFull)        // .foo
-	name := strings.TrimPrefix(nameEnd, ".") // foo
-	return name
-}
-
-func TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.MapStorage, _ storage.AdminStorage) {
+func (*MapTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.MapStorage, _ storage.AdminStorage) {
 	if err := s.CheckDatabaseAccessible(ctx); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
 }
 
-func TestMapSnapshot(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
+func (*MapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
 	frozenMap := createInitializedMapForTests(ctx, t, s, as)
 	storage.UpdateTree(ctx, as, frozenMap.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
