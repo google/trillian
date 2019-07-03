@@ -16,9 +16,7 @@ package storagetest
 
 import (
 	"context"
-	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -31,37 +29,30 @@ type MapStorageTest func(ctx context.Context, t *testing.T, s storage.MapStorage
 // RunMapStorageTests runs all the map storage tests against the provided map storage implementation.
 func RunMapStorageTests(t *testing.T, storageFactory MapStorageFactory) {
 	ctx := context.Background()
-	for _, f := range mapTestFunctions(t, &MapTests{}) {
+	for name, f := range mapTestFunctions(t, &MapTests{}) {
 		ms, as := storageFactory(ctx, t)
-		t.Run(functionName(f), func(t *testing.T) { f(ctx, t, ms, as) })
+		t.Run(name, func(t *testing.T) { f(ctx, t, ms, as) })
 	}
 }
 
-func functionName(x interface{}) string {
-	pc := reflect.ValueOf(x).Pointer()
-	nameFull := runtime.FuncForPC(pc).Name() // main.foo
-	nameEnd := filepath.Ext(nameFull)        // .foo
-	name := strings.TrimPrefix(nameEnd, ".") // foo
-	return strings.TrimPrefix(name, "Test")
-}
-
-func mapTestFunctions(t *testing.T, x interface{}) []MapStorageTest {
+func mapTestFunctions(t *testing.T, x interface{}) map[string]MapStorageTest {
 	prefix := "Test"
 	xt := reflect.TypeOf(x)
 	xv := reflect.ValueOf(x)
 
-	tests := []MapStorageTest{}
+	tests := make(map[string]MapStorageTest)
 	for i := 0; i < xt.NumMethod(); i++ {
 		methodName := xt.Method(i).Name
 		if !strings.HasPrefix(methodName, prefix) {
 			continue
 		}
-		tests = append(tests, getTestFunc(t, xv, methodName))
+		name := strings.TrimPrefix(methodName, "Test")
+		tests[name] = getTestFunc(t, xv, methodName)
 	}
 	return tests
 }
 
-func getTestFunc(t *testing.T, xv reflect.Value, name string) MapStorageTest {
+func getMapTestFunc(t *testing.T, xv reflect.Value, name string) MapStorageTest {
 	m := xv.MethodByName(name)
 	if !m.IsValid() {
 		t.Fatalf("storagetest: function %v is not valid", name)
