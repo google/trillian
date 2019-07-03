@@ -93,6 +93,5 @@ steps:
   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
   waitFor:
   - envsubst_kubernetes_configs
-  - push_log_server
-  - push_log_signer
-
+  - build_log_server
+  - build_log_signer
