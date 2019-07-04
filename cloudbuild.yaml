@@ -1,4 +1,4 @@
-timeout: 1200s
+timeout: 1800s
 substitutions:
   _MYSQL_TAG: "5.7"
 steps:
@@ -51,4 +51,3 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
   - --cache=true
   waitFor: ["-"]
-
