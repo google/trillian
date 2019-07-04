@@ -822,6 +822,10 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLo
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()
 
+	if t.slr == nil {
+		return nil, storage.ErrTreeNeedsInit
+	}
+
 	return t.slr, nil
 }
 
