@@ -81,7 +81,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 
 	done := func(ctx context.Context) {
 		defer db.Close()
-		if _, err := db.ExecContext(ctx, "DROP DATABASE %v", name); err != nil {
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE %v", name)); err != nil {
 			glog.Warningf("Failed to drop test database %q: %v", name, err)
 		}
 	}
