@@ -39,9 +39,11 @@ import (
 var fixedSigner = tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 
 func TestMapIntegration(t *testing.T) {
+	ctx := context.Background()
 	testdb.SkipIfNoMySQL(t)
-	db := openTestDBOrDie()
+	db, cleanup := openTestDBOrDie()
 	defer db.Close()
+	defer cleanup(ctx)
 
 	storageFactory := func(context.Context, *testing.T) (storage.MapStorage, storage.AdminStorage) {
 		cleanTestDB(db)
