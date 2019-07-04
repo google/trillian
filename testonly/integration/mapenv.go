@@ -44,6 +44,7 @@ type MapEnv struct {
 
 	// Objects that need Close(), in order of creation.
 	DB         *sql.DB
+	dbDone     func(context.Context)
 	grpcServer *grpc.Server
 	clientConn *grpc.ClientConn
 
@@ -74,7 +75,7 @@ func NewMapEnv(ctx context.Context, singleTX bool) (*MapEnv, error) {
 		return nil, errors.New("no MySQL available")
 	}
 
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +96,7 @@ func NewMapEnv(ctx context.Context, singleTX bool) (*MapEnv, error) {
 		return nil, err
 	}
 	ret.DB = db
+	ret.dbDone = done
 	return ret, nil
 }
 
@@ -150,8 +152,7 @@ func (env *MapEnv) Close() {
 	if env.grpcServer != nil {
 		env.grpcServer.GracefulStop()
 	}
-	if env.DB != nil {
-		// TODO(pavelkalinnikov): Drop the database.
-		env.DB.Close()
+	if env.dbDone != nil {
+		env.dbDone(context.TODO())
 	}
 }

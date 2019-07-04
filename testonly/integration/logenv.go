@@ -68,6 +68,7 @@ type LogEnv struct {
 	Log     trillian.TrillianLogClient
 	Admin   trillian.TrillianAdminClient
 	DB      *sql.DB
+	dbDone  func(context.Context)
 }
 
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
@@ -81,7 +82,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error
 
 // NewLogEnvWithGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
 func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +102,7 @@ func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts
 		return nil, err
 	}
 	ret.DB = db
+	ret.dbDone = done
 	return ret, nil
 }
 
@@ -196,7 +198,7 @@ func (env *LogEnv) Close() {
 	env.ClientConn.Close()
 	env.grpcServer.GracefulStop()
 	env.pendingTasks.Wait()
-	if env.DB != nil {
-		env.DB.Close()
+	if env.dbDone != nil {
+		env.dbDone(context.TODO())
 	}
 }

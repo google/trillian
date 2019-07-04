@@ -219,12 +219,14 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 }
 
 func TestCheckDatabaseAccessible_Fails(t *testing.T) {
+	ctx := context.Background()
+
 	// Pass in a closed database to provoke a failure.
-	db := openTestDBOrDie()
+	db, done := openTestDBOrDie()
 	cleanTestDB(db)
 	s := NewAdminStorage(db)
-	db.Close()
-	ctx := context.Background()
+	done(ctx)
+
 	if err := s.CheckDatabaseAccessible(ctx); err == nil {
 		t.Error("TestCheckDatabaseAccessible_Fails got: nil, want: err")
 	}
