@@ -20,7 +20,8 @@ env:
   - GO111MODULE=on
   - GOPROXY=https://proxy.golang.org
   matrix:
-  - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--coverage"
+  - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--no-build --no-generate"  # only lint
+  - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--coverage --no-linters"
   - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters"
   - PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true       PRESUBMIT_OPTS="--no-linters"
