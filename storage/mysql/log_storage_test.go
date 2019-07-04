@@ -217,18 +217,19 @@ func TestReadWriteTransaction(t *testing.T) {
 	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0)
 
 	tests := []struct {
-		desc        string
-		tree        *trillian.Tree
-		wantErr     bool
-		wantLogRoot []byte
-		wantTXRev   int64
+		desc          string
+		tree          *trillian.Tree
+		wantNeedsInit bool
+		wantErr       bool
+		wantLogRoot   []byte
+		wantTXRev     int64
 	}{
 		{
 			// Unknown logs IDs are now handled outside storage.
-			desc:        "unknownBegin",
-			tree:        logTree(-1),
-			wantLogRoot: nil,
-			wantTXRev:   -1,
+			desc:          "unknownBegin",
+			tree:          logTree(-1),
+			wantNeedsInit: true,
+			wantTXRev:     -1,
 		},
 		{
 			desc: "activeLogBegin",
@@ -248,7 +249,7 @@ func TestReadWriteTransaction(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			err := s.ReadWriteTransaction(ctx, test.tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 				root, err := tx.LatestSignedLogRoot(ctx)
-				if err != nil {
+				if err != nil && !(err == storage.ErrTreeNeedsInit && test.wantNeedsInit) {
 					t.Fatalf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
 				}
 				gotRev, _ := tx.WriteRevision(ctx)
