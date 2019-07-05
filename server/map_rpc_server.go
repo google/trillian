@@ -429,18 +429,20 @@ type singleTXRunner struct {
 	tx storage.MapTreeTX
 }
 
+// RunTX executes a function in the transaction managed by the singleTXRunner.
 func (r *singleTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 	return f(ctx, r.tx)
 }
 
 // multiTXRunner executes each call to Run using its own transaction.
-// This allows each invocation of f to proceed independently mutch faster.
+// This allows each invocation of f to proceed independently much faster.
 // However, If one transaction fails, the other will still succeed (In some cases this could cause data corruption).
 type multiTXRunner struct {
 	tree       *trillian.Tree
 	mapStorage storage.MapStorage
 }
 
+// RunTX executes a function in a new transaction.
 func (r *multiTXRunner) RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
 	return r.mapStorage.ReadWriteTransaction(ctx, r.tree, f)
 }

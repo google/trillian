@@ -133,7 +133,7 @@ func (hb *MapBias) invalid(ep MapEntrypointName, r *rand.Rand) bool {
 	if chance <= 0 {
 		return false
 	}
-	return (r.Intn(chance) == 0)
+	return r.Intn(chance) == 0
 }
 
 // MapConfig provides configuration for a stress/load test.

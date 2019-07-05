@@ -76,7 +76,7 @@ func (*MapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.Ma
 			defer tx.Close()
 
 			_, err = tx.LatestSignedMapRoot(ctx)
-			if gotErr := (err != nil); gotErr != test.wantErr {
+			if gotErr := err != nil; gotErr != test.wantErr {
 				t.Errorf("LatestSignedMapRoot()=_,%v; want _, err? %v", err, test.wantErr)
 			}
 			if err != nil {

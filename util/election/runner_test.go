@@ -62,7 +62,7 @@ func TestElectionRunnerRun(t *testing.T) {
 	const logID = "6962"
 	checkMaster := func(t *testing.T, held []string, wantMaster bool) {
 		t.Helper()
-		if got := (len(held) > 0 && held[0] == logID); got != wantMaster {
+		if got := len(held) > 0 && held[0] == logID; got != wantMaster {
 			t.Errorf("holding: %v: master=%v, want %v", held, got, wantMaster)
 		}
 	}
