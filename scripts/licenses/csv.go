@@ -42,7 +42,7 @@ func init() {
 	rootCmd.AddCommand(csvCmd)
 }
 
-func csvMain(cmd *cobra.Command, args []string) error {
+func csvMain(_ *cobra.Command, args []string) error {
 	importPath := args[0]
 	writer := csv.NewWriter(os.Stdout)
 

@@ -445,7 +445,7 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	}
 
 	if rowsAffected != count {
-		return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
+		return fmt.Errorf("expected %d row(s) to be affected but saw: %d", count,
 			rowsAffected)
 	}
 

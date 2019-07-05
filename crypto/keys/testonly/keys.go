@@ -123,7 +123,7 @@ func verifyRSA(pubKey *rsa.PublicKey, digest, sig []byte, hasher crypto.Hash, op
 
 func verifyEd25519(pubKey ed25519.PublicKey, digest, sig []byte) error {
 	if !ed25519.Verify(pubKey, digest, sig) {
-		return errors.New("Ed25519 signature failed verification")
+		return errors.New("ed25519 signature failed verification")
 	}
 	return nil
 }

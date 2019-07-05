@@ -59,7 +59,7 @@ func init() {
 	rootCmd.AddCommand(saveCmd)
 }
 
-func saveMain(cmd *cobra.Command, args []string) error {
+func saveMain(_ *cobra.Command, args []string) error {
 	importPath := args[0]
 
 	if overwriteSavePath {

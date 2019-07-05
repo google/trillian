@@ -32,7 +32,6 @@ import (
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
@@ -106,14 +105,6 @@ var (
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
-	// LogTreeEmptyRootHash is the root hash of LogTree when empty.
-	LogTreeEmptyRootHash = func() []byte {
-		hasher, err := hash(LogTree)
-		if err != nil {
-			panic(err)
-		}
-		return hasher.New().Sum(nil)
-	}()
 
 	// PreorderedLogTree is a valid, PREORDERED_LOG-type trillian.Tree for tests.
 	PreorderedLogTree = &trillian.Tree{
@@ -150,16 +141,6 @@ var (
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
-
-	// MapTreeEmptyRootHash is the root hash of MapTree when 'empty' (i.e. no leaves are set).
-	MapTreeEmptyRootHash = func() []byte {
-		hasher, err := hash(MapTree)
-		if err != nil {
-			panic(err)
-		}
-		mh := maphasher.New(hasher)
-		return mh.HashEmpty(0 /*treeID - unused*/, nil /*index - unused*/, mh.BitLen())
-	}()
 )
 
 // AdminStorageTester runs a suite of tests against AdminStorage implementations.

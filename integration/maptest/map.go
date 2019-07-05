@@ -167,7 +167,7 @@ type hashStrategyAndRoot struct {
 }
 
 // RunMapRevisionZero performs checks on Trillian Map behavior for new, empty maps.
-func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, twrite trillian.TrillianMapWriteClient) {
+func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, _ trillian.TrillianMapWriteClient) {
 	for _, tc := range []struct {
 		desc         string
 		hashStrategy []hashStrategyAndRoot
@@ -738,7 +738,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 	return nil
 }
 
-func writeBatch(ctx context.Context, t *testing.T, tmap trillian.TrillianMapClient, twrite trillian.TrillianMapWriteClient, tree *trillian.Tree, batchSize, numBatches int) map[string]*trillian.MapLeaf {
+func writeBatch(ctx context.Context, t *testing.T, _ trillian.TrillianMapClient, twrite trillian.TrillianMapWriteClient, tree *trillian.Tree, batchSize, numBatches int) map[string]*trillian.MapLeaf {
 	t.Helper()
 	// Generate leaves.
 	leafBatch := make([][]*trillian.MapLeaf, numBatches)

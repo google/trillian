@@ -75,7 +75,7 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 	return leaf, dequeueInfo(leafIDHash, queueTimestamp), nil
 }
 
-func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
+func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []interface{} {
 	return []interface{}{queueTimestamp.UnixNano()}
 }
 

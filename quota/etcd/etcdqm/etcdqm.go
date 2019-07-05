@@ -33,10 +33,12 @@ func New(client *clientv3.Client) quota.Manager {
 	return &manager{qs: &storage.QuotaStorage{Client: client}}
 }
 
+// GetTokens implements the quota.Manager API.
 func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
 	return m.qs.Get(ctx, configNames(specs), int64(numTokens))
 }
 
+// PeekTokens implements the quota.Manager API.
 func (m *manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota.Spec]int, error) {
 	names := configNames(specs)
 	nameToSpec := make(map[string]quota.Spec)
@@ -56,10 +58,12 @@ func (m *manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota
 	return tokens, nil
 }
 
+// PutTokens implements the quota.Manager API.
 func (m *manager) PutTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
 	return m.qs.Put(ctx, configNames(specs), int64(numTokens))
 }
 
+// ResetQuota implements the quota.Manager API.
 func (m *manager) ResetQuota(ctx context.Context, specs []quota.Spec) error {
 	return m.qs.Reset(ctx, configNames(specs))
 }
