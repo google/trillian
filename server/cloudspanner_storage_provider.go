@@ -62,7 +62,10 @@ func warn() {
 		wd, _ := base64.StdEncoding.DecodeString(w)
 		b := bytes.NewReader(wd)
 		r, _ := gzip.NewReader(b)
-		r.Close()
+		if err := r.Close(); err != nil {
+			// No need to exit, it's an unlikely error and doesn't affect operation.
+			glog.Warningf("Close()=%v", err)
+		}
 		t, _ := ioutil.ReadAll(r)
 		glog.Warningf("WARNING\n%s\nCloudspanner is an experimental storage implementation, and only supports Logs currently.", string(t))
 	})

@@ -78,5 +78,7 @@ func main() {
 		}
 		mapmap[from] = to
 	}
-	hammer.ReplayFile(ctx, f, cl, mapmap)
+	if err := hammer.ReplayFile(ctx, f, cl, mapmap); err != nil {
+		glog.Exitf("Error replaying messages: %v", err)
+	}
 }

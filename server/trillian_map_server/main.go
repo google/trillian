@@ -127,7 +127,9 @@ func main() {
 	// Enable CPU profile if requested.
 	if *cpuProfile != "" {
 		f := mustCreate(*cpuProfile)
-		pprof.StartCPUProfile(f)
+		if err := pprof.StartCPUProfile(f); err != nil {
+			glog.Exitf("Failed to start CPU profiling: %v", err)
+		}
 		defer pprof.StopCPUProfile()
 	}
 
