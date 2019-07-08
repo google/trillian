@@ -39,14 +39,33 @@ func NewNodeID(level uint, index uint64) NodeID {
 
 // RangeNodesForPrefix returns the list of node IDs that comprise the [0, size)
 // compact range. Nodes are ordered from upper to lower levels.
+//
+// TODO(pavelkalinnikov): Use RangeNodes directly.
 func RangeNodesForPrefix(size uint64) []NodeID {
-	ids := make([]NodeID, 0, bits.OnesCount64(size))
-	// Iterate over perfect subtrees along the right border of the tree. Those
-	// correspond to the bits of the tree size that are set to one.
-	for pos, bit := uint64(0), uint64(0); size != 0; pos, size = pos+bit, size^bit {
-		level := uint(bits.Len64(size)) - 1
+	return RangeNodes(0, size)
+}
+
+// RangeNodes returns node IDs that comprise the [begin, end) compact range.
+func RangeNodes(begin, end uint64) []NodeID {
+	left, right := decompose(begin, end)
+	ids := make([]NodeID, 0, bits.OnesCount64(left)+bits.OnesCount64(right))
+
+	pos := begin
+	// Iterate over perfect subtrees along the left border of the range, ordered
+	// from lower to upper levels.
+	for bit := uint64(0); left != 0; pos, left = pos+bit, left^bit {
+		level := uint(bits.TrailingZeros64(left))
 		bit = uint64(1) << level
 		ids = append(ids, NewNodeID(level, pos>>level))
 	}
+
+	// Iterate over perfect subtrees along the right border of the range, ordered
+	// from upper to lower levels.
+	for bit := uint64(0); right != 0; pos, right = pos+bit, right^bit {
+		level := uint(bits.Len64(right)) - 1
+		bit = uint64(1) << level
+		ids = append(ids, NewNodeID(level, pos>>level))
+	}
+
 	return ids
 }
