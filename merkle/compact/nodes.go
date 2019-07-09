@@ -39,7 +39,7 @@ func NewNodeID(level uint, index uint64) NodeID {
 
 // RangeNodes returns node IDs that comprise the [begin, end) compact range.
 func RangeNodes(begin, end uint64) []NodeID {
-	left, right := decompose(begin, end)
+	left, right := Decompose(begin, end)
 	ids := make([]NodeID, 0, bits.OnesCount64(left)+bits.OnesCount64(right))
 
 	pos := begin
