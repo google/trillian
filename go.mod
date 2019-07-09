@@ -18,7 +18,6 @@ require (
 	github.com/fullstorydev/grpcurl v1.3.1 // indirect
 	github.com/gliderlabs/ssh v0.1.4 // indirect
 	github.com/go-critic/go-critic v0.3.4 // indirect
-	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gobuffalo/flect v0.1.5 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
@@ -43,9 +42,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.9.4
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
-	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/kr/pty v1.1.8 // indirect
 	github.com/kylelemons/godebug v1.1.0
 	github.com/letsencrypt/pkcs11key v2.0.1-0.20170608213348-396559074696+incompatible
 	github.com/lib/pq v1.1.1
@@ -65,7 +62,6 @@ require (
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/pseudomuto/protoc-gen-doc v1.3.0
 	github.com/pseudomuto/protokit v0.2.0 // indirect
-	github.com/rogpeppe/fastuuid v1.2.0 // indirect
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
 	github.com/shurcooL/go v0.0.0-20190330031554-6713ea532688 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
@@ -74,17 +70,12 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.4.0 // indirect
-	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/uber/prototool v1.8.1
-	github.com/ugorji/go v1.1.7 // indirect
 	github.com/xanzy/ssh-agent v0.2.1 // indirect
 	go.etcd.io/bbolt v1.3.3 // indirect
 	go.etcd.io/etcd v3.3.13+incompatible
 	go.opencensus.io v0.22.0
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
-	golang.org/x/exp v0.0.0-20190627132806-fd42eb6b336f // indirect
-	golang.org/x/image v0.0.0-20190703141733-d6a02ce849c9 // indirect
-	golang.org/x/mobile v0.0.0-20190607214518-6fa95d984e88 // indirect
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7 // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
