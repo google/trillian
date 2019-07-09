@@ -37,14 +37,6 @@ func NewNodeID(level uint, index uint64) NodeID {
 	return NodeID{Level: level, Index: index}
 }
 
-// RangeNodesForPrefix returns the list of node IDs that comprise the [0, size)
-// compact range. Nodes are ordered from upper to lower levels.
-//
-// TODO(pavelkalinnikov): Use RangeNodes directly.
-func RangeNodesForPrefix(size uint64) []NodeID {
-	return RangeNodes(0, size)
-}
-
 // RangeNodes returns node IDs that comprise the [begin, end) compact range.
 func RangeNodes(begin, end uint64) []NodeID {
 	left, right := decompose(begin, end)

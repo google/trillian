@@ -20,31 +20,6 @@ import (
 	"testing"
 )
 
-func TestRangeNodesForPrefix(t *testing.T) {
-	for _, tc := range []struct {
-		size uint64
-		want []NodeID
-	}{
-		{size: 0, want: []NodeID{}},
-		{size: 1, want: []NodeID{{Level: 0, Index: 0}}},
-		{size: 2, want: []NodeID{{Level: 1, Index: 0}}},
-		{size: 3, want: []NodeID{{Level: 1, Index: 0}, {Level: 0, Index: 2}}},
-		{size: 4, want: []NodeID{{Level: 2, Index: 0}}},
-		{size: 5, want: []NodeID{{Level: 2, Index: 0}, {Level: 0, Index: 4}}},
-		{size: 15, want: []NodeID{{Level: 3, Index: 0}, {Level: 2, Index: 2}, {Level: 1, Index: 6}, {Level: 0, Index: 14}}},
-		{size: 100, want: []NodeID{{Level: 6, Index: 0}, {Level: 5, Index: 2}, {Level: 2, Index: 24}}},
-		{size: 513, want: []NodeID{{Level: 9, Index: 0}, {Level: 0, Index: 512}}},
-		{size: uint64(1) << 63, want: []NodeID{{Level: 63, Index: 0}}},
-		{size: (uint64(1) << 63) + (uint64(1) << 57), want: []NodeID{{Level: 63, Index: 0}, {Level: 57, Index: 64}}},
-	} {
-		t.Run(fmt.Sprintf("size:%d", tc.size), func(t *testing.T) {
-			if got, want := RangeNodesForPrefix(tc.size), tc.want; !reflect.DeepEqual(got, tc.want) {
-				t.Fatalf("RangeNodesForPrefix: got %v, want %v", got, want)
-			}
-		})
-	}
-}
-
 func TestRangeNodes(t *testing.T) {
 	n := func(level uint, index uint64) NodeID {
 		return NewNodeID(level, index)
@@ -66,6 +41,17 @@ func TestRangeNodes(t *testing.T) {
 		{begin: 10, end: 12, want: []NodeID{n(1, 5)}},
 		{begin: 1024, end: 1026, want: []NodeID{n(1, 512)}},
 		{begin: 1025, end: 1027, want: []NodeID{n(0, 1025), n(0, 1026)}},
+		// Only right border.
+		{end: 1, want: []NodeID{n(0, 0)}},
+		{end: 2, want: []NodeID{n(1, 0)}},
+		{end: 3, want: []NodeID{n(1, 0), n(0, 2)}},
+		{end: 4, want: []NodeID{n(2, 0)}},
+		{end: 5, want: []NodeID{n(2, 0), n(0, 4)}},
+		{end: 15, want: []NodeID{n(3, 0), n(2, 2), n(1, 6), n(0, 14)}},
+		{end: 100, want: []NodeID{n(6, 0), n(5, 2), n(2, 24)}},
+		{end: 513, want: []NodeID{n(9, 0), n(0, 512)}},
+		{end: uint64(1) << 63, want: []NodeID{n(63, 0)}},
+		{end: (uint64(1) << 63) + (uint64(1) << 57), want: []NodeID{n(63, 0), n(57, 64)}},
 		// Only left border.
 		{begin: 0, end: 16, want: []NodeID{n(4, 0)}},
 		{begin: 1, end: 16, want: []NodeID{n(0, 1), n(1, 1), n(2, 1), n(3, 1)}},

@@ -366,7 +366,7 @@ func TestNewRangeWithStorage(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("%d: Append: %v", i, err)
 		}
-		hashes := getHashes(RangeNodesForPrefix(i + 1))
+		hashes := getHashes(RangeNodes(0, i+1))
 		var err error
 		if cr, err = factory.NewRange(0, i+1, hashes); err != nil {
 			t.Fatalf("%d: NewRange: %v", i+1, err)

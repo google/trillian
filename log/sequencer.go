@@ -140,7 +140,7 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 		return fact.NewEmptyRange(0), nil
 	}
 
-	ids := compact.RangeNodesForPrefix(root.TreeSize)
+	ids := compact.RangeNodes(0, root.TreeSize)
 	storIDs := make([]storage.NodeID, len(ids))
 	for i, id := range ids {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
