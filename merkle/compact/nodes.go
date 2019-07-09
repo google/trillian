@@ -43,14 +43,10 @@ func RangeNodesForPrefix(size uint64) []NodeID {
 	ids := make([]NodeID, 0, bits.OnesCount64(size))
 	// Iterate over perfect subtrees along the right border of the tree. Those
 	// correspond to the bits of the tree size that are set to one.
-	for sz := size; sz != 0; sz &= sz - 1 {
-		level := uint(bits.TrailingZeros64(sz))
-		index := (sz - 1) >> level
-		ids = append(ids, NewNodeID(level, index))
-	}
-	// Note: Right border nodes of compact.Range are ordered from root to leaves.
-	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
-		ids[i], ids[j] = ids[j], ids[i]
+	for pos, bit := uint64(0), uint64(0); size != 0; pos, size = pos+bit, size^bit {
+		level := uint(bits.Len64(size)) - 1
+		bit = uint64(1) << level
+		ids = append(ids, NewNodeID(level, pos>>level))
 	}
 	return ids
 }
