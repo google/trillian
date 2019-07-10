@@ -54,6 +54,13 @@ for thing in ${images}; do
   gcloud --quiet container images add-tag gcr.io/${PROJECT_ID}/${thing}:${IMAGE_TAG} gcr.io/${PROJECT_ID}/${thing}:latest
 done
 
+if [[ "${NAMESPACE}" != "default" ]]; then
+  # Create the namespace if it doesn't already exist.
+  kubectl create namespace "${NAMESPACE}" --dry-run -o=yaml | kubectl apply -f -
+  # Enable Istio sidecar injection.
+  kubectl label namespace "${NAMESPACE}" istio-injection=enabled
+fi
+
 echo "Updating jobs..."
 # Prepare configmap:
 kubectl delete --namespace="${NAMESPACE}" configmap deploy-config || true
