@@ -67,18 +67,26 @@ install:
   - export PATH="$(pwd)/../protoc/bin:$PATH"
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
-  - GOPROXY=direct go install
-        github.com/golang/mock/mockgen
-        github.com/golang/protobuf/proto
-        github.com/golang/protobuf/protoc-gen-go
-        github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-        github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-        github.com/uber/prototool/cmd/prototool
-        golang.org/x/tools/cmd/stringer
-        github.com/golangci/golangci-lint/cmd/golangci-lint
-        go.etcd.io/etcd
-        go.etcd.io/etcd/etcdctl
-
+  - |
+    export TOOLS=""
+    if [[ "${PRESUBMIT_OPTS}" != *no-generate* ]]; then
+      TOOLS+=" github.com/golang/mock/mockgen"
+      TOOLS+=" github.com/golang/protobuf/proto"
+      TOOLS+=" github.com/golang/protobuf/protoc-gen-go"
+      TOOLS+=" github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
+      TOOLS+=" github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
+      TOOLS+=" golang.org/x/tools/cmd/stringer"
+    fi
+    if [[ "${PRESUBMIT_OPTS}" != *no-build* ]]; then
+      TOOLS+=" go.etcd.io/etcd"
+      TOOLS+=" go.etcd.io/etcd/etcdctl"
+    fi
+    if [[ "${PRESUBMIT_OPTS}" != *no-linters* ]]; then
+      TOOLS+=" github.com/golangci/golangci-lint/cmd/golangci-lint"
+      TOOLS+=" github.com/uber/prototool/cmd/prototool"
+    fi
+    echo Installing ${TOOLS}...
+    GOPROXY=direct go install ${TOOLS}
   # install bazel
   - |
     (
