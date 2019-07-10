@@ -177,7 +177,9 @@ func TestAppend(t *testing.T) {
 			tree.verifyRange(t, cr, true)
 			for i := uint64(0); i < size; i++ {
 				visit(NewNodeID(0, i), tree.leaf(i))
-				cr.Append(tree.leaf(i), visit)
+				if err := cr.Append(tree.leaf(i), visit); err != nil {
+					t.Errorf("Append()=%v", err)
+				}
 				tree.verifyRange(t, cr, true)
 			}
 			tree.verifyAllVisited(t, cr)
@@ -228,7 +230,9 @@ func TestMergeBackwards(t *testing.T) {
 		visit(NewNodeID(0, i-1), tree.leaf(i-1))
 		prepend := factory.NewEmptyRange(i - 1)
 		tree.verifyRange(t, prepend, true)
-		prepend.Append(tree.leaf(i-1), visit)
+		if err := prepend.Append(tree.leaf(i-1), visit); err != nil {
+			t.Errorf("Append()=%v", err)
+		}
 		tree.verifyRange(t, prepend, true)
 		if err := prepend.AppendRange(rng, visit); err != nil {
 			t.Fatalf("AppendRange: %v", err)
@@ -312,7 +316,9 @@ func TestNewRange(t *testing.T) {
 	tree, visit := newTree(t, numNodes)
 	rng := factory.NewEmptyRange(0)
 	for i := uint64(0); i < numNodes; i++ {
-		rng.Append(tree.leaf(i), visit)
+		if err := rng.Append(tree.leaf(i), visit); err != nil {
+			t.Errorf("Append()=%v", err)
+		}
 	}
 
 	if _, err := factory.NewRange(10, 5, nil); err == nil {
@@ -446,7 +452,9 @@ func TestGetRootHash(t *testing.T) {
 			tree, _ := newTree(t, size)
 			rng := factory.NewEmptyRange(0)
 			for i := uint64(0); i < size; i++ {
-				rng.Append(tree.leaf(i), nil)
+				if err := rng.Append(tree.leaf(i), nil); err != nil {
+					t.Errorf("Append=%v", err)
+				}
 			}
 			root, err := rng.GetRootHash(nil)
 			if err != nil {

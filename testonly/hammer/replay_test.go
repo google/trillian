@@ -53,7 +53,9 @@ func TestWriteReadMessage(t *testing.T) {
 			if err != nil {
 				t.Fatalf("writeMessage(%T)=%v; want nil", test.in, err)
 			}
-			writer.Flush()
+			if err := writer.Flush(); err != nil {
+				t.Errorf("Flush()=%v", err)
+			}
 			data := buf.Bytes()
 			t.Logf("%+v => %x", test.in, data)
 

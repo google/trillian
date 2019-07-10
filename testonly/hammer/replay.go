@@ -86,8 +86,12 @@ func writeMessage(w io.Writer, in proto.Message) error {
 	// Encode as [4-byte big-endian length, message]
 	lenData := make([]byte, 4)
 	binary.BigEndian.PutUint32(lenData, uint32(len(data)))
-	w.Write(lenData)
-	w.Write(data)
+	if _, err := w.Write(lenData); err != nil {
+		return err
+	}
+	if _, err := w.Write(data); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -118,17 +122,21 @@ func readMessage(r io.Reader) (*any.Any, error) {
 // ReplayFile reads recorded gRPC requests and re-issues them using the given
 // client.  If a request has a MapId field, and its value is present in mapmap,
 // then the MapId field is replaced before replay.
-func ReplayFile(ctx context.Context, r io.Reader, cl trillian.TrillianMapClient, mapmap map[int64]int64) {
+func ReplayFile(ctx context.Context, r io.Reader, cl trillian.TrillianMapClient, mapmap map[int64]int64) error {
 	for {
 		a, err := readMessage(r)
 		if err != nil {
 			if err != io.EOF {
 				glog.Errorf("Error reading message: %v", err)
+				return err
 			}
-			return
+			// We hit EOF - expected.
+			return nil
 		}
 		glog.V(2).Infof("Replay %q", a.TypeUrl)
-		replayMessage(ctx, cl, a, mapmap)
+		if err := replayMessage(ctx, cl, a, mapmap); err != nil {
+			return err
+		}
 	}
 }
 
