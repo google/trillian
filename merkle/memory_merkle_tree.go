@@ -115,7 +115,7 @@ func isPowerOfTwoPlusOne(leafCount int64) bool {
 	}
 	// leaf_count is a power of two plus one if and only if
 	// ((leaf_count - 1) & (leaf_count - 2)) has no bits set.
-	return (((leafCount - 1) & (leafCount - 2)) == 0)
+	return ((leafCount - 1) & (leafCount - 2)) == 0
 }
 
 // sibling returns the index of the node's (left or right) sibling in the same level.

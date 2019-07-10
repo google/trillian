@@ -522,7 +522,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("Unsequenced: %v -- %v", err, args)
 		}
 		leafDuration := time.Since(leafStart)
-		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)
+		observe(queueInsertEntryLatency, leafDuration-insertDuration, label)
 	}
 	insertDuration := time.Since(start)
 	observe(queueInsertLatency, insertDuration, label)

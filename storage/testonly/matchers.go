@@ -27,6 +27,7 @@ type nodeIDEq struct {
 	expectedID storage.NodeID
 }
 
+// Matches implements the gomock.Matcher API.
 func (m nodeIDEq) Matches(x interface{}) bool {
 	n, ok := x.(storage.NodeID)
 	if !ok {
@@ -61,6 +62,7 @@ type nodeSet struct {
 	other []storage.Node
 }
 
+// Matches implements the gomock.Matcher API.
 func (n nodeSet) Matches(x interface{}) bool {
 	nodes, ok := x.([]storage.Node)
 	if !ok {
@@ -88,14 +90,17 @@ type nodeSorter struct {
 	by    func(n1, n2 *storage.Node) bool
 }
 
+// Len implements the sort.Interface API.
 func (n *nodeSorter) Len() int {
 	return len(n.nodes)
 }
 
+// Swap implements the sort.Interface API.
 func (n *nodeSorter) Swap(i, j int) {
 	n.nodes[i], n.nodes[j] = n.nodes[j], n.nodes[i]
 }
 
+// Less implements the sort.Interface API.
 func (n *nodeSorter) Less(i, j int) bool {
 	return n.by(&n.nodes[i], &n.nodes[j])
 }

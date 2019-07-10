@@ -141,7 +141,7 @@ func truncateToNBits(in bitString, bitLen int) bitString {
 	result := bitString{bitLen: bitLen}
 	copy(result.data[:], in.data[:byteCount])
 
-	topBitsToKeep := (bitLen % 8)
+	topBitsToKeep := bitLen % 8
 
 	if topBitsToKeep > 0 {
 		mask := topBitsMask[topBitsToKeep]

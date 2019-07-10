@@ -276,7 +276,7 @@ func TestVerifyInclusionProofSingleEntry(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("test:%d", i), func(t *testing.T) {
 			err := v.VerifyInclusionProof(0, 1, proof, tc.root, tc.leaf)
-			if got, want := (err != nil), tc.wantErr; got != want {
+			if got, want := err != nil, tc.wantErr; got != want {
 				t.Errorf("error: %v, want %v", got, want)
 			}
 		})

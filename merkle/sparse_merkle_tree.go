@@ -425,7 +425,7 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 // BatchInclusionProof returns an inclusion (or non-inclusion) proof for each of the specified keys
 // at the specified revision. The return value is a map of the string form of the key to the
 // inclusion proof for that key.
-func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int64, indices [][]byte) (map[string]([][]byte), error) {
+func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int64, indices [][]byte) (map[string][][]byte, error) {
 	ctx, spanEnd := spanFor(ctx, "BatchInclusionProof")
 	defer spanEnd()
 
@@ -462,7 +462,7 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 		nodeMap[n.NodeID.AsKey()] = &nodes[i]
 	}
 
-	r := map[string]([][]byte){}
+	r := map[string][][]byte{}
 	for _, index := range indices {
 		// We're building a full proof from a combination of whichever nodes we got
 		// back from the storage layer, and the set of "null" hashes.
