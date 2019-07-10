@@ -49,9 +49,9 @@ spec:
           timeoutSeconds: 5
         ports:
         - containerPort: 8090
-          name: rpc
+          name: grpc
         - containerPort: 8091
-          name: metrics
+          name: http-metrics
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google

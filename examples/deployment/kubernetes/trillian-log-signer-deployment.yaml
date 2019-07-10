@@ -55,6 +55,7 @@ spec:
         name: trillian-log-signer
         ports:
         - containerPort: 8091
+          name: http-metrics
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
