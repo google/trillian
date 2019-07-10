@@ -466,7 +466,7 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []m
 	return err
 }
 
-func calcAllSiblingsParallel(ctx context.Context, treeDepth int, hkv []merkle.HashKeyValue) []storage.NodeID {
+func calcAllSiblingsParallel(_ context.Context, treeDepth int, hkv []merkle.HashKeyValue) []storage.NodeID {
 	type nodeAndID struct {
 		id   string
 		node storage.NodeID

@@ -51,7 +51,7 @@ func PGAvailable() bool {
 	return true
 }
 
-//This just executes a simple query in the configured database.  Only used as a placeholder
+// TestSQL executes a simple query in the configured database.  Only used as a placeholder
 // for testing queries and how go returns results
 func TestSQL(ctx context.Context) string {
 	db, err := sql.Open("postgres", getConnStr(*dbName))

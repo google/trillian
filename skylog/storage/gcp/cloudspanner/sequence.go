@@ -42,7 +42,7 @@ type SequenceOpts struct {
 	Shards    uint64
 }
 
-// SequenceReader allows reading from and writing to a sequence storage.
+// SequenceStorage allows reading from and writing to a sequence storage.
 type SequenceStorage struct {
 	c    *spanner.Client
 	id   int64

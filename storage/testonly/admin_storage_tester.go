@@ -31,8 +31,6 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
@@ -75,19 +73,6 @@ func mustMarshalAny(pb proto.Message) *any.Any {
 	return value
 }
 
-// TODO(phad): consider how to better break the import loop between trees and
-// trees/testonly (which is due to trees.Hash) than this.
-
-// hash returns the crypto.Hash configured by the tree.
-func hash(tree *trillian.Tree) (crypto.Hash, error) {
-	switch tree.HashAlgorithm {
-	case sigpb.DigitallySigned_SHA256:
-		return crypto.SHA256, nil
-	}
-	// There's no nil-like value for crypto.Hash, something has to be returned.
-	return crypto.SHA256, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
-}
-
 var (
 	// LogTree is a valid, LOG-type trillian.Tree for tests.
 	LogTree = &trillian.Tree{
@@ -106,14 +91,6 @@ var (
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
-	// LogTreeEmptyRootHash is the root hash of LogTree when empty.
-	LogTreeEmptyRootHash = func() []byte {
-		hasher, err := hash(LogTree)
-		if err != nil {
-			panic(err)
-		}
-		return hasher.New().Sum(nil)
-	}()
 
 	// PreorderedLogTree is a valid, PREORDERED_LOG-type trillian.Tree for tests.
 	PreorderedLogTree = &trillian.Tree{
@@ -150,16 +127,6 @@ var (
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
-
-	// MapTreeEmptyRootHash is the root hash of MapTree when 'empty' (i.e. no leaves are set).
-	MapTreeEmptyRootHash = func() []byte {
-		hasher, err := hash(MapTree)
-		if err != nil {
-			panic(err)
-		}
-		mh := maphasher.New(hasher)
-		return mh.HashEmpty(0 /*treeID - unused*/, nil /*index - unused*/, mh.BitLen())
-	}()
 )
 
 // AdminStorageTester runs a suite of tests against AdminStorage implementations.
