@@ -502,16 +502,16 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 
 		// Create the work queue entry
-		args := []interface{}{
-			t.treeID,
-			leaf.LeafIdentityHash,
-			leaf.MerkleLeafHash,
-		}
 		queueTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
-		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, queueTimestamp)...)
+		args := []interface{}{
+			t.treeID,
+			leaf.LeafIdentityHash,
+			leaf.MerkleLeafHash,
+			queueTimestamp.UnixNano(),
+		}
 		_, err = t.tx.ExecContext(
 			ctx,
 			insertUnsequencedEntrySQL,

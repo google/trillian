@@ -75,10 +75,6 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 	return leaf, dequeueInfo(leafIDHash, queueTimestamp), nil
 }
 
-func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []interface{} {
-	return []interface{}{queueTimestamp.UnixNano()}
-}
-
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
