@@ -122,7 +122,7 @@ func (tr *tree) verifyRange(t *testing.T, r *Range, wantMatch bool) {
 	}
 
 	// Naively build the expected list of hashes comprising the compact range.
-	left, right := decompose(pos, r.End())
+	left, right := Decompose(pos, r.End())
 	var hashes [][]byte
 	for lvl := uint(0); lvl < 64; lvl++ {
 		if left&(1<<lvl) != 0 {
@@ -138,7 +138,7 @@ func (tr *tree) verifyRange(t *testing.T, r *Range, wantMatch bool) {
 	}
 
 	if pos != r.End() {
-		t.Fatalf("decompose: range [%d,%d) is not covered; end=%d", r.Begin(), r.End(), pos)
+		t.Fatalf("Decompose: range [%d,%d) is not covered; end=%d", r.Begin(), r.End(), pos)
 	}
 	if match := reflect.DeepEqual(r.Hashes(), hashes); match != wantMatch {
 		t.Errorf("hashes match: %v, expected %v", match, wantMatch)
@@ -569,16 +569,16 @@ func TestDecomposeCases(t *testing.T) {
 		{begin: 31, end: 45, wantL: 0x01, wantR: 0x0d}, // subtree sizes [1], [8, 4, 1]
 	} {
 		t.Run(fmt.Sprintf("[%d,%d)", tc.begin, tc.end), func(t *testing.T) {
-			gotL, gotR := decompose(tc.begin, tc.end)
+			gotL, gotR := Decompose(tc.begin, tc.end)
 			if gotL != tc.wantL || gotR != tc.wantR {
-				t.Errorf("decompose(%d,%d)=0b%b,0b%b, want 0b%b,0b%b", tc.begin, tc.end, gotL, gotR, tc.wantL, tc.wantR)
+				t.Errorf("Decompose(%d,%d)=0b%b,0b%b, want 0b%b,0b%b", tc.begin, tc.end, gotL, gotR, tc.wantL, tc.wantR)
 			}
 		})
 	}
 }
 
 func verifyDecompose(begin, end uint64) error {
-	left, right := decompose(begin, end)
+	left, right := Decompose(begin, end)
 	// Smoke test the sum of decomposition masks.
 	if left+right != uint64(end-begin) {
 		return fmt.Errorf("%d+%d != %d-%d", left, right, begin, end)

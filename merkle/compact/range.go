@@ -41,7 +41,7 @@ func (f *RangeFactory) NewRange(begin, end uint64, hashes [][]byte) (*Range, err
 	if end < begin {
 		return nil, fmt.Errorf("invalid range: end=%d, want >= %d", end, begin)
 	}
-	left, right := decompose(begin, end)
+	left, right := Decompose(begin, end)
 	ones := bits.OnesCount64(left) + bits.OnesCount64(right)
 	if ln := len(hashes); ln != ones {
 		return nil, fmt.Errorf("invalid hashes: got %d values, want %d", ln, ones)
@@ -229,7 +229,7 @@ func getMergePath(begin, mid, end uint64) (uint, uint) {
 	return uint(low), uint(high - 1)
 }
 
-// decompose splits the [begin, end) range into a minimal number of sub-ranges,
+// Decompose splits the [begin, end) range into a minimal number of sub-ranges,
 // each of which is of the form [m * 2^k, (m+1) * 2^k), i.e. of length 2^k, for
 // some integers m, k >= 0.
 //
@@ -245,7 +245,7 @@ func getMergePath(begin, mid, end uint64) (uint, uint) {
 // sequence of tree sizes: 2,8; 8,4,1.
 //
 // The output is not specified if begin > end, but the function never panics.
-func decompose(begin, end uint64) (uint64, uint64) {
+func Decompose(begin, end uint64) (uint64, uint64) {
 	// Special case, as the code below works only if begin != 0, or end < 2^63.
 	if begin == 0 {
 		return 0, end
