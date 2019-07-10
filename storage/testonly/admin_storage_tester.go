@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
@@ -72,19 +71,6 @@ func mustMarshalAny(pb proto.Message) *any.Any {
 		panic(err)
 	}
 	return value
-}
-
-// TODO(phad): consider how to better break the import loop between trees and
-// trees/testonly (which is due to trees.Hash) than this.
-
-// hash returns the crypto.Hash configured by the tree.
-func hash(tree *trillian.Tree) (crypto.Hash, error) {
-	switch tree.HashAlgorithm {
-	case sigpb.DigitallySigned_SHA256:
-		return crypto.SHA256, nil
-	}
-	// There's no nil-like value for crypto.Hash, something has to be returned.
-	return crypto.SHA256, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
 }
 
 var (
