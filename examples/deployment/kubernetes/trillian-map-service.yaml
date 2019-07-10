@@ -7,10 +7,10 @@ metadata:
 spec:
   clusterIP: None
   ports:
-  - name: grpclb
+  - name: grpc
     port: 8090
     targetPort: 8090
-  - name: metrics
+  - name: http-metrics
     port: 8091
     targetPort: 8091
   selector:
