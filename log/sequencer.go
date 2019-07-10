@@ -338,7 +338,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		// Get the latest known root from storage
 		sth, err := tx.LatestSignedLogRoot(ctx)
-		if err != nil {
+		if err != nil || sth == nil {
 			return fmt.Errorf("%v: Sequencer failed to get latest root: %v", tree.TreeId, err)
 		}
 		// There is no trust boundary between the signer and the
