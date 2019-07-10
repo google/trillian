@@ -41,7 +41,7 @@ const (
 	selectSubtreeSQL = `
  SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
  FROM (
- 	SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
+ 	SELECT n.TreeId, n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
 	FROM Subtree n
 	WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
 	 n.TreeId = ? AND n.SubtreeRevision <= ?
@@ -50,6 +50,7 @@ const (
  INNER JOIN Subtree 
  ON Subtree.SubtreeId = x.SubtreeId 
  AND Subtree.SubtreeRevision = x.MaxRevision 
+ AND Subtree.TreeId = x.TreeId
  AND Subtree.TreeId = ?`
 	placeholderSQL = "<placeholder>"
 )
@@ -234,7 +235,6 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
 
 	for rows.Next() {
-
 		var subtreeIDBytes []byte
 		var subtreeRev int64
 		var nodesRaw []byte
