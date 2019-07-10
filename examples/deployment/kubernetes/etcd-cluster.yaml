@@ -7,3 +7,15 @@ metadata:
 spec:
   size: 3
   version: "3.2.13"
+  pod:
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: etcd_cluster
+                operator: In
+                values:
+                - trillian-etcd-cluster
+          topologyKey: kubernetes.io/hostname
