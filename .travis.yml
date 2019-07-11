@@ -12,6 +12,8 @@ addons:
 
 cache:
   directories:
+    - "$HOME/.cache/go-build"
+    - "$HOME/.cache/go-build-race"
     - "$HOME/google-cloud-sdk/"
     - "$HOME/gopath/pkg/mod"
 
@@ -58,6 +60,10 @@ before_install:
   - sudo service mysql start
 
 install:
+  - |
+    if [[ "${GOFLAGS}" == *-race* ]]; then
+      export GOCACHE="$(go env GOCACHE)-race"
+    fi
   - mkdir ../protoc
   - |
     (
