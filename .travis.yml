@@ -26,6 +26,7 @@ env:
   - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true       PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
+  - CT_INTEG_TEST=true                                     PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true                                       PRESUBMIT_OPTS="--coverage --no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race'                       PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'  PRESUBMIT_OPTS="--no-linters --no-generate"
@@ -125,15 +126,18 @@ script:
   - |
     if [[ "${INTEG_TESTS}" == "true" ]]; then
       ./integration/integration_test.sh
+      HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
+    fi
+  - |
+    if [[ "${CT_INTEG_TEST}" == "true" ]]; then
       # See if we would break ct-go by checking it out and updating the trillian dep.
       TRILLIAN_DIR=$(pwd)
       git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
-      pushd "$GOPATH/src/github.com/google/certificate-transparency-go" 
+      pushd "$GOPATH/src/github.com/google/certificate-transparency-go"
       echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
       chmod +x ./trillian/integration/integration_test.sh
       ./trillian/integration/integration_test.sh
       popd
-      HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     fi
   - |
       # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
