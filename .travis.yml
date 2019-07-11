@@ -12,6 +12,7 @@ addons:
 
 cache:
   directories:
+    - "$HOME/.cache/go-build"
     - "$HOME/google-cloud-sdk/"
     - "$HOME/gopath/pkg/mod"
 
