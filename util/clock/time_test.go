@@ -37,8 +37,13 @@ var (
 )
 
 func TestSleepContext(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range cases {
+		tc := tc
 		t.Run(fmt.Sprintf("%v:%v", tc.dur, tc.timeout), func(t *testing.T) {
+			t.Parallel()
+
 			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
 			if tc.cancel {
 				cancel()
@@ -53,8 +58,13 @@ func TestSleepContext(t *testing.T) {
 }
 
 func TestSleepSource(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range cases {
+		tc := tc
 		t.Run(fmt.Sprintf("%v:%v", tc.dur, tc.timeout), func(t *testing.T) {
+			t.Parallel()
+
 			base := time.Now()
 			ts := NewFake(base)
 			ctx, cancel := context.WithCancel(context.Background())
