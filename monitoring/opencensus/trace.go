@@ -27,6 +27,17 @@ import (
 	"google.golang.org/grpc"
 )
 
+// This is the same set of views that used to be the default before that
+// was deprecated. Possibly some of these are not useful but for the moment
+// we don't really know that.
+var serverViews = []*view.View{ochttp.ServerRequestCountView,
+	ochttp.ServerRequestBytesView,
+	ochttp.ServerResponseBytesView,
+	ochttp.ServerLatencyView,
+	ochttp.ServerRequestCountByMethod,
+	ochttp.ServerResponseCountByStatusCode,
+}
+
 // EnableRPCServerTracing turns on Stackdriver tracing. The returned
 // options must be passed to the GRPC server. The supplied
 // projectID can be nil for GCP but might need to be set for other
@@ -62,7 +73,7 @@ func EnableHTTPServerTracing(projectID string, percent int) (http.Handler, error
 	if err := applyConfig(percent); err != nil {
 		return nil, err
 	}
-	if err := view.Register(ochttp.DefaultServerViews...); err != nil {
+	if err := view.Register(serverViews...); err != nil {
 		return nil, err
 	}
 	return &ochttp.Handler{}, nil
