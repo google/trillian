@@ -32,6 +32,8 @@ const (
 )
 
 func TestFromProto(t *testing.T) {
+	t.Parallel()
+
 	keyDER, err := base64.StdEncoding.DecodeString(privKeyBase64)
 	if err != nil {
 		t.Fatalf("Could not decode test key: %v", err)
@@ -61,22 +63,28 @@ func TestFromProto(t *testing.T) {
 			wantErr:  true,
 		},
 	} {
-		signer, err := FromProto(test.keyProto)
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%v: FromProto(%#v) = (_, %q), want (_, nil)", test.desc, test.keyProto, err)
-			continue
-		} else if gotErr {
-			continue
-		}
+		test := test
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
 
-		// Check that the returned signer can produce signatures successfully.
-		if err := testonly.SignAndVerify(signer, signer.Public()); err != nil {
-			t.Errorf("%v: SignAndVerify() = %q, want nil", test.desc, err)
-		}
+			signer, err := FromProto(test.keyProto)
+			if gotErr := err != nil; gotErr != test.wantErr {
+				t.Fatalf("FromProto(%#v) = (_, %q), want (_, nil)", test.keyProto, err)
+			} else if gotErr {
+				return
+			}
+
+			// Check that the returned signer can produce signatures successfully.
+			if err := testonly.SignAndVerify(signer, signer.Public()); err != nil {
+				t.Fatalf("SignAndVerify() = %q, want nil", err)
+			}
+		})
 	}
 }
 
 func TestNewProtoFromSpec(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range []struct {
 		desc    string
 		keySpec *keyspb.Specification
@@ -110,7 +118,10 @@ func TestNewProtoFromSpec(t *testing.T) {
 			wantErr: true,
 		},
 	} {
+		test := test
 		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+
 			pb, err := NewProtoFromSpec(test.keySpec)
 			if err != nil {
 				if !test.wantErr {
@@ -140,6 +151,8 @@ func TestNewProtoFromSpec(t *testing.T) {
 }
 
 func TestMarshalUnmarshalPublicKey(t *testing.T) {
+	t.Parallel()
+
 	keyDER, err := base64.StdEncoding.DecodeString(pubKeyBase64)
 	if err != nil {
 		t.Fatalf("Could not decode test key: %v", err)
@@ -161,6 +174,8 @@ func TestMarshalUnmarshalPublicKey(t *testing.T) {
 }
 
 func TestFromToPublicProto(t *testing.T) {
+	t.Parallel()
+
 	keyDER, err := base64.StdEncoding.DecodeString(pubKeyBase64)
 	if err != nil {
 		t.Fatalf("Could not decode test key: %v", err)
