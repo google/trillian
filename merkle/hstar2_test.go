@@ -79,6 +79,8 @@ func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) []
 }
 
 func TestHStar2SimpleDataSetKAT(t *testing.T) {
+	t.Parallel()
+
 	s := NewHStar2(treeID, maphasher.Default)
 
 	iv := [][]byte{}
@@ -99,6 +101,8 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 // TestHStar2GetSet ensures that we get the same roots as above when we
 // incrementally calculate roots.
 func TestHStar2GetSet(t *testing.T) {
+	t.Parallel()
+
 	// Node cache is shared between tree builds and in effect plays the role of
 	// the TreeStorage layer.
 	cache := make(map[string][]byte)
@@ -161,6 +165,8 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []*HStar2LeafHash) []*
 // (single top subtree of size n, and multipl bottom subtrees of size 256-n)
 // still arrives at the same Known Answers for root hash.
 func TestHStar2OffsetRootKAT(t *testing.T) {
+	t.Parallel()
+
 	s := NewHStar2(treeID, maphasher.Default)
 	iv := [][]byte{}
 	for i, x := range simpleTestVector {
@@ -185,6 +191,8 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 }
 
 func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
+	t.Parallel()
+
 	s := NewHStar2(treeID, maphasher.Default)
 
 	_, err := s.HStar2Nodes(make([]byte, 31), 9, []*HStar2LeafHash{}, nil, nil)
