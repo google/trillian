@@ -24,6 +24,8 @@ import (
 )
 
 func TestGitFileURL(t *testing.T) {
+	t.Parallel()
+
 	dir, err := ioutil.TempDir("", "git_test")
 	if err != nil {
 		t.Fatal(err)
