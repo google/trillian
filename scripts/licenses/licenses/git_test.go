@@ -58,15 +58,17 @@ func TestGitFileURL(t *testing.T) {
 			wantErr: git.ErrRemoteNotFound,
 		},
 	} {
-		url, err := GitFileURL(test.file, test.remote)
-		if err != nil {
-			if err != test.wantErr {
-				t.Fatalf("GitFileURL(%q, %q) = (_, %q), want (_, %q)", test.file, test.remote, err, test.wantErr)
+		t.Run(test.desc, func(t *testing.T) {
+			url, err := GitFileURL(test.file, test.remote)
+			if err != nil {
+				if err != test.wantErr {
+					t.Fatalf("GitFileURL(%q, %q) = (_, %q), want (_, %q)", test.file, test.remote, err, test.wantErr)
+				}
+				return
 			}
-			return
-		}
-		if url.String() != test.wantURL {
-			t.Fatalf("GitFileURL(%q, %q) = (%q, nil), want (%q, nil)", test.file, test.remote, url, test.wantURL)
-		}
+			if url.String() != test.wantURL {
+				t.Fatalf("GitFileURL(%q, %q) = (%q, nil), want (%q, nil)", test.file, test.remote, url, test.wantURL)
+			}
+		})
 	}
 }
