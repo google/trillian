@@ -4,6 +4,10 @@
 
 Not yet released; provisionally v2.0.0 (may change).
 
+## v1.3.0
+
+Published 2019-07-17 15:00:00 +0000 UTC
+
 ### Storage APIs GetSignedLogRoot / SetSignedLogRoot now take pointers
 
 This at the storage layer and does not affect the log server API.
