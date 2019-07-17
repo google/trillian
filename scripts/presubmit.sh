@@ -87,22 +87,14 @@ main() {
     echo 'running go build'
     go build ./...
 
-    echo 'running go test'
+    export TEST_FLAGS="-short -timeout=${GO_TEST_TIMEOUT:-5m}"
 
     if [[ ${coverage} -eq 1 ]]; then
-        local coverflags="-covermode=atomic -coverprofile=coverage.txt"
-
-        go test \
-            -short \
-            -timeout=${GO_TEST_TIMEOUT:-5m} \
-            ${coverflags} \
-	    ./... -alsologtostderr
-    else
-      go test \
-        -short \
-        -timeout=${GO_TEST_TIMEOUT:-5m} \
-        ./... -alsologtostderr
+      TEST_FLAGS+=" -covermode=atomic -coverprofile=coverage.txt"
     fi
+
+    echo "running go test ${TEST_FLAGS} ./..."
+    go test ${TEST_FLAGS} ./... -alsologtostderr
   fi
 
   if [[ "${run_lint}" -eq 1 ]]; then
