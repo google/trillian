@@ -294,7 +294,7 @@ This is
 [described in more detail in a separate document](docs/Personalities.md).
 General
 [design considerations for transparent Log applications](docs/TransparentLogging.md)
-are also discussed seperately.
+are also discussed separately.
 
 ### Log Mode
 
