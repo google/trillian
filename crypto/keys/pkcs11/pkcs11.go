@@ -23,7 +23,8 @@ import (
 
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/letsencrypt/pkcs11key"
+
+	pkcs11key "github.com/letsencrypt/pkcs11key/v3"
 )
 
 // FromConfig returns a crypto.Signer that uses a PKCS#11 interface.
