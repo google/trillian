@@ -62,9 +62,7 @@ require (
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/pseudomuto/protoc-gen-doc v1.3.0
 	github.com/pseudomuto/protokit v0.2.0 // indirect
-	github.com/russross/blackfriday/v2 v2.0.1+incompatible // indirect
 	github.com/shurcooL/go v0.0.0-20190330031554-6713ea532688 // indirect
-	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.5
