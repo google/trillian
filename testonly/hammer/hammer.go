@@ -481,6 +481,10 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		}
 
 		if time.Now().After(deadline) {
+			if firstErr == nil {
+				// If there was no other error, we've probably hit the deadline - make sure we bubble that up.
+				firstErr = ctx.Err()
+			}
 			glog.Warningf("%d: gave up on operation %v after %v, returning first err %v", s.cfg.MapID, ep, s.cfg.OperationDeadline, firstErr)
 			done = true
 		}
