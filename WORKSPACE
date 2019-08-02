@@ -15,8 +15,8 @@ versions.check(minimum_bazel_version = "0.5.4")
 # It provides the protocol compiler binary (i.e., protoc).
 http_archive(
     name = "com_google_protobuf",
-    strip_prefix = "protobuf-master",
-    urls = ["https://github.com/protocolbuffers/protobuf/archive/master.zip"],
+    strip_prefix = "protobuf-3.9.0",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.9.0.zip"],
 )
 
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
