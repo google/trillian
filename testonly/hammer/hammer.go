@@ -166,8 +166,7 @@ func (c MapConfig) String() string {
 }
 
 // HitMap performs load/stress operations according to given config.
-func HitMap(cfg MapConfig) error {
-	ctx := context.Background()
+func HitMap(ctx context.Context, cfg MapConfig) error {
 	var firstErr error
 
 	if cfg.MapID == 0 {

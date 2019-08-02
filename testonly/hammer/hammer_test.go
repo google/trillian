@@ -75,7 +75,7 @@ func TestInProcessMapHammer(t *testing.T) {
 		Operations:    *operations,
 		NumCheckers:   1,
 	}
-	if err := HitMap(cfg); err != nil {
+	if err := HitMap(ctx, cfg); err != nil {
 		t.Fatalf("hammer failure: %v", err)
 	}
 }
