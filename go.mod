@@ -39,6 +39,7 @@ require (
 	github.com/gostaticanalysis/analysisutil v0.0.0-20190329151158-56bca42c7635 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/grpc-gateway v1.9.4
+	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
@@ -61,9 +62,7 @@ require (
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/pseudomuto/protoc-gen-doc v1.3.0
 	github.com/pseudomuto/protokit v0.2.0 // indirect
-	github.com/russross/blackfriday/v2 v2.0.1+incompatible // indirect
 	github.com/shurcooL/go v0.0.0-20190330031554-6713ea532688 // indirect
-	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.5
@@ -77,7 +76,7 @@ require (
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 	golang.org/x/net v0.0.0-20190628185345-da137c7871d7 // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
-	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
+	golang.org/x/sys v0.0.0-20190801041406-cbf593c0f2f3 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	golang.org/x/tools v0.0.0-20190708203411-c8855242db9c
 	google.golang.org/genproto v0.0.0-20190708153700-3bdd9d9f5532
