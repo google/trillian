@@ -32,9 +32,11 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/client/timeout"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/testonly/hammer"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 
@@ -138,13 +140,19 @@ func main() {
 		hammerTime()
 	}
 
-	dialOpts := []grpc.DialOption{grpc.WithInsecure()}
+	interceptors := []grpc.UnaryClientInterceptor{
+		timeout.UnaryClientInterceptor(*opDeadline),
+	}
 	if *outLog != "" {
 		cl, err := hammer.NewRecordingInterceptor(*outLog)
 		if err != nil {
 			glog.Exitf("failed to build recording interceptor: %v", err)
 		}
-		dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(cl))
+		interceptors = append(interceptors, cl)
+	}
+	dialOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(interceptors...)),
 	}
 
 	mIDs := strings.Split(*mapIDs, ",")
