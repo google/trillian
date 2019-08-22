@@ -18,6 +18,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -190,7 +191,7 @@ func main() {
 		wg.Add(1)
 		go func(cfg hammer.MapConfig) {
 			defer wg.Done()
-			err := hammer.HitMap(cfg)
+			err := hammer.HitMap(context.Background(), cfg)
 			results <- result{mapID: cfg.MapID, err: err}
 		}(cfg)
 	}

@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +34,55 @@ var (
 	operations = flag.Uint64("operations", 20, "Number of operations to perform")
 	singleTX   = flag.Bool("single_transaction", false, "Experimental: whether to use a single transaction when updating the map")
 )
+
+func TestRetryExposesDeadlineError(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+	ctx := context.Background()
+	env, err := integration.NewMapEnv(ctx, *singleTX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+
+	bias := MapBias{
+		Bias: map[MapEntrypointName]int{
+			GetLeavesName:    10,
+			GetLeavesRevName: 10,
+			SetLeavesName:    10,
+			GetSMRName:       10,
+			GetSMRRevName:    10,
+		},
+		InvalidChance: map[MapEntrypointName]int{
+			GetLeavesName:    10,
+			GetLeavesRevName: 10,
+			SetLeavesName:    10,
+			GetSMRName:       0,
+			GetSMRRevName:    10,
+		},
+	}
+
+	seed := time.Now().UTC().UnixNano() & 0xFFFFFFFF
+	cfg := MapConfig{
+		MapID:         0, // ephemeral tree
+		Client:        env.Map,
+		Admin:         env.Admin,
+		MetricFactory: monitoring.InertMetricFactory{},
+		RandSource:    rand.NewSource(seed),
+		EPBias:        bias,
+		LeafSize:      1000,
+		ExtraSize:     100,
+		MinLeaves:     800,
+		MaxLeaves:     1200,
+		Operations:    *operations,
+		NumCheckers:   1,
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, time.Nanosecond)
+	defer cancel()
+	if err, wantErr := HitMap(ctx, cfg), context.DeadlineExceeded; !strings.Contains(err.Error(), wantErr.Error()) {
+		t.Fatalf("Got err %q, expected %q", err, wantErr)
+	}
+}
 
 func TestInProcessMapHammer(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
@@ -75,7 +125,7 @@ func TestInProcessMapHammer(t *testing.T) {
 		Operations:    *operations,
 		NumCheckers:   1,
 	}
-	if err := HitMap(cfg); err != nil {
+	if err := HitMap(ctx, cfg); err != nil {
 		t.Fatalf("hammer failure: %v", err)
 	}
 }
