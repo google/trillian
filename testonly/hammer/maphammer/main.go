@@ -36,12 +36,12 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/testonly/hammer"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 
 	_ "github.com/google/trillian/merkle/coniks"    // register CONIKS_SHA512_256
 	_ "github.com/google/trillian/merkle/maphasher" // register TEST_MAP_HASHER
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 var (
