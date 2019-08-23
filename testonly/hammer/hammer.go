@@ -439,7 +439,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	}(time.Now())
 
 	deadline := time.Now().Add(s.cfg.OperationDeadline)
-	ctx, cancel := context.WithDeadline(ctx, deadline)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	var firstErr error
