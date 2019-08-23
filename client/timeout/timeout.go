@@ -22,7 +22,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-// UnaryClientInterceptor returns a new maximum timout client interceptor.
+// UnaryClientInterceptor returns a new maximum timeout client interceptor.
+// This interceptor will set a timeout when no timeout has been set.
+// If the timeout on parentCtx is longer than maxTimeout, it will be replaced with maxTimeout.
+// If parentCtx has a timeout shorter than maxTimeout it will not be modified.
 func UnaryClientInterceptor(maxTimeout time.Duration) grpc.UnaryClientInterceptor {
 	return func(parentCtx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		callCtx, cancel := context.WithTimeout(parentCtx, maxTimeout)
