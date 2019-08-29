@@ -189,9 +189,6 @@ func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) 
 // CalculateRoot initiates the process of calculating the subtree root.
 // The leafGeneratorQueue is closed.
 func (s *subtreeWriter) CalculateRoot(ctx context.Context) {
-	ctx, spanEnd := spanFor(ctx, "subtreeWriter.CalculateRoot")
-	defer spanEnd()
-
 	close(s.leafGeneratorQueue)
 
 	for _, v := range s.children {
