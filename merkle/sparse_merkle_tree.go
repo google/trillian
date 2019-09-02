@@ -239,12 +239,15 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					NodeRevision: s.treeRevision,
 				})
 		}
+		ctx, postQueueCloseEnd := spanFor(ctx, "buildSubtree.runTX.postQueueClose")
+		defer postQueueCloseEnd()
 
 		// Prewarm the cache:
 		if _, err := tx.GetMerkleNodes(ctx, s.treeRevision, sibs); err != nil {
 			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
 
+		hsCtx, hstar2SpanEnd := spanFor(ctx, "buildSubtree.runTX.hstar2")
 		// calculate new root, and intermediate nodes:
 		hs2 := NewHStar2(s.treeID, s.hasher)
 		var err error
@@ -255,7 +258,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					glog.Infof("buildSubtree.get(%x, %d) nid: %x, %v",
 						index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
 				}
-				nodes, err := tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
+				nodes, err := tx.GetMerkleNodes(hsCtx, s.treeRevision, []storage.NodeID{nodeID})
 				if err != nil {
 					return nil, err
 				}
@@ -289,6 +292,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					})
 				return nil
 			})
+		hstar2SpanEnd() // hstar2
 		if err != nil {
 			return err
 		}
