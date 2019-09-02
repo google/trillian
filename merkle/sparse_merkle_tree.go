@@ -239,6 +239,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					NodeRevision: s.treeRevision,
 				})
 		}
+		// TODO(mhutchinson): Remove these spans after optimizing subtree calculation
 		ctx, postQueueCloseEnd := spanFor(ctx, "buildSubtree.runTX.postQueueClose")
 		defer postQueueCloseEnd()
 
