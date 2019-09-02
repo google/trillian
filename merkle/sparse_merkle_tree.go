@@ -206,23 +206,20 @@ func (s *subtreeWriter) RootHash() ([]byte, error) {
 // The root chan will have had exactly one entry placed in it, and have been
 // subsequently closed when this method exits.
 func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
-	ctx, spanEnd := spanFor(ctx, "buildSubtree")
-	defer spanEnd()
-
 	defer close(s.root)
 	var root []byte
 	err := s.txRunner.RunTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
-		ctx, spanEnd := spanFor(ctx, "buildSubtree.runTX")
-		defer spanEnd()
-
 		root = []byte{}
 		leaves := make([]*HStar2LeafHash, 0, queueSize)
 		nodesToStore := make([]storage.Node, 0, queueSize*2)
 
-		_, createNodesSpanEnd := spanFor(ctx, "buildSubtree.runTX.createNodeIDs")
 		// sibs will hold the list of sibling node IDs for all nodes we'll end up
 		// wanting to write - we'll use this to prewarm the subtree cache.
 		var sibs []storage.NodeID
+
+		// The go-routine will block here until the channel is closed via
+		// CalculateRoot, at which point we can proceed with completing the
+		// subtree building and calculation
 		for leafGenerator := range s.leafGeneratorQueue {
 			ih, err := leafGenerator()
 			if err != nil {
@@ -242,14 +239,14 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					NodeRevision: s.treeRevision,
 				})
 		}
-		createNodesSpanEnd()
+		// TODO(mhutchinson): Remove these spans after optimizing subtree calculation
+		ctx, postQueueCloseEnd := spanFor(ctx, "buildSubtree.runTX.postQueueClose")
+		defer postQueueCloseEnd()
 
-		preloadCtx, preloadSpanEnd := spanFor(ctx, "buildSubtree.runTX.preload")
 		// Prewarm the cache:
-		if _, err := tx.GetMerkleNodes(preloadCtx, s.treeRevision, sibs); err != nil {
+		if _, err := tx.GetMerkleNodes(ctx, s.treeRevision, sibs); err != nil {
 			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
-		preloadSpanEnd()
 
 		hsCtx, hstar2SpanEnd := spanFor(ctx, "buildSubtree.runTX.hstar2")
 		// calculate new root, and intermediate nodes:
