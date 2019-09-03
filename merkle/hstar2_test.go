@@ -99,7 +99,8 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 }
 
 // TestHStar2GetSet ensures that we get the same roots as above when we
-// incrementally calculate roots.
+// incrementally calculate roots. It also makes sure that Prefetch visits the
+// same set of node that HStar2Nodes fetches.
 func TestHStar2GetSet(t *testing.T) {
 	t.Parallel()
 
@@ -109,23 +110,52 @@ func TestHStar2GetSet(t *testing.T) {
 	hasher := maphasher.Default
 
 	for i, x := range simpleTestVector {
+		t.Logf("Iteration %d", i)
+
 		s := NewHStar2(treeID, hasher)
 		values := createHStar2Leaves(treeID, hasher, x.index, x.value)
-		// ensure we're going incrementally, one leaf at a time.
+		// Ensure we're going incrementally, one leaf at a time.
 		if len(values) != 1 {
 			t.Fatalf("Should only have 1 leaf per run, got %d", len(values))
 		}
+
+		toID := func(depth int, index *big.Int) string {
+			return fmt.Sprintf("%x/%d", index, depth)
+		}
+
+		visited := make(map[string]bool)
+		err := s.Prefetch(nil, s.hasher.BitLen(), values,
+			func(depth int, index *big.Int) ([]byte, error) {
+				id := toID(depth, index)
+				if visited[id] {
+					return nil, fmt.Errorf("visited node %v twice", id)
+				}
+				visited[id] = true
+				return nil, nil
+			})
+		if err != nil {
+			t.Errorf("Prefetch(): %v", err)
+		}
+
 		root, err := s.HStar2Nodes(nil, s.hasher.BitLen(), values,
 			func(depth int, index *big.Int) ([]byte, error) {
-				return cache[fmt.Sprintf("%x/%d", index, depth)], nil
+				id := toID(depth, index)
+				if !visited[id] {
+					return nil, fmt.Errorf("node not in Prefetch, or fetched twice: %v", id)
+				}
+				delete(visited, id)
+				return cache[id], nil
 			},
 			func(depth int, index *big.Int, hash []byte) error {
-				cache[fmt.Sprintf("%x/%d", index, depth)] = hash
+				cache[toID(depth, index)] = hash
 				return nil
 			})
 		if err != nil {
-			t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
+			t.Errorf("HStar2Nodes(): %v", err)
 			continue
+		}
+		if got := len(visited); got != 0 {
+			t.Errorf("Prefetched %d more nodes than necessary", got)
 		}
 		if got, want := root, x.root; !bytes.Equal(got, want) {
 			t.Errorf("Root: %x, want: %x", got, want)
