@@ -100,7 +100,7 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 
 // TestHStar2GetSet ensures that we get the same roots as above when we
 // incrementally calculate roots. It also makes sure that Prefetch visits the
-// same set of node that HStar2Nodes fetches.
+// same set of nodes that HStar2Nodes fetches.
 func TestHStar2GetSet(t *testing.T) {
 	t.Parallel()
 
