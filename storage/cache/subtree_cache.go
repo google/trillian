@@ -149,30 +149,34 @@ func (s *SubtreeCache) stratumInfoForPrefixLength(l int) stratumInfo {
 // passed in node IDs, uses getSubtrees to retrieve them, and finally populates
 // the cache structures with the data.
 func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	// Figure out the set of subtrees we need.
+	want := make(map[string]storage.NodeID)
+	func() {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
 
-	// Figure out the set of subtrees we need:
-	want := make(map[string]*storage.NodeID)
-	for _, id := range ids {
-		id := id
-		sInfo := s.stratumInfoForNodeID(id)
-		pxKey := id.PrefixAsKey(sInfo.prefixBytes)
-		// TODO(al): fix for non-uniform strata
-		id.PrefixLenBits = sInfo.prefixBytes * depthQuantum
-		if _, ok := s.subtrees[pxKey]; !ok {
-			want[pxKey] = &id
+		for _, id := range ids {
+			sInfo := s.stratumInfoForNodeID(id)
+			pxKey := id.PrefixAsKey(sInfo.prefixBytes)
+			// TODO(al): Fix for non-uniform strata.
+			id.PrefixLenBits = sInfo.prefixBytes * depthQuantum
+			if _, ok := s.subtrees[pxKey]; !ok {
+				want[pxKey] = id
+			}
 		}
-	}
+	}()
+	// Note: At this point the lock is released, so multiple parallel preload
+	// invocations can happen to getSubtrees with the same node IDs. It's okay
+	// because we collapse results further below.
 
-	// There might be nothing to do so don't make a read request for zero subtrees if so
+	// Don't make a read request for zero subtrees.
 	if len(want) == 0 {
 		return nil
 	}
 
 	list := make([]storage.NodeID, 0, len(want))
 	for _, v := range want {
-		list = append(list, *v)
+		list = append(list, v)
 	}
 	subtrees, err := getSubtrees(list)
 	if err != nil {
@@ -207,6 +211,10 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		close(workTokens)
 	}()
 
+	// Note: It's only below this point where the subtrees map needs the lock.
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	for t := range ch {
 		s.subtrees[string(t.Prefix)] = t
 		delete(want, string(t.Prefix))
@@ -222,9 +230,9 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		pxKey := string(px)
 		_, exists := s.subtrees[pxKey]
 		if exists {
-			return fmt.Errorf("preload tried to clobber existing subtree for: %v", *id)
+			return fmt.Errorf("preload tried to clobber existing subtree for: %v", id)
 		}
-		s.subtrees[pxKey] = s.newEmptySubtree(*id, px)
+		s.subtrees[pxKey] = s.newEmptySubtree(id, px)
 	}
 
 	return nil
