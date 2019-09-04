@@ -59,12 +59,15 @@ func NewHStar2(treeID int64, hasher hashers.MapHasher) HStar2 {
 // which contains the given set of non-null leaves.
 func (s *HStar2) HStar2Root(depth int, values []*HStar2LeafHash) ([]byte, error) {
 	sort.Sort(ByIndex{values})
-	combine := func(depth int, offset *big.Int, lhs, rhs []byte) ([]byte, error) {
+	combine := func(depth int, index *big.Int, lhs, rhs []byte) ([]byte, error) {
 		h := s.hasher.HashChildren(lhs, rhs)
 		return h, nil
 	}
 	return s.hStar2b(0, depth, values, smtZero, nil, combine)
 }
+
+// PrefetchNodeFunc reports coordinates of a Merkle tree node to prefetch.
+type PrefetchNodeFunc func(depth int, index *big.Int)
 
 // SparseGetNodeFunc should return any pre-existing node hash for the node address.
 type SparseGetNodeFunc func(depth int, index *big.Int) ([]byte, error)
@@ -98,23 +101,27 @@ func (s *HStar2) HStar2Nodes(prefix []byte, subtreeDepth int, values []*HStar2Le
 }
 
 // Prefetch does a dry run of HStar2 algorithm, and reports all Merkle tree
-// nodes that it needs through the passed-in visit function. Note that the
-// return value of the visit function is ignored, unless it is an error.
+// nodes that it needs through the passed-in fetch function.
 //
 // This function can be useful, for example, if the caller prefers to collect
 // the node IDs and read them from storage in one batch. Then they can run
 // HStar2Nodes in such a way that it reads from the prefetched set.
-func (s *HStar2) Prefetch(prefix []byte, subtreeDepth int, values []*HStar2LeafHash, visit SparseGetNodeFunc) error {
-	combine := func(depth int, offset *big.Int, lhs, rhs []byte) ([]byte, error) {
+func (s *HStar2) Prefetch(prefix []byte, subtreeDepth int, values []*HStar2LeafHash, fetch PrefetchNodeFunc) error {
+	get := func(depth int, index *big.Int) ([]byte, error) {
+		fetch(depth, index)
 		return nil, nil
 	}
-	_, err := s.run(prefix, subtreeDepth, values, visit, combine)
+	combine := func(depth int, index *big.Int, lhs, rhs []byte) ([]byte, error) {
+		return nil, nil
+	}
+	_, err := s.run(prefix, subtreeDepth, values, get, combine)
 	return err
 }
 
-// combineFunc returns a node hash based on two child hashes. It may also do
-// side effects, e.g. put the resulting node to storage.
-type combineFunc func(depth int, offset *big.Int, lhs, rhs []byte) ([]byte, error)
+// combineFunc returns a node hash based on two child hashes. It can do side
+// effects, e.g. put the resulting node to storage. This function may also
+// perform no work if none is needed, such as the prefetch case.
+type combineFunc func(depth int, index *big.Int, lhs, rhs []byte) ([]byte, error)
 
 // run runs the HStar2 algorithm.
 func (s *HStar2) run(prefix []byte, subtreeDepth int, values []*HStar2LeafHash,

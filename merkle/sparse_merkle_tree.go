@@ -241,10 +241,9 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		var nodeIDs []storage.NodeID
 		hs2 := NewHStar2(s.treeID, s.hasher)
 		err := hs2.Prefetch(s.prefix, s.subtreeDepth, leaves,
-			func(depth int, index *big.Int) ([]byte, error) {
+			func(depth int, index *big.Int) {
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 				nodeIDs = append(nodeIDs, nodeID)
-				return nil, nil
 			})
 		if err != nil {
 			return err
