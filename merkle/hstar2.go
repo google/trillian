@@ -66,8 +66,8 @@ func (s *HStar2) HStar2Root(depth int, values []*HStar2LeafHash) ([]byte, error)
 	return s.hStar2b(0, depth, values, smtZero, nil, combine)
 }
 
-// PrefetchNodeFunc reports coordinates of a Merkle tree node to prefetch.
-type PrefetchNodeFunc func(depth int, index *big.Int)
+// PrefetchNodeVisitor reports coordinates of a Merkle tree node to prefetch.
+type PrefetchNodeVisitor func(depth int, index *big.Int)
 
 // SparseGetNodeFunc should return any pre-existing node hash for the node address.
 type SparseGetNodeFunc func(depth int, index *big.Int) ([]byte, error)
@@ -101,14 +101,14 @@ func (s *HStar2) HStar2Nodes(prefix []byte, subtreeDepth int, values []*HStar2Le
 }
 
 // Prefetch does a dry run of HStar2 algorithm, and reports all Merkle tree
-// nodes that it needs through the passed-in fetch function.
+// nodes that it needs through the passed-in visit function.
 //
 // This function can be useful, for example, if the caller prefers to collect
 // the node IDs and read them from storage in one batch. Then they can run
 // HStar2Nodes in such a way that it reads from the prefetched set.
-func (s *HStar2) Prefetch(prefix []byte, subtreeDepth int, values []*HStar2LeafHash, fetch PrefetchNodeFunc) error {
+func (s *HStar2) Prefetch(prefix []byte, subtreeDepth int, values []*HStar2LeafHash, visit PrefetchNodeVisitor) error {
 	get := func(depth int, index *big.Int) ([]byte, error) {
-		fetch(depth, index)
+		visit(depth, index)
 		return nil, nil
 	}
 	combine := func(depth int, index *big.Int, lhs, rhs []byte) ([]byte, error) {
