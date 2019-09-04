@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/google/trillian/merkle/coniks"
@@ -99,7 +100,8 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 }
 
 // TestHStar2GetSet ensures that we get the same roots as above when we
-// incrementally calculate roots.
+// incrementally calculate roots. It also makes sure that Prefetch visits the
+// same set of nodes that HStar2Nodes fetches.
 func TestHStar2GetSet(t *testing.T) {
 	t.Parallel()
 
@@ -108,28 +110,57 @@ func TestHStar2GetSet(t *testing.T) {
 	cache := make(map[string][]byte)
 	hasher := maphasher.Default
 
+	toID := func(depth int, index *big.Int) string {
+		return fmt.Sprintf("%x/%d", index, depth)
+	}
+
 	for i, x := range simpleTestVector {
-		s := NewHStar2(treeID, hasher)
 		values := createHStar2Leaves(treeID, hasher, x.index, x.value)
-		// ensure we're going incrementally, one leaf at a time.
-		if len(values) != 1 {
-			t.Fatalf("Should only have 1 leaf per run, got %d", len(values))
+		// Ensure we're going incrementally, one leaf at a time.
+		if cnt := len(values); cnt != 1 {
+			t.Fatalf("Should only have 1 leaf per run, got %d", cnt)
 		}
-		root, err := s.HStar2Nodes(nil, s.hasher.BitLen(), values,
-			func(depth int, index *big.Int) ([]byte, error) {
-				return cache[fmt.Sprintf("%x/%d", index, depth)], nil
-			},
-			func(depth int, index *big.Int, hash []byte) error {
-				cache[fmt.Sprintf("%x/%d", index, depth)] = hash
-				return nil
-			})
-		if err != nil {
-			t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
-			continue
-		}
-		if got, want := root, x.root; !bytes.Equal(got, want) {
-			t.Errorf("Root: %x, want: %x", got, want)
-		}
+
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			s := NewHStar2(treeID, hasher)
+			visited := make(map[string]int)
+			err := s.Prefetch(nil, s.hasher.BitLen(), values,
+				func(depth int, index *big.Int) {
+					visited[toID(depth, index)]++
+				})
+			if err != nil {
+				t.Errorf("Prefetch(): %v", err)
+			}
+			for id, times := range visited {
+				if times != 1 {
+					t.Errorf("Node %v visited %d times. Skipping other nodes.", id, times)
+					break
+				}
+			}
+
+			root, err := s.HStar2Nodes(nil, s.hasher.BitLen(), values,
+				func(depth int, index *big.Int) ([]byte, error) {
+					id := toID(depth, index)
+					visited[id]--
+					if visited[id] == 0 {
+						delete(visited, id)
+					}
+					return cache[id], nil
+				},
+				func(depth int, index *big.Int, hash []byte) error {
+					cache[toID(depth, index)] = hash
+					return nil
+				})
+			if err != nil {
+				t.Fatalf("HStar2Nodes(): %v", err)
+			}
+			if cnt := len(visited); cnt != 0 {
+				t.Errorf("Prefetched %d more nodes than necessary", cnt)
+			}
+			if got, want := root, x.root; !bytes.Equal(got, want) {
+				t.Errorf("Root: %x, want: %x", got, want)
+			}
+		})
 	}
 }
 

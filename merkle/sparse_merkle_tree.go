@@ -213,10 +213,6 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		leaves := make([]*HStar2LeafHash, 0, queueSize)
 		nodesToStore := make([]storage.Node, 0, queueSize*2)
 
-		// sibs will hold the list of sibling node IDs for all nodes we'll end up
-		// wanting to write - we'll use this to prewarm the subtree cache.
-		var sibs []storage.NodeID
-
 		// The go-routine will block here until the channel is closed via
 		// CalculateRoot, at which point we can proceed with completing the
 		// subtree building and calculation
@@ -226,8 +222,6 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 				return err
 			}
 			nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.EmptySuffix, s.hasher.BitLen())
-			sibs = append(sibs, nodeID.Siblings()...)
-
 			leaves = append(leaves, &HStar2LeafHash{
 				Index:    nodeID.BigInt(),
 				LeafHash: ih.hash,
@@ -243,15 +237,24 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		ctx, postQueueCloseEnd := spanFor(ctx, "buildSubtree.runTX.postQueueClose")
 		defer postQueueCloseEnd()
 
-		// Prewarm the cache:
-		if _, err := tx.GetMerkleNodes(ctx, s.treeRevision, sibs); err != nil {
+		// nodeIDs will hold the list of node IDs that HStar2 algorithm will read.
+		var nodeIDs []storage.NodeID
+		hs2 := NewHStar2(s.treeID, s.hasher)
+		err := hs2.Prefetch(s.prefix, s.subtreeDepth, leaves,
+			func(depth int, index *big.Int) {
+				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
+				nodeIDs = append(nodeIDs, nodeID)
+			})
+		if err != nil {
+			return err
+		}
+		// Prewarm the Merkle tree cache.
+		if _, err := tx.GetMerkleNodes(ctx, s.treeRevision, nodeIDs); err != nil {
 			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
 
 		hsCtx, hstar2SpanEnd := spanFor(ctx, "buildSubtree.runTX.hstar2")
-		// calculate new root, and intermediate nodes:
-		hs2 := NewHStar2(s.treeID, s.hasher)
-		var err error
+		// Calculate new root hash, and intermediate nodes.
 		root, err = hs2.HStar2Nodes(s.prefix, s.subtreeDepth, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
@@ -259,6 +262,8 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					glog.Infof("buildSubtree.get(%x, %d) nid: %x, %v",
 						index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
 				}
+				// TODO(pavelkalinnikov): Reuse the result of prefetch GetMerkleNodes.
+				// This will also eliminate cache contention.
 				nodes, err := tx.GetMerkleNodes(hsCtx, s.treeRevision, []storage.NodeID{nodeID})
 				if err != nil {
 					return nil, err
