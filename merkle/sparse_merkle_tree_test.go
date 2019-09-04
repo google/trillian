@@ -443,12 +443,14 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 		readMutex.Lock()
 		defer readMutex.Unlock()
 
-		state, ok := reads[ids[0].String()]
-		reads[ids[0].String()] = "met"
-
-		// Allow re-reads of the same nodes too (state=="met") - this is due to
-		// cache warming:
-		return ok && (state == "unmet" || state == "met")
+		for _, id := range ids {
+			strID := id.String()
+			if reads[strID] != "unmet" {
+				return false
+			}
+			reads[strID] = "met"
+		}
+		return true
 	}}).AnyTimes().Return([]storage.Node{}, nil)
 
 	// Now add a general catch-all for any unexpected calls. If we don't do this
@@ -457,15 +459,10 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 	// instead, and we can then print them out later on.
 	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).AnyTimes().Do(
 		func(_ context.Context, rev int64, a []storage.NodeID) {
-			if a == nil {
-				return
-			}
-
 			readMutex.Lock()
 			defer readMutex.Unlock()
-
-			for i := range a {
-				reads[a[i].String()] = "unexpected"
+			for _, id := range a {
+				reads[id.String()] = "unexpected"
 			}
 		}).Return([]storage.Node{}, nil)
 
@@ -488,19 +485,16 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 		func(_ context.Context, a []storage.Node) {
 			writeMutex.Lock()
 			defer writeMutex.Unlock()
-			if a == nil {
-				return
-			}
-			for i := range a {
-				id := a[i].NodeID.String()
-				state, ok := writes[id]
+			for _, id := range a {
+				strID := id.NodeID.String()
+				state, ok := writes[strID]
 				switch {
 				case !ok:
-					writes[id] = "unexpected"
+					writes[strID] = "unexpected"
 				case state == "unmet":
-					writes[id] = "met"
+					writes[strID] = "met"
 				default:
-					writes[id] = "duplicate"
+					writes[strID] = "duplicate"
 				}
 			}
 		}).Return(nil)

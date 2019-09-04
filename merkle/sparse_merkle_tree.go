@@ -248,13 +248,18 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		if err != nil {
 			return err
 		}
-		// Prewarm the Merkle tree cache.
-		if _, err := tx.GetMerkleNodes(ctx, s.treeRevision, nodeIDs); err != nil {
+		// Prewarm the local nodes cache.
+		nodes, err := tx.GetMerkleNodes(ctx, s.treeRevision, nodeIDs)
+		if err != nil {
 			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
+		cache := make(map[string]storage.Node)
+		for _, n := range nodes {
+			cache[n.NodeID.AsKey()] = n
+		}
 
-		hsCtx, hstar2SpanEnd := spanFor(ctx, "buildSubtree.runTX.hstar2")
 		// Calculate new root hash, and intermediate nodes.
+		_, hstar2SpanEnd := spanFor(ctx, "buildSubtree.runTX.hstar2")
 		root, err = hs2.HStar2Nodes(s.prefix, s.subtreeDepth, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
 				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
@@ -262,22 +267,17 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 					glog.Infof("buildSubtree.get(%x, %d) nid: %x, %v",
 						index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
 				}
-				// TODO(pavelkalinnikov): Reuse the result of prefetch GetMerkleNodes.
-				// This will also eliminate cache contention.
-				nodes, err := tx.GetMerkleNodes(hsCtx, s.treeRevision, []storage.NodeID{nodeID})
-				if err != nil {
-					return nil, err
-				}
-				if len(nodes) == 0 {
+				node, found := cache[nodeID.AsKey()]
+				if !found { // Assume that the missing nodes are empty.
 					return nil, nil
 				}
-				if got, want := nodes[0].NodeID, nodeID; !got.Equivalent(want) {
+				if got, want := node.NodeID, nodeID; !got.Equivalent(want) {
 					return nil, fmt.Errorf("got node %v from storage, want %v", got, want)
 				}
-				if got, want := nodes[0].NodeRevision, s.treeRevision; got > want {
+				if got, want := node.NodeRevision, s.treeRevision; got > want {
 					return nil, fmt.Errorf("got node revision %d, want <= %d", got, want)
 				}
-				return nodes[0].Hash, nil
+				return node.Hash, nil
 			},
 			func(depth int, index *big.Int, h []byte) error {
 				// Don't store the root node of the subtree - that's part of the parent
