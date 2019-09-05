@@ -2,7 +2,15 @@
 
 ## HEAD
 
-Not yet released; provisionally v2.0.0 (may change).
+Not yet released; provisionally v1.4.0 (may change).
+
+## v1.3.1 - Module and Bazel fixes
+
+Published 2019-08-16 15:00:00 +0000 UTC
+
+Patch release primarily to address Go Module issue. v1.3.0 declared a dependency
+on github.com/russross/blackfriday/v2 v2.0.1+incompatible which made downstream
+dependencies suffer.
 
 ## v1.3.0
 
