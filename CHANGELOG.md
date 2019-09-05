@@ -2,7 +2,15 @@
 
 ## HEAD
 
-Not yet released; provisionally v1.4.0 (may change).
+Not yet released; provisionally v1.3.3 (may change).
+
+## v1.3.2 - Module fixes
+
+Published 2019-09-05 17:30:00 +0000 UTC
+
+Patch release to address Go Module issue. Some dependencies use invalid pseudo-
+versions in their go.mod files that Go 1.13 rejects. We've added `replace`
+directives to our go.mod file to fix these invalid pseudo-versions.
 
 ## v1.3.1 - Module and Bazel fixes
 
