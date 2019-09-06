@@ -938,7 +938,7 @@ func setupTimeSource(ts clock.TimeSource) func() {
 // initialTokens.
 func setupTokens(ctx context.Context, qs *QuotaStorage, cfgs *storagepb.Configs, initialTokens map[string]int64) error {
 	if _, err := qs.UpdateConfigs(ctx, true /* reset */, updater(cfgs)); err != nil {
-		return fmt.Errorf("UpdateConfigs() returned err = %v", err)
+		return fmt.Errorf("UpdateConfigs() returned err = %w", err)
 	}
 	for name, wantTokens := range initialTokens {
 		names := []string{name}

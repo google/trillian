@@ -59,7 +59,7 @@ func NewMapVerifier(config *trillian.Tree, rootVerifier *maps.RootVerifier) (*Ma
 
 	mapHasher, err := hashers.NewMapHasher(config.HashStrategy)
 	if err != nil {
-		return nil, fmt.Errorf("failed creating MapHasher: %v", err)
+		return nil, fmt.Errorf("failed creating MapHasher: %w", err)
 	}
 
 	return &MapVerifier{

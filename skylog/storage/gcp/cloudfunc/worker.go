@@ -50,7 +50,7 @@ type BuildMessage struct {
 func BuildSubtree(ctx context.Context, msg BuildMessage) error {
 	client, err := spannerClient(ctx)
 	if err != nil {
-		return fmt.Errorf("connecting to Spanner failed: %v", err)
+		return fmt.Errorf("connecting to Spanner failed: %w", err)
 	}
 
 	var job pb.BuildJob
@@ -105,7 +105,7 @@ func spannerClient(ctx context.Context) (*spanner.Client, error) {
 
 	var err error
 	if client, err = spanner.NewClient(ctx, db); err != nil {
-		return nil, fmt.Errorf("spanner.NewClient: %v", err)
+		return nil, fmt.Errorf("spanner.NewClient: %w", err)
 	}
 	log.Printf("Connected to Cloud Spanner: %s", db)
 	return client, err

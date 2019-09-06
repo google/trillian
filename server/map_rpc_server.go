@@ -165,7 +165,7 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapRead)
 	if err != nil {
-		return nil, fmt.Errorf("could not get map %v: %v", req.MapId, err)
+		return nil, fmt.Errorf("could not get map %v: %w", req.MapId, err)
 	}
 	for _, index := range req.Index {
 		if err := checkIndexSize(index, hasher); err != nil {
@@ -174,7 +174,7 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 	}
 	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevisionNoProof")
 	if err != nil {
-		return nil, fmt.Errorf("could not create database snapshot: %v", err)
+		return nil, fmt.Errorf("could not create database snapshot: %w", err)
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRevisionNoProof")
 
@@ -197,7 +197,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapRead)
 	if err != nil {
-		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
+		return nil, fmt.Errorf("could not get map %v: %w", mapID, err)
 	}
 	for _, index := range indices {
 		if err := checkIndexSize(index, hasher); err != nil {
@@ -210,7 +210,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevision")
 	if err != nil {
-		return nil, fmt.Errorf("could not create database snapshot: %v", err)
+		return nil, fmt.Errorf("could not create database snapshot: %w", err)
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRevision")
 
@@ -219,13 +219,13 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		// need to know the newest published revision
 		r, err := tx.LatestSignedMapRoot(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("could not fetch the latest SignedMapRoot: %v", err)
+			return nil, fmt.Errorf("could not fetch the latest SignedMapRoot: %w", err)
 		}
 		root = r
 	} else {
 		r, err := tx.GetSignedMapRoot(ctx, revision)
 		if err != nil {
-			return nil, fmt.Errorf("could not fetch SignedMapRoot %v: %v", revision, err)
+			return nil, fmt.Errorf("could not fetch SignedMapRoot %v: %w", revision, err)
 		}
 		root = r
 	}
@@ -250,7 +250,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 
 		leaves, err := tx.Get(ctx, revision, indices)
 		if err != nil {
-			errCh <- fmt.Errorf("could not fetch leaves: %v", err)
+			errCh <- fmt.Errorf("could not fetch leaves: %w", err)
 			return
 		}
 		for i, l := range leaves {
@@ -282,7 +282,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		smtReader := merkle.NewSparseMerkleTreeReader(revision, hasher, tx)
 		proofs, err = smtReader.BatchInclusionProof(ctx, revision, indices)
 		if err != nil {
-			errCh <- fmt.Errorf("could not fetch inclusion proofs: %v", err)
+			errCh <- fmt.Errorf("could not fetch inclusion proofs: %w", err)
 		}
 	}()
 	////////////////////////////////////////////////////
@@ -298,7 +298,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("could not commit db transaction: %v", err)
+		return nil, fmt.Errorf("could not commit db transaction: %w", err)
 	}
 
 	inclusions := make([]*trillian.MapLeafInclusion, len(indices))
@@ -434,12 +434,12 @@ func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree,
 
 	rootHash, err := smtWriter.CalculateRoot(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("CalculateRoot(): %v", err)
+		return nil, fmt.Errorf("CalculateRoot(): %w", err)
 	}
 
 	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, tree.TreeId, rev, metadata)
 	if err != nil {
-		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
+		return nil, fmt.Errorf("makeSignedMapRoot(): %w", err)
 	}
 
 	if err := tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
@@ -550,11 +550,11 @@ func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillia
 	}
 	signer, err := trees.Signer(ctx, tree)
 	if err != nil {
-		return nil, fmt.Errorf("trees.Signer(): %v", err)
+		return nil, fmt.Errorf("trees.Signer(): %w", err)
 	}
 	root, err := signer.SignMapRoot(smr)
 	if err != nil {
-		return nil, fmt.Errorf("SignMapRoot(): %v", err)
+		return nil, fmt.Errorf("SignMapRoot(): %w", err)
 	}
 	return root, nil
 }
@@ -666,7 +666,7 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 		rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
 		rev0Root, err = t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
 		if err != nil {
-			return fmt.Errorf("makeSignedMapRoot(): %v", err)
+			return fmt.Errorf("makeSignedMapRoot(): %w", err)
 		}
 
 		return tx.StoreSignedMapRoot(ctx, rev0Root)

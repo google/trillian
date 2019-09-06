@@ -251,10 +251,10 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
 		if err != nil {
-			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
+			return fmt.Errorf("error creating new SignedLogRoot: %w", err)
 		}
 		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
-			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
+			return fmt.Errorf("error storing new SignedLogRoot: %w", err)
 		}
 		return nil
 	})

@@ -43,17 +43,17 @@ func pkcs11ConfigProtoFromFlags() (proto.Message, error) {
 
 	configBytes, err := ioutil.ReadFile(*pkcs11ConfigPath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading PKCS#11 config file: %v", err)
+		return nil, fmt.Errorf("error reading PKCS#11 config file: %w", err)
 	}
 
 	var config pkcs11key.Config
 	if err = json.Unmarshal(configBytes, &config); err != nil {
-		return nil, fmt.Errorf("error parsing PKCS#11 config file: %v", err)
+		return nil, fmt.Errorf("error parsing PKCS#11 config file: %w", err)
 	}
 
 	pubKeyPEM, err := ioutil.ReadFile(config.PublicKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading PKCS#11 public key file: %v", err)
+		return nil, fmt.Errorf("error reading PKCS#11 public key file: %w", err)
 	}
 
 	return &keyspb.PKCS11Config{

@@ -36,7 +36,7 @@ func FromConfig(modulePath string, config *keyspb.PKCS11Config) (crypto.Signer, 
 	pubKeyPEM := config.GetPublicKey()
 	pubKey, err := pem.UnmarshalPublicKey(pubKeyPEM)
 	if err != nil {
-		return nil, fmt.Errorf("pkcs11: error loading public key from %q: %v", pubKeyPEM, err)
+		return nil, fmt.Errorf("pkcs11: error loading public key from %q: %w", pubKeyPEM, err)
 	}
 
 	return pkcs11key.New(modulePath, config.GetTokenLabel(), config.GetPin(), pubKey)

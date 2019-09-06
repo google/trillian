@@ -41,7 +41,7 @@ type recordingInterceptor struct {
 func NewRecordingInterceptor(filename string) (grpc.UnaryClientInterceptor, error) {
 	o, err := os.Create(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create log file: %v", err)
+		return nil, fmt.Errorf("failed to create log file: %w", err)
 	}
 	ri := recordingInterceptor{outLog: o}
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
@@ -77,11 +77,11 @@ func (ri *recordingInterceptor) dumpMessage(in proto.Message) {
 func writeMessage(w io.Writer, in proto.Message) error {
 	a, err := ptypes.MarshalAny(in)
 	if err != nil {
-		return fmt.Errorf("failed to marshal %T %+v to any.Any: %v", in, in, err)
+		return fmt.Errorf("failed to marshal %T %+v to any.Any: %w", in, in, err)
 	}
 	data, err := proto.Marshal(a)
 	if err != nil {
-		return fmt.Errorf("failed to marshal any.Any: %v", err)
+		return fmt.Errorf("failed to marshal any.Any: %w", err)
 	}
 	// Encode as [4-byte big-endian length, message]
 	lenData := make([]byte, 4)
@@ -100,7 +100,7 @@ func readMessage(r io.Reader) (*any.Any, error) {
 	var l uint32
 	if err := binary.Read(r, binary.BigEndian, &l); err != nil {
 		if err != io.EOF {
-			err = fmt.Errorf("corrupt data: expected 4-byte length: %v", err)
+			err = fmt.Errorf("corrupt data: expected 4-byte length: %w", err)
 		}
 		return nil, err
 	}
@@ -110,11 +110,11 @@ func readMessage(r io.Reader) (*any.Any, error) {
 		return nil, fmt.Errorf("corrupt data: expected %d bytes of data, only found %d bytes", n, l)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %d bytes of data: %v", l, err)
+		return nil, fmt.Errorf("failed to read %d bytes of data: %w", l, err)
 	}
 	var a any.Any
 	if err := proto.Unmarshal(data, &a); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal into any.Any: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal into any.Any: %w", err)
 	}
 	return &a, nil
 }
@@ -157,7 +157,7 @@ func convertMessage(msg proto.Message, mapmap map[int64]int64) {
 func replayMessage(ctx context.Context, cl trillian.TrillianMapClient, a *any.Any, mapmap map[int64]int64) error {
 	var da ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(a, &da); err != nil {
-		return fmt.Errorf("failed to unmarshal from any.Any: %v", err)
+		return fmt.Errorf("failed to unmarshal from any.Any: %w", err)
 	}
 	req := da.Message
 	convertMessage(req, mapmap)

@@ -65,17 +65,17 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 
 	logHasher, err := hashers.NewLogHasher(config.HashStrategy)
 	if err != nil {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %v", err)
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %w", err)
 	}
 
 	logPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
 	if err != nil {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log public key: %v", err)
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log public key: %w", err)
 	}
 
 	sigHash, err := trees.Hash(config)
 	if err != nil {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %w", err)
 	}
 
 	return NewLogVerifier(logHasher, logPubKey, sigHash), nil
@@ -102,7 +102,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	if trusted.TreeSize != 0 {
 		// Verify consistency proof.
 		if err := c.v.VerifyConsistencyProof(int64(trusted.TreeSize), int64(r.TreeSize), trusted.RootHash, r.RootHash, consistency); err != nil {
-			return nil, fmt.Errorf("failed to verify consistency proof from %d->%d %x->%x: %v", trusted.TreeSize, r.TreeSize, trusted.RootHash, r.RootHash, err)
+			return nil, fmt.Errorf("failed to verify consistency proof from %d->%d %x->%x: %w", trusted.TreeSize, r.TreeSize, trusted.RootHash, r.RootHash, err)
 		}
 	}
 	return r, nil

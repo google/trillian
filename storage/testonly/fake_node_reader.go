@@ -130,13 +130,13 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 			// Store the new leaf node, and all new perfect nodes.
 			store(compact.NewNodeID(0, cr.End()), hash)
 			if err := cr.Append(hash, store); err != nil {
-				panic(fmt.Errorf("Append: %v", err))
+				panic(fmt.Errorf("Append: %w", err))
 			}
 		}
 		// TODO(pavelkalinnikov): Use testing.T.Fatalf instead of panics.
 		root, err := cr.GetRootHash(store) // Store the ephemeral nodes as well.
 		if err != nil {
-			panic(fmt.Errorf("GetRootHash: %v", err))
+			panic(fmt.Errorf("GetRootHash: %w", err))
 		}
 		if cr.End() == 0 {
 			root = hasher.EmptyRoot()

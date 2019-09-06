@@ -40,12 +40,12 @@ func ReadPrivateKeyFile(file, password string) (crypto.Signer, error) {
 
 	keyPEM, err := ioutil.ReadFile(file)
 	if err != nil {
-		return nil, fmt.Errorf("pemfile: error reading file %q: %v", file, err)
+		return nil, fmt.Errorf("pemfile: error reading file %q: %w", file, err)
 	}
 
 	k, err := UnmarshalPrivateKey(string(keyPEM), password)
 	if err != nil {
-		return nil, fmt.Errorf("pemfile: error decoding private key from file %q: %v", file, err)
+		return nil, fmt.Errorf("pemfile: error decoding private key from file %q: %w", file, err)
 	}
 
 	return k, nil
@@ -55,7 +55,7 @@ func ReadPrivateKeyFile(file, password string) (crypto.Signer, error) {
 func ReadPublicKeyFile(file string) (crypto.PublicKey, error) {
 	keyPEM, err := ioutil.ReadFile(file)
 	if err != nil {
-		return nil, fmt.Errorf("pemfile: error reading %q: %v", file, err)
+		return nil, fmt.Errorf("pemfile: error reading %q: %w", file, err)
 	}
 
 	return UnmarshalPublicKey(string(keyPEM))
@@ -76,7 +76,7 @@ func UnmarshalPrivateKey(keyPEM, password string) (crypto.Signer, error) {
 	if password != "" {
 		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
 		if err != nil {
-			return nil, fmt.Errorf("pemfile: failed to decrypt: %v", err)
+			return nil, fmt.Errorf("pemfile: failed to decrypt: %w", err)
 		}
 		keyDER = pwdDer
 	}

@@ -44,12 +44,12 @@ func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *Lo
 	}
 	for i, l := range leaves {
 		if err := client.AddSequencedLeaf(ctx, l, int64(i)); err != nil {
-			return fmt.Errorf("AddSequencedLeaf(): %v", err)
+			return fmt.Errorf("AddSequencedLeaf(): %w", err)
 		}
 	}
 	env.Sequencer.OperationSingle(ctx)
 	if err := client.WaitForInclusion(ctx, leaves[len(leaves)-1]); err != nil {
-		return fmt.Errorf("WaitForInclusion(): %v", err)
+		return fmt.Errorf("WaitForInclusion(): %w", err)
 	}
 	return nil
 }

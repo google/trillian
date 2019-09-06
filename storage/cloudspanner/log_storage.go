@@ -408,7 +408,7 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 		var err error
 		l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
 		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp: %v", err)
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		f(&l)
 		return nil
@@ -486,7 +486,7 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 		var err error
 		l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qe.timestamp))
 		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp: %v", err)
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		k := string(l.LeafIdentityHash)
 		if tx.dequeued[k] != nil {
@@ -530,7 +530,7 @@ func (tx *logTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 		iTimestamp, err := ptypes.Timestamp(l.IntegrateTimestamp)
 		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 
 		// Add the sequence mapping...
@@ -542,7 +542,7 @@ func (tx *logTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 		tx.numSequenced++
 		if err := stx.BufferWrite([]*spanner.Mutation{m1, m2}); err != nil {
-			return fmt.Errorf("bufferwrite(): %v", err)
+			return fmt.Errorf("bufferwrite(): %w", err)
 		}
 	}
 
@@ -588,11 +588,11 @@ func (l leafmap) addFullRow(r *spanner.Row) error {
 	var err error
 	leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
 	if err != nil {
-		return fmt.Errorf("got invalid queue timestamp %v", err)
+		return fmt.Errorf("got invalid queue timestamp %w", err)
 	}
 	leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
 	if err != nil {
-		return fmt.Errorf("got invalid integrate timestamp %v", err)
+		return fmt.Errorf("got invalid integrate timestamp %w", err)
 	}
 
 	l[sequenceNumber] = leaf
@@ -614,7 +614,7 @@ func (b leavesByHash) addRow(r *spanner.Row) error {
 	}
 	queueTimestamp, err := ptypes.TimestampProto(time.Unix(0, qTimestamp))
 	if err != nil {
-		return fmt.Errorf("got invalid queue timestamp: %v", err)
+		return fmt.Errorf("got invalid queue timestamp: %w", err)
 	}
 
 	leaves, ok := b[string(h)]
@@ -873,7 +873,7 @@ func (tx *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 		return nil
 	}); err != nil {
 		glog.Warningf("GetActiveLogIDs: %v", err)
-		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
+		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %w", err)
 	}
 	return ids, nil
 }
@@ -890,7 +890,7 @@ func (tx *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.Coun
 		ret[id] = c
 		return nil
 	}); err != nil {
-		return nil, fmt.Errorf("problem executing unsequencedCountSQL: %v", err)
+		return nil, fmt.Errorf("problem executing unsequencedCountSQL: %w", err)
 	}
 	return ret, nil
 }

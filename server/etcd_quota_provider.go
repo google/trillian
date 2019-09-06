@@ -50,7 +50,7 @@ func newEtcdQuotaManager() (quota.Manager, error) {
 	}
 	client, err := etcd.NewClientFromString(*EtcdServers)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to etcd at %v: %v", *EtcdServers, err)
+		return nil, fmt.Errorf("failed to connect to etcd at %v: %w", *EtcdServers, err)
 	}
 
 	qm := etcdqm.New(client)

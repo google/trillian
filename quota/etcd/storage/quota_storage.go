@@ -358,7 +358,7 @@ func getConfigs(s concurrency.STM) (*storagepb.Configs, error) {
 		return cfgs, nil
 	}
 	if err := proto.Unmarshal([]byte(val), cfgs); err != nil {
-		return nil, fmt.Errorf("error unmarshaling %v: %v", configsKey, err)
+		return nil, fmt.Errorf("error unmarshaling %v: %w", configsKey, err)
 	}
 	return cfgs, nil
 }
@@ -375,7 +375,7 @@ func modBucket(s concurrency.STM, cfg *storagepb.Config, now time.Time, add int6
 	val := s.Get(key)
 	var prevBucket storagepb.Bucket
 	if err := proto.Unmarshal([]byte(val), &prevBucket); err != nil {
-		return 0, fmt.Errorf("error unmarshaling %v: %v", key, err)
+		return 0, fmt.Errorf("error unmarshaling %v: %w", key, err)
 	}
 	newBucket := proto.Clone(&prevBucket).(*storagepb.Bucket)
 

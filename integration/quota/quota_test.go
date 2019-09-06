@@ -129,13 +129,13 @@ func TestMySQLRateLimiting(t *testing.T) {
 func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) error {
 	tree, err := s.admin.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
 	if err != nil {
-		return fmt.Errorf("CreateTree() returned err = %v", err)
+		return fmt.Errorf("CreateTree() returned err = %w", err)
 	}
 	// InitLog costs 1 token
 	numTokens--
 	_, err = s.log.InitLog(ctx, &trillian.InitLogRequest{LogId: tree.TreeId})
 	if err != nil {
-		return fmt.Errorf("InitLog() returned err = %v", err)
+		return fmt.Errorf("InitLog() returned err = %w", err)
 	}
 	hasherFn, err := trees.Hash(tree)
 	if err != nil {
@@ -147,7 +147,7 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 	// Requests where leaves < numTokens should work
 	for i := 0; i < numTokens; i++ {
 		if err := lw.queueLeaf(ctx); err != nil {
-			return fmt.Errorf("queueLeaf(@%d) returned err = %v", i, err)
+			return fmt.Errorf("queueLeaf(@%d) returned err = %w", i, err)
 		}
 	}
 
@@ -164,7 +164,7 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 				continue // Rate liming hasn't kicked in yet
 			}
 			if s, ok := status.FromError(err); !ok || s.Code() != codes.ResourceExhausted {
-				return fmt.Errorf("queueLeaf() returned err = %v", err)
+				return fmt.Errorf("queueLeaf() returned err = %w", err)
 			}
 			stop = true
 		}

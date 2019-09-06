@@ -467,14 +467,14 @@ type upsertRPC func(ctx context.Context, req interface{}) (*quotapb.Config, erro
 // Storage is reset() before the test is executed.
 func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName string) error {
 	if err := reset(ctx); err != nil {
-		return fmt.Errorf("%v: reset() returned err = %v", test.desc, err)
+		return fmt.Errorf("%v: reset() returned err = %w", test.desc, err)
 	}
 	if test.baseCfg != nil {
 		if _, err := quotaClient.CreateConfig(ctx, &quotapb.CreateConfigRequest{
 			Name:   test.baseCfg.Name,
 			Config: test.baseCfg,
 		}); err != nil {
-			return fmt.Errorf("%v: CreateConfig() returned err = %v", test.desc, err)
+			return fmt.Errorf("%v: CreateConfig() returned err = %w", test.desc, err)
 		}
 	}
 
@@ -490,7 +490,7 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 
 	switch stored, err := quotaClient.GetConfig(ctx, &quotapb.GetConfigRequest{Name: test.req.GetName()}); {
 	case err != nil:
-		return fmt.Errorf("%v: GetConfig() returned err = %v", test.desc, err)
+		return fmt.Errorf("%v: GetConfig() returned err = %w", test.desc, err)
 	case !proto.Equal(stored, test.wantCfg):
 		return fmt.Errorf("%v: post-GetConfig() diff:\n%v", test.desc, pretty.Compare(stored, test.wantCfg))
 	}

@@ -42,19 +42,19 @@ func getPublicKeyPEM() (string, error) {
 
 	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
 	if err != nil {
-		return "", fmt.Errorf("failed to determine dial options: %v", err)
+		return "", fmt.Errorf("failed to determine dial options: %w", err)
 	}
 
 	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
 	if err != nil {
-		return "", fmt.Errorf("failed to dial %v: %v", *adminServerAddr, err)
+		return "", fmt.Errorf("failed to dial %v: %w", *adminServerAddr, err)
 	}
 	defer conn.Close()
 
 	a := trillian.NewTrillianAdminClient(conn)
 	tree, err := a.GetTree(context.Background(), &trillian.GetTreeRequest{TreeId: *logID})
 	if err != nil {
-		return "", fmt.Errorf("call to GetTree failed: %v", err)
+		return "", fmt.Errorf("call to GetTree failed: %w", err)
 	}
 
 	if tree == nil {

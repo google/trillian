@@ -140,14 +140,14 @@ func innerMain(ctx context.Context) error {
 	}
 	monitor, err := mdm.NewMonitor(ctx, *logID, cl, adminCl, opts)
 	if err != nil {
-		return fmt.Errorf("failed to build merge delay monitor: %v", err)
+		return fmt.Errorf("failed to build merge delay monitor: %w", err)
 	}
 
 	cctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go util.AwaitSignal(ctx, cancel)
 	if err := monitor.Monitor(cctx); err != nil {
-		return fmt.Errorf("merge delay monitoring failed: %v", err)
+		return fmt.Errorf("merge delay monitoring failed: %w", err)
 	}
 	return nil
 }

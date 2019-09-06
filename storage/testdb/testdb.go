@@ -88,7 +88,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
-		return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+		return nil, nil, fmt.Errorf("error running statement %q: %w", stmt, err)
 	}
 
 	db.Close()
@@ -127,7 +127,7 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, func(context.Context), error) 
 			continue
 		}
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+			return nil, nil, fmt.Errorf("error running statement %q: %w", stmt, err)
 		}
 	}
 	return db, done, nil

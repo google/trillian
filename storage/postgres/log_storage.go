@@ -457,7 +457,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(queueTimestamp)
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 	}
 	start := time.Now()
@@ -473,11 +473,11 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		leafStart := time.Now()
 		qTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		dupCheckRow, err := t.tx.QueryContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		if err != nil {
-			return nil, fmt.Errorf("dupecheck failed: %v", err)
+			return nil, fmt.Errorf("dupecheck failed: %w", err)
 		}
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
@@ -485,7 +485,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		for dupCheckRow.Next() {
 			err := dupCheckRow.Scan(&resultData)
 			if err != nil {
-				return nil, fmt.Errorf("dupecheck failed: %v", err)
+				return nil, fmt.Errorf("dupecheck failed: %w", err)
 			}
 			if !resultData {
 				break
@@ -509,7 +509,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 		queueTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, queueTimestamp)...)
 		_, err = t.tx.ExecContext(
@@ -709,11 +709,11 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		ret = append(ret, leaf)
 	}
@@ -778,11 +778,11 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		ret = append(ret, leaf)
 	}
@@ -906,12 +906,12 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, queueTS))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		if integrateTS.Valid {
 			leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, integrateTS.Int64))
 			if err != nil {
-				return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+				return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 			}
 		}
 
@@ -943,7 +943,7 @@ func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.Count
 	for rows.Next() {
 		var logID, count int64
 		if err := rows.Scan(&logID, &count); err != nil {
-			return nil, fmt.Errorf("failed to scan row from unsequenced counts: %v", err)
+			return nil, fmt.Errorf("failed to scan row from unsequenced counts: %w", err)
 		}
 		ret[logID] = count
 	}

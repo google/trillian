@@ -57,12 +57,12 @@ func privateKeyProtoFromFlags() (proto.Message, error) {
 
 	key, err := pem.ReadPrivateKeyFile(*pemKeyPath, *pemKeyPass)
 	if err != nil {
-		return nil, fmt.Errorf("error reading reading private key file: %v", err)
+		return nil, fmt.Errorf("error reading reading private key file: %w", err)
 	}
 
 	keyDER, err := der.MarshalPrivateKey(key)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling private key as DER: %v", err)
+		return nil, fmt.Errorf("error marshaling private key as DER: %w", err)
 	}
 
 	return &keyspb.PrivateKey{Der: keyDER}, nil

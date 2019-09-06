@@ -164,7 +164,7 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 		// ErrNoRows doesn't provide useful information, so we don't forward it.
 		return nil, status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
-		return nil, fmt.Errorf("error reading tree %v: %v", treeID, err)
+		return nil, fmt.Errorf("error reading tree %v: %w", treeID, err)
 	}
 	return tree, nil
 }
@@ -250,15 +250,15 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	newTree.TreeId = id
 	newTree.CreateTime, err = ptypes.TimestampProto(now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build create time: %v", err)
+		return nil, fmt.Errorf("failed to build create time: %w", err)
 	}
 	newTree.UpdateTime, err = ptypes.TimestampProto(now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build update time: %v", err)
+		return nil, fmt.Errorf("failed to build update time: %w", err)
 	}
 	rootDuration, err := ptypes.Duration(newTree.MaxRootDuration)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse MaxRootDuration: %v", err)
+		return nil, fmt.Errorf("could not parse MaxRootDuration: %w", err)
 	}
 
 	insertTreeStmt, err := t.tx.PrepareContext(
@@ -285,7 +285,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	privateKey, err := proto.Marshal(newTree.PrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
+		return nil, fmt.Errorf("could not marshal PrivateKey: %w", err)
 	}
 
 	_, err = insertTreeStmt.ExecContext(
@@ -314,7 +314,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if _, err := t.GetTree(ctx, newTree.TreeId); err != nil {
 		// GetTree will fail for truncated enums (they get recorded as
 		// empty strings, which will not match any known value).
-		return nil, fmt.Errorf("enum truncated: %v", err)
+		return nil, fmt.Errorf("enum truncated: %w", err)
 	}
 
 	insertControlStmt, err := t.tx.PrepareContext(
@@ -366,16 +366,16 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	now := storage.FromMillisSinceEpoch(nowMillis)
 	tree.UpdateTime, err = ptypes.TimestampProto(now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build update time: %v", err)
+		return nil, fmt.Errorf("failed to build update time: %w", err)
 	}
 	rootDuration, err := ptypes.Duration(tree.MaxRootDuration)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse MaxRootDuration: %v", err)
+		return nil, fmt.Errorf("could not parse MaxRootDuration: %w", err)
 	}
 
 	privateKey, err := proto.Marshal(tree.PrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
+		return nil, fmt.Errorf("could not marshal PrivateKey: %w", err)
 	}
 
 	stmt, err := t.tx.PrepareContext(ctx, updateTreeSQL)

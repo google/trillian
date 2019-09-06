@@ -89,7 +89,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 
 	mapperMetadata := &ctmapperpb.MapperMetadata{}
 	if err := proto.Unmarshal(mapRoot.Metadata, mapperMetadata); err != nil {
-		return false, fmt.Errorf("failed to unmarshal MapRoot.Metadata: %v", err)
+		return false, fmt.Errorf("failed to unmarshal MapRoot.Metadata: %w", err)
 	}
 
 	startEntry := mapperMetadata.HighestFullyCompletedSeq + 1
@@ -193,7 +193,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 
 	mapperBytes, err := proto.Marshal(mapperMetadata)
 	if err != nil {
-		return false, fmt.Errorf("failed to marshal mapper metadata as 'bytes': err %v", err)
+		return false, fmt.Errorf("failed to marshal mapper metadata as 'bytes': err %w", err)
 	}
 
 	setReq.Metadata = mapperBytes

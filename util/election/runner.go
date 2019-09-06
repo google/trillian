@@ -125,7 +125,7 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) error {
 	glog.V(1).Infof("%s: When I left you, I was but the learner", er.id)
 	if err := er.election.Await(ctx); err != nil {
-		return fmt.Errorf("election.Await() failed: %v", err)
+		return fmt.Errorf("election.Await() failed: %w", err)
 	}
 	glog.Infof("%s: Now, I am the master", er.id)
 	er.tracker.Set(er.id, true)
@@ -133,7 +133,7 @@ func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) erro
 
 	mctx, err := er.election.WithMastership(ctx)
 	if err != nil {
-		return fmt.Errorf("election.WithMastership() failed: %v", err)
+		return fmt.Errorf("election.WithMastership() failed: %w", err)
 	}
 
 	timer := er.cfg.TimeSource.NewTimer(er.cfg.ResignDelay())

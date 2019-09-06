@@ -462,7 +462,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(queueTimestamp)
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 	}
 	start := time.Now()
@@ -478,7 +478,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		leafStart := time.Now()
 		qTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		_, err = t.tx.ExecContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
@@ -503,7 +503,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 		queueTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, queueTimestamp)...)
 		_, err = t.tx.ExecContext(
@@ -535,7 +535,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	}
 	results, err := t.getLeafDataByIdentityHash(ctx, toRetrieve)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve existing leaves: %v", err)
+		return nil, fmt.Errorf("failed to retrieve existing leaves: %w", err)
 	}
 	if len(results) != len(toRetrieve) {
 		return nil, fmt.Errorf("failed to retrieve all existing leaves: got %d, want %d", len(results), len(toRetrieve))
@@ -708,11 +708,11 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		ret = append(ret, leaf)
 	}
@@ -783,11 +783,11 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		ret = append(ret, leaf)
 	}
@@ -923,12 +923,12 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, queueTS))
 		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		if integrateTS.Valid {
 			leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, integrateTS.Int64))
 			if err != nil {
-				return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+				return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 			}
 		}
 

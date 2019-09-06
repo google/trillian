@@ -65,11 +65,11 @@ func NewMonitor(ctx context.Context, logID int64, cl trillian.TrillianLogClient,
 
 	tree, err := adminCl.GetTree(ctx, &trillian.GetTreeRequest{TreeId: logID})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tree %d: %v", logID, err)
+		return nil, fmt.Errorf("failed to get tree %d: %w", logID, err)
 	}
 	verifier, err := client.NewLogVerifierFromTree(tree)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build verifier: %v", err)
+		return nil, fmt.Errorf("failed to build verifier: %w", err)
 	}
 	clients := make([]*client.LogClient, opts.ParallelAdds)
 	for i := 0; i < opts.ParallelAdds; i++ {
@@ -141,7 +141,7 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 		err := m.client[idx].AddLeaf(cctx, data)
 		cancel()
 		if err != nil {
-			return fmt.Errorf("failed to QueueLeaf: %v", err)
+			return fmt.Errorf("failed to QueueLeaf: %w", err)
 		}
 		mergeDelay := time.Since(start)
 		mergeDelayDist.Observe(mergeDelay.Seconds(), logIDLabel, newLeafLabel[createNew])

@@ -174,7 +174,7 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 		var err error
 		cfg.MapID, err = makeNewMap(ctx, cfg.Admin, cfg.Client)
 		if err != nil {
-			return fmt.Errorf("failed to create ephemeral tree: %v", err)
+			return fmt.Errorf("failed to create ephemeral tree: %w", err)
 		}
 		glog.Infof("testing against ephemeral tree %d", cfg.MapID)
 		defer func() {
@@ -283,12 +283,12 @@ type hammerState struct {
 func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	tree, err := cfg.Admin.GetTree(ctx, &trillian.GetTreeRequest{TreeId: cfg.MapID})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tree information: %v", err)
+		return nil, fmt.Errorf("failed to get tree information: %w", err)
 	}
 	glog.Infof("%d: hammering tree with configuration %+v", cfg.MapID, tree)
 	verifier, err := client.NewMapVerifierFromTree(tree)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tree verifier: %v", err)
+		return nil, fmt.Errorf("failed to get tree verifier: %w", err)
 	}
 
 	mf := cfg.MetricFactory
@@ -578,7 +578,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		}
 		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
+			return fmt.Errorf("failed to %s(%d leaves): %w", label, len(req.Index), err)
 		}
 	} else {
 		label += "-rev"
@@ -589,7 +589,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		}
 		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
+			return fmt.Errorf("failed to %s(%d leaves): %w", label, len(req.Index), err)
 		}
 	}
 
@@ -599,16 +599,16 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 
 	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
-		return fmt.Errorf("failed to verify root: %v", err)
+		return fmt.Errorf("failed to verify root: %w", err)
 	}
 	for _, inc := range rsp.MapLeafInclusion {
 		if err := s.verifier.VerifyMapLeafInclusionHash(root.RootHash, inc); err != nil {
-			return fmt.Errorf("failed to verify inclusion proof for Index=%x: %v", inc.Leaf.Index, err)
+			return fmt.Errorf("failed to verify inclusion proof for Index=%x: %w", inc.Leaf.Index, err)
 		}
 	}
 
 	if err := contents.CheckContents(rsp.MapLeafInclusion, s.cfg.ExtraSize); err != nil {
-		return fmt.Errorf("incorrect contents of %s(): %v", label, err)
+		return fmt.Errorf("incorrect contents of %s(): %w", label, err)
 	}
 	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
@@ -727,7 +727,7 @@ leafloop:
 	}
 	rsp, err := s.cfg.Client.SetLeaves(ctx, &req)
 	if err != nil {
-		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(req.Leaves), err)
+		return fmt.Errorf("failed to set-leaves(count=%d): %w", len(req.Leaves), err)
 	}
 	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
@@ -783,7 +783,7 @@ func (s *hammerState) getSMR(ctx context.Context, prng *rand.Rand) error {
 	req := trillian.GetSignedMapRootRequest{MapId: s.cfg.MapID}
 	rsp, err := s.cfg.Client.GetSignedMapRoot(ctx, &req)
 	if err != nil {
-		return fmt.Errorf("failed to get-smr: %v", err)
+		return fmt.Errorf("failed to get-smr: %w", err)
 	}
 	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
@@ -814,7 +814,7 @@ func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 	rsp, err := s.cfg.Client.GetSignedMapRootByRevision(ctx,
 		&trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: rev})
 	if err != nil {
-		return fmt.Errorf("failed to get-smr-rev(@%d): %v", rev, err)
+		return fmt.Errorf("failed to get-smr-rev(@%d): %w", rev, err)
 	}
 	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {

@@ -96,7 +96,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 		}
 		root, err := cr.GetRootHash(store)
 		if err != nil {
-			return fmt.Errorf("failed to compute root hash: %v", err)
+			return fmt.Errorf("failed to compute root hash: %w", err)
 		}
 		st.RootHash = root
 

@@ -265,7 +265,7 @@ func Main(args Options) string {
 			glog.Fatalf("LatestSignedLogRoot: %v", err)
 		}
 		if err := root.UnmarshalBinary(sth.LogRoot); err != nil {
-			return fmt.Errorf("could not parse current log root: %v", err)
+			return fmt.Errorf("could not parse current log root: %w", err)
 		}
 
 		glog.Infof("STH at size %d has hash %s@%d",

@@ -23,11 +23,11 @@ import (
 func listen() (string, net.Listener, error) {
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to listen: %v", err)
+		return "", nil, fmt.Errorf("failed to listen: %w", err)
 	}
 	_, port, err := net.SplitHostPort(lis.Addr().String())
 	if err != nil {
-		return "", nil, fmt.Errorf("unrecognized format for listen address %v: %v", lis.Addr().String(), err)
+		return "", nil, fmt.Errorf("unrecognized format for listen address %v: %w", lis.Addr().String(), err)
 	}
 	addr := "localhost:" + port
 	return addr, lis, nil

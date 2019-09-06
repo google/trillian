@@ -36,12 +36,12 @@ func FromProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
 func NewProtoFromSpec(spec *keyspb.Specification) (*keyspb.PrivateKey, error) {
 	key, err := keys.NewFromSpec(spec)
 	if err != nil {
-		return nil, fmt.Errorf("der: error generating key: %v", err)
+		return nil, fmt.Errorf("der: error generating key: %w", err)
 	}
 
 	der, err := MarshalPrivateKey(key)
 	if err != nil {
-		return nil, fmt.Errorf("der: error marshaling private key: %v", err)
+		return nil, fmt.Errorf("der: error marshaling private key: %w", err)
 	}
 
 	return &keyspb.PrivateKey{Der: der}, nil

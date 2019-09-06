@@ -47,12 +47,12 @@ func NewRootVerifierFromTree(config *trillian.Tree) (*RootVerifier, error) {
 
 	mapPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
 	if err != nil {
-		return nil, fmt.Errorf("failed parsing Map public key: %v", err)
+		return nil, fmt.Errorf("failed parsing Map public key: %w", err)
 	}
 
 	sigHash, err := trees.Hash(config)
 	if err != nil {
-		return nil, fmt.Errorf("maps: NewRootVerifierFromTree(): Failed parsing Map signature hash: %v", err)
+		return nil, fmt.Errorf("maps: NewRootVerifierFromTree(): Failed parsing Map signature hash: %w", err)
 	}
 
 	return &RootVerifier{

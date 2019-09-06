@@ -87,7 +87,7 @@ func createBatchLeaves(batch, n int) []*trillian.MapLeaf {
 func isEmptyMap(ctx context.Context, tmap trillian.TrillianMapClient, tree *trillian.Tree) error {
 	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: tree.TreeId})
 	if err != nil {
-		return fmt.Errorf("failed to get empty map head: %v", err)
+		return fmt.Errorf("failed to get empty map head: %w", err)
 	}
 
 	var mapRoot types.MapRootV1
@@ -139,7 +139,7 @@ func verifyGetMapLeavesResponse(mapVerifier *client.MapVerifier, getResp *trilli
 			}
 		}
 		if err := mapVerifier.VerifyMapLeafInclusion(getResp.GetMapRoot(), incl); err != nil {
-			return fmt.Errorf("VerifyMapLeafInclusion(%x): %v", index, err)
+			return fmt.Errorf("VerifyMapLeafInclusion(%x): %w", index, err)
 		}
 	}
 	return nil

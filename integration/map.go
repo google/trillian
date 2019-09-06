@@ -60,7 +60,7 @@ type MapInfo struct {
 func New(cl trillian.TrillianMapClient, wcl trillian.TrillianMapWriteClient, tree *trillian.Tree) (*MapInfo, error) {
 	verifier, err := client.NewMapVerifierFromTree(tree)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create map verifier: %v", err)
+		return nil, fmt.Errorf("failed to create map verifier: %w", err)
 	}
 	return &MapInfo{
 		cl:       cl,
@@ -80,11 +80,11 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	fmt.Printf("%d: Get SMR\n", mi.id)
 	smrRsp, err := mi.cl.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: mi.id})
 	if err != nil {
-		return fmt.Errorf("failed to retrieve SMR 0: %v", err)
+		return fmt.Errorf("failed to retrieve SMR 0: %w", err)
 	}
 	root0, err := mi.checkMapRoot(smrRsp.MapRoot)
 	if err != nil {
-		return fmt.Errorf("checks on SMR 0 failed: %v", err)
+		return fmt.Errorf("checks on SMR 0 failed: %w", err)
 	}
 	fmt.Printf("%d: Got SMR(time=%q, rev=%d): roothash=%x\n", mi.id, timeFromNanos(root0.TimestampNanos), root0.Revision, root0.RootHash)
 
@@ -107,13 +107,13 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	leaves := []*trillian.MapLeaf{{Index: key0, LeafValue: value0}}
 	writeRsp, err := mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{MapId: mi.id, Leaves: leaves})
 	if err != nil {
-		return fmt.Errorf("failed to write-leaves: %v", err)
+		return fmt.Errorf("failed to write-leaves: %w", err)
 	}
 	mi.contents = mi.contents.UpdatedWith(1, leaves)
 
 	root1, err := mi.checkMapRootAtRevision(ctx, writeRsp.Revision)
 	if err != nil {
-		return fmt.Errorf("checks on SMR 1 failed: %v", err)
+		return fmt.Errorf("checks on SMR 1 failed: %w", err)
 	}
 	fmt.Printf("%d: Got SMR(time=%q, rev=%d): roothash=%x\n", mi.id, timeFromNanos(root1.TimestampNanos), root1.Revision, root1.RootHash)
 	if err := mi.expectEmptyValues(ctx, keyNonExistent, key1); err != nil {
@@ -129,13 +129,13 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	emptyLeaves := []*trillian.MapLeaf{{Index: key0, LeafValue: []byte{}}}
 	writeRsp, err = mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{MapId: mi.id, Leaves: emptyLeaves, Metadata: []byte("metadata-2")})
 	if err != nil {
-		return fmt.Errorf("failed to write-leaves: %v", err)
+		return fmt.Errorf("failed to write-leaves: %w", err)
 	}
 	mi.contents = mi.contents.UpdatedWith(2, emptyLeaves)
 
 	root2, err := mi.checkMapRootAtRevision(ctx, writeRsp.Revision)
 	if err != nil {
-		return fmt.Errorf("checks on SMR 2 failed: %v", err)
+		return fmt.Errorf("checks on SMR 2 failed: %w", err)
 	}
 	fmt.Printf("%d: Got SMR(time=%q, rev=%d): roothash=%x\n", mi.id, timeFromNanos(root2.TimestampNanos), root2.Revision, root2.RootHash)
 	// All keys should give an empty value.
@@ -168,13 +168,13 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	}
 	writeRsp, err = mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{MapId: mi.id, Leaves: newLeaves, Metadata: []byte("metadata-3")})
 	if err != nil {
-		return fmt.Errorf("failed to write-leaves: %v", err)
+		return fmt.Errorf("failed to write-leaves: %w", err)
 	}
 	mi.contents = mi.contents.UpdatedWith(3, newLeaves)
 
 	root3, err := mi.checkMapRootAtRevision(ctx, writeRsp.Revision)
 	if err != nil {
-		return fmt.Errorf("checks on SMR 3 failed: %v", err)
+		return fmt.Errorf("checks on SMR 3 failed: %w", err)
 	}
 	fmt.Printf("%d: Got SMR(time=%q, rev=%d): roothash=%x\n", mi.id, timeFromNanos(root3.TimestampNanos), root3.Revision, root3.RootHash)
 	if err := mi.expectEmptyValues(ctx, keyNonExistent); err != nil {
@@ -193,11 +193,11 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	// Asking for revision 1's root should give the same answer as before.
 	smrRsp, err = mi.cl.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{MapId: mi.id, Revision: 1})
 	if err != nil {
-		return fmt.Errorf("failed to re-retrieve SMR 1: %v", err)
+		return fmt.Errorf("failed to re-retrieve SMR 1: %w", err)
 	}
 	root1a, err := mi.verifier.VerifySignedMapRoot(smrRsp.MapRoot)
 	if err != nil {
-		return fmt.Errorf("failed to verify SMR 1: %v", err)
+		return fmt.Errorf("failed to verify SMR 1: %w", err)
 	}
 	if !reflect.DeepEqual(root1, root1a) {
 		return fmt.Errorf("re-retrieving SMR 1 (%+v) different than earlier (%+v)", root1a, root1)
@@ -220,7 +220,7 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 func (mi *MapInfo) checkMapRootAtRevision(ctx context.Context, revision int64) (*types.MapRootV1, error) {
 	smrRsp, err := mi.cl.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{MapId: mi.id, Revision: revision})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get SMR at revision %v: %v", revision, err)
+		return nil, fmt.Errorf("failed to get SMR at revision %v: %w", revision, err)
 	}
 	return mi.checkMapRoot(smrRsp.MapRoot)
 }
@@ -228,11 +228,11 @@ func (mi *MapInfo) checkMapRootAtRevision(ctx context.Context, revision int64) (
 func (mi *MapInfo) checkMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
 	root, err := mi.verifier.VerifySignedMapRoot(smr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify SMR: %v", err)
+		return nil, fmt.Errorf("failed to verify SMR: %w", err)
 	}
 	wantRootHash, err := mi.contents.RootHash(mi.id, mi.verifier.Hasher)
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate expected root hash: %v", err)
+		return nil, fmt.Errorf("failed to calculate expected root hash: %w", err)
 	}
 	if !bytes.Equal(root.RootHash, wantRootHash) {
 		return nil, fmt.Errorf("unexpected root hash %x, want %x", root.RootHash, wantRootHash)
@@ -250,11 +250,11 @@ func (mi *MapInfo) expectEmptyValues(ctx context.Context, keys ...[]byte) error 
 	fmt.Printf("%d: GetLeaves(keys=%x)\n", mi.id, keys)
 	leavesRsp, err := mi.cl.GetLeaves(ctx, &trillian.GetMapLeavesRequest{MapId: mi.id, Index: keys})
 	if err != nil {
-		return fmt.Errorf("failed to get-map-leaves: %v", err)
+		return fmt.Errorf("failed to get-map-leaves: %w", err)
 	}
 	root, err := mi.verifier.VerifySignedMapRoot(leavesRsp.MapRoot)
 	if err != nil {
-		return fmt.Errorf("failed to verify SMR in get-map-leaves-rsp: %v", err)
+		return fmt.Errorf("failed to verify SMR in get-map-leaves-rsp: %w", err)
 	}
 	fmt.Printf("%d:   SMR(time=%q, rev=%d): roothash=%x\n", mi.id, timeFromNanos(root.TimestampNanos), root.Revision, root.RootHash)
 	if got, want := len(leavesRsp.MapLeafInclusion), len(keys); got != want {
@@ -270,7 +270,7 @@ func (mi *MapInfo) expectEmptyValues(ctx context.Context, keys ...[]byte) error 
 			return fmt.Errorf("unexpected leaf key %x from get-map-leaves", got)
 		}
 		if err := mi.verifier.VerifyMapLeafInclusionHash(root.RootHash, leavesRsp.MapLeafInclusion[i]); err != nil {
-			return fmt.Errorf("failed to verify inclusion proof for key=%x: %v", key, err)
+			return fmt.Errorf("failed to verify inclusion proof for key=%x: %w", key, err)
 		}
 	}
 	return nil
@@ -282,7 +282,7 @@ func (mi *MapInfo) expectValue(ctx context.Context, key, want []byte) error {
 	fmt.Printf("%d: GetLeaves(key=%x)\n", mi.id, key)
 	leavesRsp, err := mi.cl.GetLeaf(ctx, &trillian.GetMapLeafRequest{MapId: mi.id, Index: key})
 	if err != nil {
-		return fmt.Errorf("failed to get-map-leaf: %v", err)
+		return fmt.Errorf("failed to get-map-leaf: %w", err)
 	}
 	return mi.checkSingleLeafResponse(leavesRsp, key, want)
 }
@@ -293,7 +293,7 @@ func (mi *MapInfo) expectValueAtRev(ctx context.Context, rev int64, key, want []
 	fmt.Printf("%d: GetLeavesAtRevision(rev=%d, key=%x)\n", mi.id, rev, key)
 	leavesRsp, err := mi.cl.GetLeafByRevision(ctx, &trillian.GetMapLeafByRevisionRequest{MapId: mi.id, Revision: rev, Index: key})
 	if err != nil {
-		return fmt.Errorf("failed to get-map-leaf-at-rev: %v", err)
+		return fmt.Errorf("failed to get-map-leaf-at-rev: %w", err)
 	}
 	return mi.checkSingleLeafResponse(leavesRsp, key, want)
 }
@@ -302,7 +302,7 @@ func (mi *MapInfo) expectValueAtRev(ctx context.Context, rev int64, key, want []
 func (mi *MapInfo) checkSingleLeafResponse(rsp *trillian.GetMapLeafResponse, key, want []byte) error {
 	root, err := mi.verifier.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
-		return fmt.Errorf("failed to verify SMR in get-map-leaves-rsp: %v", err)
+		return fmt.Errorf("failed to verify SMR in get-map-leaves-rsp: %w", err)
 	}
 	fmt.Printf("%d:   SMR(time=%q, rev=%d): roothash=%x\n", mi.id, timeFromNanos(root.TimestampNanos), root.Revision, root.RootHash)
 	if got := rsp.MapLeafInclusion.Leaf.Index; !bytes.Equal(got, key) {
@@ -314,7 +314,7 @@ func (mi *MapInfo) checkSingleLeafResponse(rsp *trillian.GetMapLeafResponse, key
 		return fmt.Errorf("unexpected leaf hash %x from get-map-leaves, want %x", got, wantHash)
 	}
 	if err := mi.verifier.VerifyMapLeafInclusionHash(root.RootHash, rsp.MapLeafInclusion); err != nil {
-		return fmt.Errorf("failed to verify inclusion proof for key=%x: %v", key, err)
+		return fmt.Errorf("failed to verify inclusion proof for key=%x: %w", key, err)
 	}
 	got := rsp.MapLeafInclusion.Leaf.LeafValue
 	fmt.Printf("%d:   Leaf[%x] = %q\n", mi.id, key, got)

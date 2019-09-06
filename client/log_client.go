@@ -65,10 +65,10 @@ func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree, root 
 // Blocks and continuously updates the trusted root until it has been included in a signed log root.
 func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, index int64) error {
 	if err := c.AddSequencedLeaf(ctx, data, index); err != nil {
-		return fmt.Errorf("QueueLeaf(): %v", err)
+		return fmt.Errorf("QueueLeaf(): %w", err)
 	}
 	if err := c.WaitForInclusion(ctx, data); err != nil {
-		return fmt.Errorf("WaitForInclusion(): %v", err)
+		return fmt.Errorf("WaitForInclusion(): %w", err)
 	}
 	return nil
 }
@@ -78,10 +78,10 @@ func (c *LogClient) AddSequencedLeafAndWait(ctx context.Context, data []byte, in
 // can be retrieved.
 func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	if err := c.QueueLeaf(ctx, data); err != nil {
-		return fmt.Errorf("QueueLeaf(): %v", err)
+		return fmt.Errorf("QueueLeaf(): %w", err)
 	}
 	if err := c.WaitForInclusion(ctx, data); err != nil {
-		return fmt.Errorf("WaitForInclusion(): %v", err)
+		return fmt.Errorf("WaitForInclusion(): %w", err)
 	}
 	return nil
 }
@@ -347,7 +347,7 @@ func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []b
 	}
 	for _, proof := range resp.Proof {
 		if err := c.VerifyInclusionByHash(sth, leafHash, proof); err != nil {
-			return false, fmt.Errorf("VerifyInclusionByHash(): %v", err)
+			return false, fmt.Errorf("VerifyInclusionByHash(): %w", err)
 		}
 	}
 	return true, nil

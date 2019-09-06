@@ -147,17 +147,17 @@ func NewOperationManager(info OperationInfo, logOperation Operation) *OperationM
 func (o *OperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error) {
 	tx, err := o.info.Registry.LogStorage.Snapshot(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transaction: %v", err)
+		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 	defer tx.Close()
 
 	logIDs, err := tx.GetActiveLogIDs(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get active logIDs: %v", err)
+		return nil, fmt.Errorf("failed to get active logIDs: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit: %v", err)
+		return nil, fmt.Errorf("failed to commit: %w", err)
 	}
 	return logIDs, nil
 }
@@ -233,7 +233,7 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 		el, err := o.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
 		if err != nil {
 			cancel()
-			return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
+			return nil, fmt.Errorf("failed to create election for %v: %w", logID, err)
 		}
 		o.electionRunner[logID] = election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, el)
 		o.runnerWG.Add(1)
@@ -284,14 +284,14 @@ func (o *OperationManager) getLogsAndExecutePass(ctx context.Context) error {
 
 	activeIDs, err := o.getActiveLogIDs(runCtx)
 	if err != nil {
-		return fmt.Errorf("failed to list active log IDs: %v", err)
+		return fmt.Errorf("failed to list active log IDs: %w", err)
 	}
 	// Find the logs we are master for, skipping those logs that are not active,
 	// e.g. deleted or FROZEN ones.
 	// TODO(pavelkalinnikov): Resign mastership for the inactive logs.
 	logIDs, err := o.masterFor(ctx, activeIDs)
 	if err != nil {
-		return fmt.Errorf("failed to determine log IDs we're master for: %v", err)
+		return fmt.Errorf("failed to determine log IDs we're master for: %w", err)
 	}
 	o.updateHeldIDs(ctx, logIDs, activeIDs)
 

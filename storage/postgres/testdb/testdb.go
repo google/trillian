@@ -86,7 +86,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	name := fmt.Sprintf("trl_%v", time.Now().UnixNano())
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
-		return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+		return nil, nil, fmt.Errorf("error running statement %q: %w", stmt, err)
 	}
 	db.Close()
 	db, err = sql.Open("postgres", getConnStr(name))
@@ -124,7 +124,7 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, func(context.Context), error) 
 			continue
 		}
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+			return nil, nil, fmt.Errorf("error running statement %q: %w", stmt, err)
 		}
 	}
 	return db, done, nil

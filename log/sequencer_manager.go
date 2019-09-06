@@ -57,18 +57,18 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 
 	tree, err := trees.GetTree(ctx, s.registry.AdminStorage, logID, seqOpts)
 	if err != nil {
-		return 0, fmt.Errorf("error retrieving log %v: %v", logID, err)
+		return 0, fmt.Errorf("error retrieving log %v: %w", logID, err)
 	}
 	ctx = trees.NewContext(ctx, tree)
 
 	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
 	if err != nil {
-		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
+		return 0, fmt.Errorf("error getting hasher for log %v: %w", logID, err)
 	}
 
 	signer, err := s.getSigner(ctx, tree)
 	if err != nil {
-		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
+		return 0, fmt.Errorf("error getting signer for log %v: %w", logID, err)
 	}
 
 	sequencer := NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
@@ -80,7 +80,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 	}
 	leaves, err := sequencer.IntegrateBatch(ctx, tree, info.BatchSize, s.guardWindow, maxRootDuration)
 	if err != nil {
-		return 0, fmt.Errorf("failed to integrate batch for %v: %v", logID, err)
+		return 0, fmt.Errorf("failed to integrate batch for %v: %w", logID, err)
 	}
 	return leaves, nil
 }

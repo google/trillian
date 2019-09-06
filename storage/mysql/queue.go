@@ -66,7 +66,7 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 	// supplied data was already written to LeafData as part of queueing the leaf.
 	queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
 	if err != nil {
-		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %v", err)
+		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %w", err)
 	}
 	leaf := &trillian.LogLeaf{
 		LeafIdentityHash: leafIDHash,
@@ -89,7 +89,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 
 		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
 		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		_, err = t.tx.ExecContext(
 			ctx,

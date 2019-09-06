@@ -210,7 +210,7 @@ func (t *treeTX) writeRev(ctx context.Context) (int64, error) {
 	if err := t.getLatestRoot(ctx); err == storage.ErrTreeNeedsInit {
 		return 0, nil
 	} else if err != nil {
-		return -1, fmt.Errorf("writeRev(): %v", err)
+		return -1, fmt.Errorf("writeRev(): %w", err)
 	}
 	return t._writeRev, nil
 }

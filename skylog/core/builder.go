@@ -58,11 +58,11 @@ func (b *BuildWorker) Process(ctx context.Context, job BuildJob) (*compact.Range
 		visit(compact.NewNodeID(0, job.RangeStart+uint64(i)), hash)
 		// Add the internal tree nodes.
 		if err := rng.Append(hash, visit); err != nil {
-			return nil, fmt.Errorf("appending hash: %v", err)
+			return nil, fmt.Errorf("appending hash: %w", err)
 		}
 	}
 	if err := b.tw.Write(ctx, nodes); err != nil {
-		return nil, fmt.Errorf("writing tree nodes: %v", err)
+		return nil, fmt.Errorf("writing tree nodes: %w", err)
 	}
 	return rng, nil
 }

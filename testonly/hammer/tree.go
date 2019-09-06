@@ -31,7 +31,7 @@ func destroyMap(ctx context.Context, adminClient trillian.TrillianAdminClient, m
 	req := &trillian.DeleteTreeRequest{TreeId: mapID}
 	glog.Infof("Soft-delete transient Trillian Map with TreeID=%d", mapID)
 	if _, err := adminClient.DeleteTree(ctx, req); err != nil {
-		return fmt.Errorf("failed to DeleteTree(%d): %v", mapID, err)
+		return fmt.Errorf("failed to DeleteTree(%d): %w", mapID, err)
 	}
 	return nil
 }
@@ -60,7 +60,7 @@ func makeNewMap(ctx context.Context, adminClient trillian.TrillianAdminClient, m
 
 	tree, err := client.CreateAndInitTree(ctx, req, adminClient, mapClient, nil)
 	if err != nil {
-		return -1, fmt.Errorf("client.CreateAndInitTree(%v) failed with err: %v", req, err)
+		return -1, fmt.Errorf("client.CreateAndInitTree(%v) failed with err: %w", req, err)
 	}
 	glog.Infof("Made new Trillian Map with TreeID=%d", tree.TreeId)
 

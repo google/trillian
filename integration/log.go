@@ -97,13 +97,13 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 		glog.Infof("Checking log is empty before starting test")
 		resp, err := getLatestSignedLogRoot(client, params)
 		if err != nil {
-			return fmt.Errorf("failed to get latest log root: %v %v", resp, err)
+			return fmt.Errorf("failed to get latest log root: %v %w", resp, err)
 		}
 
 		// TODO(gbelvin): Replace with VerifySignedLogRoot
 		var root types.LogRootV1
 		if err := root.UnmarshalBinary(resp.SignedLogRoot.GetLogRoot()); err != nil {
-			return fmt.Errorf("could not read current log root: %v", err)
+			return fmt.Errorf("could not read current log root: %w", err)
 		}
 
 		if root.TreeSize > 0 {
@@ -116,7 +116,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	if params.QueueLeaves {
 		glog.Infof("Queueing %d leaves to log server ...", params.LeafCount)
 		if leafCounts, err = queueLeaves(client, params); err != nil {
-			return fmt.Errorf("failed to queue leaves: %v", err)
+			return fmt.Errorf("failed to queue leaves: %w", err)
 		}
 	}
 
@@ -124,7 +124,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	if params.AwaitSequencing {
 		glog.Infof("Waiting for log to sequence ...")
 		if err := waitForSequencing(params.TreeID, client, params); err != nil {
-			return fmt.Errorf("leaves were not sequenced: %v", err)
+			return fmt.Errorf("leaves were not sequenced: %w", err)
 		}
 	}
 
@@ -133,7 +133,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	leafMap, err := readbackLogEntries(params.TreeID, client, params, leafCounts)
 
 	if err != nil {
-		return fmt.Errorf("could not read back log entries: %v", err)
+		return fmt.Errorf("could not read back log entries: %w", err)
 	}
 
 	// Step 4 - Cross validation between log and memory tree root hashes
@@ -143,7 +143,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 		return err
 	}
 	if err := checkLogRootHashMatches(tree, client, params); err != nil {
-		return fmt.Errorf("log consistency check failed: %v", err)
+		return fmt.Errorf("log consistency check failed: %w", err)
 	}
 
 	// Now that the basic tree has passed validation we can start testing proofs
@@ -153,18 +153,18 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	// Ensure log doesn't serve a proof for a leaf index outside the tree size
 	if err := checkInclusionProofLeafOutOfRange(params.TreeID, client, params); err != nil {
-		return fmt.Errorf("log served out of range proof (index): %v", err)
+		return fmt.Errorf("log served out of range proof (index): %w", err)
 	}
 
 	// Ensure that log doesn't serve a proof for a valid index at a size outside the tree
 	if err := checkInclusionProofTreeSizeOutOfRange(params.TreeID, client, params); err != nil {
-		return fmt.Errorf("log served out of range proof (tree size): %v", err)
+		return fmt.Errorf("log served out of range proof (tree size): %w", err)
 	}
 
 	// Probe the log at several leaf indices each with a range of tree sizes
 	for _, testIndex := range inclusionProofTestIndices {
 		if err := checkInclusionProofsAtIndex(testIndex, params.TreeID, tree, client, params); err != nil {
-			return fmt.Errorf("log inclusion index: %d proof checks failed: %v", testIndex, err)
+			return fmt.Errorf("log inclusion index: %d proof checks failed: %w", testIndex, err)
 		}
 	}
 
@@ -185,13 +185,13 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	// when these would be equivalent requests.
 	for _, consistParams := range consistencyProofTestParams {
 		if err := checkConsistencyProof(consistParams, params.TreeID, tree, client, params, int64(params.QueueBatchSize)); err != nil {
-			return fmt.Errorf("log consistency for %v: proof checks failed: %v", consistParams, err)
+			return fmt.Errorf("log consistency for %v: proof checks failed: %w", consistParams, err)
 		}
 
 		// Only do this if the batch size changes when halved
 		if params.QueueBatchSize > 1 {
 			if err := checkConsistencyProof(consistParams, params.TreeID, tree, client, params, int64(params.QueueBatchSize/2)); err != nil {
-				return fmt.Errorf("log consistency for %v: proof checks failed (Non STH size): %v", consistParams, err)
+				return fmt.Errorf("log consistency for %v: proof checks failed (Non STH size): %w", consistParams, err)
 			}
 		}
 	}
@@ -415,12 +415,12 @@ func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.Trillian
 	proof, err := client.GetInclusionProof(ctx, req)
 	cancel()
 	if err != nil {
-		return fmt.Errorf("log returned error for tree size outside tree: %d v %d: %v", params.LeafCount, req.TreeSize, err)
+		return fmt.Errorf("log returned error for tree size outside tree: %d v %d: %w", params.LeafCount, req.TreeSize, err)
 	}
 
 	var root types.LogRootV1
 	if err := root.UnmarshalBinary(proof.SignedLogRoot.LogRoot); err != nil {
-		return fmt.Errorf("could not read current log root: %v", err)
+		return fmt.Errorf("could not read current log root: %w", err)
 	}
 
 	if proof.Proof != nil {
@@ -489,7 +489,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	}
 	var root types.LogRootV1
 	if err := root.UnmarshalBinary(resp.SignedLogRoot.LogRoot); err != nil {
-		return fmt.Errorf("could not read current log root: %v", err)
+		return fmt.Errorf("could not read current log root: %w", err)
 	}
 
 	if req.SecondTreeSize > int64(root.TreeSize) {
@@ -535,7 +535,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 	// checks. This is a "can't happen" situation.
 	root, err := cr.GetRootHash(nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute compact range root: %v", err)
+		return nil, fmt.Errorf("failed to compute compact range root: %w", err)
 	}
 	if cr.End() == 0 {
 		// TODO(pavelkalinnikov): Handle empty hash case in compact.Range.

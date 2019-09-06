@@ -447,7 +447,7 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDeleted bool, wantTrees []*trillian.Tree) error {
 	got, err := tx.ListTreeIDs(ctx, includeDeleted)
 	if err != nil {
-		return fmt.Errorf("ListTreeIDs() returned err = %v", err)
+		return fmt.Errorf("ListTreeIDs() returned err = %w", err)
 	}
 
 	want := make([]int64, 0, len(wantTrees))
@@ -466,7 +466,7 @@ func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, include
 func runListTreesTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDeleted bool, wantTrees []*trillian.Tree) error {
 	got, err := tx.ListTrees(ctx, includeDeleted)
 	if err != nil {
-		return fmt.Errorf("ListTrees() returned err = %v", err)
+		return fmt.Errorf("ListTrees() returned err = %w", err)
 	}
 
 	if len(got) != len(wantTrees) {
@@ -705,7 +705,7 @@ func (tester *AdminStorageTester) TestAdminTXReadWriteTransaction(t *testing.T) 
 func assertStoredTree(ctx context.Context, s storage.AdminStorage, want *trillian.Tree) error {
 	got, err := storage.GetTree(ctx, s, want.TreeId)
 	if err != nil {
-		return fmt.Errorf("GetTree() returned err = %v", err)
+		return fmt.Errorf("GetTree() returned err = %w", err)
 	}
 	if !proto.Equal(got, want) {
 		return fmt.Errorf("post-GetTree() diff (-got +want):\n%v", pretty.Compare(got, want))

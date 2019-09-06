@@ -145,14 +145,14 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 	for i, id := range ids {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create nodeID: %v", err)
+			return nil, fmt.Errorf("failed to create nodeID: %w", err)
 		}
 		storIDs[i] = nodeID
 	}
 
 	nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), storIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
+		return nil, fmt.Errorf("failed to get Merkle nodes: %w", err)
 	}
 	if got, want := len(nodes), len(storIDs); got != want {
 		return nil, fmt.Errorf("failed to get %d nodes at rev %d, got %d", want, root.Revision, got)
@@ -170,11 +170,11 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 
 	cr, err := fact.NewRange(0, root.TreeSize, hashes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create compact.Range: %v", err)
+		return nil, fmt.Errorf("failed to create compact.Range: %w", err)
 	}
 	hash, err := cr.GetRootHash(nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute the root hash: %v", err)
+		return nil, fmt.Errorf("failed to compute the root hash: %w", err)
 	}
 	// Note: Tree size != 0 at this point, so we don't consider the empty hash.
 	if want := root.RootHash; !bytes.Equal(hash, want) {
@@ -199,7 +199,7 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 	now := s.timeSource.Now()
 	integrateAt, err := ptypes.TimestampProto(now)
 	if err != nil {
-		return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		return fmt.Errorf("got invalid integrate timestamp: %w", err)
 	}
 	for i, leaf := range leaves {
 		// The leaf should already have the correct index before it's integrated.
@@ -278,7 +278,7 @@ func (s *logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Ti
 	// Recent leaves inside the guard window will not be available for sequencing.
 	leaves, err := s.tx.DequeueLeaves(ctx, limit, cutoff)
 	if err != nil {
-		return nil, fmt.Errorf("%v: Sequencer failed to dequeue leaves: %v", s.label, err)
+		return nil, fmt.Errorf("%v: Sequencer failed to dequeue leaves: %w", s.label, err)
 	}
 	seqDequeueLatency.Observe(clock.SecondsSince(s.timeSource, start), s.label)
 
@@ -296,7 +296,7 @@ func (s *logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLe
 	start := s.timeSource.Now()
 	// Write the new sequence numbers to the leaves in the DB.
 	if err := s.tx.UpdateSequencedLeaves(ctx, leaves); err != nil {
-		return fmt.Errorf("%v: Sequencer failed to update sequenced leaves: %v", s.label, err)
+		return fmt.Errorf("%v: Sequencer failed to update sequenced leaves: %w", s.label, err)
 	}
 	seqUpdateLeavesLatency.Observe(clock.SecondsSince(s.timeSource, start), s.label)
 	return nil
@@ -311,7 +311,7 @@ func (s *preorderedLogSequencingTask) fetch(ctx context.Context, limit int, cuto
 	start := s.timeSource.Now()
 	leaves, err := s.tx.DequeueLeaves(ctx, limit, cutoff)
 	if err != nil {
-		return nil, fmt.Errorf("%v: Sequencer failed to load sequenced leaves: %v", s.label, err)
+		return nil, fmt.Errorf("%v: Sequencer failed to load sequenced leaves: %w", s.label, err)
 	}
 	seqDequeueLatency.Observe(clock.SecondsSince(s.timeSource, start), s.label)
 	return leaves, nil
@@ -339,14 +339,14 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		// Get the latest known root from storage
 		sth, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil || sth == nil {
-			return fmt.Errorf("%v: Sequencer failed to get latest root: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: Sequencer failed to get latest root: %w", tree.TreeId, err)
 		}
 		// There is no trust boundary between the signer and the
 		// database, so we skip signature verification.
 		// TODO(gbelvin): Add signature checking as a santity check.
 		var currentRoot types.LogRootV1
 		if err := currentRoot.UnmarshalBinary(sth.LogRoot); err != nil {
-			return fmt.Errorf("%v: Sequencer failed to unmarshal latest root: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: Sequencer failed to unmarshal latest root: %w", tree.TreeId, err)
 		}
 		seqGetRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		seqTreeSize.Set(float64(currentRoot.TreeSize), label)
@@ -374,7 +374,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		sequencedLeaves, err := st.fetch(ctx, limit, start.Add(-guardWindow))
 		if err != nil {
-			return fmt.Errorf("%v: Sequencer failed to load sequenced batch: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: Sequencer failed to load sequenced batch: %w", tree.TreeId, err)
 		}
 		numLeaves = len(sequencedLeaves)
 
@@ -394,7 +394,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		stageStart = s.timeSource.Now()
 		cr, err := s.initCompactRangeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
-			return fmt.Errorf("%v: compact range init failed: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: compact range init failed: %w", tree.TreeId, err)
 		}
 		seqInitTreeLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
@@ -433,13 +433,13 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		targetNodes, err := s.buildNodesFromNodeMap(nodeMap, newVersion)
 		if err != nil {
 			// Probably an internal error with map building, unexpected.
-			return fmt.Errorf("%v: Failed to build target nodes in sequencer: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: Failed to build target nodes in sequencer: %w", tree.TreeId, err)
 		}
 
 		// Now insert or update the nodes affected by the above, at the new tree
 		// version.
 		if err := tx.SetMerkleNodes(ctx, targetNodes); err != nil {
-			return fmt.Errorf("%v: Sequencer failed to set Merkle nodes: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: Sequencer failed to set Merkle nodes: %w", tree.TreeId, err)
 		}
 		seqSetNodesLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
@@ -465,11 +465,11 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		newSLR, err = s.signer.SignLogRoot(newLogRoot)
 		if err != nil {
-			return fmt.Errorf("%v: signer failed to sign root: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: signer failed to sign root: %w", tree.TreeId, err)
 		}
 
 		if err := tx.StoreSignedLogRoot(ctx, newSLR); err != nil {
-			return fmt.Errorf("%v: failed to write updated tree root: %v", tree.TreeId, err)
+			return fmt.Errorf("%v: failed to write updated tree root: %w", tree.TreeId, err)
 		}
 		seqStoreRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		return nil

@@ -206,7 +206,7 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(tree.PrivateKey, &keyProto); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal tree.PrivateKey: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal tree.PrivateKey: %w", err)
 	}
 
 	signer, err := keys.NewSigner(ctx, keyProto.Message)

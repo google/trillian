@@ -119,7 +119,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 	// deleted trees are unlikely to change, specially those deleted for a while.
 	trees, err := storage.ListTrees(ctx, gc.admin, true /* includeDeleted */)
 	if err != nil {
-		return 0, fmt.Errorf("error listing trees: %v", err)
+		return 0, fmt.Errorf("error listing trees: %w", err)
 	}
 
 	count := 0
@@ -130,7 +130,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 		}
 		deleteTime, err := ptypes.Timestamp(tree.DeleteTime)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("error parsing delete_time of tree %v: %v", tree.TreeId, err))
+			errs = append(errs, fmt.Errorf("error parsing delete_time of tree %v: %w", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, timestampParseErrReson)
 			continue
 		}
@@ -141,7 +141,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 
 		glog.Infof("DeletedTreeGC.RunOnce: Hard-deleting tree %v after %v", tree.TreeId, durationSinceDelete)
 		if err := storage.HardDeleteTree(ctx, gc.admin, tree.TreeId); err != nil {
-			errs = append(errs, fmt.Errorf("error hard-deleting tree %v: %v", tree.TreeId, err))
+			errs = append(errs, fmt.Errorf("error hard-deleting tree %v: %w", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, deleteErrReason)
 			continue
 		}

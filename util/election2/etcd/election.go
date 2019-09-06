@@ -148,7 +148,7 @@ func (f *Factory) NewElection(ctx context.Context, resourceID string) (election2
 	// TODO(pavelkalinnikov): Share the same session between Election instances.
 	session, err := concurrency.NewSession(f.client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd session: %v", err)
+		return nil, fmt.Errorf("failed to create etcd session: %w", err)
 	}
 	lockFile := fmt.Sprintf("%s/%s", strings.TrimRight(f.lockDir, "/"), resourceID)
 	election := concurrency.NewElection(session, lockFile)

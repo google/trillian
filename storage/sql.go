@@ -126,17 +126,17 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 
 	tree.CreateTime, err = ptypes.TimestampProto(FromMillisSinceEpoch(createMillis))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse create time: %v", err)
+		return nil, fmt.Errorf("failed to parse create time: %w", err)
 	}
 	tree.UpdateTime, err = ptypes.TimestampProto(FromMillisSinceEpoch(updateMillis))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse update time: %v", err)
+		return nil, fmt.Errorf("failed to parse update time: %w", err)
 	}
 	tree.MaxRootDuration = ptypes.DurationProto(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
 
 	tree.PrivateKey = &any.Any{}
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
-		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
+		return nil, fmt.Errorf("could not unmarshal PrivateKey: %w", err)
 	}
 	tree.PublicKey = &keyspb.PublicKey{Der: publicKey}
 
@@ -144,7 +144,7 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	if tree.Deleted && deleteMillis.Valid {
 		tree.DeleteTime, err = ptypes.TimestampProto(FromMillisSinceEpoch(deleteMillis.Int64))
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse delete time: %v", err)
+			return nil, fmt.Errorf("failed to parse delete time: %w", err)
 		}
 	}
 

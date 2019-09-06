@@ -346,7 +346,7 @@ func drain(ctx context.Context, qs *storage.QuotaStorage, cfgs *storagepb.Config
 	}
 	for _, cfg := range cfgs.Configs {
 		if err := qs.Get(ctx, []string{cfg.Name}, cfg.MaxTokens); err != nil {
-			return fmt.Errorf("%v: %v", cfg.Name, err)
+			return fmt.Errorf("%v: %w", cfg.Name, err)
 		}
 	}
 	return nil
@@ -357,7 +357,7 @@ func reset(ctx context.Context, qs *storage.QuotaStorage, cfgs *storagepb.Config
 		(*c).Reset()
 		proto.Merge(c, cfgs)
 	}); err != nil {
-		return fmt.Errorf("UpdateConfigs() returned err = %v", err)
+		return fmt.Errorf("UpdateConfigs() returned err = %w", err)
 	}
 	return nil
 }
@@ -381,7 +381,7 @@ func (d *quotaDiffer) snapshot(ctx context.Context) error {
 func (d *quotaDiffer) assertDiff(ctx context.Context, desc string, want int) error {
 	currentTokens, err := d.qs.Peek(ctx, d.names)
 	if err != nil {
-		return fmt.Errorf("in %s: Peek() returned err = %v", desc, err)
+		return fmt.Errorf("in %s: Peek() returned err = %w", desc, err)
 	}
 	want64 := int64(want)
 	for k, v := range currentTokens {
