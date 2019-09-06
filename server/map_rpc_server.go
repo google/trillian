@@ -374,9 +374,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
 }
 
-// writeRevision ensures the desired write revision is available and claim a lock on this revision
-// in this transaction so that competing writes transactinos for the next revision cannot all be
-// committed.
+// writeRevision ensures the desired write revision is available and claims a lock on this revision
+// in this transaction so that competing writes transactions cannot be committed.
 func (t *TrillianMapServer) writeRevision(ctx context.Context, tree *trillian.Tree, tx storage.MapTreeTX, rev int64) (int64, error) {
 	writeRev, err := tx.WriteRevision(ctx)
 	if err != nil {
