@@ -359,7 +359,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return err
 		}
 
-		hkv , err := t.writeLeaves(ctx, tree, hasher, tx, req.Leaves, writeRev)
+		hkv, err := t.writeLeaves(ctx, tree, hasher, tx, req.Leaves, writeRev)
 		if err != nil {
 			return err
 		}
