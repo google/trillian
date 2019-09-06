@@ -358,6 +358,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err != nil {
 			return err
 		}
+		glog.V(2).Infof("%v: Writing at revision %v", tree.TreeId, writeRev)
 
 		hkv, err := t.writeLeaves(ctx, tree, hasher, tx, req.Leaves, writeRev)
 		if err != nil {
@@ -365,10 +366,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 
 		newRoot, err = t.updateTree(ctx, tree, hasher, tx, hkv, req.Metadata, writeRev)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -387,7 +385,6 @@ func (t *TrillianMapServer) writeRevision(ctx context.Context, tree *trillian.Tr
 	if rev != 0 && writeRev != rev {
 		return 0, status.Errorf(codes.FailedPrecondition, "can't write to revision %v", rev)
 	}
-	glog.V(2).Infof("%v: Writing at revision %v", tree.TreeId, writeRev)
 	return writeRev, nil
 }
 
@@ -395,28 +392,29 @@ func (t *TrillianMapServer) writeRevision(ctx context.Context, tree *trillian.Tr
 func (t *TrillianMapServer) writeLeaves(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, leaves []*trillian.MapLeaf, rev int64) ([]merkle.HashKeyValue, error) {
 	hkv := make([]merkle.HashKeyValue, 0, len(leaves))
 	for _, l := range leaves {
+		// TODO(mhutchinson): make this check and perform hashing and hkv building outside of the transaction scope
 		if err := checkIndexSize(l.Index, hasher); err != nil {
 			return nil, err
 		}
 		l.LeafHash = hasher.HashLeaf(tree.TreeId, l.Index, l.LeafValue)
-
-		if err := tx.Set(ctx, l.Index, l); err != nil {
-			return nil, err
-		}
 		hkv = append(hkv, merkle.HashKeyValue{
 			HashedKey:   l.Index,
 			HashedValue: l.LeafHash,
 		})
+		if err := tx.Set(ctx, l.Index, l); err != nil {
+			return nil, err
+		}
 	}
 	return hkv, nil
 }
 
-// updateTree calculates the latest merkle values within the tree for the given leaf updates at
-// the specified revision. The new signed map root is committed to storage and returned.
+// updateTree updates the sparse Merkle tree at the specified revision based on the passed-in
+// leaf changes, and writes it to the storage. Returns the new signed map root, which is also
+// submitted to storage.
 func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, hkv []merkle.HashKeyValue, metadata []byte, rev int64) (*trillian.SignedMapRoot, error) {
 	// Work around a performance issue when using the map in
 	// single-transaction mode by preloading all the nodes we know the
-	// sparse merkle writer is going to need.
+	// sparse Merkle writer is going to need.
 	if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
 		if err := doPreload(ctx, tx, hasher.BitLen(), hkv); err != nil {
 			return nil, err

@@ -66,6 +66,8 @@ type MapTreeTX interface {
 	// StoreSignedMapRoot stores root.
 	StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMapRoot) error
 	// Set sets key to leaf
+	// TODO(mhutchinson): Remove the keyHash parameter or document why it is redundantly passed in
+	// (it is also inside the MapLeaf)
 	Set(ctx context.Context, keyHash []byte, value *trillian.MapLeaf) error
 }
 
