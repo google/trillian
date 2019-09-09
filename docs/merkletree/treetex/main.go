@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage"
 )
 
@@ -259,26 +260,6 @@ func toNodeKey(n storage.NodeID) string {
 	return nodeKey(d, i)
 }
 
-// decompose splits out a range into component subtrees.
-// TODO(al): Remove this and depend on actual range code.
-func decomposeRange(begin, end uint64) (uint64, uint64) {
-	// Special case, as the code below works only if begin != 0, or end < 2^63.
-	if begin == 0 {
-		return 0, end
-	}
-	xbegin := begin - 1
-	// Find where paths to leaves #begin-1 and #end diverge, and mask the upper
-	// bits away, as only the nodes strictly below this point are in the range.
-	d := bits.Len64(xbegin^end) - 1
-	mask := uint64(1)<<uint(d) - 1
-	// The left part of the compact range consists of all nodes strictly below
-	// and to the right from the path to leaf #begin-1, corresponding to zero
-	// bits in the masked part of begin-1. Likewise, the right part consists of
-	// nodes below and to the left from the path to leaf #end, corresponding to
-	// ones in the masked part of end.
-	return ^xbegin & mask, end & mask
-}
-
 // parseRanges parses and validates a string of comma-separates open-closed
 // ranges of the form L:R.
 // Returns the parsed ranges, or an error if there's a problem.
@@ -328,7 +309,7 @@ func modifyRangeNodeInfo() error {
 		}
 
 		// Now perfect roots which comprise the range:
-		maskL, maskR := decomposeRange(uint64(l), uint64(r))
+		maskL, maskR := compact.Decompose(uint64(l), uint64(r))
 		p := l
 		// Do left perfect subtree roots:
 		nBitsL := uint(bits.Len64(maskL))
