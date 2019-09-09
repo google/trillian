@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -165,8 +166,26 @@ func (c MapConfig) String() string {
 		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.RetryErrors)
 }
 
+// SetULimit calls `ulimit -n` to set the maximum number of open files.
+// See https://wilsonmar.github.io/maximum-limits/
+func SetULimit(uLimit uint64) error {
+	var rLimit syscall.Rlimit
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	if err != nil {
+		return err
+	}
+	if uLimit > rLimit.Max {
+		return fmt.Errorf("`ulimit -n %v -S` failed because it is greater than the hard limit %v", uLimit, rLimit.Max)
+	}
+	rLimit.Cur = uLimit
+	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+}
+
 // HitMap performs load/stress operations according to given config.
 func HitMap(ctx context.Context, cfg MapConfig) error {
+	if err := SetULimit(2048); err != nil {
+		return err
+	}
 	var firstErr error
 
 	if cfg.MapID == 0 {
