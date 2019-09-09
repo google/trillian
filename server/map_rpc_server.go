@@ -354,7 +354,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 	var newRoot *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
-		writeRev, err := t.writeRevision(ctx, tree, tx, req.Revision)
+		writeRev, err := t.getWriteRevision(ctx, tree, tx, req.Revision)
 		if err != nil {
 			return err
 		}
@@ -374,15 +374,18 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
 }
 
-// writeRevision ensures the desired write revision is available and claims a lock on this revision
-// in this transaction so that competing writes transactions cannot be committed.
-func (t *TrillianMapServer) writeRevision(ctx context.Context, tree *trillian.Tree, tx storage.MapTreeTX, rev int64) (int64, error) {
+// getWriteRevision returns the revision that this transaction will be written at.
+// Only one transaction can be committed for a given revision, thus this transaction
+// will compete with any other transactions with the same write revision.
+// if assertRev is non-zero then an error will be thrown if assertRev does not match
+// the write revision.
+func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian.Tree, tx storage.MapTreeTX, assertRev int64) (int64, error) {
 	writeRev, err := tx.WriteRevision(ctx)
 	if err != nil {
 		return 0, err
 	}
-	if rev != 0 && writeRev != rev {
-		return 0, status.Errorf(codes.FailedPrecondition, "can't write to revision %v", rev)
+	if assertRev != 0 && writeRev != assertRev {
+		return 0, status.Errorf(codes.FailedPrecondition, "can't write to revision %v", assertRev)
 	}
 	return writeRev, nil
 }
