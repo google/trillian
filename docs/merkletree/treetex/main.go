@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/merkle/compact"
 )
 
 const (
@@ -77,9 +77,6 @@ const (
 
 	// Maximum number of ranges to allow.
 	maxRanges = 3
-
-	// maxLen is a suitably large maximum nodeID length for storage.NodeID.
-	maxLen = 64
 )
 
 var (
@@ -247,16 +244,14 @@ func renderTree(prefix string, treeSize, index int64) {
 }
 
 // nodeKey returns a stable node identifier for the passed in node coordinate.
-func nodeKey(height, index int64) string {
-	return fmt.Sprintf("%d.%d", height, index)
+func nodeKey(level, index int64) string {
+	return fmt.Sprintf("%d.%d", level, index)
 }
 
-// toNodeKey converts a storage.NodeID to the corresponding stable node
+// toNodeKey converts a compact.NodeID to the corresponding stable node
 // identifier used by this tool.
-func toNodeKey(n storage.NodeID) string {
-	d := int64(maxLen - n.PrefixLenBits)
-	i := n.BigInt().Int64() >> uint(d)
-	return nodeKey(d, i)
+func toNodeKey(n compact.NodeID) string {
+	return nodeKey(int64(n.Level), int64(n.Index))
 }
 
 // decompose splits out a range into component subtrees.
@@ -360,12 +355,12 @@ func main() {
 
 	if *inclusion > 0 {
 		modifyNodeInfo(nodeKey(0, *inclusion), func(n *nodeInfo) { n.target = true })
-		nf, err := merkle.CalcInclusionProofNodeAddresses(*treeSize, *inclusion, *treeSize, maxLen)
+		nf, err := merkle.CalcInclusionProofNodeAddresses(*treeSize, *inclusion, *treeSize)
 		if err != nil {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}
 		for _, n := range nf {
-			modifyNodeInfo(toNodeKey(n.NodeID), func(n *nodeInfo) { n.incProof = true })
+			modifyNodeInfo(toNodeKey(n.ID), func(n *nodeInfo) { n.incProof = true })
 		}
 		for h, i := int64(0), *inclusion; h < height; h, i = h+1, i>>1 {
 			modifyNodeInfo(nodeKey(h, i), func(n *nodeInfo) { n.incPath = true })
