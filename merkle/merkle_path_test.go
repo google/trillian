@@ -290,7 +290,7 @@ func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
 	}
 
 	for i := 0; i < len(expected); i++ {
-		if !expected[i].Equivalent(got[i]) {
+		if expected[i] != got[i] {
 			t.Fatalf("%s: expected node %+v at position %d but got %+v", desc, expected[i], i, got[i])
 		}
 	}

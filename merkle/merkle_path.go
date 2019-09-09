@@ -36,11 +36,6 @@ type NodeFetch struct {
 	Rehash bool
 }
 
-// Equivalent return true iff the other represents the same rehash state and NodeID as the other.
-func (n NodeFetch) Equivalent(other NodeFetch) bool {
-	return n.Rehash == other.Rehash && n.ID == other.ID
-}
-
 // checkSnapshot performs a couple of simple sanity checks on ss and treeSize
 // and returns an error if there's a problem.
 func checkSnapshot(ssDesc string, ss, treeSize int64) error {
