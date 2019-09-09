@@ -165,9 +165,11 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 		if err != nil {
 			return nil, err
 		}
-	} else if tree.TreeId != treeID {
+	}
+	if tree.TreeId != treeID {
 		// No operations should span multiple trees. If a tree is already in the context
-		// it better had be the one that we want.
+		// it had better be the one that we want. If the tree comes back from the DB with
+		// the wrong ID then this checks that too.
 		return nil, status.Errorf(codes.Internal, "got tree %v, want %v", tree.TreeId, treeID)
 	}
 
