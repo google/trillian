@@ -55,7 +55,6 @@ func TestRangeNodes(t *testing.T) {
 		// Only left border.
 		{begin: 0, end: 16, want: []NodeID{n(4, 0)}},
 		{begin: 1, end: 16, want: []NodeID{n(0, 1), n(1, 1), n(2, 1), n(3, 1)}},
-		{begin: 1, end: 16, want: []NodeID{n(0, 1), n(1, 1), n(2, 1), n(3, 1)}},
 		{begin: 2, end: 16, want: []NodeID{n(1, 1), n(2, 1), n(3, 1)}},
 		{begin: 3, end: 16, want: []NodeID{n(0, 3), n(2, 1), n(3, 1)}},
 		{begin: 4, end: 16, want: []NodeID{n(2, 1), n(3, 1)}},
