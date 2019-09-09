@@ -300,6 +300,7 @@ github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
+github.com/letsencrypt/pkcs11key v2.0.0+incompatible h1:zYbII8Qh9OY9zYhS8nvIZVojd8tP756M1W1C3r7Uoq0=
 github.com/letsencrypt/pkcs11key v2.0.0+incompatible/go.mod h1:iGYXKqDXt0cpBthCHdr9ZdsQwyGlYFh/+8xa4WzIQ34=
 github.com/letsencrypt/pkcs11key/v3 v3.0.0 h1:VM2ahz0aEhSAMgffg00iCu912WPro8eT6BX2Jd7tCXU=
 github.com/letsencrypt/pkcs11key/v3 v3.0.0/go.mod h1:sfoiYd3g5fIel4ZANw27sbgXzN43FY5hNP6uxEUywkM=
