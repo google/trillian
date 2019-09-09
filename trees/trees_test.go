@@ -269,6 +269,8 @@ func TestGetTree(t *testing.T) {
 			ctxTree:     mapTree,
 			storageTree: logTree,
 			wantTree:    logTree,
+			wantErr:     true,
+			code:        codes.Internal,
 		},
 		{
 			desc:     "beginErr",

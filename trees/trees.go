@@ -159,12 +159,16 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 	ctx, spanEnd := spanFor(ctx, "GetTree")
 	defer spanEnd()
 	tree, ok := FromContext(ctx)
-	if !ok || tree.TreeId != treeID {
+	if !ok {
 		var err error
 		tree, err = storage.GetTree(ctx, s, treeID)
 		if err != nil {
 			return nil, err
 		}
+	} else if tree.TreeId != treeID {
+		// No operations should span multiple trees. If a tree is already in the context
+		// it better had be the one that we want.
+		return nil, status.Errorf(codes.Internal, "got tree %v, want %v", tree.TreeId, treeID)
 	}
 
 	if err := validate(opts, tree); err != nil {
