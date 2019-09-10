@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )
@@ -212,7 +213,9 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	}()
 
 	for t := range ch {
-		s.subtrees.Store(string(t.Prefix), t)
+		if err := s.cacheSubtree(t); err != nil {
+			return err
+		}
 		delete(want, string(t.Prefix))
 	}
 
@@ -223,17 +226,23 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	for _, id := range want {
 		prefixLen := id.PrefixLenBits / depthQuantum
 		px := id.Path[:prefixLen]
-		pxKey := string(px)
-		value, loaded := s.subtrees.LoadOrStore(pxKey, s.newEmptySubtree(id, px))
-		if loaded { // There is already something with this key.
-			if subtree, ok := value.(*storagepb.SubtreeProto); !ok {
-				return fmt.Errorf("at %v: not a SubtreeProto: %T", id, value)
-			} else if !isEmptySubtree(subtree) {
-				return fmt.Errorf("at %v: storing a non-empty subtree", id)
-			}
+		if err := s.cacheSubtree(s.newEmptySubtree(id, px)); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func (s *SubtreeCache) cacheSubtree(t *storagepb.SubtreeProto) error {
+	raw, loaded := s.subtrees.LoadOrStore(string(t.Prefix), t)
+	if loaded { // There is already something with this key.
+		if subtree, ok := raw.(*storagepb.SubtreeProto); !ok {
+			return fmt.Errorf("at %x: not a subtree: %T", t.Prefix, raw)
+		} else if !proto.Equal(t, subtree) {
+			return fmt.Errorf("at %x: subtree mismatch", t.Prefix)
+		}
+	}
 	return nil
 }
 
@@ -490,8 +499,4 @@ func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
 	}
-}
-
-func isEmptySubtree(s *storagepb.SubtreeProto) bool {
-	return s == nil || (len(s.Leaves) == 0 && len(s.InternalNodes) == 0)
 }
