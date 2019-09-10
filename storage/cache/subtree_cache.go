@@ -301,10 +301,8 @@ func (s *SubtreeCache) getCachedSubtree(prefixKey string) *storagepb.SubtreeProt
 	if !found || raw == nil {
 		return nil
 	}
-	res, ok := raw.(*storagepb.SubtreeProto)
-	if !ok {
-		return nil
-	}
+	// Note: If type assertion fails, nil is returned. Should not happen though.
+	res, _ := raw.(*storagepb.SubtreeProto)
 	return res
 }
 
