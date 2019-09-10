@@ -16,7 +16,6 @@ require (
 	github.com/emicklei/proto v1.6.13 // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/fullstorydev/grpcurl v1.3.1 // indirect
 	github.com/gliderlabs/ssh v0.1.4 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gobuffalo/flect v0.1.5 // indirect
@@ -64,7 +63,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.4.0 // indirect
-	github.com/uber/prototool v1.8.1
+	github.com/uber/prototool v1.8.2-0.20190910022025-7df3b957ffe3
 	github.com/xanzy/ssh-agent v0.2.1 // indirect
 	go.etcd.io/bbolt v1.3.3 // indirect
 	go.etcd.io/etcd v3.3.13+incompatible
@@ -83,9 +82,3 @@ require (
 	mvdan.cc/unparam v0.0.0-20190310220240-1b9ccfa71afe // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
-
-// These transitive dependencies have invalid pseudo-versions. Override them
-// to the correct pseudo-version (https://tip.golang.org/doc/go1.13#version-validation).
-// These can be removed once our dependencies fix their go.mod files to use the
-// correct pseudo-versions.
-replace google.golang.org/genproto v0.0.0-20170818100345-ee236bd376b0 => google.golang.org/genproto v0.0.0-20170818010345-ee236bd376b0
