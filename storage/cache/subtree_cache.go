@@ -224,7 +224,14 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		prefixLen := id.PrefixLenBits / depthQuantum
 		px := id.Path[:prefixLen]
 		pxKey := string(px)
-		s.subtrees.Store(pxKey, s.newEmptySubtree(id, px))
+		value, loaded := s.subtrees.LoadOrStore(pxKey, s.newEmptySubtree(id, px))
+		if loaded { // There is already something with this key.
+			if subtree, ok := value.(*storagepb.SubtreeProto); !ok {
+				return fmt.Errorf("at %v: not a SubtreeProto: %T", id, value)
+			} else if !isEmptySubtree(subtree) {
+				return fmt.Errorf("at %v: storing a non-empty subtree", id)
+			}
+		}
 	}
 
 	return nil
@@ -280,7 +287,7 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 	return ret, nil
 }
 
-func (s *SubtreeCache) unmapSubtree(prefixKey string) *storagepb.SubtreeProto {
+func (s *SubtreeCache) getCachedSubtree(prefixKey string) *storagepb.SubtreeProto {
 	raw, found := s.subtrees.Load(prefixKey)
 	if !found || raw == nil {
 		return nil
@@ -292,7 +299,7 @@ func (s *SubtreeCache) unmapSubtree(prefixKey string) *storagepb.SubtreeProto {
 	return res
 }
 
-func (s *SubtreeCache) unmapDirty(prefixKey string) bool {
+func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
 	_, found := s.dirtyPrefixes.Load(prefixKey)
 	return found
 }
@@ -305,7 +312,7 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 
 	sInfo := s.stratumInfoForNodeID(id)
 	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
-	c := s.unmapSubtree(prefixKey)
+	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
 		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
 		px := id.Prefix(sInfo.prefixBytes)
@@ -370,7 +377,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 
 	sInfo := s.stratumInfoForNodeID(id)
 	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
-	c := s.unmapSubtree(prefixKey)
+	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
@@ -380,7 +387,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 			return err
 		}
 		// There must be a subtree present in the cache now, even if storage didn't have anything for us.
-		c = s.unmapSubtree(prefixKey)
+		c = s.getCachedSubtree(prefixKey)
 		if c == nil {
 			return fmt.Errorf("internal error, subtree cache for %v is nil after a read attempt", id.String())
 		}
@@ -437,7 +444,7 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 			rangeErr = fmt.Errorf("unknown value type: %t", rawV)
 			return false
 		}
-		if s.unmapDirty(k) {
+		if s.prefixIsDirty(k) {
 			bk := []byte(k)
 			if !bytes.Equal(bk, v.Prefix) {
 				rangeErr = fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", bk, v.Prefix)
@@ -483,4 +490,8 @@ func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
 	}
+}
+
+func isEmptySubtree(s *storagepb.SubtreeProto) bool {
+	return s == nil || (len(s.Leaves) == 0 && len(s.InternalNodes) == 0)
 }
