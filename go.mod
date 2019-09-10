@@ -28,7 +28,7 @@ require (
 	github.com/golangci/golangci-lint v1.17.2-0.20190910081718-bad04bb7378f
 	github.com/golangci/revgrep v0.0.0-20180812185044-276a5c0a1039 // indirect
 	github.com/google/btree v1.0.0
-	github.com/google/certificate-transparency-go v1.0.22-0.20190613123100-f1b2d813b630
+	github.com/google/certificate-transparency-go v1.0.22-0.20190910093103-496c2e82955b
 	github.com/google/go-cmp v0.3.0
 	github.com/google/licenseclassifier v0.0.0-20190501212618-47b603fe1b8c
 	github.com/google/uuid v1.1.1 // indirect
@@ -88,20 +88,4 @@ require (
 // to the correct pseudo-version (https://tip.golang.org/doc/go1.13#version-validation).
 // These can be removed once our dependencies fix their go.mod files to use the
 // correct pseudo-versions.
-replace github.com/go-critic/go-critic v0.0.0-20181204210945-1df300866540 => github.com/go-critic/go-critic v0.3.5-0.20190526074819-1df300866540
-
-replace github.com/golangci/errcheck v0.0.0-20181003203344-ef45e06d44b6 => github.com/golangci/errcheck v0.0.0-20181223084120-ef45e06d44b6
-
-replace github.com/golangci/go-tools v0.0.0-20180109140146-af6baa5dc196 => github.com/golangci/go-tools v0.0.0-20190318060251-af6baa5dc196
-
-replace github.com/golangci/gofmt v0.0.0-20181105071733-0b8337e80d98 => github.com/golangci/gofmt v0.0.0-20181222123516-0b8337e80d98
-
-replace github.com/golangci/gosec v0.0.0-20180901114220-66fb7fc33547 => github.com/golangci/gosec v0.0.0-20190211064107-66fb7fc33547
-
-replace github.com/golangci/ineffassign v0.0.0-20180808204949-42439a7714cc => github.com/golangci/ineffassign v0.0.0-20190609212857-42439a7714cc
-
-replace github.com/golangci/lint-1 v0.0.0-20180610141402-ee948d087217 => github.com/golangci/lint-1 v0.0.0-20190420132249-ee948d087217
-
-replace mvdan.cc/unparam v0.0.0-20190124213536-fbb59629db34 => mvdan.cc/unparam v0.0.0-20190209190245-fbb59629db34
-
 replace google.golang.org/genproto v0.0.0-20170818100345-ee236bd376b0 => google.golang.org/genproto v0.0.0-20170818010345-ee236bd376b0
