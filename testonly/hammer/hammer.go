@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -32,6 +31,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -166,24 +166,24 @@ func (c MapConfig) String() string {
 		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.RetryErrors)
 }
 
-// SetULimit calls `ulimit -n` to set the maximum number of open files.
-// See https://wilsonmar.github.io/maximum-limits/
-func SetULimit(uLimit uint64) error {
-	var rLimit syscall.Rlimit
-	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+// SetFDULimit sets the soft limit on the maximum number of open file descriptors.
+// See http://man7.org/linux/man-pages/man2/setrlimit.2.html
+func SetFDLimit(uLimit uint64) error {
+	var rLimit unix.Rlimit
+	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit)
 	if err != nil {
 		return err
 	}
 	if uLimit > rLimit.Max {
-		return fmt.Errorf("`ulimit -n %v -S` failed because it is greater than the hard limit %v", uLimit, rLimit.Max)
+		return fmt.Errorf("Could not set FD limit to %v. Must be less than the hard limit %v", uLimit, rLimit.Max)
 	}
 	rLimit.Cur = uLimit
-	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)
 }
 
 // HitMap performs load/stress operations according to given config.
 func HitMap(ctx context.Context, cfg MapConfig) error {
-	if err := SetULimit(2048); err != nil {
+	if err := SetFDLimit(2048); err != nil {
 		return err
 	}
 	var firstErr error
