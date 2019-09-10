@@ -166,7 +166,7 @@ func TestGetTree(t *testing.T) {
 		},
 		{
 			desc:        "adminFrozen",
-			treeID:      logTree.TreeId,
+			treeID:      frozenTree.TreeId,
 			opts:        NewGetOpts(Admin, trillian.TreeType_LOG),
 			storageTree: frozenTree,
 			wantTree:    frozenTree,
@@ -269,6 +269,8 @@ func TestGetTree(t *testing.T) {
 			ctxTree:     mapTree,
 			storageTree: logTree,
 			wantTree:    logTree,
+			wantErr:     true,
+			code:        codes.Internal,
 		},
 		{
 			desc:     "beginErr",
