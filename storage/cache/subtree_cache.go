@@ -217,18 +217,13 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	}
 
 	// We might not have got all the subtrees we requested, if they don't already exist.
-	// Create empty subtrees for anything left over. As an additional sanity check we refuse
-	// to overwrite anything already in the cache as we determined above that these subtrees
-	// should not exist in the subtree cache map.
+	// Create empty subtrees for anything left over. Note that multiple parallel readers
+	// may be be running this code and touch the same keys, although this doesn't happen
+	// normally.
 	for _, id := range want {
 		prefixLen := id.PrefixLenBits / depthQuantum
 		px := id.Path[:prefixLen]
 		pxKey := string(px)
-		_, exists := s.subtrees.Load(pxKey)
-		if exists {
-			// TODO(pavelkalinnikov): This can false alarm on parallel reads.
-			return fmt.Errorf("preload tried to clobber existing subtree for: %v", id)
-		}
 		s.subtrees.Store(pxKey, s.newEmptySubtree(id, px))
 	}
 
