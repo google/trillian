@@ -155,9 +155,13 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	for _, id := range ids {
 		sInfo := s.stratumInfoForNodeID(id)
 		pxKey := id.PrefixAsKey(sInfo.prefixBytes)
-		// TODO(al): Fix for non-uniform strata.
-		id.PrefixLenBits = sInfo.prefixBytes * depthQuantum
+		if _, ok := want[pxKey]; ok {
+			// No need to check s.subtrees map twice.
+			continue
+		}
 		if _, ok := s.subtrees.Load(pxKey); !ok {
+			// TODO(al): Fix for non-uniform strata.
+			id.PrefixLenBits = sInfo.prefixBytes * depthQuantum
 			want[pxKey] = id
 		}
 	}
