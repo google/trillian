@@ -17,7 +17,6 @@ package hammer
 import (
 	"context"
 	"flag"
-	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
@@ -26,7 +25,6 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly/integration"
-	"golang.org/x/sys/unix"
 
 	_ "github.com/google/trillian/merkle/coniks"    // register CONIKS_SHA512_256
 	_ "github.com/google/trillian/merkle/maphasher" // register TEST_MAP_HASHER
@@ -37,26 +35,8 @@ var (
 	singleTX   = flag.Bool("single_transaction", false, "Experimental: whether to use a single transaction when updating the map")
 )
 
-// SetFDULimit sets the soft limit on the maximum number of open file descriptors.
-// See http://man7.org/linux/man-pages/man2/setrlimit.2.html
-func SetFDLimit(uLimit uint64) error {
-	var rLimit unix.Rlimit
-	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit)
-	if err != nil {
-		return err
-	}
-	if uLimit > rLimit.Max {
-		return fmt.Errorf("Could not set FD limit to %v. Must be less than the hard limit %v", uLimit, rLimit.Max)
-	}
-	rLimit.Cur = uLimit
-	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)
-}
-
 func TestRetryExposesDeadlineError(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
-	if err := SetFDLimit(2048); err != nil {
-		t.Fatal(err)
-	}
 	ctx := context.Background()
 	env, err := integration.NewMapEnv(ctx, *singleTX)
 	if err != nil {
@@ -106,9 +86,6 @@ func TestRetryExposesDeadlineError(t *testing.T) {
 
 func TestInProcessMapHammer(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
-	if err := SetFDLimit(2048); err != nil {
-		t.Fatal(err)
-	}
 	ctx := context.Background()
 	env, err := integration.NewMapEnv(ctx, *singleTX)
 	if err != nil {
