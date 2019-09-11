@@ -101,15 +101,13 @@ jobs:
         ./integration/docker_compose_integration_test.sh
       - name: "CT Integration"
         script:
-         - |
-           # See if we would break ct-go by checking it out and updating the trillian dep.
-           TRILLIAN_DIR=$(pwd)
-           git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
-           pushd "$GOPATH/src/github.com/google/certificate-transparency-go"
-           echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
-           chmod +x ./trillian/integration/integration_test.sh
-           ./trillian/integration/integration_test.sh
-           popd
+         - TRILLIAN_DIR=$(pwd)
+         - git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
+         - pushd "$GOPATH/src/github.com/google/certificate-transparency-go"
+         - echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
+         - chmod +x ./trillian/integration/integration_test.sh
+         - ./trillian/integration/integration_test.sh
+         - popd
 
 
 
