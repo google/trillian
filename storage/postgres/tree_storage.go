@@ -191,7 +191,7 @@ func (p *pgTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt,
 	return p.getStmt(ctx, skeleton)
 }
 
-func (p *pgTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache cache.SubtreeCache) (treeTX, error) {
+func (p *pgTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := p.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
@@ -215,7 +215,7 @@ type treeTX struct {
 	treeID        int64
 	treeType      trillian.TreeType
 	hashSizeBytes int
-	subtreeCache  cache.SubtreeCache
+	subtreeCache  *cache.SubtreeCache
 	writeRevision int64
 }
 

@@ -125,7 +125,7 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 	return th, nil
 }
 
-type newCacheFn func(*trillian.Tree) (cache.SubtreeCache, error)
+type newCacheFn func(*trillian.Tree) (*cache.SubtreeCache, error)
 
 func (t *treeStorage) getTreeAndConfig(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, proto.Message, error) {
 	config, err := unmarshalSettings(tree)
@@ -194,7 +194,7 @@ type treeTX struct {
 	// writeRev is the tree revision at which any writes will be made.
 	_writeRev int64
 
-	cache cache.SubtreeCache
+	cache *cache.SubtreeCache
 
 	getLatestRootOnce sync.Once
 }

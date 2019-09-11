@@ -93,7 +93,7 @@ type SubtreeCache struct {
 // internal nodes given its leaves, and will be called for each subtree loaded
 // from storage.
 // TODO(al): consider supporting different sized subtrees - for now everything's subtrees of 8 levels.
-func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) SubtreeCache {
+func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) *SubtreeCache {
 	// TODO(al): pass this in
 	maxTreeDepth := maxSupportedTreeDepth
 	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
@@ -126,7 +126,7 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 		panic(fmt.Errorf("populate_subtree_concurrency must be set to >= 1"))
 	}
 
-	return SubtreeCache{
+	return &SubtreeCache{
 		stratumInfo:         sInfo,
 		subtrees:            make(map[string]*storagepb.SubtreeProto),
 		dirtyPrefixes:       make(map[string]bool),
