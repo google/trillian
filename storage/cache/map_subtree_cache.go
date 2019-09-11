@@ -28,7 +28,7 @@ import (
 
 // NewMapSubtreeCache creates and returns a SubtreeCache appropriate for use with a map
 // tree. The caller must supply the strata depths to be used, the treeID and a suitable MapHasher.
-func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher) SubtreeCache {
+func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher) *SubtreeCache {
 	return NewSubtreeCache(mapStrata, populateMapSubtreeNodes(treeID, hasher), prepareMapSubtreeWrite())
 }
 
