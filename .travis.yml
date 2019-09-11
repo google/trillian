@@ -33,7 +33,6 @@ env:
   - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'  PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true        PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
-  - BAZEL_TESTS=true                                       PRESUBMIT_OPTS="--no-linters --no-generate"
   - DOCKER_TESTS=true                                      PRESUBMIT_OPTS="--no-linters --no-generate"
 
 matrix:
@@ -83,6 +82,18 @@ jobs:
       - golangci-lint run --deadline=8m
       - prototool lint
       - ./scripts/check_license.sh $(find . -name '*.go' | grep -v mock_ | grep -v .pb.go | grep -v .pb.gw.go | grep -v _string.go | tr '\n' ' ')
+    - name: "bazel"
+      install:
+      - |
+        BAZEL_VERSION='0.18.0'
+        URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
+        wget -O install.sh ${URL}
+        chmod +x install.sh
+        ./install.sh --user
+        rm -f install.sh
+      script: bazel --batch build //:*
+
+
 
 
 services:
@@ -120,17 +131,6 @@ install:
     echo Installing ${TOOLS}...
     GOPROXY=direct go install ${TOOLS}
   # install bazel
-  - |
-    (
-    if [[ "${BAZEL_TESTS}" == "true" ]]; then
-        BAZEL_VERSION='0.18.0'
-        URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
-        wget -O install.sh ${URL}
-        chmod +x install.sh
-        ./install.sh --user
-        rm -f install.sh
-      fi
-    )
 
 before_script:
   - ./scripts/resetdb.sh --force
@@ -171,10 +171,6 @@ script:
       # See https://github.com/rolandshoemaker/docker-hsm for an example.
       if [[ "${DOCKER_TESTS}" == "true" ]]; then
         ./integration/docker_compose_integration_test.sh
-      fi
-  - |
-      if [[ "${BAZEL_TESTS}" == "true" ]]; then
-        bazel --batch build //:*
       fi
   - set +e
 
