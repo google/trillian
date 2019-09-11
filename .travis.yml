@@ -40,6 +40,25 @@ env:
 matrix:
   fast_finish: true
 
+jobs:
+  include:
+    - name: "build"
+      before_install: true
+      install: true
+      before_script: true
+      script: go build ./...
+    - name: "lint"
+      before_install: true
+      install:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint
+      - go install github.com/uber/prototool/cmd/prototool
+      before_script: true
+      script:
+      - golangci-lint run --deadline=8m
+      - prototool lint
+      - ./scripts/check_license.sh $(find . -name '*.go' | grep -v mock_ | grep -v .pb.go | grep -v .pb.gw.go | grep -v _string.go | tr '\n' ' ')
+
+
 services:
   - docker
   - postgresql
