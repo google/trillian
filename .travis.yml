@@ -22,7 +22,6 @@ env:
   - GO111MODULE=on
   - GOPROXY=https://proxy.golang.org
   matrix:
-  - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--no-build"  # only lint & generate
   - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--coverage --no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
@@ -120,10 +119,6 @@ install:
       TOOLS+=" go.etcd.io/etcd"
       TOOLS+=" go.etcd.io/etcd/etcdctl"
     fi
-    if [[ "${PRESUBMIT_OPTS}" != *no-linters* ]]; then
-      TOOLS+=" github.com/golangci/golangci-lint/cmd/golangci-lint"
-      TOOLS+=" github.com/uber/prototool/cmd/prototool"
-    fi
     echo Installing ${TOOLS}...
     GOPROXY=direct go install ${TOOLS}
   # install bazel
@@ -151,11 +146,6 @@ script:
   - |
     if [[ "${PRESUB_TESTS}" == "true" ]]; then
       ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
-      # Check re-generation didn't change anything. Skip protoc-generated files
-      # because protoc is not deterministic when generating file descriptors.
-      # Skip go.mod and go.sum because testing may add indirect dependencies that would be trimmed by 'go mod tidy'
-      echo "Checking that generated files are the same as checked-in versions."
-      git diff --exit-code -- ':!*.pb.go' ':!*_string.go' ':!go.*'
     fi
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
