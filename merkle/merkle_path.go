@@ -20,7 +20,7 @@ import (
 	"math/bits"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/merkle/compact"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -32,13 +32,8 @@ const vvLevel = 4
 // NodeFetch bundles a nodeID with additional information on how to use the node to construct the
 // correct proof.
 type NodeFetch struct {
-	NodeID storage.NodeID
+	ID     compact.NodeID
 	Rehash bool
-}
-
-// Equivalent return true iff the other represents the same rehash state and NodeID as the other.
-func (n NodeFetch) Equivalent(other NodeFetch) bool {
-	return n.Rehash == other.Rehash && n.NodeID.Equivalent(other.NodeID)
 }
 
 // checkSnapshot performs a couple of simple sanity checks on ss and treeSize
@@ -53,12 +48,11 @@ func checkSnapshot(ssDesc string, ss, treeSize int64) error {
 	return nil
 }
 
-// CalcInclusionProofNodeAddresses returns the tree node IDs needed to
-// build an inclusion proof for a specified leaf and tree size. The snapshot parameter
-// is the tree size being queried for, treeSize is the actual size of the tree at the revision
-// we are using to fetch nodes (this can be > snapshot). The maxBitLen parameter
-// is copied into all the returned nodeIDs.
-func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
+// CalcInclusionProofNodeAddresses returns the tree node IDs needed to build an
+// inclusion proof for a specified leaf and tree size. The snapshot parameter
+// is the tree size being queried for, treeSize is the actual size of the tree
+// at the revision we are using to fetch nodes (this can be > snapshot).
+func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot", snapshot, treeSize); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
 	}
@@ -68,22 +62,21 @@ func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen 
 	if index < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
 	}
-	if maxBitLen <= 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: maxBitLen %d <= 0", maxBitLen)
-	}
 
-	return pathFromNodeToRootAtSnapshot(index, 0, snapshot, treeSize, maxBitLen)
+	return pathFromNodeToRootAtSnapshot(index, 0, snapshot, treeSize)
 }
 
-// CalcConsistencyProofNodeAddresses returns the tree node IDs needed to
-// build a consistency proof between two specified tree sizes. snapshot1 and snapshot2 represent
-// the two tree sizes for which consistency should be proved, treeSize is the actual size of the
-// tree at the revision we are using to fetch nodes (this can be > snapshot2). The maxBitLen
-// parameter is copied into all the returned nodeIDs. The caller is responsible for checking that
-// the input tree sizes correspond to valid tree heads. All returned NodeIDs are tree
-// coordinates within the new tree. It is assumed that they will be fetched from storage
-// at a revision corresponding to the STH associated with the treeSize parameter.
-func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
+// CalcConsistencyProofNodeAddresses returns the tree node IDs needed to build
+// a consistency proof between two specified tree sizes. snapshot1 and
+// snapshot2 represent the two tree sizes for which consistency should be
+// proved, treeSize is the actual size of the tree at the revision we are using
+// to fetch nodes (this can be > snapshot2).
+//
+// The caller is responsible for checking that the input tree sizes correspond
+// to valid tree heads. All returned NodeIDs are tree coordinates within the
+// new tree. It is assumed that they will be fetched from storage at a revision
+// corresponding to the STH associated with the treeSize parameter.
+func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot1", snapshot1, treeSize); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
 	}
@@ -93,16 +86,13 @@ func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64, max
 	if snapshot1 > snapshot2 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: snapshot1 %d > snapshot2 %d", snapshot1, snapshot2)
 	}
-	if maxBitLen <= 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: maxBitLen %d <= 0", maxBitLen)
-	}
 
-	return snapshotConsistency(snapshot1, snapshot2, treeSize, maxBitLen)
+	return snapshotConsistency(snapshot1, snapshot2, treeSize)
 }
 
 // snapshotConsistency does the calculation of consistency proof node addresses between
 // two snapshots. Based on the C++ code used by CT but adjusted to fit our situation.
-func snapshotConsistency(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
+func snapshotConsistency(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
 	proof := make([]NodeFetch, 0, bits.Len64(uint64(snapshot2))+1)
 
 	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
@@ -125,23 +115,20 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([
 	if node != 0 {
 		glog.V(vvLevel).Infof("Not root snapshot1: %d", node)
 		// Not at the root of snapshot 1, record the node
-		n, err := storage.NewNodeIDForTreeCoords(int64(level), node, maxBitLen)
-		if err != nil {
-			return nil, err
-		}
-		proof = append(proof, NodeFetch{NodeID: n})
+		n := compact.NewNodeID(uint(level), uint64(node))
+		proof = append(proof, NodeFetch{ID: n})
 	}
 
 	// Now append the path from this node to the root of snapshot2.
-	p, err := pathFromNodeToRootAtSnapshot(node, level, snapshot2, treeSize, maxBitLen)
+	p, err := pathFromNodeToRootAtSnapshot(node, level, snapshot2, treeSize)
 	if err != nil {
 		return nil, err
 	}
 	return append(proof, p...), nil
 }
 
-func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
-	glog.V(vLevel).Infof("pathFromNodeToRootAtSnapshot(%d, %d, %d, %d, %d)", node, level, snapshot, treeSize, maxBitLen)
+func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int64) ([]NodeFetch, error) {
+	glog.V(vLevel).Infof("pathFromNodeToRootAtSnapshot(%d, %d, %d, %d)", node, level, snapshot, treeSize)
 	proof := make([]NodeFetch, 0, bits.Len64(uint64(snapshot))+1)
 
 	if snapshot == 0 {
@@ -159,11 +146,8 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 			if glog.V(vvLevel) {
 				glog.Infof("Not last: S:%d L:%d", sibling, level)
 			}
-			n, err := storage.NewNodeIDForTreeCoords(int64(level), sibling, maxBitLen)
-			if err != nil {
-				return nil, err
-			}
-			proof = append(proof, NodeFetch{NodeID: n})
+			n := compact.NewNodeID(uint(level), uint64(sibling))
+			proof = append(proof, NodeFetch{ID: n})
 		} else if sibling == lastNode {
 			// The sibling is the last node of the level in the snapshot tree.
 			// We might need to recompute a previous hash value here. This can only occur on the
@@ -176,15 +160,12 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 				// No recomputation required as we're using the tree in its current state
 				// Account for non existent nodes - these can only be the rightmost node at an
 				// intermediate (non leaf) level in the tree so will always be a right sibling.
-				n, err := siblingIDSkipLevels(snapshot, lastNode, level, node, maxBitLen)
-				if err != nil {
-					return nil, err
-				}
-				proof = append(proof, NodeFetch{NodeID: n})
+				n := siblingIDSkipLevels(snapshot, lastNode, level, node)
+				proof = append(proof, NodeFetch{ID: n})
 			} else {
 				// We need to recompute this node, as it was at the prior snapshot point. We record
 				// the additional fetches needed to do this later
-				rehashFetches, err := recomputePastSnapshot(snapshot, treeSize, level, maxBitLen)
+				rehashFetches, err := recomputePastSnapshot(snapshot, treeSize, level)
 				if err != nil {
 					return nil, err
 				}
@@ -218,7 +199,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 // the output of this should always be exactly one node after resolving any rehashing.
 // Either a copy of one of the nodes in the tree or a rehashing of multiple nodes to a single
 // result node with the value it would have had if the prior snapshot had been stored.
-func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen int) ([]NodeFetch, error) {
+func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int) ([]NodeFetch, error) {
 	glog.V(vLevel).Infof("recompute s:%d ts:%d level:%d", snapshot, treeSize, nodeLevel)
 
 	fetches := []NodeFetch{}
@@ -246,12 +227,8 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 			if glog.V(vvLevel) {
 				glog.Infof("copying l:%d ln:%d", level, lastNode)
 			}
-			nodeID, err := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, lastNode^1, maxBitlen)
-			if err != nil {
-				return nil, err
-			}
-
-			return append(fetches, NodeFetch{Rehash: false, NodeID: nodeID}), nil
+			nodeID := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, lastNode^1)
+			return append(fetches, NodeFetch{Rehash: false, ID: nodeID}), nil
 		}
 
 		// Left sibling and parent exist at this snapshot and don't need to be rehashed
@@ -269,13 +246,10 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 
 	// lastNode is now the index of a left sibling with no right sibling. This is where the
 	// rehashing starts
-	savedNodeID, err := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, lastNode^1, maxBitlen)
-	if err != nil {
-		return nil, err
-	}
+	savedNodeID := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, lastNode^1)
 
 	if nodeLevel == level {
-		return append(fetches, NodeFetch{Rehash: true, NodeID: savedNodeID}), nil
+		return append(fetches, NodeFetch{Rehash: true, ID: savedNodeID}), nil
 	}
 
 	rehash := false
@@ -291,20 +265,16 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 		}
 
 		if (lastNode & 1) != 0 {
-			nodeID, err := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, (lastNode-1)^1, maxBitlen)
-			if err != nil {
-				return nil, err
-			}
-
+			nodeID := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, (lastNode-1)^1)
 			if !rehash && !subRootEmitted {
-				fetches = append(fetches, NodeFetch{Rehash: true, NodeID: savedNodeID})
+				fetches = append(fetches, NodeFetch{Rehash: true, ID: savedNodeID})
 				subRootEmitted = true
 			}
 
 			if glog.V(vvLevel) {
-				glog.Infof("rehash with %s", nodeID.CoordString())
+				glog.Infof("rehash with %+v", nodeID)
 			}
-			fetches = append(fetches, NodeFetch{Rehash: true, NodeID: nodeID})
+			fetches = append(fetches, NodeFetch{Rehash: true, ID: nodeID})
 			rehash = true
 		}
 
@@ -313,7 +283,7 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 		level++
 
 		if nodeLevel == level && !subRootEmitted {
-			return append(fetches, NodeFetch{Rehash: rehash, NodeID: savedNodeID}), nil
+			return append(fetches, NodeFetch{Rehash: rehash, ID: savedNodeID}), nil
 		}
 
 		// Exit early if we've gone far enough up the tree to hit the level we're recomputing
@@ -458,7 +428,7 @@ func checkRecomputation(fetches []NodeFetch) error {
 // siblingIDSkipLevels creates a new NodeID for the supplied node, accounting for levels skipped
 // in storage. Note that it returns an ID for the node sibling so care should be taken to pass the
 // correct value for the node parameter.
-func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64, maxBitLen int) (storage.NodeID, error) {
+func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64) compact.NodeID {
 	l, sibling := skipMissingLevels(snapshot, lastNode, level, node)
-	return storage.NewNodeIDForTreeCoords(int64(l), sibling, maxBitLen)
+	return compact.NewNodeID(uint(l), uint64(sibling))
 }

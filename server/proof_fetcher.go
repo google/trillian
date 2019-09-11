@@ -24,6 +24,9 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+// proofMaxBitLen is the max depth of a tree. Used for storage.NodeID creation.
+const proofMaxBitLen = 64
+
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
 // from storage and converts them into the proof proto that will be returned to the client.
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
@@ -108,7 +111,11 @@ func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, 
 	proofNodeIDs := make([]storage.NodeID, 0, len(fetches))
 
 	for _, fetch := range fetches {
-		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
+		id, err := storage.NewNodeIDForTreeCoords(int64(fetch.ID.Level), int64(fetch.ID.Index), proofMaxBitLen)
+		if err != nil {
+			return nil, err
+		}
+		proofNodeIDs = append(proofNodeIDs, id)
 	}
 
 	proofNodes, err := tx.GetMerkleNodes(ctx, treeRevision, proofNodeIDs)
@@ -121,9 +128,9 @@ func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, 
 	}
 
 	for i, node := range proofNodes {
-		// additional check that the correct node was returned
-		if !node.NodeID.Equivalent(fetches[i].NodeID) {
-			return []storage.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", fetches[i], i, node.NodeID)
+		// Additional check that the correct node was returned.
+		if !node.NodeID.Equivalent(proofNodeIDs[i]) {
+			return []storage.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
 		}
 	}
 

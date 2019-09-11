@@ -140,7 +140,7 @@ func TestTree813FetchAll(t *testing.T) {
 	})
 
 	for l := int64(271); l < ts; l++ {
-		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l, ts, 64)
+		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l, ts)
 
 		if err != nil {
 			t.Fatal(err)
@@ -156,7 +156,7 @@ func TestTree813FetchAll(t *testing.T) {
 
 		if got, want := len(proof.Hashes), len(refProof); got != want {
 			for i, f := range fetches {
-				t.Errorf("Fetch: %d => %s", i, f.NodeID.CoordString())
+				t.Errorf("Fetch: %d => %+v", i, f.ID)
 			}
 			t.Fatalf("(%d, %d): got proof len: %d, want: %d: %v\n%v", ts, l, got, want, fetches, refProof)
 		}
@@ -180,7 +180,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 
 		for s := int64(2); s <= int64(ts); s++ {
 			for l := int64(0); l < s; l++ {
-				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, int64(ts), 64)
+				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, int64(ts))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -222,7 +222,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 
 	for s := int64(2); s <= 32; s++ {
 		for l := int64(0); l < s; l++ {
-			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, 32, 64)
+			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, 32)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -260,7 +260,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 
 		for s1 := int64(2); s1 < int64(ts); s1++ {
 			for s2 := int64(s1 + 1); s2 < int64(ts); s2++ {
-				fetches, err := merkle.CalcConsistencyProofNodeAddresses(s1, s2, int64(ts), 64)
+				fetches, err := merkle.CalcConsistencyProofNodeAddresses(s1, s2, int64(ts))
 				if err != nil {
 					t.Fatal(err)
 				}
