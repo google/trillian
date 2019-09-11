@@ -92,6 +92,13 @@ jobs:
         ./install.sh --user
         rm -f install.sh
       script: bazel --batch build //:*
+    - name: "docker"
+      script: 
+      - |
+        # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
+        # support is enabled. This requires running softhsm in a Docker container.
+        # See https://github.com/rolandshoemaker/docker-hsm for an example.
+        ./integration/docker_compose_integration_test.sh
 
 
 
@@ -165,13 +172,6 @@ script:
       ./trillian/integration/integration_test.sh
       popd
     fi
-  - |
-      # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
-      # support is enabled. This requires running softhsm in a Docker container.
-      # See https://github.com/rolandshoemaker/docker-hsm for an example.
-      if [[ "${DOCKER_TESTS}" == "true" ]]; then
-        ./integration/docker_compose_integration_test.sh
-      fi
   - set +e
 
 after_success:
