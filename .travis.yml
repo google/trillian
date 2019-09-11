@@ -98,7 +98,7 @@ jobs:
         # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
         # support is enabled. This requires running softhsm in a Docker container.
         # See https://github.com/rolandshoemaker/docker-hsm for an example.
-        ./integration/docker_compose_integration_test.sh
+      - ./integration/docker_compose_integration_test.sh
     - name: "CT Integration"
       script:
        - TRILLIAN_DIR=$(pwd)
