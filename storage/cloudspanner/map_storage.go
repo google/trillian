@@ -75,10 +75,10 @@ func (ms *mapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return checkDatabaseAccessible(ctx, ms.ts.client)
 }
 
-func newMapCache(tree *trillian.Tree) (cache.SubtreeCache, error) {
+func newMapCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
-		return cache.SubtreeCache{}, err
+		return nil, err
 	}
 	return cache.NewMapSubtreeCache(defMapStrata, tree.TreeId, hasher), nil
 }

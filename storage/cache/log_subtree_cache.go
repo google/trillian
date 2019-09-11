@@ -25,7 +25,7 @@ import (
 
 // NewLogSubtreeCache creates and returns a SubtreeCache appropriate for use with a log
 // tree. The caller must supply the strata depths to be used and a suitable LogHasher.
-func NewLogSubtreeCache(logStrata []int, hasher hashers.LogHasher) SubtreeCache {
+func NewLogSubtreeCache(logStrata []int, hasher hashers.LogHasher) *SubtreeCache {
 	return NewSubtreeCache(logStrata, populateLogSubtreeNodes(hasher), prepareLogSubtreeWrite())
 }
 

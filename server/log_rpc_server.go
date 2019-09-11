@@ -35,11 +35,7 @@ import (
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
 
-// Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
-const (
-	proofMaxBitLen = 64
-	traceSpanRoot  = "/trillian"
-)
+const traceSpanRoot = "/trillian"
 
 var (
 	optsLogInit            = trees.NewGetOpts(trees.Admin, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
@@ -438,7 +434,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 }
 
 func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize, rootTreeSize int64, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher) (*trillian.Proof, error) {
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize, rootTreeSize, proofMaxBitLen)
+	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize, rootTreeSize)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +703,7 @@ func (t *TrillianLogRPCServer) closeAndLog(ctx context.Context, logID int64, tx 
 // an RPC response
 func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher, snapshot, leafIndex, treeSize int64) (*trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
-	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(snapshot, leafIndex, treeSize, proofMaxBitLen)
+	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(snapshot, leafIndex, treeSize)
 	if err != nil {
 		return nil, err
 	}

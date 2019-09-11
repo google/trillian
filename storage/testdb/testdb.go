@@ -29,6 +29,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/testonly"
+	"golang.org/x/sys/unix"
 
 	_ "github.com/go-sql-driver/mysql" // mysql driver
 )
@@ -53,6 +54,20 @@ func MySQLAvailable() bool {
 	return true
 }
 
+// SetFDULimit sets the soft limit on the maximum number of open file descriptors.
+// See http://man7.org/linux/man-pages/man2/setrlimit.2.html
+func SetFDLimit(uLimit uint64) error {
+	var rLimit unix.Rlimit
+	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit); err != nil {
+		return err
+	}
+	if uLimit > rLimit.Max {
+		return fmt.Errorf("Could not set FD limit to %v. Must be less than the hard limit %v", uLimit, rLimit.Max)
+	}
+	rLimit.Cur = uLimit
+	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)
+}
+
 // newEmptyDB creates a new, empty database.
 // It returns the database handle and a clean-up function, or an error.
 // The returned clean-up function should be called once the caller is finished
@@ -60,6 +75,9 @@ func MySQLAvailable() bool {
 // calling this function as it may, for example, delete the underlying
 // instance.
 func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
+	if err := SetFDLimit(2048); err != nil {
+		return nil, nil, err
+	}
 	db, err := sql.Open("mysql", *dataSourceURI)
 	if err != nil {
 		return nil, nil, err
