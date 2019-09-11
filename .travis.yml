@@ -33,7 +33,6 @@ env:
   - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'  PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true        PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
-  - DOCKER_TESTS=true                                      PRESUBMIT_OPTS="--no-linters --no-generate"
 
 matrix:
   fast_finish: true
