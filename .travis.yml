@@ -56,6 +56,7 @@ jobs:
           unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
         )
       - export PATH="$(pwd)/../protoc/bin:$PATH"
+      - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
       - go install github.com/golang/protobuf/proto
       - go install github.com/golang/mock/mockgen
       - go install golang.org/x/tools/cmd/stringer
@@ -127,8 +128,6 @@ install:
     if [[ "${GOFLAGS}" == *-race* ]]; then
       export GOCACHE="$(go env GOCACHE)-race"
     fi
-  # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
-  - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - |
     export TOOLS=""
     if [[ "${PRESUBMIT_OPTS}" != *no-build* ]]; then
