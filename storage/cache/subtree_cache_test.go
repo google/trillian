@@ -121,13 +121,21 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 
 	nodeIDs := []storage.NodeID{
 		*storage.NewNodeIDFromHash([]byte("1234")),
+		*storage.NewNodeIDFromHash([]byte("1235")),
 		*storage.NewNodeIDFromHash([]byte("4567")),
 		*storage.NewNodeIDFromHash([]byte("89ab")),
+		*storage.NewNodeIDFromHash([]byte("89ac")),
+		*storage.NewNodeIDFromHash([]byte("89ad")),
 	}
+	// Test that node IDs from one subtree are collapsed into one stratum read.
+	skips := map[int]bool{1: true, 4: true, 5: true}
 
-	// Set up the expected reads:
-	// We expect one subtree read per entry in nodeIDs
-	for _, nodeID := range nodeIDs {
+	// Set up the expected reads. We expect one subtree read per entry in
+	// nodeIDs, except for the ones in the skips map.
+	for i, nodeID := range nodeIDs {
+		if skips[i] {
+			continue
+		}
 		nodeID := nodeID
 		// And it'll be for the prefix of the full node ID (with the default log
 		// strata that'll be everything except the last byte), so modify the prefix
