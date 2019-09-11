@@ -48,7 +48,21 @@ jobs:
       script: go build ./...
     - name: "generate"
       before_install: true
-      install: true
+      install:
+      - mkdir ../protoc
+      - |
+        (
+          cd ../protoc
+          wget "https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
+          unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
+        )
+      - export PATH="$(pwd)/../protoc/bin:$PATH"
+      - go install github.com/golang/protobuf/proto
+      - go install github.com/golang/mock/mockgen
+      - go install golang.org/x/tools/cmd/stringer
+      - go install github.com/golang/protobuf/protoc-gen-go
+      - go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+      - go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
       before_script: true
       script: 
       - go generate ./...
@@ -95,26 +109,10 @@ install:
     if [[ "${GOFLAGS}" == *-race* ]]; then
       export GOCACHE="$(go env GOCACHE)-race"
     fi
-  - mkdir ../protoc
-  - |
-    (
-      cd ../protoc
-      wget "https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
-      unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
-    )
-  - export PATH="$(pwd)/../protoc/bin:$PATH"
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - |
     export TOOLS=""
-    if [[ "${PRESUBMIT_OPTS}" != *no-generate* ]]; then
-      TOOLS+=" github.com/golang/mock/mockgen"
-      TOOLS+=" github.com/golang/protobuf/proto"
-      TOOLS+=" github.com/golang/protobuf/protoc-gen-go"
-      TOOLS+=" github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
-      TOOLS+=" github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
-      TOOLS+=" golang.org/x/tools/cmd/stringer"
-    fi
     if [[ "${PRESUBMIT_OPTS}" != *no-build* ]]; then
       TOOLS+=" go.etcd.io/etcd"
       TOOLS+=" go.etcd.io/etcd/etcdctl"
