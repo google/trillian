@@ -109,9 +109,6 @@ jobs:
        - ./trillian/integration/integration_test.sh
        - popd
 
-
-
-
 services:
   - docker
   - postgresql
