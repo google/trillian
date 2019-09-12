@@ -40,26 +40,10 @@ type GetSubtreesFunc func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, erro
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) error
 
-// stratumInfo represents a single stratum across the tree.
-// It it used inside the SubtreeCache to determine which Subtree prefix should
-// be used for a given NodeID.
-// Currently, the strata must have depths which are multiples of 8.
-type stratumInfo struct {
-	// prefixBytes is the number of prefix bytes above this stratum.
-	prefixBytes int
-	// depth is the number of levels in this stratum.
-	depth int
-}
-
-const (
-	// maxSupportedTreeDepth is the maximum depth a tree can reach. Note that log trees are
-	// further limited to a depth of 63 by the use of signed 64 bit leaf indices. Map trees
-	// do not have this restriction.
-	maxSupportedTreeDepth = 256
-	// depthQuantum defines the smallest supported subtree depth and all subtrees must be
-	// a multiple of this value in depth.
-	depthQuantum = 8
-)
+// maxSupportedTreeDepth is the maximum depth a tree can reach. Note that log
+// trees are further limited to a depth of 63 by the use of signed 64 bit leaf
+// indices. Map trees do not have this restriction.
+const maxSupportedTreeDepth = 256
 
 // SubtreeCache provides a caching access to Subtree storage. Currently there are assumptions
 // in the code that all subtrees are multiple of 8 in depth and that log subtrees are always
@@ -70,9 +54,7 @@ const (
 //  1. Parallel readers/writers working on non-intersecting subsets of subtrees/nodes.
 //  2. Subtrees/nodes are rarely written, and mostly read.
 type SubtreeCache struct {
-	// prefixLengths contains the strata prefix sizes for each multiple-of-depthQuantum tree
-	// size.
-	stratumInfo []stratumInfo
+	layout *TreeLayout
 
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
@@ -93,33 +75,15 @@ type SubtreeCache struct {
 // populateSubtree is a function which knows how to populate a subtree's
 // internal nodes given its leaves, and will be called for each subtree loaded
 // from storage.
-// TODO(al): consider supporting different sized subtrees - for now everything's subtrees of 8 levels.
 func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) *SubtreeCache {
 	// TODO(al): pass this in
 	maxTreeDepth := maxSupportedTreeDepth
 	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
-	// Precalculate strata information based on the passed in strata depths:
-	sInfo := make([]stratumInfo, 0, maxTreeDepth/depthQuantum)
-	t := 0
-	for _, sDepth := range strataDepths {
-		// Verify the stratum depth makes sense:
-		if sDepth <= 0 {
-			panic(fmt.Errorf("got invalid strata depth of %d: can't be <= 0", sDepth))
-		}
-		if sDepth%depthQuantum != 0 {
-			panic(fmt.Errorf("got strata depth of %d, must be a multiple of %d", sDepth, depthQuantum))
-		}
+	layout := NewTreeLayout(strataDepths)
 
-		pb := t / depthQuantum
-		for i := 0; i < sDepth; i += depthQuantum {
-			glog.V(2).Infof("  add stratumInfo={prefixBytes=%d, depth=%d}", pb, sDepth)
-			sInfo = append(sInfo, stratumInfo{pb, sDepth})
-			t += depthQuantum
-		}
-	}
 	// TODO(al): This needs to be passed in, particularly for Map use cases where
 	// we need to know it matches the number of bits in the chosen hash function.
-	if got, want := t, maxTreeDepth; got != want {
+	if got, want := layout.height, maxTreeDepth; got != want {
 		panic(fmt.Errorf("strata indicate tree of depth %d, but expected %d", got, want))
 	}
 
@@ -128,19 +92,11 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 	}
 
 	return &SubtreeCache{
-		stratumInfo:         sInfo,
+		layout:              layout,
 		populate:            populateSubtree,
 		populateConcurrency: *populateConcurrency,
 		prepare:             prepareSubtreeWrite,
 	}
-}
-
-func (s *SubtreeCache) stratumInfoForNodeID(id storage.NodeID) stratumInfo {
-	return s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
-}
-
-func (s *SubtreeCache) stratumInfoForPrefixLength(l int) stratumInfo {
-	return s.stratumInfo[l/depthQuantum]
 }
 
 // preload calculates the set of subtrees required to know the hashes of the
@@ -150,16 +106,14 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	// Figure out the set of subtrees we need.
 	want := make(map[string]storage.NodeID)
 	for _, id := range ids {
-		sInfo := s.stratumInfoForNodeID(id)
-		pxKey := id.PrefixAsKey(sInfo.prefixBytes)
+		pxID := s.layout.GetSubtreeRoot(id)
+		pxKey := string(pxID.Path)
 		if _, ok := want[pxKey]; ok {
 			// No need to check s.subtrees map twice.
 			continue
 		}
 		if _, ok := s.subtrees.Load(pxKey); !ok {
-			// TODO(al): Fix for non-uniform strata.
-			id.PrefixLenBits = sInfo.prefixBytes * depthQuantum
-			want[pxKey] = id
+			want[pxKey] = pxID
 		}
 	}
 	// Note: At this point multiple parallel preload invocations can happen to
@@ -220,9 +174,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	// may be be running this code and touch the same keys, although this doesn't happen
 	// normally.
 	for _, id := range want {
-		prefixLen := id.PrefixLenBits / depthQuantum
-		px := id.Path[:prefixLen]
-		if err := s.cacheSubtree(s.newEmptySubtree(id, px)); err != nil {
+		if err := s.cacheSubtree(s.newEmptySubtree(id)); err != nil {
 			return err
 		}
 	}
@@ -313,29 +265,26 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
 	}
 
-	sInfo := s.stratumInfoForNodeID(id)
-	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
+	prefixID, sx := s.layout.Split(id)
+	prefixKey := string(prefixID.Path)
 	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
 		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
-		px := id.Prefix(sInfo.prefixBytes)
 		// Cache miss, so we'll try to fetch from storage.
-		subID := id
-		subID.PrefixLenBits = sInfo.prefixBytes * depthQuantum // this won't work if depthQuantum changes
 		var err error
-		c, err = getSubtree(subID)
+		c, err = getSubtree(prefixID)
 		if err != nil {
 			return nil, err
 		}
 		if c == nil {
-			c = s.newEmptySubtree(subID, px)
+			c = s.newEmptySubtree(prefixID)
 		} else {
 			if err := s.populate(c); err != nil {
 				return nil, err
 			}
 		}
 		if c.Prefix == nil {
-			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %#v", c, id.String(), px))
+			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %x", c, id.String(), prefixKey))
 		}
 
 		s.subtrees.Store(prefixKey, c)
@@ -351,7 +300,6 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
-	sx := id.Suffix(sInfo.prefixBytes, sInfo.depth)
 	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
 		nh = c.Leaves[sfxKey]
@@ -378,8 +326,8 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
 	}
 
-	sInfo := s.stratumInfoForNodeID(id)
-	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
+	prefixID, sx := s.layout.Split(id)
+	prefixKey := string(prefixID.Path)
 	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
@@ -400,7 +348,6 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	}
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
-	sx := id.Suffix(sInfo.prefixBytes, sInfo.depth)
 	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
 		// If the value being set is identical to the one we read from storage, then
@@ -479,17 +426,17 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 	return err
 }
 
-func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
-	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
+func (s *SubtreeCache) newEmptySubtree(id storage.NodeID) *storagepb.SubtreeProto {
+	height := s.layout.GetSubtreeHeight(id)
 	if glog.V(2) {
-		glog.Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
+		glog.Infof("Creating new empty subtree for %x, with height %d", id.Path, height)
 	}
 	// storage didn't have one for us, so we'll store an empty proto here
 	// incase we try to update it later on (we won't flush it back to
 	// storage unless it's been written to.)
 	return &storagepb.SubtreeProto{
-		Prefix:        px,
-		Depth:         int32(sInfo.depth),
+		Prefix:        id.Path,
+		Depth:         int32(height),
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
 	}
