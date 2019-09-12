@@ -70,18 +70,14 @@ func (*MapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.Ma
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			tx, err := s.SnapshotForTree(ctx, test.tree)
-			if err != nil {
-				t.Fatalf("SnapshotForTree()=_,%v; want _, nil", err)
-			}
-			defer tx.Close()
-
-			_, err = tx.LatestSignedMapRoot(ctx)
 			if gotErr := err != nil; gotErr != test.wantErr {
-				t.Errorf("LatestSignedMapRoot()=_,%v; want _, err? %v", err, test.wantErr)
+				t.Fatalf("SnapshotForTree(%v): %v; want err: %v", test.tree.TreeId, err, test.wantErr)
 			}
 			if err != nil {
 				return
 			}
+			defer tx.Close()
+
 			if err := tx.Commit(ctx); err != nil {
 				t.Errorf("Commit()=_,%v; want _,nil", err)
 			}

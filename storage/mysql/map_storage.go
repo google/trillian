@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -61,6 +62,12 @@ func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool) (storage.MapTreeTX, error) {
+	if tree.UpdateTime == nil {
+		return nil, fmt.Errorf("tree.UpdateTime: %v. tree must be pulled from storage", tree.UpdateTime)
+	}
+	if got, want := tree.TreeType, trillian.TreeType_MAP; got != want {
+		return nil, fmt.Errorf("begin(tree.TreeType: %v), want %v", got, want)
+	}
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
@@ -71,7 +78,6 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readon
 	if err != nil {
 		return nil, err
 	}
-
 	mtx := &mapTreeTX{
 		treeTX:       ttx,
 		ms:           m,
