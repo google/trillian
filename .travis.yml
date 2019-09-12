@@ -2,7 +2,7 @@ sudo: true  # Only to move mysql onto ramdisk.
 os: linux
 dist: xenial
 language: go
-go: "1.11.x"
+go: "1.13.x"
 go_import_path: github.com/google/trillian
 
 addons:
