@@ -62,6 +62,8 @@ func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool) (storage.MapTreeTX, error) {
+	// TODO: Find a stronger way to ensure that tree has been pulled from storage.
+	// This is a cheap safety-belt check to help us use this API consistently.
 	if tree.UpdateTime == nil {
 		return nil, fmt.Errorf("tree.UpdateTime: %v. tree must be pulled from storage", tree.UpdateTime)
 	}
