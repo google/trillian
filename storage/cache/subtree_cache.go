@@ -242,7 +242,7 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 	}
 
 	// Get node hashes from the subtrees.
-	ret := make([]storage.Node, len(ids))
+	ret := make([]storage.Node, 0, len(ids))
 	for i, id := range ids {
 		sInfo := s.stratumInfoForNodeID(id)
 		suf := id.Suffix(sInfo.prefixBytes, sInfo.depth)

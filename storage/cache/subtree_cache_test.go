@@ -147,7 +147,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	}
 
 	// Now request the nodes:
-	_, err := c.GetNodes(
+	nodes, err := c.GetNodes(
 		nodeIDs,
 		// Glue function to convert a call requesting multiple subtrees into a
 		// sequence of calls to our mock storage:
@@ -165,7 +165,10 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 			return ret, nil
 		})
 	if err != nil {
-		t.Errorf("getNodeHash(_, _) = _, %v", err)
+		t.Fatalf("getNodeHash(_, _) = _, %v", err)
+	}
+	if got, mx := len(nodes), len(nodeIDs); got > mx {
+		t.Errorf("getNodeHash returned %d nodes, want <= %d", got, mx)
 	}
 }
 
