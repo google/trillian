@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	reflect "reflect"
 	"testing"
 
 	"github.com/google/trillian/merkle/compact"
@@ -56,7 +57,7 @@ func TestSplitNodeID(t *testing.T) {
 		{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
 		{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
 		{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
+		{[]byte{0x12, 0x34, 0x56, 0x78}, 0, nil, 0, []byte{0}},
 		{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
 		{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
 		{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
@@ -69,8 +70,10 @@ func TestSplitNodeID(t *testing.T) {
 
 		sInfo := c.stratumInfoForNodeID(n)
 		p, s := n.Split(sInfo.prefixBytes, sInfo.depth)
-		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
-			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
+		wantP := storage.NewNodeIDFromHash(tc.outPrefix)
+
+		if got, want := p, wantP; !reflect.DeepEqual(got, want) {
+			t.Errorf("splitNodeID(%v): prefix %v, want %v", n, got, want)
 			continue
 		}
 		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {

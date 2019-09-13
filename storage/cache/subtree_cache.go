@@ -155,15 +155,14 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	want := make(map[string]storage.NodeID)
 	for _, id := range ids {
 		sInfo := s.stratumInfoForNodeID(id)
-		pxKey := id.PrefixAsKey(sInfo.prefixBytes)
+		pxID := id.Prefix(sInfo.prefixBytes)
+		pxKey := string(pxID.Path)
 		if _, ok := want[pxKey]; ok {
 			// No need to check s.subtrees map twice.
 			continue
 		}
 		if _, ok := s.subtrees.Load(pxKey); !ok {
-			// TODO(al): Fix for non-uniform strata.
-			id.PrefixLenBits = sInfo.prefixBytes * depthQuantum
-			want[pxKey] = id
+			want[pxKey] = pxID
 		}
 	}
 	// Note: At this point multiple parallel preload invocations can happen to
@@ -224,9 +223,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	// may be be running this code and touch the same keys, although this doesn't happen
 	// normally.
 	for _, id := range want {
-		prefixLen := id.PrefixLenBits / depthQuantum
-		px := id.Path[:prefixLen]
-		if err := s.cacheSubtree(s.newEmptySubtree(id, px)); err != nil {
+		if err := s.cacheSubtree(s.newEmptySubtree(id)); err != nil {
 			return err
 		}
 	}
@@ -318,28 +315,25 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 	}
 
 	sInfo := s.stratumInfoForNodeID(id)
-	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
+	prefixID, sx := id.Split(sInfo.prefixBytes, sInfo.depth)
+	prefixKey := string(prefixID.Path)
 	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
 		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
-		px := id.Prefix(sInfo.prefixBytes)
 		// Cache miss, so we'll try to fetch from storage.
-		subID := id
-		subID.PrefixLenBits = sInfo.prefixBytes * depthQuantum // this won't work if depthQuantum changes
 		var err error
-		c, err = getSubtree(subID)
-		if err != nil {
+		if c, err = getSubtree(prefixID); err != nil {
 			return nil, err
 		}
 		if c == nil {
-			c = s.newEmptySubtree(subID, px)
+			c = s.newEmptySubtree(prefixID)
 		} else {
 			if err := s.populate(c); err != nil {
 				return nil, err
 			}
 		}
 		if c.Prefix == nil {
-			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %#v", c, id.String(), px))
+			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %#v", c, id.String(), prefixKey))
 		}
 
 		s.subtrees.Store(prefixKey, c)
@@ -355,7 +349,6 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
-	sx := id.Suffix(sInfo.prefixBytes, sInfo.depth)
 	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
 		nh = c.Leaves[sfxKey]
@@ -383,7 +376,8 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	}
 
 	sInfo := s.stratumInfoForNodeID(id)
-	prefixKey := id.PrefixAsKey(sInfo.prefixBytes)
+	prefixID, sx := id.Split(sInfo.prefixBytes, sInfo.depth)
+	prefixKey := string(prefixID.Path)
 	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
@@ -404,7 +398,6 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	}
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
-	sx := id.Suffix(sInfo.prefixBytes, sInfo.depth)
 	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
 		// If the value being set is identical to the one we read from storage, then
@@ -483,16 +476,16 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 	return err
 }
 
-func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
+func (s *SubtreeCache) newEmptySubtree(id storage.NodeID) *storagepb.SubtreeProto {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
 	if glog.V(2) {
-		glog.Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
+		glog.Infof("Creating new empty subtree for %x, with depth %d", id.Path, sInfo.depth)
 	}
 	// storage didn't have one for us, so we'll store an empty proto here
 	// incase we try to update it later on (we won't flush it back to
 	// storage unless it's been written to.)
 	return &storagepb.SubtreeProto{
-		Prefix:        px,
+		Prefix:        id.Path,
 		Depth:         int32(sInfo.depth),
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
