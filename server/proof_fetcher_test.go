@@ -49,11 +49,11 @@ var h4 = th.HashLeaf([]byte("Hash 4"))
 var h5 = th.HashLeaf([]byte("Hash 5"))
 
 // And the dummy nodes themselves.
-var sn1 = storage.Node{NodeID: *storage.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
-var sn2 = storage.Node{NodeID: *storage.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
-var sn3 = storage.Node{NodeID: *storage.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
-var sn4 = storage.Node{NodeID: *storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
-var sn5 = storage.Node{NodeID: *storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
+var sn1 = storage.Node{NodeID: storage.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
+var sn2 = storage.Node{NodeID: storage.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
+var sn3 = storage.Node{NodeID: storage.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
+var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
+var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
 func TestRehasher(t *testing.T) {
 	hasher := rfc6962.DefaultHasher

@@ -123,7 +123,7 @@ func getRandomNonRootNode(t *testing.T, rev int64) storage.Node {
 	// Make sure it's not a root node.
 	nodeID.PrefixLenBits = int(1 + randomBytes(t, 1)[0]%254)
 	return storage.Node{
-		NodeID:       *nodeID,
+		NodeID:       nodeID,
 		Hash:         randomBytes(t, 32),
 		NodeRevision: rev,
 	}
@@ -403,7 +403,7 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 		// calculate the set of expected node reads.
 		for _, kv := range vec.kv {
 			keyHash := testonly.HashKey(kv.k)
-			nodeID := *storage.NewNodeIDFromHash(keyHash)
+			nodeID := storage.NewNodeIDFromHash(keyHash)
 			leafNodeIDs = append(leafNodeIDs, nodeID)
 			sibs := nodeID.Siblings()
 
