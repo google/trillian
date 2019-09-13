@@ -57,23 +57,6 @@ func TestMaskLeft(t *testing.T) {
 	}
 }
 
-func TestNewEmptyNodeIDPanic(t *testing.T) {
-	for b := 0; b < 64; b++ {
-		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
-			// Only multiples of 8 bits should be accepted.
-			want := b%8 != 0
-			// Unfortunately we have to test for panics.
-			defer func() {
-				got := recover()
-				if (got != nil && !want) || (got == nil && want) {
-					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
-				}
-			}()
-			_ = NewEmptyNodeID(b)
-		})
-	}
-}
-
 // TestNewNodeIDFromPrefixPanic tests the cases where this will panic. To
 // succeed these must all be true:
 // 1.) totalDepth must be a multiple of 8 and not negative.
@@ -616,7 +599,7 @@ func TestString(t *testing.T) {
 		wantKey string
 	}{
 		{
-			n:       *NewEmptyNodeID(32),
+			n:       NodeID{},
 			want:    "",
 			wantKey: "0:",
 		},
