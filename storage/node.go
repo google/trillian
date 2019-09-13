@@ -223,7 +223,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 	// This node is effectively a prefix of the subtree underneath (for non-leaf
 	// depths), so we shift the index accordingly.
 	uidx := uint64(index) << uint(depth)
-	r := &NodeID{Path: make([]byte, (maxPathBits+7)/8)}
+	r := NodeID{Path: make([]byte, maxPathBits/8)} // Note: maxPathBits % 8 == 0.
 	for i := len(r.Path) - 1; uidx > 0 && i >= 0; i-- {
 		r.Path[i] = byte(uidx & 0xff)
 		uidx >>= 8
@@ -231,7 +231,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 	// In the storage model nodes closer to the leaves have longer nodeIDs, so
 	// we "reverse" depth here:
 	r.PrefixLenBits = int(maxPathBits - int(depth))
-	return *r, nil
+	return r, nil
 }
 
 // Bit returns 1 if the zero indexed ith bit from the right (of the whole path
