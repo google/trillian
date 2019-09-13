@@ -460,9 +460,6 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, EmptySuffix
 	}
-	a := make([]byte, prefixBytes)
-	copy(a, n.Path[:prefixBytes])
-
 	return n.Prefix(prefixBytes), n.Suffix(prefixBytes, suffixBits)
 }
 
