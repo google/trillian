@@ -111,8 +111,8 @@ func bytesForBits(numBits int) int {
 }
 
 // NewNodeIDFromHash creates a new NodeID for the given Hash.
-func NewNodeIDFromHash(h []byte) *NodeID {
-	return &NodeID{
+func NewNodeIDFromHash(h []byte) NodeID {
+	return NodeID{
 		Path:          h,
 		PrefixLenBits: len(h) * 8,
 	}
@@ -237,7 +237,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 
 // Bit returns 1 if the zero indexed ith bit from the right (of the whole path
 // array, not just the significant portion) is true, and false otherwise.
-func (n *NodeID) Bit(i int) uint {
+func (n NodeID) Bit(i int) uint {
 	if got, want := i, n.PathLenBits()-1; got > want {
 		panic(fmt.Sprintf("storage: Bit(%v) > (PathLenBits() -1): %v", got, want))
 	}
@@ -249,7 +249,7 @@ func (n *NodeID) Bit(i int) uint {
 // The left-most bit is the MSB (i.e. nearer the root of the tree). The
 // length of the returned string will always be the same as the prefix length
 // of the node. For a string ID to use as a map key see AsKey().
-func (n *NodeID) String() string {
+func (n NodeID) String() string {
 	var r bytes.Buffer
 	limit := n.PathLenBits() - n.PrefixLenBits
 	for i := n.PathLenBits() - 1; i >= limit; i-- {
@@ -261,7 +261,7 @@ func (n *NodeID) String() string {
 // AsKey returns a string identifier for this NodeID suitable for
 // short term use e.g. as a Map key. It is more efficient to use this than
 // String() as it's not constrained to return a binary string.
-func (n *NodeID) AsKey() string {
+func (n NodeID) AsKey() string {
 	var b strings.Builder
 	fullBytes := n.PrefixLenBits / 8
 	bitsLeft := n.PrefixLenBits % 8
@@ -289,7 +289,7 @@ func (n *NodeID) AsKey() string {
 // CoordString returns a string representation assuming that the NodeID represents a
 // tree coordinate. Using this on a NodeID for a sparse Merkle tree will give incorrect
 // results. Intended for debugging purposes, the format could change.
-func (n *NodeID) CoordString() string {
+func (n NodeID) CoordString() string {
 	d := uint64(n.PathLenBits() - n.PrefixLenBits)
 	i := uint64(0)
 	for _, p := range n.Path {
@@ -300,10 +300,10 @@ func (n *NodeID) CoordString() string {
 }
 
 // Copy returns a duplicate of NodeID.
-func (n *NodeID) Copy() *NodeID {
+func (n NodeID) Copy() NodeID {
 	p := make([]byte, len(n.Path))
 	copy(p, n.Path)
-	return &NodeID{
+	return NodeID{
 		Path:          p,
 		PrefixLenBits: n.PrefixLenBits,
 	}
@@ -315,7 +315,7 @@ func (n *NodeID) Copy() *NodeID {
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
 // MaskLeft returns a new copy of NodeID with only the left n bits set.
-func (n *NodeID) MaskLeft(depth int) *NodeID {
+func (n NodeID) MaskLeft(depth int) NodeID {
 	r := make([]byte, len(n.Path))
 	if depth > 0 {
 		// Copy the first depthBytes.
@@ -328,7 +328,7 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 	if depth < n.PrefixLenBits {
 		b = depth
 	}
-	return &NodeID{
+	return NodeID{
 		PrefixLenBits: b,
 		Path:          r,
 	}
@@ -338,7 +338,7 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 // with the bit at PrefixLenBits in the copy flipped.
 // In terms of a tree traversal, this is the parent node's other child node
 // in the binary tree (often termed sibling node).
-func (n *NodeID) Neighbor(depth int) *NodeID {
+func (n NodeID) Neighbor(depth int) NodeID {
 	node := n.MaskLeft(depth)
 	height := node.PathLenBits() - node.PrefixLenBits
 	bIndex := (node.PathLenBits() - height - 1) / 8
@@ -353,11 +353,11 @@ func (n *NodeID) Neighbor(depth int) *NodeID {
 // earlier in the array.
 // These nodes are the ones that would be required for a Merkle tree inclusion
 // proof for this node.
-func (n *NodeID) Siblings() []NodeID {
+func (n NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
 		depth := n.PrefixLenBits - height
-		sibs[height] = *n.Neighbor(depth)
+		sibs[height] = n.Neighbor(depth)
 	}
 	return sibs
 }
@@ -377,7 +377,7 @@ func NewNodeIDFromPrefixSuffix(prefix []byte, suffix *Suffix, maxPathBits int) N
 // Suffix returns a Node's suffix starting at prefixBytes.
 // This is the same Suffix that Split() would return, just without the overhead
 // of also creating the prefix.
-func (n *NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
+func (n NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
 	if n.PrefixLenBits == 0 {
 		return EmptySuffix
 	}
@@ -401,7 +401,7 @@ func (n *NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
 // Prefix returns a copy of NodeID's prefix.
 // This is the same value that would be returned from Split, but without the
 // overhead of calculating the suffix too.
-func (n *NodeID) Prefix(prefixBytes int) []byte {
+func (n NodeID) Prefix(prefixBytes int) []byte {
 	if n.PrefixLenBits == 0 {
 		return []byte{}
 	}
@@ -414,7 +414,7 @@ func (n *NodeID) Prefix(prefixBytes int) []byte {
 // PrefixAsKey returns a NodeID's prefix in a format suitable for use as a map key.
 // This is the same value that would be returned from Split, but without the
 // overhead of calculating the suffix too.
-func (n *NodeID) PrefixAsKey(prefixBytes int) string {
+func (n NodeID) PrefixAsKey(prefixBytes int) string {
 	if n.PrefixLenBits == 0 {
 		return ""
 	}
@@ -423,7 +423,7 @@ func (n *NodeID) PrefixAsKey(prefixBytes int) string {
 
 // Split splits a NodeID into a prefix and a suffix at prefixBytes.
 // The returned prefix is a copy of the underlying bytes.
-func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
+func (n NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 	if n.PrefixLenBits == 0 {
 		return []byte{}, EmptySuffix
 	}
@@ -431,7 +431,7 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
 }
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.
-func (n *NodeID) Equivalent(other NodeID) bool {
+func (n NodeID) Equivalent(other NodeID) bool {
 	// If they're different lengths they cannot represent the same path prefix.
 	if n.PrefixLenBits != other.PrefixLenBits {
 		return false
