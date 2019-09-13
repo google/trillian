@@ -510,8 +510,8 @@ func TestNodeEquivalentFromHash(t *testing.T) {
 		h1 := mustDecode(tc.str1)
 		h2 := mustDecode(tc.str2)
 
-		n1 := *NewNodeIDFromHash(h1)
-		n2 := *NewNodeIDFromHash(h2)
+		n1 := NewNodeIDFromHash(h1)
+		n2 := NewNodeIDFromHash(h2)
 
 		if n1.Equivalent(n2) != tc.want || n2.Equivalent(n1) != tc.want {
 			t.Errorf("TestNodeIDFromHash mismatch: %v", tc)
@@ -535,7 +535,7 @@ func TestNeighbour(t *testing.T) {
 		{index: h2b("0000000000010000"), want: h2b("0000000000010001")},
 		{index: h2b("8000000000000000"), want: h2b("8000000000000001")},
 	} {
-		nID := *NewNodeIDFromHash(tc.index)
+		nID := NewNodeIDFromHash(tc.index)
 		if got, want := nID.Neighbor(nID.PrefixLenBits).Path, tc.want; !bytes.Equal(got, want) {
 			t.Errorf("flipBit(%x): %x, want %x", tc.index, got, want)
 		}
@@ -634,7 +634,7 @@ func TestString(t *testing.T) {
 			wantKey: "16:1234",
 		},
 		{
-			n:       *NewNodeIDFromHash([]byte("this is a hash")),
+			n:       NewNodeIDFromHash([]byte("this is a hash")),
 			want:    "0111010001101000011010010111001100100000011010010111001100100000011000010010000001101000011000010111001101101000",
 			wantKey: "112:7468697320697320612068617368",
 		},
