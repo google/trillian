@@ -37,8 +37,9 @@ type Node struct {
 	NodeRevision int64
 }
 
-// NodeID is an immutable identifier of a Merkle tree Node. A default
-// constructed NodeID is an empty ID representing the root of a (sub-)tree.
+// NodeID is an identifier of a Merkle tree Node. A default constructed NodeID
+// is an empty ID representing the root of a (sub-)tree. The type is designed
+// to be immutable, so the public fields should not be modified.
 //
 // Reading paths right to left is the natural order when traversing from
 // leaves towards the root. However, for internal nodes the rightmost bits
