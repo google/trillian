@@ -409,16 +409,6 @@ func (n NodeID) Prefix(bytes int) NodeID {
 	return NodeID{Path: n.Path[:bytes], PrefixLenBits: bytes * 8}
 }
 
-// PrefixAsKey returns a NodeID's prefix in a format suitable for use as a map key.
-// This is the same value that would be returned from Split, but without the
-// overhead of calculating the suffix too.
-func (n NodeID) PrefixAsKey(prefixBytes int) string {
-	if n.PrefixLenBits == 0 {
-		return ""
-	}
-	return string(n.Path[:prefixBytes])
-}
-
 // Split splits a NodeID into a prefix of the specified byte length, and and a
 // suffix of the specified bit length. Equivalent to calling Prefix and Suffix.
 func (n NodeID) Split(prefixBytes, suffixBits int) (NodeID, *Suffix) {
