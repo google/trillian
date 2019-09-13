@@ -398,17 +398,15 @@ func (n NodeID) Suffix(prefixBytes, suffixBits int) *Suffix {
 	return NewSuffix(byte(b), sfxPath)
 }
 
-// Prefix returns a copy of NodeID's prefix.
-// This is the same value that would be returned from Split, but without the
-// overhead of calculating the suffix too.
-func (n NodeID) Prefix(prefixBytes int) []byte {
+// Prefix returns a NodeID's prefix of the specified byte length, as another
+// NodeID. Panics if the byte length is out of bound for this ID.
+func (n NodeID) Prefix(bytes int) NodeID {
+	// TODO(pavelkalinnikov): This check doesn't eliminate panics, so we should
+	// either delete it, or cover all other panics.
 	if n.PrefixLenBits == 0 {
-		return []byte{}
+		return NodeID{}
 	}
-	a := make([]byte, prefixBytes)
-	copy(a, n.Path[:prefixBytes])
-
-	return a
+	return NodeID{Path: n.Path[:bytes], PrefixLenBits: bytes * 8}
 }
 
 // PrefixAsKey returns a NodeID's prefix in a format suitable for use as a map key.
@@ -421,11 +419,11 @@ func (n NodeID) PrefixAsKey(prefixBytes int) string {
 	return string(n.Path[:prefixBytes])
 }
 
-// Split splits a NodeID into a prefix and a suffix at prefixBytes.
-// The returned prefix is a copy of the underlying bytes.
-func (n NodeID) Split(prefixBytes, suffixBits int) ([]byte, *Suffix) {
+// Split splits a NodeID into a prefix of the specified byte length, and and a
+// suffix of the specified bit length. Equivalent to calling Prefix and Suffix.
+func (n NodeID) Split(prefixBytes, suffixBits int) (NodeID, *Suffix) {
 	if n.PrefixLenBits == 0 {
-		return []byte{}, EmptySuffix
+		return NodeID{}, EmptySuffix
 	}
 	return n.Prefix(prefixBytes), n.Suffix(prefixBytes, suffixBits)
 }

@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	reflect "reflect"
 	"testing"
 
 	"github.com/google/trillian/testonly"
@@ -192,7 +193,7 @@ var goldenSplitData = []struct {
 	{h2b("12345678"), 9, 1, 8, h2b("12"), 1, h2b("00"), 2},
 	{h2b("12345678"), 8, 0, 8, h2b(""), 8, h2b("12"), 3},
 	{h2b("12345678"), 7, 0, 8, h2b(""), 7, h2b("12"), 3},
-	{h2b("12345678"), 0, 0, 8, h2b(""), 0, h2b("00"), 3},
+	{h2b("12345678"), 0, 0, 8, nil, 0, h2b("00"), 3},
 	{h2b("70"), 2, 0, 8, h2b(""), 2, h2b("40"), 0},
 	{h2b("70"), 3, 0, 8, h2b(""), 3, h2b("60"), 0},
 	{h2b("70"), 4, 0, 8, h2b(""), 4, h2b("70"), 0},
@@ -209,15 +210,17 @@ var goldenSplitData = []struct {
 
 func TestPrefix(t *testing.T) {
 	for _, tc := range goldenSplitData {
+		// TODO(pavelkalinnikov): There should be a constructor for this.
 		n := NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
-		p := n.Prefix(tc.splitBytes)
-		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
-			t.Errorf("%d, %x.Prefix(%v): prefix %x, want %x",
-				tc.inPathLenBits, tc.inPath, tc.splitBytes, got, want)
-			continue
-		}
+		t.Run(fmt.Sprintf("%v:%d", n, tc.splitBytes), func(t *testing.T) {
+			got := n.Prefix(tc.splitBytes)
+			want := NewNodeIDFromHash(tc.outPrefix)
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("prefix is %v, want %v", got, want)
+			}
+		})
 	}
 }
 
@@ -240,34 +243,28 @@ func TestSplit(t *testing.T) {
 		n := NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
-		p, s := n.Split(tc.splitBytes, tc.suffixBits)
-		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
-			t.Errorf("%d, %x.Split(%v, %v): prefix %x, want %x",
-				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
-			continue
-		}
-		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
-			t.Errorf("%d, %x.Split(%v, %v): suffix.Bits %v, want %d",
-				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
-			continue
-		}
-		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
-			t.Errorf("%d, %x.Split(%v, %v).Path: %x, want %x",
-				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
-			continue
-		}
+		t.Run(fmt.Sprintf("%v:%d:%d", n, tc.splitBytes, tc.suffixBits), func(t *testing.T) {
+			p, s := n.Split(tc.splitBytes, tc.suffixBits)
+			wantP := NewNodeIDFromHash(tc.outPrefix)
+			if !reflect.DeepEqual(p, wantP) {
+				t.Errorf("prefix is %v, want %v", p, wantP)
+			}
+			if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
+				t.Errorf("suffix bits is %d, want %d", got, want)
+			}
+			if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
+				t.Errorf("suffix path is %x, want %x", got, want)
+			}
 
-		newNode := NewNodeIDFromPrefixSuffix(p, s, len(tc.inPath)*8)
-		want := []byte{}
-		want = append(want, tc.outPrefix...)
-		want = append(want, tc.outSuffix...)
-		want = append(want, make([]byte, tc.unusedBytes)...)
-		if got, want := newNode.Path, want; !bytes.Equal(got, want) {
-			t.Errorf("NewNodeIDFromPrefix(%x, %v).Path: %x, want %x", p, s, got, want)
-		}
-		if got, want := newNode.PrefixLenBits, n.PrefixLenBits; got != want {
-			t.Errorf("NewNodeIDFromPrefix(%x, %v).PrefixLenBits: %x, want %x", p, s, got, want)
-		}
+			newID := NewNodeIDFromPrefixSuffix(p.Path, s, len(tc.inPath)*8)
+			want := append([]byte{}, tc.outPrefix...)
+			want = append(want, tc.outSuffix...)
+			want = append(want, make([]byte, tc.unusedBytes)...)
+			wantID := NodeID{Path: want, PrefixLenBits: n.PrefixLenBits}
+			if !reflect.DeepEqual(newID, wantID) {
+				t.Errorf("NewNodeIDFromPrefix returned %v, want %v", newID, wantID)
+			}
+		})
 	}
 }
 
