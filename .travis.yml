@@ -93,7 +93,7 @@ install:
       TOOLS+=" github.com/uber/prototool/cmd/prototool"
     fi
     echo Installing ${TOOLS}...
-    GOPROXY=direct go install ${TOOLS}
+    go install ${TOOLS}
   # install bazel
   - |
     (
