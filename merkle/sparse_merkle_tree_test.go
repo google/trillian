@@ -113,7 +113,6 @@ func randomBytes(t *testing.T, n int) []byte {
 
 func getRandomRootNode(t *testing.T, rev int64) storage.Node {
 	return storage.Node{
-		NodeID:       *storage.NewEmptyNodeID(0),
 		Hash:         randomBytes(t, 32),
 		NodeRevision: rev,
 	}

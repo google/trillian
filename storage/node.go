@@ -37,7 +37,9 @@ type Node struct {
 	NodeRevision int64
 }
 
-// NodeID uniquely identifies a Node within a MerkleTree.
+// NodeID is an immutable identifier of a Merkle tree Node. A default
+// constructed NodeID is an empty ID representing the root of a (sub-)tree.
+//
 // Reading paths right to left is the natural order when traversing from
 // leaves towards the root. However, for internal nodes the rightmost bits
 // of the IDs are not aligned on a byte boundary so care must be taken.
@@ -112,18 +114,6 @@ func NewNodeIDFromHash(h []byte) *NodeID {
 	return &NodeID{
 		Path:          h,
 		PrefixLenBits: len(h) * 8,
-	}
-}
-
-// NewEmptyNodeID creates a new zero-length NodeID with sufficient underlying
-// capacity to store a maximum of maxLenBits.
-func NewEmptyNodeID(maxLenBits int) *NodeID {
-	if got, want := maxLenBits%8, 0; got != want {
-		panic(fmt.Sprintf("storage: NewEmptyNodeID() maxLenBits mod 8: %v, want %v", got, want))
-	}
-	return &NodeID{
-		Path:          make([]byte, maxLenBits/8),
-		PrefixLenBits: 0,
 	}
 }
 
@@ -233,7 +223,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 	// This node is effectively a prefix of the subtree underneath (for non-leaf
 	// depths), so we shift the index accordingly.
 	uidx := uint64(index) << uint(depth)
-	r := NewEmptyNodeID(maxPathBits)
+	r := &NodeID{Path: make([]byte, (maxPathBits+7)/8)}
 	for i := len(r.Path) - 1; uidx > 0 && i >= 0; i-- {
 		r.Path[i] = byte(uidx & 0xff)
 		uidx >>= 8
