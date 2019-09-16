@@ -379,34 +379,6 @@ func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers
 	}, nil
 }
 
-// RootAtRevision returns the sparse Merkle tree root hash at the specified
-// revision, or ErrNoSuchRevision if the requested revision doesn't exist.
-func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) ([]byte, error) {
-	ctx, spanEnd := spanFor(ctx, "RootAtRevision")
-	defer spanEnd()
-
-	rootNodeID := storage.NodeID{}
-	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []storage.NodeID{rootNodeID})
-	if err != nil {
-		return nil, err
-	}
-	switch {
-	case len(nodes) == 0:
-		return nil, ErrNoSuchRevision
-	case len(nodes) > 1:
-		return nil, fmt.Errorf("expected 1 node, but got %d", len(nodes))
-	}
-	// Sanity check the nodeID
-	if !nodes[0].NodeID.Equivalent(rootNodeID) {
-		return nil, fmt.Errorf("unexpected node returned with ID: %v", nodes[0].NodeID)
-	}
-	// Sanity check the revision
-	if nodes[0].NodeRevision > rev {
-		return nil, fmt.Errorf("unexpected node revision returned: %d > %d", nodes[0].NodeRevision, rev)
-	}
-	return nodes[0].Hash, nil
-}
-
 // InclusionProof returns an inclusion (or non-inclusion) proof for the
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
