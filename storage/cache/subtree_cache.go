@@ -59,10 +59,6 @@ const (
 	// depthQuantum defines the smallest supported subtree depth and all subtrees must be
 	// a multiple of this value in depth.
 	depthQuantum = 8
-	// logStrataDepth is the strata that must be used for all log subtrees.
-	logStrataDepth = 8
-	// maxLogDepth is the number of bits in a log path.
-	maxLogDepth = 64
 )
 
 // SubtreeCache provides a caching access to Subtree storage. Currently there are assumptions
