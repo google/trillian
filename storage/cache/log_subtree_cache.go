@@ -23,6 +23,13 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
+const (
+	// logStrataDepth is the strata that must be used for all log subtrees.
+	logStrataDepth = 8
+	// maxLogDepth is the number of bits in a log path.
+	maxLogDepth = 64
+)
+
 // NewLogSubtreeCache creates and returns a SubtreeCache appropriate for use with a log
 // tree. The caller must supply the strata depths to be used and a suitable LogHasher.
 func NewLogSubtreeCache(logStrata []int, hasher hashers.LogHasher) *SubtreeCache {
