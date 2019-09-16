@@ -437,7 +437,7 @@ func (t *treeTX) IsOpen() bool {
 func subtreeKey(id storage.NodeID) ([]byte, error) {
 	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
 	if id.PrefixLenBits%8 != 0 {
-		return nil, fmt.Errorf("id.PrefixLenBits (%d) is not a multiple of 8; it cannot be a subtree prefix", id.PrefixLenBits)
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
 	}
 	// The returned slice must not be nil, as it would correspond to NULL in SQL.
 	if bytes := id.Path; bytes != nil {
