@@ -333,7 +333,7 @@ func (t *treeTX) WriteRevision(ctx context.Context) (int64, error) {
 func subtreeKey(id storage.NodeID) ([]byte, error) {
 	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
 	if id.PrefixLenBits%8 != 0 {
-		return nil, fmt.Errorf("invalid subtree ID: not multiple of 8: %d", id.PrefixLenBits)
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
 	}
 	// The returned slice must not be nil, as it would correspond to NULL in SQL.
 	if bytes := id.Path; bytes != nil {
