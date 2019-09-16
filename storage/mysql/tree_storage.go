@@ -434,6 +434,10 @@ func (t *treeTX) IsOpen() bool {
 // subtreeKey returns a non-nil []byte suitable for use as a primary key column
 // for the subtree rooted at the passed-in node ID. Returns an error if the ID
 // is not aligned to bytes.
+//
+// TODO(pavelkalinnikov): This function is duplicated in multiple storage
+// implementations. We should create a common "tree layout" type in the
+// top-level storage package and reuse it for ID/strata validation.
 func subtreeKey(id storage.NodeID) ([]byte, error) {
 	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
 	if id.PrefixLenBits%8 != 0 {
