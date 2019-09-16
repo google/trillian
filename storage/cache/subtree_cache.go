@@ -426,7 +426,13 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 	return err
 }
 
+// newEmptySubtree creates an empty subtree for the passed-in root node ID,
+// which must be at a stratum boundary.
 func (s *SubtreeCache) newEmptySubtree(id storage.NodeID) *storagepb.SubtreeProto {
+	// TODO(pavelkalinnikov): Migrate this check to constructing SubtreeID.
+	if bl := id.PrefixLenBits; bl%8 != 0 {
+		panic(fmt.Errorf("invalid subtree ID: not a multiple of 8: %d", bl))
+	}
 	height := s.layout.GetSubtreeHeight(id)
 	if glog.V(2) {
 		glog.Infof("Creating new empty subtree for %x, with height %d", id.Path, height)
