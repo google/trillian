@@ -17,7 +17,6 @@ package merkle
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"flag"
@@ -85,48 +84,6 @@ func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Contr
 		panic(err)
 	}
 	return tree, tx
-}
-
-type rootNodeMatcher struct{}
-
-func (r rootNodeMatcher) Matches(x interface{}) bool {
-	nodes, ok := x.([]storage.NodeID)
-	if !ok {
-		return false
-	}
-	return len(nodes) == 1 &&
-		nodes[0].PrefixLenBits == 0
-}
-
-func (r rootNodeMatcher) String() string {
-	return "is a single root node"
-}
-
-func randomBytes(t *testing.T, n int) []byte {
-	r := make([]byte, n)
-	g, err := rand.Read(r)
-	if g != n || err != nil {
-		t.Fatalf("Failed to read %d bytes of entropy for path, read %d and got error: %v", n, g, err)
-	}
-	return r
-}
-
-func getRandomRootNode(t *testing.T, rev int64) storage.Node {
-	return storage.Node{
-		Hash:         randomBytes(t, 32),
-		NodeRevision: rev,
-	}
-}
-
-func getRandomNonRootNode(t *testing.T, rev int64) storage.Node {
-	nodeID := storage.NewNodeIDFromHash(randomBytes(t, 32))
-	// Make sure it's not a root node.
-	nodeID.PrefixLenBits = int(1 + randomBytes(t, 1)[0]%254)
-	return storage.Node{
-		NodeID:       nodeID,
-		Hash:         randomBytes(t, 32),
-		NodeRevision: rev,
-	}
 }
 
 func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
