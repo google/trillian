@@ -680,9 +680,9 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 
 	var args []interface{}
 	for _, nodeID := range leaves {
-		args = append(args, interface{}(int64(nodeID)))
+		args = append(args, int64(nodeID))
 	}
-	args = append(args, interface{}(t.treeID))
+	args = append(args, t.treeID)
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by idx: %s", err)
@@ -894,9 +894,9 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 
 	var args []interface{}
 	for _, hash := range leafHashes {
-		args = append(args, interface{}([]byte(hash)))
+		args = append(args, []byte(hash))
 	}
-	args = append(args, interface{}(t.treeID))
+	args = append(args, t.treeID)
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
 		glog.Warningf("Query() %s hash = %v", desc, err)

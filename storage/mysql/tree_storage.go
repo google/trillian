@@ -208,16 +208,14 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		if nodeID.PrefixLenBits%8 != 0 {
 			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
 		}
-
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
-
-		args = append(args, interface{}(nodeIDBytes))
+		args = append(args, nodeIDBytes)
 	}
 
-	args = append(args, interface{}(t.treeID))
-	args = append(args, interface{}(treeRevision))
-	args = append(args, interface{}(t.treeID))
+	args = append(args, t.treeID)
+	args = append(args, treeRevision)
+	args = append(args, t.treeID)
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
