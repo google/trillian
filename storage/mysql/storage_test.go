@@ -39,44 +39,60 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
-	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
-	s := NewLogStorage(DB, nil)
-
-	const writeRevision = int64(100)
-	nodesToStore := createSomeNodes()
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
-	for i := range nodesToStore {
-		nodeIDsToRead[i] = nodesToStore[i].NodeID
+	nodes := createSomeNodes(256)
+	nodeIDs := make([]storage.NodeID, len(nodes))
+	for i := range nodes {
+		nodeIDs[i] = nodes[i].NodeID
 	}
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			forceWriteRevision(writeRevision, tx)
+	for _, tc := range []struct {
+		desc  string
+		store []storage.Node
+		read  []storage.NodeID
+		want  []storage.Node
+	}{
+		{desc: "store-4-read-4", store: nodes[:4], read: nodeIDs[:4], want: nodes[:4]},
+		{desc: "store-4-read-1", store: nodes[:4], read: nodeIDs[:1], want: nodes[:1]},
+		{desc: "store-2-read-4", store: nodes[:2], read: nodeIDs[:4], want: nodes[:2]},
+		{desc: "store-none-read-all", store: nil, read: nodeIDs, want: nil},
+		{desc: "store-all-read-all", store: nodes, read: nodeIDs, want: nodes},
+		{desc: "store-all-read-none", store: nodes, read: nil, want: nil},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := context.Background()
+			cleanTestDB(DB)
+			as := NewAdminStorage(DB)
+			tree := mustCreateTree(ctx, t, as, storageto.LogTree)
+			s := NewLogStorage(DB, nil)
 
-			// Need to read nodes before attempting to write
-			if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
-				t.Fatalf("Failed to read nodes: %s", err)
+			const writeRev = int64(100)
+			preread := make([]storage.NodeID, len(tc.store))
+			for i := range tc.store {
+				preread[i] = tc.store[i].NodeID
 			}
-			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
-				t.Fatalf("Failed to store nodes: %s", err)
-			}
-			return nil
-		})
-	}
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
-			if err != nil {
-				t.Fatalf("Failed to retrieve nodes: %s", err)
-			}
-			if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
-				t.Fatalf("Read back different nodes from the ones stored: %s", err)
-			}
-			return nil
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+				forceWriteRevision(writeRev, tx)
+				// Need to read nodes before attempting to write.
+				if _, err := tx.GetMerkleNodes(ctx, writeRev-1, preread); err != nil {
+					t.Fatalf("Failed to read nodes: %s", err)
+				}
+				if err := tx.SetMerkleNodes(ctx, tc.store); err != nil {
+					t.Fatalf("Failed to store nodes: %s", err)
+				}
+				return nil
+			})
+
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+				readNodes, err := tx.GetMerkleNodes(ctx, writeRev, tc.read)
+				if err != nil {
+					t.Fatalf("Failed to retrieve nodes: %s", err)
+				}
+				if err := nodesAreEqual(readNodes, tc.want); err != nil {
+					t.Fatalf("Read back different nodes from the ones stored: %s", err)
+				}
+				return nil
+			})
 		})
 	}
 }
@@ -144,8 +160,8 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 	mtx.treeTX.writeRevision = rev
 }
 
-func createSomeNodes() []storage.Node {
-	r := make([]storage.Node, 4)
+func createSomeNodes(count int) []storage.Node {
+	r := make([]storage.Node, count)
 	for i := range r {
 		r[i].NodeID = storage.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
@@ -191,6 +207,7 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, e
 	return nodes, nil
 }
 
+// TODO(pavelkalinnikov): Allow nodes to be out of order.
 func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
