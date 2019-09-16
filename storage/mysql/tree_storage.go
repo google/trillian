@@ -205,10 +205,10 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 
 	// populate args with nodeIDs
 	for _, nodeID := range nodeIDs {
-		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+		nodeIDBytes, err := subtreeKey(nodeID)
+		if err != nil {
+			return nil, err
 		}
-		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
 		args = append(args, nodeIDBytes)
 	}
@@ -429,4 +429,19 @@ func (t *treeTX) IsOpen() bool {
 	defer t.mu.Unlock()
 
 	return !t.closed
+}
+
+// subtreeKey returns a non-nil []byte suitable for use as a primary key column
+// for the subtree rooted at the passed-in node ID. Returns an error if the ID
+// is not aligned to bytes.
+func subtreeKey(id storage.NodeID) ([]byte, error) {
+	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
+	if id.PrefixLenBits%8 != 0 {
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
+	}
+	// The returned slice must not be nil, as it would correspond to NULL in SQL.
+	if bytes := id.Path; bytes != nil {
+		return bytes[:id.PrefixLenBits/8], nil
+	}
+	return []byte{}, nil
 }
