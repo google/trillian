@@ -50,7 +50,7 @@ func NewTreeLayout(heights []int) *TreeLayout {
 	}
 
 	// Build the strata information index.
-	sIndex := make([]stratumInfo, 0, (height+depthQuantum-1)/depthQuantum)
+	sIndex := make([]stratumInfo, 0, height/depthQuantum)
 	for i, h := range heights {
 		// Verify the stratum height is valid.
 		if h <= 0 {
@@ -72,9 +72,11 @@ func NewTreeLayout(heights []int) *TreeLayout {
 // GetSubtreeRoot returns the root node ID for the stratum that the passed-in
 // node belongs to.
 //
-// Note that nodes located at multiples of depthQuantum normally belong to
-// subtrees rooted above them. However, the topmost node (with an empty NodeID)
-// is the root for its own subtree since there is nothing above it.
+// Note that nodes located at strata boundaries normally belong to subtrees
+// rooted above them. However, the topmost node (with an empty NodeID) is the
+// root for its own subtree since there is nothing above it.
+//
+// TODO(pavelkalinnikov): Introduce a "type-safe" SubtreeID type.
 func (t *TreeLayout) GetSubtreeRoot(id storage.NodeID) storage.NodeID {
 	if depth := id.PrefixLenBits; depth > 0 {
 		info := t.getStratumAt(depth - 1)
@@ -110,6 +112,6 @@ func (t *TreeLayout) getStratumAt(depth int) stratumInfo {
 type stratumInfo struct {
 	// idBytes is the byte length of IDs for this stratum.
 	idBytes int
-	// height is the number of levels in this stratum.
+	// height is the number of tree levels in this stratum.
 	height int
 }
