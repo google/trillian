@@ -210,12 +210,12 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 			return nil, err
 		}
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
-		args = append(args, interface{}(nodeIDBytes))
+		args = append(args, nodeIDBytes)
 	}
 
-	args = append(args, interface{}(t.treeID))
-	args = append(args, interface{}(treeRevision))
-	args = append(args, interface{}(t.treeID))
+	args = append(args, t.treeID)
+	args = append(args, treeRevision)
+	args = append(args, t.treeID)
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
