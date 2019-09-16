@@ -160,18 +160,17 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 	if req.Revision < 0 {
 		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
 	}
-	if err := hasDuplicates(req.Index); err != nil {
-		return nil, err
-	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapRead)
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", req.MapId, err)
 	}
+	indexValidator := newRequestIndexValidator(hasher.Size())
 	for _, index := range req.Index {
-		if err := checkIndexSize(index, hasher); err != nil {
+		if err := indexValidator.validate(index); err != nil {
 			return nil, err
 		}
 	}
+
 	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevisionNoProof")
 	if err != nil {
 		return nil, fmt.Errorf("could not create database snapshot: %v", err)
@@ -192,15 +191,13 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 }
 
 func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64, indices [][]byte, revision int64) (*trillian.GetMapLeavesResponse, error) {
-	if err := hasDuplicates(indices); err != nil {
-		return nil, err
-	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapRead)
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
 	}
+	indexValidator := newRequestIndexValidator(hasher.Size())
 	for _, index := range indices {
-		if err := checkIndexSize(index, hasher); err != nil {
+		if err := indexValidator.validate(index); err != nil {
 			return nil, err
 		}
 	}
@@ -315,31 +312,8 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}, nil
 }
 
-func checkIndexSize(index []byte, hasher hashers.MapHasher) error {
-	// The parameter is named 'index' (here and in the RPC API) because it's the ordinal number
-	// of the leaf, but that number is obtained by hashing the key value that corresponds to the
-	// leaf.  Leaf "indices" are therefore sparsely scattered in the range [0, 2^hashsize) and
-	// are represented as a []byte, and every leaf must have an index that is the same size.
-	//
-	// We currently police this by requiring that the hash size for the index space be the same
-	// as the hash size for the tree itself, although that's not strictly required (e.g. could
-	// have SHA-256 for generating leaf indices, but SHA-512 for building the root hash).
-	if len(index) != hasher.Size() {
-		return status.Errorf(codes.InvalidArgument, "index len(%x) is not %d", index, hasher.Size())
-	}
-	return nil
-}
-
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
-	indexes := make([][]byte, 0, len(req.Leaves))
-	for _, l := range req.Leaves {
-		indexes = append(indexes, l.Index)
-	}
-	if err := hasDuplicates(indexes); err != nil {
-		return nil, err
-	}
-
 	ctx, spanEnd := spanFor(ctx, "SetLeaves")
 	defer spanEnd()
 
@@ -349,6 +323,12 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
 		return nil, err
+	}
+	indexValidator := newRequestIndexValidator(hasher.Size())
+	for _, l := range req.Leaves {
+		if err := indexValidator.validate(l.Index); err != nil {
+			return nil, err
+		}
 	}
 	ctx = trees.NewContext(ctx, tree)
 
@@ -394,10 +374,7 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 func (t *TrillianMapServer) writeLeaves(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, leaves []*trillian.MapLeaf, rev int64) ([]merkle.HashKeyValue, error) {
 	hkv := make([]merkle.HashKeyValue, 0, len(leaves))
 	for _, l := range leaves {
-		// TODO(mhutchinson): make this check and perform hashing and hkv building outside of the transaction scope
-		if err := checkIndexSize(l.Index, hasher); err != nil {
-			return nil, err
-		}
+		// TODO(mhutchinson): perform hashing and hkv building outside of the transaction scope
 		l.LeafHash = hasher.HashLeaf(tree.TreeId, l.Index, l.LeafValue)
 		hkv = append(hkv, merkle.HashKeyValue{
 			HashedKey:   l.Index,
@@ -697,14 +674,36 @@ func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.
 	return tx, err
 }
 
-// hasDuplicates returns an error if there are duplicates in indexes.
-func hasDuplicates(indexes [][]byte) error {
-	set := make(map[string]bool)
-	for _, i := range indexes {
-		if set[string(i)] {
-			return status.Errorf(codes.InvalidArgument, "index %x requested more than once", i)
-		}
-		set[string(i)] = true
+// requestIndexValidator validates the indices in a single map request.
+type requestIndexValidator struct {
+	// The index size in bytes
+	indexSize   int
+	seenIndices map[string]bool
+}
+
+func newRequestIndexValidator(indexSize int) *requestIndexValidator {
+	return &requestIndexValidator{
+		indexSize:   indexSize,
+		seenIndices: make(map[string]bool),
 	}
+}
+
+func (c *requestIndexValidator) validate(index []byte) error {
+	// The parameter is named 'index' (here and in the RPC API) because it's the ordinal number
+	// of the leaf, but that number is obtained by hashing the key value that corresponds to the
+	// leaf.  Leaf "indices" are therefore sparsely scattered in the range [0, 2^hashsize) and
+	// are represented as a []byte, and every leaf must have an index that is the same size.
+	//
+	// We currently police this by requiring that the hash size for the index space be the same
+	// as the hash size for the tree itself, although that's not strictly required (e.g. could
+	// have SHA-256 for generating leaf indices, but SHA-512 for building the root hash).
+	if len(index) != c.indexSize {
+		return status.Errorf(codes.InvalidArgument, "index len(%x) is not %d", index, c.indexSize)
+	}
+	s := string(index)
+	if c.seenIndices[s] {
+		return status.Errorf(codes.InvalidArgument, "index %x requested more than once", index)
+	}
+	c.seenIndices[s] = true
 	return nil
 }

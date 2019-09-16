@@ -24,11 +24,10 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
+	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 const mapID1 = int64(1)
@@ -351,4 +350,47 @@ func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) st
 	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)
 
 	return adminStorage
+}
+
+func TestRequestIndexValidator(t *testing.T) {
+	tests := []struct {
+		desc    string
+		indices [][]byte
+		wantErr bool
+	}{
+		{
+			desc:    "Single index of correct length",
+			indices: [][]byte{{'a'}},
+		},
+		{
+			desc:    "Single index of wrong length",
+			indices: [][]byte{{'a', 'b'}},
+			wantErr: true,
+		},
+		{
+			desc:    "Multiple indices of correct length & no duplicates",
+			indices: [][]byte{{'a'}, {'b'}},
+		},
+		{
+			desc:    "Multiple indices of correct length with duplicates",
+			indices: [][]byte{{'a'}, {'a'}},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			c := newRequestIndexValidator(1)
+			var gotErr bool
+			var err error
+			for _, i := range tt.indices {
+				if e := c.validate(i); e != nil {
+					gotErr = true
+					err = e
+				}
+			}
+			if gotErr != tt.wantErr {
+				t.Errorf("requestIndexValidator.validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
