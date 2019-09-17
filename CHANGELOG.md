@@ -4,6 +4,12 @@
 
 Not yet released; provisionally v1.3.3 (may change).
 
+### Map Changes
+
+The verifiable map is still experimental. APIs have been deprecated and will be
+deleted in the near future. These changes will not affect the Trillian module
+semantic version due to the experimental status of the Map.
+
 ## v1.3.2 - Module fixes
 
 Published 2019-09-05 17:30:00 +0000 UTC
