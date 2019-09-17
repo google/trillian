@@ -24,8 +24,8 @@ const (
 	// depthQuantum defines the smallest supported subtree height, which all
 	// subtree heights must also be a multiple of.
 	//
-	// WARNING: The code below breaks if this value is not a multiple of 8,
-	// because it uses storage.NodeID byte representation directly.
+	// WARNING: TreeLayout breaks if this value is not a multiple of 8, because
+	// it uses storage.NodeID byte representation directly.
 	depthQuantum = 8
 )
 
