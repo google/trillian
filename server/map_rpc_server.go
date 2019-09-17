@@ -160,18 +160,14 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 	if req.Revision < 0 {
 		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
 	}
-	if err := hasDuplicates(req.Index); err != nil {
-		return nil, err
-	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapRead)
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", req.MapId, err)
 	}
-	for _, index := range req.Index {
-		if err := checkIndexSize(index, hasher); err != nil {
-			return nil, err
-		}
+	if err := validateIndices(hasher.Size(), len(req.Index), func(i int) []byte { return req.Index[i] }); err != nil {
+		return nil, err
 	}
+
 	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevisionNoProof")
 	if err != nil {
 		return nil, fmt.Errorf("could not create database snapshot: %v", err)
@@ -192,17 +188,13 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 }
 
 func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64, indices [][]byte, revision int64) (*trillian.GetMapLeavesResponse, error) {
-	if err := hasDuplicates(indices); err != nil {
-		return nil, err
-	}
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapRead)
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
 	}
-	for _, index := range indices {
-		if err := checkIndexSize(index, hasher); err != nil {
-			return nil, err
-		}
+
+	if err := validateIndices(hasher.Size(), len(indices), func(i int) []byte { return indices[i] }); err != nil {
+		return nil, err
 	}
 
 	ctx = trees.NewContext(ctx, tree)
@@ -315,31 +307,8 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}, nil
 }
 
-func checkIndexSize(index []byte, hasher hashers.MapHasher) error {
-	// The parameter is named 'index' (here and in the RPC API) because it's the ordinal number
-	// of the leaf, but that number is obtained by hashing the key value that corresponds to the
-	// leaf.  Leaf "indices" are therefore sparsely scattered in the range [0, 2^hashsize) and
-	// are represented as a []byte, and every leaf must have an index that is the same size.
-	//
-	// We currently police this by requiring that the hash size for the index space be the same
-	// as the hash size for the tree itself, although that's not strictly required (e.g. could
-	// have SHA-256 for generating leaf indices, but SHA-512 for building the root hash).
-	if len(index) != hasher.Size() {
-		return status.Errorf(codes.InvalidArgument, "index len(%x) is not %d", index, hasher.Size())
-	}
-	return nil
-}
-
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
-	indexes := make([][]byte, 0, len(req.Leaves))
-	for _, l := range req.Leaves {
-		indexes = append(indexes, l.Index)
-	}
-	if err := hasDuplicates(indexes); err != nil {
-		return nil, err
-	}
-
 	ctx, spanEnd := spanFor(ctx, "SetLeaves")
 	defer spanEnd()
 
@@ -348,6 +317,9 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateIndices(hasher.Size(), len(req.Leaves), func(i int) []byte { return req.Leaves[i].Index }); err != nil {
 		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
@@ -394,10 +366,7 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 func (t *TrillianMapServer) writeLeaves(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, leaves []*trillian.MapLeaf, rev int64) ([]merkle.HashKeyValue, error) {
 	hkv := make([]merkle.HashKeyValue, 0, len(leaves))
 	for _, l := range leaves {
-		// TODO(mhutchinson): make this check and perform hashing and hkv building outside of the transaction scope
-		if err := checkIndexSize(l.Index, hasher); err != nil {
-			return nil, err
-		}
+		// TODO(mhutchinson): Perform hashing and hkv building outside of the transaction scope.
 		l.LeafHash = hasher.HashLeaf(tree.TreeId, l.Index, l.LeafValue)
 		hkv = append(hkv, merkle.HashKeyValue{
 			HashedKey:   l.Index,
@@ -697,14 +666,29 @@ func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.
 	return tx, err
 }
 
-// hasDuplicates returns an error if there are duplicates in indexes.
-func hasDuplicates(indexes [][]byte) error {
-	set := make(map[string]bool)
-	for _, i := range indexes {
-		if set[string(i)] {
-			return status.Errorf(codes.InvalidArgument, "index %x requested more than once", i)
+// validateIndices confirms that all indices have the given size and there are no duplicates.
+// indexSize is the expected size of each index in bytes.
+// n is the number of indices to check.
+// indices is a function that returns indices from [0 .. n).
+func validateIndices(indexSize, n int, indices func(i int) []byte) error {
+	// The parameter is named 'index' (here and in the RPC API) because it's the ordinal number
+	// of the leaf, but that number is obtained by hashing the key value that corresponds to the
+	// leaf.  Leaf "indices" are therefore sparsely scattered in the range [0, 2^hashsize) and
+	// are represented as a []byte, and every leaf must have an index that is the same size.
+	//
+	// We currently police this by requiring that the hash size for the index space be the same
+	// as the hash size for the tree itself, although that's not strictly required (e.g. could
+	// have SHA-256 for generating leaf indices, but SHA-512 for building the root hash).
+	seenIndices := make(map[string]bool)
+	for i := 0; i < n; i++ {
+		index := indices(i)
+		if got, want := len(index), indexSize; got != want {
+			return status.Errorf(codes.InvalidArgument, "index at position %d has wrong length: got=%d,want=%d", i, got, want)
 		}
-		set[string(i)] = true
+		if seenIndices[string(index)] {
+			return status.Errorf(codes.InvalidArgument, "duplicate index detected at position %d", i)
+		}
+		seenIndices[string(index)] = true
 	}
 	return nil
 }
