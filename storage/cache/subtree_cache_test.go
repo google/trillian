@@ -40,49 +40,6 @@ var (
 
 const treeID = int64(0)
 
-func TestSplitNodeID(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
-	for _, tc := range []struct {
-		inPath        []byte
-		inPathLenBits int
-		outPrefix     []byte
-		outSuffixBits int
-		outSuffix     []byte
-	}{
-		{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, []byte{0x7f}},
-		{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, []byte{0xf8}},
-		{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, []byte{0x80}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, []byte{0x34}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
-		{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
-		{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
-		{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
-		{[]byte{0x70}, 5, []byte{}, 5, []byte{0x70}},
-		{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
-		{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
-	} {
-		n := storage.NewNodeIDFromHash(tc.inPath)
-		n.PrefixLenBits = tc.inPathLenBits
-
-		sInfo := c.stratumInfoForNodeID(n)
-		p, s := n.Split(sInfo.prefixBytes, sInfo.depth)
-		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
-			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
-			continue
-		}
-		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
-			t.Errorf("splitNodeID(%v): suffix.Bits %v, want %v", n, got, want)
-			continue
-		}
-		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
-			t.Errorf("splitNodeID(%v): suffix.Path %x, want %x", n, got, want)
-		}
-	}
-}
-
 func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -200,7 +157,7 @@ func TestCacheFlush(t *testing.T) {
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			subID := storage.NewNodeIDFromHash(s.Prefix)
-			if got, want := s.Depth, c.stratumInfoForPrefixLength(subID.PrefixLenBits).depth; got != int32(want) {
+			if got, want := s.Depth, c.layout.getSubtreeHeight(subID); got != int32(want) {
 				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, subID.PrefixLenBits)
 			}
 			state, ok := expectedSetIDs[subID.String()]
@@ -280,8 +237,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			n := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 8)
 			// Don't store leaves or the subtree root in InternalNodes
 			if id.Level > 0 && id.Level < 8 {
-				sInfo := c.stratumInfoForNodeID(n)
-				sfx := n.Suffix(sInfo.prefixBytes, sInfo.depth)
+				_, sfx := c.layout.split(n)
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}
@@ -342,40 +298,6 @@ func BenchmarkRepopulateLogSubtree(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		if err := populate(&s); err != nil {
 			b.Fatalf("failed populate subtree: %v", err)
-		}
-	}
-}
-
-func TestPrefixLengths(t *testing.T) {
-	strata := []int{8, 8, 16, 32, 64, 128}
-	stratumInfo := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
-
-	c := NewSubtreeCache(strata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
-
-	if diff := pretty.Compare(c.stratumInfo, stratumInfo); diff != "" {
-		t.Fatalf("prefixLengths diff:\n%v", diff)
-	}
-}
-
-func TestGetStratumInfo(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
-	testVec := []struct {
-		depth int
-		info  stratumInfo
-	}{
-		{0, stratumInfo{0, 8}},
-		{1, stratumInfo{0, 8}},
-		{7, stratumInfo{0, 8}},
-		{8, stratumInfo{1, 8}},
-		{15, stratumInfo{1, 8}},
-		{79, stratumInfo{9, 8}},
-		{80, stratumInfo{10, 176}},
-		{81, stratumInfo{10, 176}},
-		{156, stratumInfo{10, 176}},
-	}
-	for i, tv := range testVec {
-		if diff := pretty.Compare(c.stratumInfoForPrefixLength(tv.depth), tv.info); diff != "" {
-			t.Errorf("(test %d for depth %d) diff:\n%v", i, tv.depth, diff)
 		}
 	}
 }
