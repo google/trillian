@@ -221,20 +221,6 @@ func TestPrefix(t *testing.T) {
 	}
 }
 
-func TestPrefixAsKey(t *testing.T) {
-	for _, tc := range goldenSplitData {
-		n := NewNodeIDFromHash(tc.inPath)
-		n.PrefixLenBits = tc.inPathLenBits
-
-		p := n.PrefixAsKey(tc.splitBytes)
-		if got, want := p, string(tc.outPrefix); got != want {
-			t.Errorf("%d, %x.PrefixAsKey(%v): prefix %x, want %x",
-				tc.inPathLenBits, tc.inPath, tc.splitBytes, got, want)
-			continue
-		}
-	}
-}
-
 func TestSplit(t *testing.T) {
 	for _, tc := range goldenSplitData {
 		n := NewNodeIDFromHash(tc.inPath)
