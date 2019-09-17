@@ -398,7 +398,7 @@ func TestRequestIndexValidator(t *testing.T) {
 			err := validateIndices(tt.indexSize, len(tt.indices), func(i int) []byte { return tt.indices[i] })
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("requestIndexValidator.validate() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("validateIndices() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

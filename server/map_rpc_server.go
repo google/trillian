@@ -666,7 +666,7 @@ func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.
 	return tx, err
 }
 
-// validateIndices confirms that all indexes have the given size and there are no duplicates.
+// validateIndices confirms that all indices have the given size and there are no duplicates.
 // indexSize is the expected size of each index in bytes.
 // n is the number of indices to check.
 // indices is a function that returns indices from [0 .. n).
