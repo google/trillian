@@ -319,10 +319,22 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	if err != nil {
 		return nil, err
 	}
+	ctx = trees.NewContext(ctx, tree)
+
 	if err := validateIndices(hasher.Size(), len(req.Leaves), func(i int) []byte { return req.Leaves[i].Index }); err != nil {
 		return nil, err
 	}
-	ctx = trees.NewContext(ctx, tree)
+
+	// Overwrite/set the leaf hashes in the request and create a summary of
+	// the leaf indices and new hash values.
+	hkv := make([]merkle.HashKeyValue, 0, len(req.Leaves))
+	for _, l := range req.Leaves {
+		l.LeafHash = hasher.HashLeaf(tree.TreeId, l.Index, l.LeafValue)
+		hkv = append(hkv, merkle.HashKeyValue{
+			HashedKey:   l.Index,
+			HashedValue: l.LeafHash,
+		})
+	}
 
 	var newRoot *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
@@ -332,8 +344,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 		glog.V(2).Infof("%v: Writing at revision %v", tree.TreeId, writeRev)
 
-		hkv, err := t.writeLeaves(ctx, tree, hasher, tx, req.Leaves, writeRev)
-		if err != nil {
+		if err := t.writeLeaves(ctx, tx, req.Leaves); err != nil {
 			return err
 		}
 
@@ -363,20 +374,13 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 }
 
 // writeLeaves updates the leaf values, but does not calculate nor update the Merkle tree.
-func (t *TrillianMapServer) writeLeaves(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, leaves []*trillian.MapLeaf, rev int64) ([]merkle.HashKeyValue, error) {
-	hkv := make([]merkle.HashKeyValue, 0, len(leaves))
+func (t *TrillianMapServer) writeLeaves(ctx context.Context, tx storage.MapTreeTX, leaves []*trillian.MapLeaf) error {
 	for _, l := range leaves {
-		// TODO(mhutchinson): Perform hashing and hkv building outside of the transaction scope.
-		l.LeafHash = hasher.HashLeaf(tree.TreeId, l.Index, l.LeafValue)
-		hkv = append(hkv, merkle.HashKeyValue{
-			HashedKey:   l.Index,
-			HashedValue: l.LeafHash,
-		})
 		if err := tx.Set(ctx, l.Index, l); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return hkv, nil
+	return nil
 }
 
 // updateTree updates the sparse Merkle tree at the specified revision based on the passed-in
