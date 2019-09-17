@@ -354,41 +354,50 @@ func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) st
 
 func TestRequestIndexValidator(t *testing.T) {
 	tests := []struct {
-		desc    string
-		indices [][]byte
-		wantErr bool
+		desc      string
+		indexSize int
+		indices   [][]byte
+		wantErr   bool
 	}{
 		{
-			desc:    "Single index of correct length",
-			indices: [][]byte{{'a'}},
+			desc:      "Single index of correct length",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}},
 		},
 		{
-			desc:    "Single index of wrong length",
-			indices: [][]byte{{'a', 'b'}},
-			wantErr: true,
+			desc:      "Single index of longer correct length",
+			indexSize: 4,
+			indices:   [][]byte{{'a', 'b', 'c', 'd'}},
 		},
 		{
-			desc:    "Multiple indices of correct length & no duplicates",
-			indices: [][]byte{{'a'}, {'b'}},
+			desc:      "Single index too long",
+			indexSize: 1,
+			indices:   [][]byte{{'a', 'b'}},
+			wantErr:   true,
 		},
 		{
-			desc:    "Multiple indices of correct length with duplicates",
-			indices: [][]byte{{'a'}, {'a'}},
-			wantErr: true,
+			desc:      "Single index too short",
+			indexSize: 2,
+			indices:   [][]byte{{'a'}},
+			wantErr:   true,
+		},
+		{
+			desc:      "Multiple indices of correct length & no duplicates",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}, {'b'}},
+		},
+		{
+			desc:      "Multiple indices of correct length with duplicates",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}, {'a'}},
+			wantErr:   true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			c := newRequestIndexValidator(1)
-			var gotErr bool
-			var err error
-			for _, i := range tt.indices {
-				if e := c.validate(i); e != nil {
-					gotErr = true
-					err = e
-				}
-			}
-			if gotErr != tt.wantErr {
+			err := validateIndices(tt.indexSize, len(tt.indices), func(i int) []byte { return tt.indices[i] })
+
+			if (err != nil) != tt.wantErr {
 				t.Errorf("requestIndexValidator.validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

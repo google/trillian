@@ -164,11 +164,8 @@ func (t *TrillianMapServer) GetLeavesByRevisionNoProof(ctx context.Context, req 
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", req.MapId, err)
 	}
-	indexValidator := newRequestIndexValidator(hasher.Size())
-	for _, index := range req.Index {
-		if err := indexValidator.validate(index); err != nil {
-			return nil, err
-		}
+	if err := validateIndices(hasher.Size(), len(req.Index), func(i int) []byte { return req.Index[i] }); err != nil {
+		return nil, err
 	}
 
 	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevisionNoProof")
@@ -195,11 +192,9 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
 	}
-	indexValidator := newRequestIndexValidator(hasher.Size())
-	for _, index := range indices {
-		if err := indexValidator.validate(index); err != nil {
-			return nil, err
-		}
+
+	if err := validateIndices(hasher.Size(), len(indices), func(i int) []byte { return indices[i] }); err != nil {
+		return nil, err
 	}
 
 	ctx = trees.NewContext(ctx, tree)
@@ -324,11 +319,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	if err != nil {
 		return nil, err
 	}
-	indexValidator := newRequestIndexValidator(hasher.Size())
-	for _, l := range req.Leaves {
-		if err := indexValidator.validate(l.Index); err != nil {
-			return nil, err
-		}
+	if err := validateIndices(hasher.Size(), len(req.Leaves), func(i int) []byte { return req.Leaves[i].Index }); err != nil {
+		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
 
@@ -374,7 +366,7 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 func (t *TrillianMapServer) writeLeaves(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, leaves []*trillian.MapLeaf, rev int64) ([]merkle.HashKeyValue, error) {
 	hkv := make([]merkle.HashKeyValue, 0, len(leaves))
 	for _, l := range leaves {
-		// TODO(mhutchinson): perform hashing and hkv building outside of the transaction scope
+		// TODO(mhutchinson): Perform hashing and hkv building outside of the transaction scope.
 		l.LeafHash = hasher.HashLeaf(tree.TreeId, l.Index, l.LeafValue)
 		hkv = append(hkv, merkle.HashKeyValue{
 			HashedKey:   l.Index,
@@ -674,21 +666,11 @@ func (t *TrillianMapServer) snapshotForTree(ctx context.Context, tree *trillian.
 	return tx, err
 }
 
-// requestIndexValidator validates the indices in a single map request.
-type requestIndexValidator struct {
-	// The index size in bytes
-	indexSize   int
-	seenIndices map[string]bool
-}
-
-func newRequestIndexValidator(indexSize int) *requestIndexValidator {
-	return &requestIndexValidator{
-		indexSize:   indexSize,
-		seenIndices: make(map[string]bool),
-	}
-}
-
-func (c *requestIndexValidator) validate(index []byte) error {
+// validateIndices confirms that all indexes have the given size and there are no duplicates.
+// indexSize is the expected size of each index in bytes.
+// n is the number of indices to check.
+// indices is a function that returns indices from [0 .. n).
+func validateIndices(indexSize, n int, indices func(i int) []byte) error {
 	// The parameter is named 'index' (here and in the RPC API) because it's the ordinal number
 	// of the leaf, but that number is obtained by hashing the key value that corresponds to the
 	// leaf.  Leaf "indices" are therefore sparsely scattered in the range [0, 2^hashsize) and
@@ -697,13 +679,16 @@ func (c *requestIndexValidator) validate(index []byte) error {
 	// We currently police this by requiring that the hash size for the index space be the same
 	// as the hash size for the tree itself, although that's not strictly required (e.g. could
 	// have SHA-256 for generating leaf indices, but SHA-512 for building the root hash).
-	if len(index) != c.indexSize {
-		return status.Errorf(codes.InvalidArgument, "index len(%x) is not %d", index, c.indexSize)
+	seenIndices := make(map[string]bool)
+	for i := 0; i < n; i++ {
+		index := indices(i)
+		if got, want := len(index), indexSize; got != want {
+			return status.Errorf(codes.InvalidArgument, "index at position %d has wrong length: got=%d,want=%d", i, got, want)
+		}
+		if seenIndices[string(index)] {
+			return status.Errorf(codes.InvalidArgument, "duplicate index detected at position %d", i)
+		}
+		seenIndices[string(index)] = true
 	}
-	s := string(index)
-	if c.seenIndices[s] {
-		return status.Errorf(codes.InvalidArgument, "index %x requested more than once", index)
-	}
-	c.seenIndices[s] = true
 	return nil
 }
