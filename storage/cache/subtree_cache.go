@@ -104,16 +104,16 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 // the cache structures with the data.
 func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc) error {
 	// Figure out the set of subtrees we need.
-	want := make(map[string]storage.NodeID)
+	want := make(map[string]subtreeID)
 	for _, id := range ids {
-		pxID := s.layout.getSubtreeRoot(id)
-		pxKey := string(pxID.Path)
-		if _, ok := want[pxKey]; ok {
+		subID := s.layout.getSubtreeID(id)
+		subKey := subID.asKey()
+		if _, ok := want[subKey]; ok {
 			// No need to check s.subtrees map twice.
 			continue
 		}
-		if _, ok := s.subtrees.Load(pxKey); !ok {
-			want[pxKey] = pxID
+		if _, ok := s.subtrees.Load(subKey); !ok {
+			want[subKey] = subID
 		}
 	}
 	// Note: At this point multiple parallel preload invocations can happen to
@@ -125,9 +125,10 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		return nil
 	}
 
+	// TODO(pavelkalinnikov): Change the getters to accept []subtreeID.
 	list := make([]storage.NodeID, 0, len(want))
 	for _, v := range want {
-		list = append(list, v)
+		list = append(list, v.root)
 	}
 	subtrees, err := getSubtrees(list)
 	if err != nil {
@@ -265,29 +266,28 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
 	}
 
-	prefixID, sx := s.layout.split(id)
-	prefixKey := string(prefixID.Path)
-	c := s.getCachedSubtree(prefixKey)
+	subID, sx := s.layout.split(id)
+	subKey := subID.asKey()
+	c := s.getCachedSubtree(subKey)
 	if c == nil {
-		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
+		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", subKey)
 		// Cache miss, so we'll try to fetch from storage.
 		var err error
-		c, err = getSubtree(prefixID)
-		if err != nil {
+		if c, err = getSubtree(subID.root); err != nil {
 			return nil, err
 		}
 		if c == nil {
-			c = s.newEmptySubtree(prefixID)
+			c = s.newEmptySubtree(subID)
 		} else {
 			if err := s.populate(c); err != nil {
 				return nil, err
 			}
 		}
 		if c.Prefix == nil {
-			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %x", c, id.String(), prefixKey))
+			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %x", c, id.String(), subKey))
 		}
 
-		s.subtrees.Store(prefixKey, c)
+		s.subtrees.Store(subKey, c)
 	}
 
 	// finally look for the particular node within the subtree so we can return
@@ -311,7 +311,7 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 		if err != nil {
 			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
 		}
-		glog.Infof("getNodeHash(%x | %x): %x", prefixKey, b, nh)
+		glog.Infof("getNodeHash(%x | %x): %x", subKey, b, nh)
 	}
 
 	if glog.V(3) {
@@ -326,9 +326,9 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
 	}
 
-	prefixID, sx := s.layout.split(id)
-	prefixKey := string(prefixID.Path)
-	c := s.getCachedSubtree(prefixKey)
+	subID, sx := s.layout.split(id)
+	subKey := subID.asKey()
+	c := s.getCachedSubtree(subKey)
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
@@ -338,13 +338,13 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 			return err
 		}
 		// There must be a subtree present in the cache now, even if storage didn't have anything for us.
-		c = s.getCachedSubtree(prefixKey)
+		c = s.getCachedSubtree(subKey)
 		if c == nil {
 			return fmt.Errorf("internal error, subtree cache for %v is nil after a read attempt", id.String())
 		}
 	}
 	if c.Prefix == nil {
-		return fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey)
+		return fmt.Errorf("nil prefix for %v (key %v)", id.String(), subKey)
 	}
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
@@ -366,13 +366,13 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		}
 		c.InternalNodes[sfxKey] = h
 	}
-	s.dirtyPrefixes.Store(prefixKey, nil)
+	s.dirtyPrefixes.Store(subKey, nil)
 	if glog.V(3) {
 		b, err := base64.StdEncoding.DecodeString(sfxKey)
 		if err != nil {
 			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
 		}
-		glog.Infof("SetNodeHash(pfx: %x, sfx: %x): %x", prefixKey, b, h)
+		glog.Infof("SetNodeHash(pfx: %x, sfx: %x): %x", subKey, b, h)
 	}
 	return nil
 }
@@ -426,22 +426,17 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 	return err
 }
 
-// newEmptySubtree creates an empty subtree for the passed-in root node ID,
-// which must be at a stratum boundary.
-func (s *SubtreeCache) newEmptySubtree(id storage.NodeID) *storagepb.SubtreeProto {
-	// TODO(pavelkalinnikov): Migrate this check to constructing SubtreeID.
-	if bl := id.PrefixLenBits; bl%8 != 0 {
-		panic(fmt.Errorf("invalid subtree ID: not a multiple of 8: %d", bl))
-	}
+// newEmptySubtree creates an empty subtree for the passed-in ID.
+func (s *SubtreeCache) newEmptySubtree(id subtreeID) *storagepb.SubtreeProto {
 	height := s.layout.getSubtreeHeight(id)
 	if glog.V(2) {
-		glog.Infof("Creating new empty subtree for %x, with height %d", id.Path, height)
+		glog.Infof("Creating new empty subtree for %x, with height %d", id.asBytes(), height)
 	}
-	// storage didn't have one for us, so we'll store an empty proto here
-	// incase we try to update it later on (we won't flush it back to
-	// storage unless it's been written to.)
+	// Storage didn't have one for us, so we'll store an empty proto here in case
+	// we try to update it later on (we won't flush it back to storage unless
+	// it's been written to).
 	return &storagepb.SubtreeProto{
-		Prefix:        id.Path,
+		Prefix:        id.asBytes(),
 		Depth:         int32(height),
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),

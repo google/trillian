@@ -50,18 +50,18 @@ func TestSplitNodeID(t *testing.T) {
 		n := storage.NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
-		p, s := layout.split(n)
-		if got, want := p.Path, tc.outPrefix; !bytes.Equal(got, want) {
-			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
-			continue
-		}
-		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
-			t.Errorf("splitNodeID(%v): suffix.Bits %v, want %v", n, got, want)
-			continue
-		}
-		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
-			t.Errorf("splitNodeID(%v): suffix.Path %x, want %x", n, got, want)
-		}
+		t.Run(fmt.Sprintf("%v", n), func(t *testing.T) {
+			p, s := layout.split(n)
+			if got, want := p.root.Path, tc.outPrefix; !bytes.Equal(got, want) {
+				t.Errorf("prefix %x, want %x", got, want)
+			}
+			if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
+				t.Errorf("suffix.Bits %v, want %v", got, want)
+			}
+			if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
+				t.Errorf("suffix.Path %x, want %x", got, want)
+			}
+		})
 	}
 }
 

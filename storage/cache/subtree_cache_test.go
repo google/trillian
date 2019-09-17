@@ -146,8 +146,7 @@ func TestCacheFlush(t *testing.T) {
 	si := -1
 	for b := 0; b < nodeID.PrefixLenBits; b += defaultMapStrata[si] {
 		si++
-		e := storage.NewNodeIDFromHash([]byte(h))
-		//e := nodeID
+		e := nodeID
 		e.PrefixLenBits = b
 		expectedSetIDs[e.String()] = "expected"
 		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
@@ -156,23 +155,24 @@ func TestCacheFlush(t *testing.T) {
 	}
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
-			subID := storage.NewNodeIDFromHash(s.Prefix)
+			rootID := storage.NewNodeIDFromHash(s.Prefix)
+			subID := subtreeID{root: rootID}
 			if got, want := s.Depth, c.layout.getSubtreeHeight(subID); got != int32(want) {
-				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, subID.PrefixLenBits)
+				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, rootID.PrefixLenBits)
 			}
-			state, ok := expectedSetIDs[subID.String()]
+			state, ok := expectedSetIDs[rootID.String()]
 			if !ok {
-				t.Errorf("Unexpected write to subtree %s", subID.String())
+				t.Errorf("Unexpected write to subtree %s", rootID.String())
 			}
 			switch state {
 			case "expected":
-				expectedSetIDs[subID.String()] = "met"
+				expectedSetIDs[rootID.String()] = "met"
 			case "met":
-				t.Errorf("Second write to subtree %s", subID.String())
+				t.Errorf("Second write to subtree %s", rootID.String())
 			default:
-				t.Errorf("Unknown state for subtree %s: %s", subID.String(), state)
+				t.Errorf("Unknown state for subtree %s: %s", rootID.String(), state)
 			}
-			t.Logf("write %v -> (%d leaves)", subID, len(s.Leaves))
+			t.Logf("write %v -> (%d leaves)", rootID, len(s.Leaves))
 		}
 	}).Return(nil)
 
