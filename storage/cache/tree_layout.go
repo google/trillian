@@ -24,13 +24,13 @@ const (
 	// depthQuantum defines the smallest supported subtree height, which all
 	// subtree heights must also be a multiple of.
 	//
-	// WARNING: TreeLayout breaks if this value is not a multiple of 8, because
-	// it uses storage.NodeID byte representation directly.
+	// WARNING: The treeLayout type breaks if this value is not a multiple of 8,
+	// because it uses storage.NodeID byte representation directly.
 	depthQuantum = 8
 )
 
-// TreeLayout defines the mapping between tree node IDs and subtree IDs.
-type TreeLayout struct {
+// treeLayout defines the mapping between tree node IDs and subtree IDs.
+type treeLayout struct {
 	// sIndex contains stratum info for each multiple-of-depthQuantum node depth.
 	// Note that if a stratum spans multiple depthQuantum heights then it will be
 	// present in this slice the corresponding number of times.
@@ -41,8 +41,8 @@ type TreeLayout struct {
 	height int
 }
 
-// NewTreeLayout creates a tree layout based on the passed-in strata heights.
-func NewTreeLayout(heights []int) *TreeLayout {
+// newTreeLayout creates a tree layout based on the passed-in strata heights.
+func newTreeLayout(heights []int) *treeLayout {
 	// Compute the total tree height.
 	height := 0
 	for i, h := range heights {
@@ -66,10 +66,10 @@ func NewTreeLayout(heights []int) *TreeLayout {
 		}
 	}
 
-	return &TreeLayout{sIndex: sIndex, height: height}
+	return &treeLayout{sIndex: sIndex, height: height}
 }
 
-// GetSubtreeRoot returns the root node ID for the stratum that the passed-in
+// getSubtreeRoot returns the root node ID for the stratum that the passed-in
 // node belongs to.
 //
 // Note that nodes located at strata boundaries normally belong to subtrees
@@ -77,7 +77,7 @@ func NewTreeLayout(heights []int) *TreeLayout {
 // root for its own subtree since there is nothing above it.
 //
 // TODO(pavelkalinnikov): Introduce a "type-safe" SubtreeID type.
-func (t *TreeLayout) GetSubtreeRoot(id storage.NodeID) storage.NodeID {
+func (t *treeLayout) getSubtreeRoot(id storage.NodeID) storage.NodeID {
 	if depth := id.PrefixLenBits; depth > 0 {
 		info := t.getStratumAt(depth - 1)
 		// TODO(pavelkalinnikov): Use Prefix method once it no longer copies Path.
@@ -87,9 +87,9 @@ func (t *TreeLayout) GetSubtreeRoot(id storage.NodeID) storage.NodeID {
 	return id
 }
 
-// Split returns the ID of the root of the subtree that the passed-in node
+// split returns the ID of the root of the subtree that the passed-in node
 // belongs to, and the corresponding local address within this subree.
-func (t *TreeLayout) Split(id storage.NodeID) (storage.NodeID, *storage.Suffix) {
+func (t *treeLayout) split(id storage.NodeID) (storage.NodeID, *storage.Suffix) {
 	if depth := id.PrefixLenBits; depth > 0 {
 		info := t.getStratumAt(depth - 1)
 		prefixID := storage.NewNodeIDFromHash(id.Path[:info.idBytes])
@@ -99,12 +99,12 @@ func (t *TreeLayout) Split(id storage.NodeID) (storage.NodeID, *storage.Suffix) 
 	return storage.NodeID{Path: []byte{}}, storage.EmptySuffix
 }
 
-// GetSubtreeHeight returns the height of the subtree with the passed-in ID.
-func (t *TreeLayout) GetSubtreeHeight(id storage.NodeID) int {
+// getSubtreeHeight returns the height of the subtree with the passed-in ID.
+func (t *treeLayout) getSubtreeHeight(id storage.NodeID) int {
 	return t.getStratumAt(id.PrefixLenBits).height
 }
 
-func (t *TreeLayout) getStratumAt(depth int) stratumInfo {
+func (t *treeLayout) getStratumAt(depth int) stratumInfo {
 	return t.sIndex[depth/depthQuantum]
 }
 

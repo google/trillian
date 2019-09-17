@@ -24,7 +24,7 @@ import (
 )
 
 func TestSplitNodeID(t *testing.T) {
-	layout := NewTreeLayout(defaultMapStrata)
+	layout := newTreeLayout(defaultMapStrata)
 	for _, tc := range []struct {
 		inPath        []byte
 		inPathLenBits int
@@ -50,7 +50,7 @@ func TestSplitNodeID(t *testing.T) {
 		n := storage.NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
-		p, s := layout.Split(n)
+		p, s := layout.split(n)
 		if got, want := p.Path, tc.outPrefix; !bytes.Equal(got, want) {
 			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
 			continue
@@ -69,14 +69,14 @@ func TestStrataIndex(t *testing.T) {
 	heights := []int{8, 8, 16, 32, 64, 128}
 	want := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
 
-	layout := NewTreeLayout(heights)
+	layout := newTreeLayout(heights)
 	if diff := pretty.Compare(layout.sIndex, want); diff != "" {
 		t.Fatalf("sIndex diff:\n%v", diff)
 	}
 }
 
 func TestDefaultMapStrataIndex(t *testing.T) {
-	layout := NewTreeLayout(defaultMapStrata)
+	layout := newTreeLayout(defaultMapStrata)
 	for _, tc := range []struct {
 		depth int
 		want  stratumInfo

@@ -54,7 +54,7 @@ const maxSupportedTreeDepth = 256
 //  1. Parallel readers/writers working on non-intersecting subsets of subtrees/nodes.
 //  2. Subtrees/nodes are rarely written, and mostly read.
 type SubtreeCache struct {
-	layout *TreeLayout
+	layout *treeLayout
 
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
@@ -79,7 +79,7 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 	// TODO(al): pass this in
 	maxTreeDepth := maxSupportedTreeDepth
 	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
-	layout := NewTreeLayout(strataDepths)
+	layout := newTreeLayout(strataDepths)
 
 	// TODO(al): This needs to be passed in, particularly for Map use cases where
 	// we need to know it matches the number of bits in the chosen hash function.
@@ -106,7 +106,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	// Figure out the set of subtrees we need.
 	want := make(map[string]storage.NodeID)
 	for _, id := range ids {
-		pxID := s.layout.GetSubtreeRoot(id)
+		pxID := s.layout.getSubtreeRoot(id)
 		pxKey := string(pxID.Path)
 		if _, ok := want[pxKey]; ok {
 			// No need to check s.subtrees map twice.
@@ -265,7 +265,7 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
 	}
 
-	prefixID, sx := s.layout.Split(id)
+	prefixID, sx := s.layout.split(id)
 	prefixKey := string(prefixID.Path)
 	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
@@ -326,7 +326,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
 	}
 
-	prefixID, sx := s.layout.Split(id)
+	prefixID, sx := s.layout.split(id)
 	prefixKey := string(prefixID.Path)
 	c := s.getCachedSubtree(prefixKey)
 	if c == nil {
@@ -433,7 +433,7 @@ func (s *SubtreeCache) newEmptySubtree(id storage.NodeID) *storagepb.SubtreeProt
 	if bl := id.PrefixLenBits; bl%8 != 0 {
 		panic(fmt.Errorf("invalid subtree ID: not a multiple of 8: %d", bl))
 	}
-	height := s.layout.GetSubtreeHeight(id)
+	height := s.layout.getSubtreeHeight(id)
 	if glog.V(2) {
 		glog.Infof("Creating new empty subtree for %x, with height %d", id.Path, height)
 	}

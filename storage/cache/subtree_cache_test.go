@@ -157,7 +157,7 @@ func TestCacheFlush(t *testing.T) {
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			subID := storage.NewNodeIDFromHash(s.Prefix)
-			if got, want := s.Depth, c.layout.GetSubtreeHeight(subID); got != int32(want) {
+			if got, want := s.Depth, c.layout.getSubtreeHeight(subID); got != int32(want) {
 				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, subID.PrefixLenBits)
 			}
 			state, ok := expectedSetIDs[subID.String()]
@@ -237,7 +237,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			n := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 8)
 			// Don't store leaves or the subtree root in InternalNodes
 			if id.Level > 0 && id.Level < 8 {
-				_, sfx := c.layout.Split(n)
+				_, sfx := c.layout.split(n)
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}
