@@ -45,12 +45,6 @@ type TreeLayout struct {
 func NewTreeLayout(heights []int) *TreeLayout {
 	// Compute the total tree height.
 	height := 0
-	for _, h := range heights {
-		height += h
-	}
-
-	// Build the strata information index.
-	sIndex := make([]stratumInfo, 0, height/depthQuantum)
 	for i, h := range heights {
 		// Verify the stratum height is valid.
 		if h <= 0 {
@@ -59,6 +53,12 @@ func NewTreeLayout(heights []int) *TreeLayout {
 		if h%depthQuantum != 0 {
 			panic(fmt.Errorf("invalid stratum height[%d]: %d; must be a multiple of %d", i, h, depthQuantum))
 		}
+		height += h
+	}
+
+	// Build the strata information index.
+	sIndex := make([]stratumInfo, 0, height/depthQuantum)
+	for _, h := range heights {
 		// Assign the same stratum info to depth quants that this stratum spans.
 		info := stratumInfo{idBytes: len(sIndex), height: h}
 		for d := 0; d < h; d += depthQuantum {
