@@ -71,10 +71,11 @@ func TestRetryExposesDeadlineError(t *testing.T) {
 		EPBias:        bias,
 		LeafSize:      1000,
 		ExtraSize:     100,
-		MinLeaves:     800,
-		MaxLeaves:     1200,
-		Operations:    *operations,
-		NumCheckers:   1,
+		// TODO(mhutchinson): Increase these when #1845 is understood & fixed.
+		MinLeaves:   100,
+		MaxLeaves:   150,
+		Operations:  *operations,
+		NumCheckers: 1,
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Nanosecond)
@@ -120,10 +121,11 @@ func TestInProcessMapHammer(t *testing.T) {
 		EPBias:        bias,
 		LeafSize:      1000,
 		ExtraSize:     100,
-		MinLeaves:     800,
-		MaxLeaves:     1200,
-		Operations:    *operations,
-		NumCheckers:   1,
+		// TODO(mhutchinson): Increase these when #1845 is understood & fixed.
+		MinLeaves:   100,
+		MaxLeaves:   150,
+		Operations:  *operations,
+		NumCheckers: 1,
 	}
 	if err := HitMap(ctx, cfg); err != nil {
 		t.Fatalf("hammer failure: %v", err)
