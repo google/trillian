@@ -108,6 +108,11 @@ jobs:
        - chmod +x ./trillian/integration/integration_test.sh
        - ./trillian/integration/integration_test.sh
        - popd
+    - name: "Maria DB"
+      addons:
+        mariadb: '10.0'
+      before_install: true
+      script: ./integration/integration_test.sh
 
 services:
   - docker
