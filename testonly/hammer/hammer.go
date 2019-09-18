@@ -19,13 +19,13 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/monitoring"
@@ -257,8 +257,8 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 
 // hammerState tracks the operations that have been performed during a test run.
 type hammerState struct {
-	cfg      *MapConfig
-	verifier *client.MapVerifier
+	cfg *MapConfig
+	vc  *client.MapClient
 
 	start time.Time
 
@@ -273,7 +273,7 @@ type hammerState struct {
 
 	// SMRs are arranged from later to earlier (so [0] is the most recent), and the
 	// discovery of new SMRs will push older ones off the end.
-	smr [smrCount]*trillian.SignedMapRoot
+	smr [smrCount]*types.MapRootV1
 
 	// Counters for generating unique keys/values.
 	keyIdx   int
@@ -286,7 +286,7 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		return nil, fmt.Errorf("failed to get tree information: %v", err)
 	}
 	glog.Infof("%d: hammering tree with configuration %+v", cfg.MapID, tree)
-	verifier, err := client.NewMapVerifierFromTree(tree)
+	vc, err := client.NewMapClientFromTree(cfg.Client, tree)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tree verifier: %v", err)
 	}
@@ -313,10 +313,10 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	}
 
 	return &hammerState{
-		cfg:      cfg,
-		start:    time.Now(),
-		prng:     rand.New(cfg.RandSource),
-		verifier: verifier,
+		cfg:   cfg,
+		start: time.Now(),
+		prng:  rand.New(cfg.RandSource),
+		vc:    vc,
 	}, nil
 }
 
@@ -391,10 +391,10 @@ func (s *hammerState) String() string {
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
 	smr := s.previousSMR(0)
-	return fmt.Sprintf("%d: lastSMR.rev=%s ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, smrRev(smr), totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
+	return fmt.Sprintf("%d: lastSMR.rev=%d ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, smr.Revision, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
 
-func (s *hammerState) pushSMR(smr *trillian.SignedMapRoot) {
+func (s *hammerState) pushSMR(smr *types.MapRootV1) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -406,7 +406,7 @@ func (s *hammerState) pushSMR(smr *trillian.SignedMapRoot) {
 	s.smr[0] = smr
 }
 
-func (s *hammerState) previousSMR(which int) *trillian.SignedMapRoot {
+func (s *hammerState) previousSMR(which int) *types.MapRootV1 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.smr[which]
@@ -568,60 +568,24 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 		indices = append(indices, []byte(k))
 	}
 
-	var rsp *trillian.GetMapLeavesResponse
-	label := "get-leaves"
 	var err error
+	var leaves []*trillian.MapLeaf
 	if latest {
-		req := &trillian.GetMapLeavesRequest{
-			MapId: s.cfg.MapID,
-			Index: indices,
-		}
-		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
+		leaves, err = s.vc.GetAndVerifyMapLeaves(ctx, indices)
 		if err != nil {
-			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
+			return fmt.Errorf("failed to GetAndVerifyMapLeaves: %v", err)
 		}
 	} else {
-		label += "-rev"
-		req := &trillian.GetMapLeavesByRevisionRequest{
-			MapId:    s.cfg.MapID,
-			Revision: int64(contents.Rev),
-			Index:    indices,
-		}
-		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
+		leaves, err = s.vc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices)
 		if err != nil {
-			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
+			return fmt.Errorf("failed to GetAndVerifyMapLeavesByRevision: %v", err)
 		}
 	}
-
-	if glog.V(3) {
-		dumpRespKeyVals(rsp.MapLeafInclusion)
+	if err := contents.CheckContents(leaves, s.cfg.ExtraSize); err != nil {
+		return fmt.Errorf("incorrect contents of leaves: %v", err)
 	}
-
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
-	if err != nil {
-		return fmt.Errorf("failed to verify root: %v", err)
-	}
-	for i, inc := range rsp.MapLeafInclusion {
-		if err := s.verifier.VerifyMapLeafInclusionHash(root.RootHash, inc); err != nil {
-			return fmt.Errorf("failed to verify inclusion proof for Index=%x (%d/%d) in revision %d of tree %d: %v", inc.Leaf.Index, i, len(rsp.MapLeafInclusion), root.Revision, s.cfg.MapID, err)
-		}
-	}
-
-	if err := contents.CheckContents(rsp.MapLeafInclusion, s.cfg.ExtraSize); err != nil {
-		return fmt.Errorf("incorrect contents of %s(): %v", label, err)
-	}
-	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
+	glog.V(2).Infof("%d: got %d leaves", s.cfg.MapID, len(leaves))
 	return nil
-}
-
-func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
-	fmt.Println("Rsp key-vals:")
-	for _, inc := range incls {
-		key := inc.Leaf.Index
-		leafVal := inc.Leaf.LeafValue
-		fmt.Printf("k: %v -> v: %v\n", string(key[:]), string(leafVal))
-	}
-	fmt.Println("~~~~~~~~~~~~~")
 }
 
 func (s *hammerState) getLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
@@ -720,26 +684,18 @@ leafloop:
 			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", s.cfg.MapID, choice, dehash(key), string(value), string(extra))
 		}
 	}
-	req := trillian.SetMapLeavesRequest{
-		MapId:    s.cfg.MapID,
-		Leaves:   leaves,
-		Metadata: metadataForRev(uint64(rev + 1)),
-	}
-	rsp, err := s.cfg.Client.SetLeaves(ctx, &req)
+
+	root, err := s.vc.SetAndVerifyMapLeaves(ctx, leaves, metadataForRev(uint64(rev+1)))
 	if err != nil {
-		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(req.Leaves), err)
-	}
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(leaves), err)
 	}
 
-	s.pushSMR(rsp.MapRoot)
+	s.pushSMR(root)
 	newContents, err := s.prevContents.UpdateContentsWith(root.Revision, leaves)
 	if err != nil {
 		return err
 	}
-	wantRootHash, err := newContents.RootHash(s.cfg.MapID, s.verifier.Hasher)
+	wantRootHash, err := newContents.RootHash(s.cfg.MapID, s.vc.Hasher)
 	if err != nil {
 		return err
 	}
@@ -780,34 +736,22 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 }
 
 func (s *hammerState) getSMR(ctx context.Context, prng *rand.Rand) error {
-	req := trillian.GetSignedMapRootRequest{MapId: s.cfg.MapID}
-	rsp, err := s.cfg.Client.GetSignedMapRoot(ctx, &req)
+	root, err := s.vc.GetAndVerifyLatestMapRoot(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get-smr: %v", err)
 	}
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
-	if err != nil {
-		return err
-	}
-	if got, want := string(root.Metadata), string(metadataForRev(root.Revision)); got != want {
-		return fmt.Errorf("map metadata=%q; want %q", got, want)
-	}
 
-	s.pushSMR(rsp.MapRoot)
+	s.pushSMR(root)
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
 }
 
 func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 	which := prng.Intn(smrCount)
-	smr := s.previousSMR(which)
-	if smr == nil || len(smr.MapRoot) == 0 {
+	smrRoot := s.previousSMR(which)
+	if smrRoot == nil {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
 		return errSkip{}
-	}
-	smrRoot, err := s.verifier.VerifySignedMapRoot(smr)
-	if err != nil {
-		return err
 	}
 	rev := int64(smrRoot.Revision)
 
@@ -816,14 +760,14 @@ func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 	if err != nil {
 		return fmt.Errorf("failed to get-smr-rev(@%d): %v", rev, err)
 	}
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
+	root, err := s.vc.VerifySignedMapRoot(rsp.MapRoot)
 	if err != nil {
 		return err
 	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 
-	if !proto.Equal(rsp.MapRoot, smr) {
-		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, rsp.MapRoot, smr)
+	if !reflect.DeepEqual(root, smrRoot) {
+		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, root, smrRoot)
 	}
 	return nil
 }
@@ -852,17 +796,6 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) err
 	}
 	glog.V(2).Infof("%d: expected failure: get-smr-rev(%v: @%d): %+v", s.cfg.MapID, choice, rev, rsp)
 	return nil
-}
-
-func smrRev(smr *trillian.SignedMapRoot) string {
-	if smr == nil {
-		return "n/a"
-	}
-	var root types.MapRootV1
-	if err := root.UnmarshalBinary(smr.MapRoot); err != nil {
-		return "unknown"
-	}
-	return fmt.Sprintf("%d", root.Revision)
 }
 
 func dehash(index []byte) string {
