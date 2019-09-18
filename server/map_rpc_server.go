@@ -245,11 +245,8 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 			errCh <- fmt.Errorf("could not fetch leaves: %v", err)
 			return
 		}
-		for i, l := range leaves {
-			leavesByIndex[string(l.Index)] = leaves[i]
-		}
-		if len(indices) != len(leavesByIndex) {
-			glog.V(1).Infof("%v: request had %v indices, %v of these are unique", mapID, len(indices), len(leavesByIndex))
+		for _, l := range leaves {
+			leavesByIndex[string(l.Index)] = l
 		}
 		glog.V(1).Infof("%v: wanted %v leaves, found %v", mapID, len(indices), len(leaves))
 
