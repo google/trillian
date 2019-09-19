@@ -21,24 +21,93 @@ env:
   global:
   - GO111MODULE=on
   - GOPROXY=https://proxy.golang.org
-  matrix:
-  - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--no-build"  # only lint & generate
+  matrix: #TODO: Merge the test matrix into individual jobs
   - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--coverage --no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race' WITH_ETCD=true       PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
-  - CT_INTEG_TEST=true                                     PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true                                       PRESUBMIT_OPTS="--coverage --no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race'                       PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'  PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true        PRESUBMIT_OPTS="--no-linters --no-generate"
   - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
-  - BAZEL_TESTS=true                                       PRESUBMIT_OPTS="--no-linters --no-generate"
-  - DOCKER_TESTS=true                                      PRESUBMIT_OPTS="--no-linters --no-generate"
 
 matrix:
   fast_finish: true
+
+jobs:
+  include:
+    - name: "build"
+      before_install: true # This step is empty.
+      install: true
+      before_script: true
+      script: go build ./...
+    - name: "generate"
+      before_install: true
+      install:
+      - mkdir ../protoc
+      - |
+        (
+          cd ../protoc
+          wget "https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
+          unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
+        )
+      - export PATH="$(pwd)/../protoc/bin:$PATH"
+      - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
+      - go install github.com/golang/protobuf/proto
+      - go install github.com/golang/mock/mockgen
+      - go install golang.org/x/tools/cmd/stringer
+      - go install github.com/golang/protobuf/protoc-gen-go
+      - go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+      - go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+      before_script: true
+      script: 
+      - go generate ./...
+      - |
+        # Check re-generation didn't change anything. Skip protoc-generated files
+        # because protoc is not deterministic when generating file descriptors.
+        # Skip go.mod and go.sum because testing may add indirect dependencies
+        # that would be trimmed by 'go mod tidy'
+        echo "Checking that generated files are the same as checked-in versions."
+        git diff --exit-code -- ':!*.pb.go' ':!*_string.go' ':!go.*'
+    - name: "lint"
+      before_install: true
+      install:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint
+      - go install github.com/uber/prototool/cmd/prototool
+      - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
+      before_script: true
+      script:
+      - golangci-lint run --deadline=8m
+      - prototool lint
+      - ./scripts/check_license.sh $(find . -name '*.go' | grep -v mock_ | grep -v .pb.go | grep -v .pb.gw.go | grep -v _string.go | tr '\n' ' ')
+    - name: "bazel"
+      install:
+      - |
+        BAZEL_VERSION='0.18.0'
+        URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
+        wget -O install.sh ${URL}
+        chmod +x install.sh
+        ./install.sh --user
+        rm -f install.sh
+      script: bazel --batch build //:*
+    - name: "docker"
+      script: 
+      - |
+        # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
+        # support is enabled. This requires running softhsm in a Docker container.
+        # See https://github.com/rolandshoemaker/docker-hsm for an example.
+      - ./integration/docker_compose_integration_test.sh
+    - name: "CT Integration"
+      script:
+       - TRILLIAN_DIR=$(pwd)
+       - git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
+       - pushd "$GOPATH/src/github.com/google/certificate-transparency-go"
+       - echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
+       - chmod +x ./trillian/integration/integration_test.sh
+       - ./trillian/integration/integration_test.sh
+       - popd
 
 services:
   - docker
@@ -64,48 +133,15 @@ install:
     if [[ "${GOFLAGS}" == *-race* ]]; then
       export GOCACHE="$(go env GOCACHE)-race"
     fi
-  - mkdir ../protoc
-  - |
-    (
-      cd ../protoc
-      wget "https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
-      unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
-    )
-  - export PATH="$(pwd)/../protoc/bin:$PATH"
-  # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
-  - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - |
     export TOOLS=""
-    if [[ "${PRESUBMIT_OPTS}" != *no-generate* ]]; then
-      TOOLS+=" github.com/golang/mock/mockgen"
-      TOOLS+=" github.com/golang/protobuf/proto"
-      TOOLS+=" github.com/golang/protobuf/protoc-gen-go"
-      TOOLS+=" github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
-      TOOLS+=" github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
-      TOOLS+=" golang.org/x/tools/cmd/stringer"
-    fi
     if [[ "${PRESUBMIT_OPTS}" != *no-build* ]]; then
       TOOLS+=" go.etcd.io/etcd"
       TOOLS+=" go.etcd.io/etcd/etcdctl"
     fi
-    if [[ "${PRESUBMIT_OPTS}" != *no-linters* ]]; then
-      TOOLS+=" github.com/golangci/golangci-lint/cmd/golangci-lint"
-      TOOLS+=" github.com/uber/prototool/cmd/prototool"
-    fi
     echo Installing ${TOOLS}...
     go install ${TOOLS}
   # install bazel
-  - |
-    (
-    if [[ "${BAZEL_TESTS}" == "true" ]]; then
-        BAZEL_VERSION='0.18.0'
-        URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
-        wget -O install.sh ${URL}
-        chmod +x install.sh
-        ./install.sh --user
-        rm -f install.sh
-      fi
-    )
 
 before_script:
   - ./scripts/resetdb.sh --force
@@ -119,11 +155,6 @@ script:
   - |
     if [[ "${PRESUB_TESTS}" == "true" ]]; then
       ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
-      # Check re-generation didn't change anything. Skip protoc-generated files
-      # because protoc is not deterministic when generating file descriptors.
-      # Skip go.mod and go.sum because testing may add indirect dependencies that would be trimmed by 'go mod tidy'
-      echo "Checking that generated files are the same as checked-in versions."
-      git diff --exit-code -- ':!*.pb.go' ':!*_string.go' ':!go.*'
     fi
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
@@ -134,28 +165,6 @@ script:
       ./integration/integration_test.sh
       HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     fi
-  - |
-    if [[ "${CT_INTEG_TEST}" == "true" ]]; then
-      # See if we would break ct-go by checking it out and updating the trillian dep.
-      TRILLIAN_DIR=$(pwd)
-      git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
-      pushd "$GOPATH/src/github.com/google/certificate-transparency-go"
-      echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
-      chmod +x ./trillian/integration/integration_test.sh
-      ./trillian/integration/integration_test.sh
-      popd
-    fi
-  - |
-      # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
-      # support is enabled. This requires running softhsm in a Docker container.
-      # See https://github.com/rolandshoemaker/docker-hsm for an example.
-      if [[ "${DOCKER_TESTS}" == "true" ]]; then
-        ./integration/docker_compose_integration_test.sh
-      fi
-  - |
-      if [[ "${BAZEL_TESTS}" == "true" ]]; then
-        bazel --batch build //:*
-      fi
   - set +e
 
 after_success:
