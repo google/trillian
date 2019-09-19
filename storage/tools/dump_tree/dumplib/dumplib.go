@@ -47,6 +47,7 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
@@ -312,7 +313,7 @@ func Main(args Options) string {
 	return allRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
 }
 
-func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func allRevisions(ls storage.LogStorage, treeID int64, repopFunc tree.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		if rebuildInternal {
@@ -326,7 +327,7 @@ func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Populat
 	return out.String()
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc tree.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
@@ -416,11 +417,11 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 	glog.Info("Finished sequencing")
 }
 
-func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, ts int, rev int64) string {
+func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillian.Tree, ts int, rev int64) string {
 	out := new(bytes.Buffer)
 	nodesAtLevel := int64(ts)
 
-	tx, err := ls.SnapshotForTree(context.TODO(), tree)
+	tx, err := ls.SnapshotForTree(context.TODO(), tt)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
@@ -448,12 +449,12 @@ func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tree *trill
 		for node := int64(0); node < nodesAtLevel; node++ {
 			// We're going to request one node at a time, which would normally be slow but we have
 			// the tree in RAM so it's not a real problem.
-			nodeID, err := storage.NewNodeIDForTreeCoords(level, node, 64)
+			nodeID, err := tree.NewNodeIDForTreeCoords(level, node, 64)
 			if err != nil {
 				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, node, err)
 			}
 
-			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []storage.NodeID{nodeID})
+			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []tree.NodeID{nodeID})
 			if err != nil {
 				glog.Fatalf("GetMerkleNodes: %s: %v", nodeID.CoordString(), err)
 			}

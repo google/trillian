@@ -24,8 +24,8 @@ import (
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 
 	"github.com/golang/mock/gomock"
 	"github.com/kylelemons/godebug/pretty"
@@ -47,7 +47,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
-	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
+	nodeID := tree.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := 0
@@ -76,13 +76,13 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
-	nodeIDs := []storage.NodeID{
-		storage.NewNodeIDFromHash([]byte("1234")),
-		storage.NewNodeIDFromHash([]byte("1235")),
-		storage.NewNodeIDFromHash([]byte("4567")),
-		storage.NewNodeIDFromHash([]byte("89ab")),
-		storage.NewNodeIDFromHash([]byte("89ac")),
-		storage.NewNodeIDFromHash([]byte("89ad")),
+	nodeIDs := []tree.NodeID{
+		tree.NewNodeIDFromHash([]byte("1234")),
+		tree.NewNodeIDFromHash([]byte("1235")),
+		tree.NewNodeIDFromHash([]byte("4567")),
+		tree.NewNodeIDFromHash([]byte("89ab")),
+		tree.NewNodeIDFromHash([]byte("89ac")),
+		tree.NewNodeIDFromHash([]byte("89ad")),
 	}
 	// Test that node IDs from one subtree are collapsed into one stratum read.
 	skips := map[int]bool{1: true, 4: true, 5: true}
@@ -108,7 +108,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 		nodeIDs,
 		// Glue function to convert a call requesting multiple subtrees into a
 		// sequence of calls to our mock storage:
-		func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
 			ret := make([]*storagepb.SubtreeProto, 0)
 			for _, i := range ids {
 				r, err := m.GetSubtree(i)
@@ -126,7 +126,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	}
 }
 
-func noFetch(_ storage.NodeID) (*storagepb.SubtreeProto, error) {
+func noFetch(_ tree.NodeID) (*storagepb.SubtreeProto, error) {
 	return nil, errors.New("not supposed to read anything")
 }
 
@@ -139,7 +139,7 @@ func TestCacheFlush(t *testing.T) {
 	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
 	h := "0123456789abcdef0123456789abcdef"
-	nodeID := storage.NewNodeIDFromHash([]byte(h))
+	nodeID := tree.NewNodeIDFromHash([]byte(h))
 	expectedSetIDs := make(map[string]string)
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
@@ -149,13 +149,13 @@ func TestCacheFlush(t *testing.T) {
 		e := nodeID
 		e.PrefixLenBits = b
 		expectedSetIDs[e.String()] = "expected"
-		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
+		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Do(func(n tree.NodeID) {
 			t.Logf("read %v", n)
 		}).Return((*storagepb.SubtreeProto)(nil), nil)
 	}
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
-			rootID := storage.NewNodeIDFromHash(s.Prefix)
+			rootID := tree.NewNodeIDFromHash(s.Prefix)
 			subID := subtreeID{root: rootID}
 			if got, want := s.Depth, c.layout.getSubtreeHeight(subID); got != int32(want) {
 				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, rootID.PrefixLenBits)
@@ -245,7 +245,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			t.Fatalf("merkle tree update failed: %v", err)
 		}
 
-		nodeID := storage.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, numLeaves-1, logStrataDepth, maxLogDepth)
+		nodeID := tree.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, numLeaves-1, logStrataDepth, maxLogDepth)
 		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
 		sfxKey := sfx.String()
 		s.Leaves[sfxKey] = leafHash
@@ -289,7 +289,7 @@ func BenchmarkRepopulateLogSubtree(b *testing.B) {
 	for i := 0; i < 256; i++ {
 		leaf := []byte(fmt.Sprintf("leaf %d", i))
 		hash := hasher.HashLeaf(leaf)
-		nodeID := storage.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, int64(i), logStrataDepth, maxLogDepth)
+		nodeID := tree.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, int64(i), logStrataDepth, maxLogDepth)
 		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
 		s.Leaves[sfx.String()] = hash
 	}
@@ -310,7 +310,7 @@ func TestIdempotentWrites(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 
 	h := "0123456789abcdef0123456789abcdef"
-	nodeID := storage.NewNodeIDFromHash([]byte(h))
+	nodeID := tree.NewNodeIDFromHash([]byte(h))
 	nodeID.PrefixLenBits = 40
 	subtreeID := nodeID
 	subtreeID.PrefixLenBits = 32
@@ -319,14 +319,14 @@ func TestIdempotentWrites(t *testing.T) {
 	expectedSetIDs[subtreeID.String()] = "expected"
 
 	// The first time we read the subtree we'll emulate an empty subtree:
-	m.EXPECT().GetSubtree(stestonly.NodeIDEq(subtreeID)).Do(func(n storage.NodeID) {
+	m.EXPECT().GetSubtree(stestonly.NodeIDEq(subtreeID)).Do(func(n tree.NodeID) {
 		t.Logf("read %v", n.String())
 	}).Return((*storagepb.SubtreeProto)(nil), nil)
 
 	// We should only see a single write attempt
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
-			subID := storage.NewNodeIDFromHash(s.Prefix)
+			subID := tree.NewNodeIDFromHash(s.Prefix)
 			state, ok := expectedSetIDs[subID.String()]
 			if !ok {
 				t.Errorf("Unexpected write to subtree %s", subID.String())
@@ -342,7 +342,7 @@ func TestIdempotentWrites(t *testing.T) {
 
 			// After this write completes, subsequent reads will see the subtree
 			// being written now:
-			m.EXPECT().GetSubtree(stestonly.NodeIDEq(subID)).AnyTimes().Do(func(n storage.NodeID) {
+			m.EXPECT().GetSubtree(stestonly.NodeIDEq(subID)).AnyTimes().Do(func(n tree.NodeID) {
 				t.Logf("read again %v", n.String())
 			}).Return(s, nil)
 

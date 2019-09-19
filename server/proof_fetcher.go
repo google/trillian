@@ -22,9 +22,10 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
 
-// proofMaxBitLen is the max depth of a tree. Used for storage.NodeID creation.
+// proofMaxBitLen is the max depth of a tree. Used for tree.NodeID creation.
 const proofMaxBitLen = 64
 
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
@@ -52,12 +53,12 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 type rehasher struct {
 	th         hashers.LogHasher
 	rehashing  bool
-	rehashNode storage.Node
+	rehashNode tree.Node
 	proof      [][]byte
 	proofError error
 }
 
-func (r *rehasher) process(node storage.Node, fetch merkle.NodeFetch) {
+func (r *rehasher) process(node tree.Node, fetch merkle.NodeFetch) {
 	switch {
 	case !r.rehashing && fetch.Rehash:
 		// Start of a rehashing chain
@@ -79,12 +80,12 @@ func (r *rehasher) process(node storage.Node, fetch merkle.NodeFetch) {
 	}
 }
 
-func (r *rehasher) emitNode(node storage.Node) {
+func (r *rehasher) emitNode(node tree.Node) {
 	r.proof = append(r.proof, node.Hash)
 }
 
-func (r *rehasher) startRehashing(node storage.Node) {
-	r.rehashNode = storage.Node{Hash: node.Hash}
+func (r *rehasher) startRehashing(node tree.Node) {
+	r.rehashNode = tree.Node{Hash: node.Hash}
 	r.rehashing = true
 }
 
@@ -105,13 +106,13 @@ func (r *rehasher) rehashedProof(leafIndex int64) (*trillian.Proof, error) {
 
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
 // to storage, returning the result after some additional validation checks.
-func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
+func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]tree.Node, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodes")
 	defer spanEnd()
-	proofNodeIDs := make([]storage.NodeID, 0, len(fetches))
+	proofNodeIDs := make([]tree.NodeID, 0, len(fetches))
 
 	for _, fetch := range fetches {
-		id, err := storage.NewNodeIDForTreeCoords(int64(fetch.ID.Level), int64(fetch.ID.Index), proofMaxBitLen)
+		id, err := tree.NewNodeIDForTreeCoords(int64(fetch.ID.Level), int64(fetch.ID.Index), proofMaxBitLen)
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +131,7 @@ func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, 
 	for i, node := range proofNodes {
 		// Additional check that the correct node was returned.
 		if !node.NodeID.Equivalent(proofNodeIDs[i]) {
-			return []storage.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
+			return []tree.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
 		}
 	}
 

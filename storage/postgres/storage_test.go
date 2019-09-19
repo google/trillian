@@ -31,6 +31,8 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgres/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
+	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 )
@@ -42,7 +44,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]stree.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}
@@ -83,10 +85,10 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 	mtx.treeTX.writeRevision = rev
 }
 
-func createSomeNodes() []storage.Node {
-	r := make([]storage.Node, 4)
+func createSomeNodes() []stree.Node {
+	r := make([]stree.Node, 4)
 	for i := range r {
-		r[i].NodeID = storage.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
+		r[i].NodeID = tree.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
 		glog.Infof("Node to store: %v\n", r[i].NodeID)
@@ -94,7 +96,7 @@ func createSomeNodes() []storage.Node {
 	return r
 }
 
-func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
+func nodesAreEqual(lhs []stree.Node, rhs []stree.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 
@@ -471,10 +472,10 @@ func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []m
 	return err
 }
 
-func calcAllSiblingsParallel(_ context.Context, treeDepth int, hkv []merkle.HashKeyValue) []storage.NodeID {
+func calcAllSiblingsParallel(_ context.Context, treeDepth int, hkv []merkle.HashKeyValue) []tree.NodeID {
 	type nodeAndID struct {
 		id   string
-		node storage.NodeID
+		node tree.NodeID
 	}
 	c := make(chan nodeAndID, 2048)
 	var wg sync.WaitGroup
@@ -484,7 +485,7 @@ func calcAllSiblingsParallel(_ context.Context, treeDepth int, hkv []merkle.Hash
 		wg.Add(1)
 		go func(k []byte) {
 			defer wg.Done()
-			nid := storage.NewNodeIDFromHash(k)
+			nid := tree.NewNodeIDFromHash(k)
 			sibs := nid.Siblings()
 			for _, sib := range sibs {
 				sibID := sib.AsKey()
@@ -501,7 +502,7 @@ func calcAllSiblingsParallel(_ context.Context, treeDepth int, hkv []merkle.Hash
 	}()
 
 	nidSet := make(map[string]bool)
-	nids := make([]storage.NodeID, 0, len(hkv)*treeDepth)
+	nids := make([]tree.NodeID, 0, len(hkv)*treeDepth)
 	// consume the produced IDs until the channel is closed.
 	for nai := range c {
 		if _, ok := nidSet[nai.id]; !ok {

@@ -17,7 +17,7 @@ package cache
 import (
 	"fmt"
 
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
 
 const (
@@ -25,16 +25,16 @@ const (
 	// subtree heights must also be a multiple of.
 	//
 	// WARNING: The treeLayout type breaks if this value is not a multiple of 8,
-	// because it uses storage.NodeID byte representation directly.
+	// because it uses tree.NodeID byte representation directly.
 	depthQuantum = 8
 )
 
 // subtreeID holds an ID of a subtree, which is aligned with the tree layout.
 //
 // It assumes that strata heights are multiples of 8, and so the byte
-// representation of the subtree ID matches storage.NodeID.
+// representation of the subtree ID matches tree.NodeID.
 type subtreeID struct {
-	root storage.NodeID
+	root tree.NodeID
 }
 
 // asKey returns the ID as a string suitable for in-memory mapping.
@@ -51,6 +51,9 @@ func (s subtreeID) asBytes() []byte {
 }
 
 // treeLayout defines the mapping between tree node IDs and subtree IDs.
+//
+// TODO(pavelkalinnikov): Move this to storage/tree package, and rename to
+// Layout, so that it's used in code as tree.Layout.
 type treeLayout struct {
 	// sIndex contains stratum info for each multiple-of-depthQuantum node depth.
 	// Note that if a stratum spans multiple depthQuantum heights then it will be
@@ -95,28 +98,28 @@ func newTreeLayout(heights []int) *treeLayout {
 // Note that nodes located at strata boundaries normally belong to subtrees
 // rooted above them. However, the topmost node (with an empty NodeID) is the
 // root for its own subtree since there is nothing above it.
-func (t *treeLayout) getSubtreeID(id storage.NodeID) subtreeID {
+func (t *treeLayout) getSubtreeID(id tree.NodeID) subtreeID {
 	if depth := id.PrefixLenBits; depth > 0 {
 		info := t.getStratumAt(depth - 1)
 		// TODO(pavelkalinnikov): Use Prefix method once it no longer copies Path.
 		// TODO(pavelkalinnikov): Rename *FromHash to something sensible.
-		root := storage.NewNodeIDFromHash(id.Path[:info.idBytes])
+		root := tree.NewNodeIDFromHash(id.Path[:info.idBytes])
 		return subtreeID{root: root}
 	}
 	// TODO(pavelkalinnikov): Leave Path == nil when it's safe.
-	return subtreeID{root: storage.NodeID{Path: []byte{}}}
+	return subtreeID{root: tree.NodeID{Path: []byte{}}}
 }
 
 // split returns the subtree ID that the passed-in node belongs to, and the
 // corresponding local address within this subtree.
-func (t *treeLayout) split(id storage.NodeID) (subtreeID, *storage.Suffix) {
+func (t *treeLayout) split(id tree.NodeID) (subtreeID, *tree.Suffix) {
 	if depth := id.PrefixLenBits; depth > 0 {
 		info := t.getStratumAt(depth - 1)
-		root := storage.NewNodeIDFromHash(id.Path[:info.idBytes])
+		root := tree.NewNodeIDFromHash(id.Path[:info.idBytes])
 		suffix := id.Suffix(info.idBytes, info.height)
 		return subtreeID{root: root}, suffix
 	}
-	return subtreeID{root: storage.NodeID{Path: []byte{}}}, storage.EmptySuffix
+	return subtreeID{root: tree.NodeID{Path: []byte{}}}, tree.EmptySuffix
 }
 
 // getSubtreeHeight returns the height of the subtree with the passed-in ID.

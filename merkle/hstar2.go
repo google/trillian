@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
 
 var (
@@ -132,7 +132,7 @@ func (s *HStar2) run(prefix []byte, subtreeDepth int, values []*HStar2LeafHash,
 		return nil, ErrSubtreeOverrun
 	}
 	sort.Sort(ByIndex{values})
-	offset := storage.NewNodeIDFromPrefixSuffix(prefix, storage.EmptySuffix, s.hasher.BitLen()).BigInt()
+	offset := tree.NewNodeIDFromPrefixSuffix(prefix, tree.EmptySuffix, s.hasher.BitLen()).BigInt()
 	return s.hStar2b(depth, totalDepth, values, offset, get, combine)
 }
 
@@ -184,7 +184,7 @@ func (s *HStar2) get(index *big.Int, depth int, getter SparseGetNodeFunc) ([]byt
 	}
 	// TODO(gdbelvin): Hashers should accept depth as their main argument.
 	height := s.hasher.BitLen() - depth
-	nodeID := storage.NewNodeIDFromBigInt(index.BitLen(), index, s.hasher.BitLen())
+	nodeID := tree.NewNodeIDFromBigInt(index.BitLen(), index, s.hasher.BitLen())
 	return s.hasher.HashEmpty(s.treeID, nodeID.Path, height), nil
 }
 

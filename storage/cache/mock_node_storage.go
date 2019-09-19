@@ -7,8 +7,8 @@ package cache
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	storage "github.com/google/trillian/storage"
 	storagepb "github.com/google/trillian/storage/storagepb"
+	tree "github.com/google/trillian/storage/tree"
 	reflect "reflect"
 )
 
@@ -36,7 +36,7 @@ func (m *MockNodeStorage) EXPECT() *MockNodeStorageMockRecorder {
 }
 
 // GetSubtree mocks base method
-func (m *MockNodeStorage) GetSubtree(arg0 storage.NodeID) (*storagepb.SubtreeProto, error) {
+func (m *MockNodeStorage) GetSubtree(arg0 tree.NodeID) (*storagepb.SubtreeProto, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSubtree", arg0)
 	ret0, _ := ret[0].(*storagepb.SubtreeProto)

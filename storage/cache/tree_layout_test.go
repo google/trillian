@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -47,7 +47,7 @@ func TestSplitNodeID(t *testing.T) {
 		{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
 		{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
 	} {
-		n := storage.NewNodeIDFromHash(tc.inPath)
+		n := tree.NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
 		t.Run(fmt.Sprintf("%v", n), func(t *testing.T) {
