@@ -125,7 +125,7 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 	return th, nil
 }
 
-type newCacheFn func(*trillian.Tree) (cache.SubtreeCache, error)
+type newCacheFn func(*trillian.Tree) (*cache.SubtreeCache, error)
 
 func (t *treeStorage) getTreeAndConfig(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, proto.Message, error) {
 	config, err := unmarshalSettings(tree)
@@ -194,7 +194,7 @@ type treeTX struct {
 	// writeRev is the tree revision at which any writes will be made.
 	_writeRev int64
 
-	cache cache.SubtreeCache
+	cache *cache.SubtreeCache
 
 	getLatestRootOnce sync.Once
 }
@@ -327,15 +327,19 @@ func (t *treeTX) WriteRevision(ctx context.Context) (int64, error) {
 	return rev, nil
 }
 
-// nodeIDToKey returns a []byte suitable for use as a primary key column for
-// the subtree which contains the id.
-// If id's prefix is not byte-aligned, an error will be returned.
+// subtreeKey returns a non-nil []byte suitable for use as a primary key column
+// for the subtree rooted at the passed-in node ID. Returns an error if the ID
+// is not aligned to bytes.
 func subtreeKey(id storage.NodeID) ([]byte, error) {
-	// TODO(al): extend this check to ensure id is at a tree stratum boundary.
+	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
 	if id.PrefixLenBits%8 != 0 {
-		return nil, fmt.Errorf("id.PrefixLenBits (%d) is not a multiple of 8; it cannot be a subtree prefix", id.PrefixLenBits)
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
 	}
-	return id.Path[:id.PrefixLenBits/8], nil
+	// The returned slice must not be nil, as it would correspond to NULL in SQL.
+	if bytes := id.Path; bytes != nil {
+		return bytes[:id.PrefixLenBits/8], nil
+	}
+	return []byte{}, nil
 }
 
 // getSubtree retrieves the most recent subtree specified by id at (or below)

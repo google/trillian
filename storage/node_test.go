@@ -26,59 +26,6 @@ import (
 
 var h2b = testonly.MustHexDecode
 
-func TestSetLowerBits(t *testing.T) {
-	for _, tc := range []struct {
-		val   byte
-		index []byte
-		depth int
-		want  []byte
-	}{
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 0, want: h2b("0000000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 1, want: h2b("8000000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 2, want: h2b("C000000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 3, want: h2b("E000000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 4, want: h2b("F000000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 5, want: h2b("F800000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 6, want: h2b("FC00000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 7, want: h2b("FE00000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 8, want: h2b("FF00000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 9, want: h2b("FF80000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 10, want: h2b("FFC0000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 159, want: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE")},
-		{val: 0x00, index: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), depth: 160, want: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0x00, index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 1, want: h2b("0000000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 17, want: h2b("0001000000000000000000000000000000000000")},
-		{val: 0x00, index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 159, want: h2b("000102030405060708090A0B0C0D0E0F10111212")},
-		{val: 0x00, index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 160, want: h2b("000102030405060708090A0B0C0D0E0F10111213")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 0, want: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 1, want: h2b("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 2, want: h2b("3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 3, want: h2b("1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 4, want: h2b("0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 5, want: h2b("07FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 6, want: h2b("03FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 7, want: h2b("01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 8, want: h2b("00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 9, want: h2b("007FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 10, want: h2b("003FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 159, want: h2b("0000000000000000000000000000000000000001")},
-		{val: 0xFF, index: h2b("0000000000000000000000000000000000000000"), depth: 160, want: h2b("0000000000000000000000000000000000000000")},
-		{val: 0xFF, index: h2b("000102030405060708090A0B0C0D0E0F10111212"), depth: 1, want: h2b("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("000102030405060708090A0B0C0D0E0F10111212"), depth: 17, want: h2b("00017FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
-		{val: 0xFF, index: h2b("000102030405060708090A0B0C0D0E0F10111212"), depth: 159, want: h2b("000102030405060708090A0B0C0D0E0F10111213")},
-		{val: 0xFF, index: h2b("000102030405060708090A0B0C0D0E0F10111212"), depth: 160, want: h2b("000102030405060708090A0B0C0D0E0F10111212")},
-	} {
-		nID := NewNodeIDFromHash(tc.index)
-		gotNode := nID.SetLowerBits(tc.depth, tc.val)
-		if got, want := gotNode.Path, tc.want; !bytes.Equal(got, want) {
-			t.Errorf("SetLowerBits(%x, %v, 0x%X): %x, want %x", tc.index, tc.depth, tc.val, got, want)
-		}
-		if got, want := gotNode.PrefixLenBits, 160; got != want {
-			t.Errorf("SetLowerBits(%x, %v, 0x%X).PrefixLen: %v, want %v", tc.index, tc.depth, tc.val, got, want)
-		}
-	}
-}
-
 func TestMaskLeft(t *testing.T) {
 	for _, tc := range []struct {
 		index []byte
@@ -107,23 +54,6 @@ func TestMaskLeft(t *testing.T) {
 		if got, want := nID.MaskLeft(tc.depth).Path, tc.want; !bytes.Equal(got, want) {
 			t.Errorf("maskIndex(%x, %v): %x, want %x", tc.index, tc.depth, got, want)
 		}
-	}
-}
-
-func TestNewEmptyNodeIDPanic(t *testing.T) {
-	for b := 0; b < 64; b++ {
-		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
-			// Only multiples of 8 bits should be accepted.
-			want := b%8 != 0
-			// Unfortunately we have to test for panics.
-			defer func() {
-				got := recover()
-				if (got != nil && !want) || (got == nil && want) {
-					t.Errorf("Incorrect panic behaviour got: %v, want: %v", got, want)
-				}
-			}()
-			_ = NewEmptyNodeID(b)
-		})
 	}
 }
 
@@ -580,8 +510,8 @@ func TestNodeEquivalentFromHash(t *testing.T) {
 		h1 := mustDecode(tc.str1)
 		h2 := mustDecode(tc.str2)
 
-		n1 := *NewNodeIDFromHash(h1)
-		n2 := *NewNodeIDFromHash(h2)
+		n1 := NewNodeIDFromHash(h1)
+		n2 := NewNodeIDFromHash(h2)
 
 		if n1.Equivalent(n2) != tc.want || n2.Equivalent(n1) != tc.want {
 			t.Errorf("TestNodeIDFromHash mismatch: %v", tc)
@@ -605,7 +535,7 @@ func TestNeighbour(t *testing.T) {
 		{index: h2b("0000000000010000"), want: h2b("0000000000010001")},
 		{index: h2b("8000000000000000"), want: h2b("8000000000000001")},
 	} {
-		nID := *NewNodeIDFromHash(tc.index)
+		nID := NewNodeIDFromHash(tc.index)
 		if got, want := nID.Neighbor(nID.PrefixLenBits).Path, tc.want; !bytes.Equal(got, want) {
 			t.Errorf("flipBit(%x): %x, want %x", tc.index, got, want)
 		}
@@ -669,7 +599,7 @@ func TestString(t *testing.T) {
 		wantKey string
 	}{
 		{
-			n:       *NewEmptyNodeID(32),
+			n:       NodeID{},
 			want:    "",
 			wantKey: "0:",
 		},
@@ -704,7 +634,7 @@ func TestString(t *testing.T) {
 			wantKey: "16:1234",
 		},
 		{
-			n:       *NewNodeIDFromHash([]byte("this is a hash")),
+			n:       NewNodeIDFromHash([]byte("this is a hash")),
 			want:    "0111010001101000011010010111001100100000011010010111001100100000011000010010000001101000011000010111001101101000",
 			wantKey: "112:7468697320697320612068617368",
 		},

@@ -24,11 +24,10 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
+	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 const mapID1 = int64(1)
@@ -351,4 +350,56 @@ func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) st
 	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)
 
 	return adminStorage
+}
+
+func TestRequestIndexValidator(t *testing.T) {
+	tests := []struct {
+		desc      string
+		indexSize int
+		indices   [][]byte
+		wantErr   bool
+	}{
+		{
+			desc:      "Single index of correct length",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}},
+		},
+		{
+			desc:      "Single index of longer correct length",
+			indexSize: 4,
+			indices:   [][]byte{{'a', 'b', 'c', 'd'}},
+		},
+		{
+			desc:      "Single index too long",
+			indexSize: 1,
+			indices:   [][]byte{{'a', 'b'}},
+			wantErr:   true,
+		},
+		{
+			desc:      "Single index too short",
+			indexSize: 2,
+			indices:   [][]byte{{'a'}},
+			wantErr:   true,
+		},
+		{
+			desc:      "Multiple indices of correct length & no duplicates",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}, {'b'}},
+		},
+		{
+			desc:      "Multiple indices of correct length with duplicates",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}, {'a'}},
+			wantErr:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			err := validateIndices(tt.indexSize, len(tt.indices), func(i int) []byte { return tt.indices[i] })
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIndices() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

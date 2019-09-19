@@ -84,7 +84,8 @@ func TestMapReadWriteTransaction(t *testing.T) {
 			tree:        mapTree(-1),
 			wantRev:     0,
 			wantTXRev:   -1,
-			wantRootErr: "needs initialising",
+			wantErr:     true,
+			wantRootErr: "tree must be pulled from storage",
 		},
 		{
 			desc:      "activeMapBegin",

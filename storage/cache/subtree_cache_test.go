@@ -40,49 +40,6 @@ var (
 
 const treeID = int64(0)
 
-func TestSplitNodeID(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
-	for _, tc := range []struct {
-		inPath        []byte
-		inPathLenBits int
-		outPrefix     []byte
-		outSuffixBits int
-		outSuffix     []byte
-	}{
-		{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, []byte{0x7f}},
-		{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, []byte{0xf8}},
-		{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, []byte{0x80}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, []byte{0x34}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
-		{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
-		{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
-		{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
-		{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
-		{[]byte{0x70}, 5, []byte{}, 5, []byte{0x70}},
-		{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
-		{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
-	} {
-		n := *storage.NewNodeIDFromHash(tc.inPath)
-		n.PrefixLenBits = tc.inPathLenBits
-
-		sInfo := c.stratumInfoForNodeID(n)
-		p, s := n.Split(sInfo.prefixBytes, sInfo.depth)
-		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
-			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
-			continue
-		}
-		if got, want := int(s.Bits()), tc.outSuffixBits; got != want {
-			t.Errorf("splitNodeID(%v): suffix.Bits %v, want %v", n, got, want)
-			continue
-		}
-		if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
-			t.Errorf("splitNodeID(%v): suffix.Path %x, want %x", n, got, want)
-		}
-	}
-}
-
 func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -90,7 +47,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
-	nodeID := *storage.NewNodeIDFromHash([]byte("1234"))
+	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := 0
@@ -120,14 +77,22 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
 	nodeIDs := []storage.NodeID{
-		*storage.NewNodeIDFromHash([]byte("1234")),
-		*storage.NewNodeIDFromHash([]byte("4567")),
-		*storage.NewNodeIDFromHash([]byte("89ab")),
+		storage.NewNodeIDFromHash([]byte("1234")),
+		storage.NewNodeIDFromHash([]byte("1235")),
+		storage.NewNodeIDFromHash([]byte("4567")),
+		storage.NewNodeIDFromHash([]byte("89ab")),
+		storage.NewNodeIDFromHash([]byte("89ac")),
+		storage.NewNodeIDFromHash([]byte("89ad")),
 	}
+	// Test that node IDs from one subtree are collapsed into one stratum read.
+	skips := map[int]bool{1: true, 4: true, 5: true}
 
-	// Set up the expected reads:
-	// We expect one subtree read per entry in nodeIDs
-	for _, nodeID := range nodeIDs {
+	// Set up the expected reads. We expect one subtree read per entry in
+	// nodeIDs, except for the ones in the skips map.
+	for i, nodeID := range nodeIDs {
+		if skips[i] {
+			continue
+		}
 		nodeID := nodeID
 		// And it'll be for the prefix of the full node ID (with the default log
 		// strata that'll be everything except the last byte), so modify the prefix
@@ -174,15 +139,14 @@ func TestCacheFlush(t *testing.T) {
 	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
 
 	h := "0123456789abcdef0123456789abcdef"
-	nodeID := *storage.NewNodeIDFromHash([]byte(h))
+	nodeID := storage.NewNodeIDFromHash([]byte(h))
 	expectedSetIDs := make(map[string]string)
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := -1
 	for b := 0; b < nodeID.PrefixLenBits; b += defaultMapStrata[si] {
 		si++
-		e := *storage.NewNodeIDFromHash([]byte(h))
-		//e := nodeID
+		e := nodeID
 		e.PrefixLenBits = b
 		expectedSetIDs[e.String()] = "expected"
 		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
@@ -191,23 +155,24 @@ func TestCacheFlush(t *testing.T) {
 	}
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
-			subID := storage.NewNodeIDFromHash(s.Prefix)
-			if got, want := s.Depth, c.stratumInfoForPrefixLength(subID.PrefixLenBits).depth; got != int32(want) {
-				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, subID.PrefixLenBits)
+			rootID := storage.NewNodeIDFromHash(s.Prefix)
+			subID := subtreeID{root: rootID}
+			if got, want := s.Depth, c.layout.getSubtreeHeight(subID); got != int32(want) {
+				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, rootID.PrefixLenBits)
 			}
-			state, ok := expectedSetIDs[subID.String()]
+			state, ok := expectedSetIDs[rootID.String()]
 			if !ok {
-				t.Errorf("Unexpected write to subtree %s", subID.String())
+				t.Errorf("Unexpected write to subtree %s", rootID.String())
 			}
 			switch state {
 			case "expected":
-				expectedSetIDs[subID.String()] = "met"
+				expectedSetIDs[rootID.String()] = "met"
 			case "met":
-				t.Errorf("Second write to subtree %s", subID.String())
+				t.Errorf("Second write to subtree %s", rootID.String())
 			default:
-				t.Errorf("Unknown state for subtree %s: %s", subID.String(), state)
+				t.Errorf("Unknown state for subtree %s: %s", rootID.String(), state)
 			}
-			t.Logf("write %v -> (%d leaves)", subID, len(s.Leaves))
+			t.Logf("write %v -> (%d leaves)", rootID, len(s.Leaves))
 		}
 	}).Return(nil)
 
@@ -272,8 +237,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			n := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 8)
 			// Don't store leaves or the subtree root in InternalNodes
 			if id.Level > 0 && id.Level < 8 {
-				sInfo := c.stratumInfoForNodeID(n)
-				sfx := n.Suffix(sInfo.prefixBytes, sInfo.depth)
+				_, sfx := c.layout.split(n)
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}
@@ -338,40 +302,6 @@ func BenchmarkRepopulateLogSubtree(b *testing.B) {
 	}
 }
 
-func TestPrefixLengths(t *testing.T) {
-	strata := []int{8, 8, 16, 32, 64, 128}
-	stratumInfo := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
-
-	c := NewSubtreeCache(strata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
-
-	if diff := pretty.Compare(c.stratumInfo, stratumInfo); diff != "" {
-		t.Fatalf("prefixLengths diff:\n%v", diff)
-	}
-}
-
-func TestGetStratumInfo(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
-	testVec := []struct {
-		depth int
-		info  stratumInfo
-	}{
-		{0, stratumInfo{0, 8}},
-		{1, stratumInfo{0, 8}},
-		{7, stratumInfo{0, 8}},
-		{8, stratumInfo{1, 8}},
-		{15, stratumInfo{1, 8}},
-		{79, stratumInfo{9, 8}},
-		{80, stratumInfo{10, 176}},
-		{81, stratumInfo{10, 176}},
-		{156, stratumInfo{10, 176}},
-	}
-	for i, tv := range testVec {
-		if diff := pretty.Compare(c.stratumInfoForPrefixLength(tv.depth), tv.info); diff != "" {
-			t.Errorf("(test %d for depth %d) diff:\n%v", i, tv.depth, diff)
-		}
-	}
-}
-
 func TestIdempotentWrites(t *testing.T) {
 	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
@@ -380,7 +310,7 @@ func TestIdempotentWrites(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 
 	h := "0123456789abcdef0123456789abcdef"
-	nodeID := *storage.NewNodeIDFromHash([]byte(h))
+	nodeID := storage.NewNodeIDFromHash([]byte(h))
 	nodeID.PrefixLenBits = 40
 	subtreeID := nodeID
 	subtreeID.PrefixLenBits = 32
@@ -396,7 +326,7 @@ func TestIdempotentWrites(t *testing.T) {
 	// We should only see a single write attempt
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
-			subID := *storage.NewNodeIDFromHash(s.Prefix)
+			subID := storage.NewNodeIDFromHash(s.Prefix)
 			state, ok := expectedSetIDs[subID.String()]
 			if !ok {
 				t.Errorf("Unexpected write to subtree %s", subID.String())

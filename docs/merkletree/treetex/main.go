@@ -31,7 +31,6 @@ import (
 
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/storage"
 )
 
 const (
@@ -78,19 +77,16 @@ const (
 
 	// Maximum number of ranges to allow.
 	maxRanges = 3
-
-	// maxLen is a suitably large maximum nodeID length for storage.NodeID.
-	maxLen = 64
 )
 
 var (
-	treeSize  = flag.Int64("tree_size", 23, "Size of tree to produce")
+	treeSize  = flag.Uint64("tree_size", 23, "Size of tree to produce")
 	inclusion = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
-	megaMode  = flag.Int64("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
+	megaMode  = flag.Uint("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
 	ranges    = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
 
 	// nInfo holds nodeInfo data for the tree.
-	nInfo = make(map[string]nodeInfo)
+	nInfo = make(map[compact.NodeID]nodeInfo)
 )
 
 // nodeInfo represents the style to be applied to a tree node.
@@ -151,38 +147,35 @@ func (n nodeInfo) String() string {
 	return strings.Join(attr, ", ")
 }
 
-// modifyNodeInfo applies f to the nodeInfo associated with node k.
-func modifyNodeInfo(k string, f func(*nodeInfo)) {
-	n, ok := nInfo[k]
-	if !ok {
-		n = nodeInfo{}
-	}
+// modifyNodeInfo applies f to the nodeInfo associated with node id.
+func modifyNodeInfo(id compact.NodeID, f func(*nodeInfo)) {
+	n := nInfo[id] // Note: Returns an empty nodeInfo if id is not found.
 	f(&n)
-	nInfo[k] = n
+	nInfo[id] = n
 }
 
 // perfectMega renders a large perfect subtree as a single entity.
-func perfectMega(prefix string, height, leafIndex int64) {
-	stLeaves := int64(1) << uint(height)
+func perfectMega(prefix string, height uint, leafIndex uint64) {
+	stLeaves := uint64(1) << height
 	stWidth := float32(stLeaves) / float32(*treeSize)
 	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, leafIndex, leafIndex+stLeaves, stLeaves, stWidth)
 
 	// Create some hidden nodes to preseve the tier spacings:
 	fmt.Printf("%s", prefix)
-	for i := height - 2; i > 0; i-- {
+	for i := int(height - 2); i > 0; i-- {
 		fmt.Printf(" [, no edge, tier=%d ", i)
 		defer fmt.Printf(" ] ")
 	}
 }
 
 // perfect renders a perfect subtree.
-func perfect(prefix string, height, index int64) {
+func perfect(prefix string, height uint, index uint64) {
 	perfectInner(prefix, height, index, true)
 }
 
 // drawLeaf emits TeX code to render a leaf.
-func drawLeaf(prefix string, index int64) {
-	a := nInfo[nodeKey(0, index)]
+func drawLeaf(prefix string, index uint64) {
+	a := nInfo[compact.NewNodeID(0, index)]
 	fmt.Printf("%s [%d, %s, tier=leaf]\n", prefix, index, a.String())
 }
 
@@ -190,45 +183,40 @@ func drawLeaf(prefix string, index int64) {
 // The caller may emit any number of child nodes before calling the returned
 // func to close the node.
 // Returns a func to be called to close the node.
-//
-func openInnerNode(prefix string, height, index int64) func() {
-	attr := nInfo[nodeKey(height, index)].String()
-	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, height, index, attr, height-1)
+func openInnerNode(prefix string, id compact.NodeID) func() {
+	attr := nInfo[id].String()
+	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, id.Level, id.Index, attr, id.Index-1)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
 // perfectInner renders the nodes of a perfect internal subtree.
-func perfectInner(prefix string, height, index int64, top bool) {
-	nk := nodeKey(height, index)
-	modifyNodeInfo(nk, func(n *nodeInfo) {
-		n.leaf = height == 0
+func perfectInner(prefix string, level uint, index uint64, top bool) {
+	id := compact.NewNodeID(level, index)
+	modifyNodeInfo(id, func(n *nodeInfo) {
+		n.leaf = id.Level == 0
 		n.perfectRoot = top
 	})
 
-	if height == 0 {
+	if level == 0 {
 		drawLeaf(prefix, index)
 		return
 	}
-	c := openInnerNode(prefix, height, index)
+	c := openInnerNode(prefix, id)
 	childIndex := index << 1
-	if height > *megaMode {
-		perfectMega(prefix, height, index<<uint(height))
+	if level > *megaMode {
+		perfectMega(prefix, level, index<<level)
 	} else {
-		perfectInner(prefix+" ", height-1, childIndex, false)
-		perfectInner(prefix+" ", height-1, childIndex+1, false)
+		perfectInner(prefix+" ", level-1, childIndex, false)
+		perfectInner(prefix+" ", level-1, childIndex+1, false)
 	}
 	c()
 }
 
 // renderTree renders a tree node and recurses if necessary.
-func renderTree(prefix string, treeSize, index int64) {
-	if treeSize <= 0 {
-		return
-	}
-
+func renderTree(prefix string, treeSize, index uint64) {
 	// Look at the bit of the treeSize corresponding to the current level:
-	height := int64(bits.Len64(uint64(treeSize)) - 1)
-	b := int64(1) << uint(height)
+	height := uint(bits.Len64(treeSize) - 1)
+	b := uint64(1) << height
 	rest := treeSize - b
 	// left child is a perfect subtree.
 
@@ -236,58 +224,43 @@ func renderTree(prefix string, treeSize, index int64) {
 	// parent. (Otherwise we'll just keep quiet, and recurse down - this is how
 	// we arrange for leaves to always be on the bottom level.)
 	if rest > 0 {
-		ch := height + 1
-		ci := index >> uint(ch)
-		modifyNodeInfo(nodeKey(ch, ci), func(n *nodeInfo) { n.ephemeral = true })
-		c := openInnerNode(prefix, ch, ci)
+		childHeight := height + 1
+		id := compact.NewNodeID(childHeight, index>>childHeight)
+		modifyNodeInfo(id, func(n *nodeInfo) { n.ephemeral = true })
+		c := openInnerNode(prefix, id)
 		defer c()
 	}
-	perfect(prefix+" ", height, index>>uint(height))
+	perfect(prefix+" ", height, index>>height)
 	index += b
 	renderTree(prefix+" ", rest, index)
-}
-
-// nodeKey returns a stable node identifier for the passed in node coordinate.
-func nodeKey(height, index int64) string {
-	return fmt.Sprintf("%d.%d", height, index)
-}
-
-// toNodeKey converts a storage.NodeID to the corresponding stable node
-// identifier used by this tool.
-func toNodeKey(n storage.NodeID) string {
-	d := int64(maxLen - n.PrefixLenBits)
-	i := n.BigInt().Int64() >> uint(d)
-	return nodeKey(d, i)
 }
 
 // parseRanges parses and validates a string of comma-separates open-closed
 // ranges of the form L:R.
 // Returns the parsed ranges, or an error if there's a problem.
-func parseRanges(ranges string, treeSize int64) ([][2]int64, error) {
+func parseRanges(ranges string, treeSize uint64) ([][2]uint64, error) {
 	rangePairs := strings.Split(ranges, ",")
 	numRanges := len(rangePairs)
 	if num, max := numRanges, maxRanges; num > max {
 		return nil, fmt.Errorf("too many ranges %d, must be %d or fewer", num, max)
 	}
-	ret := make([][2]int64, 0, numRanges)
+	ret := make([][2]uint64, 0, numRanges)
 	for _, rng := range rangePairs {
 		lr := strings.Split(rng, ":")
 		if len(lr) != 2 {
 			return nil, fmt.Errorf("specified range %q is invalid", rng)
 		}
-		var l, r int64
+		var l, r uint64
 		if _, err := fmt.Sscanf(rng, "%d:%d", &l, &r); err != nil {
 			return nil, fmt.Errorf("range %q is malformed: %s", rng, err)
 		}
 		switch {
 		case r > treeSize:
 			return nil, fmt.Errorf("range %q extends past end of tree (%d)", lr, treeSize)
-		case l < 0:
-			return nil, fmt.Errorf("range %q has negative beginning", rng)
 		case l > r:
 			return nil, fmt.Errorf("range elements in %q are out of order", rng)
 		}
-		ret = append(ret, [2]int64{l, r})
+		ret = append(ret, [2]uint64{l, r})
 	}
 	return ret, nil
 }
@@ -305,28 +278,31 @@ func modifyRangeNodeInfo() error {
 		l, r := lr[0], lr[1]
 		// Set leaves:
 		for i := l; i < r; i++ {
-			modifyNodeInfo(nodeKey(0, i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
+			id := compact.NewNodeID(0, i)
+			modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 		}
 
 		// Now perfect roots which comprise the range:
-		maskL, maskR := compact.Decompose(uint64(l), uint64(r))
+		maskL, maskR := compact.Decompose(l, r)
 		p := l
 		// Do left perfect subtree roots:
 		nBitsL := uint(bits.Len64(maskL))
 		for i, bit := uint(0), uint64(1); i < nBitsL; i, bit = i+1, bit<<1 {
 			if maskL&bit != 0 {
 				if i > 0 {
-					modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
+					id := compact.NewNodeID(i, p>>i)
+					modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 				}
-				p += int64(bit)
+				p += bit
 			}
 		}
 		// Do right perfect subtree roots:
 		nBitsR := uint(bits.Len64(maskR))
 		for i, bit := nBitsR, uint64(1<<nBitsR); i > 1; i, bit = i-1, bit>>1 {
 			if maskR&bit != 0 {
-				modifyNodeInfo(nodeKey(int64(i), p>>i), func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
-				p += int64(bit)
+				id := compact.NewNodeID(i, p>>i)
+				modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
+				p += bit
 			}
 		}
 	}
@@ -337,19 +313,21 @@ func modifyRangeNodeInfo() error {
 func main() {
 	// TODO(al): check flag validity.
 	flag.Parse()
-	height := int64(bits.Len(uint(*treeSize-1)) + 1)
+	height := uint(bits.Len64(*treeSize-1)) + 1
 
 	if *inclusion > 0 {
-		modifyNodeInfo(nodeKey(0, *inclusion), func(n *nodeInfo) { n.target = true })
-		nf, err := merkle.CalcInclusionProofNodeAddresses(*treeSize, *inclusion, *treeSize, maxLen)
+		leafID := compact.NewNodeID(0, uint64(*inclusion))
+		modifyNodeInfo(leafID, func(n *nodeInfo) { n.target = true })
+		nf, err := merkle.CalcInclusionProofNodeAddresses(int64(*treeSize), *inclusion, int64(*treeSize))
 		if err != nil {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}
 		for _, n := range nf {
-			modifyNodeInfo(toNodeKey(n.NodeID), func(n *nodeInfo) { n.incProof = true })
+			modifyNodeInfo(n.ID, func(n *nodeInfo) { n.incProof = true })
 		}
-		for h, i := int64(0), *inclusion; h < height; h, i = h+1, i>>1 {
-			modifyNodeInfo(nodeKey(h, i), func(n *nodeInfo) { n.incPath = true })
+		for h, i := uint(0), leafID.Index; h < height; h, i = h+1, i>>1 {
+			id := compact.NewNodeID(h, i)
+			modifyNodeInfo(id, func(n *nodeInfo) { n.incPath = true })
 		}
 	}
 

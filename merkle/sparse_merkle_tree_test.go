@@ -17,7 +17,6 @@ package merkle
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"flag"
@@ -85,136 +84,6 @@ func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Contr
 		panic(err)
 	}
 	return tree, tx
-}
-
-type rootNodeMatcher struct{}
-
-func (r rootNodeMatcher) Matches(x interface{}) bool {
-	nodes, ok := x.([]storage.NodeID)
-	if !ok {
-		return false
-	}
-	return len(nodes) == 1 &&
-		nodes[0].PrefixLenBits == 0
-}
-
-func (r rootNodeMatcher) String() string {
-	return "is a single root node"
-}
-
-func randomBytes(t *testing.T, n int) []byte {
-	r := make([]byte, n)
-	g, err := rand.Read(r)
-	if g != n || err != nil {
-		t.Fatalf("Failed to read %d bytes of entropy for path, read %d and got error: %v", n, g, err)
-	}
-	return r
-}
-
-func getRandomRootNode(t *testing.T, rev int64) storage.Node {
-	return storage.Node{
-		NodeID:       *storage.NewEmptyNodeID(0),
-		Hash:         randomBytes(t, 32),
-		NodeRevision: rev,
-	}
-}
-
-func getRandomNonRootNode(t *testing.T, rev int64) storage.Node {
-	nodeID := storage.NewNodeIDFromHash(randomBytes(t, 32))
-	// Make sure it's not a root node.
-	nodeID.PrefixLenBits = int(1 + randomBytes(t, 1)[0]%254)
-	return storage.Node{
-		NodeID:       *nodeID,
-		Hash:         randomBytes(t, 32),
-		NodeRevision: rev,
-	}
-}
-
-func TestRootAtRevision(t *testing.T) {
-	ctx := context.Background()
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, 100)
-	node := getRandomRootNode(t, 14)
-	tx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(23), rootNodeMatcher{}).Return([]storage.Node{node}, nil)
-	root, err := r.RootAtRevision(ctx, 23)
-	if err != nil {
-		t.Fatalf("Failed when calling RootAtRevision(23): %v", err)
-	}
-	if expected, got := root, node.Hash; !bytes.Equal(expected, got) {
-		t.Fatalf("Expected root %v, got %v", expected, got)
-	}
-}
-
-func TestRootAtUnknownRevision(t *testing.T) {
-	ctx := context.Background()
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, 100)
-	tx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(23), rootNodeMatcher{}).Return([]storage.Node{}, nil)
-	_, err := r.RootAtRevision(ctx, 23)
-	if err != ErrNoSuchRevision {
-		t.Fatalf("Attempt to retrieve root an non-existent revision did not result in ErrNoSuchRevision: %v", err)
-	}
-}
-
-func TestRootAtRevisionHasMultipleRoots(t *testing.T) {
-	ctx := context.Background()
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, 100)
-	n1, n2 := getRandomRootNode(t, 14), getRandomRootNode(t, 15)
-	tx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(23), rootNodeMatcher{}).Return([]storage.Node{n1, n2}, nil)
-	_, err := r.RootAtRevision(ctx, 23)
-	if err == nil || err == ErrNoSuchRevision {
-		t.Fatalf("Attempt to retrieve root an non-existent revision did not result in error: %v", err)
-	}
-}
-
-func TestRootAtRevisionCatchesFutureRevision(t *testing.T) {
-	ctx := context.Background()
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	const rev = 100
-	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
-	// Sanity checking in RootAtRevision should catch this node being incorrectly
-	// returned by the storage layer.
-	n1 := getRandomRootNode(t, rev+1)
-	tx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), rootNodeMatcher{}).Return([]storage.Node{n1}, nil)
-	_, err := r.RootAtRevision(ctx, rev)
-	if err == nil || err == ErrNoSuchRevision {
-		t.Fatalf("Attempt to retrieve root with corrupt node did not result in error: %v", err)
-	}
-}
-
-func TestRootAtRevisionCatchesNonRootNode(t *testing.T) {
-	ctx := context.Background()
-
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	const rev = 100
-	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
-	// Sanity checking in RootAtRevision should catch this node being incorrectly
-	// returned by the storage layer.
-	n1 := getRandomNonRootNode(t, rev)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), rootNodeMatcher{}).Return([]storage.Node{n1}, nil)
-	_, err := r.RootAtRevision(ctx, rev)
-	if err == nil || err == ErrNoSuchRevision {
-		t.Fatalf("Attempt to retrieve root with corrupt node did not result in error: %v", err)
-	}
 }
 
 func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
@@ -404,7 +273,7 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 		// calculate the set of expected node reads.
 		for _, kv := range vec.kv {
 			keyHash := testonly.HashKey(kv.k)
-			nodeID := *storage.NewNodeIDFromHash(keyHash)
+			nodeID := storage.NewNodeIDFromHash(keyHash)
 			leafNodeIDs = append(leafNodeIDs, nodeID)
 			sibs := nodeID.Siblings()
 

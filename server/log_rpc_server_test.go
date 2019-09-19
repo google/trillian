@@ -1614,7 +1614,7 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Storage doesn't return the requested node, should result in an error.
 			req:        &getConsistencyProofRequest7,
-			errStr:     "expected node {{[0 0 0 0 0 0 0 4] 62}",
+			errStr:     "expected node 00000000000000000000000000000000000000000000000000000000000001 at",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
 			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},

@@ -601,9 +601,9 @@ func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest b
 	if err != nil {
 		return fmt.Errorf("failed to verify root: %v", err)
 	}
-	for _, inc := range rsp.MapLeafInclusion {
+	for i, inc := range rsp.MapLeafInclusion {
 		if err := s.verifier.VerifyMapLeafInclusionHash(root.RootHash, inc); err != nil {
-			return fmt.Errorf("failed to verify inclusion proof for Index=%x: %v", inc.Leaf.Index, err)
+			return fmt.Errorf("failed to verify inclusion proof for Index=%x (%d/%d) in revision %d of tree %d: %v", inc.Leaf.Index, i, len(rsp.MapLeafInclusion), root.Revision, s.cfg.MapID, err)
 		}
 	}
 

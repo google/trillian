@@ -142,7 +142,7 @@ func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.St
 	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache cache.SubtreeCache) (treeTX, error) {
+func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
@@ -169,7 +169,7 @@ type treeTX struct {
 	treeID        int64
 	treeType      trillian.TreeType
 	hashSizeBytes int
-	subtreeCache  cache.SubtreeCache
+	subtreeCache  *cache.SubtreeCache
 	writeRevision int64
 }
 
@@ -205,19 +205,17 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 
 	// populate args with nodeIDs
 	for _, nodeID := range nodeIDs {
-		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+		nodeIDBytes, err := subtreeKey(nodeID)
+		if err != nil {
+			return nil, err
 		}
-
-		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
-
-		args = append(args, interface{}(nodeIDBytes))
+		args = append(args, nodeIDBytes)
 	}
 
-	args = append(args, interface{}(t.treeID))
-	args = append(args, interface{}(treeRevision))
-	args = append(args, interface{}(t.treeID))
+	args = append(args, t.treeID)
+	args = append(args, treeRevision)
+	args = append(args, t.treeID)
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
@@ -431,4 +429,23 @@ func (t *treeTX) IsOpen() bool {
 	defer t.mu.Unlock()
 
 	return !t.closed
+}
+
+// subtreeKey returns a non-nil []byte suitable for use as a primary key column
+// for the subtree rooted at the passed-in node ID. Returns an error if the ID
+// is not aligned to bytes.
+//
+// TODO(pavelkalinnikov): This function is duplicated in multiple storage
+// implementations. We should create a common "tree layout" type in the
+// top-level storage package and reuse it for ID/strata validation.
+func subtreeKey(id storage.NodeID) ([]byte, error) {
+	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
+	if id.PrefixLenBits%8 != 0 {
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
+	}
+	// The returned slice must not be nil, as it would correspond to NULL in SQL.
+	if bytes := id.Path; bytes != nil {
+		return bytes[:id.PrefixLenBits/8], nil
+	}
+	return []byte{}, nil
 }
