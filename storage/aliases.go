@@ -14,10 +14,11 @@
 
 package storage
 
+import tree "github.com/google/trillian/storage/tree"
+
 // TODO(pavelkalinnikov): These aliases were created to not break the code that
 // depended on these type. We should delete this file eventually.
 
-/*
 type NodeID = tree.NodeID
 type Node = tree.Node
 type Suffix = tree.Suffix
@@ -34,4 +35,3 @@ var (
 	EmptySuffix = tree.EmptySuffix
 	ParseSuffix = tree.ParseSuffix
 )
-*/
