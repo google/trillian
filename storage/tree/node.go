@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+// Package tree defines types that help navigating a tree in storage.
+package tree
 
 import (
 	"bytes"
