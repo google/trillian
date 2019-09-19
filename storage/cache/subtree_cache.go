@@ -56,7 +56,7 @@ const maxSupportedTreeDepth = 256
 //  1. Parallel readers/writers working on non-intersecting subsets of subtrees/nodes.
 //  2. Subtrees/nodes are rarely written, and mostly read.
 type SubtreeCache struct {
-	layout *treeLayout
+	layout *tree.Layout
 
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
@@ -81,11 +81,11 @@ func NewSubtreeCache(strataDepths []int, populateSubtree tree.PopulateSubtreeFun
 	// TODO(al): pass this in
 	maxTreeDepth := maxSupportedTreeDepth
 	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
-	layout := newTreeLayout(strataDepths)
+	layout := tree.NewLayout(strataDepths)
 
 	// TODO(al): This needs to be passed in, particularly for Map use cases where
 	// we need to know it matches the number of bits in the chosen hash function.
-	if got, want := layout.height, maxTreeDepth; got != want {
+	if got, want := layout.Height, maxTreeDepth; got != want {
 		panic(fmt.Errorf("strata indicate tree of depth %d, but expected %d", got, want))
 	}
 
@@ -108,7 +108,7 @@ func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) e
 	// Figure out the set of subtrees we need.
 	want := make(map[string]tree.TileID)
 	for _, id := range ids {
-		subID := s.layout.getTileID(id)
+		subID := s.layout.GetTileID(id)
 		subKey := subID.AsKey()
 		if _, ok := want[subKey]; ok {
 			// No need to check s.subtrees map twice.
@@ -268,7 +268,7 @@ func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([
 		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
 	}
 
-	subID, sx := s.layout.split(id)
+	subID, sx := s.layout.Split(id)
 	subKey := subID.AsKey()
 	c := s.getCachedSubtree(subKey)
 	if c == nil {
@@ -328,7 +328,7 @@ func (s *SubtreeCache) SetNodeHash(id tree.NodeID, h []byte, getSubtree GetSubtr
 		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
 	}
 
-	subID, sx := s.layout.split(id)
+	subID, sx := s.layout.Split(id)
 	subKey := subID.AsKey()
 	c := s.getCachedSubtree(subKey)
 	if c == nil {
@@ -430,7 +430,7 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 
 // newEmptySubtree creates an empty subtree for the passed-in ID.
 func (s *SubtreeCache) newEmptySubtree(id tree.TileID) *storagepb.SubtreeProto {
-	height := s.layout.getTileHeight(id)
+	height := s.layout.GetTileHeight(id)
 	if glog.V(2) {
 		glog.Infof("Creating new empty subtree for %x, with height %d", id.AsBytes(), height)
 	}

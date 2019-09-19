@@ -12,40 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package tree
 
 import (
 	"fmt"
-
-	"github.com/google/trillian/storage/tree"
 )
 
 const (
 	// depthQuantum defines the smallest supported tile height, which all tile
 	// heights must also be a multiple of.
 	//
-	// WARNING: The treeLayout type breaks if this value is not a multiple of 8,
-	// because it uses tree.NodeID byte representation directly.
+	// WARNING: The Layout type breaks if this value is not a multiple of 8,
+	// because it uses NodeID byte representation directly.
 	depthQuantum = 8
 )
 
-// treeLayout defines the mapping between tree node IDs and tile IDs.
-//
-// TODO(pavelkalinnikov): Move this to storage/tree package, and rename to
-// Layout, so that it's used in code as tree.Layout.
-type treeLayout struct {
+// Layout defines the mapping between tree node IDs and tile IDs.
+type Layout struct {
 	// sIndex contains stratum info for each multiple-of-depthQuantum node depth.
 	// Note that if a stratum spans multiple depthQuantum heights then it will be
 	// present in this slice the corresponding number of times.
 	// This index is used for fast mapping from node IDs to strata IDs.
 	sIndex []stratumInfo
-	// height is the height of the tree. It defines the maximal bit-length of a
+	// Height is the height of the tree. It defines the maximal bit-length of a
 	// node ID that the tree can contain.
-	height int
+	Height int
 }
 
-// newTreeLayout creates a tree layout based on the passed-in strata heights.
-func newTreeLayout(heights []int) *treeLayout {
+// NewLayout creates a tree layout based on the passed-in strata heights.
+func NewLayout(heights []int) *Layout {
 	// Compute the total tree height.
 	height := 0
 	for i, h := range heights {
@@ -69,45 +64,46 @@ func newTreeLayout(heights []int) *treeLayout {
 		}
 	}
 
-	return &treeLayout{sIndex: sIndex, height: height}
+	return &Layout{sIndex: sIndex, Height: height}
 }
 
-// getTileID returns the ID of the tile that the given node belongs to.
+// GetTileID returns the ID of the tile that the given node belongs to.
 //
 // Note that nodes located at strata boundaries normally belong to tiles rooted
 // above them. However, the topmost node (with an empty NodeID) is the root for
 // its own tile since there is nothing above it.
-func (t *treeLayout) getTileID(id tree.NodeID) tree.TileID {
+func (l *Layout) GetTileID(id NodeID) TileID {
 	if depth := id.PrefixLenBits; depth > 0 {
-		info := t.getStratumAt(depth - 1)
+		info := l.getStratumAt(depth - 1)
 		// TODO(pavelkalinnikov): Use Prefix method once it no longer copies Path.
 		// TODO(pavelkalinnikov): Rename *FromHash to something sensible.
-		root := tree.NewNodeIDFromHash(id.Path[:info.idBytes])
-		return tree.TileID{Root: root}
+		root := NewNodeIDFromHash(id.Path[:info.idBytes])
+		return TileID{Root: root}
 	}
 	// TODO(pavelkalinnikov): Leave Path == nil when it's safe.
-	return tree.TileID{Root: tree.NodeID{Path: []byte{}}}
+	return TileID{Root: NodeID{Path: []byte{}}}
 }
 
-// split returns the ID of the that the given node belongs to, and the
+// Split returns the ID of the that the given node belongs to, and the
 // corresponding local address within this tile.
-func (t *treeLayout) split(id tree.NodeID) (tree.TileID, *tree.Suffix) {
+func (l *Layout) Split(id NodeID) (TileID, *Suffix) {
 	if depth := id.PrefixLenBits; depth > 0 {
-		info := t.getStratumAt(depth - 1)
-		root := tree.NewNodeIDFromHash(id.Path[:info.idBytes])
+		info := l.getStratumAt(depth - 1)
+		root := NewNodeIDFromHash(id.Path[:info.idBytes])
 		suffix := id.Suffix(info.idBytes, info.height)
-		return tree.TileID{Root: root}, suffix
+		return TileID{Root: root}, suffix
 	}
-	return tree.TileID{Root: tree.NodeID{Path: []byte{}}}, tree.EmptySuffix
+	// TODO(pavelkalinnikov): Leave Path == nil when it's safe.
+	return TileID{Root: NodeID{Path: []byte{}}}, EmptySuffix
 }
 
-// getTileHeight returns the height of the tile with the passed-in ID.
-func (t *treeLayout) getTileHeight(id tree.TileID) int {
-	return t.getStratumAt(id.Root.PrefixLenBits).height
+// GetTileHeight returns the height of the tile with the passed-in ID.
+func (l *Layout) GetTileHeight(id TileID) int {
+	return l.getStratumAt(id.Root.PrefixLenBits).height
 }
 
-func (t *treeLayout) getStratumAt(depth int) stratumInfo {
-	return t.sIndex[depth/depthQuantum]
+func (l *Layout) getStratumAt(depth int) stratumInfo {
+	return l.sIndex[depth/depthQuantum]
 }
 
 // stratumInfo describes a single stratum across the tree.
