@@ -157,7 +157,7 @@ func TestCacheFlush(t *testing.T) {
 		for _, s := range trees {
 			rootID := tree.NewNodeIDFromHash(s.Prefix)
 			subID := tree.TileID{Root: rootID}
-			if got, want := s.Depth, c.layout.getTileHeight(subID); got != int32(want) {
+			if got, want := s.Depth, c.layout.GetTileHeight(subID); got != int32(want) {
 				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, rootID.PrefixLenBits)
 			}
 			state, ok := expectedSetIDs[rootID.String()]
@@ -237,7 +237,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			n := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 8)
 			// Don't store leaves or the subtree root in InternalNodes
 			if id.Level > 0 && id.Level < 8 {
-				_, sfx := c.layout.split(n)
+				_, sfx := c.layout.Split(n)
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}

@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package tree
 
 import (
 	"bytes"
 	"fmt"
 	"testing"
 
-	"github.com/google/trillian/storage/tree"
 	"github.com/kylelemons/godebug/pretty"
 )
 
+var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
+
 func TestSplitNodeID(t *testing.T) {
-	layout := newTreeLayout(defaultMapStrata)
+	layout := NewLayout(defaultMapStrata)
 	for _, tc := range []struct {
 		inPath        []byte
 		inPathLenBits int
@@ -47,11 +48,11 @@ func TestSplitNodeID(t *testing.T) {
 		{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
 		{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
 	} {
-		n := tree.NewNodeIDFromHash(tc.inPath)
+		n := NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
 		t.Run(fmt.Sprintf("%v", n), func(t *testing.T) {
-			p, s := layout.split(n)
+			p, s := layout.Split(n)
 			if got, want := p.Root.Path, tc.outPrefix; !bytes.Equal(got, want) {
 				t.Errorf("prefix %x, want %x", got, want)
 			}
@@ -69,14 +70,14 @@ func TestStrataIndex(t *testing.T) {
 	heights := []int{8, 8, 16, 32, 64, 128}
 	want := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
 
-	layout := newTreeLayout(heights)
+	layout := NewLayout(heights)
 	if diff := pretty.Compare(layout.sIndex, want); diff != "" {
 		t.Fatalf("sIndex diff:\n%v", diff)
 	}
 }
 
 func TestDefaultMapStrataIndex(t *testing.T) {
-	layout := newTreeLayout(defaultMapStrata)
+	layout := NewLayout(defaultMapStrata)
 	for _, tc := range []struct {
 		depth int
 		want  stratumInfo

@@ -46,7 +46,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) tree.Popula
 				return err
 			}
 			// TODO(gdbelvin): test against subtree depth.
-			if sfx.Bits()%depthQuantum != 0 {
+			if sfx.Bits()%8 != 0 {
 				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits())
 			}
 
