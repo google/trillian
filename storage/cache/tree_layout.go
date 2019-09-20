@@ -72,7 +72,7 @@ func newTreeLayout(heights []int) *treeLayout {
 	return &treeLayout{sIndex: sIndex, height: height}
 }
 
-// getTileID returns the tile ID that the passed-in node belongs to.
+// getTileID returns the ID of the tile that the given node belongs to.
 //
 // Note that nodes located at strata boundaries normally belong to tiles rooted
 // above them. However, the topmost node (with an empty NodeID) is the root for
@@ -89,7 +89,7 @@ func (t *treeLayout) getTileID(id tree.NodeID) tree.TileID {
 	return tree.TileID{Root: tree.NodeID{Path: []byte{}}}
 }
 
-// split returns the tile ID that the passed-in node belongs to, and the
+// split returns the ID of the that the given node belongs to, and the
 // corresponding local address within this tile.
 func (t *treeLayout) split(id tree.NodeID) (tree.TileID, *tree.Suffix) {
 	if depth := id.PrefixLenBits; depth > 0 {

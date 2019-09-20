@@ -14,7 +14,7 @@
 
 package tree
 
-// TileID holds an ID of a tile, which is aligned with the tree layout.
+// TileID holds the ID of a tile, which is aligned with the tree layout.
 //
 // It assumes that strata heights are multiples of 8, and so the byte
 // representation of the TileID matches NodeID.
@@ -30,7 +30,7 @@ func (t TileID) AsKey() string {
 // AsBytes returns the ID as a byte slice suitable for passing in to the
 // storage layer. The returned bytes must not be modified.
 func (t TileID) AsBytes() []byte {
-	// TODO(pavelkalinnikov): We could simply return s.Root.Path, but some NodeID
+	// TODO(pavelkalinnikov): We could simply return t.Root.Path, but some NodeID
 	// constructors allocate more bytes in Path than necessary.
 	return t.Root.Path[:t.Root.PrefixLenBits/8]
 }
