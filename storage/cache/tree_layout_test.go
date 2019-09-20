@@ -52,7 +52,7 @@ func TestSplitNodeID(t *testing.T) {
 
 		t.Run(fmt.Sprintf("%v", n), func(t *testing.T) {
 			p, s := layout.split(n)
-			if got, want := p.root.Path, tc.outPrefix; !bytes.Equal(got, want) {
+			if got, want := p.Root.Path, tc.outPrefix; !bytes.Equal(got, want) {
 				t.Errorf("prefix %x, want %x", got, want)
 			}
 			if got, want := int(s.Bits()), tc.outSuffixBits; got != want {

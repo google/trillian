@@ -21,36 +21,15 @@ import (
 )
 
 const (
-	// depthQuantum defines the smallest supported subtree height, which all
-	// subtree heights must also be a multiple of.
+	// depthQuantum defines the smallest supported tile height, which all tile
+	// heights must also be a multiple of.
 	//
 	// WARNING: The treeLayout type breaks if this value is not a multiple of 8,
 	// because it uses tree.NodeID byte representation directly.
 	depthQuantum = 8
 )
 
-// subtreeID holds an ID of a subtree, which is aligned with the tree layout.
-//
-// It assumes that strata heights are multiples of 8, and so the byte
-// representation of the subtree ID matches tree.NodeID.
-type subtreeID struct {
-	root tree.NodeID
-}
-
-// asKey returns the ID as a string suitable for in-memory mapping.
-func (s subtreeID) asKey() string {
-	return string(s.asBytes())
-}
-
-// asBytes returns the ID as a byte slice suitable for passing it to the
-// storage layer. The returned bytes must not be modified.
-func (s subtreeID) asBytes() []byte {
-	// TODO(pavelkalinnikov): We could simply return s.root.Path, but some NodeID
-	// constructors allocate more bytes in Path than necessary.
-	return s.root.Path[:s.root.PrefixLenBits/8]
-}
-
-// treeLayout defines the mapping between tree node IDs and subtree IDs.
+// treeLayout defines the mapping between tree node IDs and tile IDs.
 //
 // TODO(pavelkalinnikov): Move this to storage/tree package, and rename to
 // Layout, so that it's used in code as tree.Layout.
@@ -93,38 +72,38 @@ func newTreeLayout(heights []int) *treeLayout {
 	return &treeLayout{sIndex: sIndex, height: height}
 }
 
-// getSubtreeID returns the subtree ID that the passed-in node belongs to.
+// getTileID returns the ID of the tile that the given node belongs to.
 //
-// Note that nodes located at strata boundaries normally belong to subtrees
-// rooted above them. However, the topmost node (with an empty NodeID) is the
-// root for its own subtree since there is nothing above it.
-func (t *treeLayout) getSubtreeID(id tree.NodeID) subtreeID {
+// Note that nodes located at strata boundaries normally belong to tiles rooted
+// above them. However, the topmost node (with an empty NodeID) is the root for
+// its own tile since there is nothing above it.
+func (t *treeLayout) getTileID(id tree.NodeID) tree.TileID {
 	if depth := id.PrefixLenBits; depth > 0 {
 		info := t.getStratumAt(depth - 1)
 		// TODO(pavelkalinnikov): Use Prefix method once it no longer copies Path.
 		// TODO(pavelkalinnikov): Rename *FromHash to something sensible.
 		root := tree.NewNodeIDFromHash(id.Path[:info.idBytes])
-		return subtreeID{root: root}
+		return tree.TileID{Root: root}
 	}
 	// TODO(pavelkalinnikov): Leave Path == nil when it's safe.
-	return subtreeID{root: tree.NodeID{Path: []byte{}}}
+	return tree.TileID{Root: tree.NodeID{Path: []byte{}}}
 }
 
-// split returns the subtree ID that the passed-in node belongs to, and the
-// corresponding local address within this subtree.
-func (t *treeLayout) split(id tree.NodeID) (subtreeID, *tree.Suffix) {
+// split returns the ID of the that the given node belongs to, and the
+// corresponding local address within this tile.
+func (t *treeLayout) split(id tree.NodeID) (tree.TileID, *tree.Suffix) {
 	if depth := id.PrefixLenBits; depth > 0 {
 		info := t.getStratumAt(depth - 1)
 		root := tree.NewNodeIDFromHash(id.Path[:info.idBytes])
 		suffix := id.Suffix(info.idBytes, info.height)
-		return subtreeID{root: root}, suffix
+		return tree.TileID{Root: root}, suffix
 	}
-	return subtreeID{root: tree.NodeID{Path: []byte{}}}, tree.EmptySuffix
+	return tree.TileID{Root: tree.NodeID{Path: []byte{}}}, tree.EmptySuffix
 }
 
-// getSubtreeHeight returns the height of the subtree with the passed-in ID.
-func (t *treeLayout) getSubtreeHeight(id subtreeID) int {
-	return t.getStratumAt(id.root.PrefixLenBits).height
+// getTileHeight returns the height of the tile with the passed-in ID.
+func (t *treeLayout) getTileHeight(id tree.TileID) int {
+	return t.getStratumAt(id.Root.PrefixLenBits).height
 }
 
 func (t *treeLayout) getStratumAt(depth int) stratumInfo {
