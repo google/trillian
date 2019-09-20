@@ -24,18 +24,18 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 )
 
 // TODO(al): move this up the stack
 var populateConcurrency = flag.Int("populate_subtree_concurrency", 256, "Max number of concurrent workers concurrently populating subtrees")
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
-type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
+type GetSubtreeFunc func(id tree.NodeID) (*storagepb.SubtreeProto, error)
 
 // GetSubtreesFunc describes a function which can return a number of Subtrees from storage.
-type GetSubtreesFunc func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error)
+type GetSubtreesFunc func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error)
 
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) error
@@ -64,18 +64,18 @@ type SubtreeCache struct {
 	dirtyPrefixes sync.Map
 
 	// populate is used to rebuild internal nodes when subtrees are loaded from storage.
-	populate storage.PopulateSubtreeFunc
+	populate tree.PopulateSubtreeFunc
 	// populateConcurrency sets the amount of concurrency when repopulating subtrees.
 	populateConcurrency int
 	// prepare is used for preparation work when subtrees are about to be written to storage.
-	prepare storage.PrepareSubtreeWriteFunc
+	prepare tree.PrepareSubtreeWriteFunc
 }
 
 // NewSubtreeCache returns a newly intialised cache ready for use.
 // populateSubtree is a function which knows how to populate a subtree's
 // internal nodes given its leaves, and will be called for each subtree loaded
 // from storage.
-func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) *SubtreeCache {
+func NewSubtreeCache(strataDepths []int, populateSubtree tree.PopulateSubtreeFunc, prepareSubtreeWrite tree.PrepareSubtreeWriteFunc) *SubtreeCache {
 	// TODO(al): pass this in
 	maxTreeDepth := maxSupportedTreeDepth
 	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
@@ -102,7 +102,7 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 // preload calculates the set of subtrees required to know the hashes of the
 // passed in node IDs, uses getSubtrees to retrieve them, and finally populates
 // the cache structures with the data.
-func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc) error {
+func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) error {
 	// Figure out the set of subtrees we need.
 	want := make(map[string]subtreeID)
 	for _, id := range ids {
@@ -126,7 +126,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	}
 
 	// TODO(pavelkalinnikov): Change the getters to accept []subtreeID.
-	list := make([]storage.NodeID, 0, len(want))
+	list := make([]tree.NodeID, 0, len(want))
 	for _, v := range want {
 		list = append(list, v.root)
 	}
@@ -197,7 +197,7 @@ func (s *SubtreeCache) cacheSubtree(t *storagepb.SubtreeProto) error {
 
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
-func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
+func (s *SubtreeCache) GetNodes(ids []tree.NodeID, getSubtrees GetSubtreesFunc) ([]tree.Node, error) {
 	glog.V(2).Infof("cache: GetNodes(count=%d)", len(ids))
 	if glog.V(3) {
 		for _, n := range ids {
@@ -208,15 +208,15 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 		return nil, err
 	}
 
-	ret := make([]storage.Node, 0, len(ids))
+	ret := make([]tree.Node, 0, len(ids))
 	for _, id := range ids {
 		h, err := s.getNodeHash(
 			id,
-			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
+			func(n tree.NodeID) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
 				glog.Warningf("Unexpectedly reading from within getNodeHash(): %s", n.String())
-				ret, err := getSubtrees([]storage.NodeID{n})
+				ret, err := getSubtrees([]tree.NodeID{n})
 				if err != nil || len(ret) == 0 {
 					return nil, err
 				}
@@ -230,7 +230,7 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 		}
 
 		if h != nil {
-			ret = append(ret, storage.Node{
+			ret = append(ret, tree.Node{
 				NodeID: id,
 				Hash:   h,
 			})
@@ -261,7 +261,7 @@ func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
 }
 
 // getNodeHash returns a single node hash from the cache.
-func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
+func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
 	if glog.V(3) {
 		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
 	}
@@ -321,7 +321,7 @@ func (s *SubtreeCache) getNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc)
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
+func (s *SubtreeCache) SetNodeHash(id tree.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
 	if glog.V(3) {
 		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
 	}

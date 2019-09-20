@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 
@@ -141,9 +142,9 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 	}
 
 	ids := compact.RangeNodes(0, root.TreeSize)
-	storIDs := make([]storage.NodeID, len(ids))
+	storIDs := make([]tree.NodeID, len(ids))
 	for i, id := range ids {
-		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
+		nodeID, err := tree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create nodeID: %v", err)
 		}
@@ -183,14 +184,14 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 	return cr, nil
 }
 
-func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]storage.Node, error) {
-	nodes := make([]storage.Node, 0, len(nodeMap))
+func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]tree.Node, error) {
+	nodes := make([]tree.Node, 0, len(nodeMap))
 	for id, hash := range nodeMap {
-		nodeID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
+		nodeID, err := tree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
 		if err != nil {
 			return nil, err
 		}
-		nodes = append(nodes, storage.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion})
+		nodes = append(nodes, tree.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion})
 	}
 	return nodes, nil
 }

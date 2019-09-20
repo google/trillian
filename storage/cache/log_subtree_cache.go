@@ -19,8 +19,8 @@ import (
 
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 )
 
 const (
@@ -38,7 +38,7 @@ func NewLogSubtreeCache(logStrata []int, hasher hashers.LogHasher) *SubtreeCache
 
 // LogPopulateFunc obtains a log storage population function based on a supplied LogHasher.
 // This is intended for use by storage utilities.
-func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
+func LogPopulateFunc(hasher hashers.LogHasher) tree.PopulateSubtreeFunc {
 	return populateLogSubtreeNodes(hasher)
 }
 
@@ -49,7 +49,7 @@ func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 // handle imperfect (but left-hand dense) subtrees. Note that we only rebuild internal
 // nodes when the subtree is fully populated. For an explanation of why see the comments
 // below for PrepareLogSubtreeWrite.
-func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
+func populateLogSubtreeNodes(hasher hashers.LogHasher) tree.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		if st.Depth < 1 {
 			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
@@ -75,7 +75,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 			if id.Level > 0 && len(st.Leaves) == maxLeaves {
 				subDepth := logStrataDepth - int(id.Level)
 				// TODO(Martin2112): See if we can possibly avoid the expense hiding inside NewNodeIDFromPrefix.
-				nodeID := storage.NewNodeIDFromPrefix(st.Prefix, subDepth, int64(id.Index), logStrataDepth, maxLogDepth)
+				nodeID := tree.NewNodeIDFromPrefix(st.Prefix, subDepth, int64(id.Index), logStrataDepth, maxLogDepth)
 				sfx := nodeID.Suffix(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				st.InternalNodes[sfxKey] = hash
@@ -87,7 +87,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 
 		// We need to update the subtree root hash regardless of whether it's fully populated
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
-			nodeID := storage.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
+			nodeID := tree.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
 			sfx := nodeID.Suffix(len(st.Prefix), int(st.Depth))
 			sfxKey := sfx.String()
 			h := st.Leaves[sfxKey]
@@ -136,7 +136,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 //
 // Fully populated subtrees don't have this problem because by definition they can only
 // contain internal nodes built from their own contents.
-func prepareLogSubtreeWrite() storage.PrepareSubtreeWriteFunc {
+func prepareLogSubtreeWrite() tree.PrepareSubtreeWriteFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodeCount = uint32(len(st.InternalNodes))
 		if st.Depth < 1 {

@@ -26,7 +26,7 @@ import (
 	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/maphasher"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 )
 
@@ -185,7 +185,7 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []*HStar2LeafHash) []*
 		}
 
 		ret = append(ret, &HStar2LeafHash{
-			Index:    storage.NewNodeIDFromPrefixSuffix(prefix, storage.EmptySuffix, hasher.BitLen()).BigInt(),
+			Index:    tree.NewNodeIDFromPrefixSuffix(prefix, tree.EmptySuffix, hasher.BitLen()).BigInt(),
 			LeafHash: root,
 		})
 	}

@@ -35,6 +35,7 @@ import (
 
 	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
 )
 
 var (
@@ -66,8 +67,8 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
 	}
-	compactTree16 = []storage.Node{{
-		NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 60},
+	compactTree16 = []tree.Node{{
+		NodeID: tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 60},
 		// TODO(pavelkalinnikov): Put a well-formed hash here. The current one is
 		// taken from testRoot16 and retained for regression purposes.
 		Hash:         []byte{},
@@ -107,14 +108,14 @@ var (
 	testSignedRoot18, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot18)
 
 	// These will be accepted in either order because of custom sorting in the mock
-	updatedNodes = []storage.Node{
+	updatedNodes = []tree.Node{
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 64},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 64},
 			Hash:         testonly.MustDecodeBase64("L5Iyd7aFOVewxiRm29xD+EU+jvEo4RfufBijKdflWMk="),
 			NodeRevision: 6,
 		},
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59},
 			Hash:         testonly.MustDecodeBase64("R57DrKTGuZdjCNXjv6InGrm4rABLOn9yWpdHmYOoLwU="),
 			NodeRevision: 6,
 		},
@@ -138,42 +139,42 @@ var (
 	}
 	testSignedRoot21, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot21)
 	// Nodes that will be loaded when updating the tree of size 21.
-	compactTree21 = []storage.Node{
+	compactTree21 = []tree.Node{
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 60},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 60},
 			Hash:         testonly.MustDecodeBase64("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="),
 			NodeRevision: 5,
 		},
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 62},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 62},
 			Hash:         testonly.MustDecodeBase64("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="),
 			NodeRevision: 5,
 		},
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14}, PrefixLenBits: 64},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14}, PrefixLenBits: 64},
 			Hash:         testonly.MustDecodeBase64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="),
 			NodeRevision: 5,
 		},
 	}
 	// Nodes that will be stored after updating the tree of size 21.
-	updatedNodes21 = []storage.Node{
+	updatedNodes21 = []tree.Node{
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59},
 			Hash:         testonly.MustDecodeBase64("1oUtLDlyOWXLHLAvL3NvWaO4D9kr0oQYScylDlgjey4="),
 			NodeRevision: 6,
 		},
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 61},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 61},
 			Hash:         testonly.MustDecodeBase64("1yCvo/9xbNIileBAEjc+c00GxVQQV7h54Tdmkc48uRU="),
 			NodeRevision: 6,
 		},
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14}, PrefixLenBits: 63},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14}, PrefixLenBits: 63},
 			Hash:         testonly.MustDecodeBase64("S55qEsQMx90/eq1fSb87pYCB9WIYL7hBgiTY+B9LmPw="),
 			NodeRevision: 6,
 		},
 		{
-			NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15}, PrefixLenBits: 64},
+			NodeID:       tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15}, PrefixLenBits: 64},
 			Hash:         testonly.MustDecodeBase64("L5Iyd7aFOVewxiRm29xD+EU+jvEo4RfufBijKdflWMk="),
 			NodeRevision: 6,
 		},
@@ -221,13 +222,13 @@ type testParameters struct {
 	latestSignedRootError error
 	latestSignedRoot      *trillian.SignedLogRoot
 
-	merkleNodesGet      *[]storage.Node
+	merkleNodesGet      *[]tree.Node
 	merkleNodesGetError error
 
 	updatedLeaves      *[]*trillian.LogLeaf
 	updatedLeavesError error
 
-	merkleNodesSet      *[]storage.Node
+	merkleNodesSet      *[]tree.Node
 	merkleNodesSetError error
 
 	skipStoreSignedRoot  bool
@@ -313,7 +314,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	}
 
 	if params.merkleNodesGet != nil {
-		ids := make([]storage.NodeID, 0, len(*params.merkleNodesGet))
+		ids := make([]tree.NodeID, 0, len(*params.merkleNodesGet))
 		for _, node := range *params.merkleNodesGet {
 			ids = append(ids, node.NodeID)
 		}
@@ -358,7 +359,7 @@ func TestIntegrateBatch(t *testing.T) {
 	guardWindow := time.Second * 10
 	expectedCutoffTime := fakeTime.Add(-guardWindow)
 	noLeaves := []*trillian.LogLeaf{}
-	noNodes := []storage.Node{}
+	noNodes := []tree.Node{}
 	specs := []quota.Spec{
 		{Group: quota.Tree, Kind: quota.Read, TreeID: 154035},
 		{Group: quota.Tree, Kind: quota.Write, TreeID: 154035},

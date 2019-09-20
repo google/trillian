@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -330,7 +331,7 @@ func (t *treeTX) WriteRevision(ctx context.Context) (int64, error) {
 // subtreeKey returns a non-nil []byte suitable for use as a primary key column
 // for the subtree rooted at the passed-in node ID. Returns an error if the ID
 // is not aligned to bytes.
-func subtreeKey(id storage.NodeID) ([]byte, error) {
+func subtreeKey(id tree.NodeID) ([]byte, error) {
 	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
 	if id.PrefixLenBits%8 != 0 {
 		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
@@ -345,7 +346,7 @@ func subtreeKey(id storage.NodeID) ([]byte, error) {
 // getSubtree retrieves the most recent subtree specified by id at (or below)
 // the requested revision.
 // If no such subtree exists it returns nil.
-func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (p *storagepb.SubtreeProto, e error) {
+func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *storagepb.SubtreeProto, e error) {
 	stID, err := subtreeKey(id)
 	if err != nil {
 		return nil, err
@@ -402,7 +403,7 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 
 // GetMerkleNodes returns the requested set of nodes at, or before, the
 // specified tree revision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []storage.NodeID) ([]storage.Node, error) {
+func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []tree.NodeID) ([]tree.Node, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.stx == nil {
@@ -410,7 +411,7 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []storage.No
 	}
 
 	return t.cache.GetNodes(ids,
-		func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
 			// Request the various subtrees in parallel.
 			// c will carry any retrieved subtrees
 			c := make(chan *storagepb.SubtreeProto, len(ids))
@@ -451,7 +452,7 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []storage.No
 
 // SetMerkleNodes stores the provided merkle nodes at the writeRevision of the
 // transaction.
-func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
+func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.stx == nil {
@@ -467,7 +468,7 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error
 		err := t.cache.SetNodeHash(
 			n.NodeID,
 			n.Hash,
-			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
+			func(nID tree.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(ctx, writeRev-1, nID)
 			})
 		if err != nil {

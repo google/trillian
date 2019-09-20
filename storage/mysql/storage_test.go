@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 
@@ -40,16 +41,16 @@ import (
 
 func TestNodeRoundTrip(t *testing.T) {
 	nodes := createSomeNodes(256)
-	nodeIDs := make([]storage.NodeID, len(nodes))
+	nodeIDs := make([]stree.NodeID, len(nodes))
 	for i := range nodes {
 		nodeIDs[i] = nodes[i].NodeID
 	}
 
 	for _, tc := range []struct {
 		desc  string
-		store []storage.Node
-		read  []storage.NodeID
-		want  []storage.Node
+		store []stree.Node
+		read  []stree.NodeID
+		want  []stree.Node
 	}{
 		{desc: "store-4-read-4", store: nodes[:4], read: nodeIDs[:4], want: nodes[:4]},
 		{desc: "store-4-read-1", store: nodes[:4], read: nodeIDs[:1], want: nodes[:1]},
@@ -66,7 +67,7 @@ func TestNodeRoundTrip(t *testing.T) {
 			s := NewLogStorage(DB, nil)
 
 			const writeRev = int64(100)
-			preread := make([]storage.NodeID, len(tc.store))
+			preread := make([]stree.NodeID, len(tc.store))
 			for i := range tc.store {
 				preread[i] = tc.store[i].NodeID
 			}
@@ -111,7 +112,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test tree: %v", err)
 	}
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]stree.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}
@@ -160,10 +161,10 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 	mtx.treeTX.writeRevision = rev
 }
 
-func createSomeNodes(count int) []storage.Node {
-	r := make([]storage.Node, count)
+func createSomeNodes(count int) []stree.Node {
+	r := make([]stree.Node, count)
 	for i := range r {
-		r[i].NodeID = storage.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
+		r[i].NodeID = stree.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
 		glog.Infof("Node to store: %v\n", r[i].NodeID)
@@ -171,7 +172,7 @@ func createSomeNodes(count int) []storage.Node {
 	return r
 }
 
-func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, error) {
+func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]stree.Node, error) {
 	hasher := rfc6962.New(crypto.SHA256)
 	fact := compact.RangeFactory{Hash: hasher.HashChildren}
 	cr := fact.NewEmptyRange(0)
@@ -194,13 +195,13 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, e
 	}
 
 	// Unroll the map, which has deduped the updates for us and retained the latest
-	nodes := make([]storage.Node, 0, len(nodeMap))
+	nodes := make([]stree.Node, 0, len(nodeMap))
 	for id, hash := range nodeMap {
-		nID, err := storage.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
+		nID, err := stree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
 		if err != nil {
 			t.Fatalf("failed to create NodeID for %+v: %v", id, err)
 		}
-		node := storage.Node{NodeID: nID, Hash: hash, NodeRevision: rev}
+		node := stree.Node{NodeID: nID, Hash: hash, NodeRevision: rev}
 		nodes = append(nodes, node)
 	}
 
@@ -208,7 +209,7 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]storage.Node, e
 }
 
 // TODO(pavelkalinnikov): Allow nodes to be out of order.
-func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
+func nodesAreEqual(lhs []stree.Node, rhs []stree.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
 	}
@@ -223,9 +224,9 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
-func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
-	var missing []storage.Node
-	gotMap := make(map[string]storage.Node)
+func diffNodes(got, want []stree.Node) ([]stree.Node, []stree.Node) {
+	var missing []stree.Node
+	gotMap := make(map[string]stree.Node)
 	for _, n := range got {
 		gotMap[n.NodeID.String()] = n
 	}
@@ -237,7 +238,7 @@ func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
 		delete(gotMap, n.NodeID.String())
 	}
 	// Unpack the extra nodes to return both as slices
-	extra := make([]storage.Node, 0, len(gotMap))
+	extra := make([]stree.Node, 0, len(gotMap))
 	for _, v := range gotMap {
 		extra = append(extra, v)
 	}

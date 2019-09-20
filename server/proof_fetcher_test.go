@@ -24,8 +24,8 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
 )
 
 // rehashTest encapsulates one test case for the rehasher in isolation. Input data like the storage
@@ -33,7 +33,7 @@ import (
 type rehashTest struct {
 	desc    string
 	index   int64
-	nodes   []storage.Node
+	nodes   []tree.Node
 	fetches []merkle.NodeFetch
 	output  *trillian.Proof
 }
@@ -49,11 +49,11 @@ var h4 = th.HashLeaf([]byte("Hash 4"))
 var h5 = th.HashLeaf([]byte("Hash 5"))
 
 // And the dummy nodes themselves.
-var sn1 = storage.Node{NodeID: storage.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
-var sn2 = storage.Node{NodeID: storage.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
-var sn3 = storage.Node{NodeID: storage.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
-var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
-var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
+var sn1 = tree.Node{NodeID: tree.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
+var sn2 = tree.Node{NodeID: tree.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
+var sn3 = tree.Node{NodeID: tree.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
+var sn4 = tree.Node{NodeID: tree.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
+var sn5 = tree.Node{NodeID: tree.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
 func TestRehasher(t *testing.T) {
 	hasher := rfc6962.DefaultHasher
@@ -61,7 +61,7 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "no rehash",
 			index:   126,
-			nodes:   []storage.Node{sn1, sn2, sn3},
+			nodes:   []tree.Node{sn1, sn2, sn3},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
 			output: &trillian.Proof{
 				LeafIndex: 126,
@@ -71,7 +71,7 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "single rehash",
 			index:   999,
-			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
 			output: &trillian.Proof{
 				LeafIndex: 999,
@@ -81,7 +81,7 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "single rehash at end",
 			index:   11,
-			nodes:   []storage.Node{sn1, sn2, sn3},
+			nodes:   []tree.Node{sn1, sn2, sn3},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
 			output: &trillian.Proof{
 				LeafIndex: 11,
@@ -91,7 +91,7 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "single rehash multiple nodes",
 			index:   23,
-			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
 			output: &trillian.Proof{
 				LeafIndex: 23,
@@ -101,7 +101,7 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "multiple rehash",
 			index:   45,
-			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
 			output: &trillian.Proof{
 				LeafIndex: 45,

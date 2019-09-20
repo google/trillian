@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
 
 // VerifyMapInclusionProof verifies that the passed in expectedRoot can be
@@ -51,7 +51,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 	}
 
 	runningHash := leafHash
-	nID := storage.NewNodeIDFromHash(leaf.Index)
+	nID := tree.NewNodeIDFromHash(leaf.Index)
 	for height, sib := range nID.Siblings() {
 		pElement := proof[height]
 

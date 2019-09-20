@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
 
 // For more information about how Sparse Merkle Trees work see the Revocation Transparency
@@ -211,7 +212,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 	err := s.txRunner.RunTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 		root = []byte{}
 		leaves := make([]*HStar2LeafHash, 0, queueSize)
-		nodesToStore := make([]storage.Node, 0, queueSize*2)
+		nodesToStore := make([]tree.Node, 0, queueSize*2)
 
 		// The go-routine will block here until the channel is closed via
 		// CalculateRoot, at which point we can proceed with completing the
@@ -221,13 +222,13 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 			if err != nil {
 				return err
 			}
-			nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.EmptySuffix, s.hasher.BitLen())
+			nodeID := tree.NewNodeIDFromPrefixSuffix(ih.index, tree.EmptySuffix, s.hasher.BitLen())
 			leaves = append(leaves, &HStar2LeafHash{
 				Index:    nodeID.BigInt(),
 				LeafHash: ih.hash,
 			})
 			nodesToStore = append(nodesToStore,
-				storage.Node{
+				tree.Node{
 					NodeID:       nodeID,
 					Hash:         ih.hash,
 					NodeRevision: s.treeRevision,
@@ -238,11 +239,11 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		defer postQueueCloseEnd()
 
 		// nodeIDs will hold the list of node IDs that HStar2 algorithm will read.
-		var nodeIDs []storage.NodeID
+		var nodeIDs []tree.NodeID
 		hs2 := NewHStar2(s.treeID, s.hasher)
 		err := hs2.Prefetch(s.prefix, s.subtreeDepth, leaves,
 			func(depth int, index *big.Int) {
-				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
+				nodeID := tree.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 				nodeIDs = append(nodeIDs, nodeID)
 			})
 		if err != nil {
@@ -253,7 +254,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		if err != nil {
 			return fmt.Errorf("failed to preload node hash cache: %s", err)
 		}
-		cache := make(map[string]storage.Node)
+		cache := make(map[string]tree.Node)
 		for _, n := range nodes {
 			cache[n.NodeID.AsKey()] = n
 		}
@@ -262,7 +263,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 		_, hstar2SpanEnd := spanFor(ctx, "buildSubtree.runTX.hstar2")
 		root, err = hs2.HStar2Nodes(s.prefix, s.subtreeDepth, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
-				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
+				nodeID := tree.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 				if glog.V(4) {
 					glog.Infof("buildSubtree.get(%x, %d) nid: %x, %v",
 						index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
@@ -285,13 +286,13 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context, queueSize int) {
 				if depth == len(s.prefix)*8 && len(s.prefix) > 0 {
 					return nil
 				}
-				nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
+				nodeID := tree.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 				if glog.V(4) {
 					glog.Infof("buildSubtree.set(%x, %v) nid: %x, %v : %x",
 						index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits, h)
 				}
 				nodesToStore = append(nodesToStore,
-					storage.Node{
+					tree.Node{
 						NodeID:       nodeID,
 						Hash:         h,
 						NodeRevision: s.treeRevision,
@@ -401,11 +402,11 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 	defer spanEnd()
 
 	_, calculateSpanEnd := spanFor(ctx, "binc.calculateNodes")
-	indexToSibs := make(map[string][]storage.NodeID)
-	allSibs := make([]storage.NodeID, 0, len(indices)*s.hasher.BitLen())
+	indexToSibs := make(map[string][]tree.NodeID)
+	allSibs := make([]tree.NodeID, 0, len(indices)*s.hasher.BitLen())
 	includedNodes := map[string]bool{}
 	for _, index := range indices {
-		nid := storage.NewNodeIDFromHash(index)
+		nid := tree.NewNodeIDFromHash(index)
 		sibs := nid.Siblings()
 		indexToSibs[string(index)] = sibs
 		for _, sib := range sibs {
@@ -425,7 +426,7 @@ func (s SparseMerkleTreeReader) BatchInclusionProof(ctx context.Context, rev int
 	getNodesSpanEnd()
 
 	_, postprocessSpanEnd := spanFor(ctx, "binc.postprocess")
-	nodeMap := make(map[string]*storage.Node)
+	nodeMap := make(map[string]*tree.Node)
 	for i, n := range nodes {
 		if glog.V(2) {
 			glog.Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.AsKey()), n.Hash)

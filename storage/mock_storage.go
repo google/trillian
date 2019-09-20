@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
+	tree "github.com/google/trillian/storage/tree"
 	reflect "reflect"
 	time "time"
 )
@@ -514,10 +515,10 @@ func (mr *MockLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 interface
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -617,7 +618,7 @@ func (mr *MockLogTreeTXMockRecorder) Rollback() *gomock.Call {
 }
 
 // SetMerkleNodes mocks base method
-func (m *MockLogTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []Node) error {
+func (m *MockLogTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetMerkleNodes", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -806,10 +807,10 @@ func (mr *MockMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.C
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -908,7 +909,7 @@ func (mr *MockMapTreeTXMockRecorder) Set(arg0, arg1, arg2 interface{}) *gomock.C
 }
 
 // SetMerkleNodes mocks base method
-func (m *MockMapTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []Node) error {
+func (m *MockMapTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetMerkleNodes", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -1251,10 +1252,10 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 i
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1405,10 +1406,10 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockReadOnlyMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockReadOnlyMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
