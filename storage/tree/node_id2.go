@@ -109,6 +109,6 @@ func (n NodeID2) String() string {
 func decompose(bits int) (int, int, byte) {
 	bytes := (bits - 1) / 8
 	tailBits := 1 + (bits-1)%8
-	mask := ^byte(1<<(8-tailBits) - 1)
+	mask := ^byte(1<<uint(8-tailBits) - 1)
 	return bytes, tailBits, mask
 }
