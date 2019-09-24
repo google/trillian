@@ -17,11 +17,7 @@ cache:
     - "$HOME/google-cloud-sdk/"
     - "$HOME/gopath/pkg/mod"
 
-env:
-  global:
-  - GO111MODULE=on
-  - GOPROXY=https://proxy.golang.org
-  matrix: #TODO: Merge the test matrix into individual jobs
+env: #TODO: Merge the test matrix into individual jobs
   - PRESUB_TESTS=true                                      PRESUBMIT_OPTS="--coverage --no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
