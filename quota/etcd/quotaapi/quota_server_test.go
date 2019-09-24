@@ -417,7 +417,7 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 	for _, cfg := range configs {
 		for num := 0; num < routinesPerConfig; num++ {
 			wg.Add(1)
-			go func(num int, want *quotapb.Config) {
+			go func(num int, want quotapb.Config) {
 				defer wg.Done()
 				baseTokens := 1 + rand.Intn(routinesPerConfig*100)
 				reset := num%2 == 0
@@ -436,12 +436,12 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 
 					want.CurrentTokens = got.CurrentTokens // Not important for this test
 					want.MaxTokens = tokens
-					if !proto.Equal(got, want) {
-						diff := cmp.Diff(got, want, cmp.Comparer(proto.Equal))
+					if !proto.Equal(got, &want) {
+						diff := cmp.Diff(got, &want, cmp.Comparer(proto.Equal))
 						t.Errorf("%v: post-UpdateConfig() diff (-got +want):\n%v", want.Name, diff)
 					}
 				}
-			}(num, cfg)
+			}(num, *cfg)
 		}
 	}
 	wg.Wait()
