@@ -69,7 +69,7 @@ done
 
 # Create cluster
 # TODO(https://github.com/google/trillian/issues/1183): Add support for priorities and preemption when Kubernetes 1.11 is GA.
-gcloud container clusters create "${CLUSTER_NAME}" --machine-type "${MACHINE_TYPE}" --image-type "COS" --num-nodes "${POOLSIZE}" --enable-autorepair --enable-autoupgrade --node-locations="${NODE_LOCATIONS}" --addons=Istio --istio-config=auth=MTLS_PERMISSIVE
+gcloud beta container clusters create "${CLUSTER_NAME}" --machine-type "${MACHINE_TYPE}" --image-type "COS" --num-nodes "${POOLSIZE}" --enable-autorepair --enable-autoupgrade --node-locations="${NODE_LOCATIONS}" --addons=Istio --istio-config=auth=MTLS_PERMISSIVE
 gcloud container clusters get-credentials "${CLUSTER_NAME}"
 
 # Create spanner instance & DB
