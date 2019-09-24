@@ -87,7 +87,7 @@ main() {
     echo 'running go build'
     go build ./...
 
-    export TEST_FLAGS="-short -timeout=${GO_TEST_TIMEOUT:-5m}"
+    export TEST_FLAGS="-timeout=${GO_TEST_TIMEOUT:-5m}"
 
     if [[ ${coverage} -eq 1 ]]; then
       TEST_FLAGS+=" -covermode=atomic -coverprofile=coverage.txt"
