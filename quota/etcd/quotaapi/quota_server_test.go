@@ -372,7 +372,7 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 	}
 }
 
-func TestServer_UpdateConfig_Race(t *testing.T) {
+func TestServer_UpdateConfig_ConcurrentUpdates(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping race test due to short mode")
 		return
