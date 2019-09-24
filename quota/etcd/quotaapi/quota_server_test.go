@@ -27,13 +27,13 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/testonly/integration/etcd"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -437,7 +437,7 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 					want.CurrentTokens = got.CurrentTokens // Not important for this test
 					want.MaxTokens = tokens
 					if !proto.Equal(got, want) {
-						diff := pretty.Compare(got, &want)
+						diff := cmp.Diff(got, want, cmp.Comparer(proto.Equal))
 						t.Errorf("%v: post-UpdateConfig() diff (-got +want):\n%v", want.Name, diff)
 					}
 				}
@@ -483,7 +483,7 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 	case !ok || s.Code() != test.wantCode:
 		return fmt.Errorf("%v: %v() returned err = %v, wantCode = %s", test.desc, rpcName, err, test.wantCode)
 	case test.wantCode == codes.OK && !proto.Equal(cfg, test.wantCfg):
-		return fmt.Errorf("%v: post-%v() diff:\n%v", test.desc, rpcName, pretty.Compare(cfg, test.wantCfg))
+		return fmt.Errorf("%v: post-%v() diff:\n%v", test.desc, rpcName, cmp.Diff(cfg, test.wantCfg, cmp.Comparer(proto.Equal)))
 	case test.wantCfg == nil:
 		return nil
 	}
@@ -492,7 +492,7 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 	case err != nil:
 		return fmt.Errorf("%v: GetConfig() returned err = %v", test.desc, err)
 	case !proto.Equal(stored, test.wantCfg):
-		return fmt.Errorf("%v: post-GetConfig() diff:\n%v", test.desc, pretty.Compare(stored, test.wantCfg))
+		return fmt.Errorf("%v: post-GetConfig() diff:\n%v", test.desc, cmp.Diff(stored, test.wantCfg, cmp.Comparer(proto.Equal)))
 	}
 
 	return nil
@@ -743,7 +743,7 @@ func sortAndCompare(got, want []*quotapb.Config) error {
 	}
 	for i, cfg := range want {
 		if !proto.Equal(got[i], cfg) {
-			return fmt.Errorf("diff (-got +want):\n%v", pretty.Compare(got, want))
+			return fmt.Errorf("diff (-got +want):\n%v", cmp.Diff(got[i], cfg, cmp.Comparer(proto.Equal)))
 		}
 	}
 	return nil
