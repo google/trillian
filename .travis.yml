@@ -18,6 +18,7 @@ cache:
     - "$HOME/gopath/pkg/mod"
 
 env: #TODO: Merge the test matrix into individual jobs
+  - DO_NOTHING_SPECIAL=true # The first line of env will be used for everything in jobs, below.
   - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
   - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
