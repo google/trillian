@@ -20,11 +20,7 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-
-	"github.com/google/trillian/testonly"
 )
-
-var h2b = testonly.MustHexDecode
 
 func TestMaskLeft(t *testing.T) {
 	for _, tc := range []struct {
@@ -507,8 +503,8 @@ func TestNodeEquivalentFromHash(t *testing.T) {
 			str2: "abcdef0887654321",
 		},
 	} {
-		h1 := mustDecode(tc.str1)
-		h2 := mustDecode(tc.str2)
+		h1 := h2b(tc.str1)
+		h2 := h2b(tc.str2)
 
 		n1 := NewNodeIDFromHash(h1)
 		n2 := NewNodeIDFromHash(h2)
@@ -776,7 +772,7 @@ func TestCoordString(t *testing.T) {
 	}
 }
 
-func mustDecode(h string) []byte {
+func h2b(h string) []byte {
 	b, err := hex.DecodeString(h)
 	if err != nil {
 		panic(err)
