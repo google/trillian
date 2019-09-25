@@ -17,16 +17,6 @@ cache:
     - "$HOME/google-cloud-sdk/"
     - "$HOME/gopath/pkg/mod"
 
-env: #TODO: Merge the test matrix into individual jobs
-  - DO_NOTHING_SPECIAL=true # The first line of env will be used for everything in jobs, below.
-  - PRESUB_TESTS=true GOFLAGS='-race'                      PRESUBMIT_OPTS="--no-linters --no-generate"
-  - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
-  - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
-  - INTEG_TESTS=true GOFLAGS='-race'                       PRESUBMIT_OPTS="--no-linters --no-generate"
-  - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue'  PRESUBMIT_OPTS="--no-linters --no-generate"
-  - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true        PRESUBMIT_OPTS="--no-linters --no-generate"
-  - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
-
 matrix:
   fast_finish: true
 
@@ -108,6 +98,27 @@ jobs:
        - chmod +x ./trillian/integration/integration_test.sh
        - ./trillian/integration/integration_test.sh
        - popd
+    - name: "presubmit"
+      env:
+       - PRESUB_TESTS=true GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate"
+    - name: "presubmit (batched_queue)"
+      env:
+       - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
+    - name: "presubmit (pkcs11)"
+      env:
+       - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
+    - name: "integration"
+      env:
+       - INTEG_TESTS=true GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate"
+    - name: "integration (etcd)"
+      env:
+       - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true PRESUBMIT_OPTS="--no-linters --no-generate"
+    - name: "integration (batched_queue)"
+      env:
+       - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
+    - name: "integration (pkcs11)"
+      env:
+       - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
 
 services:
   - docker
@@ -141,7 +152,6 @@ install:
     fi
     echo Installing ${TOOLS}...
     go install ${TOOLS}
-  # install bazel
 
 before_script:
   - ./scripts/resetdb.sh --force
