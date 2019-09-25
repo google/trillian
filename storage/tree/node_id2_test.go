@@ -93,26 +93,6 @@ func TestNodeID2Prefix(t *testing.T) {
 	}
 }
 
-func TestNodeID2PrefixBytes(t *testing.T) {
-	const bytes = "\x0A\x0B\x0C"
-	for i, tc := range []struct {
-		id    NodeID2
-		bytes int
-		want  string
-	}{
-		{id: NewNodeID2(bytes, 24), bytes: 0},
-		{id: NewNodeID2(bytes, 24), bytes: 1, want: bytes[:1]},
-		{id: NewNodeID2(bytes, 24), bytes: 2, want: bytes[:2]},
-		{id: NewNodeID2(bytes, 21), bytes: 2, want: bytes[:2]},
-	} {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if got, want := tc.id.PrefixBytes(tc.bytes), tc.want; got != want {
-				t.Errorf("PrefixBytes: %v, want %v", got, want)
-			}
-		})
-	}
-}
-
 func TestNodeID2Sibling(t *testing.T) {
 	const bytes = "\x0A\x0B\x0C"
 	for _, tc := range []struct {

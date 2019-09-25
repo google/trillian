@@ -35,7 +35,7 @@ func NewNodeID2(path string, bits int) NodeID2 {
 	} else if mx := len(path) * 8; bits > mx {
 		panic(fmt.Sprintf("NewNodeID2: bits %d > %d", bits, mx))
 	}
-	bytes, tail, mask := decompose(bits)
+	bytes, tail, mask := split(bits)
 	last := path[bytes] & mask
 	return NodeID2{path: path[:bytes], last: last, bits: byte(tail)}
 }
@@ -53,7 +53,7 @@ func (n NodeID2) Prefix(bits int) NodeID2 {
 		panic(fmt.Sprintf("Prefix: bits %d > %d", bits, mx))
 	}
 	last := n.last
-	bytes, tail, mask := decompose(bits)
+	bytes, tail, mask := split(bits)
 	if bytes != len(n.path) {
 		last = n.path[bytes]
 	}
@@ -72,12 +72,6 @@ func (n NodeID2) Suffix(bits int) NodeID2 {
 	}
 	// TODO(pavelkalinnikov): Support arbitrary lengths.
 	panic("Suffix: only multiples of 8 are supported")
-}
-
-// PrefixBytes returns a prefix of bytes*8 bits, as bytes. Must always be
-// called with a prefix shorter than BitLen().
-func (n NodeID2) PrefixBytes(bytes int) string {
-	return n.path[:bytes]
 }
 
 // Sibling returns the NodeID2 of the nodes's sibling in a binary tree. If the
@@ -100,13 +94,13 @@ func (n NodeID2) String() string {
 	return fmt.Sprintf("[%s%0*b]", path, n.bits, n.last>>(8-n.bits))
 }
 
-// decompose returns decomposition of a NodeID2 with the given number of bits.
+// split returns decomposition of a NodeID2 with the given number of bits.
 //
 // The first int of the returned triple is the number of full bytes stored in
 // the dynamically allocated part. The second one is the number of bits in the
 // tail byte (between 1 and 8). The third value is a mask with the
 // corresponding number of higher bits set.
-func decompose(bits int) (int, int, byte) {
+func split(bits int) (int, int, byte) {
 	bytes := (bits - 1) / 8
 	tailBits := 1 + (bits-1)%8
 	mask := ^byte(1<<uint(8-tailBits) - 1)
