@@ -23,7 +23,7 @@ import "fmt"
 type NodeID2 struct {
 	path string
 	last byte
-	bits byte
+	bits uint8
 }
 
 // NewNodeID2 creates a NodeID2 from the given path bytes truncated to the
@@ -37,7 +37,7 @@ func NewNodeID2(path string, bits int) NodeID2 {
 	}
 	bytes, tail, mask := split(bits)
 	last := path[bytes] & mask
-	return NodeID2{path: path[:bytes], last: last, bits: byte(tail)}
+	return NodeID2{path: path[:bytes], last: last, bits: uint8(tail)}
 }
 
 // BitLen returns the length of the NodeID2 in bits.
@@ -58,7 +58,7 @@ func (n NodeID2) Prefix(bits int) NodeID2 {
 		last = n.path[bytes]
 	}
 	last &= mask
-	return NodeID2{path: n.path[:bytes], last: last, bits: byte(tail)}
+	return NodeID2{path: n.path[:bytes], last: last, bits: uint8(tail)}
 }
 
 // Suffix returns the suffix of NodeID2 after the given number of bits.
