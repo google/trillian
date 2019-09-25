@@ -99,26 +99,26 @@ jobs:
        - ./trillian/integration/integration_test.sh
        - popd
     - name: "presubmit"
-      env:
-       - PRESUB_TESTS=true GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate"
+      env: GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      script: ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
     - name: "presubmit (batched_queue)"
-      env:
-       - PRESUB_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
+      env: GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      script: ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
     - name: "presubmit (pkcs11)"
-      env:
-       - PRESUB_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
+      env: GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      script: ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
     - name: "integration"
-      env:
-       - INTEG_TESTS=true GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate"
+      env: GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     - name: "integration (etcd)"
-      env:
-       - INTEG_TESTS=true GOFLAGS='-race' WITH_ETCD=true PRESUBMIT_OPTS="--no-linters --no-generate"
+      env: GOFLAGS='-race' ETCD_DIR="${GOPATH}/bin" PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     - name: "integration (batched_queue)"
-      env:
-       - INTEG_TESTS=true GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate"
+      env: GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     - name: "integration (pkcs11)"
-      env:
-       - INTEG_TESTS=true GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate"
+      env: GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
 
 services:
   - docker
@@ -157,22 +157,3 @@ before_script:
   - ./scripts/resetdb.sh --force
   - ./scripts/mysqlconnlimit.sh --force
   - ./scripts/postgres_resetdb.sh --force
-
-script:
-  - set -e
-  - cd "$HOME/gopath/src/github.com/google/trillian"
-  - export GO_TEST_TIMEOUT=20m
-  - |
-    if [[ "${PRESUB_TESTS}" == "true" ]]; then
-      ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
-    fi
-  - |
-      if [[ "${WITH_ETCD}" == "true" ]]; then
-        export ETCD_DIR="${GOPATH}/bin"
-      fi
-  - |
-    if [[ "${INTEG_TESTS}" == "true" ]]; then
-      ./integration/integration_test.sh
-      HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
-    fi
-  - set +e
