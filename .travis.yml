@@ -5,11 +5,6 @@ language: go
 go: "1.13.x"
 go_import_path: github.com/google/trillian
 
-addons:
-  apt:
-    packages:
-      - softhsm
-
 cache:
   directories:
     - "$HOME/.cache/go-build"
@@ -99,25 +94,29 @@ jobs:
        - ./trillian/integration/integration_test.sh
        - popd
     - name: "presubmit"
-      env: GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
-      script: ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
+      env: GOFLAGS='-race' GO_TEST_TIMEOUT=20m
+      script: ./scripts/presubmit.sh --no-linters --no-generate
     - name: "presubmit (batched_queue)"
-      env: GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
-      script: ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
+      env: GOFLAGS='-race --tags=batched_queue' GO_TEST_TIMEOUT=20m
+      script: ./scripts/presubmit.sh --no-linters --no-generate
     - name: "presubmit (pkcs11)"
-      env: GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
-      script: ./scripts/presubmit.sh ${PRESUBMIT_OPTS}
+      env: GOFLAGS='-race --tags=pkcs11' GO_TEST_TIMEOUT=20m
+      script: ./scripts/presubmit.sh --no-linters --no-generate
     - name: "integration"
-      env: GOFLAGS='-race' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      env: GOFLAGS='-race' GO_TEST_TIMEOUT=20m
       script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     - name: "integration (etcd)"
-      env: GOFLAGS='-race' ETCD_DIR="${GOPATH}/bin" PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      env: GOFLAGS='-race' ETCD_DIR="${GOPATH}/bin" GO_TEST_TIMEOUT=20m
+      install: go install go.etcd.io/etcd go.etcd.io/etcd/etcdctl
       script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     - name: "integration (batched_queue)"
-      env: GOFLAGS='-race --tags=batched_queue' PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      env: GOFLAGS='-race --tags=batched_queue' GO_TEST_TIMEOUT=20m
       script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
     - name: "integration (pkcs11)"
-      env: GOFLAGS='-race --tags=pkcs11' WITH_PKCS11=true PRESUBMIT_OPTS="--no-linters --no-generate" GO_TEST_TIMEOUT=20m
+      env: GOFLAGS='-race --tags=pkcs11' GO_TEST_TIMEOUT=20m
+      install:
+       - sudo apt-get update
+       - sudo apt-get install -y softhsm
       script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
 
 services:
@@ -139,21 +138,11 @@ before_install:
     fi
   - sudo service mysql start
 
-install:
-  - |
-    if [[ "${GOFLAGS}" == *-race* ]]; then
-      export GOCACHE="$(go env GOCACHE)-race"
-    fi
-  - |
-    export TOOLS=""
-    if [[ "${PRESUBMIT_OPTS}" != *no-build* ]]; then
-      TOOLS+=" go.etcd.io/etcd"
-      TOOLS+=" go.etcd.io/etcd/etcdctl"
-    fi
-    echo Installing ${TOOLS}...
-    go install ${TOOLS}
-
 before_script:
   - ./scripts/resetdb.sh --force
   - ./scripts/mysqlconnlimit.sh --force
   - ./scripts/postgres_resetdb.sh --force
+  - |
+    if [[ "${GOFLAGS}" == *-race* ]]; then
+      export GOCACHE="$(go env GOCACHE)-race"
+    fi
