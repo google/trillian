@@ -21,9 +21,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang/glog"
-	"github.com/kylelemons/godebug/pretty"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -31,7 +28,9 @@ import (
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/testonly/race"
 	"github.com/google/trillian/types"
+	"github.com/kylelemons/godebug/pretty"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 )
@@ -644,23 +643,27 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 		// TODO(gdbelvin): investigate batches of size > 150.
 		// We are currently getting DB connection starvation: Too many connections.
 	} {
-		if testing.Short() && tc.large {
-			glog.Infof("testing.Short() is true. Skipping %v", tc.desc)
-			continue
-		}
-		tree, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
-		if err != nil {
-			t.Fatalf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
-		}
+		t.Run(tc.desc, func(t *testing.T) {
+			if (testing.Short() || race.IsEnabled) && tc.large {
+				t.Skip("--test.short or --race is is enabled")
+			}
+			tree, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
+			if err != nil {
+				t.Fatalf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
+			}
 
-		if err := runMapBatchTest(ctx, t, tc.desc, tmap, twrite, tree, tc.batchSize, tc.numBatches); err != nil {
-			t.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
-		}
+			if err := runMapBatchTest(ctx, t, tc.desc, tmap, twrite, tree, tc.batchSize, tc.numBatches); err != nil {
+				t.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
+			}
+		})
 	}
 }
 
 // RunWriteStress performs stress checks on Trillian Map's SetLeaves call.
 func RunWriteStress(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, twrite trillian.TrillianMapWriteClient) {
+	if testing.Short() || race.IsEnabled {
+		t.Skip("--test.short or --race is is enabled")
+	}
 	tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_TEST_MAP_HASHER)
 	if err != nil {
 		t.Fatalf("%v: newTreeWithHasher(): %v", trillian.HashStrategy_TEST_MAP_HASHER, err)
