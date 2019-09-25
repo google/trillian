@@ -29,24 +29,24 @@ type NodeID2 struct {
 // NewNodeID2 creates a NodeID2 from the given path bytes truncated to the
 // specified number of bits if necessary. Panics if the number of bits is
 // negative, or is more than the byte string contains.
-func NewNodeID2(path string, bits int) NodeID2 {
+func NewNodeID2(path string, bits uint) NodeID2 {
 	if bits == 0 {
 		return NodeID2{}
-	} else if mx := len(path) * 8; bits > mx {
+	} else if mx := uint(len(path)) * 8; bits > mx {
 		panic(fmt.Sprintf("NewNodeID2: bits %d > %d", bits, mx))
 	}
 	bytes, tail, mask := split(bits)
 	last := path[bytes] & mask
-	return NodeID2{path: path[:bytes], last: last, bits: uint8(tail)}
+	return NodeID2{path: path[:bytes], last: last, bits: tail}
 }
 
 // BitLen returns the length of the NodeID2 in bits.
-func (n NodeID2) BitLen() int {
-	return len(n.path)*8 + int(n.bits)
+func (n NodeID2) BitLen() uint {
+	return uint(len(n.path))*8 + uint(n.bits)
 }
 
 // Prefix returns the prefix of NodeID2 with the given number of bits.
-func (n NodeID2) Prefix(bits int) NodeID2 {
+func (n NodeID2) Prefix(bits uint) NodeID2 {
 	if bits == 0 {
 		return NodeID2{}
 	} else if mx := n.BitLen(); bits > mx {
@@ -54,15 +54,15 @@ func (n NodeID2) Prefix(bits int) NodeID2 {
 	}
 	last := n.last
 	bytes, tail, mask := split(bits)
-	if bytes != len(n.path) {
+	if bytes != uint(len(n.path)) {
 		last = n.path[bytes]
 	}
 	last &= mask
-	return NodeID2{path: n.path[:bytes], last: last, bits: uint8(tail)}
+	return NodeID2{path: n.path[:bytes], last: last, bits: tail}
 }
 
 // Suffix returns the suffix of NodeID2 after the given number of bits.
-func (n NodeID2) Suffix(bits int) NodeID2 {
+func (n NodeID2) Suffix(bits uint) NodeID2 {
 	if mx := n.BitLen(); bits > mx {
 		panic(fmt.Sprintf("Suffix: bits %d > %d", bits, mx))
 	} else if bits == mx {
@@ -100,9 +100,9 @@ func (n NodeID2) String() string {
 // the dynamically allocated part. The second one is the number of bits in the
 // tail byte (between 1 and 8). The third value is a mask with the
 // corresponding number of higher bits set.
-func split(bits int) (int, int, byte) {
+func split(bits uint) (uint, uint8, byte) {
 	bytes := (bits - 1) / 8
-	tailBits := 1 + (bits-1)%8
-	mask := ^byte(1<<uint(8-tailBits) - 1)
+	tailBits := uint8(1 + (bits-1)%8)
+	mask := ^byte(1<<(8-tailBits) - 1)
 	return bytes, tailBits, mask
 }

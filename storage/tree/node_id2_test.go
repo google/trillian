@@ -23,7 +23,7 @@ import (
 func TestNodeID2String(t *testing.T) {
 	bytes := string([]byte{5, 1, 127})
 	for _, tc := range []struct {
-		bits int
+		bits uint
 		want string
 	}{
 		{bits: 0, want: "[]"},
@@ -73,7 +73,7 @@ func TestNodeID2Prefix(t *testing.T) {
 	const bytes = "\x0A\x0B\x0C"
 	for i, tc := range []struct {
 		id   NodeID2
-		bits int
+		bits uint
 		want NodeID2
 	}{
 		{id: NewNodeID2(bytes, 24), bits: 0, want: NodeID2{}},
@@ -137,7 +137,7 @@ func BenchmarkNodeID2Siblings(b *testing.B) {
 		ln := id.BitLen()
 		sibs := make([]NodeID2, ln)
 		for height := range sibs {
-			depth := ln - height
+			depth := ln - uint(height)
 			sibs[height] = id.Prefix(depth).Sibling()
 		}
 		return sibs
@@ -147,7 +147,7 @@ func BenchmarkNodeID2Siblings(b *testing.B) {
 	ids := make([]NodeID2, batch)
 	for i := range ids {
 		bytes := "0123456789012345678901234567" + string(i&255) + string((i>>8)&255)
-		ids[i] = NewNodeID2(bytes, len(bytes)*8)
+		ids[i] = NewNodeID2(bytes, uint(len(bytes))*8)
 	}
 	for i, n := 0, b.N; i < n; i++ {
 		for _, id := range ids {
