@@ -65,19 +65,6 @@ func (n NodeID2) Prefix(bits uint) NodeID2 {
 	return NodeID2{path: n.path[:bytes], last: last, bits: tail}
 }
 
-// Suffix returns the suffix of NodeID2 after the given number of bits.
-func (n NodeID2) Suffix(bits uint) NodeID2 {
-	if mx := n.BitLen(); bits > mx {
-		panic(fmt.Sprintf("Suffix: bits %d > %d", bits, mx))
-	} else if bits == mx {
-		return NodeID2{}
-	} else if bits%8 == 0 {
-		return NewNodeID2(n.path[bits/8:], mx-bits)
-	}
-	// TODO(pavelkalinnikov): Support arbitrary lengths.
-	panic("Suffix: only multiples of 8 are supported")
-}
-
 // Sibling returns the NodeID2 of the nodes's sibling in a binary tree. If the
 // node is the root then the returned ID is the same.
 func (n NodeID2) Sibling() NodeID2 {
