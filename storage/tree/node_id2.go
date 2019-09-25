@@ -37,6 +37,7 @@ func NewNodeID2(path string, bits uint) NodeID2 {
 	}
 	bytes, tail, mask := split(bits)
 	last := path[bytes] & mask
+	// Note: Getting the substring is cheap because strings are immutable in Go.
 	return NodeID2{path: path[:bytes], last: last, bits: tail}
 }
 
@@ -47,6 +48,9 @@ func (n NodeID2) BitLen() uint {
 
 // Prefix returns the prefix of NodeID2 with the given number of bits.
 func (n NodeID2) Prefix(bits uint) NodeID2 {
+	// Note: This code is very similar to NewNodeID2, and it's tempting to return
+	// NewNodeID2(n.path, bits). But there is a difference: NewNodeID2 expects
+	// all the bytes to be in the path string, while here the last byte is not.
 	if bits == 0 {
 		return NodeID2{}
 	} else if mx := n.BitLen(); bits > mx {
