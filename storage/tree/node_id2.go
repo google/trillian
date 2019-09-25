@@ -65,8 +65,9 @@ func (n NodeID2) Prefix(bits uint) NodeID2 {
 	return NodeID2{path: n.path[:bytes], last: last, bits: tail}
 }
 
-// Sibling returns the NodeID2 of the nodes's sibling in a binary tree. If the
-// node is the root then the returned ID is the same.
+// Sibling returns the NodeID2 of the nodes's sibling in a binary tree, i.e.
+// the ID of the parent node's other child. If the node is the root then the
+// returned ID is the same.
 func (n NodeID2) Sibling() NodeID2 {
 	last := n.last ^ byte(1<<(8-n.bits))
 	return NodeID2{path: n.path, last: last, bits: n.bits}
