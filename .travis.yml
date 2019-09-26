@@ -7,8 +7,6 @@ go_import_path: github.com/google/trillian
 
 cache:
   directories:
-    - "$HOME/.cache/go-build"
-    - "$HOME/.cache/go-build-race"
     - "$HOME/google-cloud-sdk/"
     - "$HOME/gopath/pkg/mod"
 
@@ -142,7 +140,3 @@ before_script:
   - ./scripts/resetdb.sh --force
   - ./scripts/mysqlconnlimit.sh --force
   - ./scripts/postgres_resetdb.sh --force
-  - |
-    if [[ "${GOFLAGS}" == *-race* ]]; then
-      export GOCACHE="$(go env GOCACHE)-race"
-    fi
