@@ -36,7 +36,7 @@ func TestSmrStash_PushSMR(t *testing.T) {
 		},
 		{
 			desc:    "same revision but different contents",
-			seq:     []types.MapRootV1{r0, types.MapRootV1{Revision: 0, RootHash: testonly.MustHexDecode("FFFF")}},
+			seq:     []types.MapRootV1{r0, {Revision: 0, RootHash: testonly.MustHexDecode("FFFF")}},
 			wantErr: true,
 		},
 	} {
