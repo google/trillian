@@ -671,24 +671,17 @@ leafloop:
 		}
 	}
 
-	root, err := s.vc.SetAndVerifyMapLeaves(ctx, leaves, metadataForRev(uint64(rev+1)))
+	writeRev := uint64(rev + 1)
+	_, err := s.vc.SetAndVerifyMapLeaves(ctx, leaves, metadataForRev(writeRev))
 	if err != nil {
 		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(leaves), err)
 	}
 
-	s.pushSMR(root)
-	newContents, err := s.prevContents.UpdateContentsWith(root.Revision, leaves)
+	_, err = s.prevContents.UpdateContentsWith(writeRev, leaves)
 	if err != nil {
 		return err
 	}
-	wantRootHash, err := newContents.RootHash(s.cfg.MapID, s.vc.Hasher)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(root.RootHash, wantRootHash) {
-		return fmt.Errorf("failed to check root hash: got %x, want %x", root.RootHash, wantRootHash)
-	}
-	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
+	glog.V(2).Infof("%d: set %d leaves, rev=%d", s.cfg.MapID, len(leaves), rev)
 	return nil
 }
 
@@ -733,6 +726,10 @@ func (s *hammerState) getSMR(ctx context.Context, prng *rand.Rand) error {
 		return fmt.Errorf("got bad SMR in get-smr: %v", err)
 	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
+
+	if err := s.validateSMRMatchesWrittenContents(root); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -760,6 +757,23 @@ func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 
 	if !reflect.DeepEqual(root, smrRoot) {
 		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, root, smrRoot)
+	}
+
+	if err := s.validateSMRMatchesWrittenContents(root); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *hammerState) validateSMRMatchesWrittenContents(root *types.MapRootV1) error {
+	mapContents := s.prevContents.PickRevision(root.Revision)
+	wantRootHash, err := mapContents.RootHash(s.cfg.MapID, s.vc.Hasher)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(root.RootHash, wantRootHash) {
+		return fmt.Errorf("failed to check root hash: got %x, want %x", root.RootHash, wantRootHash)
 	}
 	return nil
 }

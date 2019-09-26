@@ -278,6 +278,20 @@ func (p *VersionedMapContents) PickCopy(prng *rand.Rand) *MapContents {
 	return p.contents[choice]
 }
 
+// PickRevision returns the previous copy of the map's contents that match
+// the given revision, or nil if there are no matching copies.
+func (p *VersionedMapContents) PickRevision(rev uint64) *MapContents {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	for i := 0; i < copyCount && p.contents[i] != nil; i++ {
+		if p.contents[i].Rev == int64(rev) {
+			return p.contents[i]
+		}
+	}
+	return nil
+}
+
 // UpdateContentsWith stores a new copy of the Map's contents, updating the
 // most recent copy with the given leaves.  Returns the updated contents.
 func (p *VersionedMapContents) UpdateContentsWith(rev uint64, leaves []*trillian.MapLeaf) (*MapContents, error) {
