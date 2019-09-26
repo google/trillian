@@ -27,8 +27,8 @@ type NodeID2 struct {
 }
 
 // NewNodeID2 creates a NodeID2 from the given path bytes truncated to the
-// specified number of bits if necessary. Panics if the number of bits is
-// negative, or is more than the byte string contains.
+// specified number of bits if necessary. Panics if the number of bits is more
+// than the byte string contains.
 func NewNodeID2(path string, bits uint) NodeID2 {
 	if bits == 0 {
 		return NodeID2{}
