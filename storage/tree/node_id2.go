@@ -16,7 +16,9 @@ package tree
 
 import "fmt"
 
-// NodeID2 is a faster NodeID that does zero memory allocations.
+// NodeID2 is a faster NodeID that does zero memory allocations in transforming
+// methods like Prefix and Sibling. NodeID2 can be used as a key in Golang maps
+// directly, as well as compared equal.
 //
 // TODO(pavelkalinnikov): Rename to NodeID and document it properly when the
 // code has migrated.
