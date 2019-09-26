@@ -284,7 +284,7 @@ func (p *VersionedMapContents) PickRevision(rev uint64) *MapContents {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	for i := 0; i < copyCount && p.contents[i] != nil; i++ {
+	for i := 0; i < copyCount && p.contents[i] != nil && p.contents[i].Rev >= int64(rev); i++ {
 		if p.contents[i].Rev == int64(rev) {
 			return p.contents[i]
 		}
