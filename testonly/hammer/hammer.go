@@ -35,8 +35,6 @@ import (
 
 const (
 	defaultEmitSeconds = 10
-	// How many SMRs to hold on to.
-	smrCount = 30
 	// How far beyond current revision to request for invalid requests
 	invalidStretch = int64(10000)
 	// rev=-1 is used when requesting the latest revision
@@ -269,11 +267,9 @@ type hammerState struct {
 	// copies of earlier contents of the map
 	prevContents testonly.VersionedMapContents
 
-	mu sync.RWMutex // Protects everything below
+	smrs smrStash
 
-	// SMRs are arranged from later to earlier (so [0] is the most recent), and the
-	// discovery of new SMRs will push older ones off the end.
-	smr [smrCount]*types.MapRootV1
+	mu sync.RWMutex // Protects everything below
 
 	// Counters for generating unique keys/values.
 	keyIdx   int
@@ -394,22 +390,12 @@ func (s *hammerState) String() string {
 	return fmt.Sprintf("%d: lastSMR.rev=%d ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, smr.Revision, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
 
-func (s *hammerState) pushSMR(smr *types.MapRootV1) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Shuffle earlier SMRs along.
-	for i := smrCount - 1; i > 0; i-- {
-		s.smr[i] = s.smr[i-1]
-	}
-
-	s.smr[0] = smr
+func (s *hammerState) pushSMR(smr *types.MapRootV1) error {
+	return s.smrs.pushSMR(*smr)
 }
 
 func (s *hammerState) previousSMR(which int) *types.MapRootV1 {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.smr[which]
+	return s.smrs.previousSMR(which)
 }
 
 func (s *hammerState) chooseOp(prng *rand.Rand) MapEntrypointName {
@@ -735,17 +721,23 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 	return nil
 }
 
+// getSMR gets & verifies the latest SMR and pushes it onto the queue of seen SMRs.
 func (s *hammerState) getSMR(ctx context.Context, prng *rand.Rand) error {
 	root, err := s.vc.GetAndVerifyLatestMapRoot(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get-smr: %v", err)
 	}
 
-	s.pushSMR(root)
+	err = s.pushSMR(root)
+	if err != nil {
+		return fmt.Errorf("got bad SMR in get-smr: %v", err)
+	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
 }
 
+// getSMRRev randomly chooses a previously seen SMR from the queue and checks that
+// the map still returns the same SMR for this revision.
 func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 	which := prng.Intn(smrCount)
 	smrRoot := s.previousSMR(which)
