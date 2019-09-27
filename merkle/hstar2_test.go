@@ -239,7 +239,7 @@ func TestHStar2RootGolden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Root: %v", err)
 	}
-	want := "d01bd540dc8b4a3ca3ac8deb485b431e9ce1290becb36838c4463a811d15c7f6"
+	want := "daf17dc2c83f37962bae8a65d294ef7fca4ffa02c10bdc4ca5c4dec408001c98"
 	if got := hex.EncodeToString(hash); got != want {
 		t.Errorf("Root: got %x, want %v", hash, want)
 	}
@@ -255,10 +255,12 @@ func BenchmarkHStar2Root(b *testing.B) {
 	}
 }
 
+// leafHashes generates n leaf updates at depth 256. The function is
+// pseudo-random, and the returned data depends only on n.
 func leafHashes(t testing.TB, n int) []*HStar2LeafHash {
 	t.Helper()
-	// Use a fixed sequence to ensure runs are comparable
-	r := rand.New(rand.NewSource(42424242))
+	// Use a random sequence that depends on n.
+	r := rand.New(rand.NewSource(int64(n)))
 	lh := make([]*HStar2LeafHash, 0, n)
 
 	for l := 0; l < n; l++ {

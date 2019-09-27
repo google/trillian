@@ -84,7 +84,7 @@ func TestHStar3Golden(t *testing.T) {
 		t.Fatalf("Update returned %d updates, want 1", ln)
 	}
 
-	want := "d01bd540dc8b4a3ca3ac8deb485b431e9ce1290becb36838c4463a811d15c7f6"
+	want := "daf17dc2c83f37962bae8a65d294ef7fca4ffa02c10bdc4ca5c4dec408001c98"
 	if got := hex.EncodeToString(upd[0].Hash); got != want {
 		t.Errorf("Root: got %x, want %v", upd[0].Hash, want)
 	}
@@ -155,12 +155,14 @@ func TestHStar3GetReadSet(t *testing.T) {
 	}
 }
 
+// leafUpdates generates n leaf updates at depth 256. The function is
+// pseudo-random, and the returned data depends only on n. The algorithm is the
+// same as in HStar2 tests, which allows cross-checking their results.
 func leafUpdates(t testing.TB, n int) []NodeUpdate {
 	t.Helper()
+	// Use a random sequence that depends on n.
+	r := rand.New(rand.NewSource(int64(n)))
 	updates := make([]NodeUpdate, n)
-
-	// Use a fixed sequence to ensure runs are comparable.
-	r := rand.New(rand.NewSource(42424242))
 	for i := range updates {
 		updates[i].Hash = make([]byte, 32)
 		if _, err := r.Read(updates[i].Hash); err != nil {
