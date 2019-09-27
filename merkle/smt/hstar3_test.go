@@ -41,13 +41,7 @@ func (e *emptyNodes) Get(id tree.NodeID2) ([]byte, error) {
 		}
 		delete(e.ids, id) // Allow getting this ID only once.
 	}
-	index := make([]byte, e.hasher.Size())
-	copy(index, id.FullBytes())
-	if last, bits := id.LastByte(); bits != 0 {
-		index[len(id.FullBytes())] = last
-	}
-	// TODO(pavelkalinnikov): Make HashEmpty method take the id directly.
-	return e.hasher.HashEmpty(e.treeID, index, e.hasher.BitLen()-int(id.BitLen())), nil
+	return hashEmpty(e.hasher, e.treeID, id), nil
 }
 
 func (e *emptyNodes) Set(id tree.NodeID2, hash []byte) {}

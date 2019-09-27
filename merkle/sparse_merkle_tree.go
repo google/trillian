@@ -43,6 +43,9 @@ type SparseMerkleTreeReader struct {
 
 // TXRunner supplies the RunTX function.
 // TXRunner can be passed as the last argument to MapStorage.ReadWriteTransaction.
+//
+// TODO(pavelkalinnikov): This interface violates layering, because it assumes
+// existence of transactions. It must be part of the storage package.
 type TXRunner interface {
 	// RunTX executes f and supplies a transaction object to operate on.
 	RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error

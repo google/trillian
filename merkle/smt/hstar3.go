@@ -23,6 +23,8 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
+// TODO(pavelkalinnikov): Unexport this file, as it is used only by Writer.
+
 // NodeAccessor provides read and write access to Merkle tree node hashes.
 //
 // The Update algorithm uses it to read the existing nodes of the tree and
