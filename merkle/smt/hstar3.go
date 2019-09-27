@@ -148,7 +148,8 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, ns NodeStorage) ([]No
 	newLen := 0
 	for i, ln := 0, len(updates); i < ln; i, newLen = i+1, newLen+1 {
 		sib := updates[i].ID.Sibling()
-		left, right := updates[i].Hash, []byte(nil)
+		left := updates[i].Hash
+		var right []byte
 		if next := i + 1; next < ln && updates[next].ID == sib {
 			// The sibling is the right child here, as updates are sorted.
 			right = updates[next].Hash
