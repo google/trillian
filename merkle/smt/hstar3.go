@@ -87,21 +87,16 @@ func (h HStar3) GetReadSet(updates []NodeUpdate, top uint) map[tree.NodeID2][]by
 	// For each node, add all its ancestors' siblings, down to the given depth.
 	for _, upd := range updates {
 		for id, d := upd.ID, h.depth; d > top; d-- {
-			sib := id.Prefix(d).Sibling()
-			if _, ok := ids[sib]; ok {
+			pref := id.Prefix(d)
+			if _, ok := ids[pref]; ok {
+				// Delete the prefix node because its original hash does not contribute
+				// to the updates, so should not be read.
+				delete(ids, pref)
 				// All the upper siblings have been added already, so skip them.
 				break
 			}
+			sib := pref.Sibling()
 			ids[sib] = nil
-		}
-	}
-	// Delete the sibling nodes that are both in the set. Their original hashes
-	// don't contribute to the updated hashes because they are both changed.
-	for id := range ids {
-		sib := id.Sibling()
-		if _, ok := ids[sib]; ok {
-			delete(ids, id)
-			delete(ids, sib)
 		}
 	}
 	return ids
