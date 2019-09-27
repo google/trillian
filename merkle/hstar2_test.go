@@ -257,11 +257,9 @@ func leafHashes(b *testing.B, n int) []*HStar2LeafHash {
 		if _, err := r.Read(path); err != nil {
 			b.Fatalf("Failed to make random path: %v", err)
 		}
-		var index big.Int
-		index.SetBytes(path)
 		lh = append(lh, &HStar2LeafHash{
 			LeafHash: h,
-			Index:    &index,
+			Index:    new(big.Int).SetBytes(path),
 		})
 	}
 
