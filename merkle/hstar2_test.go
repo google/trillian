@@ -17,6 +17,7 @@ package merkle
 import (
 	"bytes"
 	"crypto"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -232,6 +233,18 @@ func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 	}
 }
 
+func TestHStar2RootGolden(t *testing.T) {
+	hs2 := NewHStar2(42, coniks.New(crypto.SHA256))
+	hash, err := hs2.HStar2Root(256, leafHashes(t, 500))
+	if err != nil {
+		t.Fatalf("Root: %v", err)
+	}
+	want := "d01bd540dc8b4a3ca3ac8deb485b431e9ce1290becb36838c4463a811d15c7f6"
+	if got := hex.EncodeToString(hash); got != want {
+		t.Errorf("Root: got %x, want %v", hash, want)
+	}
+}
+
 func BenchmarkHStar2Root(b *testing.B) {
 	hs2 := NewHStar2(42, coniks.New(crypto.SHA256))
 	for i := 0; i < b.N; i++ {
@@ -242,8 +255,8 @@ func BenchmarkHStar2Root(b *testing.B) {
 	}
 }
 
-func leafHashes(b *testing.B, n int) []*HStar2LeafHash {
-	b.Helper()
+func leafHashes(t testing.TB, n int) []*HStar2LeafHash {
+	t.Helper()
 	// Use a fixed sequence to ensure runs are comparable
 	r := rand.New(rand.NewSource(42424242))
 	lh := make([]*HStar2LeafHash, 0, n)
@@ -251,11 +264,11 @@ func leafHashes(b *testing.B, n int) []*HStar2LeafHash {
 	for l := 0; l < n; l++ {
 		h := make([]byte, 32)
 		if _, err := r.Read(h); err != nil {
-			b.Fatalf("Failed to make random leaf hashes: %v", err)
+			t.Fatalf("Failed to make random leaf hashes: %v", err)
 		}
 		path := make([]byte, 32)
 		if _, err := r.Read(path); err != nil {
-			b.Fatalf("Failed to make random path: %v", err)
+			t.Fatalf("Failed to make random path: %v", err)
 		}
 		lh = append(lh, &HStar2LeafHash{
 			LeafHash: h,
