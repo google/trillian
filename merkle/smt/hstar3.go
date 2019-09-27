@@ -95,7 +95,8 @@ func (h HStar3) GetReadSet(updates []NodeUpdate, top uint) map[tree.NodeID2][]by
 			ids[sib] = nil
 		}
 	}
-	// Delete the nodes that don't contribute to the updated hashes because
+	// Delete the sibling nodes that are both in the set. Their original hashes
+	// don't contribute to the updated hashes because they are both changed.
 	for id := range ids {
 		sib := id.Sibling()
 		if _, ok := ids[sib]; ok {
@@ -147,7 +148,7 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, ns NodeStorage) ([]No
 	newLen := 0
 	for i, ln := 0, len(updates); i < ln; i, newLen = i+1, newLen+1 {
 		sib := updates[i].ID.Sibling()
-		left, right := updates[i].Hash, []byte{}
+		left, right := updates[i].Hash, []byte(nil)
 		if next := i + 1; next < ln && updates[next].ID == sib {
 			// The sibling is the right child here, as updates are sorted.
 			right = updates[next].Hash
