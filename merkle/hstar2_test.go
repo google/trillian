@@ -235,7 +235,7 @@ func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 func BenchmarkHStar2Root(b *testing.B) {
 	hs2 := NewHStar2(42, coniks.New(crypto.SHA256))
 	for i := 0; i < b.N; i++ {
-		_, err := hs2.HStar2Root(256, leafHashes(b, 200))
+		_, err := hs2.HStar2Root(256, leafHashes(b, 500))
 		if err != nil {
 			b.Fatalf("hstar2 root failed: %v", err)
 		}
@@ -253,9 +253,13 @@ func leafHashes(b *testing.B, n int) []*HStar2LeafHash {
 		if _, err := r.Read(h); err != nil {
 			b.Fatalf("Failed to make random leaf hashes: %v", err)
 		}
+		path := make([]byte, 32)
+		if _, err := r.Read(path); err != nil {
+			b.Fatalf("Failed to make random path: %v", err)
+		}
 		lh = append(lh, &HStar2LeafHash{
 			LeafHash: h,
-			Index:    big.NewInt(r.Int63()),
+			Index:    new(big.Int).SetBytes(path),
 		})
 	}
 
