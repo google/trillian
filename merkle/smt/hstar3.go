@@ -143,18 +143,18 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, ns NodeStorage) ([]No
 	newLen := 0
 	for i, ln := 0, len(updates); i < ln; i, newLen = i+1, newLen+1 {
 		sib := updates[i].ID.Sibling()
-		left := updates[i].Hash
-		var right []byte
+		var left, right []byte
 		if next := i + 1; next < ln && updates[next].ID == sib {
 			// The sibling is the right child here, as updates are sorted.
-			right = updates[next].Hash
+			left, right = updates[i].Hash, updates[next].Hash
 			i = next // Skip the next update in the outer loop.
 		} else {
 			// The sibling is not updated, so fetch the original from NodeStorage.
-			var err error
-			if right, err = ns.Get(sib); err != nil {
+			hash, err := ns.Get(sib)
+			if err != nil {
 				return nil, err
 			}
+			left, right = updates[i].Hash, hash
 			if isLeftChild(sib) {
 				left, right = right, left
 			}
