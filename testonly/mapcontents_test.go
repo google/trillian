@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/maphasher"
 )
 
@@ -154,5 +155,99 @@ func TestRootHash(t *testing.T) {
 				t.Fatalf("RootHash()=%x, want %x", got, want)
 			}
 		})
+	}
+}
+
+func TestVersionedMapContents_UpdateContents(t *testing.T) {
+	type update struct {
+		rev    uint64
+		leaves []*trillian.MapLeaf
+	}
+	tests := []struct {
+		desc    string
+		updates []update
+		wantErr bool
+	}{
+		{
+			desc: "single revision",
+			updates: []update{
+				{
+					rev:    1,
+					leaves: []*trillian.MapLeaf{},
+				},
+			},
+		}, {
+			desc: "duplicate revision is error",
+			updates: []update{
+				{
+					rev:    1,
+					leaves: []*trillian.MapLeaf{},
+				}, {
+					rev:    1,
+					leaves: []*trillian.MapLeaf{},
+				},
+			},
+			wantErr: true,
+		}, {
+			desc: "unordered revisions is error",
+			updates: []update{
+				{
+					rev:    2,
+					leaves: []*trillian.MapLeaf{},
+				}, {
+					rev:    1,
+					leaves: []*trillian.MapLeaf{},
+				},
+			},
+			wantErr: true,
+		}, {
+			desc: "consecutive revision",
+			updates: []update{
+				{
+					rev:    1,
+					leaves: []*trillian.MapLeaf{},
+				}, {
+					rev:    2,
+					leaves: []*trillian.MapLeaf{},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			var vmc VersionedMapContents
+			var gotErr error
+			for _, u := range test.updates {
+				if _, e := vmc.UpdateContentsWith(u.rev, u.leaves); e != nil {
+					gotErr = e
+				}
+			}
+			if (gotErr != nil) != test.wantErr {
+				t.Errorf("Unexpected error state: %v, wantErr: %v", gotErr, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestPickRevision(t *testing.T) {
+	var vmc VersionedMapContents
+	for rev := 1; rev < 5; rev++ {
+		_, err := vmc.UpdateContentsWith(uint64(rev), []*trillian.MapLeaf{})
+		if err != nil {
+			t.Fatalf("Error adding revision %d", rev)
+		}
+	}
+
+	for want := 1; want < 5; want++ {
+		if got := vmc.PickRevision(uint64(want)).Rev; got != int64(want) {
+			t.Fatalf("PickRevision()=%x, want %x", got, want)
+		}
+	}
+
+	if got := vmc.PickRevision(0); got != nil {
+		t.Fatalf("PickRevision(0) should be nil, was %v", got)
+	}
+	if got := vmc.PickRevision(5); got != nil {
+		t.Fatalf("PickRevision(5) should be nil, was %v", got)
 	}
 }
