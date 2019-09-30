@@ -23,9 +23,14 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
-// NodeStorage reads and writes sparse Merkle tree node hashes.
-type NodeStorage interface {
-	// Get returns the hash of the given node.
+// NodeAccessor provides read and write access to Merkle tree node hashes.
+//
+// The Update algorithm uses it to read the existing nodes of the tree and
+// write the nodes that are updated. The nodes that it writes do not intersect
+// with the nodes that it reads.
+type NodeAccessor interface {
+	// Get returns the hash of the given node. Returns an error if the hash is
+	// undefined, or can't be obtained for another reason.
 	Get(id tree.NodeID2) ([]byte, error)
 	// Set sets the hash of the given node.
 	Set(id tree.NodeID2, hash []byte)
@@ -44,49 +49,39 @@ type NodeUpdate struct {
 //
 // TODO(pavelkalinnikov): Swap in the code, and document it properly.
 type HStar3 struct {
+	upd   []NodeUpdate
 	hash  HashChildrenFn
 	depth uint
+	top   uint
 }
 
-// NewHStar3 returns a new instance of HStar3.
-func NewHStar3(hash HashChildrenFn, depth uint) HStar3 {
-	return HStar3{hash: hash, depth: depth}
-}
-
-// Prepare sorts the updates slice for it to be usable by HStar3. It also
-// verifies that the nodes are placed at the required depth, and there are no
-// ID duplicates amongh them.
-func (h HStar3) Prepare(updates []NodeUpdate) error {
-	for i := range updates {
-		if d, want := updates[i].ID.BitLen(), h.depth; d != want {
-			return fmt.Errorf("upd #%d: invalid depth %d, want %d", i, d, want)
-		}
+// NewHStar3 returns a new instance of HStar3 for the given set of node hash
+// updates at the specified tree depth. This HStar3 is capable of propagating
+// these updates up to the passed-in top level of the tree.
+//
+// Warning: This call and other HStar3 methods modify the updates slice
+// in-place, so the caller must ensure to not reuse it.
+func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HStar3, error) {
+	if err := sortUpdates(updates, depth); err != nil {
+		return HStar3{}, err
 	}
-	sort.Slice(updates, func(i, j int) bool {
-		return compareHorizontal(updates[i].ID, updates[j].ID)
-	})
-	for i, last := 0, len(updates)-1; i < last; i++ {
-		if id := updates[i].ID; id == updates[i+1].ID {
-			return fmt.Errorf("duplicate ID: %v", id)
-		}
-	}
-	return nil
+	return HStar3{upd: updates, hash: hash, depth: depth, top: top}, nil
 }
 
-// GetReadSet returns the set of all the node IDs that HStar3 requires to read
-// in order to apply the passed-in updates and propagate node hash changes up
-// to the root(top) node(s) at the specified depth. The updates must have been
-// processed by Prepare.
+// Preload returns the set of all the node IDs that the Update method will load
+// in order to compute node hash updates from the initial tree depth up to the
+// top level specified in the constructor. It may be useful for constructing a
+// NodeAccessor, e.g. by batch-reading the nodes from elsewhere.
 //
 // Note: The returned map could have bool value type, but []byte allows the
 // caller to reuse this map for filling in the hashes for the Update method.
 //
 // TODO(pavelkalinnikov): Return only tile IDs.
-func (h HStar3) GetReadSet(updates []NodeUpdate, top uint) map[tree.NodeID2][]byte {
+func (h HStar3) Preload() map[tree.NodeID2][]byte {
 	ids := make(map[tree.NodeID2][]byte)
 	// For each node, add all its ancestors' siblings, down to the given depth.
-	for _, upd := range updates {
-		for id, d := upd.ID, h.depth; d > top; d-- {
+	for _, upd := range h.upd {
+		for id, d := upd.ID, h.depth; d > h.top; d-- {
 			pref := id.Prefix(d)
 			if _, ok := ids[pref]; ok {
 				// Delete the prefix node because its original hash does not contribute
@@ -95,21 +90,20 @@ func (h HStar3) GetReadSet(updates []NodeUpdate, top uint) map[tree.NodeID2][]by
 				// All the upper siblings have been added already, so skip them.
 				break
 			}
-			sib := pref.Sibling()
-			ids[sib] = nil
+			ids[pref.Sibling()] = nil
 		}
 	}
 	return ids
 }
 
-// Update applies the given updates to a sparse Merkle tree. Requires a
-// previous Prepare invocation on the same updates slice. Returns an error if
-// any of the NodeStorage.Get calls does so, for example if a node is missing.
+// Update applies the updates to the sparse Merkle tree. Returns an error if
+// any of the NodeAccessor.Get calls does so, e.g. if a node is undefined.
+// Warning: HStar3 must not be used further after this call.
 //
 // Returns the slice of updates at the top level of the sparse Merkle tree
 // induced by the provided lower level updates. Typically it will contain only
 // one item for the root hash of a tile or a (sub)tree, but the caller may
-// arrange multiple subtrees in one call, in which case the corresponding
+// arrange multiple subtrees in one HStar3, in which case the corresponding
 // returned top-level updates will be sorted lexicographically by node ID.
 //
 // Note that Update invocations can be chained. For example, a bunch of HStar3
@@ -117,31 +111,30 @@ func (h HStar3) GetReadSet(updates []NodeUpdate, top uint) map[tree.NodeID2][]by
 // are then merged together and passed into another HStar3 at depth 8 which
 // computes the overall tree root update.
 //
-// For that reason, Update doesn't invoke NodeStorage.Set for the topmost level
+// For that reason, Update doesn't invoke NodeAccessor.Set for the topmost
 // nodes. If it did then chained Updates would Set the borderline nodes twice.
-//
-// Warning: This call modifies the updates slice in-place, so the caller must
-// ensure to not reuse it.
-func (h HStar3) Update(updates []NodeUpdate, top uint, ns NodeStorage) ([]NodeUpdate, error) {
-	for d := h.depth; d > top; d-- {
+func (h HStar3) Update(na NodeAccessor) ([]NodeUpdate, error) {
+	for d := h.depth; d > h.top; d-- {
 		var err error
-		if updates, err = h.updateAt(updates, d, ns); err != nil {
+		if h.upd, err = h.updateAt(h.upd, d, na); err != nil {
 			return nil, fmt.Errorf("depth %d: %v", d, err)
 		}
 	}
-	return updates, nil
+	return h.upd, nil
 }
 
 // updateAt applies the given node updates at the specified tree level.
 // Returns the updates that propagated to the level above.
-func (h HStar3) updateAt(updates []NodeUpdate, depth uint, ns NodeStorage) ([]NodeUpdate, error) {
+func (h HStar3) updateAt(updates []NodeUpdate, depth uint, na NodeAccessor) ([]NodeUpdate, error) {
 	// Apply the updates.
 	for _, upd := range updates {
-		ns.Set(upd.ID, upd.Hash)
+		na.Set(upd.ID, upd.Hash)
 	}
-	// Calculate the updates that propagate to one level above.
+	// Calculate the updates that propagate to one level above. The result of
+	// this is a slice of newLen items, between len/2 and len. The length shrinks
+	// whenever two updated nodes share the same parent.
 	newLen := 0
-	for i, ln := 0, len(updates); i < ln; i, newLen = i+1, newLen+1 {
+	for i, ln := 0, len(updates); i < ln; i++ {
 		sib := updates[i].ID.Sibling()
 		var left, right []byte
 		if next := i + 1; next < ln && updates[next].ID == sib {
@@ -149,8 +142,8 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, ns NodeStorage) ([]No
 			left, right = updates[i].Hash, updates[next].Hash
 			i = next // Skip the next update in the outer loop.
 		} else {
-			// The sibling is not updated, so fetch the original from NodeStorage.
-			hash, err := ns.Get(sib)
+			// The sibling is not updated, so fetch the original from NodeAccessor.
+			hash, err := na.Get(sib)
 			if err != nil {
 				return nil, err
 			}
@@ -161,6 +154,7 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, ns NodeStorage) ([]No
 		}
 		hash := h.hash(left, right)
 		updates[newLen] = NodeUpdate{ID: sib.Prefix(depth - 1), Hash: hash}
+		newLen++
 	}
 	return updates[:newLen], nil
 }
@@ -180,4 +174,24 @@ func compareHorizontal(a, b tree.NodeID2) bool {
 	aLast, _ := a.LastByte()
 	bLast, _ := b.LastByte()
 	return aLast < bLast
+}
+
+// sortUpdates sorts the updates slice for it to be usable by HStar3. It also
+// verifies that the nodes are placed at the required depth, and there are no
+// ID duplicates amongh them.
+func sortUpdates(updates []NodeUpdate, depth uint) error {
+	for i := range updates {
+		if d, want := updates[i].ID.BitLen(), depth; d != want {
+			return fmt.Errorf("upd #%d: invalid depth %d, want %d", i, d, want)
+		}
+	}
+	sort.Slice(updates, func(i, j int) bool {
+		return compareHorizontal(updates[i].ID, updates[j].ID)
+	})
+	for i, last := 0, len(updates)-1; i < last; i++ {
+		if id := updates[i].ID; id == updates[i+1].ID {
+			return fmt.Errorf("duplicate ID: %v", id)
+		}
+	}
+	return nil
 }

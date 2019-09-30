@@ -56,12 +56,12 @@ func BenchmarkHStar3Root(b *testing.B) {
 	hasher := coniks.New(crypto.SHA256)
 	for i := 0; i < b.N; i++ {
 		updates := leafUpdates(b, 512)
-		hs := NewHStar3(hasher.HashChildren, 256)
-		if err := hs.Prepare(updates); err != nil {
-			b.Fatalf("Prepare: %v", err)
+		hs, err := NewHStar3(updates, hasher.HashChildren, 256, 0)
+		if err != nil {
+			b.Fatalf("NewHStar3: %v", err)
 		}
 		nodes := &emptyNodes{treeID: 42, hasher: hasher}
-		if _, err := hs.Update(updates, 0, nodes); err != nil {
+		if _, err := hs.Update(nodes); err != nil {
 			b.Fatalf("Update: %v", err)
 		}
 	}
@@ -70,13 +70,13 @@ func BenchmarkHStar3Root(b *testing.B) {
 // This test checks HStar3 implementation against HStar2-generated result.
 func TestHStar3Golden(t *testing.T) {
 	hasher := coniks.New(crypto.SHA256)
-	hs := NewHStar3(hasher.HashChildren, 256)
 	updates := leafUpdates(t, 500)
-	if err := hs.Prepare(updates); err != nil {
-		t.Fatalf("Prepare: %v", err)
+	hs, err := NewHStar3(updates, hasher.HashChildren, 256, 0)
+	if err != nil {
+		t.Fatalf("NewHStar3: %v", err)
 	}
 	nodes := &emptyNodes{treeID: 42, hasher: hasher}
-	upd, err := hs.Update(updates, 0, nodes)
+	upd, err := hs.Update(nodes)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -90,13 +90,12 @@ func TestHStar3Golden(t *testing.T) {
 	}
 }
 
-func TestHStar3Prepare(t *testing.T) {
+func TestNewHStar3(t *testing.T) {
 	id1 := tree.NewNodeID2("01234567890000000000000000000001", 256)
 	id2 := tree.NewNodeID2("01234567890000000000000000000002", 256)
 	id3 := tree.NewNodeID2("01234567890000000000000000000003", 256)
 	id4 := tree.NewNodeID2("01234567890000000000000001111111", 256)
 	hasher := coniks.Default
-	hs := NewHStar3(hasher.HashChildren, 256)
 
 	for _, tc := range []struct {
 		desc    string
@@ -119,35 +118,33 @@ func TestHStar3Prepare(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			upd := tc.upd          // No need to copy it here.
-			err := hs.Prepare(upd) // Potentially shuffles upd.
+			upd := tc.upd                                            // No need to copy it here.
+			_, err := NewHStar3(tc.upd, hasher.HashChildren, 256, 0) // Potentially shuffles upd.
 			got := ""
 			if err != nil {
 				got = err.Error()
 			}
 			if want := tc.wantErr; !strings.Contains(got, want) {
-				t.Errorf("Prepare: want error containing %q, got %v", want, err)
+				t.Errorf("NewHStar3: want error containing %q, got %v", want, err)
 			}
 			if want := tc.want; want != nil && !reflect.DeepEqual(upd, want) {
-				t.Errorf("Prepare: want updates:\n%v\ngot:\n%v", upd, want)
+				t.Errorf("NewHStar3: want updates:\n%v\ngot:\n%v", upd, want)
 			}
 		})
 	}
 }
 
-func TestHStar3GetReadSet(t *testing.T) {
+func TestHStar3Preload(t *testing.T) {
 	hasher := coniks.Default
-	hs := NewHStar3(hasher.HashChildren, 256)
-
 	updates := leafUpdates(t, 512)
-	if err := hs.Prepare(updates); err != nil {
-		t.Fatalf("Prepare: %v", err)
+	hs, err := NewHStar3(updates, hasher.HashChildren, 256, 0)
+	if err != nil {
+		t.Fatalf("NewHStar3: %v", err)
 	}
-	rs := hs.GetReadSet(updates, 0)
+	rs := hs.Preload()
 
 	nodes := &emptyNodes{treeID: 42, hasher: hasher, hashes: rs}
-	_, err := hs.Update(updates, 0, nodes)
-	if err != nil {
+	if _, err = hs.Update(nodes); err != nil {
 		t.Errorf("Update: %v", err)
 	}
 	if got := len(nodes.hashes); got != 0 {
