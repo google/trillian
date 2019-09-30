@@ -139,6 +139,7 @@ type MapConfig struct {
 	MapID                int64 // 0 to use an ephemeral tree
 	MetricFactory        monitoring.MetricFactory
 	Client               trillian.TrillianMapClient
+	Write                trillian.TrillianMapWriteClient
 	Admin                trillian.TrillianAdminClient
 	RandSource           rand.Source
 	EPBias               MapBias
@@ -672,7 +673,9 @@ leafloop:
 	}
 
 	writeRev := uint64(rev + 1)
-	_, err := s.vc.SetAndVerifyMapLeaves(ctx, leaves, metadataForRev(writeRev))
+
+	req := trillian.WriteMapLeavesRequest{MapId: s.cfg.MapID, Leaves: leaves, ExpectRevision: int64(writeRev)}
+	_, err := s.cfg.Write.WriteLeaves(ctx, &req)
 	if err != nil {
 		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(leaves), err)
 	}
@@ -705,10 +708,10 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 	}
-	req := trillian.SetMapLeavesRequest{MapId: s.cfg.MapID, Leaves: leaves}
-	rsp, err := s.cfg.Client.SetLeaves(ctx, &req)
+	req := trillian.WriteMapLeavesRequest{MapId: s.cfg.MapID, Leaves: leaves}
+	rsp, err := s.cfg.Write.WriteLeaves(ctx, &req)
 	if err == nil {
-		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.MapRoot)
+		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
 	}
 	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
 	return nil
