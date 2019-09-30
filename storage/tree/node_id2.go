@@ -48,6 +48,19 @@ func (n NodeID2) BitLen() uint {
 	return uint(len(n.path))*8 + uint(n.bits)
 }
 
+// FullBytes returns the ID bytes that are complete. Note that there might
+// still be up to 8 extra bits, which can be obtained with the LastByte method.
+func (n NodeID2) FullBytes() string {
+	return n.path
+}
+
+// LastByte returns the terminating byte of the ID, with the number of upper
+// bits that it uses (between 1 and 8, and 0 if the ID is empty). The remaining
+// unused lower bits are always unset.
+func (n NodeID2) LastByte() (byte, uint8) {
+	return n.last, n.bits
+}
+
 // Prefix returns the prefix of NodeID2 with the given number of bits.
 func (n NodeID2) Prefix(bits uint) NodeID2 {
 	// Note: This code is very similar to NewNodeID2, and it's tempting to return
