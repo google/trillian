@@ -120,7 +120,9 @@ jobs:
       addons:
         mariadb: '10.3'
       env: GO_TEST_TIMEOUT=20m
-      script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
+      script:
+        - mysql -u root -e 'SHOW VARIABLES LIKE "%version%";'
+        - ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
 
 services:
   - docker
