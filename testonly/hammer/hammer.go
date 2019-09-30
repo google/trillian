@@ -674,7 +674,12 @@ leafloop:
 
 	writeRev := uint64(rev + 1)
 
-	req := trillian.WriteMapLeavesRequest{MapId: s.cfg.MapID, Leaves: leaves, ExpectRevision: int64(writeRev)}
+	req := trillian.WriteMapLeavesRequest{
+		MapId:          s.cfg.MapID,
+		Leaves:         leaves,
+		Metadata:       metadataForRev(writeRev),
+		ExpectRevision: int64(writeRev),
+	}
 	_, err := s.cfg.Write.WriteLeaves(ctx, &req)
 	if err != nil {
 		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(leaves), err)
