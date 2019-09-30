@@ -773,7 +773,7 @@ func (s *hammerState) validateSMRMatchesWrittenContents(root *types.MapRootV1) e
 		return err
 	}
 	if !bytes.Equal(root.RootHash, wantRootHash) {
-		return fmt.Errorf("failed to check root hash: got %x, want %x", root.RootHash, wantRootHash)
+		return fmt.Errorf("unexpected root hash: got %x, want %x", root.RootHash, wantRootHash)
 	}
 	return nil
 }
