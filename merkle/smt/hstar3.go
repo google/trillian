@@ -70,7 +70,7 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 	return HStar3{upd: updates, hash: hash, depth: depth, top: top}, nil
 }
 
-// Preload returns the set of all the node IDs that the Update method will load
+// Prepare returns the set of all the node IDs that the Update method will load
 // in order to compute node hash updates from the initial tree depth up to the
 // top level specified in the constructor. It may be useful for constructing a
 // NodeAccessor, e.g. by batch-reading the nodes from elsewhere.
@@ -79,7 +79,7 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 // caller to reuse this map for filling in the hashes for the Update method.
 //
 // TODO(pavelkalinnikov): Return only tile IDs.
-func (h HStar3) Preload() map[tree.NodeID2][]byte {
+func (h HStar3) Prepare() map[tree.NodeID2][]byte {
 	ids := make(map[tree.NodeID2][]byte)
 	// For each node, add all its ancestors' siblings, down to the given depth.
 	for _, upd := range h.upd {

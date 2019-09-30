@@ -137,14 +137,14 @@ func TestNewHStar3(t *testing.T) {
 	}
 }
 
-func TestHStar3Preload(t *testing.T) {
+func TestHStar3Prepare(t *testing.T) {
 	hasher := coniks.Default
 	updates := leafUpdates(t, 512)
 	hs, err := NewHStar3(updates, hasher.HashChildren, 256, 0)
 	if err != nil {
 		t.Fatalf("NewHStar3: %v", err)
 	}
-	rs := hs.Preload()
+	rs := hs.Prepare()
 
 	nodes := &emptyNodes{treeID: 42, hasher: hasher, hashes: rs}
 	if _, err = hs.Update(nodes); err != nil {
