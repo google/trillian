@@ -218,8 +218,7 @@ func TestVersionedMapContents_UpdateContents(t *testing.T) {
 			var vmc VersionedMapContents
 			var gotErr error
 			for _, u := range test.updates {
-				_, e := vmc.UpdateContentsWith(u.rev, u.leaves)
-				if e != nil {
+				if _, e := vmc.UpdateContentsWith(u.rev, u.leaves); e != nil {
 					gotErr = e
 				}
 			}

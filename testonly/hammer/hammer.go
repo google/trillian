@@ -681,7 +681,7 @@ leafloop:
 	if err != nil {
 		return err
 	}
-	glog.V(2).Infof("%d: set %d leaves, rev=%d", s.cfg.MapID, len(leaves), rev)
+	glog.V(2).Infof("%d: set %d leaves, rev=%d", s.cfg.MapID, len(leaves), writeRev)
 	return nil
 }
 
@@ -727,7 +727,7 @@ func (s *hammerState) getSMR(ctx context.Context, prng *rand.Rand) error {
 	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 
-	if err := s.validateSMRMatchesWrittenContents(root); err != nil {
+	if err := s.verify(root); err != nil {
 		return err
 	}
 	return nil
@@ -759,21 +759,21 @@ func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, root, smrRoot)
 	}
 
-	if err := s.validateSMRMatchesWrittenContents(root); err != nil {
+	if err := s.verify(root); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *hammerState) validateSMRMatchesWrittenContents(root *types.MapRootV1) error {
+func (s *hammerState) verify(root *types.MapRootV1) error {
 	mapContents := s.prevContents.PickRevision(root.Revision)
-	wantRootHash, err := mapContents.RootHash(s.cfg.MapID, s.vc.Hasher)
+	want, err := mapContents.RootHash(s.cfg.MapID, s.vc.Hasher)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(root.RootHash, wantRootHash) {
-		return fmt.Errorf("unexpected root hash: got %x, want %x", root.RootHash, wantRootHash)
+	if !bytes.Equal(root.RootHash, want) {
+		return fmt.Errorf("unexpected root hash: got %x, want %x", root.RootHash, want)
 	}
 	return nil
 }
