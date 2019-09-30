@@ -64,6 +64,8 @@ type HStar3 struct {
 func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HStar3, error) {
 	if err := sortUpdates(updates, depth); err != nil {
 		return HStar3{}, err
+	} else if top > depth {
+		return HStar3{}, fmt.Errorf("top > depth: %d vs. %d", top, depth)
 	}
 	return HStar3{upd: updates, hash: hash, depth: depth, top: top}, nil
 }
@@ -178,7 +180,7 @@ func compareHorizontal(a, b tree.NodeID2) bool {
 
 // sortUpdates sorts the updates slice for it to be usable by HStar3. It also
 // verifies that the nodes are placed at the required depth, and there are no
-// ID duplicates amongh them.
+// duplicate IDs.
 func sortUpdates(updates []NodeUpdate, depth uint) error {
 	for i := range updates {
 		if d, want := updates[i].ID.BitLen(), depth; d != want {

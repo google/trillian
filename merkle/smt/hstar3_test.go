@@ -100,12 +100,14 @@ func TestNewHStar3(t *testing.T) {
 	for _, tc := range []struct {
 		desc    string
 		upd     []NodeUpdate
+		top     uint
 		want    []NodeUpdate
 		wantErr string
 	}{
 		{desc: "depth-err", upd: []NodeUpdate{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
 		{desc: "dup-err1", upd: []NodeUpdate{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
 		{desc: "dup-err2", upd: []NodeUpdate{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "top-vs-depth-err", upd: []NodeUpdate{{ID: id1}}, top: 300, wantErr: "top > depth"},
 		{
 			desc: "ok1",
 			upd:  []NodeUpdate{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},
@@ -118,8 +120,9 @@ func TestNewHStar3(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			upd := tc.upd                                            // No need to copy it here.
-			_, err := NewHStar3(tc.upd, hasher.HashChildren, 256, 0) // Potentially shuffles upd.
+			upd := tc.upd // No need to copy it here.
+			// Note: NewHStar3 potentially shuffles upd.
+			_, err := NewHStar3(tc.upd, hasher.HashChildren, 256, tc.top)
 			got := ""
 			if err != nil {
 				got = err.Error()
