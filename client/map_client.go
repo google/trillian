@@ -52,6 +52,16 @@ func (c *MapClient) GetAndVerifyLatestMapRoot(ctx context.Context) (*types.MapRo
 	return c.VerifySignedMapRoot(rootResp.GetMapRoot())
 }
 
+// GetAndVerifyMapRootByRevision verifies and returns the map root with the given revision.
+func (c *MapClient) GetAndVerifyMapRootByRevision(ctx context.Context, revision int64) (*types.MapRootV1, error) {
+	rootResp, err := c.Conn.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{MapId: c.MapID, Revision: revision})
+	if err != nil {
+		s := status.Convert(err)
+		return nil, status.Errorf(s.Code(), "GetSignedMapRootByRevision(%v): %v", c.MapID, s.Message())
+	}
+	return c.VerifySignedMapRoot(rootResp.GetMapRoot())
+}
+
 // GetAndVerifyMapLeaves verifies and returns the requested map leaves.
 // indexes may not contain duplicates.
 func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte) ([]*trillian.MapLeaf, error) {

@@ -88,6 +88,35 @@ func TestGetLatestMapRoot(t *testing.T) {
 	}
 }
 
+func TestGetMapRootByRevision(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+	ctx := context.Background()
+	env, err := integration.NewMapEnv(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: testonly.MapTree},
+		env.Admin, env.Map, nil)
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	client, err := NewMapClientFromTree(env.Map, tree)
+	if err != nil {
+		t.Fatalf("NewMapClientFromTree(): %v", err)
+	}
+
+	root, err := client.GetAndVerifyMapRootByRevision(ctx, 0)
+	if err != nil {
+		t.Fatalf("GetAndVerifyLatestMapRoot(): %v", err)
+	}
+	if got, want := root.Revision, uint64(0); got != want {
+		t.Errorf("root.Revision: %v, want %v", got, want)
+	}
+}
+
 func TestGetLeavesAtRevision(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
