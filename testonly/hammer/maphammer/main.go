@@ -180,6 +180,7 @@ func main() {
 		cfg := hammer.MapConfig{
 			MapID:             mapid,
 			Client:            trillian.NewTrillianMapClient(c),
+			Write:             trillian.NewTrillianMapWriteClient(c),
 			Admin:             trillian.NewTrillianAdminClient(ac),
 			MetricFactory:     mf,
 			RandSource:        randSrc,

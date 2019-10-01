@@ -65,6 +65,7 @@ func TestRetryExposesDeadlineError(t *testing.T) {
 	cfg := MapConfig{
 		MapID:         0, // ephemeral tree
 		Client:        env.Map,
+		Write:         env.Write,
 		Admin:         env.Admin,
 		MetricFactory: monitoring.InertMetricFactory{},
 		RandSource:    rand.NewSource(seed),
@@ -115,6 +116,7 @@ func TestInProcessMapHammer(t *testing.T) {
 	cfg := MapConfig{
 		MapID:         0, // ephemeral tree
 		Client:        env.Map,
+		Write:         env.Write,
 		Admin:         env.Admin,
 		MetricFactory: monitoring.InertMetricFactory{},
 		RandSource:    rand.NewSource(seed),

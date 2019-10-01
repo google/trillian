@@ -82,6 +82,7 @@ func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revisio
 }
 
 // SetAndVerifyMapLeaves calls SetLeaves and verifies the signature of the returned map root.
+// Deprecated: Use WriteLeaves on the TrillianMapWriteClient instead.
 func (c *MapClient) SetAndVerifyMapLeaves(ctx context.Context, leaves []*trillian.MapLeaf, metadata []byte) (*types.MapRootV1, error) {
 	// Set new leaf values.
 	req := &trillian.SetMapLeavesRequest{
