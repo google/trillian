@@ -759,10 +759,6 @@ func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, root, smrRoot)
 	}
 
-	if err := s.verify(root); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -773,7 +769,7 @@ func (s *hammerState) verify(root *types.MapRootV1) error {
 		return err
 	}
 	if !bytes.Equal(root.RootHash, want) {
-		return fmt.Errorf("unexpected root hash: got %x, want %x", root.RootHash, want)
+		return fmt.Errorf("unexpected root hash for revision %d: got %x, want %x", root.Revision, root.RootHash, want)
 	}
 	return nil
 }

@@ -101,8 +101,8 @@ jobs:
       env: GOFLAGS='-race --tags=pkcs11' GO_TEST_TIMEOUT=20m
       script: ./scripts/presubmit.sh --no-linters --no-generate
     - name: "integration"
-      env: GOFLAGS='-race' GO_TEST_TIMEOUT=20m
-      script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
+      env: GO_TEST_TIMEOUT=20m
+      script: ./integration/integration_test.sh && HAMMER_OPTS="--operations=150" ./integration/maphammer.sh 3
     - name: "integration (etcd)"
       env: GOFLAGS='-race' ETCD_DIR="${GOPATH}/bin" GO_TEST_TIMEOUT=20m
       install: go install go.etcd.io/etcd go.etcd.io/etcd/etcdctl
