@@ -31,15 +31,15 @@ import (
 type emptyNodes struct {
 	treeID int64
 	hasher hashers.MapHasher
-	hashes map[tree.NodeID2][]byte
+	ids    map[tree.NodeID2]bool
 }
 
 func (e *emptyNodes) Get(id tree.NodeID2) ([]byte, error) {
-	if e.hashes != nil {
-		if _, ok := e.hashes[id]; !ok {
+	if e.ids != nil {
+		if !e.ids[id] {
 			return nil, fmt.Errorf("not found or read twice: %v", id)
 		}
-		delete(e.hashes, id) // Allow getting this ID only once.
+		delete(e.ids, id) // Allow getting this ID only once.
 	}
 	index := make([]byte, e.hasher.Size())
 	copy(index, id.FullBytes())
@@ -144,14 +144,62 @@ func TestHStar3Prepare(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHStar3: %v", err)
 	}
-	rs := hs.Prepare()
+	rs := idsToMap(t, hs.Prepare())
 
-	nodes := &emptyNodes{treeID: 42, hasher: hasher, hashes: rs}
+	nodes := &emptyNodes{treeID: 42, hasher: hasher, ids: rs}
 	if _, err = hs.Update(nodes); err != nil {
 		t.Errorf("Update: %v", err)
 	}
-	if got := len(nodes.hashes); got != 0 {
-		t.Errorf("%d hashes were not read", got)
+	if got := len(nodes.ids); got != 0 {
+		t.Errorf("%d ids were not read", got)
+	}
+}
+
+func TestHStar3PrepareAlternative(t *testing.T) {
+	// This is the intuitively simpler alternative Prepare implementation.
+	prepare := func(updates []NodeUpdate, depth, top uint) map[tree.NodeID2]bool {
+		ids := make(map[tree.NodeID2]bool)
+		// For each node, add all its ancestors' siblings, down to the given depth.
+		for _, upd := range updates {
+			for id, d := upd.ID, depth; d > top; d-- {
+				pref := id.Prefix(d)
+				if _, ok := ids[pref]; ok {
+					// Delete the prefix node because its original hash does not contribute
+					// to the updates, so should not be read.
+					delete(ids, pref)
+					// All the upper siblings have been added already, so skip them.
+					break
+				}
+				ids[pref.Sibling()] = true
+			}
+		}
+		return ids
+	}
+
+	for n := 0; n <= 32; n++ {
+		t.Run(fmt.Sprintf("n:%d", n), func(t *testing.T) {
+			upd := leafUpdates(t, n)
+			hs, err := NewHStar3(upd, nil, 256, 8)
+			if err != nil {
+				t.Fatalf("NewHStar3: %v", err)
+			}
+			ids := prepare(upd, 256, 8)
+			got := idsToMap(t, hs.Prepare())
+			if !reflect.DeepEqual(got, ids) {
+				t.Error("IDs mismatch")
+			}
+		})
+	}
+}
+
+func BenchmarkHStar3Prepare(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		updates := leafUpdates(b, 512)
+		hs, err := NewHStar3(updates, nil, 256, 0)
+		if err != nil {
+			b.Fatalf("NewHStar3: %v", err)
+		}
+		_ = hs.Prepare()
 	}
 }
 
@@ -176,4 +224,16 @@ func leafUpdates(t testing.TB, n int) []NodeUpdate {
 	}
 
 	return updates
+}
+
+func idsToMap(t testing.TB, ids []tree.NodeID2) map[tree.NodeID2]bool {
+	t.Helper()
+	res := make(map[tree.NodeID2]bool, len(ids))
+	for _, id := range ids {
+		if res[id] {
+			t.Errorf("ID duplicate: %v", id)
+		}
+		res[id] = true
+	}
+	return res
 }

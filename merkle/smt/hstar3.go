@@ -70,32 +70,57 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 	return HStar3{upd: updates, hash: hash, depth: depth, top: top}, nil
 }
 
-// Prepare returns the set of all the node IDs that the Update method will load
-// in order to compute node hash updates from the initial tree depth up to the
-// top level specified in the constructor. It may be useful for constructing a
-// NodeAccessor, e.g. by batch-reading the nodes from elsewhere.
-//
-// Note: The returned map could have bool value type, but []byte allows the
-// caller to reuse this map for filling in the hashes for the Update method.
+// Prepare returns the list of all the node IDs that the Update method will
+// load in order to compute node hash updates from the initial tree depth up to
+// the top level specified in the constructor. The ordering of the returned IDs
+// is arbitrary. This method may be useful for creating a NodeAccessor, e.g.
+// by batch-reading the nodes from elsewhere.
 //
 // TODO(pavelkalinnikov): Return only tile IDs.
-func (h HStar3) Prepare() map[tree.NodeID2][]byte {
-	ids := make(map[tree.NodeID2][]byte)
+func (h HStar3) Prepare() []tree.NodeID2 {
+	// Start with a single "sentinel" empty ID, which helps maintaining the loop
+	// invariants below. Preallocate enough memory to store all the node IDs.
+	ids := make([]tree.NodeID2, 1, len(h.upd)*int(h.depth-h.top)+1)
+	pos := make([]int, h.depth-h.top)
+	// Note: This variable compares equal to ids[0].
+	empty := tree.NodeID2{}
+
 	// For each node, add all its ancestors' siblings, down to the given depth.
+	// Avoid duplicate IDs, and possibly remove already added ones if they become
+	// unnecessary as more updates are added.
+	//
+	// Loop invariants:
+	// 1. pos[idx] < len(ids), for each idx.
+	// 2. ids[pos[idx]] is the ID of the rightmost sibling at depth idx+h.top+1
+	//    added so far, or an empty ID if there is none at this depth yet.
+	//
+	// Note: The algorithm works because the list of updates is sorted.
 	for _, upd := range h.upd {
 		for id, d := upd.ID, h.depth; d > h.top; d-- {
 			pref := id.Prefix(d)
-			if _, ok := ids[pref]; ok {
-				// Delete the prefix node because its original hash does not contribute
-				// to the updates, so should not be read.
-				delete(ids, pref)
-				// All the upper siblings have been added already, so skip them.
+			idx := d - h.top - 1
+			if p := pos[idx]; ids[p] == pref {
+				// Delete that node because its original hash will be overridden, so it
+				// does not contribute to hash updates anymore.
+				ids[p] = empty
+				// Skip the upper siblings as they have been added already.
 				break
 			}
-			ids[pref.Sibling()] = nil
+			pos[idx] = len(ids)
+			ids = append(ids, pref.Sibling())
 		}
 	}
-	return ids
+
+	// Delete all empty IDs, which include the 0-th "sentinel" ID and the ones
+	// that were marked as such in the loop above.
+	newLen := 0
+	for i := range ids {
+		if ids[i] != empty {
+			ids[newLen] = ids[i]
+			newLen++
+		}
+	}
+	return ids[:newLen]
 }
 
 // Update applies the updates to the sparse Merkle tree. Returns an error if
