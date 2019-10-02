@@ -79,20 +79,31 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 // TODO(pavelkalinnikov): Return only tile IDs.
 func (h HStar3) Prepare() []tree.NodeID2 {
 	empty := tree.NodeID2{}
-	// Start with a dummy sentinel value.
+
+	// Start with a single "sentinel" empty ID, which helps maintaining the loop
+	// invariants below. Preallocate enough memory to store all the node IDs.
 	ids := make([]tree.NodeID2, 1, len(h.upd)*int(h.depth-h.top)+1)
 	pos := make([]int, h.depth-h.top)
 
 	// For each node, add all its ancestors' siblings, down to the given depth.
+	// Avoid duplicate IDs, and possibly remove already added ones if they become
+	// unnecessary as more updates are added.
+	//
+	// Loop invariants:
+	// 1. pos[idx] < len(ids), for each idx.
+	// 2. ids[pos[idx]] is the ID of the rightmost sibling at depth idx+h.top+1,
+	//    or an empty ID if there is none at this depth yet.
+	//
+	// Note: The algorithm works because the list of updates is sorted.
 	for _, upd := range h.upd {
 		for id, d := upd.ID, h.depth; d > h.top; d-- {
 			pref := id.Prefix(d)
 			idx := d - h.top - 1
 			if p := pos[idx]; ids[p] == pref {
-				// Delete that node because its original hash does not contribute to
-				// the updates, so should not be read.
+				// Delete that node because its original hash will be overridden, so it
+				// does not contribute to hash updates anymore.
 				ids[p] = empty
-				// All the upper siblings have been added already, so skip them.
+				// Skip the upper siblings as they have been added already.
 				break
 			}
 			pos[idx] = len(ids)
@@ -100,7 +111,8 @@ func (h HStar3) Prepare() []tree.NodeID2 {
 		}
 	}
 
-	// Delete all empty IDs.
+	// Delete all empty IDs, which include the 0-th "sentinel" ID and the ones
+	// that were marked as such in the loop above.
 	newLen := 0
 	for i := range ids {
 		if ids[i] != empty {
