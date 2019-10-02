@@ -72,8 +72,9 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 
 // Prepare returns the list of all the node IDs that the Update method will
 // load in order to compute node hash updates from the initial tree depth up to
-// the top level specified in the constructor. It may be useful for creating a
-// a NodeAccessor, e.g. by batch-reading the nodes from elsewhere.
+// the top level specified in the constructor. The ordering of the returned IDs
+// is arbitrary. This method may be useful for creating a NodeAccessor, e.g.
+// by batch-reading the nodes from elsewhere.
 //
 // TODO(pavelkalinnikov): Return only tile IDs.
 func (h HStar3) Prepare() []tree.NodeID2 {
