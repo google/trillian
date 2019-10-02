@@ -78,12 +78,12 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 //
 // TODO(pavelkalinnikov): Return only tile IDs.
 func (h HStar3) Prepare() []tree.NodeID2 {
-	empty := tree.NodeID2{}
-
 	// Start with a single "sentinel" empty ID, which helps maintaining the loop
 	// invariants below. Preallocate enough memory to store all the node IDs.
 	ids := make([]tree.NodeID2, 1, len(h.upd)*int(h.depth-h.top)+1)
 	pos := make([]int, h.depth-h.top)
+	// Note: This variable compares equal to ids[0].
+	empty := tree.NodeID2{}
 
 	// For each node, add all its ancestors' siblings, down to the given depth.
 	// Avoid duplicate IDs, and possibly remove already added ones if they become
@@ -91,8 +91,8 @@ func (h HStar3) Prepare() []tree.NodeID2 {
 	//
 	// Loop invariants:
 	// 1. pos[idx] < len(ids), for each idx.
-	// 2. ids[pos[idx]] is the ID of the rightmost sibling at depth idx+h.top+1,
-	//    or an empty ID if there is none at this depth yet.
+	// 2. ids[pos[idx]] is the ID of the rightmost sibling at depth idx+h.top+1
+	//    added so far, or an empty ID if there is none at this depth yet.
 	//
 	// Note: The algorithm works because the list of updates is sorted.
 	for _, upd := range h.upd {
