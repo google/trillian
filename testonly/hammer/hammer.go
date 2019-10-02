@@ -398,6 +398,7 @@ func (s *hammerState) pushSMR(smr *types.MapRootV1) error {
 	return s.smrs.pushSMR(*smr)
 }
 
+// TODO(mhutchinson): consider making this return a bool or an error to indicate missing result.
 func (s *hammerState) previousSMR(which int) *types.MapRootV1 {
 	return s.smrs.previousSMR(which)
 }
