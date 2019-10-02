@@ -155,6 +155,17 @@ func TestHStar3Prepare(t *testing.T) {
 	}
 }
 
+func BenchmarkHStar3Prepare(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		updates := leafUpdates(b, 512)
+		hs, err := NewHStar3(updates, nil, 256, 0)
+		if err != nil {
+			b.Fatalf("NewHStar3: %v", err)
+		}
+		_ = hs.Prepare()
+	}
+}
+
 // leafUpdates generates n leaf updates at depth 256. The function is
 // pseudo-random, and the returned data depends only on n. The algorithm is the
 // same as in HStar2 tests, which allows cross-checking their results.
