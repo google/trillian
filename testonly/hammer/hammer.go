@@ -387,9 +387,9 @@ func (s *hammerState) String() string {
 		totalInvalidReqs += int(invalidReqs.Value(s.label(), string(ep)))
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
-	var latestRev uint64
+	var latestRev int64 = -1
 	if smr := s.previousSMR(0); smr != nil {
-		latestRev = smr.Revision
+		latestRev = int64(smr.Revision)
 	}
 	return fmt.Sprintf("%d: lastSMR.rev=%d ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, latestRev, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
