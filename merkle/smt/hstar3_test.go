@@ -177,22 +177,18 @@ func TestHStar3PrepareAlternative(t *testing.T) {
 	}
 
 	for n := 0; n <= 32; n++ {
-		upd := leafUpdates(t, n)
-		hs, err := NewHStar3(upd, nil, 256, 8)
-		if err != nil {
-			t.Fatalf("NewHStar3: %v", err)
-		}
-		ids := prepare(upd, 256, 8)
-		got := hs.Prepare()
-		for _, id := range got {
-			if !ids[id] {
-				t.Fatalf("not found: %v", id)
+		t.Run(fmt.Sprintf("n:%d", n), func(t *testing.T) {
+			upd := leafUpdates(t, n)
+			hs, err := NewHStar3(upd, nil, 256, 8)
+			if err != nil {
+				t.Fatalf("NewHStar3: %v", err)
 			}
-			delete(ids, id)
-		}
-		if ln := len(ids); ln != 0 {
-			t.Fatalf("%d IDs left", ln)
-		}
+			ids := prepare(upd, 256, 8)
+			got := idsToMap(t, hs.Prepare())
+			if !reflect.DeepEqual(got, ids) {
+				t.Error("IDs mismatch")
+			}
+		})
 	}
 }
 
