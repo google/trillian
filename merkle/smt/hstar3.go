@@ -70,32 +70,43 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 	return HStar3{upd: updates, hash: hash, depth: depth, top: top}, nil
 }
 
-// Prepare returns the set of all the node IDs that the Update method will load
-// in order to compute node hash updates from the initial tree depth up to the
-// top level specified in the constructor. It may be useful for constructing a
-// NodeAccessor, e.g. by batch-reading the nodes from elsewhere.
-//
-// Note: The returned map could have bool value type, but []byte allows the
-// caller to reuse this map for filling in the hashes for the Update method.
+// Prepare returns the list of all the node IDs that the Update method will
+// load in order to compute node hash updates from the initial tree depth up to
+// the top level specified in the constructor. It may be useful for creating a
+// a NodeAccessor, e.g. by batch-reading the nodes from elsewhere.
 //
 // TODO(pavelkalinnikov): Return only tile IDs.
-func (h HStar3) Prepare() map[tree.NodeID2][]byte {
-	ids := make(map[tree.NodeID2][]byte)
+func (h HStar3) Prepare() []tree.NodeID2 {
+	empty := tree.NodeID2{}
+	ids := []tree.NodeID2{empty} // Start with a dummy sentinel value.
+	pos := make([]int, h.depth-h.top)
+
 	// For each node, add all its ancestors' siblings, down to the given depth.
 	for _, upd := range h.upd {
 		for id, d := upd.ID, h.depth; d > h.top; d-- {
 			pref := id.Prefix(d)
-			if _, ok := ids[pref]; ok {
-				// Delete the prefix node because its original hash does not contribute
-				// to the updates, so should not be read.
-				delete(ids, pref)
+			idx := d - h.top - 1
+			if p := pos[idx]; ids[p] == pref {
+				// Delete that node because its original hash does not contribute to
+				// the updates, so should not be read.
+				ids[p] = empty
 				// All the upper siblings have been added already, so skip them.
 				break
 			}
-			ids[pref.Sibling()] = nil
+			pos[idx] = len(ids)
+			ids = append(ids, pref.Sibling())
 		}
 	}
-	return ids
+
+	// Delete all empty IDs.
+	newLen := 0
+	for i := range ids {
+		if ids[i] != empty {
+			ids[newLen] = ids[i]
+			newLen++
+		}
+	}
+	return ids[:newLen]
 }
 
 // Update applies the updates to the sparse Merkle tree. Returns an error if
