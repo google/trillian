@@ -78,7 +78,8 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 // TODO(pavelkalinnikov): Return only tile IDs.
 func (h HStar3) Prepare() []tree.NodeID2 {
 	empty := tree.NodeID2{}
-	ids := []tree.NodeID2{empty} // Start with a dummy sentinel value.
+	// Start with a dummy sentinel value.
+	ids := make([]tree.NodeID2, 1, len(h.upd)*int(h.depth-h.top)+1)
 	pos := make([]int, h.depth-h.top)
 
 	// For each node, add all its ancestors' siblings, down to the given depth.
