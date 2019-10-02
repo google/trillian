@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/types"
@@ -50,6 +51,23 @@ func (c *MapClient) GetAndVerifyLatestMapRoot(ctx context.Context) (*types.MapRo
 		return nil, status.Errorf(s.Code(), "GetSignedMapRoot(%v): %v", c.MapID, s.Message())
 	}
 	return c.VerifySignedMapRoot(rootResp.GetMapRoot())
+}
+
+// GetAndVerifyMapRootByRevision verifies and returns the map root with the given revision.
+func (c *MapClient) GetAndVerifyMapRootByRevision(ctx context.Context, revision int64) (*types.MapRootV1, error) {
+	rootResp, err := c.Conn.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{MapId: c.MapID, Revision: revision})
+	if err != nil {
+		s := status.Convert(err)
+		return nil, status.Errorf(s.Code(), "GetSignedMapRootByRevision(%v, %d): %v", c.MapID, revision, s.Message())
+	}
+	root, err := c.VerifySignedMapRoot(rootResp.GetMapRoot())
+	if err != nil {
+		return nil, fmt.Errorf("GetAndVerifyMapRootByRevision(%v, %d) failed to verify root: %v", c.MapID, revision, err)
+	}
+	if int64(root.Revision) != revision {
+		return nil, fmt.Errorf("GetAndVerifyMapRootByRevision(%v, %d): got revision %d", c.MapID, revision, root.Revision)
+	}
+	return root, err
 }
 
 // GetAndVerifyMapLeaves verifies and returns the requested map leaves.
