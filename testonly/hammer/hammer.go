@@ -387,14 +387,18 @@ func (s *hammerState) String() string {
 		totalInvalidReqs += int(invalidReqs.Value(s.label(), string(ep)))
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
-	smr := s.previousSMR(0)
-	return fmt.Sprintf("%d: lastSMR.rev=%d ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, smr.Revision, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
+	var latestRev int64 = -1
+	if smr := s.previousSMR(0); smr != nil {
+		latestRev = int64(smr.Revision)
+	}
+	return fmt.Sprintf("%d: lastSMR.rev=%d ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, latestRev, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
 
 func (s *hammerState) pushSMR(smr *types.MapRootV1) error {
 	return s.smrs.pushSMR(*smr)
 }
 
+// TODO(mhutchinson): consider making this return a bool or an error to indicate missing result.
 func (s *hammerState) previousSMR(which int) *types.MapRootV1 {
 	return s.smrs.previousSMR(which)
 }
