@@ -309,11 +309,12 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	var prevContents testonly.VersionedMapContents
 	var smrs smrStash
 	validReadOps := validReadOps{
-		mc:              mc,
-		extraSize:       cfg.ExtraSize,
-		chooseLeafCount: func(prng *rand.Rand) int { return pickIntInRange(cfg.MinLeaves, cfg.MaxLeaves, prng) },
-		prevContents:    &prevContents,
-		smrs:            &smrs,
+		mc:           mc,
+		extraSize:    cfg.ExtraSize,
+		minLeaves:    cfg.MinLeaves,
+		maxLeaves:    cfg.MaxLeaves,
+		prevContents: &prevContents,
+		smrs:         &smrs,
 	}
 
 	return &hammerState{

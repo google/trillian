@@ -15,15 +15,13 @@ import (
 	"github.com/google/trillian/types"
 )
 
-type intSelector func(prng *rand.Rand) int
-
 // validReadOps performs valid read operations against the map.
 type validReadOps struct {
-	mc              *client.MapClient
-	extraSize       uint
-	chooseLeafCount intSelector
-	prevContents    *testonly.VersionedMapContents // copies of earlier contents of the map
-	smrs            *smrStash
+	mc                   *client.MapClient
+	extraSize            uint
+	minLeaves, maxLeaves int
+	prevContents         *testonly.VersionedMapContents // copies of earlier contents of the map
+	smrs                 *smrStash
 }
 
 func (o *validReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
@@ -48,7 +46,7 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 		contents = o.prevContents.PickCopy(prng)
 	}
 
-	n := o.chooseLeafCount(prng) // can be zero
+	n := pickIntInRange(o.minLeaves, o.maxLeaves, prng) // can be zero
 	indexMap := make(map[string]bool)
 	for i := 0; i < n; i++ {
 		choice := choices[prng.Intn(len(choices))]
