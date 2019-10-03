@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 
@@ -85,27 +86,44 @@ func TestWriterSplit(t *testing.T) {
 	}
 }
 
-func TestWriter(t *testing.T) {
+func TestWriterWrite(t *testing.T) {
+	upd := []NodeUpdate{genUpd("key1", "value1"), genUpd("key2", "value2"), genUpd("key3", "value3")}
 	for _, tc := range []struct {
 		desc     string
 		upd      []NodeUpdate
+		split    uint
 		wantRoot []byte
+		wantErr  string
 	}{
+		// Taken from SparseMerkleTreeWriter tests.
 		{
-			// Taken from SparseMerkleTreeWriter tests.
-			desc:     "non-empty",
-			upd:      []NodeUpdate{genUpd("key1", "value1"), genUpd("key2", "value2"), genUpd("key3", "value3")},
+			desc:     "single-leaf",
+			upd:      []NodeUpdate{upd[0]},
+			wantRoot: b64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA="),
+		},
+		{
+			desc:     "multi-leaf",
+			upd:      []NodeUpdate{upd[0], upd[1], upd[2]},
 			wantRoot: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
 		},
+
+		{desc: "empty", wantErr: "nothing to write"},
+		{desc: "unaligned", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
+		{desc: "dup", upd: []NodeUpdate{upd[0], upd[0]}, wantErr: "duplicate ID"},
+		{desc: "2-shards", split: 128, upd: []NodeUpdate{upd[0], upd[1]}, wantErr: "writing across"},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			w := NewWriter(treeID, hasher, 256, 0)
+			w := NewWriter(treeID, hasher, 256, tc.split)
 			rootUpd, err := w.Write(tc.upd, noopAccessor{})
+			gotErr := ""
 			if err != nil {
-				t.Fatalf("Split: %v", err)
+				gotErr = err.Error()
+			}
+			if got, want := gotErr, tc.wantErr; !strings.Contains(got, want) {
+				t.Errorf("Write: want err containing %q, got %v", want, err)
 			}
 			if got, want := rootUpd.Hash, tc.wantRoot; !bytes.Equal(got, want) {
-				t.Errorf("root mismatch: got %x, want %x", got, want)
+				t.Errorf("Write: got root %x, want %x", got, want)
 			}
 		})
 	}
