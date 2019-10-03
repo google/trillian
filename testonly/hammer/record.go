@@ -68,7 +68,6 @@ func (s *smrStash) pushSMR(smr types.MapRootV1) error {
 	return nil
 }
 
-// TODO(mhutchinson): consider making this return a bool or an error to indicate missing result.
 func (s *smrStash) previousSMR(which int) *types.MapRootV1 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

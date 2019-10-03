@@ -280,7 +280,7 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		return nil, fmt.Errorf("failed to get tree information: %v", err)
 	}
 	glog.Infof("%d: hammering tree with configuration %+v", cfg.MapID, tree)
-	vc, err := client.NewMapClientFromTree(cfg.Client, tree)
+	mc, err := client.NewMapClientFromTree(cfg.Client, tree)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tree verifier: %v", err)
 	}
@@ -309,7 +309,7 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	var prevContents testonly.VersionedMapContents
 	var smrs smrStash
 	validReadOps := validReadOps{
-		vc:              vc,
+		mc:              mc,
 		extraSize:       cfg.ExtraSize,
 		chooseLeafCount: func(prng *rand.Rand) int { return pickIntInRange(cfg.MinLeaves, cfg.MaxLeaves, prng) },
 		prevContents:    &prevContents,
@@ -409,10 +409,6 @@ func (s *hammerState) chooseOp(prng *rand.Rand) MapEntrypointName {
 
 func (s *hammerState) chooseInvalid(ep MapEntrypointName, prng *rand.Rand) bool {
 	return s.cfg.EPBias.invalid(ep, prng)
-}
-
-func (s *hammerState) chooseLeafCount(prng *rand.Rand) int {
-	return pickIntInRange(s.cfg.MinLeaves, s.cfg.MaxLeaves, prng)
 }
 
 func pickIntInRange(min, max int, prng *rand.Rand) int {
@@ -573,7 +569,7 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context, prng *rand.Rand) 
 func (s *hammerState) setLeaves(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
 
-	n := s.chooseLeafCount(prng)
+	n := pickIntInRange(s.cfg.MinLeaves, s.cfg.MaxLeaves, prng)
 	if n == 0 {
 		n = 1
 	}
