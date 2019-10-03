@@ -514,7 +514,7 @@ func performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand, read 
 		// TODO(mhutchinson): This mutation method needs to be removed from here.
 		return write(ctx, prng)
 	default:
-		return fmt.Errorf("internal error: unknown entrypoint %s selected for valid request", ep)
+		return fmt.Errorf("internal error: unknown entrypoint %s selected for operation", ep)
 	}
 }
 
