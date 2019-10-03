@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -90,8 +91,9 @@ func TestWriterWrite(t *testing.T) {
 	upd := []NodeUpdate{genUpd("key1", "value1"), genUpd("key2", "value2"), genUpd("key3", "value3")}
 	for _, tc := range []struct {
 		desc     string
-		upd      []NodeUpdate
 		split    uint
+		acc      noopAccessor
+		upd      []NodeUpdate
 		wantRoot []byte
 		wantErr  string
 	}{
@@ -111,10 +113,12 @@ func TestWriterWrite(t *testing.T) {
 		{desc: "unaligned", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
 		{desc: "dup", upd: []NodeUpdate{upd[0], upd[0]}, wantErr: "duplicate ID"},
 		{desc: "2-shards", split: 128, upd: []NodeUpdate{upd[0], upd[1]}, wantErr: "writing across"},
+		{desc: "get-err", acc: noopAccessor{get: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
+		{desc: "set-err", acc: noopAccessor{set: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := NewWriter(treeID, hasher, 256, tc.split)
-			rootUpd, err := w.Write(tc.upd, noopAccessor{})
+			rootUpd, err := w.Write(tc.upd, tc.acc)
 			gotErr := ""
 			if err != nil {
 				gotErr = err.Error()
@@ -201,10 +205,15 @@ func genUpd(key, value string) NodeUpdate {
 	return NodeUpdate{ID: tree.NewNodeID2(string(key256[:]), 256), Hash: hash}
 }
 
-type noopAccessor struct{}
+type noopAccessor struct {
+	get, set error
+}
 
 func (n noopAccessor) Get([]tree.NodeID2) (map[tree.NodeID2][]byte, error) {
+	if err := n.get; err != nil {
+		return nil, err
+	}
 	return make(map[tree.NodeID2][]byte), nil
 }
 
-func (n noopAccessor) Set([]NodeUpdate) error { return nil }
+func (n noopAccessor) Set([]NodeUpdate) error { return n.set }
