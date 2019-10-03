@@ -443,10 +443,6 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	}
 
 	glog.V(3).Infof("%d: perform %s operation", s.cfg.MapID, ep)
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	return s.retryOp(ctx, op, string(ep))
 }
 
@@ -454,6 +450,9 @@ func (s *hammerState) retryOp(ctx context.Context, fn mapOperationFn, opName str
 	defer func(start time.Time) {
 		rspLatency.Observe(time.Since(start).Seconds(), s.label(), opName)
 	}(time.Now())
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	deadline := time.Now().Add(s.cfg.OperationDeadline)
 	seed := s.prng.Int63()
