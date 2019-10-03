@@ -38,7 +38,7 @@ var (
 	memprofile = flag.String("memprofile", "", "write mem profile to file")
 )
 
-func maybeProfileCPU(t *testing.T) func() {
+func maybeProfileCPU(t testing.TB) func() {
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -50,7 +50,7 @@ func maybeProfileCPU(t *testing.T) func() {
 	return func() {}
 }
 
-func maybeProfileMemory(t *testing.T) {
+func maybeProfileMemory(t testing.TB) {
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
 		if err != nil {
@@ -421,6 +421,16 @@ func TestSparseMerkleTreeWriterFetchesMultipleLeaves(t *testing.T) {
 }
 
 func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
+	testSparseMerkleTreeWriterBigBatch(t)
+}
+
+func BenchmarkSparseMerkleTreeWriterBigBatch(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		testSparseMerkleTreeWriterBigBatch(b)
+	}
+}
+
+func testSparseMerkleTreeWriterBigBatch(t testing.TB) {
 	if testing.Short() {
 		t.Skip("BigBatch test is not short")
 	}
