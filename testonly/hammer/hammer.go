@@ -498,9 +498,9 @@ type readOps interface {
 	getSMRRev(context.Context, *rand.Rand) error
 }
 
-type setLeaves func(context.Context, *rand.Rand) error
+type setLeavesFn func(context.Context, *rand.Rand) error
 
-func performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand, read readOps, write setLeaves) error {
+func performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand, read readOps, write setLeavesFn) error {
 	switch ep {
 	case GetLeavesName:
 		return read.getLeaves(ctx, prng)
@@ -514,7 +514,7 @@ func performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand, read 
 		// TODO(mhutchinson): This mutation method needs to be removed from here.
 		return write(ctx, prng)
 	default:
-		return fmt.Errorf("internal error: unknown entrypoint %s selected for operation", ep)
+		return fmt.Errorf("internal error: unknown operation %s", ep)
 	}
 }
 
