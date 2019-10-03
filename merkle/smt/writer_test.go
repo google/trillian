@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -34,6 +35,55 @@ var (
 	hasher = maphasher.Default
 	b64    = testonly.MustDecodeBase64
 )
+
+func TestWriterSplit(t *testing.T) {
+	ids := []tree.NodeID2{
+		tree.NewNodeID2("\x01\x00\x00\x00", 32),
+		tree.NewNodeID2("\x00\x00\x00\x00", 32),
+		tree.NewNodeID2("\x02\x00\x00\x00", 32),
+		tree.NewNodeID2("\x03\x00\x00\x00", 32),
+		tree.NewNodeID2("\x02\x00\x01\x00", 32),
+		tree.NewNodeID2("\x03\x00\x00\x00", 32),
+	}
+	// Generate some node updates based on IDs.
+	upd := make([]NodeUpdate, len(ids))
+	for i, id := range ids {
+		upd[i] = NodeUpdate{ID: id, Hash: []byte(fmt.Sprintf("%32d", i))}
+	}
+
+	for _, tc := range []struct {
+		desc  string
+		split uint
+		upd   []NodeUpdate
+		want  [][]NodeUpdate
+		err   bool
+	}{
+		{desc: "dup", upd: upd, err: true},
+		{desc: "wrong-len", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, err: true},
+		{desc: "ok-24", split: 24, upd: upd[:5],
+			want: [][]NodeUpdate{{upd[1]}, {upd[0]}, {upd[2]}, {upd[4]}, {upd[3]}}},
+		{desc: "ok-21", split: 21, upd: upd[:5],
+			want: [][]NodeUpdate{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
+		{desc: "ok-16", split: 16, upd: upd[:5],
+			want: [][]NodeUpdate{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
+		{desc: "ok-0", split: 0, upd: upd[:5],
+			want: [][]NodeUpdate{{upd[1], upd[0], upd[2], upd[4], upd[3]}}},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			upd := make([]NodeUpdate, len(tc.upd))
+			copy(upd, tc.upd) // Avoid shuffling effects.
+
+			w := NewWriter(treeID, hasher, 32, tc.split)
+			shards, err := w.Split(upd)
+			if !reflect.DeepEqual(shards, tc.want) {
+				t.Error("shards mismatch")
+			}
+			if got, want := err != nil, tc.err; got != want {
+				t.Errorf("got err: %v, want %v", err, want)
+			}
+		})
+	}
+}
 
 func TestWriter(t *testing.T) {
 	for _, tc := range []struct {
