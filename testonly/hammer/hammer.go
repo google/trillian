@@ -430,7 +430,16 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	if s.chooseInvalid(ep, s.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", s.cfg.MapID, ep)
 		invalidReqs.Inc(s.label(), string(ep))
-		return performOp(ctx, ep, s.prng, s.invalidReadOps, s.setLeavesInvalid)
+		op, err := getOp(ep, s.invalidReadOps, s.setLeavesInvalid)
+		if err != nil {
+			return err
+		}
+		return op(ctx, s.prng)
+	}
+
+	op, err := getOp(ep, s.validReadOps, s.setLeaves)
+	if err != nil {
+		return err
 	}
 
 	glog.V(3).Infof("%d: perform %s operation", s.cfg.MapID, ep)
@@ -449,7 +458,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
 		prng := rand.New(rand.NewSource(seed))
 		reqs.Inc(s.label(), string(ep))
-		err := performOp(ctx, ep, prng, s.validReadOps, s.setLeaves)
+		err := op(ctx, prng)
 
 		switch err.(type) {
 		case nil:
@@ -498,23 +507,23 @@ type readOps interface {
 	getSMRRev(context.Context, *rand.Rand) error
 }
 
-type setLeavesFn func(context.Context, *rand.Rand) error
+type mapOperationFn func(context.Context, *rand.Rand) error
 
-func performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand, read readOps, write setLeavesFn) error {
+func getOp(ep MapEntrypointName, read readOps, write mapOperationFn) (mapOperationFn, error) {
 	switch ep {
 	case GetLeavesName:
-		return read.getLeaves(ctx, prng)
+		return read.getLeaves, nil
 	case GetLeavesRevName:
-		return read.getLeavesRev(ctx, prng)
+		return read.getLeavesRev, nil
 	case GetSMRName:
-		return read.getSMR(ctx, prng)
+		return read.getSMR, nil
 	case GetSMRRevName:
-		return read.getSMRRev(ctx, prng)
+		return read.getSMRRev, nil
 	case SetLeavesName:
 		// TODO(mhutchinson): This mutation method needs to be removed from here.
-		return write(ctx, prng)
+		return write, nil
 	default:
-		return fmt.Errorf("internal error: unknown operation %s", ep)
+		return nil, fmt.Errorf("internal error: unknown operation %s", ep)
 	}
 }
 
