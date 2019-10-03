@@ -663,7 +663,9 @@ leafloop:
 			// Not allowed to have the same key more than once in the same request
 			for _, leaf := range leaves {
 				if bytes.Equal(leaf.Index, key) {
-					break leafloop
+					// Go back to the beginning of the loop and choose again.
+					i--
+					continue leafloop
 				}
 			}
 			var value, extra []byte
