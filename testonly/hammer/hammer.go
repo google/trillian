@@ -511,13 +511,13 @@ func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName, prng 
 func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
 	switch ep {
 	case GetLeavesName:
-		return s.invalidReadOps.getLeavesInvalid(ctx, prng)
+		return s.invalidReadOps.getLeaves(ctx, prng)
 	case GetLeavesRevName:
-		return s.invalidReadOps.getLeavesRevInvalid(ctx, prng)
+		return s.invalidReadOps.getLeavesRev(ctx, prng)
 	case GetSMRName:
-		return s.invalidReadOps.getSMRInvalid(ctx, prng)
+		return s.invalidReadOps.getSMR(ctx, prng)
 	case GetSMRRevName:
-		return s.invalidReadOps.getSMRRevInvalid(ctx, prng)
+		return s.invalidReadOps.getSMRRev(ctx, prng)
 	case SetLeavesName:
 		return s.setLeavesInvalid(ctx, prng)
 	default:

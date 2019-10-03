@@ -165,7 +165,7 @@ type invalidReadOps struct {
 	smrs         *smrStash
 }
 
-func (o *invalidReadOps) getLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
+func (o *invalidReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
 	key := testonly.TransparentHash("..invalid-size")
 	req := trillian.GetMapLeavesRequest{
 		MapId: o.mapID,
@@ -179,7 +179,7 @@ func (o *invalidReadOps) getLeavesInvalid(ctx context.Context, prng *rand.Rand) 
 	return nil
 }
 
-func (o *invalidReadOps) getLeavesRevInvalid(ctx context.Context, prng *rand.Rand) error {
+func (o *invalidReadOps) getLeavesRev(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{MalformedKey, RevTooBig, RevIsNegative}
 
 	req := trillian.GetMapLeavesByRevisionRequest{MapId: o.mapID}
@@ -215,7 +215,7 @@ func (o *invalidReadOps) getLeavesRevInvalid(ctx context.Context, prng *rand.Ran
 	return nil
 }
 
-func (o *invalidReadOps) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) error {
+func (o *invalidReadOps) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{RevTooBig, RevIsNegative}
 
 	rev := latestRevision
@@ -241,6 +241,6 @@ func (o *invalidReadOps) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) 
 	return nil
 }
 
-func (o *invalidReadOps) getSMRInvalid(ctx context.Context, prng *rand.Rand) error {
+func (o *invalidReadOps) getSMR(ctx context.Context, prng *rand.Rand) error {
 	return errors.New("no invalid request possible for getSMR")
 }
