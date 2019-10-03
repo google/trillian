@@ -430,7 +430,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	if s.chooseInvalid(ep, s.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", s.cfg.MapID, ep)
 		invalidReqs.Inc(s.label(), string(ep))
-		return s.performInvalidOp(ctx, ep, s.prng)
+		return performOp(ctx, ep, s.prng, s.invalidReadOps, s.setLeavesInvalid)
 	}
 
 	glog.V(3).Infof("%d: perform %s operation", s.cfg.MapID, ep)
@@ -449,7 +449,7 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
 		prng := rand.New(rand.NewSource(seed))
 		reqs.Inc(s.label(), string(ep))
-		err := s.performOp(ctx, ep, prng)
+		err := performOp(ctx, ep, prng, s.validReadOps, s.setLeaves)
 
 		switch err.(type) {
 		case nil:
@@ -491,37 +491,30 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 	return firstErr
 }
 
-func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
-	switch ep {
-	case GetLeavesName:
-		return s.validReadOps.getLeaves(ctx, prng)
-	case GetLeavesRevName:
-		return s.validReadOps.getLeavesRev(ctx, prng)
-	case GetSMRName:
-		return s.validReadOps.getSMR(ctx, prng)
-	case GetSMRRevName:
-		return s.validReadOps.getSMRRev(ctx, prng)
-	case SetLeavesName:
-		return s.setLeaves(ctx, prng)
-	default:
-		return fmt.Errorf("internal error: unknown entrypoint %s selected for valid request", ep)
-	}
+type readOps interface {
+	getLeaves(context.Context, *rand.Rand) error
+	getLeavesRev(context.Context, *rand.Rand) error
+	getSMR(context.Context, *rand.Rand) error
+	getSMRRev(context.Context, *rand.Rand) error
 }
 
-func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
+type setLeaves func(context.Context, *rand.Rand) error
+
+func performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand, read readOps, write setLeaves) error {
 	switch ep {
 	case GetLeavesName:
-		return s.invalidReadOps.getLeaves(ctx, prng)
+		return read.getLeaves(ctx, prng)
 	case GetLeavesRevName:
-		return s.invalidReadOps.getLeavesRev(ctx, prng)
+		return read.getLeavesRev(ctx, prng)
 	case GetSMRName:
-		return s.invalidReadOps.getSMR(ctx, prng)
+		return read.getSMR(ctx, prng)
 	case GetSMRRevName:
-		return s.invalidReadOps.getSMRRev(ctx, prng)
+		return read.getSMRRev(ctx, prng)
 	case SetLeavesName:
-		return s.setLeavesInvalid(ctx, prng)
+		// TODO(mhutchinson): This mutation method needs to be removed from here.
+		return write(ctx, prng)
 	default:
-		return fmt.Errorf("internal error: unknown entrypoint %s selected for invalid request", ep)
+		return fmt.Errorf("internal error: unknown entrypoint %s selected for valid request", ep)
 	}
 }
 
