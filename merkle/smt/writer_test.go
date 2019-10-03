@@ -62,6 +62,16 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterBigBatch(t *testing.T) {
+	testWriterBigBatch(t)
+}
+
+func BenchmarkWriterBigBatch(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		testWriterBigBatch(b)
+	}
+}
+
+func testWriterBigBatch(t testing.TB) {
 	if testing.Short() {
 		t.Skip("BigBatch test is not short")
 	}
