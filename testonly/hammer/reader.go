@@ -17,6 +17,7 @@ package hammer
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -154,4 +155,92 @@ func (o *validReadOps) verify(root *types.MapRootV1) error {
 		return fmt.Errorf("unexpected root hash for revision %d: got %x, want %x", root.Revision, root.RootHash, want)
 	}
 	return nil
+}
+
+// invalidReadOps performs invalid read operations against the map.
+type invalidReadOps struct {
+	mapID        int64
+	client       trillian.TrillianMapClient
+	prevContents *testonly.VersionedMapContents // copies of earlier contents of the map
+	smrs         *smrStash
+}
+
+func (o *invalidReadOps) getLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
+	key := testonly.TransparentHash("..invalid-size")
+	req := trillian.GetMapLeavesRequest{
+		MapId: o.mapID,
+		Index: [][]byte{key[2:]},
+	}
+	rsp, err := o.client.GetLeaves(ctx, &req)
+	if err == nil {
+		return fmt.Errorf("unexpected success: get-leaves(MalformedKey: %+v): %+v", req, rsp.MapRoot)
+	}
+	glog.V(2).Infof("%d: expected failure: get-leaves(MalformedKey: %+v): %+v", o.mapID, req, rsp)
+	return nil
+}
+
+func (o *invalidReadOps) getLeavesRevInvalid(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{MalformedKey, RevTooBig, RevIsNegative}
+
+	req := trillian.GetMapLeavesByRevisionRequest{MapId: o.mapID}
+	contents := o.prevContents.LastCopy()
+	choice := choices[prng.Intn(len(choices))]
+
+	rev := int64(0)
+	var index []byte
+	if contents.Empty() {
+		// No contents so we can't choose a key
+		choice = MalformedKey
+	} else {
+		rev = contents.Rev
+		index = contents.PickKey(prng)
+	}
+	switch choice {
+	case MalformedKey:
+		key := testonly.TransparentHash("..invalid-size")
+		req.Index = [][]byte{key[2:]}
+		req.Revision = rev
+	case RevTooBig:
+		req.Index = [][]byte{index}
+		req.Revision = rev + invalidStretch
+	case RevIsNegative:
+		req.Index = [][]byte{index}
+		req.Revision = -rev - invalidStretch
+	}
+	rsp, err := o.client.GetLeavesByRevision(ctx, &req)
+	if err == nil {
+		return fmt.Errorf("unexpected success: get-leaves-rev(%v: %+v): %+v", choice, req, rsp.MapRoot)
+	}
+	glog.V(2).Infof("%d: expected failure: get-leaves-rev(%v: %+v): %+v", o.mapID, choice, req, rsp)
+	return nil
+}
+
+func (o *invalidReadOps) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{RevTooBig, RevIsNegative}
+
+	rev := latestRevision
+	contents := o.prevContents.LastCopy()
+	if contents != nil {
+		rev = contents.Rev
+	}
+
+	choice := choices[prng.Intn(len(choices))]
+
+	switch choice {
+	case RevTooBig:
+		rev += invalidStretch
+	case RevIsNegative:
+		rev = -invalidStretch
+	}
+	req := trillian.GetSignedMapRootByRevisionRequest{MapId: o.mapID, Revision: rev}
+	rsp, err := o.client.GetSignedMapRootByRevision(ctx, &req)
+	if err == nil {
+		return fmt.Errorf("unexpected success: get-smr-rev(%v: @%d): %+v", choice, rev, rsp.MapRoot)
+	}
+	glog.V(2).Infof("%d: expected failure: get-smr-rev(%v: @%d): %+v", o.mapID, choice, rev, rsp)
+	return nil
+}
+
+func (o *invalidReadOps) getSMRInvalid(ctx context.Context, prng *rand.Rand) error {
+	return errors.New("no invalid request possible for getSMR")
 }

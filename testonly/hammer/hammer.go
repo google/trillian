@@ -254,8 +254,9 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 
 // hammerState tracks the operations that have been performed during a test run.
 type hammerState struct {
-	cfg          *MapConfig
-	validReadOps *validReadOps
+	cfg            *MapConfig
+	validReadOps   *validReadOps
+	invalidReadOps *invalidReadOps
 
 	start time.Time
 
@@ -316,14 +317,21 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		prevContents: &prevContents,
 		smrs:         &smrs,
 	}
-
-	return &hammerState{
-		cfg:          cfg,
-		start:        time.Now(),
-		prng:         rand.New(cfg.RandSource),
+	invalidReadOps := invalidReadOps{
+		mapID:        cfg.MapID,
+		client:       cfg.Client,
 		prevContents: &prevContents,
 		smrs:         &smrs,
-		validReadOps: &validReadOps,
+	}
+
+	return &hammerState{
+		cfg:            cfg,
+		start:          time.Now(),
+		prng:           rand.New(cfg.RandSource),
+		prevContents:   &prevContents,
+		smrs:           &smrs,
+		validReadOps:   &validReadOps,
+		invalidReadOps: &invalidReadOps,
 	}, nil
 }
 
@@ -503,68 +511,18 @@ func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName, prng 
 func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
 	switch ep {
 	case GetLeavesName:
-		return s.getLeavesInvalid(ctx, prng)
+		return s.invalidReadOps.getLeavesInvalid(ctx, prng)
 	case GetLeavesRevName:
-		return s.getLeavesRevInvalid(ctx, prng)
+		return s.invalidReadOps.getLeavesRevInvalid(ctx, prng)
+	case GetSMRName:
+		return s.invalidReadOps.getSMRInvalid(ctx, prng)
+	case GetSMRRevName:
+		return s.invalidReadOps.getSMRRevInvalid(ctx, prng)
 	case SetLeavesName:
 		return s.setLeavesInvalid(ctx, prng)
-	case GetSMRRevName:
-		return s.getSMRRevInvalid(ctx, prng)
-	case GetSMRName:
-		return fmt.Errorf("no invalid request possible for entrypoint %s", ep)
 	default:
 		return fmt.Errorf("internal error: unknown entrypoint %s selected for invalid request", ep)
 	}
-}
-
-func (s *hammerState) getLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
-	key := testonly.TransparentHash("..invalid-size")
-	req := trillian.GetMapLeavesRequest{
-		MapId: s.cfg.MapID,
-		Index: [][]byte{key[2:]},
-	}
-	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: get-leaves(MalformedKey: %+v): %+v", req, rsp.MapRoot)
-	}
-	glog.V(2).Infof("%d: expected failure: get-leaves(MalformedKey: %+v): %+v", s.cfg.MapID, req, rsp)
-	return nil
-}
-
-func (s *hammerState) getLeavesRevInvalid(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{MalformedKey, RevTooBig, RevIsNegative}
-
-	req := trillian.GetMapLeavesByRevisionRequest{MapId: s.cfg.MapID}
-	contents := s.prevContents.LastCopy()
-	choice := choices[prng.Intn(len(choices))]
-
-	rev := int64(0)
-	var index []byte
-	if contents.Empty() {
-		// No contents so we can't choose a key
-		choice = MalformedKey
-	} else {
-		rev = contents.Rev
-		index = contents.PickKey(prng)
-	}
-	switch choice {
-	case MalformedKey:
-		key := testonly.TransparentHash("..invalid-size")
-		req.Index = [][]byte{key[2:]}
-		req.Revision = rev
-	case RevTooBig:
-		req.Index = [][]byte{index}
-		req.Revision = rev + invalidStretch
-	case RevIsNegative:
-		req.Index = [][]byte{index}
-		req.Revision = -rev - invalidStretch
-	}
-	rsp, err := s.cfg.Client.GetLeavesByRevision(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: get-leaves-rev(%v: %+v): %+v", choice, req, rsp.MapRoot)
-	}
-	glog.V(2).Infof("%d: expected failure: get-leaves-rev(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
-	return nil
 }
 
 func (s *hammerState) setLeaves(ctx context.Context, prng *rand.Rand) error {
@@ -663,32 +621,6 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
 	}
 	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
-	return nil
-}
-
-func (s *hammerState) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{RevTooBig, RevIsNegative}
-
-	rev := latestRevision
-	contents := s.prevContents.LastCopy()
-	if contents != nil {
-		rev = contents.Rev
-	}
-
-	choice := choices[prng.Intn(len(choices))]
-
-	switch choice {
-	case RevTooBig:
-		rev += invalidStretch
-	case RevIsNegative:
-		rev = -invalidStretch
-	}
-	req := trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: rev}
-	rsp, err := s.cfg.Client.GetSignedMapRootByRevision(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: get-smr-rev(%v: @%d): %+v", choice, rev, rsp.MapRoot)
-	}
-	glog.V(2).Infof("%d: expected failure: get-smr-rev(%v: @%d): %+v", s.cfg.MapID, choice, rev, rsp)
 	return nil
 }
 
