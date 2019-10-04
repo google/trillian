@@ -15,6 +15,7 @@
 package smt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -29,9 +30,9 @@ import (
 type NodeBatchAccessor interface {
 	// Get returns the hashes of the given nodes, as a map keyed by their IDs.
 	// The returned hashes may be missing or be nil for empty subtrees.
-	Get(ids []tree.NodeID2) (map[tree.NodeID2][]byte, error)
+	Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error)
 	// Set applies the given node hash updates.
-	Set(upd []NodeUpdate) error
+	Set(ctx context.Context, upd []NodeUpdate) error
 }
 
 // Writer handles sharded writes to a sparse Merkle tree. The tree has two
@@ -86,7 +87,7 @@ func (w *Writer) Split(upd []NodeUpdate) ([][]NodeUpdate, error) {
 //
 // In another case, Write can be performed without Split if the shard split
 // depth is 0, which effectively means that there is only one "global" shard.
-func (w *Writer) Write(upd []NodeUpdate, acc NodeBatchAccessor) (NodeUpdate, error) {
+func (w *Writer) Write(ctx context.Context, upd []NodeUpdate, acc NodeBatchAccessor) (NodeUpdate, error) {
 	if len(upd) == 0 {
 		return NodeUpdate{}, errors.New("nothing to write")
 	}
@@ -100,7 +101,7 @@ func (w *Writer) Write(upd []NodeUpdate, acc NodeBatchAccessor) (NodeUpdate, err
 	if err != nil {
 		return NodeUpdate{}, err
 	}
-	nodes, err := acc.Get(hs.Prepare())
+	nodes, err := acc.Get(ctx, hs.Prepare())
 	if err != nil {
 		return NodeUpdate{}, err
 	}
@@ -111,7 +112,7 @@ func (w *Writer) Write(upd []NodeUpdate, acc NodeBatchAccessor) (NodeUpdate, err
 	} else if ln := len(topUpd); ln != 1 {
 		return NodeUpdate{}, fmt.Errorf("writing across %d shards, want 1", ln)
 	}
-	if err := acc.Set(sa.writes); err != nil {
+	if err := acc.Set(ctx, sa.writes); err != nil {
 		return NodeUpdate{}, err
 	}
 

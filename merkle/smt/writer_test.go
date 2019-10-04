@@ -88,6 +88,7 @@ func TestWriterSplit(t *testing.T) {
 }
 
 func TestWriterWrite(t *testing.T) {
+	ctx := context.Background()
 	upd := []NodeUpdate{genUpd("key1", "value1"), genUpd("key2", "value2"), genUpd("key3", "value3")}
 	for _, tc := range []struct {
 		desc     string
@@ -118,7 +119,7 @@ func TestWriterWrite(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := NewWriter(treeID, hasher, 256, tc.split)
-			rootUpd, err := w.Write(tc.upd, tc.acc)
+			rootUpd, err := w.Write(ctx, tc.upd, tc.acc)
 			gotErr := ""
 			if err != nil {
 				gotErr = err.Error()
@@ -147,6 +148,7 @@ func testWriterBigBatch(t testing.TB) {
 	if testing.Short() {
 		t.Skip("BigBatch test is not short")
 	}
+	ctx := context.Background()
 
 	const batchSize = 1024
 	const numBatches = 4
@@ -171,7 +173,7 @@ func testWriterBigBatch(t testing.TB) {
 	for _, upd := range shards {
 		upd := upd
 		eg.Go(func() error {
-			rootUpd, err := w.Write(upd, noopAccessor{})
+			rootUpd, err := w.Write(ctx, upd, noopAccessor{})
 			if err != nil {
 				return err
 			}
@@ -185,7 +187,7 @@ func testWriterBigBatch(t testing.TB) {
 		t.Fatalf("Wait: %v", err)
 	}
 
-	rootUpd, err := w.Write(splitUpd, noopAccessor{})
+	rootUpd, err := w.Write(ctx, splitUpd, noopAccessor{})
 	if err != nil {
 		t.Fatalf("Write: %v", err)
 	}
@@ -209,11 +211,11 @@ type noopAccessor struct {
 	get, set error
 }
 
-func (n noopAccessor) Get([]tree.NodeID2) (map[tree.NodeID2][]byte, error) {
+func (n noopAccessor) Get(context.Context, []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
 	if err := n.get; err != nil {
 		return nil, err
 	}
 	return make(map[tree.NodeID2][]byte), nil
 }
 
-func (n noopAccessor) Set([]NodeUpdate) error { return n.set }
+func (n noopAccessor) Set(context.Context, []NodeUpdate) error { return n.set }
