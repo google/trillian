@@ -451,9 +451,6 @@ func (s *hammerState) retryOp(ctx context.Context, fn mapOperationFn, opName str
 		rspLatency.Observe(time.Since(start).Seconds(), s.label(), opName)
 	}(time.Now())
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	deadline := time.Now().Add(s.cfg.OperationDeadline)
 	seed := s.prng.Int63()
 	done := false
