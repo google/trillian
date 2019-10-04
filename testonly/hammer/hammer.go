@@ -260,14 +260,14 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 // ignored, which will allow effectively an in-memory gossip network to develop
 // between workers, which makes the validation more significant.
 //
-// Each worker should has its own PRNG, which makes the sequence of operations
-// that it will perform deterministic.
+// Each worker has its own PRNG, which makes the sequence of operations that it
+// performs deterministic.
 type mapWorker struct {
 	prng  *rand.Rand
 	mapID int64
 	label string
 
-	bias MapBias // Each worker can have its own customized map bias
+	bias MapBias // Each worker can have its own customized map bias.
 
 	retryErrors       bool
 	operationDeadline time.Duration
