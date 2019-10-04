@@ -208,8 +208,9 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
+			w := newReadWorker(s, i)
 			glog.Infof("%d: start checker %d", s.cfg.MapID, i)
-			err := s.readChecker(ctx, done, i)
+			err := w.loopUntilDone(ctx, done)
 			if err != nil {
 				errs <- err
 			}
@@ -220,9 +221,9 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		w := newWorker(&cfg, rand.New(cfg.RandSource))
+		w := newWriteWorker(s)
 		glog.Infof("%d: start main goroutine", cfg.MapID)
-		count, err := w.performOperations(ctx, done, s)
+		count, err := w.loop(ctx, done)
 		errs <- err // may be nil for the main goroutine completion
 		glog.Infof("%d: performed %d operations on map", cfg.MapID, count)
 	}()
@@ -282,6 +283,75 @@ func newWorker(cfg *MapConfig, prng *rand.Rand) *mapWorker {
 		retryErrors:       cfg.RetryErrors,
 		operationDeadline: cfg.OperationDeadline,
 	}
+}
+
+// readWorker performs read-only operations on a fixed map.
+type readWorker struct {
+	*mapWorker
+
+	validReadOps   *validReadOps
+	invalidReadOps *invalidReadOps
+}
+
+func newReadWorker(s *hammerState, idx int) *readWorker {
+	return &readWorker{
+		mapWorker: newWorker(s.cfg, rand.New(rand.NewSource(int64(idx)))),
+
+		validReadOps:   s.validReadOps,
+		invalidReadOps: s.invalidReadOps,
+	}
+}
+
+func (w *readWorker) loopUntilDone(ctx context.Context, done <-chan struct{}) error {
+	for {
+		select {
+		case <-done:
+			return nil
+		default:
+		}
+		if err := w.validReadOps.getLeavesRev(ctx, w.prng); err != nil {
+			if _, ok := err.(errSkip); ok {
+				continue
+			}
+			return err
+		}
+	}
+}
+
+// writeWorker performs mutation operations on a fixed map.
+type writeWorker struct {
+	*mapWorker
+
+	operations uint64
+
+	// TODO(mhutchinson): Remove hammerState from here - it allows access to global info
+	// which makes reasoning about the behaviour difficult.
+	s *hammerState
+}
+
+func newWriteWorker(s *hammerState) *writeWorker {
+	return &writeWorker{
+		mapWorker: newWorker(s.cfg, rand.New(s.cfg.RandSource)),
+
+		operations: s.cfg.Operations,
+		s:          s,
+	}
+}
+
+func (w *writeWorker) loop(ctx context.Context, done <-chan struct{}) (uint64, error) {
+	count := uint64(0)
+
+	for ; count < w.operations; count++ {
+		select {
+		case <-done:
+			return count, nil
+		default:
+		}
+		if err := w.retryOneOp(ctx, w.s); err != nil {
+			return count, err
+		}
+	}
+	return count, nil
 }
 
 // hammerState tracks the operations that have been performed during a test run.
@@ -360,44 +430,6 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		validReadOps:   &validReadOps,
 		invalidReadOps: &invalidReadOps,
 	}, nil
-}
-
-// TODO(mhutchinson): Remove hammerState from here - it allows access to global info
-// which makes reasoning about the behaviour difficult.
-func (w *mapWorker) performOperations(ctx context.Context, done <-chan struct{}, s *hammerState) (uint64, error) {
-	count := uint64(0)
-
-	for ; count < s.cfg.Operations; count++ {
-		select {
-		case <-done:
-			return count, nil
-		default:
-		}
-		if err := w.retryOneOp(ctx, s); err != nil {
-			return count, err
-		}
-	}
-	return count, nil
-}
-
-// readChecker loops performing (read-only) checking operations until the done
-// channel is closed.
-func (s *hammerState) readChecker(ctx context.Context, done <-chan struct{}, idx int) error {
-	// Use a separate rand.Source so the main goroutine stays predictable.
-	prng := rand.New(rand.NewSource(int64(idx)))
-	for {
-		select {
-		case <-done:
-			return nil
-		default:
-		}
-		if err := s.validReadOps.getLeavesRev(ctx, prng); err != nil {
-			if _, ok := err.(errSkip); ok {
-				continue
-			}
-			return err
-		}
-	}
 }
 
 func (s *hammerState) nextKey() string {
