@@ -220,7 +220,7 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		w := newWorker(s.cfg, rand.New(s.cfg.RandSource))
+		w := newWorker(&cfg, rand.New(cfg.RandSource))
 		glog.Infof("%d: start main goroutine", cfg.MapID)
 		count, err := w.performOperations(ctx, done, s)
 		errs <- err // may be nil for the main goroutine completion
@@ -253,14 +253,19 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 	return firstErr
 }
 
-// mapWorker allows each thread to have its own PRNG, which makes it easy to
-// reason about the behaviour of each thread being internally consistent and
-// reproducible given a seed. Obviously threads that depend on the state of
-// the map may still have non-deterministic behaviour even when replayed from
-// the same seed.
+// mapWorker represents a single entity in the Verifiable Map ecosystem.
+// The worker may be a read-only client, or a writer which adds new entries to
+// the map. Each worker should be as independent as possible (i.e. share little
+// to no state), though through well defined interfaces this guideline may be
+// ignored, which will allow effectively an in-memory gossip network to develop
+// between workers, which makes the validation more significant.
+//
+// Each worker should has its own PRNG, which makes the sequence of operations
+// that it will perform deterministic.
 type mapWorker struct {
 	prng  *rand.Rand
 	mapID int64
+	label string
 
 	bias MapBias // Each worker can have its own customized map bias
 
@@ -272,14 +277,11 @@ func newWorker(cfg *MapConfig, prng *rand.Rand) *mapWorker {
 	return &mapWorker{
 		prng:              prng,
 		mapID:             cfg.MapID,
+		label:             strconv.FormatInt(cfg.MapID, 10),
 		bias:              cfg.EPBias,
 		retryErrors:       cfg.RetryErrors,
 		operationDeadline: cfg.OperationDeadline,
 	}
-}
-
-func (w *mapWorker) label() string {
-	return strconv.FormatInt(w.mapID, 10)
 }
 
 // hammerState tracks the operations that have been performed during a test run.
@@ -360,8 +362,8 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	}, nil
 }
 
-// TODO(mhutchinson): Remove hammerState from here - it allows access to too much global info
-// which makes reasoning about the behaviour too difficult.
+// TODO(mhutchinson): Remove hammerState from here - it allows access to global info
+// which makes reasoning about the behaviour difficult.
 func (w *mapWorker) performOperations(ctx context.Context, done <-chan struct{}, s *hammerState) (uint64, error) {
 	count := uint64(0)
 
@@ -445,19 +447,11 @@ func pickIntInRange(min, max int, prng *rand.Rand) int {
 	return min + prng.Intn(delta)
 }
 
-func (w *mapWorker) chooseOp() MapEntrypointName {
-	return w.bias.choose(w.prng)
-}
-
-func (w *mapWorker) chooseInvalid(ep MapEntrypointName) bool {
-	return w.bias.invalid(ep, w.prng)
-}
-
 func (w *mapWorker) retryOneOp(ctx context.Context, s *hammerState) (err error) {
-	ep := w.chooseOp()
-	if w.chooseInvalid(ep) {
+	ep := w.bias.choose(w.prng)
+	if w.bias.invalid(ep, w.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
-		invalidReqs.Inc(w.label(), string(ep))
+		invalidReqs.Inc(w.label, string(ep))
 		op, err := getOp(ep, s.invalidReadOps, s.setLeavesInvalid)
 		if err != nil {
 			return err
@@ -476,7 +470,7 @@ func (w *mapWorker) retryOneOp(ctx context.Context, s *hammerState) (err error) 
 
 func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName string) error {
 	defer func(start time.Time) {
-		rspLatency.Observe(time.Since(start).Seconds(), w.label(), opName)
+		rspLatency.Observe(time.Since(start).Seconds(), w.label, opName)
 	}(time.Now())
 
 	deadline := time.Now().Add(w.operationDeadline)
@@ -486,12 +480,12 @@ func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName strin
 	for !done {
 		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
 		prng := rand.New(rand.NewSource(seed))
-		reqs.Inc(w.label(), opName)
+		reqs.Inc(w.label, opName)
 		err := fn(ctx, prng)
 
 		switch err.(type) {
 		case nil:
-			rsps.Inc(w.label(), opName)
+			rsps.Inc(w.label, opName)
 			if firstErr != nil {
 				glog.Warningf("%d: retry of op %v succeeded, previous error: %v", w.mapID, opName, firstErr)
 			}
@@ -506,7 +500,7 @@ func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName strin
 			firstErr = err
 			done = true
 		default:
-			errs.Inc(w.label(), opName)
+			errs.Inc(w.label, opName)
 			if firstErr == nil {
 				firstErr = err
 			}
