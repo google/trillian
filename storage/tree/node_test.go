@@ -772,6 +772,30 @@ func TestCoordString(t *testing.T) {
 	}
 }
 
+func TestNodeIDFromAndToNodeID2(t *testing.T) {
+	const bytes = "\x0A\xBC\x5D\x00\x11"
+	for bits := 0; bits <= len(bytes)*8; bits++ {
+		t.Run(fmt.Sprintf("bits:%d", bits), func(t *testing.T) {
+			id := NewNodeID2(bytes, uint(bits))
+			wantBytes := id.FullBytes()
+			if last, bits := id.LastByte(); bits != 0 {
+				wantBytes += string([]byte{last})
+			}
+
+			oldID := NewNodeIDFromID2(id)
+			if got, want := string(oldID.Path), wantBytes; got != want {
+				t.Errorf("NewNodeIDFromID2: got bytes %x, want %x", got, want)
+			}
+			if got, want := uint(oldID.PrefixLenBits), id.BitLen(); got != want {
+				t.Errorf("NewNodeIDFromID2: got %d bits, want %d", got, want)
+			}
+			if got, want := oldID.ToNodeID2(), id; got != want {
+				t.Errorf("ToNodeID2: got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 func h2b(h string) []byte {
 	b, err := hex.DecodeString(h)
 	if err != nil {
