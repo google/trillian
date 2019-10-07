@@ -210,7 +210,7 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 			defer wg.Done()
 			w := newReadWorker(s, i)
 			glog.Infof("%d: start checker %d", s.cfg.MapID, i)
-			err := w.loopUntilDone(ctx, done)
+			err := w.loop(ctx, done)
 			if err != nil {
 				errs <- err
 			}
@@ -285,6 +285,82 @@ func newWorker(cfg *MapConfig, prng *rand.Rand) *mapWorker {
 	}
 }
 
+func (w *mapWorker) retryOneOp(ctx context.Context, s *hammerState) (err error) {
+	ep := w.bias.choose(w.prng)
+	if w.bias.invalid(ep, w.prng) {
+		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
+		invalidReqs.Inc(w.label, string(ep))
+		op, err := getOp(ep, s.invalidReadOps, s.setLeavesInvalid)
+		if err != nil {
+			return err
+		}
+		return op(ctx, w.prng)
+	}
+
+	op, err := getOp(ep, s.validReadOps, s.setLeaves)
+	if err != nil {
+		return err
+	}
+
+	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
+	return w.retryOp(ctx, op, string(ep))
+}
+
+func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName string) error {
+	defer func(start time.Time) {
+		rspLatency.Observe(time.Since(start).Seconds(), w.label, opName)
+	}(time.Now())
+
+	deadline := time.Now().Add(w.operationDeadline)
+	seed := w.prng.Int63()
+	done := false
+	var firstErr error
+	for !done {
+		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
+		prng := rand.New(rand.NewSource(seed))
+		reqs.Inc(w.label, opName)
+		err := fn(ctx, prng)
+
+		switch err.(type) {
+		case nil:
+			rsps.Inc(w.label, opName)
+			if firstErr != nil {
+				glog.Warningf("%d: retry of op %v succeeded, previous error: %v", w.mapID, opName, firstErr)
+			}
+			firstErr = nil
+			done = true
+		case errSkip:
+			firstErr = nil
+			done = true
+		case testonly.ErrInvariant:
+			// Ensure invariant failures are not ignorable.  They indicate a design assumption
+			// being broken or incorrect, so must be seen.
+			firstErr = err
+			done = true
+		default:
+			errs.Inc(w.label, opName)
+			if firstErr == nil {
+				firstErr = err
+			}
+			if w.retryErrors {
+				glog.Warningf("%d: op %v failed (will retry): %v", w.mapID, opName, err)
+			} else {
+				done = true
+			}
+		}
+
+		if time.Now().After(deadline) {
+			if firstErr == nil {
+				// If there was no other error, we've probably hit the deadline - make sure we bubble that up.
+				firstErr = ctx.Err()
+			}
+			glog.Warningf("%d: gave up on operation %v after %v, returning first err %v", w.mapID, opName, w.operationDeadline, firstErr)
+			done = true
+		}
+	}
+	return firstErr
+}
+
 // readWorker performs read-only operations on a fixed map.
 type readWorker struct {
 	*mapWorker
@@ -302,7 +378,9 @@ func newReadWorker(s *hammerState, idx int) *readWorker {
 	}
 }
 
-func (w *readWorker) loopUntilDone(ctx context.Context, done <-chan struct{}) error {
+// loop continuously performs read-only operations against the map until the
+// done signal is received via th channel, or an error is encountered.
+func (w *readWorker) loop(ctx context.Context, done <-chan struct{}) error {
 	for {
 		select {
 		case <-done:
@@ -338,6 +416,9 @@ func newWriteWorker(s *hammerState) *writeWorker {
 	}
 }
 
+// loop continuously performs mutation operations on the map until the done signal
+// is received via th channel, an error is encountered, or the maximum number of
+// operations have been performed.
 func (w *writeWorker) loop(ctx context.Context, done <-chan struct{}) (uint64, error) {
 	count := uint64(0)
 
@@ -477,82 +558,6 @@ func (s *hammerState) String() string {
 func pickIntInRange(min, max int, prng *rand.Rand) int {
 	delta := 1 + max - min
 	return min + prng.Intn(delta)
-}
-
-func (w *mapWorker) retryOneOp(ctx context.Context, s *hammerState) (err error) {
-	ep := w.bias.choose(w.prng)
-	if w.bias.invalid(ep, w.prng) {
-		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
-		invalidReqs.Inc(w.label, string(ep))
-		op, err := getOp(ep, s.invalidReadOps, s.setLeavesInvalid)
-		if err != nil {
-			return err
-		}
-		return op(ctx, w.prng)
-	}
-
-	op, err := getOp(ep, s.validReadOps, s.setLeaves)
-	if err != nil {
-		return err
-	}
-
-	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
-	return w.retryOp(ctx, op, string(ep))
-}
-
-func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName string) error {
-	defer func(start time.Time) {
-		rspLatency.Observe(time.Since(start).Seconds(), w.label, opName)
-	}(time.Now())
-
-	deadline := time.Now().Add(w.operationDeadline)
-	seed := w.prng.Int63()
-	done := false
-	var firstErr error
-	for !done {
-		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
-		prng := rand.New(rand.NewSource(seed))
-		reqs.Inc(w.label, opName)
-		err := fn(ctx, prng)
-
-		switch err.(type) {
-		case nil:
-			rsps.Inc(w.label, opName)
-			if firstErr != nil {
-				glog.Warningf("%d: retry of op %v succeeded, previous error: %v", w.mapID, opName, firstErr)
-			}
-			firstErr = nil
-			done = true
-		case errSkip:
-			firstErr = nil
-			done = true
-		case testonly.ErrInvariant:
-			// Ensure invariant failures are not ignorable.  They indicate a design assumption
-			// being broken or incorrect, so must be seen.
-			firstErr = err
-			done = true
-		default:
-			errs.Inc(w.label, opName)
-			if firstErr == nil {
-				firstErr = err
-			}
-			if w.retryErrors {
-				glog.Warningf("%d: op %v failed (will retry): %v", w.mapID, opName, err)
-			} else {
-				done = true
-			}
-		}
-
-		if time.Now().After(deadline) {
-			if firstErr == nil {
-				// If there was no other error, we've probably hit the deadline - make sure we bubble that up.
-				firstErr = ctx.Err()
-			}
-			glog.Warningf("%d: gave up on operation %v after %v, returning first err %v", w.mapID, opName, w.operationDeadline, firstErr)
-			done = true
-		}
-	}
-	return firstErr
 }
 
 type readOps interface {
