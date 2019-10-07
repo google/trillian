@@ -311,10 +311,9 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	ctx, spanEnd := spanFor(ctx, "SetLeaves")
 	defer spanEnd()
 
-	mapID := req.MapId
-	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(mapID, 10))
+	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(req.MapId, 10))
 
-	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +408,7 @@ func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree,
 		return nil, fmt.Errorf("CalculateRoot(): %v", err)
 	}
 
-	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, tree.TreeId, rev, metadata)
+	newRoot, err := t.makeSignedMapRoot(ctx, tree, rootHash, rev, metadata)
 	if err != nil {
 		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
 	}
@@ -512,11 +511,11 @@ func calcAllSiblingsParallel(_ context.Context, treeDepth int, hkv []merkle.Hash
 	return nids
 }
 
-func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
-	rootHash []byte, mapID, revision int64, meta []byte) (*trillian.SignedMapRoot, error) {
+func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree,
+	rootHash []byte, revision int64, meta []byte) (*trillian.SignedMapRoot, error) {
 	smr := &types.MapRootV1{
 		RootHash:       rootHash,
-		TimestampNanos: uint64(smrTs.UnixNano()),
+		TimestampNanos: uint64(time.Now().UnixNano()),
 		Revision:       uint64(revision),
 		Metadata:       meta,
 	}
@@ -613,8 +612,7 @@ func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64,
 func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "InitMap")
 	defer spanEnd()
-	mapID := req.MapId
-	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapInit)
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapInit)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
@@ -634,9 +632,9 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 
 		rev0Root = nil
 
-		glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
-		rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
-		rev0Root, err = t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
+		glog.V(2).Infof("%v: Need to init map root revision 0", tree.TreeId)
+		rootHash := hasher.HashEmpty(tree.TreeId, make([]byte, hasher.Size()), hasher.BitLen())
+		rev0Root, err = t.makeSignedMapRoot(ctx, tree, rootHash, 0 /*revision*/, nil /* metadata */)
 		if err != nil {
 			return fmt.Errorf("makeSignedMapRoot(): %v", err)
 		}
