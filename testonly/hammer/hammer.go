@@ -210,7 +210,7 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 			defer wg.Done()
 			w := newReadWorker(s, i)
 			glog.Infof("%d: start checker %d", s.cfg.MapID, i)
-			err := w.loop(ctx, done)
+			err := w.run(ctx, done)
 			if err != nil {
 				errs <- err
 			}
@@ -223,7 +223,7 @@ func HitMap(ctx context.Context, cfg MapConfig) error {
 		defer wg.Done()
 		w := newWriteWorker(s)
 		glog.Infof("%d: start main goroutine", cfg.MapID)
-		count, err := w.loop(ctx, done)
+		count, err := w.run(ctx, done)
 		errs <- err // may be nil for the main goroutine completion
 		glog.Infof("%d: performed %d operations on map", cfg.MapID, count)
 	}()
@@ -378,9 +378,9 @@ func newReadWorker(s *hammerState, idx int) *readWorker {
 	}
 }
 
-// loop continuously performs read-only operations against the map until the
-// done signal is received via th channel, or an error is encountered.
-func (w *readWorker) loop(ctx context.Context, done <-chan struct{}) error {
+// run continuously performs read-only operations against the map until the
+// done channel is closed, or an error is encountered.
+func (w *readWorker) run(ctx context.Context, done <-chan struct{}) error {
 	for {
 		select {
 		case <-done:
@@ -416,10 +416,9 @@ func newWriteWorker(s *hammerState) *writeWorker {
 	}
 }
 
-// loop continuously performs mutation operations on the map until the done signal
-// is received via th channel, an error is encountered, or the maximum number of
-// operations have been performed.
-func (w *writeWorker) loop(ctx context.Context, done <-chan struct{}) (uint64, error) {
+// run continuously performs mutation operations on the map until the done channel is
+// closed, an error is encountered, or the maximum number of operations have been performed.
+func (w *writeWorker) run(ctx context.Context, done <-chan struct{}) (uint64, error) {
 	count := uint64(0)
 
 	for ; count < w.operations; count++ {
