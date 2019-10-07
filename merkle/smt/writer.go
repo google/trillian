@@ -165,11 +165,7 @@ func (s *shardAccessor) Set(id tree.NodeID2, hash []byte) {
 
 // TODO(pavelkalinnikov): Make MapHasher.HashEmpty method take the id directly.
 func hashEmpty(hasher hashers.MapHasher, treeID int64, id tree.NodeID2) []byte {
-	index := make([]byte, hasher.Size())
-	copy(index, id.FullBytes())
-	if last, bits := id.LastByte(); bits != 0 {
-		index[len(id.FullBytes())] = last
-	}
-	height := hasher.BitLen() - int(id.BitLen())
-	return hasher.HashEmpty(treeID, index, height)
+	oldID := tree.NewNodeIDFromID2(id)
+	height := hasher.BitLen() - oldID.PrefixLenBits
+	return hasher.HashEmpty(treeID, oldID.Path, height)
 }
