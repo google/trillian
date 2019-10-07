@@ -57,15 +57,16 @@ func (m *MapHasher) String() string {
 	return fmt.Sprintf("MapHasher{%v}", m.Hash)
 }
 
-// HashEmpty returns the hash of an empty branch at a given depth.
-// A depth of 0 indicates the hash of an empty leaf.
-// Empty branches within the tree are plain interior nodes e1 = H(e0, e0) etc.
+// HashEmpty returns the hash of an empty subtree of the given height, e.g. the
+// height of 0 indicates an empty leaf. For this hasher, the result depends
+// only on height. The treeID and index, i.e. the precise position of this
+// subtree, are ignored.
 func (m *MapHasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	if height < 0 || height >= len(m.nullHashes) {
 		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", height))
 	}
-	depth := m.BitLen() - height
 	if glog.V(5) {
+		depth := m.BitLen() - height
 		glog.Infof("HashEmpty(%x, %d): %x", index, depth, m.nullHashes[height])
 	}
 	return m.nullHashes[height]
