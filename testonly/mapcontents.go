@@ -303,12 +303,12 @@ func (p *VersionedMapContents) UpdateContentsWith(rev uint64, leaves []*trillian
 	if rev < 1 {
 		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want >=1 when trying to update hammer state with contents", rev)}
 	}
-	if p.contents[0] == nil {
-		if rev != 1 {
-			return nil, ErrInvariant{fmt.Sprintf("got rev %d, want 1 when trying to update hammer state with new contents", rev)}
-		}
-	} else if want := p.contents[0].Rev + 1; int64(rev) != want {
-		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want %d when trying to update hammer state with new contents", rev, want)}
+	nextRev := uint64(1)
+	if c := p.contents[0]; c != nil {
+		nextRev = uint64(c.Rev + 1)
+	}
+	if rev != nextRev {
+		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want %d when trying to update hammer state with new contents", rev, nextRev)}
 	}
 
 	// Shuffle earlier contents along.
