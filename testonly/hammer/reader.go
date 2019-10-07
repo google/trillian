@@ -115,10 +115,7 @@ func (o *validReadOps) getSMR(ctx context.Context, prng *rand.Rand) error {
 	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", o.mc.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 
-	if err := o.verify(root); err != nil {
-		return err
-	}
-	return nil
+	return o.verify(root)
 }
 
 // getSMRRev randomly chooses a previously seen SMR from the queue and checks that
@@ -147,6 +144,9 @@ func (o *validReadOps) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 
 func (o *validReadOps) verify(root *types.MapRootV1) error {
 	mapContents := o.prevContents.PickRevision(root.Revision)
+	if root.Revision > 1 && mapContents == nil {
+		return fmt.Errorf("unexpected missing previous contents for revision %d", root.Revision)
+	}
 	want, err := mapContents.RootHash(o.mc.MapID, o.mc.Hasher)
 	if err != nil {
 		return err
