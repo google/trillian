@@ -595,7 +595,7 @@ func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trill
 		leaves = append(leaves, l)
 	}
 
-	getResp, err := tmap.GetLeavesByRevisionNoProof(ctx, &trillian.GetMapLeavesByRevisionRequest{
+	getResp, err := twrite.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
 		MapId:    tree.TreeId,
 		Index:    indexes,
 		Revision: int64(numBatches),

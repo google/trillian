@@ -1104,9 +1104,9 @@ defined in the Verifiable Data Structures paper.
 | GetLeafByRevision | [GetMapLeafByRevisionRequest](#trillian.GetMapLeafByRevisionRequest) | [GetMapLeafResponse](#trillian.GetMapLeafResponse) |  |
 | GetLeaves | [GetMapLeavesRequest](#trillian.GetMapLeavesRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
 | GetLeavesByRevision | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [GetMapLeavesResponse](#trillian.GetMapLeavesResponse) |  |
-| GetLeavesByRevisionNoProof | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [MapLeaves](#trillian.MapLeaves) | GetLeavesByRevisionNoProof returns the requested map leaves without inclusion proofs. This API is designed for internal use where verification is not needed. |
+| GetLeavesByRevisionNoProof | [GetMapLeavesByRevisionRequest](#trillian.GetMapLeavesByRevisionRequest) | [MapLeaves](#trillian.MapLeaves) | Deprecated: this should only be used by writers, which should migrate to TrillianMapWrite#GetLeavesByRevision |
 | GetLastInRangeByRevision | [GetLastInRangeByRevisionRequest](#trillian.GetLastInRangeByRevisionRequest) | [MapLeaf](#trillian.MapLeaf) | GetLastInRangeByRevision returns the last leaf in a requested range. |
-| SetLeaves | [SetMapLeavesRequest](#trillian.SetMapLeavesRequest) | [SetMapLeavesResponse](#trillian.SetMapLeavesResponse) | SetLeaves sets the values for the provided leaves, and returns the new map root if successful. Note that if a SetLeaves request fails for a server-side reason (i.e. not an invalid request), the API user is required to retry the request before performing a different SetLeaves request. |
+| SetLeaves | [SetMapLeavesRequest](#trillian.SetMapLeavesRequest) | [SetMapLeavesResponse](#trillian.SetMapLeavesResponse) | Deprecated: this should only be used by writers, which should migrate to TrillianMapWrite#WriteLeaves |
 | GetSignedMapRoot | [GetSignedMapRootRequest](#trillian.GetSignedMapRootRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |
 | GetSignedMapRootByRevision | [GetSignedMapRootByRevisionRequest](#trillian.GetSignedMapRootByRevisionRequest) | [GetSignedMapRootResponse](#trillian.GetSignedMapRootResponse) |  |
 | InitMap | [InitMapRequest](#trillian.InitMapRequest) | [InitMapResponse](#trillian.InitMapResponse) |  |

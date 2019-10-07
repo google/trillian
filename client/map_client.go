@@ -108,7 +108,7 @@ func (c *MapClient) SetAndVerifyMapLeaves(ctx context.Context, leaves []*trillia
 		Leaves:   leaves,
 		Metadata: metadata,
 	}
-	setResp, err := c.Conn.SetLeaves(ctx, req)
+	setResp, err := c.Conn.SetLeaves(ctx, req) //nolint:staticcheck
 	if err != nil {
 		s := status.Convert(err)
 		return nil, status.Errorf(s.Code(), "map.SetLeaves(MapId: %v): %v", c.MapID, s.Message())

@@ -138,7 +138,7 @@ func TestGetLeavesAtRevision(t *testing.T) {
 	}
 
 	index := []byte("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-	if _, err := env.Map.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+	if _, err := env.Write.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
 		MapId: client.MapID,
 		Leaves: []*trillian.MapLeaf{
 			{

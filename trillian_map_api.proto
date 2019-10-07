@@ -193,20 +193,22 @@ service TrillianMap {
   rpc GetLeafByRevision(GetMapLeafByRevisionRequest) returns (GetMapLeafResponse) {}
   rpc GetLeaves(GetMapLeavesRequest) returns (GetMapLeavesResponse) {}
   rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns (GetMapLeavesResponse) {}
-  // GetLeavesByRevisionNoProof returns the requested map leaves without inclusion proofs.
-  // This API is designed for internal use where verification is not needed.
-  rpc GetLeavesByRevisionNoProof(GetMapLeavesByRevisionRequest) returns (MapLeaves) {}
+  // Deprecated: this should only be used by writers, which should migrate
+  // to TrillianMapWrite#GetLeavesByRevision
+  rpc GetLeavesByRevisionNoProof(GetMapLeavesByRevisionRequest) returns (MapLeaves) {
+    option deprecated = true;
+  }
   // GetLastInRangeByRevision returns the last leaf in a requested range.
   rpc GetLastInRangeByRevision(GetLastInRangeByRevisionRequest) returns (MapLeaf) {
     option (google.api.http) = {
       get: "/v1beta1/maps/{map_id}/roots/{revision}/leaves:last_in_range"
     };
   }
-  // SetLeaves sets the values for the provided leaves, and returns the new map
-  // root if successful. Note that if a SetLeaves request fails for a
-  // server-side reason (i.e. not an invalid request), the API user is required
-  // to retry the request before performing a different SetLeaves request.
-  rpc SetLeaves(SetMapLeavesRequest) returns (SetMapLeavesResponse) {}
+  // Deprecated: this should only be used by writers, which should migrate
+  // to TrillianMapWrite#WriteLeaves
+  rpc SetLeaves(SetMapLeavesRequest) returns (SetMapLeavesResponse) {
+    option deprecated = true;
+  }
   rpc GetSignedMapRoot(GetSignedMapRootRequest)
       returns (GetSignedMapRootResponse) {
     option (google.api.http) = {
