@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -199,7 +200,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	}
 
 	ctx = trees.NewContext(ctx, tree)
-	t.getLeafCounter.Add(float64(len(indices)), string(mapID))
+	t.getLeafCounter.Add(float64(len(indices)), strconv.FormatInt(mapID, 10))
 
 	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByRevision")
 	if err != nil {
@@ -311,7 +312,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	defer spanEnd()
 
 	mapID := req.MapId
-	t.setLeafCounter.Add(float64(len(req.Leaves)), string(mapID))
+	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(mapID, 10))
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
