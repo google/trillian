@@ -201,6 +201,21 @@ loop:
 	}
 }
 
+// NewNodeIDFromID2 constructs a NodeID from a NodeID2.
+func NewNodeIDFromID2(id NodeID2) NodeID {
+	path := make([]byte, bytesForBits(int(id.BitLen())))
+	copy(path, id.FullBytes())
+	if last, bits := id.LastByte(); bits != 0 {
+		path[len(path)-1] = last
+	}
+	return NodeID{Path: path, PrefixLenBits: int(id.BitLen())}
+}
+
+// ToNodeID2 converts the ID to NodeID2.
+func (n NodeID) ToNodeID2() NodeID2 {
+	return NewNodeID2(string(n.Path), uint(n.PrefixLenBits))
+}
+
 // BigInt returns the big.Int for this node.
 func (n NodeID) BigInt() *big.Int {
 	return new(big.Int).SetBytes(n.Path)
