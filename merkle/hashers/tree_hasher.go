@@ -35,9 +35,18 @@ type LogHasher interface {
 
 // MapHasher provides the hash functions needed to compute sparse merkle trees.
 type MapHasher interface {
-	// HashEmpty returns the hash of an empty branch at a given depth.
-	// A height of 0 indicates an empty leaf. The maximum height is Size*8.
-	// TODO(gbelvin) fully define index.
+	// HashEmpty returns the hash of an empty subtree of the given height. The
+	// location of the subtree root is defined by the index parameter, which
+	// encodes the path from the tree root to the node as a bit sequence of
+	// length BitLen()-height. Note that a height of 0 indicates a leaf.
+	//
+	// Each byte of index is considered from MSB to LSB. The last byte might be
+	// used partially, but the unused bits must be zero. If index contains more
+	// bytes than necessary then the remaining bytes are ignored. May panic if
+	// the index is too short for the specified height.
+	//
+	// TODO(pavelkalinnikov): Pass in NodeID2 which type-safely defines index and
+	// height/depth simultaneously.
 	HashEmpty(treeID int64, index []byte, height int) []byte
 	// HashLeaf computes the hash of a leaf that exists.  This method
 	// is *not* used for computing the hash of a leaf that does not exist

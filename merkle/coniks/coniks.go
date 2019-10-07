@@ -56,9 +56,9 @@ func (m *hasher) EmptyRoot() []byte {
 	panic("EmptyRoot() not defined for coniks.Hasher")
 }
 
-// HashEmpty returns the hash of an empty branch at a given height.
-// A height of 0 indicates the hash of an empty leaf.
-// Empty branches within the tree are plain interior nodes e1 = H(e0, e0) etc.
+// HashEmpty returns the hash of an empty subtree of the given height at the
+// position defined by the BitLen()-height most significant bits of the given
+// index. Note that a height of 0 indicates a leaf.
 func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	depth := m.BitLen() - height
 
@@ -120,13 +120,17 @@ func (m *hasher) BitLen() int {
 // is 0. leftmask is only used to mask the last byte.
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
-// writeMaskedIndex writes the left depth bits of index directly to a Buffer (which never
-// returns an error on writes). This is then padded with zero bits to the Size()
-// of the index values in use by this hashes. This avoids the need to allocate
-// space for and copy a value that will then be discarded immediately.
+// writeMaskedIndex writes the left depth bits of index to the Buffer (which
+// never returns an error on writes), padded with zero bits to the byte Size()
+// of the hashes in use by this hasher.
+//
+// TODO(pavelkalinnikov): We must not use BitLen() and Size() interchangeably.
+// The tree height and hash size could be different.
+// TODO(pavelkalinnikov): Padding with zeroes doesn't buy us anything, as the
+// depth is also written to the Buffer.
 func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
-	if got, want := len(index), m.Size(); got != want {
-		panic(fmt.Sprintf("index len: %d, want %d", got, want))
+	if got, min := len(index)*8, depth; got < min {
+		panic(fmt.Sprintf("index bits: %d, want >= %d", got, min))
 	}
 	if got, want := depth, m.BitLen(); got < 0 || got > want {
 		panic(fmt.Sprintf("depth: %d, want <= %d && >= 0", got, want))
@@ -135,7 +139,7 @@ func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
 	prevLen := b.Len()
 	if depth > 0 {
 		// Write the first depthBytes, if there are any complete bytes.
-		depthBytes := depth >> 3
+		depthBytes := depth / 8
 		if depthBytes > 0 {
 			b.Write(index[:depthBytes])
 		}
@@ -144,15 +148,16 @@ func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
 			b.WriteByte(index[depthBytes] & leftmask[depth%8])
 		}
 	}
-	// Pad to the correct length with zeros. Allow for future hashers that
-	// might be > 256 bits.
-	needZeros := prevLen + len(index) - b.Len()
-	for needZeros > 0 {
-		chunkSize := needZeros
+	// Pad to the correct length with zeroes. Allow for future hashers that might
+	// be > 256 bits.
+	// TODO(pavelkalinnikov): YAGNI. Simplify this until that actually happens.
+	for need := prevLen + m.Size() - b.Len(); need > 0; {
+		chunkSize := need
 		if chunkSize > 32 {
 			chunkSize = 32
 		}
+		// Use the pre-allocated zeroes to avoid allocating them each time.
 		b.Write(zeroes[:chunkSize])
-		needZeros -= chunkSize
+		need -= chunkSize
 	}
 }
