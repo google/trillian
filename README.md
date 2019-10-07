@@ -53,8 +53,7 @@ Note that Trillian requires particular applications to provide their own
 functionality.
 
 [Certificate Transparency (CT)](https://tools.ietf.org/html/rfc6962)
-is the most well-known and widely deployed transparency application, and a
-implementation of CT as a Trillian personality is available in the
+is the most well-known and widely deployed transparency application, and an implementation of CT as a Trillian personality is available in the
 [certificate-transparency-go repo](https://github.com/google/certificate-transparency-go/blob/master/trillian).
 
 Other examples of Trillian personalities are available in the
@@ -162,7 +161,7 @@ This runs two multi-process tests:
 
 Developers who want to make changes to the Trillian codebase need some
 additional dependencies and tools, described in the following sections.  The
-[Travis configuration](.travis.yml) for the codebase is also useful reference
+[Travis configuration](.travis.yml) for the codebase is also a useful reference
 for the required tools and scripts, as it may be more up-to-date than this
 document.
 
