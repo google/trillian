@@ -299,11 +299,16 @@ func (p *VersionedMapContents) UpdateContentsWith(rev uint64, leaves []*trillian
 	defer p.mu.Unlock()
 
 	// Sanity check on rev being +ve and monotone increasing.
+	// If any revision is missed then the full contents cannot be maintained.
 	if rev < 1 {
 		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want >=1 when trying to update hammer state with contents", rev)}
 	}
-	if p.contents[0] != nil && int64(rev) <= p.contents[0].Rev {
-		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want >%d when trying to update hammer state with new contents", rev, p.contents[0].Rev)}
+	nextRev := uint64(1)
+	if c := p.contents[0]; c != nil {
+		nextRev = uint64(c.Rev + 1)
+	}
+	if rev != nextRev {
+		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want %d when trying to update hammer state with new contents", rev, nextRev)}
 	}
 
 	// Shuffle earlier contents along.
