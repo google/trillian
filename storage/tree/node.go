@@ -203,12 +203,10 @@ loop:
 
 // NewNodeIDFromID2 constructs a NodeID from a NodeID2.
 func NewNodeIDFromID2(id NodeID2) NodeID {
-	bytes := id.FullBytes()
-	last, bits := id.LastByte()
-	path := make([]byte, len(bytes)+int(bits+7)/8)
-	copy(path, bytes)
-	if bits != 0 {
-		path[len(bytes)] = last
+	path := make([]byte, bytesForBits(int(id.BitLen())))
+	copy(path, id.FullBytes())
+	if last, bits := id.LastByte(); bits != 0 {
+		path[len(path)-1] = last
 	}
 	return NodeID{Path: path, PrefixLenBits: int(id.BitLen())}
 }
