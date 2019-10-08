@@ -346,8 +346,14 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return err
 		}
 
-		newRoot, err = t.updateTree(ctx, tree, hasher, tx, hkv, req.Metadata, writeRev)
-		return err
+		hash, err := t.updateTree(ctx, tree, hasher, tx, hkv, writeRev)
+		if err != nil {
+			return err
+		}
+		if newRoot, err = t.makeSignedMapRoot(ctx, tree, hash, writeRev, req.Metadata); err != nil {
+			return fmt.Errorf("makeSignedMapRoot(): %v", err)
+		}
+		return tx.StoreSignedMapRoot(ctx, newRoot)
 	})
 	if err != nil {
 		return nil, err
@@ -384,7 +390,7 @@ func (t *TrillianMapServer) writeLeaves(ctx context.Context, tx storage.MapTreeT
 // updateTree updates the sparse Merkle tree at the specified revision based on the passed-in
 // leaf changes, and writes it to the storage. Returns the new signed map root, which is also
 // submitted to storage.
-func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, hkv []merkle.HashKeyValue, metadata []byte, rev int64) (*trillian.SignedMapRoot, error) {
+func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, hkv []merkle.HashKeyValue, rev int64) ([]byte, error) {
 	// Work around a performance issue when using the map in
 	// single-transaction mode by preloading all the nodes we know the
 	// sparse Merkle writer is going to need.
@@ -407,16 +413,7 @@ func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree,
 	if err != nil {
 		return nil, fmt.Errorf("CalculateRoot(): %v", err)
 	}
-
-	newRoot, err := t.makeSignedMapRoot(ctx, tree, rootHash, rev, metadata)
-	if err != nil {
-		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
-	}
-
-	if err := tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
-		return nil, err
-	}
-	return newRoot, nil
+	return rootHash, nil
 }
 
 func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeTX) merkle.TXRunner {
