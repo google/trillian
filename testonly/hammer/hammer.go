@@ -17,6 +17,7 @@ package hammer
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -80,7 +81,11 @@ const (
 	GetSMRRevName    = MapEntrypointName("GetSMRRev")
 )
 
-var mapEntrypoints = []MapEntrypointName{GetLeavesName, GetLeavesRevName, SetLeavesName, GetSMRName, GetSMRRevName}
+// Read-only map entry points.
+var roMapEntrypoints = []MapEntrypointName{GetLeavesName, GetLeavesRevName, GetSMRName, GetSMRRevName}
+
+// All map entry points.
+var mapEntrypoints = append(roMapEntrypoints, SetLeavesName)
 
 // Choice is a readable representation of a choice about how to perform a hammering operation.
 type Choice string
@@ -274,12 +279,12 @@ type mapWorker struct {
 	operationDeadline time.Duration
 }
 
-func newWorker(cfg *MapConfig, prng *rand.Rand) *mapWorker {
+func newWorker(cfg *MapConfig, bias MapBias, prng *rand.Rand) *mapWorker {
 	return &mapWorker{
 		prng:              prng,
 		mapID:             cfg.MapID,
 		label:             strconv.FormatInt(cfg.MapID, 10),
-		bias:              cfg.EPBias,
+		bias:              bias,
 		retryErrors:       cfg.RetryErrors,
 		operationDeadline: cfg.OperationDeadline,
 	}
@@ -370,8 +375,14 @@ type readWorker struct {
 }
 
 func newReadWorker(s *hammerState, idx int) *readWorker {
+	readBias := MapBias{
+		Bias:          make(map[MapEntrypointName]int),
+		InvalidChance: make(map[MapEntrypointName]int),
+	}
+	// TODO(mhutchinson): populate readBias by iterating over roMapEntrypoints.
+	readBias.Bias[GetLeavesRevName] = s.cfg.EPBias.Bias[GetLeavesRevName]
 	return &readWorker{
-		mapWorker: newWorker(s.cfg, rand.New(rand.NewSource(int64(idx)))),
+		mapWorker: newWorker(s.cfg, readBias, rand.New(rand.NewSource(int64(idx)))),
 
 		validReadOps:   s.validReadOps,
 		invalidReadOps: s.invalidReadOps,
@@ -387,13 +398,36 @@ func (w *readWorker) run(ctx context.Context, done <-chan struct{}) error {
 			return nil
 		default:
 		}
-		if err := w.validReadOps.getLeavesRev(ctx, w.prng); err != nil {
+		if err := w.readOnce(ctx); err != nil {
 			if _, ok := err.(errSkip); ok {
 				continue
 			}
 			return err
 		}
 	}
+}
+
+// TODO(mhutchinson): resolve duplication between this and retryOneOp.
+func (w *readWorker) readOnce(ctx context.Context) error {
+	writeOp := func(context.Context, *rand.Rand) error { return errors.New("Unexpected write operation") }
+	ep := w.bias.choose(w.prng)
+	if w.bias.invalid(ep, w.prng) {
+		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
+		invalidReqs.Inc(w.label, string(ep))
+		op, err := getOp(ep, w.invalidReadOps, writeOp)
+		if err != nil {
+			return err
+		}
+		return op(ctx, w.prng)
+	}
+
+	op, err := getOp(ep, w.validReadOps, writeOp)
+	if err != nil {
+		return err
+	}
+
+	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
+	return w.retryOp(ctx, op, string(ep))
 }
 
 // writeWorker performs mutation operations on a fixed map.
@@ -409,7 +443,7 @@ type writeWorker struct {
 
 func newWriteWorker(s *hammerState) *writeWorker {
 	return &writeWorker{
-		mapWorker: newWorker(s.cfg, rand.New(s.cfg.RandSource)),
+		mapWorker: newWorker(s.cfg, s.cfg.EPBias, rand.New(s.cfg.RandSource)),
 
 		operations: s.cfg.Operations,
 		s:          s,
