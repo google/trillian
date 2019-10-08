@@ -81,10 +81,10 @@ const (
 	GetSMRRevName    = MapEntrypointName("GetSMRRev")
 )
 
-// Read-only map entry points
+// Read-only map entry points.
 var roMapEntrypoints = []MapEntrypointName{GetLeavesName, GetLeavesRevName, GetSMRName, GetSMRRevName}
 
-// All map entry points
+// All map entry points.
 var mapEntrypoints = append(roMapEntrypoints, SetLeavesName)
 
 // Choice is a readable representation of a choice about how to perform a hammering operation.
@@ -379,7 +379,7 @@ func newReadWorker(s *hammerState, idx int) *readWorker {
 		Bias:          make(map[MapEntrypointName]int),
 		InvalidChance: make(map[MapEntrypointName]int),
 	}
-	// TODO(mhutchinson): populate readBias by iterating over roMapEntrypoints
+	// TODO(mhutchinson): populate readBias by iterating over roMapEntrypoints.
 	readBias.Bias[GetLeavesRevName] = s.cfg.EPBias.Bias[GetLeavesRevName]
 	return &readWorker{
 		mapWorker: newWorker(s.cfg, readBias, rand.New(rand.NewSource(int64(idx)))),
