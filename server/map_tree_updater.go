@@ -20,26 +20,35 @@ import (
 	"sync"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/tree"
 )
 
-// updateTree updates the sparse Merkle tree at the specified revision based on the passed-in
-// leaf changes, and writes it to the storage. Returns the new signed map root, which is also
-// submitted to storage.
-func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree, hasher hashers.MapHasher, tx storage.MapTreeTX, hkv []merkle.HashKeyValue, rev int64) ([]byte, error) {
+// mapTreeUpdater updates the sparse Merkle tree of the map in one or multiple
+// map tree transactions.
+type mapTreeUpdater struct {
+	tree   *trillian.Tree
+	hasher hashers.MapHasher
+	opts   TrillianMapServerOptions
+	reg    extension.Registry
+}
+
+// update updates the sparse Merkle tree at the passed-in revision with the
+// given leaf updates, and writes it to the storage. Returns the new root hash.
+func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, hkv []merkle.HashKeyValue, rev int64) ([]byte, error) {
 	// Work around a performance issue when using the map in
 	// single-transaction mode by preloading all the nodes we know the
 	// sparse Merkle writer is going to need.
 	if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
-		if err := doPreload(ctx, tx, hasher.BitLen(), hkv); err != nil {
+		if err := doPreload(ctx, tx, t.hasher.BitLen(), hkv); err != nil {
 			return nil, err
 		}
 	}
 
-	smtWriter, err := merkle.NewSparseMerkleTreeWriter(ctx, tree.TreeId, rev, hasher, t.newTXRunner(tree, tx))
+	smtWriter, err := merkle.NewSparseMerkleTreeWriter(ctx, t.tree.TreeId, rev, t.hasher, t.newTXRunner(t.tree, tx))
 	if err != nil {
 		return nil, err
 	}
@@ -55,11 +64,11 @@ func (t *TrillianMapServer) updateTree(ctx context.Context, tree *trillian.Tree,
 	return rootHash, nil
 }
 
-func (t *TrillianMapServer) newTXRunner(tree *trillian.Tree, tx storage.MapTreeTX) merkle.TXRunner {
+func (t *mapTreeUpdater) newTXRunner(tree *trillian.Tree, tx storage.MapTreeTX) merkle.TXRunner {
 	if t.opts.UseSingleTransaction {
 		return &singleTXRunner{tx: tx}
 	}
-	return &multiTXRunner{tree: tree, mapStorage: t.registry.MapStorage}
+	return &multiTXRunner{tree: tree, mapStorage: t.reg.MapStorage}
 }
 
 // singleTXRunner executes all calls to Run with the same underlying transaction.

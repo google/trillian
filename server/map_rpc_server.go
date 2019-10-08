@@ -333,6 +333,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		})
 	}
 
+	updater := &mapTreeUpdater{tree: tree, hasher: hasher, opts: t.opts, reg: t.registry}
+
 	var newRoot *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 		writeRev, err := t.getWriteRevision(ctx, tree, tx, req.Revision)
@@ -345,7 +347,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return err
 		}
 
-		hash, err := t.updateTree(ctx, tree, hasher, tx, hkv, writeRev)
+		hash, err := updater.update(ctx, tx, hkv, writeRev)
 		if err != nil {
 			return err
 		}
