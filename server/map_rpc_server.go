@@ -333,7 +333,13 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		})
 	}
 
-	updater := &mapTreeUpdater{tree: tree, hasher: hasher, opts: t.opts, reg: t.registry}
+	updater := &mapTreeUpdater{
+		tree:     tree,
+		hasher:   hasher,
+		ms:       t.registry.MapStorage,
+		singleTX: t.opts.UseSingleTransaction,
+		preload:  t.opts.UseLargePreload,
+	}
 
 	var newRoot *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {

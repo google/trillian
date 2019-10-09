@@ -20,7 +20,6 @@ import (
 	"sync"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
@@ -30,10 +29,11 @@ import (
 // mapTreeUpdater updates the sparse Merkle tree of the map in one or multiple
 // map tree transactions.
 type mapTreeUpdater struct {
-	tree   *trillian.Tree
-	hasher hashers.MapHasher
-	opts   TrillianMapServerOptions
-	reg    extension.Registry
+	tree     *trillian.Tree
+	hasher   hashers.MapHasher
+	ms       storage.MapStorage
+	singleTX bool
+	preload  bool
 }
 
 // update updates the sparse Merkle tree at the passed-in revision with the
@@ -42,7 +42,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, hkv [
 	// Work around a performance issue when using the map in
 	// single-transaction mode by preloading all the nodes we know the
 	// sparse Merkle writer is going to need.
-	if t.opts.UseSingleTransaction && t.opts.UseLargePreload {
+	if t.singleTX && t.preload {
 		if err := doPreload(ctx, tx, t.hasher.BitLen(), hkv); err != nil {
 			return nil, err
 		}
@@ -65,10 +65,10 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, hkv [
 }
 
 func (t *mapTreeUpdater) newTXRunner(tree *trillian.Tree, tx storage.MapTreeTX) merkle.TXRunner {
-	if t.opts.UseSingleTransaction {
+	if t.singleTX {
 		return &singleTXRunner{tx: tx}
 	}
-	return &multiTXRunner{tree: tree, mapStorage: t.reg.MapStorage}
+	return &multiTXRunner{tree: tree, mapStorage: t.ms}
 }
 
 // singleTXRunner executes all calls to Run with the same underlying transaction.
