@@ -368,11 +368,17 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
 }
 
-// getWriteRevision returns the revision that this transaction will be written at.
-// Only one transaction can be committed for a given revision, thus this transaction
-// will compete with any other transactions with the same write revision.
-// if assertRev is non-zero then an error will be thrown if assertRev does not match
-// the write revision.
+// getWriteRevision returns the revision that this transaction will be written
+// at, and asserts that it correctly corresponds to the read revision and the
+// requested one. Only one transaction can be committed for a given revision,
+// thus this transaction will compete with any other transactions with the same
+// write revision.
+//
+// Returns an error if assertRev is non-zero and does not match the write
+// revision, or the read revision + 1 does not match it.
+//
+// TODO(pavelkalinnikov): One of Read/WriteRevision storage calls should be
+// gone really, because the +1 relation between them is fixed.
 func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian.Tree, tx storage.MapTreeTX, assertRev int64) (int64, error) {
 	writeRev, err := tx.WriteRevision(ctx)
 	if err != nil {
@@ -380,6 +386,11 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 	}
 	if assertRev != 0 && writeRev != assertRev {
 		return 0, status.Errorf(codes.FailedPrecondition, "can't write to revision %v", assertRev)
+	}
+	if readRev, err := tx.ReadRevision(ctx); err != nil {
+		return 0, err
+	} else if readRev+1 != writeRev {
+		return 0, status.Errorf(codes.Internal, "read/write revisions are not consecutive")
 	}
 	return writeRev, nil
 }
