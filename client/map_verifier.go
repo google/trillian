@@ -22,6 +22,7 @@ import (
 	"github.com/google/trillian/maps"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/types"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -47,8 +48,8 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	return NewMapVerifier(config, rootVerifier)
 }
 
-// NewMapVerifierFromTree creates a new MapVerifier using the information
-// from a Trillian Tree object.
+// NewMapVerifier creates a new MapVerifier using the information from a
+// Trillian Tree object.
 func NewMapVerifier(config *trillian.Tree, rootVerifier *maps.RootVerifier) (*MapVerifier, error) {
 	if config == nil {
 		return nil, errors.New("client: NewMapVerifierFromTree(): nil config")
@@ -85,16 +86,16 @@ func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *tri
 
 // VerifyMapLeavesResponse verifies the responses of GetMapLeaves and GetMapLeavesByRevision.
 // To accept any map revision, pass -1 as revision.
-func (m *MapVerifier) VerifyMapLeavesResponse(indexes [][]byte, revision int64, resp *trillian.GetMapLeavesResponse) ([]*trillian.MapLeaf, error) {
+func (m *MapVerifier) VerifyMapLeavesResponse(indexes [][]byte, revision int64, resp *trillian.GetMapLeavesResponse) ([]*trillian.MapLeaf, *types.MapRootV1, error) {
 	if got, want := len(resp.MapLeafInclusion), len(indexes); got != want {
-		return nil, status.Errorf(codes.Internal, "got %v leaves, want %v", got, want)
+		return nil, nil, status.Errorf(codes.Internal, "got %v leaves, want %v", got, want)
 	}
 	mapRoot, err := m.VerifySignedMapRoot(resp.GetMapRoot())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", m.MapID, err)
+		return nil, nil, status.Errorf(codes.Internal, "VerifySignedMapRoot(%v): %v", m.MapID, err)
 	}
 	if revision != -1 && int64(mapRoot.Revision) != revision {
-		return nil, status.Errorf(codes.Internal, "got map revision %v, want %v", mapRoot.Revision, revision)
+		return nil, nil, status.Errorf(codes.Internal, "got map revision %v, want %v", mapRoot.Revision, revision)
 	}
 
 	var g errgroup.Group
@@ -105,12 +106,12 @@ func (m *MapVerifier) VerifyMapLeavesResponse(indexes [][]byte, revision int64, 
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
+		return nil, nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
 	}
 
 	leaves := make([]*trillian.MapLeaf, 0, len(resp.MapLeafInclusion))
 	for _, i := range resp.MapLeafInclusion {
 		leaves = append(leaves, i.Leaf)
 	}
-	return leaves, nil
+	return leaves, mapRoot, nil
 }

@@ -10,6 +10,11 @@ The verifiable map is still experimental. APIs have been deprecated and will be
 deleted in the near future. These changes will not affect the Trillian module
 semantic version due to the experimental status of the Map.
 
+The map client has been updated so that GetAndVerifyMapLeaves and
+GetAndVerifyMapLeavesByRevision return the MapRoot for the revision at which the
+leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
+were unable to reason about which map revision they were seeing.
+
 ## v1.3.2 - Module fixes
 
 Published 2019-09-05 17:30:00 +0000 UTC

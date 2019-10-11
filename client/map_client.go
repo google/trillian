@@ -72,21 +72,21 @@ func (c *MapClient) GetAndVerifyMapRootByRevision(ctx context.Context, revision 
 
 // GetAndVerifyMapLeaves verifies and returns the requested map leaves.
 // indexes may not contain duplicates.
-func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte) ([]*trillian.MapLeaf, error) {
+func (c *MapClient) GetAndVerifyMapLeaves(ctx context.Context, indexes [][]byte) ([]*trillian.MapLeaf, *types.MapRootV1, error) {
 	getResp, err := c.Conn.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 		MapId: c.MapID,
 		Index: indexes,
 	})
 	if err != nil {
 		s := status.Convert(err)
-		return nil, status.Errorf(s.Code(), "map.GetLeaves(): %v", s.Message())
+		return nil, nil, status.Errorf(s.Code(), "map.GetLeaves(): %v", s.Message())
 	}
 	return c.VerifyMapLeavesResponse(indexes, -1, getResp)
 }
 
 // GetAndVerifyMapLeavesByRevision verifies and returns the requested map leaves at a specific revision.
 // indexes may not contain duplicates.
-func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, error) {
+func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, *types.MapRootV1, error) {
 	getResp, err := c.Conn.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
 		MapId:    c.MapID,
 		Index:    indexes,
@@ -94,7 +94,7 @@ func (c *MapClient) GetAndVerifyMapLeavesByRevision(ctx context.Context, revisio
 	})
 	if err != nil {
 		s := status.Convert(err)
-		return nil, status.Errorf(s.Code(), "map.GetLeaves(): %v", s.Message())
+		return nil, nil, status.Errorf(s.Code(), "map.GetLeaves(): %v", s.Message())
 	}
 	return c.VerifyMapLeavesResponse(indexes, revision, getResp)
 }
