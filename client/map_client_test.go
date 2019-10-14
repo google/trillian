@@ -159,7 +159,7 @@ func TestGetLeavesAtRevision(t *testing.T) {
 		{desc: "2", indexes: [][]byte{index, index}, wantCode: codes.InvalidArgument},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			leaves, err := client.GetAndVerifyMapLeaves(ctx, tc.indexes)
+			leaves, _, err := client.GetAndVerifyMapLeaves(ctx, tc.indexes)
 			if status.Code(err) != tc.wantCode {
 				t.Fatalf("GetAndVerifyMapLeavesAtRevision(): %v, wantErr %v", err, tc.wantCode)
 			}

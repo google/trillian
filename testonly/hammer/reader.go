@@ -84,17 +84,28 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 
 	var err error
 	var leaves []*trillian.MapLeaf
+	var root *types.MapRootV1
 	if latest {
-		leaves, err = o.mc.GetAndVerifyMapLeaves(ctx, indices)
+		leaves, root, err = o.mc.GetAndVerifyMapLeaves(ctx, indices)
 		if err != nil {
 			return fmt.Errorf("failed to GetAndVerifyMapLeaves: %v", err)
 		}
 	} else {
-		leaves, err = o.mc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices)
+		leaves, root, err = o.mc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices)
 		if err != nil {
-			return fmt.Errorf("failed to GetAndVerifyMapLeavesByRevision: %v", err)
+			return fmt.Errorf("failed to GetAndVerifyMapLeavesByRevision(%d): %v", contents.Rev, err)
 		}
 	}
+
+	// We need to update contents to avoid a race condition in the `latest` case.
+	if latest {
+		contents = o.prevContents.PickRevision(root.Revision)
+		if contents.Empty() {
+			glog.V(3).Infof("%d: cannot find contents for revision %d to verify leaves", o.mc.MapID, root.Revision)
+			return errSkip{}
+		}
+	}
+
 	if err := contents.CheckContents(leaves, o.extraSize); err != nil {
 		return fmt.Errorf("incorrect contents of leaves: %v", err)
 	}
