@@ -114,8 +114,8 @@ func TestWriterWrite(t *testing.T) {
 		{desc: "unaligned", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
 		{desc: "dup", upd: []NodeUpdate{upd[0], upd[0]}, wantErr: "duplicate ID"},
 		{desc: "2-shards", split: 128, upd: []NodeUpdate{upd[0], upd[1]}, wantErr: "writing across"},
-		{desc: "get-err", acc: &testAccessor{get: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
-		{desc: "set-err", acc: &testAccessor{set: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
+		{desc: "get-err", acc: &testAccessor{get: errors.New("fail")}, upd: []NodeUpdate{upd[0]}, wantErr: "fail"},
+		{desc: "set-err", acc: &testAccessor{set: errors.New("fail")}, upd: []NodeUpdate{upd[0]}, wantErr: "fail"},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := NewWriter(treeID, hasher, 256, tc.split)
