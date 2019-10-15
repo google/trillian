@@ -23,7 +23,7 @@ import (
 	"github.com/google/trillian/types"
 )
 
-func TestGossipHub_advertiseSMR(t *testing.T) {
+func TestSharedState_advertiseSMR(t *testing.T) {
 	r0 := types.MapRootV1{Revision: 0, RootHash: testonly.MustHexDecode("AAAA")}
 	r1 := types.MapRootV1{Revision: 1, RootHash: testonly.MustHexDecode("BBBB")}
 	r2 := types.MapRootV1{Revision: 2, RootHash: testonly.MustHexDecode("CCCC")}
@@ -66,7 +66,7 @@ func TestGossipHub_advertiseSMR(t *testing.T) {
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			g := newGossipHub()
+			g := newSharedState()
 
 			for i := uint64(1); i <= test.writeRevs; i++ {
 				leaves := []*trillian.MapLeaf{}
@@ -88,8 +88,8 @@ func TestGossipHub_advertiseSMR(t *testing.T) {
 
 }
 
-func TestGossipHub_keepsReadableRevisions(t *testing.T) {
-	g := newGossipHub()
+func TestSharedState_keepsReadableRevisions(t *testing.T) {
+	g := newSharedState()
 
 	for _, test := range []struct {
 		writeRevs   uint64

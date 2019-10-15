@@ -30,7 +30,7 @@ const (
 	smrCount = 30
 )
 
-// gossipHub allows details of what has been written to and read from the Map
+// sharedState allows details of what has been written to and read from the Map
 // to be shared between different workers running in the same process. The same
 // interface could be implemented by something which shared these details with
 // a remote process via gRPC if that was desirable.
@@ -39,7 +39,7 @@ const (
 // writes, reads, and local state such that VersionedMapContents always contains
 // revisions which are no further ahead than the most recent SMR published by the
 // Map.
-type gossipHub struct {
+type sharedState struct {
 	contents *testonly.VersionedMapContents
 
 	mu            sync.RWMutex
@@ -51,14 +51,14 @@ type gossipHub struct {
 	smrs [smrCount]*types.MapRootV1
 }
 
-func newGossipHub() *gossipHub {
-	return &gossipHub{
+func newSharedState() *sharedState {
+	return &sharedState{
 		contents:      &testonly.VersionedMapContents{},
 		pendingWrites: make(map[uint64][]*trillian.MapLeaf),
 	}
 }
 
-func (g *gossipHub) getLastReadRev() (rev uint64, found bool) {
+func (g *sharedState) getLastReadRev() (rev uint64, found bool) {
 	if lastRoot := g.previousSMR(0); lastRoot != nil {
 		return lastRoot.Revision, true
 	}
@@ -68,7 +68,7 @@ func (g *gossipHub) getLastReadRev() (rev uint64, found bool) {
 // proposeLeaves should be called *before* writing a new map revision. The revision
 // will be available to readers only once advertiseSMR has been called with a root
 // that is >= the revision of this write.
-func (g *gossipHub) proposeLeaves(rev uint64, leaves []*trillian.MapLeaf) error {
+func (g *sharedState) proposeLeaves(rev uint64, leaves []*trillian.MapLeaf) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -78,7 +78,7 @@ func (g *gossipHub) proposeLeaves(rev uint64, leaves []*trillian.MapLeaf) error 
 
 // TODO(mhutchinson): Make this way more tolerant so it accepts older SMRs and
 // checks they are equivalent to previously seen versions if applicable.
-func (g *gossipHub) advertiseSMR(smr types.MapRootV1) error {
+func (g *sharedState) advertiseSMR(smr types.MapRootV1) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -117,7 +117,7 @@ func (g *gossipHub) advertiseSMR(smr types.MapRootV1) error {
 	return nil
 }
 
-func (g *gossipHub) previousSMR(which int) *types.MapRootV1 {
+func (g *sharedState) previousSMR(which int) *types.MapRootV1 {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return g.smrs[which]

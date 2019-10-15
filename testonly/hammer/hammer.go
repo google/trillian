@@ -473,7 +473,7 @@ type hammerState struct {
 	cfg            *MapConfig
 	validReadOps   *validReadOps
 	invalidReadOps *invalidReadOps
-	gossipHub      *gossipHub
+	sharedState    *sharedState
 	head           *testonly.MapContents // TODO(mhutchinson): This should move to writeWorker.
 
 	start time.Time
@@ -517,26 +517,26 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		cfg.OperationDeadline = 60 * time.Second
 	}
 
-	gossipHub := newGossipHub()
+	sharedState := newSharedState()
 	validReadOps := validReadOps{
 		mc:           mc,
 		extraSize:    cfg.ExtraSize,
 		minLeaves:    cfg.MinLeaves,
 		maxLeaves:    cfg.MaxLeaves,
-		prevContents: gossipHub.contents,
-		gossipHub:    gossipHub,
+		prevContents: sharedState.contents,
+		sharedState:  sharedState,
 	}
 	invalidReadOps := invalidReadOps{
 		mapID:        cfg.MapID,
 		client:       cfg.Client,
-		prevContents: gossipHub.contents,
-		gossipHub:    gossipHub,
+		prevContents: sharedState.contents,
+		sharedState:  sharedState,
 	}
 
 	return &hammerState{
 		cfg:            cfg,
 		start:          time.Now(),
-		gossipHub:      gossipHub,
+		sharedState:    sharedState,
 		validReadOps:   &validReadOps,
 		invalidReadOps: &invalidReadOps,
 	}, nil
@@ -578,7 +578,7 @@ func (s *hammerState) String() string {
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
 	var revStr string
-	if latestRev, found := s.gossipHub.getLastReadRev(); found {
+	if latestRev, found := s.sharedState.getLastReadRev(); found {
 		revStr = strconv.FormatUint(latestRev, 10)
 	} else {
 		revStr = "N/A"
@@ -675,7 +675,7 @@ leafloop:
 		ExpectRevision: int64(writeRev),
 	}
 
-	if err := s.gossipHub.proposeLeaves(writeRev, leaves); err != nil {
+	if err := s.sharedState.proposeLeaves(writeRev, leaves); err != nil {
 		return err
 	}
 	if _, err := s.cfg.Write.WriteLeaves(ctx, &req); err != nil {

@@ -36,7 +36,7 @@ type validReadOps struct {
 	extraSize            uint
 	minLeaves, maxLeaves int
 	prevContents         *testonly.VersionedMapContents // copies of earlier contents of the map
-	gossipHub            *gossipHub
+	sharedState          *sharedState
 }
 
 func (o *validReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
@@ -92,7 +92,7 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 		if err != nil {
 			return fmt.Errorf("failed to GetAndVerifyMapLeaves: %v", err)
 		}
-		err = o.gossipHub.advertiseSMR(*root)
+		err = o.sharedState.advertiseSMR(*root)
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func (o *validReadOps) getSMR(ctx context.Context, prng *rand.Rand) error {
 		return fmt.Errorf("failed to get-smr: %v", err)
 	}
 
-	err = o.gossipHub.advertiseSMR(*root)
+	err = o.sharedState.advertiseSMR(*root)
 	if err != nil {
 		return fmt.Errorf("got bad SMR in get-smr: %v", err)
 	}
@@ -139,7 +139,7 @@ func (o *validReadOps) getSMR(ctx context.Context, prng *rand.Rand) error {
 // the map still returns the same SMR for this revision.
 func (o *validReadOps) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 	which := prng.Intn(smrCount)
-	smrRoot := o.gossipHub.previousSMR(which)
+	smrRoot := o.sharedState.previousSMR(which)
 	if smrRoot == nil {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", o.mc.MapID)
 		return errSkip{}
@@ -179,7 +179,7 @@ type invalidReadOps struct {
 	mapID        int64
 	client       trillian.TrillianMapClient
 	prevContents *testonly.VersionedMapContents // copies of earlier contents of the map
-	gossipHub    *gossipHub
+	sharedState  *sharedState
 }
 
 func (o *invalidReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
