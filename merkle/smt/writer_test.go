@@ -93,7 +93,7 @@ func TestWriterWrite(t *testing.T) {
 	for _, tc := range []struct {
 		desc     string
 		split    uint
-		acc      noopAccessor
+		acc      *testAccessor
 		upd      []NodeUpdate
 		wantRoot []byte
 		wantErr  string
@@ -114,12 +114,16 @@ func TestWriterWrite(t *testing.T) {
 		{desc: "unaligned", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
 		{desc: "dup", upd: []NodeUpdate{upd[0], upd[0]}, wantErr: "duplicate ID"},
 		{desc: "2-shards", split: 128, upd: []NodeUpdate{upd[0], upd[1]}, wantErr: "writing across"},
-		{desc: "get-err", acc: noopAccessor{get: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
-		{desc: "set-err", acc: noopAccessor{set: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
+		{desc: "get-err", acc: &testAccessor{get: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
+		{desc: "set-err", acc: &testAccessor{set: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := NewWriter(treeID, hasher, 256, tc.split)
-			rootUpd, err := w.Write(ctx, tc.upd, tc.acc)
+			acc := tc.acc
+			if acc == nil {
+				acc = &testAccessor{}
+			}
+			rootUpd, err := w.Write(ctx, tc.upd, acc)
 			gotErr := ""
 			if err != nil {
 				gotErr = err.Error()
@@ -161,6 +165,48 @@ func testWriterBigBatch(t testing.TB) {
 	}
 
 	w := NewWriter(treeID, hasher, 256, 8)
+	rootUpd := update(ctx, t, w, &testAccessor{}, upd)
+
+	// Calculated using Python code from the original Revocation Transparency
+	// doc: https://www.links.org/files/RevocationTransparency.pdf.
+	want := b64("Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA=")
+	if got := rootUpd.Hash; !bytes.Equal(got, want) {
+		t.Errorf("root mismatch: got %x, want %x", got, want)
+	}
+}
+
+func TestWriterBigBatchMultipleWrites(t *testing.T) {
+	if testing.Short() {
+		t.Skip("BigBatch test is not short")
+	}
+	ctx := context.Background()
+
+	const batchSize = 1024
+	const numBatches = 4
+	roots := [numBatches][]byte{
+		b64("7R5uvGy5MJ2Y8xrQr4/mnn3aPw39vYscghmg9KBJaKc="),
+		b64("VTrPStz/chupeOjzAYFIHGfhiMT8yN+v589jxWZO1F0="),
+		b64("nRvRV/NfC06rXGI5cKeTieyyp/69bHoMcVDs0AtZzus="),
+		b64("Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA="),
+	}
+
+	w := NewWriter(treeID, hasher, 256, 8)
+	acc := &testAccessor{h: make(map[tree.NodeID2][]byte), save: true}
+
+	for i := 0; i < numBatches; i++ {
+		upd := make([]NodeUpdate, 0, batchSize)
+		for j := 0; j < batchSize; j++ {
+			u := genUpd(fmt.Sprintf("key-%d-%d", i, j), fmt.Sprintf("value-%d-%d", i, j))
+			upd = append(upd, u)
+		}
+		rootUpd := update(ctx, t, w, acc, upd)
+		if got, want := rootUpd.Hash, roots[i]; !bytes.Equal(got, want) {
+			t.Errorf("%d: root mismatch: got %x, want %x", i, got, want)
+		}
+	}
+}
+
+func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor, upd []NodeUpdate) NodeUpdate {
 	shards, err := w.Split(upd)
 	if err != nil {
 		t.Fatalf("Split: %v", err)
@@ -169,11 +215,11 @@ func testWriterBigBatch(t testing.TB) {
 	var mu sync.Mutex
 	splitUpd := make([]NodeUpdate, 0, 256)
 
-	eg, _ := errgroup.WithContext(context.Background())
+	eg, _ := errgroup.WithContext(ctx)
 	for _, upd := range shards {
 		upd := upd
 		eg.Go(func() error {
-			rootUpd, err := w.Write(ctx, upd, noopAccessor{})
+			rootUpd, err := w.Write(ctx, upd, acc)
 			if err != nil {
 				return err
 			}
@@ -187,16 +233,11 @@ func testWriterBigBatch(t testing.TB) {
 		t.Fatalf("Wait: %v", err)
 	}
 
-	rootUpd, err := w.Write(ctx, splitUpd, noopAccessor{})
+	rootUpd, err := w.Write(ctx, splitUpd, acc)
 	if err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-
-	// Calculated using Python code.
-	want := b64("Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA=")
-	if got := rootUpd.Hash; !bytes.Equal(got, want) {
-		t.Errorf("root mismatch: got %x, want %x", got, want)
-	}
+	return rootUpd
 }
 
 // genUpd returns a NodeUpdate for the given key and value. The returned node
@@ -207,15 +248,42 @@ func genUpd(key, value string) NodeUpdate {
 	return NodeUpdate{ID: tree.NewNodeID2(string(key256[:]), 256), Hash: hash}
 }
 
-type noopAccessor struct {
-	get, set error
+// testAccessor implements NodeBatchAccessor for testing purposes.
+type testAccessor struct {
+	mu   sync.RWMutex // Guards the h map.
+	h    map[tree.NodeID2][]byte
+	save bool  // Persist node updates in this accessor.
+	get  error // The error returned by Get.
+	set  error // The error returned by Set.
 }
 
-func (n noopAccessor) Get(context.Context, []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
-	if err := n.get; err != nil {
+func (t *testAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
+	if err := t.get; err != nil {
 		return nil, err
+	} else if !t.save {
+		return nil, nil
 	}
-	return make(map[tree.NodeID2][]byte), nil
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	h := make(map[tree.NodeID2][]byte, len(ids))
+	for _, id := range ids {
+		if hash, ok := t.h[id]; ok {
+			h[id] = hash
+		}
+	}
+	return h, nil
 }
 
-func (n noopAccessor) Set(context.Context, []NodeUpdate) error { return n.set }
+func (t *testAccessor) Set(ctx context.Context, upd []NodeUpdate) error {
+	if err := t.set; err != nil {
+		return err
+	} else if !t.save {
+		return nil
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, u := range upd {
+		t.h[u.ID] = u.Hash
+	}
+	return nil
+}
