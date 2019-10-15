@@ -167,7 +167,8 @@ func testWriterBigBatch(t testing.TB) {
 	w := NewWriter(treeID, hasher, 256, 8)
 	rootUpd := update(ctx, t, w, &testAccessor{}, upd)
 
-	// Calculated using Python code.
+	// Calculated using Python code from the original Revocation Transparency
+	// doc: https://www.links.org/files/RevocationTransparency.pdf.
 	want := b64("Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA=")
 	if got := rootUpd.Hash; !bytes.Equal(got, want) {
 		t.Errorf("root mismatch: got %x, want %x", got, want)
@@ -186,7 +187,6 @@ func TestWriterBigBatchMultipleWrites(t *testing.T) {
 		b64("7R5uvGy5MJ2Y8xrQr4/mnn3aPw39vYscghmg9KBJaKc="),
 		b64("VTrPStz/chupeOjzAYFIHGfhiMT8yN+v589jxWZO1F0="),
 		b64("nRvRV/NfC06rXGI5cKeTieyyp/69bHoMcVDs0AtZzus="),
-		// Calculated using Python code.
 		b64("Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA="),
 	}
 
