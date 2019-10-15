@@ -74,7 +74,7 @@ func TestInitMap(t *testing.T) {
 		wantCode   codes.Code
 	}{
 		{desc: "init new map", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
-		{desc: "init new map, no err", getRootErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new map, no err", getRootErr: nil, wantInit: false, root: nil, wantCode: codes.AlreadyExists},
 		{desc: "init already initialised map", getRootErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -333,6 +333,42 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 				t.Errorf("GetSignedMapRootByRevision() got != want, diff:\n%v", diff)
 			}
 		})
+	}
+}
+
+func TestSetLeavesEmpty(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+
+	root := &trillian.SignedMapRoot{
+		MapRoot:   []byte("\000\001 \306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j\025\315\333#\364\266\341\026\000\000\000\000\000\000\000\000\000\000"),
+		Signature: []byte("0E\002!\000\301\332Z\324k\334\354\270n\023n\"\030\242rz;\310\"9\331 \325\375\205W\305\241\014\337Z\335\002 |VJ\026T\352l?\203\354\340\222\330#\273y22\354U\307_x\376\3771E\374\315h\371\307"),
+	}
+
+	fakeStorage := storage.NewMockMapStorage(ctrl)
+	adminStorage := fakeAdminStorageForMap(ctrl, 12345)
+	server := NewTrillianMapServer(extension.Registry{
+		MapStorage:   fakeStorage,
+		AdminStorage: adminStorage,
+	}, TrillianMapServerOptions{UseSingleTransaction: true})
+
+	mockTX := storage.NewMockMapTreeTX(ctrl)
+	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(root, nil)
+	mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+
+	fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+			return f(ctx, mockTX)
+		})
+
+	req := &trillian.SetMapLeavesRequest{
+		MapId:    12345,
+		Revision: 1,
+		Leaves:   nil,
+	}
+	if _, err := server.SetLeaves(ctx, req); err != nil {
+		t.Fatalf("SetLeaves: %v", err)
 	}
 }
 

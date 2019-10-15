@@ -309,8 +309,17 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "SetLeaves")
 	defer spanEnd()
-
 	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(req.MapId, 10))
+
+	// TODO(pavelkalinnikov): Factor out a CreateRevision RPC, and merge it with
+	// InitMap which creates the 0th revision.
+	if len(req.Leaves) == 0 {
+		newSMR, err := t.addRevision(ctx, req.MapId, req.Revision, req.Metadata)
+		if err != nil {
+			return nil, err
+		}
+		return &trillian.SetMapLeavesResponse{MapRoot: newSMR}, nil
+	}
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapWrite)
 	if err != nil {
@@ -502,42 +511,56 @@ func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64,
 func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "InitMap")
 	defer spanEnd()
-	tree, hasher, err := t.getTreeAndHasher(ctx, req.MapId, optsMapInit)
+	newSMR, err := t.addRevision(ctx, req.MapId, 0 /* rev */, nil /* meta */)
+	if err != nil {
+		return nil, err
+	}
+	return &trillian.InitMapResponse{Created: newSMR}, nil
+}
+
+// addRevision adds a new revision without changing the tree contents.
+func (t *TrillianMapServer) addRevision(ctx context.Context, treeID, rev int64, meta []byte) (*trillian.SignedMapRoot, error) {
+	tree, hasher, err := t.getTreeAndHasher(ctx, treeID, optsMapWrite)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	var rev0Root *trillian.SignedMapRoot
-	err = t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
-		// Check that the map actually needs initialising
-		latestRoot, err := tx.LatestSignedMapRoot(ctx)
-		if err != nil && err != storage.ErrTreeNeedsInit {
+	var newSMR *trillian.SignedMapRoot
+	if err := t.registry.MapStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
+		// Check that the map has an existing root, or needs initialising.
+		smr, err := tx.LatestSignedMapRoot(ctx)
+		if err != nil && (err != storage.ErrTreeNeedsInit || rev != 0) {
 			return status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
 		}
-		// Belt and braces check.
-		if latestRoot.GetMapRoot() != nil {
-			return status.Errorf(codes.AlreadyExists, "map is already initialised")
+
+		var hash []byte // The new root hash.
+		if rev == 0 {
+			if err == nil {
+				return status.Errorf(codes.AlreadyExists, "map is already initialised")
+			} // Otherwise it's ErrTreeNeedsInit.
+			hash = hasher.HashEmpty(tree.TreeId, nil, hasher.BitLen())
+		} else if mapRoot := smr.GetMapRoot(); mapRoot != nil {
+			var root types.MapRootV1
+			if err := root.UnmarshalBinary(mapRoot); err != nil {
+				return status.Errorf(codes.Internal, "UnmarshalBinary: %v", err)
+			}
+			if got, want := root.Revision, uint64(rev-1); got != want {
+				return status.Errorf(codes.FailedPrecondition, "can't write revision %d, latest is %d", rev, got)
+			}
+			hash = root.RootHash
+		} else {
+			return status.Errorf(codes.Internal, "LatestSignedMapRoot is nil")
 		}
 
-		rev0Root = nil
-
-		glog.V(2).Infof("%v: Need to init map root revision 0", tree.TreeId)
-		rootHash := hasher.HashEmpty(tree.TreeId, make([]byte, hasher.Size()), hasher.BitLen())
-		rev0Root, err = t.makeSignedMapRoot(ctx, tree, rootHash, 0 /*revision*/, nil /* metadata */)
-		if err != nil {
-			return fmt.Errorf("makeSignedMapRoot(): %v", err)
+		if newSMR, err = t.makeSignedMapRoot(ctx, tree, hash, rev, meta); err != nil {
+			return status.Errorf(codes.Internal, "makeSignedMapRoot(): %v", err)
 		}
-
-		return tx.StoreSignedMapRoot(ctx, rev0Root)
-	})
-	if err != nil {
+		return tx.StoreSignedMapRoot(ctx, newSMR)
+	}); err != nil {
 		return nil, err
 	}
-
-	return &trillian.InitMapResponse{
-		Created: rev0Root,
-	}, nil
+	return newSMR, nil
 }
 
 func (t *TrillianMapServer) closeAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyMapTreeTX, op string) {
