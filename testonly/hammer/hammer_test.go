@@ -61,7 +61,7 @@ func TestRetryExposesDeadlineError(t *testing.T) {
 		},
 	}
 
-	seed := time.Now().UTC().UnixNano() & 0xFFFFFFFF
+	seed := int64(99)
 	cfg := MapConfig{
 		MapID:         0, // ephemeral tree
 		Client:        env.Map,
@@ -112,7 +112,7 @@ func TestInProcessMapHammer(t *testing.T) {
 		},
 	}
 
-	seed := time.Now().UTC().UnixNano() & 0xFFFFFFFF
+	seed := int64(99)
 	cfg := MapConfig{
 		MapID:         0, // ephemeral tree
 		Client:        env.Map,
