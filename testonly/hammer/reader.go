@@ -92,6 +92,10 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 		if err != nil {
 			return fmt.Errorf("failed to GetAndVerifyMapLeaves: %v", err)
 		}
+		err = o.gossipHub.advertiseSMR(*root)
+		if err != nil {
+			return err
+		}
 	} else {
 		leaves, root, err = o.mc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices)
 		if err != nil {
