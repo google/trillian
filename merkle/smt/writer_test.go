@@ -258,8 +258,10 @@ type testAccessor struct {
 }
 
 func (t *testAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
-	if err := t.get; err != nil || !t.save {
+	if err := t.get; err != nil {
 		return nil, err
+	} else if !t.save {
+		return nil, nil
 	}
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -273,8 +275,10 @@ func (t *testAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.No
 }
 
 func (t *testAccessor) Set(ctx context.Context, upd []NodeUpdate) error {
-	if err := t.set; err != nil || !t.save {
+	if err := t.set; err != nil {
 		return err
+	} else if !t.save {
+		return nil
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
