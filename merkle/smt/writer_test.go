@@ -93,7 +93,7 @@ func TestWriterWrite(t *testing.T) {
 	for _, tc := range []struct {
 		desc     string
 		split    uint
-		acc      testAccessor
+		acc      *testAccessor
 		upd      []NodeUpdate
 		wantRoot []byte
 		wantErr  string
@@ -114,12 +114,16 @@ func TestWriterWrite(t *testing.T) {
 		{desc: "unaligned", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
 		{desc: "dup", upd: []NodeUpdate{upd[0], upd[0]}, wantErr: "duplicate ID"},
 		{desc: "2-shards", split: 128, upd: []NodeUpdate{upd[0], upd[1]}, wantErr: "writing across"},
-		{desc: "get-err", acc: testAccessor{get: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
-		{desc: "set-err", acc: testAccessor{set: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
+		{desc: "get-err", acc: &testAccessor{get: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
+		{desc: "set-err", acc: &testAccessor{set: errors.New("nope")}, upd: []NodeUpdate{upd[0]}, wantErr: "nope"},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := NewWriter(treeID, hasher, 256, tc.split)
-			rootUpd, err := w.Write(ctx, tc.upd, &tc.acc)
+			acc := tc.acc
+			if acc == nil {
+				acc = &testAccessor{}
+			}
+			rootUpd, err := w.Write(ctx, tc.upd, acc)
 			gotErr := ""
 			if err != nil {
 				gotErr = err.Error()
