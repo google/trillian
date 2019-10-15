@@ -675,12 +675,10 @@ leafloop:
 		ExpectRevision: int64(writeRev),
 	}
 
-	err := s.gossipHub.proposeLeaves(writeRev, leaves)
-	if err != nil {
+	if err := s.gossipHub.proposeLeaves(writeRev, leaves); err != nil {
 		return err
 	}
-	_, err = s.cfg.Write.WriteLeaves(ctx, &req)
-	if err != nil {
+	if _, err := s.cfg.Write.WriteLeaves(ctx, &req); err != nil {
 		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(leaves), err)
 	}
 

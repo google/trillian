@@ -34,7 +34,7 @@ const (
 // to be shared between different workers running in the same process. The same
 // interface could be implemented by something which shared these details with
 // a remote process via gRPC if that was desirable.
-// The goal is thatVersionedMapContents can be subsumed into this class - there
+// The goal is that VersionedMapContents can be subsumed into this class - there
 // should be no reason to address it directly. For now, this class coordinates
 // writes, reads, and local state such that VersionedMapContents always contains
 // revisions which are no further ahead than the most recent SMR published by the
@@ -69,10 +69,6 @@ func (g *gossipHub) getLastReadRev() (rev uint64, found bool) {
 // will be available to readers only once advertiseSMR has been called with a root
 // that is >= the revision of this write.
 func (g *gossipHub) proposeLeaves(rev uint64, leaves []*trillian.MapLeaf) error {
-	if head, found := g.getLastReadRev(); found && rev <= head {
-		return fmt.Errorf("Cannot create revision %d, latest SMR is %d", rev, head)
-	}
-
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
