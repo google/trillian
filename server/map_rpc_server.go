@@ -381,7 +381,7 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 		return 0, err
 	}
 	if writeRev != assertRev {
-		return 0, status.Errorf(codes.FailedPrecondition, "can't write to revision %v: only %d", assertRev, writeRev)
+		return 0, status.Errorf(codes.FailedPrecondition, "can't write to revision %v", assertRev)
 	}
 	if readRev, err := tx.ReadRevision(ctx); err != nil {
 		return 0, err
