@@ -51,7 +51,7 @@ func TestIsHealthy(t *testing.T) {
 		fakeStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
 
 		server := NewTrillianMapServer(extension.Registry{
-			AdminStorage: fakeAdminStorageForMap(ctrl, 1, mapID1),
+			AdminStorage: fakeAdminStorageForMap(ctrl, mapID1),
 			MapStorage:   fakeStorage,
 		}, opts)
 
@@ -98,7 +98,7 @@ func TestInitMap(t *testing.T) {
 			}
 
 			server := NewTrillianMapServer(extension.Registry{
-				AdminStorage: fakeAdminStorageForMap(ctrl, 2, mapID1),
+				AdminStorage: fakeAdminStorageForMap(ctrl, mapID1),
 				MapStorage:   fakeStorage,
 			}, TrillianMapServerOptions{})
 
@@ -190,7 +190,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			adminStorage := fakeAdminStorageForMap(ctrl, 2, mapID1)
+			adminStorage := fakeAdminStorageForMap(ctrl, mapID1)
 			fakeStorage := storage.NewMockMapStorage(ctrl)
 			mockTX := storage.NewMockMapTreeTX(ctrl)
 
@@ -234,7 +234,7 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 	ctx := context.Background()
 
 	fakeStorage := storage.NewMockMapStorage(ctrl)
-	adminStorage := fakeAdminStorageForMap(ctrl, 2, 12345)
+	adminStorage := fakeAdminStorageForMap(ctrl, 12345)
 	mockTX := storage.NewMockMapTreeTX(ctrl)
 	server := NewTrillianMapServer(extension.Registry{
 		MapStorage:   fakeStorage,
@@ -298,7 +298,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			adminStorage := fakeAdminStorageForMap(ctrl, 1, mapID1)
+			adminStorage := fakeAdminStorageForMap(ctrl, mapID1)
 			fakeStorage := storage.NewMockMapStorage(ctrl)
 			mockTX := storage.NewMockMapTreeTX(ctrl)
 
@@ -336,7 +336,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	}
 }
 
-func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) storage.AdminStorage {
+func fakeAdminStorageForMap(ctrl *gomock.Controller, treeID int64) storage.AdminStorage {
 	tree := proto.Clone(stestonly.MapTree).(*trillian.Tree)
 	tree.TreeId = treeID
 
@@ -345,9 +345,9 @@ func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) st
 		ReadOnlyTX: []storage.ReadOnlyAdminTX{adminTX},
 	}
 
-	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(times).Return(tree, nil)
-	adminTX.EXPECT().Close().MaxTimes(times).Return(nil)
-	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(1).Return(tree, nil)
+	adminTX.EXPECT().Close().MaxTimes(1).Return(nil)
+	adminTX.EXPECT().Commit().MaxTimes(1).Return(nil)
 
 	return adminStorage
 }
