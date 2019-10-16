@@ -576,8 +576,7 @@ type SetMapLeavesRequest struct {
 	Metadata []byte     `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// The map revision to associate the leaves with. The request will fail if
 	// this revision already exists, does not match the current write revision, or
-	// is negative. If revision = 0 then the leaves will be written to the current
-	// write revision.
+	// is not positive. Note that revision = 0 is reserved for the empty tree.
 	Revision             int64    `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -688,8 +687,7 @@ type WriteMapLeavesRequest struct {
 	Metadata []byte `protobuf:"bytes,3,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// The map revision to associate the leaves with. The request will fail if
 	// this revision already exists, does not match the current write revision, or
-	// is negative. If revision = 0 then the leaves will be written to the current
-	// write revision.
+	// is not positive. Note that revision = 0 is reserved for the empty tree.
 	ExpectRevision       int64    `protobuf:"varint,4,opt,name=expect_revision,json=expectRevision,proto3" json:"expect_revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -1103,12 +1101,12 @@ type TrillianMapClient interface {
 	GetLeafByRevision(ctx context.Context, in *GetMapLeafByRevisionRequest, opts ...grpc.CallOption) (*GetMapLeafResponse, error)
 	GetLeaves(ctx context.Context, in *GetMapLeavesRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
 	GetLeavesByRevision(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
-	// Deprecated: this should only be used be writers, which should migrate
+	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#GetLeavesByRevision
 	GetLeavesByRevisionNoProof(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(ctx context.Context, in *GetLastInRangeByRevisionRequest, opts ...grpc.CallOption) (*MapLeaf, error)
-	// Deprecated: this should only be used be writers, which should migrate
+	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#WriteLeaves
 	SetLeaves(ctx context.Context, in *SetMapLeavesRequest, opts ...grpc.CallOption) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(ctx context.Context, in *GetSignedMapRootRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
@@ -1225,12 +1223,12 @@ type TrillianMapServer interface {
 	GetLeafByRevision(context.Context, *GetMapLeafByRevisionRequest) (*GetMapLeafResponse, error)
 	GetLeaves(context.Context, *GetMapLeavesRequest) (*GetMapLeavesResponse, error)
 	GetLeavesByRevision(context.Context, *GetMapLeavesByRevisionRequest) (*GetMapLeavesResponse, error)
-	// Deprecated: this should only be used be writers, which should migrate
+	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#GetLeavesByRevision
 	GetLeavesByRevisionNoProof(context.Context, *GetMapLeavesByRevisionRequest) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(context.Context, *GetLastInRangeByRevisionRequest) (*MapLeaf, error)
-	// Deprecated: this should only be used be writers, which should migrate
+	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#WriteLeaves
 	SetLeaves(context.Context, *SetMapLeavesRequest) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(context.Context, *GetSignedMapRootRequest) (*GetSignedMapRootResponse, error)

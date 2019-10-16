@@ -1031,7 +1031,7 @@ MapLeaf represents the data behind Map leaves.
 | map_id | [int64](#int64) |  |  |
 | leaves | [MapLeaf](#trillian.MapLeaf) | repeated | The leaves being set must have unique Index values within the request. |
 | metadata | [bytes](#bytes) |  |  |
-| revision | [int64](#int64) |  | The map revision to associate the leaves with. The request will fail if this revision already exists, does not match the current write revision, or is negative. If revision = 0 then the leaves will be written to the current write revision. |
+| revision | [int64](#int64) |  | The map revision to associate the leaves with. The request will fail if this revision already exists, does not match the current write revision, or is not positive. Note that revision = 0 is reserved for the empty tree. |
 
 
 
@@ -1064,7 +1064,7 @@ MapLeaf represents the data behind Map leaves.
 | map_id | [int64](#int64) |  |  |
 | leaves | [MapLeaf](#trillian.MapLeaf) | repeated | The leaves being set must have unique Index values within the request. |
 | metadata | [bytes](#bytes) |  | Metadata that the Map should associate with the new Map root after incorporating the leaf changes. The metadata will be reflected in the Map Root published for this revision. Map personalities should use metadata to persist any state needed later to continue mapping from an external data source. |
-| expect_revision | [int64](#int64) |  | The map revision to associate the leaves with. The request will fail if this revision already exists, does not match the current write revision, or is negative. If revision = 0 then the leaves will be written to the current write revision. |
+| expect_revision | [int64](#int64) |  | The map revision to associate the leaves with. The request will fail if this revision already exists, does not match the current write revision, or is not positive. Note that revision = 0 is reserved for the empty tree. |
 
 
 

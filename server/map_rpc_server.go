@@ -369,13 +369,9 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 }
 
 // getWriteRevision returns the revision that this transaction will be written
-// at, and asserts that it correctly corresponds to the read revision and the
-// requested one. Only one transaction can be committed for a given revision,
-// thus this transaction will compete with any other transactions with the same
-// write revision.
-//
-// Returns an error if assertRev is non-zero and does not match the write
-// revision, or the read revision + 1 does not match it.
+// at, and asserts that it corresponds to assertRev and the read revision + 1.
+// Only one transaction can be committed for a given revision, so this one will
+// compete with any other transactions with the same write revision.
 //
 // TODO(pavelkalinnikov): One of Read/WriteRevision storage calls should be
 // gone really, because the +1 relation between them is fixed.
@@ -384,7 +380,7 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 	if err != nil {
 		return 0, err
 	}
-	if assertRev != 0 && writeRev != assertRev {
+	if writeRev != assertRev {
 		return 0, status.Errorf(codes.FailedPrecondition, "can't write to revision %v", assertRev)
 	}
 	if readRev, err := tx.ReadRevision(ctx); err != nil {
