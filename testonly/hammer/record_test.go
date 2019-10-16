@@ -53,7 +53,7 @@ func TestSharedState_advertiseSMR(t *testing.T) {
 			desc:      "roots out of order",
 			seq:       []types.MapRootV1{r2, r1},
 			writeRevs: 2,
-			wantErr:   true,
+			wantErr:   false,
 		},
 		{
 			desc: "same revision with same contents",
@@ -61,7 +61,7 @@ func TestSharedState_advertiseSMR(t *testing.T) {
 		},
 		{
 			desc:    "same revision but different contents",
-			seq:     []types.MapRootV1{r0, {Revision: 0, RootHash: testonly.MustHexDecode("FFFF")}},
+			seq:     []types.MapRootV1{r0, r1, r2, {Revision: 1, RootHash: testonly.MustHexDecode("FFFF")}},
 			wantErr: true,
 		},
 	} {
