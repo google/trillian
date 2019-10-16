@@ -7,8 +7,8 @@ Not yet released; provisionally v1.3.3 (may change).
 ### Map Changes
 
 The verifiable map is still experimental. APIs, such as SetLeaves, have been
-deprecated and will be deleted in the near future. The semantic of WriteLeaves
-has become stricter: now it always requires the caller to specify the write
+deprecated and will be deleted in the near future. The semantics of WriteLeaves
+have become stricter: now it always requires the caller to specify the write
 revision. These changes will not affect the Trillian module semantic version due
 to the experimental status of the Map.
 
