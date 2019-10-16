@@ -30,19 +30,19 @@ const (
 	smrCount = 30
 )
 
-// sharedState allows details of what has been written to and read from the Map
-// to be shared between different workers running in the same process. The same
-// interface could be implemented by something which shared these details with
-// a remote process via gRPC if that was desirable.
+// sharedState shares details of what has been written to and read from the Map
+// between different workers running in the same process. The same interface
+// could be implemented by something which shared these details with a remote
+// process via gRPC if that was desirable.
 // The goal is that VersionedMapContents can be subsumed into this class - there
 // should be no reason to address it directly. For now, this class coordinates
 // writes, reads, and local state such that VersionedMapContents always contains
-// revisions which are no further ahead than the most recent SMR published by the
-// Map.
+// revisions which are no further ahead than the most recent published SMR.
 type sharedState struct {
 	contents *testonly.VersionedMapContents
 
-	mu            sync.RWMutex
+	mu sync.RWMutex // Guards everything below.
+
 	pendingWrites map[uint64][]*trillian.MapLeaf
 
 	// SMRs are arranged from later to earlier (so [0] is the most recent), and the
@@ -71,7 +71,6 @@ func (g *sharedState) getLastReadRev() (rev uint64, found bool) {
 func (g *sharedState) proposeLeaves(rev uint64, leaves []*trillian.MapLeaf) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-
 	g.pendingWrites[rev] = leaves
 	return nil
 }
@@ -85,10 +84,10 @@ func (g *sharedState) advertiseSMR(smr types.MapRootV1) error {
 	var prevRev uint64 // The last revision committed to contents.
 	if g.smrs[0] != nil {
 		if g.smrs[0].Revision > smr.Revision {
-			return fmt.Errorf("pushSMR called with stale root. Received revision %d, already had revision %d", smr.Revision, g.smrs[0].Revision)
+			return fmt.Errorf("stale root: got revision %d, already had %d", smr.Revision, g.smrs[0].Revision)
 		} else if g.smrs[0].Revision == smr.Revision {
 			if !reflect.DeepEqual(g.smrs[0], &smr) {
-				return fmt.Errorf("pushSMR witnessed different SMRs for revision=%d. Had %+v, received %+v", smr.Revision, g.smrs[0], smr)
+				return fmt.Errorf("SMR mismatch at revision %d: had %+v, got %+v", smr.Revision, g.smrs[0], smr)
 			}
 			// Roots are equal, so no need to push on the same root twice
 			return nil
@@ -111,7 +110,7 @@ func (g *sharedState) advertiseSMR(smr types.MapRootV1) error {
 			}
 			delete(g.pendingWrites, i)
 		} else {
-			return fmt.Errorf("Found SMR(r=%d), but failed to find pending write for r=%d", smr.Revision, i)
+			return fmt.Errorf("found SMR(r=%d), but failed to find pending write for r=%d", smr.Revision, i)
 		}
 	}
 	return nil

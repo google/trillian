@@ -88,17 +88,14 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 	var leaves []*trillian.MapLeaf
 	var root *types.MapRootV1
 	if latest {
-		leaves, root, err = o.mc.GetAndVerifyMapLeaves(ctx, indices)
-		if err != nil {
+		if leaves, root, err = o.mc.GetAndVerifyMapLeaves(ctx, indices); err != nil {
 			return fmt.Errorf("failed to GetAndVerifyMapLeaves: %v", err)
 		}
-		err = o.sharedState.advertiseSMR(*root)
-		if err != nil {
+		if err := o.sharedState.advertiseSMR(*root); err != nil {
 			return err
 		}
 	} else {
-		leaves, root, err = o.mc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices)
-		if err != nil {
+		if leaves, root, err = o.mc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices); err != nil {
 			return fmt.Errorf("failed to GetAndVerifyMapLeavesByRevision(%d): %v", contents.Rev, err)
 		}
 	}
@@ -126,8 +123,7 @@ func (o *validReadOps) getSMR(ctx context.Context, prng *rand.Rand) error {
 		return fmt.Errorf("failed to get-smr: %v", err)
 	}
 
-	err = o.sharedState.advertiseSMR(*root)
-	if err != nil {
+	if err := o.sharedState.advertiseSMR(*root); err != nil {
 		return fmt.Errorf("got bad SMR in get-smr: %v", err)
 	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", o.mc.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)

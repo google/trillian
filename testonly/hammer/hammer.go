@@ -577,11 +577,9 @@ func (s *hammerState) String() string {
 		totalInvalidReqs += int(invalidReqs.Value(s.label(), string(ep)))
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
-	var revStr string
+	revStr := "N/A"
 	if latestRev, found := s.sharedState.getLastReadRev(); found {
 		revStr = strconv.FormatUint(latestRev, 10)
-	} else {
-		revStr = "N/A"
 	}
 	return fmt.Sprintf("%d: lastSMR.rev=%v ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, revStr, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
@@ -679,7 +677,7 @@ leafloop:
 		return err
 	}
 	if _, err := s.cfg.Write.WriteLeaves(ctx, &req); err != nil {
-		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(leaves), err)
+		return fmt.Errorf("failed to WriteLeaves(count=%d): %v", len(leaves), err)
 	}
 
 	glog.V(2).Infof("%d: set %d leaves, rev=%d", s.cfg.MapID, len(leaves), writeRev)
