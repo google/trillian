@@ -146,8 +146,9 @@ func TestGetLeavesAtRevision(t *testing.T) {
 				LeafValue: []byte("A"),
 			},
 		},
+		ExpectRevision: 1,
 	}); err != nil {
-		t.Fatalf("SetLeaves(): %v", err)
+		t.Fatalf("WriteLeaves(): %v", err)
 	}
 
 	for _, tc := range []struct {

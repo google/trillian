@@ -264,10 +264,11 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 				if err != nil {
 					t.Fatalf("newTreeWithHasher(%v): %v", hashStrategy, err)
 				}
-				for _, batch := range tc.set {
+				for i, batch := range tc.set {
 					if _, err := twrite.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
-						MapId:  tree.TreeId,
-						Leaves: batch,
+						MapId:          tree.TreeId,
+						Leaves:         batch,
+						ExpectRevision: int64(1 + i),
 					}); err != nil {
 						t.Fatalf("WriteLeaves(): %v", err)
 					}
@@ -304,8 +305,8 @@ func RunWriteLeavesRevision(ctx context.Context, t *testing.T, tadmin trillian.T
 		{
 			desc: "no_revision",
 			sets: []batch{
-				{}, // Advance revision without changing anything.
-				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}},
+				{rev: 1}, // Advance revision without changing anything.
+				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 2},
 			},
 			gets: []batch{
 				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: nil}}, rev: 0},
@@ -341,12 +342,12 @@ func RunWriteLeavesRevision(ctx context.Context, t *testing.T, tadmin trillian.T
 			},
 		},
 		{
-			desc: "use_revision_and_no_revision",
+			desc: "use_revision_2",
 			sets: []batch{
 				{leaves: []*trillian.MapLeaf{{Index: index1, LeafValue: []byte("A")}}, rev: 1},
-				{leaves: []*trillian.MapLeaf{{Index: index2, LeafValue: []byte("B")}}},
+				{leaves: []*trillian.MapLeaf{{Index: index2, LeafValue: []byte("B")}}, rev: 2},
 				{leaves: []*trillian.MapLeaf{{Index: index3, LeafValue: []byte("C")}}, rev: 3},
-				{leaves: []*trillian.MapLeaf{{Index: index2, LeafValue: []byte("BB")}}},
+				{leaves: []*trillian.MapLeaf{{Index: index2, LeafValue: []byte("BB")}}, rev: 4},
 			},
 			gets: []batch{
 				{
@@ -467,10 +468,11 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 					t.Fatalf("NewMapVerifierFromTree(): %v", err)
 				}
 
-				for _, batch := range tc.set {
+				for i, batch := range tc.set {
 					_, err := twrite.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
-						MapId:  tree.TreeId,
-						Leaves: batch,
+						MapId:          tree.TreeId,
+						Leaves:         batch,
+						ExpectRevision: int64(1 + i),
 					})
 					if err != nil {
 						t.Fatalf("WriteLeaves(): %v", err)
@@ -555,6 +557,7 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 					Metadata: testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{
 						HighestFullyCompletedSeq: 0xcafe,
 					}),
+					ExpectRevision: 1,
 				}); err != nil {
 					t.Fatalf("WriteLeaves(): %v", err)
 				}
@@ -753,10 +756,11 @@ func writeBatch(ctx context.Context, t *testing.T, _ trillian.TrillianMapClient,
 	}
 
 	// Write some data in batches
-	for _, b := range leafBatch {
+	for i, b := range leafBatch {
 		if _, err := twrite.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
-			MapId:  tree.TreeId,
-			Leaves: b,
+			MapId:          tree.TreeId,
+			Leaves:         b,
+			ExpectRevision: int64(1 + i),
 		}); err != nil {
 			t.Fatalf("WriteLeaves(): %v", err)
 		}
