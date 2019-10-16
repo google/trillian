@@ -473,12 +473,10 @@ type hammerState struct {
 	cfg            *MapConfig
 	validReadOps   *validReadOps
 	invalidReadOps *invalidReadOps
+	sharedState    *sharedState
+	head           *testonly.MapContents // TODO(mhutchinson): This should move to writeWorker.
 
 	start time.Time
-
-	// copies of earlier contents of the map
-	prevContents *testonly.VersionedMapContents
-	smrs         *smrStash
 
 	mu sync.RWMutex // Protects everything below
 
@@ -519,28 +517,26 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		cfg.OperationDeadline = 60 * time.Second
 	}
 
-	var prevContents testonly.VersionedMapContents
-	var smrs smrStash
+	sharedState := newSharedState()
 	validReadOps := validReadOps{
 		mc:           mc,
 		extraSize:    cfg.ExtraSize,
 		minLeaves:    cfg.MinLeaves,
 		maxLeaves:    cfg.MaxLeaves,
-		prevContents: &prevContents,
-		smrs:         &smrs,
+		prevContents: sharedState.contents,
+		sharedState:  sharedState,
 	}
 	invalidReadOps := invalidReadOps{
 		mapID:        cfg.MapID,
 		client:       cfg.Client,
-		prevContents: &prevContents,
-		smrs:         &smrs,
+		prevContents: sharedState.contents,
+		sharedState:  sharedState,
 	}
 
 	return &hammerState{
 		cfg:            cfg,
 		start:          time.Now(),
-		prevContents:   &prevContents,
-		smrs:           &smrs,
+		sharedState:    sharedState,
 		validReadOps:   &validReadOps,
 		invalidReadOps: &invalidReadOps,
 	}, nil
@@ -581,11 +577,11 @@ func (s *hammerState) String() string {
 		totalInvalidReqs += int(invalidReqs.Value(s.label(), string(ep)))
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
-	var latestRev int64 = -1
-	if smr := s.smrs.previousSMR(0); smr != nil {
-		latestRev = int64(smr.Revision)
+	revStr := "N/A"
+	if latestRev, found := s.sharedState.getLastReadRev(); found {
+		revStr = strconv.FormatUint(latestRev, 10)
 	}
-	return fmt.Sprintf("%d: lastSMR.rev=%d ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, latestRev, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
+	return fmt.Sprintf("%d: lastSMR.rev=%v ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, revStr, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
 
 func pickIntInRange(min, max int, prng *rand.Rand) int {
@@ -628,15 +624,14 @@ func (s *hammerState) setLeaves(ctx context.Context, prng *rand.Rand) error {
 		n = 1
 	}
 	leaves := make([]*trillian.MapLeaf, 0, n)
-	contents := s.prevContents.LastCopy()
 	rev := int64(0)
-	if contents != nil {
-		rev = contents.Rev
+	if s.head != nil {
+		rev = s.head.Rev
 	}
 leafloop:
 	for i := 0; i < n; i++ {
 		choice := choices[prng.Intn(len(choices))]
-		if contents.Empty() {
+		if s.head.Empty() {
 			choice = CreateLeaf
 		}
 		switch choice {
@@ -650,7 +645,7 @@ leafloop:
 			})
 			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, key, string(value))
 		case UpdateLeaf, DeleteLeaf:
-			key := contents.PickKey(prng)
+			key := s.head.PickKey(prng)
 			// Not allowed to have the same key more than once in the same request
 			for _, leaf := range leaves {
 				if bytes.Equal(leaf.Index, key) {
@@ -677,16 +672,16 @@ leafloop:
 		Metadata:       metadataForRev(writeRev),
 		ExpectRevision: int64(writeRev),
 	}
-	_, err := s.cfg.Write.WriteLeaves(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(leaves), err)
-	}
 
-	_, err = s.prevContents.UpdateContentsWith(writeRev, leaves)
-	if err != nil {
+	if err := s.sharedState.proposeLeaves(writeRev, leaves); err != nil {
 		return err
 	}
+	if _, err := s.cfg.Write.WriteLeaves(ctx, &req); err != nil {
+		return fmt.Errorf("failed to WriteLeaves(count=%d): %v", len(leaves), err)
+	}
+
 	glog.V(2).Infof("%d: set %d leaves, rev=%d", s.cfg.MapID, len(leaves), writeRev)
+	s.head = s.head.UpdatedWith(writeRev, leaves)
 	return nil
 }
 
@@ -697,8 +692,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 	value := []byte("value-for-invalid-req")
 
 	choice := choices[prng.Intn(len(choices))]
-	contents := s.prevContents.LastCopy()
-	if contents.Empty() {
+	if s.head.Empty() {
 		choice = MalformedKey
 	}
 	switch choice {
@@ -706,7 +700,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 		key := testonly.TransparentHash("..invalid-size")
 		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
 	case DuplicateKey:
-		key := contents.PickKey(prng)
+		key := s.head.PickKey(prng)
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 	}

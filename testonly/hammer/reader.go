@@ -36,7 +36,7 @@ type validReadOps struct {
 	extraSize            uint
 	minLeaves, maxLeaves int
 	prevContents         *testonly.VersionedMapContents // copies of earlier contents of the map
-	smrs                 *smrStash
+	sharedState          *sharedState
 }
 
 func (o *validReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
@@ -60,6 +60,8 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 	} else {
 		contents = o.prevContents.PickCopy(prng)
 	}
+
+	glog.V(2).Infof("%d: doGetLeaves(%v) for revision %d", o.mc.MapID, latest, contents.Rev)
 
 	n := pickIntInRange(o.minLeaves, o.maxLeaves, prng) // can be zero
 	indexMap := make(map[string]bool)
@@ -86,13 +88,14 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 	var leaves []*trillian.MapLeaf
 	var root *types.MapRootV1
 	if latest {
-		leaves, root, err = o.mc.GetAndVerifyMapLeaves(ctx, indices)
-		if err != nil {
+		if leaves, root, err = o.mc.GetAndVerifyMapLeaves(ctx, indices); err != nil {
 			return fmt.Errorf("failed to GetAndVerifyMapLeaves: %v", err)
 		}
+		if err := o.sharedState.advertiseSMR(*root); err != nil {
+			return err
+		}
 	} else {
-		leaves, root, err = o.mc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices)
-		if err != nil {
+		if leaves, root, err = o.mc.GetAndVerifyMapLeavesByRevision(ctx, contents.Rev, indices); err != nil {
 			return fmt.Errorf("failed to GetAndVerifyMapLeavesByRevision(%d): %v", contents.Rev, err)
 		}
 	}
@@ -120,8 +123,7 @@ func (o *validReadOps) getSMR(ctx context.Context, prng *rand.Rand) error {
 		return fmt.Errorf("failed to get-smr: %v", err)
 	}
 
-	err = o.smrs.pushSMR(*root)
-	if err != nil {
+	if err := o.sharedState.advertiseSMR(*root); err != nil {
 		return fmt.Errorf("got bad SMR in get-smr: %v", err)
 	}
 	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", o.mc.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
@@ -133,7 +135,7 @@ func (o *validReadOps) getSMR(ctx context.Context, prng *rand.Rand) error {
 // the map still returns the same SMR for this revision.
 func (o *validReadOps) getSMRRev(ctx context.Context, prng *rand.Rand) error {
 	which := prng.Intn(smrCount)
-	smrRoot := o.smrs.previousSMR(which)
+	smrRoot := o.sharedState.previousSMR(which)
 	if smrRoot == nil {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", o.mc.MapID)
 		return errSkip{}
@@ -173,7 +175,7 @@ type invalidReadOps struct {
 	mapID        int64
 	client       trillian.TrillianMapClient
 	prevContents *testonly.VersionedMapContents // copies of earlier contents of the map
-	smrs         *smrStash
+	sharedState  *sharedState
 }
 
 func (o *invalidReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
