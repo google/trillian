@@ -129,8 +129,7 @@ message SetMapLeavesRequest {
   bytes metadata = 5;
   // The map revision to associate the leaves with. The request will fail if
   // this revision already exists, does not match the current write revision, or
-  // is negative. If revision = 0 then the leaves will be written to the current
-  // write revision.
+  // is not positive. Note that revision = 0 is reserved for the empty tree.
   int64 revision = 6;
 }
 
@@ -150,8 +149,7 @@ message WriteMapLeavesRequest {
   bytes metadata = 3;
   // The map revision to associate the leaves with. The request will fail if
   // this revision already exists, does not match the current write revision, or
-  // is negative. If revision = 0 then the leaves will be written to the current
-  // write revision.
+  // is not positive. Note that revision = 0 is reserved for the empty tree.
   int64 expect_revision = 4;
 }
 
