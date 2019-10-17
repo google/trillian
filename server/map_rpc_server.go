@@ -308,6 +308,9 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "SetLeaves")
 	defer spanEnd()
+	if req.Revision <= 0 {
+		return nil, status.Error(codes.FailedPrecondition, "revision must be > 0")
+	}
 	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(req.MapId, 10))
 
 	// TODO(pavelkalinnikov): Factor out a CreateRevision RPC, and merge it with
@@ -394,7 +397,7 @@ func (t *TrillianMapServer) getWriteRevision(ctx context.Context, tree *trillian
 	if readRev, err := tx.ReadRevision(ctx); err != nil {
 		return 0, err
 	} else if readRev+1 != writeRev {
-		return 0, status.Errorf(codes.Internal, "read/write revisions are not consecutive")
+		return 0, status.Error(codes.Internal, "read/write revisions are not consecutive")
 	}
 	return writeRev, nil
 }
@@ -536,7 +539,7 @@ func (t *TrillianMapServer) addRevision(ctx context.Context, treeID, rev int64, 
 		var hash []byte // The new root hash.
 		if rev == 0 {
 			if err == nil {
-				return status.Errorf(codes.AlreadyExists, "map is already initialised")
+				return status.Error(codes.AlreadyExists, "map is already initialised")
 			} // Otherwise it's ErrTreeNeedsInit.
 			hash = hasher.HashEmpty(tree.TreeId, nil, hasher.BitLen())
 		} else if mapRoot := smr.GetMapRoot(); mapRoot != nil {
@@ -549,7 +552,7 @@ func (t *TrillianMapServer) addRevision(ctx context.Context, treeID, rev int64, 
 			}
 			hash = root.RootHash
 		} else {
-			return status.Errorf(codes.Internal, "LatestSignedMapRoot is nil")
+			return status.Error(codes.Internal, "LatestSignedMapRoot is nil")
 		}
 
 		if newSMR, err = t.makeSignedMapRoot(ctx, tree, hash, rev, meta); err != nil {
