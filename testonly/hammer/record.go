@@ -84,7 +84,8 @@ func (g *sharedState) advertiseSMR(smr types.MapRootV1) error {
 		if g.smrs[0] == nil || g.smrs[0].Revision < smr.Revision {
 			return true, nil
 		}
-		pos := sort.Search(smrCount, func(i int) bool {
+		// Search to smrCount-1 so that pos will always be a valid index into the array.
+		pos := sort.Search(smrCount-1, func(i int) bool {
 			return g.smrs[i] == nil || g.smrs[i].Revision <= smr.Revision
 		})
 		if known := g.smrs[pos]; known != nil && known.Revision == smr.Revision && !reflect.DeepEqual(known, &smr) {
