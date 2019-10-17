@@ -60,9 +60,10 @@ func TestSharedState_advertiseSMR(t *testing.T) {
 			seq:  []types.MapRootV1{r0, r0},
 		},
 		{
-			desc:    "same revision but different contents",
-			seq:     []types.MapRootV1{r0, r1, r2, {Revision: 1, RootHash: testonly.MustHexDecode("FFFF")}},
-			wantErr: true,
+			desc:      "same revision but different contents",
+			seq:       []types.MapRootV1{r0, r1, r2, {Revision: 1, RootHash: testonly.MustHexDecode("FFFF")}},
+			writeRevs: 2,
+			wantErr:   true,
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {

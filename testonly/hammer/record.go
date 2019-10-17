@@ -17,6 +17,7 @@ package hammer
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 
 	"github.com/golang/glog"
@@ -83,13 +84,11 @@ func (g *sharedState) advertiseSMR(smr types.MapRootV1) error {
 		if g.smrs[0] == nil || g.smrs[0].Revision < smr.Revision {
 			return true, nil
 		}
-
-		for i := 0; i < smrCount && g.smrs[i] != nil && g.smrs[i].Revision >= smr.Revision; i++ {
-			if g.smrs[0].Revision == smr.Revision {
-				if !reflect.DeepEqual(g.smrs[i], &smr) {
-					return false, fmt.Errorf("SMR mismatch at revision %d: had %+v, got %+v", smr.Revision, g.smrs[0], smr)
-				}
-			}
+		pos := sort.Search(smrCount, func(i int) bool {
+			return g.smrs[i] == nil || g.smrs[i].Revision <= smr.Revision
+		})
+		if known := g.smrs[pos]; known != nil && known.Revision == smr.Revision && !reflect.DeepEqual(known, &smr) {
+			return false, fmt.Errorf("SMR mismatch at revision %d: had %+v, got %+v", smr.Revision, known, smr)
 		}
 		return false, nil
 	}()
