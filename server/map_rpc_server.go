@@ -41,7 +41,6 @@ const (
 )
 
 var (
-	optsMapInit  = trees.NewGetOpts(trees.Admin, trillian.TreeType_MAP)
 	optsMapRead  = trees.NewGetOpts(trees.Query, trillian.TreeType_MAP)
 	optsMapWrite = trees.NewGetOpts(trees.UpdateMap, trillian.TreeType_MAP)
 )
