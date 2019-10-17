@@ -15,7 +15,8 @@ to the experimental status of the Map.
 The map client has been updated so that GetAndVerifyMapLeaves and
 GetAndVerifyMapLeavesByRevision return the MapRoot for the revision at which the
 leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
-were unable to reason about which map revision they were seeing.
+were unable to reason about which map revision they were seeing. The unused
+SetAndVerifyMapLeaves method was deleted.
 
 ## v1.3.2 - Module fixes
 
