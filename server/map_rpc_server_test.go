@@ -346,29 +346,50 @@ func TestSetLeavesEmpty(t *testing.T) {
 		Signature: []byte("0E\002!\000\301\332Z\324k\334\354\270n\023n\"\030\242rz;\310\"9\331 \325\375\205W\305\241\014\337Z\335\002 |VJ\026T\352l?\203\354\340\222\330#\273y22\354U\307_x\376\3771E\374\315h\371\307"),
 	}
 
-	fakeStorage := storage.NewMockMapStorage(ctrl)
-	adminStorage := fakeAdminStorageForMap(ctrl, 12345)
-	server := NewTrillianMapServer(extension.Registry{
-		MapStorage:   fakeStorage,
-		AdminStorage: adminStorage,
-	}, TrillianMapServerOptions{UseSingleTransaction: true})
+	for _, tc := range []struct {
+		root     *trillian.SignedMapRoot
+		revShift int64
+		smrErr   error
+		wantErr  bool
+	}{
+		{root: root, wantErr: false},
+		{root: root, revShift: -1, wantErr: true},
+		{root: root, revShift: -10, wantErr: true},
+		{root: root, revShift: 1, wantErr: true},
+		{root: nil, wantErr: true},
+		{root: &trillian.SignedMapRoot{MapRoot: []byte("invalid")}, wantErr: true},
+		{root: nil, smrErr: errors.New("you shall not pass"), wantErr: true},
+	} {
+		t.Run("", func(t *testing.T) {
+			fakeStorage := storage.NewMockMapStorage(ctrl)
+			adminStorage := fakeAdminStorageForMap(ctrl, 12345)
+			server := NewTrillianMapServer(extension.Registry{
+				MapStorage:   fakeStorage,
+				AdminStorage: adminStorage,
+			}, TrillianMapServerOptions{UseSingleTransaction: true})
+			mockTX := storage.NewMockMapTreeTX(ctrl)
 
-	mockTX := storage.NewMockMapTreeTX(ctrl)
-	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(root, nil)
-	mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+			rev := 1 + tc.revShift
+			if rev > 0 { // Otherwise the transaction is not even started.
+				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(tc.root, tc.smrErr)
+				if !tc.wantErr {
+					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+				}
+				fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+						return f(ctx, mockTX)
+					})
+			}
 
-	fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
-			return f(ctx, mockTX)
+			_, err := server.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+				MapId:    12345,
+				Revision: rev,
+				Leaves:   nil,
+			})
+			if got, want := err != nil, tc.wantErr; got != want {
+				t.Fatalf("SetLeaves: %v, wantErr=%v", err, want)
+			}
 		})
-
-	req := &trillian.SetMapLeavesRequest{
-		MapId:    12345,
-		Revision: 1,
-		Leaves:   nil,
-	}
-	if _, err := server.SetLeaves(ctx, req); err != nil {
-		t.Fatalf("SetLeaves: %v", err)
 	}
 }
 
