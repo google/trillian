@@ -113,6 +113,10 @@ func (o *validReadOps) doGetLeaves(ctx context.Context, prng *rand.Rand, latest 
 		return fmt.Errorf("incorrect contents of leaves: %v", err)
 	}
 	glog.V(2).Infof("%d: got %d leaves", o.mc.MapID, len(leaves))
+
+	if err = o.sharedState.advertiseSMR(*root); err != nil {
+		return err
+	}
 	return nil
 }
 

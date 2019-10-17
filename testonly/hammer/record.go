@@ -17,6 +17,7 @@ package hammer
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 
 	"github.com/golang/glog"
@@ -75,44 +76,61 @@ func (g *sharedState) proposeLeaves(rev uint64, leaves []*trillian.MapLeaf) erro
 	return nil
 }
 
-// TODO(mhutchinson): Make this way more tolerant so it accepts older SMRs and
-// checks they are equivalent to previously seen versions if applicable.
 func (g *sharedState) advertiseSMR(smr types.MapRootV1) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	update, err := func() (bool, error) {
+		g.mu.RLock()
+		defer g.mu.RUnlock()
 
-	var prevRev uint64 // The last revision committed to contents.
-	if g.smrs[0] != nil {
-		if g.smrs[0].Revision > smr.Revision {
-			return fmt.Errorf("stale root: got revision %d, already had %d", smr.Revision, g.smrs[0].Revision)
-		} else if g.smrs[0].Revision == smr.Revision {
-			if !reflect.DeepEqual(g.smrs[0], &smr) {
-				return fmt.Errorf("SMR mismatch at revision %d: had %+v, got %+v", smr.Revision, g.smrs[0], smr)
-			}
-			// Roots are equal, so no need to push on the same root twice
+		if g.smrs[0] == nil || g.smrs[0].Revision < smr.Revision {
+			return true, nil
+		}
+		// Search to smrCount-1 so that pos will always be a valid index into the array.
+		pos := sort.Search(smrCount-1, func(i int) bool {
+			return g.smrs[i] == nil || g.smrs[i].Revision <= smr.Revision
+		})
+		if known := g.smrs[pos]; known != nil && known.Revision == smr.Revision && !reflect.DeepEqual(known, &smr) {
+			return false, fmt.Errorf("SMR mismatch at revision %d: had %+v, got %+v", smr.Revision, known, smr)
+		}
+		return false, nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	if update {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+
+		// update is a suggestion. We need to confirm the condition holds now we have write lock.
+		if g.smrs[0] != nil && g.smrs[0].Revision >= smr.Revision {
 			return nil
 		}
-		prevRev = g.smrs[0].Revision
-	}
 
-	glog.V(2).Infof("adding new SMR: %+v", smr)
-	// Shuffle earlier SMRs along.
-	for i := smrCount - 1; i > 0; i-- {
-		g.smrs[i] = g.smrs[i-1]
-	}
+		var prevRev uint64 // The last revision committed to contents.
+		if g.smrs[0] != nil {
+			prevRev = g.smrs[0].Revision
+		}
 
-	g.smrs[0] = &smr
+		glog.V(2).Infof("adding new SMR: %+v", smr)
+		// Shuffle earlier SMRs along.
+		for i := smrCount - 1; i > 0; i-- {
+			g.smrs[i] = g.smrs[i-1]
+		}
 
-	for i := prevRev + 1; i <= smr.Revision; i++ {
-		if leaves, ok := g.pendingWrites[i]; ok {
-			if _, err := g.contents.UpdateContentsWith(i, leaves); err != nil {
-				return err
+		g.smrs[0] = &smr
+
+		for i := prevRev + 1; i <= smr.Revision; i++ {
+			if leaves, ok := g.pendingWrites[i]; ok {
+				if _, err := g.contents.UpdateContentsWith(i, leaves); err != nil {
+					return err
+				}
+				delete(g.pendingWrites, i)
+			} else {
+				return fmt.Errorf("found SMR(r=%d), but failed to find pending write for r=%d", smr.Revision, i)
 			}
-			delete(g.pendingWrites, i)
-		} else {
-			return fmt.Errorf("found SMR(r=%d), but failed to find pending write for r=%d", smr.Revision, i)
 		}
 	}
+
 	return nil
 }
 
