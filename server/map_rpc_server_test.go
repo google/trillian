@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -336,15 +337,27 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	}
 }
 
+func makeSMR(t *testing.T, rev uint64) *trillian.SignedMapRoot {
+	t.Helper()
+	mapRoot := types.MapRootV1{
+		TimestampNanos: 1571152792498135318,
+		Revision:       rev,
+		RootHash:       []byte("fake_hash"),
+	}
+	bin, err := mapRoot.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary: %v", err)
+	}
+	return &trillian.SignedMapRoot{
+		MapRoot:   bin,
+		Signature: []byte("fake_signature"),
+	}
+}
+
 func TestSetLeavesEmpty(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx := context.Background()
-
-	root := &trillian.SignedMapRoot{
-		MapRoot:   []byte("\000\001 \306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j\025\315\333#\364\266\341\026\000\000\000\000\000\000\000\000\000\000"),
-		Signature: []byte("0E\002!\000\301\332Z\324k\334\354\270n\023n\"\030\242rz;\310\"9\331 \325\375\205W\305\241\014\337Z\335\002 |VJ\026T\352l?\203\354\340\222\330#\273y22\354U\307_x\376\3771E\374\315h\371\307"),
-	}
 
 	for _, tc := range []struct {
 		root     *trillian.SignedMapRoot
@@ -352,10 +365,12 @@ func TestSetLeavesEmpty(t *testing.T) {
 		smrErr   error
 		wantErr  bool
 	}{
-		{root: root, wantErr: false},
-		{root: root, revShift: -1, wantErr: true},
-		{root: root, revShift: -10, wantErr: true},
-		{root: root, revShift: 1, wantErr: true},
+		{root: makeSMR(t, 0), wantErr: false},
+		{root: makeSMR(t, 1), wantErr: true},
+		{root: makeSMR(t, 10), revShift: 10, wantErr: false},
+		{root: makeSMR(t, 0), revShift: -1, wantErr: true},
+		{root: makeSMR(t, 0), revShift: -10, wantErr: true},
+		{root: makeSMR(t, 0), revShift: 1, wantErr: true},
 		{root: nil, wantErr: true},
 		{root: &trillian.SignedMapRoot{MapRoot: []byte("invalid")}, wantErr: true},
 		{root: nil, smrErr: errors.New("you shall not pass"), wantErr: true},
