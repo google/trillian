@@ -796,9 +796,9 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 		ret = append(ret, leaf)
 	}
 	if err := rows.Err(); err != nil {
-                glog.Warningf("Failed to read returned leaves: %s", err)
-                return nil, err
-        }
+		glog.Warningf("Failed to read returned leaves: %s", err)
+		return nil, err
+	}
 
 	return ret, nil
 }
@@ -947,9 +947,9 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		ret = append(ret, leaf)
 	}
 	if err := rows.Err(); err != nil {
-                glog.Warningf("Failed to read returned leaves: %s", err)
-                return nil, err
-        }
+		glog.Warningf("Failed to read returned leaves: %s", err)
+		return nil, err
+	}
 
 	return ret, nil
 }
