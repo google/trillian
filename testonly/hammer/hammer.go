@@ -450,24 +450,14 @@ func (w *writeWorker) run(ctx context.Context, done <-chan struct{}) (uint64, er
 }
 
 func (w *writeWorker) writeOnce(ctx context.Context) (err error) {
-	ep := w.bias.choose(w.prng)
+	ep := SetLeavesName
 	if w.bias.invalid(ep, w.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
 		invalidReqs.Inc(w.label, string(ep))
-		op, err := getOp(ep, w.s.invalidReadOps, w.s.setLeavesInvalid)
-		if err != nil {
-			return err
-		}
-		return op(ctx, w.prng)
+		return w.s.setLeavesInvalid(ctx, w.prng)
 	}
-
-	op, err := getOp(ep, w.s.validReadOps, w.s.setLeaves)
-	if err != nil {
-		return err
-	}
-
 	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
-	return w.retryOp(ctx, op, string(ep))
+	return w.retryOp(ctx, w.s.setLeaves, string(ep))
 }
 
 // hammerState tracks the operations that have been performed during a test run.

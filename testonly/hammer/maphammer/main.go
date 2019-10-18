@@ -57,7 +57,7 @@ var (
 	maxLeaves       = flag.Int("max_leaves", 10, "Maximum count of leaves to affect per-operation")
 	leafSize        = flag.Uint("leaf_size", 100, "Size of leaf values")
 	extraSize       = flag.Uint("extra_size", 100, "Size of leaf extra data")
-	checkers        = flag.Int("checkers", 0, "Number of checker goroutines to run")
+	checkers        = flag.Int("checkers", 1, "Number of checker goroutines to run")
 	retryErrors     = flag.Bool("retry_errors", false, "Whether to retry failed operations")
 	opDeadline      = flag.Duration("op_deadline", 60*time.Second, "How long to wait for operation success")
 	emitInterval    = flag.Duration("emit_interval", 0, "How often to output the Hammer state")
