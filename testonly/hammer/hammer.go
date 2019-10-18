@@ -465,6 +465,104 @@ func (w *writeWorker) writeOnce(ctx context.Context) (err error) {
 	return w.retryOp(ctx, w.setLeaves, string(ep))
 }
 
+func (w *writeWorker) setLeaves(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
+
+	cfg := w.s.cfg
+	n := pickIntInRange(cfg.MinLeaves, cfg.MaxLeaves, prng)
+	if n == 0 {
+		n = 1
+	}
+	leaves := make([]*trillian.MapLeaf, 0, n)
+	rev := int64(0)
+	if w.head != nil {
+		rev = w.head.Rev
+	}
+leafloop:
+	for i := 0; i < n; i++ {
+		choice := choices[prng.Intn(len(choices))]
+		if w.head.Empty() {
+			choice = CreateLeaf
+		}
+		switch choice {
+		case CreateLeaf:
+			key := w.nextKey()
+			value := w.nextValue()
+			leaves = append(leaves, &trillian.MapLeaf{
+				Index:     testonly.TransparentHash(key),
+				LeafValue: value,
+				ExtraData: testonly.ExtraDataForValue(value, cfg.ExtraSize),
+			})
+			glog.V(3).Infof("%d: %v: data[%q]=%q", w.mapID, choice, key, string(value))
+		case UpdateLeaf, DeleteLeaf:
+			key := w.head.PickKey(prng)
+			// Not allowed to have the same key more than once in the same request
+			for _, leaf := range leaves {
+				if bytes.Equal(leaf.Index, key) {
+					// Go back to the beginning of the loop and choose again.
+					i--
+					continue leafloop
+				}
+			}
+			var value, extra []byte
+			if choice == UpdateLeaf {
+				value = w.nextValue()
+				extra = testonly.ExtraDataForValue(value, cfg.ExtraSize)
+			}
+			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
+			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", w.mapID, choice, dehash(key), string(value), string(extra))
+		}
+	}
+
+	writeRev := uint64(rev + 1)
+
+	req := trillian.WriteMapLeavesRequest{
+		MapId:          w.mapID,
+		Leaves:         leaves,
+		Metadata:       metadataForRev(writeRev),
+		ExpectRevision: int64(writeRev),
+	}
+
+	if err := w.s.sharedState.proposeLeaves(writeRev, leaves); err != nil {
+		return err
+	}
+	if _, err := cfg.Write.WriteLeaves(ctx, &req); err != nil {
+		return fmt.Errorf("failed to WriteLeaves(count=%d): %v", len(leaves), err)
+	}
+
+	glog.V(2).Infof("%d: set %d leaves, rev=%d", w.mapID, len(leaves), writeRev)
+	w.head = w.head.UpdatedWith(writeRev, leaves)
+	return nil
+}
+
+func (w *writeWorker) setLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{MalformedKey, DuplicateKey}
+
+	var leaves []*trillian.MapLeaf
+	value := []byte("value-for-invalid-req")
+
+	choice := choices[prng.Intn(len(choices))]
+	if w.head.Empty() {
+		choice = MalformedKey
+	}
+	switch choice {
+	case MalformedKey:
+		key := testonly.TransparentHash("..invalid-size")
+		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
+	case DuplicateKey:
+		key := w.head.PickKey(prng)
+		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
+		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
+	}
+	req := trillian.WriteMapLeavesRequest{MapId: w.mapID, Leaves: leaves}
+	rsp, err := w.s.cfg.Write.WriteLeaves(ctx, &req)
+	if err == nil {
+		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
+	}
+	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", w.mapID, choice, req, rsp)
+	return nil
+}
+
 func (w *writeWorker) nextKey() string {
 	w.keyIdx++
 	return fmt.Sprintf("key-%08d", w.keyIdx)
@@ -600,104 +698,6 @@ func getOp(ep MapEntrypointName, read readOps, write mapOperationFn) (mapOperati
 	default:
 		return nil, fmt.Errorf("internal error: unknown operation %s", ep)
 	}
-}
-
-func (w *writeWorker) setLeaves(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
-
-	cfg := w.s.cfg
-	n := pickIntInRange(cfg.MinLeaves, cfg.MaxLeaves, prng)
-	if n == 0 {
-		n = 1
-	}
-	leaves := make([]*trillian.MapLeaf, 0, n)
-	rev := int64(0)
-	if w.head != nil {
-		rev = w.head.Rev
-	}
-leafloop:
-	for i := 0; i < n; i++ {
-		choice := choices[prng.Intn(len(choices))]
-		if w.head.Empty() {
-			choice = CreateLeaf
-		}
-		switch choice {
-		case CreateLeaf:
-			key := w.nextKey()
-			value := w.nextValue()
-			leaves = append(leaves, &trillian.MapLeaf{
-				Index:     testonly.TransparentHash(key),
-				LeafValue: value,
-				ExtraData: testonly.ExtraDataForValue(value, cfg.ExtraSize),
-			})
-			glog.V(3).Infof("%d: %v: data[%q]=%q", w.mapID, choice, key, string(value))
-		case UpdateLeaf, DeleteLeaf:
-			key := w.head.PickKey(prng)
-			// Not allowed to have the same key more than once in the same request
-			for _, leaf := range leaves {
-				if bytes.Equal(leaf.Index, key) {
-					// Go back to the beginning of the loop and choose again.
-					i--
-					continue leafloop
-				}
-			}
-			var value, extra []byte
-			if choice == UpdateLeaf {
-				value = w.nextValue()
-				extra = testonly.ExtraDataForValue(value, cfg.ExtraSize)
-			}
-			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
-			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", w.mapID, choice, dehash(key), string(value), string(extra))
-		}
-	}
-
-	writeRev := uint64(rev + 1)
-
-	req := trillian.WriteMapLeavesRequest{
-		MapId:          w.mapID,
-		Leaves:         leaves,
-		Metadata:       metadataForRev(writeRev),
-		ExpectRevision: int64(writeRev),
-	}
-
-	if err := w.s.sharedState.proposeLeaves(writeRev, leaves); err != nil {
-		return err
-	}
-	if _, err := cfg.Write.WriteLeaves(ctx, &req); err != nil {
-		return fmt.Errorf("failed to WriteLeaves(count=%d): %v", len(leaves), err)
-	}
-
-	glog.V(2).Infof("%d: set %d leaves, rev=%d", w.mapID, len(leaves), writeRev)
-	w.head = w.head.UpdatedWith(writeRev, leaves)
-	return nil
-}
-
-func (w *writeWorker) setLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{MalformedKey, DuplicateKey}
-
-	var leaves []*trillian.MapLeaf
-	value := []byte("value-for-invalid-req")
-
-	choice := choices[prng.Intn(len(choices))]
-	if w.head.Empty() {
-		choice = MalformedKey
-	}
-	switch choice {
-	case MalformedKey:
-		key := testonly.TransparentHash("..invalid-size")
-		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
-	case DuplicateKey:
-		key := w.head.PickKey(prng)
-		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
-		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
-	}
-	req := trillian.WriteMapLeavesRequest{MapId: w.mapID, Leaves: leaves}
-	rsp, err := w.s.cfg.Write.WriteLeaves(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
-	}
-	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", w.mapID, choice, req, rsp)
-	return nil
 }
 
 func dehash(index []byte) string {
