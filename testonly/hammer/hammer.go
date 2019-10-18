@@ -290,27 +290,6 @@ func newWorker(cfg *MapConfig, bias MapBias, prng *rand.Rand) *mapWorker {
 	}
 }
 
-func (w *mapWorker) retryOneOp(ctx context.Context, s *hammerState) (err error) {
-	ep := w.bias.choose(w.prng)
-	if w.bias.invalid(ep, w.prng) {
-		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
-		invalidReqs.Inc(w.label, string(ep))
-		op, err := getOp(ep, s.invalidReadOps, s.setLeavesInvalid)
-		if err != nil {
-			return err
-		}
-		return op(ctx, w.prng)
-	}
-
-	op, err := getOp(ep, s.validReadOps, s.setLeaves)
-	if err != nil {
-		return err
-	}
-
-	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
-	return w.retryOp(ctx, op, string(ep))
-}
-
 func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName string) error {
 	defer func(start time.Time) {
 		rspLatency.Observe(time.Since(start).Seconds(), w.label, opName)
@@ -463,11 +442,32 @@ func (w *writeWorker) run(ctx context.Context, done <-chan struct{}) (uint64, er
 			return count, nil
 		default:
 		}
-		if err := w.retryOneOp(ctx, w.s); err != nil {
+		if err := w.writeOnce(ctx); err != nil {
 			return count, err
 		}
 	}
 	return count, nil
+}
+
+func (w *writeWorker) writeOnce(ctx context.Context) (err error) {
+	ep := w.bias.choose(w.prng)
+	if w.bias.invalid(ep, w.prng) {
+		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
+		invalidReqs.Inc(w.label, string(ep))
+		op, err := getOp(ep, w.s.invalidReadOps, w.s.setLeavesInvalid)
+		if err != nil {
+			return err
+		}
+		return op(ctx, w.prng)
+	}
+
+	op, err := getOp(ep, w.s.validReadOps, w.s.setLeaves)
+	if err != nil {
+		return err
+	}
+
+	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
+	return w.retryOp(ctx, op, string(ep))
 }
 
 // hammerState tracks the operations that have been performed during a test run.
