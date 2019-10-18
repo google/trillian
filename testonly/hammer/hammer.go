@@ -17,7 +17,6 @@ package hammer
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -390,19 +389,18 @@ func (w *readWorker) run(ctx context.Context, done <-chan struct{}) error {
 
 // TODO(mhutchinson): resolve duplication between this and retryOneOp.
 func (w *readWorker) readOnce(ctx context.Context) error {
-	writeOp := func(context.Context, *rand.Rand) error { return errors.New("Unexpected write operation") }
 	ep := w.bias.choose(w.prng)
 	if w.bias.invalid(ep, w.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
 		invalidReqs.Inc(w.label, string(ep))
-		op, err := getOp(ep, w.invalidReadOps, writeOp)
+		op, err := getReadOp(ep, w.invalidReadOps)
 		if err != nil {
 			return err
 		}
 		return op(ctx, w.prng)
 	}
 
-	op, err := getOp(ep, w.validReadOps, writeOp)
+	op, err := getReadOp(ep, w.validReadOps)
 	if err != nil {
 		return err
 	}
@@ -682,7 +680,7 @@ type readOps interface {
 
 type mapOperationFn func(context.Context, *rand.Rand) error
 
-func getOp(ep MapEntrypointName, read readOps, write mapOperationFn) (mapOperationFn, error) {
+func getReadOp(ep MapEntrypointName, read readOps) (mapOperationFn, error) {
 	switch ep {
 	case GetLeavesName:
 		return read.getLeaves, nil
@@ -692,11 +690,8 @@ func getOp(ep MapEntrypointName, read readOps, write mapOperationFn) (mapOperati
 		return read.getSMR, nil
 	case GetSMRRevName:
 		return read.getSMRRev, nil
-	case SetLeavesName:
-		// TODO(mhutchinson): This mutation method needs to be removed from here.
-		return write, nil
 	default:
-		return nil, fmt.Errorf("internal error: unknown operation %s", ep)
+		return nil, fmt.Errorf("internal error: unknown read operation %s", ep)
 	}
 }
 
