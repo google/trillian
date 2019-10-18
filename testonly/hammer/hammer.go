@@ -379,8 +379,10 @@ func newReadWorker(s *hammerState, idx int) *readWorker {
 		Bias:          make(map[MapEntrypointName]int),
 		InvalidChance: make(map[MapEntrypointName]int),
 	}
-	// TODO(mhutchinson): populate readBias by iterating over roMapEntrypoints.
-	readBias.Bias[GetLeavesRevName] = s.cfg.EPBias.Bias[GetLeavesRevName]
+	for _, ep := range roMapEntrypoints {
+		readBias.Bias[ep] = s.cfg.EPBias.Bias[ep]
+		readBias.InvalidChance[ep] = s.cfg.EPBias.InvalidChance[ep]
+	}
 	return &readWorker{
 		mapWorker: newWorker(s.cfg, readBias, rand.New(rand.NewSource(int64(idx)))),
 
