@@ -313,8 +313,6 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(req.MapId, 10))
 
-	// TODO(pavelkalinnikov): Factor out a CreateRevision RPC in the MapWrite
-	// service, and use it instead of InitMap to create the 0th revision.
 	if len(req.Leaves) == 0 {
 		newSMR, err := t.addRevision(ctx, req.MapId, req.Revision, req.Metadata)
 		if err != nil {
@@ -521,6 +519,10 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 }
 
 // addRevision adds a new revision without changing the tree contents.
+//
+// TODO(pavelkalinnikov): Consider making it a CreateRevision RPC of the
+// MapService, a more generic version of InitMap that allows creating empty
+// revisions other than the 0th.
 func (t *TrillianMapServer) addRevision(ctx context.Context, treeID, rev int64, meta []byte) (*trillian.SignedMapRoot, error) {
 	tree, hasher, err := t.getTreeAndHasher(ctx, treeID, optsMapWrite)
 	if err != nil {
