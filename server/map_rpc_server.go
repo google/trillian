@@ -308,10 +308,11 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
 	ctx, spanEnd := spanFor(ctx, "SetLeaves")
 	defer spanEnd()
+	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(req.MapId, 10))
+
 	if req.Revision <= 0 {
 		return nil, status.Error(codes.FailedPrecondition, "revision must be > 0")
 	}
-	t.setLeafCounter.Add(float64(len(req.Leaves)), strconv.FormatInt(req.MapId, 10))
 
 	if len(req.Leaves) == 0 {
 		newSMR, err := t.addRevision(ctx, req.MapId, req.Revision, req.Metadata)
