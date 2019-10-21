@@ -21,19 +21,29 @@ import "github.com/google/trillian/storage"
 
 // NewStorageProviderFunc is the signature of a function which can be
 // registered to provide instances of storage providers.
+//
+// Deprecated: storage.NewProviderFunc must be used directly.
 type NewStorageProviderFunc = storage.NewProviderFunc
 
 // StorageProvider is an interface which allows Trillian binaries to use
 // different storage implementations.
+//
+// Deprecated: storage.Provider must be used directly.
 type StorageProvider = storage.Provider
 
 // RegisterStorageProvider registers the provided StorageProvider.
+//
+// Deprecated: storage.RegisterProvider must be used directly.
 var RegisterStorageProvider = storage.RegisterProvider
 
 // NewStorageProviderFromFlags returns a new StorageProvider instance of the
 // type specified by flag.
+//
+// Deprecated: storage.NewProviderFromFlags must be used directly.
 var NewStorageProviderFromFlags = storage.NewProviderFromFlags
 
 // NewStorageProvider returns a new StorageProvider instance of the type
 // specified by name.
+//
+// Deprecated: storage.NewProvider must be used directly.
 var NewStorageProvider = storage.NewProvider
