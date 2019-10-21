@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package storage
 
 import (
 	"testing"
 
 	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/storage"
 )
 
 type provider struct {
 }
 
-func (p *provider) LogStorage() storage.LogStorage     { return nil }
-func (p *provider) MapStorage() storage.MapStorage     { return nil }
-func (p *provider) AdminStorage() storage.AdminStorage { return nil }
-func (p *provider) Close() error                       { return nil }
+func (p *provider) LogStorage() LogStorage     { return nil }
+func (p *provider) MapStorage() MapStorage     { return nil }
+func (p *provider) AdminStorage() AdminStorage { return nil }
+func (p *provider) Close() error               { return nil }
 
-func TestStorageProviderRegistration(t *testing.T) {
+func TestProviderRegistration(t *testing.T) {
 	for _, test := range []struct {
 		desc    string
 		reg     bool
@@ -51,18 +50,18 @@ func TestStorageProviderRegistration(t *testing.T) {
 			name := test.desc
 
 			if test.reg {
-				RegisterStorageProvider(name, func(_ monitoring.MetricFactory) (StorageProvider, error) {
+				RegisterProvider(name, func(_ monitoring.MetricFactory) (Provider, error) {
 					called = true
 					return &provider{}, nil
 				})
 			}
 
-			_, err := NewStorageProvider(name, nil)
+			_, err := NewProvider(name, nil)
 			if err != nil && !test.wantErr {
-				t.Fatalf("NewStorageProvider = %v, want no error", err)
+				t.Fatalf("NewProvider = %v, want no error", err)
 			}
 			if err == nil && test.wantErr {
-				t.Fatalf("NewStorageProvider = no error, want error")
+				t.Fatalf("NewProvider = no error, want error")
 			}
 			if !called && !test.wantErr {
 				t.Fatal("Registered storage provider was not called")
@@ -71,14 +70,14 @@ func TestStorageProviderRegistration(t *testing.T) {
 	}
 }
 
-func TestStorageProviders(t *testing.T) {
-	RegisterStorageProvider("a", func(_ monitoring.MetricFactory) (StorageProvider, error) {
+func TestProviders(t *testing.T) {
+	RegisterProvider("a", func(_ monitoring.MetricFactory) (Provider, error) {
 		return &provider{}, nil
 	})
-	RegisterStorageProvider("b", func(_ monitoring.MetricFactory) (StorageProvider, error) {
+	RegisterProvider("b", func(_ monitoring.MetricFactory) (Provider, error) {
 		return &provider{}, nil
 	})
-	sp := storageProviders()
+	sp := providers()
 
 	if got, want := len(sp), 2; got < want {
 		t.Fatalf("Got %d names, want at least %d", got, want)
@@ -95,9 +94,9 @@ func TestStorageProviders(t *testing.T) {
 		}
 	}
 	if a != 1 {
-		t.Errorf("StorageProviders() gave %d 'a', want 1", a)
+		t.Errorf("Providers() gave %d 'a', want 1", a)
 	}
 	if b != 1 {
-		t.Errorf("StorageProviders() gave %d 'b', want 1", b)
+		t.Errorf("Providers() gave %d 'b', want 1", b)
 	}
 }

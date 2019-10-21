@@ -1,0 +1,99 @@
+// Copyright 2018 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package storage
+
+import (
+	"flag"
+	"fmt"
+	"sync"
+
+	"github.com/google/trillian/monitoring"
+)
+
+// NewProviderFunc is the signature of a function which can be registered to
+// provide instances of storage providers.
+type NewProviderFunc func(monitoring.MetricFactory) (Provider, error)
+
+var (
+	// TODO(pavelkalinnikov): Move this flag to main file.
+	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", providers()))
+
+	spMu     sync.RWMutex
+	spOnce   sync.Once
+	spByName map[string]NewProviderFunc
+)
+
+// RegisterProvider registers the given storage Provider.
+func RegisterProvider(name string, sp NewProviderFunc) error {
+	spMu.Lock()
+	defer spMu.Unlock()
+
+	spOnce.Do(func() {
+		spByName = make(map[string]NewProviderFunc)
+	})
+
+	_, exists := spByName[name]
+	if exists {
+		return fmt.Errorf("storage provider %v already registered", name)
+	}
+	spByName[name] = sp
+	return nil
+}
+
+// NewProviderFromFlags returns a new Provider instance of the type
+// specified by flag.
+func NewProviderFromFlags(mf monitoring.MetricFactory) (Provider, error) {
+	return NewProvider(*storageSystem, mf)
+}
+
+// NewProvider returns a new Provider instance of the type specified by name.
+func NewProvider(name string, mf monitoring.MetricFactory) (Provider, error) {
+	spMu.RLock()
+	defer spMu.RUnlock()
+
+	sp := spByName[name]
+	if sp == nil {
+		return nil, fmt.Errorf("no such storage provider %v", name)
+	}
+
+	return sp(mf)
+}
+
+// providers returns a slice of all registered storage provider names.
+func providers() []string {
+	spMu.RLock()
+	defer spMu.RUnlock()
+
+	r := []string{}
+	for k := range spByName {
+		r = append(r, k)
+	}
+
+	return r
+}
+
+// Provider is an interface which allows Trillian binaries to use different
+// storage implementations.
+type Provider interface {
+	// LogStorage creates and returns a LogStorage implementation.
+	LogStorage() LogStorage
+	// MapStorage creates and returns a MapStorage implementation.
+	MapStorage() MapStorage
+	// AdminStorage creates and returns a AdminStorage implementation.
+	AdminStorage() AdminStorage
+
+	// Close closes the underlying storage.
+	Close() error
+}
