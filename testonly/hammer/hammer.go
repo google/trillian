@@ -75,9 +75,9 @@ type MapEntrypointName string
 const (
 	GetLeavesName    = MapEntrypointName("GetLeaves")
 	GetLeavesRevName = MapEntrypointName("GetLeavesRev")
-	SetLeavesName    = MapEntrypointName("SetLeaves")
 	GetSMRName       = MapEntrypointName("GetSMR")
 	GetSMRRevName    = MapEntrypointName("GetSMRRev")
+	SetLeavesName    = MapEntrypointName("SetLeaves") // TODO(mhutchinson): rename to WriteLeaves.
 )
 
 // Read-only map entry points.
@@ -452,7 +452,7 @@ func (w *writeWorker) run(ctx context.Context, done <-chan struct{}) (uint64, er
 	return count, nil
 }
 
-func (w *writeWorker) writeOnce(ctx context.Context) (err error) {
+func (w *writeWorker) writeOnce(ctx context.Context) error {
 	ep := SetLeavesName
 	if w.bias.invalid(ep, w.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
@@ -484,8 +484,7 @@ leafloop:
 		}
 		switch choice {
 		case CreateLeaf:
-			key := w.nextKey()
-			value := w.nextValue()
+			key, value := w.nextKey(), w.nextValue()
 			leaves = append(leaves, &trillian.MapLeaf{
 				Index:     testonly.TransparentHash(key),
 				LeafValue: value,
