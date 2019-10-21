@@ -16,6 +16,9 @@ package server
 
 import "github.com/google/trillian/storage"
 
+// TODO(pavelkalinnikov): This file contains type/function aliases for backward
+// compatibility purposes. It will be removed with the next major version bump.
+
 // NewStorageProviderFunc is the signature of a function which can be
 // registered to provide instances of storage providers.
 type NewStorageProviderFunc = storage.NewProviderFunc
