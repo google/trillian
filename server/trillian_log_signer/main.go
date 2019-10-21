@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
@@ -96,7 +97,7 @@ func main() {
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)
 
-	sp, err := server.NewStorageProviderFromFlags(mf)
+	sp, err := storage.NewProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
