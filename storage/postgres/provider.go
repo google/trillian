@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package postgres
 
 import (
 	"database/sql"
@@ -22,7 +22,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/postgres"
 
 	// Load PG driver
 	_ "github.com/lib/pq"
@@ -36,7 +35,7 @@ var (
 )
 
 func init() {
-	if err := RegisterStorageProvider("postgres", newPGProvider); err != nil {
+	if err := storage.RegisterProvider("postgres", newPGProvider); err != nil {
 		glog.Fatalf("Failed to register storage provider postgres: %v", err)
 	}
 }
@@ -46,10 +45,10 @@ type pgProvider struct {
 	mf monitoring.MetricFactory
 }
 
-func newPGProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
+func newPGProvider(mf monitoring.MetricFactory) (storage.Provider, error) {
 	pgOnce.Do(func() {
 		var db *sql.DB
-		db, pgOnceErr = postgres.OpenDB(*pgConnStr)
+		db, pgOnceErr = OpenDB(*pgConnStr)
 		if pgOnceErr != nil {
 			return
 		}
@@ -68,7 +67,7 @@ func newPGProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
 func (s *pgProvider) LogStorage() storage.LogStorage {
 
 	glog.Warningf("Support for the PostgreSQL log is experimental.  Please use at your own risk!!!")
-	return postgres.NewLogStorage(s.db, s.mf)
+	return NewLogStorage(s.db, s.mf)
 }
 
 func (s *pgProvider) MapStorage() storage.MapStorage {
@@ -76,7 +75,7 @@ func (s *pgProvider) MapStorage() storage.MapStorage {
 }
 
 func (s *pgProvider) AdminStorage() storage.AdminStorage {
-	return postgres.NewAdminStorage(s.db)
+	return NewAdminStorage(s.db)
 }
 
 func (s *pgProvider) Close() error {

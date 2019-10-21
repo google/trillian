@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package memory
 
 import (
 	"testing"
+
+	"github.com/google/trillian/storage"
 )
 
 func TestMemoryStorageProvider(t *testing.T) {
-	sp, err := NewStorageProvider("memory", nil)
+	sp, err := storage.NewProvider("memory", nil)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
@@ -29,7 +31,7 @@ func TestMemoryStorageProvider(t *testing.T) {
 }
 
 func TestMemoryStorageProviderLogStorage(t *testing.T) {
-	sp, err := NewStorageProvider("memory", nil)
+	sp, err := storage.NewProvider("memory", nil)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
@@ -41,7 +43,7 @@ func TestMemoryStorageProviderLogStorage(t *testing.T) {
 }
 
 func TestMemoryStorageProviderMapStorage(t *testing.T) {
-	sp, err := NewStorageProvider("memory", nil)
+	sp, err := storage.NewProvider("memory", nil)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
@@ -53,7 +55,7 @@ func TestMemoryStorageProviderMapStorage(t *testing.T) {
 }
 
 func TestMemoryStorageProviderAdminStorage(t *testing.T) {
-	sp, err := NewStorageProvider("memory", nil)
+	sp, err := storage.NewProvider("memory", nil)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}
@@ -65,7 +67,7 @@ func TestMemoryStorageProviderAdminStorage(t *testing.T) {
 }
 
 func TestMemoryStorageProviderClose(t *testing.T) {
-	sp, err := NewStorageProvider("memory", nil)
+	sp, err := storage.NewProvider("memory", nil)
 	if err != nil {
 		t.Fatalf("Got an unexpected error: %v", err)
 	}

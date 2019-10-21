@@ -12,35 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package memory
 
 import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/memory"
 )
 
 func init() {
-	if err := RegisterStorageProvider("memory", newMemoryStorageProvider); err != nil {
+	if err := storage.RegisterProvider("memory", newMemoryStorageProvider); err != nil {
 		glog.Fatalf("Failed to register storage provider memory: %v", err)
 	}
 }
 
 type memProvider struct {
 	mf monitoring.MetricFactory
-	ts *memory.TreeStorage
+	ts *TreeStorage
 }
 
-func newMemoryStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
+func newMemoryStorageProvider(mf monitoring.MetricFactory) (storage.Provider, error) {
 	return &memProvider{
 		mf: mf,
-		ts: memory.NewTreeStorage(),
+		ts: NewTreeStorage(),
 	}, nil
 }
 
 func (s *memProvider) LogStorage() storage.LogStorage {
-	return memory.NewLogStorage(s.ts, s.mf)
+	return NewLogStorage(s.ts, s.mf)
 }
 
 func (s *memProvider) MapStorage() storage.MapStorage {
@@ -48,7 +47,7 @@ func (s *memProvider) MapStorage() storage.MapStorage {
 }
 
 func (s *memProvider) AdminStorage() storage.AdminStorage {
-	return memory.NewAdminStorage(s.ts)
+	return NewAdminStorage(s.ts)
 }
 
 func (s *memProvider) Close() error {

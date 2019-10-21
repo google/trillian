@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package mysql
 
 import (
 	"database/sql"
@@ -22,7 +22,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql"
 
 	// Load MySQL driver
 	_ "github.com/go-sql-driver/mysql"
@@ -39,8 +38,18 @@ var (
 	mysqlStorageInstance *mysqlProvider
 )
 
+// GetDatabase returns an instance of MySQL database, or creates one.
+//
+// TODO(pavelkalinnikov): Make the dependency of MySQL quota provider from
+// MySQL storage provider explicit.
+func GetDatabase() (*sql.DB, error) {
+	mysqlMu.Lock()
+	defer mysqlMu.Unlock()
+	return getMySQLDatabaseLocked()
+}
+
 func init() {
-	if err := RegisterStorageProvider("mysql", newMySQLStorageProvider); err != nil {
+	if err := storage.RegisterProvider("mysql", newMySQLStorageProvider); err != nil {
 		glog.Fatalf("Failed to register storage provider mysql: %v", err)
 	}
 }
@@ -50,7 +59,7 @@ type mysqlProvider struct {
 	mf monitoring.MetricFactory
 }
 
-func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
+func newMySQLStorageProvider(mf monitoring.MetricFactory) (storage.Provider, error) {
 	mysqlMu.Lock()
 	defer mysqlMu.Unlock()
 	if mysqlStorageInstance == nil {
@@ -66,20 +75,13 @@ func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, erro
 	return mysqlStorageInstance, nil
 }
 
-// getMySQLDatabase returns an instance of MySQL database, or creates one.
-func getMySQLDatabase() (*sql.DB, error) {
-	mysqlMu.Lock()
-	defer mysqlMu.Unlock()
-	return getMySQLDatabaseLocked()
-}
-
 // getMySQLDatabaseLocked returns an instance of MySQL database, or creates
 // one. Requires mysqlMu to be locked.
 func getMySQLDatabaseLocked() (*sql.DB, error) {
 	if mysqlDB != nil || mysqlErr != nil {
 		return mysqlDB, mysqlErr
 	}
-	db, err := mysql.OpenDB(*mySQLURI)
+	db, err := OpenDB(*mySQLURI)
 	if err != nil {
 		mysqlErr = err
 		return nil, err
@@ -95,15 +97,15 @@ func getMySQLDatabaseLocked() (*sql.DB, error) {
 }
 
 func (s *mysqlProvider) LogStorage() storage.LogStorage {
-	return mysql.NewLogStorage(s.db, s.mf)
+	return NewLogStorage(s.db, s.mf)
 }
 
 func (s *mysqlProvider) MapStorage() storage.MapStorage {
-	return mysql.NewMapStorage(s.db)
+	return NewMapStorage(s.db)
 }
 
 func (s *mysqlProvider) AdminStorage() storage.AdminStorage {
-	return mysql.NewAdminStorage(s.db)
+	return NewAdminStorage(s.db)
 }
 
 func (s *mysqlProvider) Close() error {
