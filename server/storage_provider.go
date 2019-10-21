@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2019 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,87 +14,36 @@
 
 package server
 
-import (
-	"flag"
-	"fmt"
-	"sync"
+import "github.com/google/trillian/storage"
 
-	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/storage"
-)
+// TODO(pavelkalinnikov): This file contains type/function aliases for backward
+// compatibility purposes. It will be removed with the next major version bump.
 
-// NewStorageProviderFunc is the signature of a function which can be registered
-// to provide instances of storage providers.
-type NewStorageProviderFunc func(monitoring.MetricFactory) (StorageProvider, error)
+// NewStorageProviderFunc is the signature of a function which can be
+// registered to provide instances of storage providers.
+//
+// Deprecated: storage.NewProviderFunc should be used directly.
+type NewStorageProviderFunc = storage.NewProviderFunc
 
-var (
-	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", storageProviders()))
-
-	spMu     sync.RWMutex
-	spOnce   sync.Once
-	spByName map[string]NewStorageProviderFunc
-)
+// StorageProvider is an interface which allows Trillian binaries to use
+// different storage implementations.
+//
+// Deprecated: storage.Provider should be used directly.
+type StorageProvider = storage.Provider
 
 // RegisterStorageProvider registers the provided StorageProvider.
-func RegisterStorageProvider(name string, sp NewStorageProviderFunc) error {
-	spMu.Lock()
-	defer spMu.Unlock()
+//
+// Deprecated: storage.RegisterProvider should be used directly.
+var RegisterStorageProvider = storage.RegisterProvider
 
-	spOnce.Do(func() {
-		spByName = make(map[string]NewStorageProviderFunc)
-	})
-
-	_, exists := spByName[name]
-	if exists {
-		return fmt.Errorf("storage provider %v already registered", name)
-	}
-	spByName[name] = sp
-	return nil
-}
-
-// NewStorageProviderFromFlags returns a new StorageProvider instance of the type
-// specified by flag.
-func NewStorageProviderFromFlags(mf monitoring.MetricFactory) (StorageProvider, error) {
-	return NewStorageProvider(*storageSystem, mf)
-}
+// NewStorageProviderFromFlags returns a new StorageProvider instance of the
+// type specified by flag.
+//
+// Deprecated: storage.NewProviderFromFlags should be used directly.
+var NewStorageProviderFromFlags = storage.NewProviderFromFlags
 
 // NewStorageProvider returns a new StorageProvider instance of the type
 // specified by name.
-func NewStorageProvider(name string, mf monitoring.MetricFactory) (StorageProvider, error) {
-	spMu.RLock()
-	defer spMu.RUnlock()
-
-	sp := spByName[name]
-	if sp == nil {
-		return nil, fmt.Errorf("no such storage provider %v", name)
-	}
-
-	return sp(mf)
-}
-
-// storageProviders returns a slice of all registered storage provider names.
-func storageProviders() []string {
-	spMu.RLock()
-	defer spMu.RUnlock()
-
-	r := []string{}
-	for k := range spByName {
-		r = append(r, k)
-	}
-
-	return r
-}
-
-// StorageProvider is an interface which allows trillian binaries to use
-// different storage implementations.
-type StorageProvider interface {
-	// LogStorage creates and returns a LogStorage implementation.
-	LogStorage() storage.LogStorage
-	// MapStorage creates and returns a MapStorage implementation.
-	MapStorage() storage.MapStorage
-	// AdminStorage creates and returns a AdminStorage implementation.
-	AdminStorage() storage.AdminStorage
-
-	// Close closes the underlying storage.
-	Close() error
-}
+//
+// Deprecated: storage.NewProvider should be used directly.
+var NewStorageProvider = storage.NewProvider

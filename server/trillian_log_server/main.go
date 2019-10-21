@@ -37,6 +37,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -102,7 +103,7 @@ func main() {
 		options = append(options, opts...)
 	}
 
-	sp, err := server.NewStorageProviderFromFlags(mf)
+	sp, err := storage.NewProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}

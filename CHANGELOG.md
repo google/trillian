@@ -2,7 +2,7 @@
 
 ## HEAD
 
-Not yet released; provisionally v1.3.3 (may change).
+Not yet released; provisionally v1.4.0 (may change).
 
 ### Map Changes
 
@@ -17,6 +17,13 @@ GetAndVerifyMapLeavesByRevision return the MapRoot for the revision at which the
 leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
 were unable to reason about which map revision they were seeing. The
 SetAndVerifyMapLeaves method was deleted.
+
+### Storage
+
+The StorageProvider type and helpers have been moved from the server package to
+storage. Aliases for the old types/functions are created for backward
+compatibility, but the new code should not use them as we will remove them with
+the next major version bump.
 
 ## v1.3.2 - Module fixes
 
