@@ -31,18 +31,13 @@ var (
 	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", providers()))
 
 	spMu     sync.RWMutex
-	spOnce   sync.Once
-	spByName map[string]NewProviderFunc
+	spByName = make(map[string]NewProviderFunc)
 )
 
 // RegisterProvider registers the given storage Provider.
 func RegisterProvider(name string, sp NewProviderFunc) error {
 	spMu.Lock()
 	defer spMu.Unlock()
-
-	spOnce.Do(func() {
-		spByName = make(map[string]NewProviderFunc)
-	})
 
 	_, exists := spByName[name]
 	if exists {
