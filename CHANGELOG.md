@@ -2,7 +2,7 @@
 
 ## HEAD
 
-Not yet released; provisionally v1.3.3 (may change).
+Not yet released; provisionally v1.4.0 (may change).
 
 ### Map Changes
 
