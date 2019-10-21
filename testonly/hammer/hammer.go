@@ -17,7 +17,6 @@ package hammer
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -76,9 +75,9 @@ type MapEntrypointName string
 const (
 	GetLeavesName    = MapEntrypointName("GetLeaves")
 	GetLeavesRevName = MapEntrypointName("GetLeavesRev")
-	SetLeavesName    = MapEntrypointName("SetLeaves")
 	GetSMRName       = MapEntrypointName("GetSMR")
 	GetSMRRevName    = MapEntrypointName("GetSMRRev")
+	SetLeavesName    = MapEntrypointName("SetLeaves") // TODO(mhutchinson): rename to WriteLeaves.
 )
 
 // Read-only map entry points.
@@ -290,27 +289,6 @@ func newWorker(cfg *MapConfig, bias MapBias, prng *rand.Rand) *mapWorker {
 	}
 }
 
-func (w *mapWorker) retryOneOp(ctx context.Context, s *hammerState) (err error) {
-	ep := w.bias.choose(w.prng)
-	if w.bias.invalid(ep, w.prng) {
-		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
-		invalidReqs.Inc(w.label, string(ep))
-		op, err := getOp(ep, s.invalidReadOps, s.setLeavesInvalid)
-		if err != nil {
-			return err
-		}
-		return op(ctx, w.prng)
-	}
-
-	op, err := getOp(ep, s.validReadOps, s.setLeaves)
-	if err != nil {
-		return err
-	}
-
-	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
-	return w.retryOp(ctx, op, string(ep))
-}
-
 func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName string) error {
 	defer func(start time.Time) {
 		rspLatency.Observe(time.Since(start).Seconds(), w.label, opName)
@@ -411,19 +389,18 @@ func (w *readWorker) run(ctx context.Context, done <-chan struct{}) error {
 
 // TODO(mhutchinson): resolve duplication between this and retryOneOp.
 func (w *readWorker) readOnce(ctx context.Context) error {
-	writeOp := func(context.Context, *rand.Rand) error { return errors.New("Unexpected write operation") }
 	ep := w.bias.choose(w.prng)
 	if w.bias.invalid(ep, w.prng) {
 		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
 		invalidReqs.Inc(w.label, string(ep))
-		op, err := getOp(ep, w.invalidReadOps, writeOp)
+		op, err := getReadOp(ep, w.invalidReadOps)
 		if err != nil {
 			return err
 		}
 		return op(ctx, w.prng)
 	}
 
-	op, err := getOp(ep, w.validReadOps, writeOp)
+	op, err := getReadOp(ep, w.validReadOps)
 	if err != nil {
 		return err
 	}
@@ -436,11 +413,16 @@ func (w *readWorker) readOnce(ctx context.Context) error {
 type writeWorker struct {
 	*mapWorker
 
+	head       *testonly.MapContents
 	operations uint64
 
 	// TODO(mhutchinson): Remove hammerState from here - it allows access to global info
 	// which makes reasoning about the behaviour difficult.
 	s *hammerState
+
+	// Counters for generating unique keys/values.
+	keyIdx   int
+	valueIdx int
 }
 
 func newWriteWorker(s *hammerState) *writeWorker {
@@ -463,11 +445,131 @@ func (w *writeWorker) run(ctx context.Context, done <-chan struct{}) (uint64, er
 			return count, nil
 		default:
 		}
-		if err := w.retryOneOp(ctx, w.s); err != nil {
+		if err := w.writeOnce(ctx); err != nil {
 			return count, err
 		}
 	}
 	return count, nil
+}
+
+func (w *writeWorker) writeOnce(ctx context.Context) error {
+	ep := SetLeavesName
+	if w.bias.invalid(ep, w.prng) {
+		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
+		invalidReqs.Inc(w.label, string(ep))
+		return w.setLeavesInvalid(ctx, w.prng)
+	}
+	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
+	return w.retryOp(ctx, w.setLeaves, string(ep))
+}
+
+func (w *writeWorker) setLeaves(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
+
+	cfg := w.s.cfg
+	n := pickIntInRange(cfg.MinLeaves, cfg.MaxLeaves, prng)
+	if n == 0 {
+		n = 1
+	}
+	leaves := make([]*trillian.MapLeaf, 0, n)
+	rev := int64(0)
+	if w.head != nil {
+		rev = w.head.Rev
+	}
+leafloop:
+	for i := 0; i < n; i++ {
+		choice := choices[prng.Intn(len(choices))]
+		if w.head.Empty() {
+			choice = CreateLeaf
+		}
+		switch choice {
+		case CreateLeaf:
+			key, value := w.nextKey(), w.nextValue()
+			leaves = append(leaves, &trillian.MapLeaf{
+				Index:     testonly.TransparentHash(key),
+				LeafValue: value,
+				ExtraData: testonly.ExtraDataForValue(value, cfg.ExtraSize),
+			})
+			glog.V(3).Infof("%d: %v: data[%q]=%q", w.mapID, choice, key, string(value))
+		case UpdateLeaf, DeleteLeaf:
+			key := w.head.PickKey(prng)
+			// Not allowed to have the same key more than once in the same request
+			for _, leaf := range leaves {
+				if bytes.Equal(leaf.Index, key) {
+					// Go back to the beginning of the loop and choose again.
+					i--
+					continue leafloop
+				}
+			}
+			var value, extra []byte
+			if choice == UpdateLeaf {
+				value = w.nextValue()
+				extra = testonly.ExtraDataForValue(value, cfg.ExtraSize)
+			}
+			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
+			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", w.mapID, choice, dehash(key), string(value), string(extra))
+		}
+	}
+
+	writeRev := uint64(rev + 1)
+
+	req := trillian.WriteMapLeavesRequest{
+		MapId:          w.mapID,
+		Leaves:         leaves,
+		Metadata:       metadataForRev(writeRev),
+		ExpectRevision: int64(writeRev),
+	}
+
+	if err := w.s.sharedState.proposeLeaves(writeRev, leaves); err != nil {
+		return err
+	}
+	if _, err := cfg.Write.WriteLeaves(ctx, &req); err != nil {
+		return fmt.Errorf("failed to WriteLeaves(count=%d): %v", len(leaves), err)
+	}
+
+	glog.V(2).Infof("%d: set %d leaves, rev=%d", w.mapID, len(leaves), writeRev)
+	w.head = w.head.UpdatedWith(writeRev, leaves)
+	return nil
+}
+
+func (w *writeWorker) setLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{MalformedKey, DuplicateKey}
+
+	var leaves []*trillian.MapLeaf
+	value := []byte("value-for-invalid-req")
+
+	choice := choices[prng.Intn(len(choices))]
+	if w.head.Empty() {
+		choice = MalformedKey
+	}
+	switch choice {
+	case MalformedKey:
+		key := testonly.TransparentHash("..invalid-size")
+		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
+	case DuplicateKey:
+		key := w.head.PickKey(prng)
+		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
+		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
+	}
+	req := trillian.WriteMapLeavesRequest{MapId: w.mapID, Leaves: leaves}
+	rsp, err := w.s.cfg.Write.WriteLeaves(ctx, &req)
+	if err == nil {
+		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
+	}
+	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", w.mapID, choice, req, rsp)
+	return nil
+}
+
+func (w *writeWorker) nextKey() string {
+	w.keyIdx++
+	return fmt.Sprintf("key-%08d", w.keyIdx)
+}
+
+func (w *writeWorker) nextValue() []byte {
+	w.valueIdx++
+	result := make([]byte, w.s.cfg.LeafSize)
+	copy(result, fmt.Sprintf(valueFormat, w.valueIdx))
+	return result
 }
 
 // hammerState tracks the operations that have been performed during a test run.
@@ -476,15 +578,8 @@ type hammerState struct {
 	validReadOps   *validReadOps
 	invalidReadOps *invalidReadOps
 	sharedState    *sharedState
-	head           *testonly.MapContents // TODO(mhutchinson): This should move to writeWorker.
 
 	start time.Time
-
-	mu sync.RWMutex // Protects everything below
-
-	// Counters for generating unique keys/values.
-	keyIdx   int
-	valueIdx int
 }
 
 func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
@@ -544,22 +639,6 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	}, nil
 }
 
-func (s *hammerState) nextKey() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.keyIdx++
-	return fmt.Sprintf("key-%08d", s.keyIdx)
-}
-
-func (s *hammerState) nextValue() []byte {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.valueIdx++
-	result := make([]byte, s.cfg.LeafSize)
-	copy(result, fmt.Sprintf(valueFormat, s.valueIdx))
-	return result
-}
-
 func (s *hammerState) label() string {
 	return strconv.FormatInt(s.cfg.MapID, 10)
 }
@@ -600,7 +679,7 @@ type readOps interface {
 
 type mapOperationFn func(context.Context, *rand.Rand) error
 
-func getOp(ep MapEntrypointName, read readOps, write mapOperationFn) (mapOperationFn, error) {
+func getReadOp(ep MapEntrypointName, read readOps) (mapOperationFn, error) {
 	switch ep {
 	case GetLeavesName:
 		return read.getLeaves, nil
@@ -610,109 +689,9 @@ func getOp(ep MapEntrypointName, read readOps, write mapOperationFn) (mapOperati
 		return read.getSMR, nil
 	case GetSMRRevName:
 		return read.getSMRRev, nil
-	case SetLeavesName:
-		// TODO(mhutchinson): This mutation method needs to be removed from here.
-		return write, nil
 	default:
-		return nil, fmt.Errorf("internal error: unknown operation %s", ep)
+		return nil, fmt.Errorf("internal error: unknown read operation %s", ep)
 	}
-}
-
-func (s *hammerState) setLeaves(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
-
-	n := pickIntInRange(s.cfg.MinLeaves, s.cfg.MaxLeaves, prng)
-	if n == 0 {
-		n = 1
-	}
-	leaves := make([]*trillian.MapLeaf, 0, n)
-	rev := int64(0)
-	if s.head != nil {
-		rev = s.head.Rev
-	}
-leafloop:
-	for i := 0; i < n; i++ {
-		choice := choices[prng.Intn(len(choices))]
-		if s.head.Empty() {
-			choice = CreateLeaf
-		}
-		switch choice {
-		case CreateLeaf:
-			key := s.nextKey()
-			value := s.nextValue()
-			leaves = append(leaves, &trillian.MapLeaf{
-				Index:     testonly.TransparentHash(key),
-				LeafValue: value,
-				ExtraData: testonly.ExtraDataForValue(value, s.cfg.ExtraSize),
-			})
-			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, key, string(value))
-		case UpdateLeaf, DeleteLeaf:
-			key := s.head.PickKey(prng)
-			// Not allowed to have the same key more than once in the same request
-			for _, leaf := range leaves {
-				if bytes.Equal(leaf.Index, key) {
-					// Go back to the beginning of the loop and choose again.
-					i--
-					continue leafloop
-				}
-			}
-			var value, extra []byte
-			if choice == UpdateLeaf {
-				value = s.nextValue()
-				extra = testonly.ExtraDataForValue(value, s.cfg.ExtraSize)
-			}
-			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
-			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", s.cfg.MapID, choice, dehash(key), string(value), string(extra))
-		}
-	}
-
-	writeRev := uint64(rev + 1)
-
-	req := trillian.WriteMapLeavesRequest{
-		MapId:          s.cfg.MapID,
-		Leaves:         leaves,
-		Metadata:       metadataForRev(writeRev),
-		ExpectRevision: int64(writeRev),
-	}
-
-	if err := s.sharedState.proposeLeaves(writeRev, leaves); err != nil {
-		return err
-	}
-	if _, err := s.cfg.Write.WriteLeaves(ctx, &req); err != nil {
-		return fmt.Errorf("failed to WriteLeaves(count=%d): %v", len(leaves), err)
-	}
-
-	glog.V(2).Infof("%d: set %d leaves, rev=%d", s.cfg.MapID, len(leaves), writeRev)
-	s.head = s.head.UpdatedWith(writeRev, leaves)
-	return nil
-}
-
-func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{MalformedKey, DuplicateKey}
-
-	var leaves []*trillian.MapLeaf
-	value := []byte("value-for-invalid-req")
-
-	choice := choices[prng.Intn(len(choices))]
-	if s.head.Empty() {
-		choice = MalformedKey
-	}
-	switch choice {
-	case MalformedKey:
-		key := testonly.TransparentHash("..invalid-size")
-		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
-	case DuplicateKey:
-		key := s.head.PickKey(prng)
-		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
-		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
-	}
-	req := trillian.WriteMapLeavesRequest{MapId: s.cfg.MapID, Leaves: leaves}
-	rsp, err := s.cfg.Write.WriteLeaves(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
-	}
-	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
-	return nil
 }
 
 func dehash(index []byte) string {
