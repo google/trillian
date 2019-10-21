@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -74,7 +75,7 @@ func TestInitMap(t *testing.T) {
 		wantCode   codes.Code
 	}{
 		{desc: "init new map", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
-		{desc: "init new map, no err", getRootErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new map, no err", getRootErr: nil, wantInit: false, root: nil, wantCode: codes.AlreadyExists},
 		{desc: "init already initialised map", getRootErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -331,6 +332,77 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			if got := smrResp; !proto.Equal(got, want) {
 				diff := pretty.Compare(got, want)
 				t.Errorf("GetSignedMapRootByRevision() got != want, diff:\n%v", diff)
+			}
+		})
+	}
+}
+
+func makeSMR(t *testing.T, rev uint64) *trillian.SignedMapRoot {
+	t.Helper()
+	mapRoot := types.MapRootV1{
+		TimestampNanos: 1571152792498135318,
+		Revision:       rev,
+		RootHash:       []byte("fake_hash"),
+	}
+	bin, err := mapRoot.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary: %v", err)
+	}
+	return &trillian.SignedMapRoot{
+		MapRoot:   bin,
+		Signature: []byte("fake_signature"),
+	}
+}
+
+func TestSetLeavesEmpty(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		root     *trillian.SignedMapRoot
+		revShift int64
+		smrErr   error
+		wantErr  bool
+	}{
+		{root: makeSMR(t, 0), wantErr: false},
+		{root: makeSMR(t, 1), wantErr: true},
+		{root: makeSMR(t, 10), revShift: 10, wantErr: false},
+		{root: makeSMR(t, 0), revShift: -1, wantErr: true},
+		{root: makeSMR(t, 0), revShift: -10, wantErr: true},
+		{root: makeSMR(t, 0), revShift: 1, wantErr: true},
+		{root: nil, wantErr: true},
+		{root: &trillian.SignedMapRoot{MapRoot: []byte("invalid")}, wantErr: true},
+		{root: nil, smrErr: errors.New("you shall not pass"), wantErr: true},
+	} {
+		t.Run("", func(t *testing.T) {
+			fakeStorage := storage.NewMockMapStorage(ctrl)
+			adminStorage := fakeAdminStorageForMap(ctrl, 12345)
+			server := NewTrillianMapServer(extension.Registry{
+				MapStorage:   fakeStorage,
+				AdminStorage: adminStorage,
+			}, TrillianMapServerOptions{UseSingleTransaction: true})
+			mockTX := storage.NewMockMapTreeTX(ctrl)
+
+			rev := 1 + tc.revShift
+			if rev > 0 { // Otherwise the transaction is not even started.
+				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(tc.root, tc.smrErr)
+				if !tc.wantErr {
+					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+				}
+				fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+						return f(ctx, mockTX)
+					})
+			}
+
+			_, err := server.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+				MapId:    12345,
+				Revision: rev,
+				Leaves:   nil,
+			})
+			if got, want := err != nil, tc.wantErr; got != want {
+				t.Fatalf("SetLeaves: %v, wantErr=%v", err, want)
 			}
 		})
 	}
