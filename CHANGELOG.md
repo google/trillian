@@ -18,6 +18,13 @@ leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
 were unable to reason about which map revision they were seeing. The
 SetAndVerifyMapLeaves method was deleted.
 
+### Storage
+
+The StorageProvider type and helpers have been moved from the server package to
+storage. Aliases for the old types/functions are created for backward
+compatibility, but the new code should not use them as we will remove them with
+the next major version bump.
+
 ## v1.3.2 - Module fixes
 
 Published 2019-09-05 17:30:00 +0000 UTC
