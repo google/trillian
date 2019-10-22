@@ -37,8 +37,12 @@ func init() {
 }
 
 func newMySQLQuotaManager() (quota.Manager, error) {
+	db, err := getMySQLDatabase()
+	if err != nil {
+		return nil, err
+	}
 	qm := &mysqlqm.QuotaManager{
-		DB:                 mySQLstorageInstance.db,
+		DB:                 db,
 		MaxUnsequencedRows: *maxUnsequencedRows,
 	}
 	glog.Info("Using MySQL QuotaManager")

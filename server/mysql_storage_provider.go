@@ -33,9 +33,10 @@ var (
 	maxConns = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
 	maxIdle  = flag.Int("mysql_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
 
-	mysqlOnce            sync.Once
-	mysqlOnceErr         error
-	mySQLstorageInstance *mysqlProvider
+	mysqlMu              sync.Mutex
+	mysqlErr             error
+	mysqlDB              *sql.DB
+	mysqlStorageInstance *mysqlProvider
 )
 
 func init() {
@@ -50,27 +51,47 @@ type mysqlProvider struct {
 }
 
 func newMySQLStorageProvider(mf monitoring.MetricFactory) (StorageProvider, error) {
-	mysqlOnce.Do(func() {
-		var db *sql.DB
-		db, mysqlOnceErr = mysql.OpenDB(*mySQLURI)
-		if mysqlOnceErr != nil {
-			return
+	mysqlMu.Lock()
+	defer mysqlMu.Unlock()
+	if mysqlStorageInstance == nil {
+		db, err := getMySQLDatabaseLocked()
+		if err != nil {
+			return nil, err
 		}
-		if *maxConns > 0 {
-			db.SetMaxOpenConns(*maxConns)
-		}
-		if *maxIdle >= 0 {
-			db.SetMaxIdleConns(*maxIdle)
-		}
-		mySQLstorageInstance = &mysqlProvider{
+		mysqlStorageInstance = &mysqlProvider{
 			db: db,
 			mf: mf,
 		}
-	})
-	if mysqlOnceErr != nil {
-		return nil, mysqlOnceErr
 	}
-	return mySQLstorageInstance, nil
+	return mysqlStorageInstance, nil
+}
+
+// getMySQLDatabase returns an instance of MySQL database, or creates one.
+func getMySQLDatabase() (*sql.DB, error) {
+	mysqlMu.Lock()
+	defer mysqlMu.Unlock()
+	return getMySQLDatabaseLocked()
+}
+
+// getMySQLDatabaseLocked returns an instance of MySQL database, or creates
+// one. Requires mysqlMu to be locked.
+func getMySQLDatabaseLocked() (*sql.DB, error) {
+	if mysqlDB != nil || mysqlErr != nil {
+		return mysqlDB, mysqlErr
+	}
+	db, err := mysql.OpenDB(*mySQLURI)
+	if err != nil {
+		mysqlErr = err
+		return nil, err
+	}
+	if *maxConns > 0 {
+		db.SetMaxOpenConns(*maxConns)
+	}
+	if *maxIdle >= 0 {
+		db.SetMaxIdleConns(*maxIdle)
+	}
+	mysqlDB, mysqlErr = db, nil
+	return db, nil
 }
 
 func (s *mysqlProvider) LogStorage() storage.LogStorage {
