@@ -23,7 +23,10 @@ SetAndVerifyMapLeaves method was deleted.
 The StorageProvider type and helpers have been moved from the server package to
 storage. Aliases for the old types/functions are created for backward
 compatibility, but the new code should not use them as we will remove them with
-the next major version bump.
+the next major version bump. The individual storage providers have been moved to
+the corresponding packages, and are now required to be imported explicitly by
+the main file in order to be registered. We are including only MySQL and
+cloudspanner providers by default, since these are the ones that we support.
 
 ## v1.3.2 - Module fixes
 
