@@ -138,19 +138,20 @@ func (hb *MapBias) invalid(ep MapEntrypointName, r *rand.Rand) bool {
 
 // MapConfig provides configuration for a stress/load test.
 type MapConfig struct {
-	MapID                int64 // 0 to use an ephemeral tree
-	MetricFactory        monitoring.MetricFactory
-	Client               trillian.TrillianMapClient
-	Write                trillian.TrillianMapWriteClient
-	Admin                trillian.TrillianAdminClient
-	RandSource           rand.Source
-	EPBias               MapBias
-	LeafSize, ExtraSize  uint
-	MinLeaves, MaxLeaves int
-	Operations           uint64
-	EmitInterval         time.Duration
-	RetryErrors          bool
-	OperationDeadline    time.Duration
+	MapID                  int64 // 0 to use an ephemeral tree
+	MetricFactory          monitoring.MetricFactory
+	Client                 trillian.TrillianMapClient
+	Write                  trillian.TrillianMapWriteClient
+	Admin                  trillian.TrillianAdminClient
+	RandSource             rand.Source
+	EPBias                 MapBias
+	LeafSize, ExtraSize    uint
+	MinLeavesR, MaxLeavesR int
+	MinLeavesW, MaxLeavesW int
+	Operations             uint64
+	EmitInterval           time.Duration
+	RetryErrors            bool
+	OperationDeadline      time.Duration
 	// NumCheckers indicates how many separate inclusion checker goroutines
 	// to run.  Note that the behaviour of these checkers is not governed by
 	// RandSource.
@@ -467,7 +468,7 @@ func (w *writeWorker) setLeaves(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
 
 	cfg := w.s.cfg
-	n := pickIntInRange(cfg.MinLeaves, cfg.MaxLeaves, prng)
+	n := pickIntInRange(cfg.MinLeavesW, cfg.MaxLeavesW, prng)
 	if n == 0 {
 		n = 1
 	}
@@ -601,11 +602,17 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	if cfg.EmitInterval == 0 {
 		cfg.EmitInterval = defaultEmitSeconds * time.Second
 	}
-	if cfg.MinLeaves < 0 {
-		return nil, fmt.Errorf("invalid MinLeaves %d", cfg.MinLeaves)
+	if cfg.MinLeavesR < 0 {
+		return nil, fmt.Errorf("invalid MinLeavesR %d", cfg.MinLeavesR)
 	}
-	if cfg.MaxLeaves < cfg.MinLeaves {
-		return nil, fmt.Errorf("invalid MaxLeaves %d is less than MinLeaves %d", cfg.MaxLeaves, cfg.MinLeaves)
+	if cfg.MaxLeavesR < cfg.MinLeavesR {
+		return nil, fmt.Errorf("invalid MaxLeavesR %d is less than MinLeavesR %d", cfg.MaxLeavesR, cfg.MinLeavesR)
+	}
+	if cfg.MinLeavesW < 0 {
+		return nil, fmt.Errorf("invalid MinLeavesW %d", cfg.MinLeavesW)
+	}
+	if cfg.MaxLeavesW < cfg.MinLeavesW {
+		return nil, fmt.Errorf("invalid MaxLeavesW %d is less than MinLeavesW %d", cfg.MaxLeavesW, cfg.MinLeavesW)
 	}
 	if int(cfg.LeafSize) < minValueLen {
 		return nil, fmt.Errorf("invalid LeafSize %d is smaller than min %d", cfg.LeafSize, minValueLen)
@@ -618,8 +625,8 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	validReadOps := validReadOps{
 		mc:           mc,
 		extraSize:    cfg.ExtraSize,
-		minLeaves:    cfg.MinLeaves,
-		maxLeaves:    cfg.MaxLeaves,
+		minLeaves:    cfg.MinLeavesR,
+		maxLeaves:    cfg.MaxLeavesR,
 		prevContents: sharedState.contents,
 		sharedState:  sharedState,
 	}
