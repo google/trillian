@@ -53,8 +53,8 @@ var (
 	outLog          = flag.String("log_to", "", "File to record operations in")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	operations      = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
-	minLeaves       = flag.Int("min_leaves", 0, "Minimum count of leaves to read per-operation")
-	maxLeaves       = flag.Int("max_leaves", 10, "Maximum count of leaves to read per-operation")
+	minLeavesRead   = flag.Int("min_leaves_read", 0, "Minimum count of leaves to read per-operation")
+	maxLeavesRead   = flag.Int("max_leaves_read", 10, "Maximum count of leaves to read per-operation")
 	minLeavesWrite  = flag.Int("min_leaves_write", 0, "Minimum count of leaves to write per-operation")
 	maxLeavesWrite  = flag.Int("max_leaves_write", 10, "Maximum count of leaves to write per-operation")
 	leafSize        = flag.Uint("leaf_size", 100, "Size of leaf values")
@@ -189,8 +189,8 @@ func main() {
 			EPBias:            bias,
 			LeafSize:          *leafSize,
 			ExtraSize:         *extraSize,
-			MinLeavesR:        *minLeaves,
-			MaxLeavesR:        *maxLeaves,
+			MinLeavesR:        *minLeavesRead,
+			MaxLeavesR:        *maxLeavesRead,
 			MinLeavesW:        *minLeavesWrite,
 			MaxLeavesW:        *maxLeavesWrite,
 			Operations:        *operations,
