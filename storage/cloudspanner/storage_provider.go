@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package cloudspanner
 
 import (
 	"bytes"
@@ -28,7 +28,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/cloudspanner"
 )
 
 var (
@@ -50,7 +49,7 @@ var (
 )
 
 func init() {
-	if err := RegisterStorageProvider("cloud_spanner", newCloudSpannerStorageProvider); err != nil {
+	if err := storage.RegisterProvider("cloud_spanner", newCloudSpannerStorageProvider); err != nil {
 		panic(err)
 	}
 }
@@ -88,7 +87,7 @@ func configFromFlags() spanner.ClientConfig {
 	return r
 }
 
-func newCloudSpannerStorageProvider(_ monitoring.MetricFactory) (StorageProvider, error) {
+func newCloudSpannerStorageProvider(_ monitoring.MetricFactory) (storage.Provider, error) {
 	csMu.Lock()
 	defer csMu.Unlock()
 
@@ -109,7 +108,7 @@ func newCloudSpannerStorageProvider(_ monitoring.MetricFactory) (StorageProvider
 // LogStorage builds and returns a new storage.LogStorage using CloudSpanner.
 func (s *cloudSpannerProvider) LogStorage() storage.LogStorage {
 	warn()
-	opts := cloudspanner.LogStorageOptions{}
+	opts := LogStorageOptions{}
 	frac := *csDequeueAcrossMerkleBucketsFraction
 	if frac > 1.0 {
 		frac = 1.0
@@ -121,23 +120,23 @@ func (s *cloudSpannerProvider) LogStorage() storage.LogStorage {
 	if *csReadOnlyStaleness > 0 {
 		opts.ReadOnlyStaleness = *csReadOnlyStaleness
 	}
-	return cloudspanner.NewLogStorageWithOpts(s.client, opts)
+	return NewLogStorageWithOpts(s.client, opts)
 }
 
 // MapStorage builds and returns a new storage.MapStorage using CloudSpanner.
 func (s *cloudSpannerProvider) MapStorage() storage.MapStorage {
 	warn()
-	opts := cloudspanner.MapStorageOptions{}
+	opts := MapStorageOptions{}
 	if *csReadOnlyStaleness > 0 {
 		opts.ReadOnlyStaleness = *csReadOnlyStaleness
 	}
-	return cloudspanner.NewMapStorageWithOpts(s.client, opts)
+	return NewMapStorageWithOpts(s.client, opts)
 }
 
 // AdminStorage builds and returns a new storage.AdminStorage using CloudSpanner.
 func (s *cloudSpannerProvider) AdminStorage() storage.AdminStorage {
 	warn()
-	return cloudspanner.NewAdminStorage(s.client)
+	return NewAdminStorage(s.client)
 }
 
 // Close shuts down this provider. Calls to the other methods will fail

@@ -48,6 +48,10 @@ import (
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
 
+	// Register supported storage providers.
+	_ "github.com/google/trillian/storage/cloudspanner"
+	_ "github.com/google/trillian/storage/mysql"
+
 	// Load hashers
 	_ "github.com/google/trillian/merkle/rfc6962"
 )

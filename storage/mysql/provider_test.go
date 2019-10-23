@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package mysql
 
 import (
 	"flag"
 	"testing"
 
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly/flagsaver"
 )
 
@@ -28,18 +29,18 @@ func TestMySQLStorageProviderErrorPersistence(t *testing.T) {
 	}
 
 	// First call: This should fail due to the Database URL being garbage.
-	_, err1 := NewStorageProvider("mysql", nil)
+	_, err1 := storage.NewProvider("mysql", nil)
 	if err1 == nil {
-		t.Fatalf("Expected 'server.NewStorageProvider' to fail")
+		t.Fatalf("Expected 'storage.NewProvider' to fail")
 	}
 
 	// Second call: This should fail with the same error.
-	_, err2 := NewStorageProvider("mysql", nil)
+	_, err2 := storage.NewProvider("mysql", nil)
 	if err2 == nil {
-		t.Fatalf("Expected second call to 'server.NewStorageProvider' to fail")
+		t.Fatalf("Expected second call to 'storage.NewProvider' to fail")
 	}
 
 	if err2 != err1 {
-		t.Fatalf("Expected second call to 'server.NewStorageProvider' to fail with %q, instead got: %q", err1, err2)
+		t.Fatalf("Expected second call to 'storage.NewProvider' to fail with %q, instead got: %q", err1, err2)
 	}
 }
