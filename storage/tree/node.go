@@ -55,6 +55,8 @@ type Node struct {
 // See the types.go file that defines this type for more detailed information
 // and docs/storage for how they are used in the on-disk representation of
 // Merkle trees.
+//
+// TODO(pavelkalinnikov, v2): To be removed in the next major version.
 type NodeID struct {
 	// Path is effectively a BigEndian bit set, with the MSB of Path[0]
 	// identifying the root child, and successive bits identifying the lower
