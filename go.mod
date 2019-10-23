@@ -19,6 +19,7 @@ require (
 	github.com/gliderlabs/ssh v0.1.4 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gobuffalo/flect v0.1.5 // indirect
+	github.com/gogo/protobuf v1.2.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/mock v1.3.1

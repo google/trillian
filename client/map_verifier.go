@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/maps"
 	"github.com/google/trillian/merkle"
@@ -81,7 +82,10 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 
 // VerifyMapLeafInclusionHash verifies a MapLeafInclusion object against a root hash.
 func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *trillian.MapLeafInclusion) error {
-	return merkle.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
+	if err := merkle.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher); err != nil {
+		return status.Errorf(status.Code(err), "VerifyMapLeafInclusionHash(): %v, trillian.MapLeafInclusion=\n%v", err, proto.MarshalTextString(leafProof))
+	}
+	return nil
 }
 
 // VerifyMapLeavesResponse verifies the responses of GetMapLeaves and GetMapLeavesByRevision.
@@ -106,7 +110,7 @@ func (m *MapVerifier) VerifyMapLeavesResponse(indexes [][]byte, revision int64, 
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return nil, nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(): %v", err)
+		return nil, nil, status.Errorf(status.Code(err), "map: VerifyMapLeafInclusion(rev=%d): %v", mapRoot.Revision, err)
 	}
 
 	leaves := make([]*trillian.MapLeaf, 0, len(resp.MapLeafInclusion))
