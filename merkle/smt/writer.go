@@ -59,7 +59,7 @@ func NewWriter(treeID int64, hasher hashers.MapHasher, height, split uint) *Writ
 // the subsets belonging to different subtrees. The updates must belong to the
 // same tree level which is equal to the tree height.
 func (w *Writer) Split(upd []NodeUpdate) ([][]NodeUpdate, error) {
-	if err := sortUpdates(upd, w.height); err != nil {
+	if err := Prepare(upd, w.height); err != nil {
 		return nil, err
 	}
 	// TODO(pavelkalinnikov): Try estimating the capacity for this slice.

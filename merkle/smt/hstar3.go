@@ -17,8 +17,6 @@ package smt
 
 import (
 	"fmt"
-	"sort"
-	"strings"
 
 	"github.com/google/trillian/storage/tree"
 )
@@ -41,12 +39,6 @@ type NodeAccessor interface {
 // HashChildrenFn computes a node hash based on its child nodes' hashes.
 type HashChildrenFn func(left, right []byte) []byte
 
-// NodeUpdate represents an update of a node hash in HStar3 algorithm.
-type NodeUpdate struct {
-	ID   tree.NodeID2
-	Hash []byte
-}
-
 // HStar3 is a faster non-recursive HStar2.
 //
 // TODO(pavelkalinnikov): Swap in the code, and document it properly.
@@ -64,7 +56,7 @@ type HStar3 struct {
 // Warning: This call and other HStar3 methods modify the updates slice
 // in-place, so the caller must ensure to not reuse it.
 func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HStar3, error) {
-	if err := sortUpdates(updates, depth); err != nil {
+	if err := Prepare(updates, depth); err != nil {
 		return HStar3{}, err
 	} else if top > depth {
 		return HStar3{}, fmt.Errorf("top > depth: %d vs. %d", top, depth)
@@ -192,35 +184,4 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, na NodeAccessor) ([]N
 func isLeftChild(id tree.NodeID2) bool {
 	last, bits := id.LastByte()
 	return last&(1<<(8-bits)) == 0
-}
-
-// compareHorizontal returns whether the first node ID is to the left from the
-// second one. The result only makes sense for IDs at the same tree level.
-func compareHorizontal(a, b tree.NodeID2) bool {
-	if res := strings.Compare(a.FullBytes(), b.FullBytes()); res != 0 {
-		return res < 0
-	}
-	aLast, _ := a.LastByte()
-	bLast, _ := b.LastByte()
-	return aLast < bLast
-}
-
-// sortUpdates sorts the updates slice for it to be usable by HStar3. It also
-// verifies that the nodes are placed at the required depth, and there are no
-// duplicate IDs.
-func sortUpdates(updates []NodeUpdate, depth uint) error {
-	for i := range updates {
-		if d, want := updates[i].ID.BitLen(), depth; d != want {
-			return fmt.Errorf("upd #%d: invalid depth %d, want %d", i, d, want)
-		}
-	}
-	sort.Slice(updates, func(i, j int) bool {
-		return compareHorizontal(updates[i].ID, updates[j].ID)
-	})
-	for i, last := 0, len(updates)-1; i < last; i++ {
-		if id := updates[i].ID; id == updates[i+1].ID {
-			return fmt.Errorf("duplicate ID: %v", id)
-		}
-	}
-	return nil
 }
