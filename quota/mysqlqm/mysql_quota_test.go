@@ -41,11 +41,11 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
-	defer db.Close()
+	defer done(ctx)
 
 	tree, err := createTree(ctx, db)
 	if err != nil {
@@ -135,11 +135,11 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 	for _, test := range tests {
 		desc := fmt.Sprintf("useSelectCount = %v", test.useSelectCount)
 		t.Run(desc, func(t *testing.T) {
-			db, err := testdb.NewTrillianDB(ctx)
+			db, done, err := testdb.NewTrillianDB(ctx)
 			if err != nil {
 				t.Fatalf("NewTrillianDB() returned err = %v", err)
 			}
-			defer db.Close()
+			defer done(ctx)
 
 			tree, err := createTree(ctx, db)
 			if err != nil {
@@ -186,11 +186,11 @@ func TestQuotaManager_PeekTokens(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
-	defer db.Close()
+	defer done(ctx)
 
 	tree, err := createTree(ctx, db)
 	if err != nil {
@@ -228,11 +228,11 @@ func TestQuotaManager_Noops(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
-	defer db.Close()
+	defer done(ctx)
 
 	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: 1000}
 	specs := allSpecs(ctx, qm, 10 /* treeID */)
@@ -303,7 +303,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 			if err != nil {
 				return err
 			}
-			return tx.StoreSignedLogRoot(ctx, *slr)
+			return tx.StoreSignedLogRoot(ctx, slr)
 		})
 		if err != nil {
 			return nil, err

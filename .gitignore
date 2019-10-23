@@ -5,6 +5,7 @@
 *.tfstate.backup
 *~
 /.idea
+/bazel-*
 /commit_log
 /coverage.txt
 /createtree
@@ -12,6 +13,7 @@
 /ct_server
 /dump_tree
 /etcdiscover
+/licenses
 /loglb
 /maphammer
 /mapreplay

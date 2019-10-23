@@ -29,7 +29,7 @@ import (
 
 var (
 	server   = flag.String("map_rpc_server", "", "Server address:port")
-	singleTX = flag.Bool("single_transaction", false, "Experimental: whether to update the map in a single transaction")
+	singleTX = flag.Bool("single_transaction", true, "Experimental: whether to update the map in a single transaction")
 )
 
 func TestMapIntegration(t *testing.T) {
@@ -51,7 +51,7 @@ func TestMapIntegration(t *testing.T) {
 
 	for _, test := range AllTests {
 		t.Run(test.Name, func(t *testing.T) {
-			test.Fn(ctx, t, env.Admin, env.Map)
+			test.Fn(ctx, t, env.Admin, env.Map, env.Write)
 		})
 	}
 }

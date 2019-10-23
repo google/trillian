@@ -20,15 +20,16 @@ import (
 	"encoding/base64"
 	"fmt"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 )
 
 const (
@@ -43,13 +44,15 @@ const (
 			SELECT n.subtree_id, max(n.subtree_revision) AS max_revision
 			FROM subtree n
 			WHERE n.subtree_id IN (` + placeholderSQL + `) AND
-			n.tree_id = ? AND n.subtree_revision <= ?
+			n.tree_id = <param> AND n.subtree_revision <= <param>
 			GROUP BY n.subtree_id
 		) AS x
 		INNER JOIN subtree
 		ON subtree.subtree_id = x.subtree_id
 		AND subtree.subtree_revision = x.max_revision
-		AND subtree.tree_id = ?`
+		AND subtree.tree_id = <param>`
+	insertTreeHeadSQL = `INSERT INTO tree_head(tree_id,tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature)
+                 VALUES($1,$2,$3,$4,$5,$6)`
 )
 
 // pgTreeStorage contains the pgLogStorage implementation.
@@ -141,6 +144,13 @@ func (p *pgTreeStorage) getStmt(ctx context.Context, skeleton *statementSkeleton
 	}
 
 	statement, err := expandPlaceholderSQL(skeleton)
+
+	counter := skeleton.restPlaceholders*skeleton.num + 1
+	for strings.Contains(statement, "<param>") {
+		statement = strings.Replace(statement, "<param>", "$"+strconv.Itoa(counter), 1)
+		counter++
+	}
+
 	if err != nil {
 		glog.Warningf("Failed to expand placeholder sql: %v", skeleton)
 		return nil, err
@@ -181,7 +191,7 @@ func (p *pgTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt,
 	return p.getStmt(ctx, skeleton)
 }
 
-func (p *pgTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache cache.SubtreeCache) (treeTX, error) {
+func (p *pgTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := p.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
@@ -205,12 +215,12 @@ type treeTX struct {
 	treeID        int64
 	treeType      trillian.TreeType
 	hashSizeBytes int
-	subtreeCache  cache.SubtreeCache
+	subtreeCache  *cache.SubtreeCache
 	writeRevision int64
 }
 
-func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID storage.NodeID) (*storagepb.SubtreeProto, error) {
-	s, err := t.getSubtrees(ctx, treeRevision, []storage.NodeID{nodeID})
+func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID tree.NodeID) (*storagepb.SubtreeProto, error) {
+	s, err := t.getSubtrees(ctx, treeRevision, []tree.NodeID{nodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +234,7 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 	}
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
 	glog.V(4).Infof("getSubtrees(")
 	if len(nodeIDs) == 0 {
 		return nil, nil
@@ -239,25 +249,22 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 
 	args := make([]interface{}, 0, len(nodeIDs)+3)
 
-	// populate args with nodeIDs.
+	// Populate args with node IDs.
 	for _, nodeID := range nodeIDs {
-		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+		nodeIDBytes, err := subtreeKey(nodeID)
+		if err != nil {
+			return nil, err
 		}
-
-		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
-
-		args = append(args, interface{}(nodeIDBytes))
+		args = append(args, nodeIDBytes)
 	}
 
 	args = append(args, interface{}(t.treeID))
 	args = append(args, interface{}(treeRevision))
 	args = append(args, interface{}(t.treeID))
-
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
-		glog.Warningf("Failed to get merkle subtrees: %s", err)
+		glog.Warningf("Failed to get merkle subtrees: QueryContext(%v) = (_, %q)", args, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -357,10 +364,10 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	return nil
 }
 
-func (t *treeTX) Commit() error {
+func (t *treeTX) Commit(ctx context.Context) error {
 	if t.writeRevision > -1 {
-		if err := t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error {
-			return t.storeSubtrees(context.TODO(), st)
+		if err := t.subtreeCache.Flush(ctx, func(ctx context.Context, st []*storagepb.SubtreeProto) error {
+			return t.storeSubtrees(ctx, st)
 		}); err != nil {
 			glog.Warningf("TX commit flush error: %v", err)
 			return err
@@ -392,4 +399,68 @@ func (t *treeTX) Close() error {
 		return err
 	}
 	return nil
+}
+
+func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]tree.Node, error) {
+	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
+}
+
+func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
+	for _, n := range nodes {
+		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
+			func(nID tree.NodeID) (*storagepb.SubtreeProto, error) {
+				return t.getSubtree(ctx, t.writeRevision, nID)
+			})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *treeTX) IsOpen() bool {
+	return !t.closed
+}
+
+// getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
+func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
+	return func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
+		return t.getSubtrees(ctx, rev, ids)
+	}
+}
+
+func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
+	// The Exec() might have just failed
+	if err != nil {
+		return err
+	}
+
+	// Otherwise we have to look at the result of the operation
+	rowsAffected, rowsError := res.RowsAffected()
+
+	if rowsError != nil {
+		return rowsError
+	}
+
+	if rowsAffected != count {
+		return fmt.Errorf("expected %d row(s) to be affected but saw: %d", count,
+			rowsAffected)
+	}
+
+	return nil
+}
+
+// subtreeKey returns a non-nil []byte suitable for use as a primary key column
+// for the subtree rooted at the passed-in node ID. Returns an error if the ID
+// is not aligned to bytes.
+func subtreeKey(id tree.NodeID) ([]byte, error) {
+	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
+	if id.PrefixLenBits%8 != 0 {
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
+	}
+	// The returned slice must not be nil, as it would correspond to NULL in SQL.
+	if bytes := id.Path; bytes != nil {
+		return bytes[:id.PrefixLenBits/8], nil
+	}
+	return []byte{}, nil
 }

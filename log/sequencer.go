@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package log includes code that is specific to Trillian's log mode, particularly code
-// for running sequencing operations.
 package log
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -31,6 +30,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 
@@ -40,7 +40,7 @@ import (
 const logIDLabel = "logid"
 
 var (
-	once                   sync.Once
+	sequencerOnce          sync.Once
 	seqBatches             monitoring.Counter
 	seqTreeSize            monitoring.Gauge
 	seqLatency             monitoring.Histogram
@@ -53,6 +53,7 @@ var (
 	seqStoreRootLatency    monitoring.Histogram
 	seqCounter             monitoring.Counter
 	seqMergeDelay          monitoring.Histogram
+	seqTimestamp           monitoring.Gauge
 
 	// QuotaIncreaseFactor is the multiplier used for the number of tokens added back to
 	// sequencing-based quotas. The resulting PutTokens call is equivalent to
@@ -73,13 +74,15 @@ func quotaIncreaseFactor() float64 {
 	return QuotaIncreaseFactor
 }
 
-func createMetrics(mf monitoring.MetricFactory) {
+// TODO(pavelkalinnikov): Create all metrics in this package together.
+func createSequencerMetrics(mf monitoring.MetricFactory) {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
 	quota.InitMetrics(mf)
 	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
-	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
+	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Tree size of last SLR signed", logIDLabel)
+	seqTimestamp = mf.NewGauge("sequencer_tree_timestamp", "Time of last SLR signed in ms since epoch", logIDLabel)
 	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in seconds", logIDLabel)
 	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in seconds", logIDLabel)
 	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in seconds", logIDLabel)
@@ -118,8 +121,8 @@ func NewSequencer(
 	signer *tcrypto.Signer,
 	mf monitoring.MetricFactory,
 	qm quota.Manager) *Sequencer {
-	once.Do(func() {
-		createMetrics(mf)
+	sequencerOnce.Do(func() {
+		createSequencerMetrics(mf)
 	})
 	return &Sequencer{
 		hasher:     hasher,
@@ -130,101 +133,121 @@ func NewSequencer(
 	}
 }
 
-// TODO: This currently doesn't use the batch api for fetching the required nodes. This
-// would be more efficient but requires refactoring.
-func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Tree, error) {
-	mt, err := compact.NewTreeWithState(s.hasher, int64(root.TreeSize), func(depth int, index int64) ([]byte, error) {
-		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
-		if err != nil {
-			return nil, fmt.Errorf("%x: Failed to create nodeID: %v", s.signer.KeyHint, err)
-		}
-		nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), []storage.NodeID{nodeID})
-
-		if err != nil {
-			return nil, fmt.Errorf("%x: Failed to get Merkle nodes: %v", s.signer.KeyHint, err)
-		}
-
-		// We expect to get exactly one node here
-		if nodes == nil || len(nodes) != 1 {
-			return nil, fmt.Errorf("%x: Did not retrieve one node while loading compact Merkle tree, got %#v for ID %v@%v", s.signer.KeyHint, nodes, nodeID.String(), root.Revision)
-		}
-
-		return nodes[0].Hash, nil
-	}, root.RootHash)
-
-	return mt, err
-}
-
-func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVersion int64) ([]storage.Node, error) {
-	targetNodes := make([]storage.Node, len(nodeMap))
-	i := 0
-	for _, node := range nodeMap {
-		node.NodeRevision = newVersion
-		targetNodes[i] = node
-		i++
+// initCompactRangeFromStorage builds a compact range that matches the latest
+// data in the database. Ensures that the root hash matches the passed in root.
+func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
+	fact := compact.RangeFactory{Hash: s.hasher.HashChildren}
+	if root.TreeSize == 0 {
+		return fact.NewEmptyRange(0), nil
 	}
-	return targetNodes, nil
+
+	ids := compact.RangeNodes(0, root.TreeSize)
+	storIDs := make([]tree.NodeID, len(ids))
+	for i, id := range ids {
+		nodeID, err := tree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create nodeID: %v", err)
+		}
+		storIDs[i] = nodeID
+	}
+
+	nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), storIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
+	}
+	if got, want := len(nodes), len(storIDs); got != want {
+		return nil, fmt.Errorf("failed to get %d nodes at rev %d, got %d", want, root.Revision, got)
+	}
+	for i, id := range storIDs {
+		if !nodes[i].NodeID.Equivalent(id) {
+			return nil, fmt.Errorf("node ID mismatch at %d", i)
+		}
+	}
+
+	hashes := make([][]byte, len(nodes))
+	for i, node := range nodes {
+		hashes[i] = node.Hash
+	}
+
+	cr, err := fact.NewRange(0, root.TreeSize, hashes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create compact.Range: %v", err)
+	}
+	hash, err := cr.GetRootHash(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute the root hash: %v", err)
+	}
+	// Note: Tree size != 0 at this point, so we don't consider the empty hash.
+	if want := root.RootHash; !bytes.Equal(hash, want) {
+		return nil, fmt.Errorf("root hash mismatch: got %x, want %x", hash, want)
+	}
+	return cr, nil
 }
 
-func (s Sequencer) updateCompactTree(mt *compact.Tree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, error) {
-	nodeMap := make(map[string]storage.Node)
-	// Update the tree state by integrating the leaves one by one.
-	for _, leaf := range leaves {
-		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) error {
-			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
-			if err != nil {
-				return err
-			}
-			nodeMap[nodeID.String()] = storage.Node{
-				NodeID: nodeID,
-				Hash:   hash,
-			}
-			return nil
-		})
+func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]tree.Node, error) {
+	nodes := make([]tree.Node, 0, len(nodeMap))
+	for id, hash := range nodeMap {
+		nodeID, err := tree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
 		if err != nil {
 			return nil, err
 		}
-		// The leaf should already have the correct index before it's integrated.
-		if leaf.LeafIndex != seq {
-			return nil, fmt.Errorf("got invalid leaf index: %v, want: %v", leaf.LeafIndex, seq)
-		}
-		integrateTS := s.timeSource.Now()
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(integrateTS)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
-		}
+		nodes = append(nodes, tree.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion})
+	}
+	return nodes, nil
+}
 
-		// Old leaves might not have a QueueTimestamp, only calculate the merge delay if this one does.
+func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string) error {
+	now := s.timeSource.Now()
+	integrateAt, err := ptypes.TimestampProto(now)
+	if err != nil {
+		return fmt.Errorf("got invalid integrate timestamp: %v", err)
+	}
+	for i, leaf := range leaves {
+		// The leaf should already have the correct index before it's integrated.
+		if got, want := leaf.LeafIndex, begin+uint64(i); got < 0 || got != int64(want) {
+			return fmt.Errorf("got invalid leaf index: %v, want: %v", got, want)
+		}
+		leaf.IntegrateTimestamp = integrateAt
+
+		// Old leaves might not have a QueueTimestamp, only calculate the merge
+		// delay if this one does.
 		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
 			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
 			if err != nil {
-				return nil, fmt.Errorf("got invalid queue timestamp: %v", queueTS)
+				return fmt.Errorf("got invalid queue timestamp: %v", queueTS)
 			}
-			mergeDelay := integrateTS.Sub(queueTS)
+			mergeDelay := now.Sub(queueTS)
 			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
 		}
-
-		// Store leaf hash in the Merkle tree too:
-		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
-		if err != nil {
-			return nil, err
-		}
-		nodeMap[leafNodeID.String()] = storage.Node{
-			NodeID: leafNodeID,
-			Hash:   leaf.MerkleLeafHash,
-		}
 	}
-
-	return nodeMap, nil
+	return nil
 }
 
-func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot *types.LogRootV1, tx storage.LogTreeTX) (*compact.Tree, error) {
-	if currentRoot.TreeSize == 0 {
-		return compact.NewTree(s.hasher), nil
-	}
+// updateCompactRange adds the passed in leaves to the compact range. Returns a
+// map of all updated tree nodes, and the new root hash.
+func (s Sequencer) updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
+	nodeMap := make(map[compact.NodeID][]byte)
+	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
-	// Initialize the compact tree state to match the latest root in the database
-	return s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
+	// Update the tree state by integrating the leaves one by one.
+	for _, leaf := range leaves {
+		idx := leaf.LeafIndex
+		if size := cr.End(); idx < 0 || idx != int64(size) {
+			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
+		}
+		// Store the leaf hash in the Merkle tree.
+		store(compact.NewNodeID(0, uint64(idx)), leaf.MerkleLeafHash)
+		// Store all the new internal nodes.
+		if err := cr.Append(leaf.MerkleLeafHash, store); err != nil {
+			return nil, nil, err
+		}
+	}
+	// Store ephemeral nodes on the right border of the tree as well.
+	hash, err := cr.GetRootHash(store)
+	if err != nil {
+		return nil, nil, err
+	}
+	return nodeMap, hash, nil
 }
 
 // sequencingTask provides sequenced LogLeaf entries, and updates storage
@@ -241,7 +264,7 @@ type sequencingTask interface {
 
 type sequencingTaskData struct {
 	label      string
-	treeSize   int64
+	treeSize   uint64
 	timeSource clock.TimeSource
 	tx         storage.LogTreeTX
 }
@@ -262,7 +285,10 @@ func (s *logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Ti
 
 	// Assign leaf sequence numbers.
 	for i, leaf := range leaves {
-		leaf.LeafIndex = s.treeSize + int64(i)
+		leaf.LeafIndex = int64(s.treeSize + uint64(i))
+		if got := leaf.LeafIndex; got < 0 {
+			return nil, fmt.Errorf("%v: leaf index overflow: %d", s.label, got)
+		}
 	}
 	return leaves, nil
 }
@@ -313,7 +339,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		// Get the latest known root from storage
 		sth, err := tx.LatestSignedLogRoot(ctx)
-		if err != nil {
+		if err != nil || sth == nil {
 			return fmt.Errorf("%v: Sequencer failed to get latest root: %v", tree.TreeId, err)
 		}
 		// There is no trust boundary between the signer and the
@@ -324,6 +350,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return fmt.Errorf("%v: Sequencer failed to unmarshal latest root: %v", tree.TreeId, err)
 		}
 		seqGetRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
+		seqTreeSize.Set(float64(currentRoot.TreeSize), label)
 
 		if currentRoot.RootHash == nil {
 			glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", tree.TreeId)
@@ -332,7 +359,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		taskData := &sequencingTaskData{
 			label:      label,
-			treeSize:   int64(currentRoot.TreeSize),
+			treeSize:   currentRoot.TreeSize,
 			timeSource: s.timeSource,
 			tx:         tx,
 		}
@@ -366,15 +393,15 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		stageStart = s.timeSource.Now()
-		merkleTree, err := s.initMerkleTreeFromStorage(ctx, &currentRoot, tx)
+		cr, err := s.initCompactRangeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("%v: compact range init failed: %v", tree.TreeId, err)
 		}
 		seqInitTreeLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
 
 		// We've done all the reads, can now do the updates in the same transaction.
-		// The schema should prevent multiple STHs being inserted with the same
+		// The schema should prevent multiple SLRs being inserted with the same
 		// revision number so it should not be possible for colliding updates to
 		// commit.
 		newVersion, err := tx.WriteRevision(ctx)
@@ -386,7 +413,10 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
-		nodeMap, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
+		if err := s.prepareLeaves(sequencedLeaves, cr.End(), label); err != nil {
+			return err
+		}
+		nodeMap, newRoot, err := s.updateCompactRange(cr, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
@@ -415,14 +445,20 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		seqSetNodesLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
 
-		// Create the log root ready for signing
-		seqTreeSize.Set(float64(merkleTree.Size()), label)
+		// Create the log root ready for signing.
+		if cr.End() == 0 {
+			// Override the nil root hash returned by the compact range.
+			newRoot = s.hasher.EmptyRoot()
+		}
 		newLogRoot = &types.LogRootV1{
-			RootHash:       merkleTree.CurrentRoot(),
+			RootHash:       newRoot,
 			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
-			TreeSize:       uint64(merkleTree.Size()),
+			TreeSize:       cr.End(),
 			Revision:       uint64(newVersion),
 		}
+		seqTreeSize.Set(float64(newLogRoot.TreeSize), label)
+		seqTimestamp.Set(float64(time.Duration(newLogRoot.TimestampNanos)*time.Nanosecond/
+			time.Millisecond), label)
 
 		if newLogRoot.TimestampNanos <= currentRoot.TimestampNanos {
 			return fmt.Errorf("%v: refusing to sign root with timestamp earlier than previous root (%d <= %d)", tree.TreeId, newLogRoot.TimestampNanos, currentRoot.TimestampNanos)
@@ -433,11 +469,10 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return fmt.Errorf("%v: signer failed to sign root: %v", tree.TreeId, err)
 		}
 
-		if err := tx.StoreSignedLogRoot(ctx, *newSLR); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, newSLR); err != nil {
 			return fmt.Errorf("%v: failed to write updated tree root: %v", tree.TreeId, err)
 		}
 		seqStoreRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
-
 		return nil
 	})
 	if err != nil {
@@ -445,30 +480,37 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 	}
 
 	// Let quota.Manager know about newly-sequenced entries.
-	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
-	// Implementations are tasked with filtering quotas that shouldn't be replenished.
-	// TODO(codingllama): Consider adding a source-aware replenish method
-	// (eg, qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no ambiguity as to
-	// where the tokens come from.
-	if numLeaves > 0 {
-		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
-		specs := []quota.Spec{
-			{Group: quota.Tree, Kind: quota.Read, TreeID: tree.TreeId},
-			{Group: quota.Tree, Kind: quota.Write, TreeID: tree.TreeId},
-			{Group: quota.Global, Kind: quota.Read},
-			{Group: quota.Global, Kind: quota.Write},
-		}
-		glog.V(2).Infof("%v: Replenishing %v tokens (numLeaves = %v)", tree.TreeId, tokens, numLeaves)
-		err := s.qm.PutTokens(ctx, tokens, specs)
-		if err != nil {
-			glog.Warningf("%v: Failed to replenish %v tokens: %v", tree.TreeId, tokens, err)
-		}
-		quota.Metrics.IncReplenished(tokens, specs, err == nil)
-	}
+	s.replenishQuota(ctx, numLeaves, tree.TreeId)
 
 	seqCounter.Add(float64(numLeaves), label)
 	if newSLR != nil {
 		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", tree.TreeId, numLeaves, newLogRoot.TreeSize, newLogRoot.Revision)
 	}
 	return numLeaves, nil
+}
+
+// replenishQuota replenishes all quotas, such as {Tree/Global, Read/Write},
+// that are possibly influenced by sequencing numLeaves entries for the passed
+// in tree ID. Implementations are tasked with filtering quotas that shouldn't
+// be replenished.
+//
+// TODO(codingllama): Consider adding a source-aware replenish method (e.g.,
+// qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no
+// ambiguity as to where the tokens come from.
+func (s Sequencer) replenishQuota(ctx context.Context, numLeaves int, treeID int64) {
+	if numLeaves > 0 {
+		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
+		specs := []quota.Spec{
+			{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},
+			{Group: quota.Tree, Kind: quota.Write, TreeID: treeID},
+			{Group: quota.Global, Kind: quota.Read},
+			{Group: quota.Global, Kind: quota.Write},
+		}
+		glog.V(2).Infof("%v: replenishing %d tokens (numLeaves = %d)", treeID, tokens, numLeaves)
+		err := s.qm.PutTokens(ctx, tokens, specs)
+		if err != nil {
+			glog.Warningf("%v: failed to replenish %d tokens: %v", treeID, tokens, err)
+		}
+		quota.Metrics.IncReplenished(tokens, specs, err == nil)
+	}
 }

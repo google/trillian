@@ -20,6 +20,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
+	"github.com/google/trillian/storage/mysql"
 )
 
 // QuotaMySQL represents the MySQL quota implementation.
@@ -37,8 +38,12 @@ func init() {
 }
 
 func newMySQLQuotaManager() (quota.Manager, error) {
+	db, err := mysql.GetDatabase()
+	if err != nil {
+		return nil, err
+	}
 	qm := &mysqlqm.QuotaManager{
-		DB:                 mySQLstorageInstance.db,
+		DB:                 db,
 		MaxUnsequencedRows: *maxUnsequencedRows,
 	}
 	glog.Info("Using MySQL QuotaManager")

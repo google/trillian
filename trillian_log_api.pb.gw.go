@@ -135,7 +135,10 @@ func request_TrillianLog_GetInclusionProof_0(ctx context.Context, marshaler runt
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "leaf_index", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetInclusionProof_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TrillianLog_GetInclusionProof_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -170,7 +173,10 @@ func request_TrillianLog_GetInclusionProofByHash_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetInclusionProofByHash_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TrillianLog_GetInclusionProofByHash_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -205,7 +211,10 @@ func request_TrillianLog_GetConsistencyProof_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetConsistencyProof_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TrillianLog_GetConsistencyProof_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -240,7 +249,10 @@ func request_TrillianLog_GetLatestSignedLogRoot_0(ctx context.Context, marshaler
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetLatestSignedLogRoot_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TrillianLog_GetLatestSignedLogRoot_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -275,7 +287,10 @@ func request_TrillianLog_GetSequencedLeafCount_0(ctx context.Context, marshaler 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetSequencedLeafCount_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TrillianLog_GetSequencedLeafCount_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -321,7 +336,10 @@ func request_TrillianLog_GetEntryAndProof_0(ctx context.Context, marshaler runti
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "leaf_index", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetEntryAndProof_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TrillianLog_GetEntryAndProof_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -356,7 +374,10 @@ func request_TrillianLog_InitLog_0(ctx context.Context, marshaler runtime.Marsha
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
 	}
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_InitLog_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TrillianLog_InitLog_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -587,23 +608,23 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_TrillianLog_QueueLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, ""))
+	pattern_TrillianLog_QueueLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_AddSequencedLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced"))
+	pattern_TrillianLog_AddSequencedLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetInclusionProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "inclusion_proof"))
+	pattern_TrillianLog_GetInclusionProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "inclusion_proof", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetInclusionProofByHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "inclusion_by_hash"))
+	pattern_TrillianLog_GetInclusionProofByHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "inclusion_by_hash", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetConsistencyProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "consistency_proof"))
+	pattern_TrillianLog_GetConsistencyProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "consistency_proof", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetLatestSignedLogRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "roots"}, "latest"))
+	pattern_TrillianLog_GetLatestSignedLogRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "roots"}, "latest", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetSequencedLeafCount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced_count"))
+	pattern_TrillianLog_GetSequencedLeafCount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced_count", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_GetEntryAndProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, ""))
+	pattern_TrillianLog_GetEntryAndProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TrillianLog_InitLog_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "init"))
+	pattern_TrillianLog_InitLog_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "init", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

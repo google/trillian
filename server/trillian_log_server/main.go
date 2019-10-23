@@ -20,6 +20,8 @@ import (
 	"context"
 	"flag"
 	_ "net/http/pprof" // Register pprof HTTP handlers.
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/golang/glog"
@@ -29,11 +31,13 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -43,6 +47,10 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+
+	// Register supported storage providers.
+	_ "github.com/google/trillian/storage/cloudspanner"
+	_ "github.com/google/trillian/storage/mysql"
 
 	// Load hashers
 	_ "github.com/google/trillian/merkle/rfc6962"
@@ -68,6 +76,10 @@ var (
 	tracingPercent   = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
+
+	// Profiling related flags.
+	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
+	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
 )
 
 func main() {
@@ -84,6 +96,7 @@ func main() {
 
 	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}
+	monitoring.SetStartSpan(opencensus.StartSpan)
 
 	if *tracing {
 		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID, *tracingPercent)
@@ -94,10 +107,11 @@ func main() {
 		options = append(options, opts...)
 	}
 
-	sp, err := server.NewStorageProviderFromFlags(mf)
+	sp, err := storage.NewProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
+	defer sp.Close()
 
 	client, err := etcd.NewClientFromString(*server.EtcdServers)
 	if err != nil {
@@ -125,6 +139,13 @@ func main() {
 		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 			return der.NewProtoFromSpec(spec)
 		},
+	}
+
+	// Enable CPU profile if requested.
+	if *cpuProfile != "" {
+		f := mustCreate(*cpuProfile)
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	m := server.Main{
@@ -171,4 +192,17 @@ func main() {
 	if err := m.Run(ctx); err != nil {
 		glog.Exitf("Server exited with error: %v", err)
 	}
+
+	if *memProfile != "" {
+		f := mustCreate(*memProfile)
+		pprof.WriteHeapProfile(f)
+	}
+}
+
+func mustCreate(fileName string) *os.File {
+	f, err := os.Create(fileName)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	return f
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -125,7 +126,7 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 	return th, nil
 }
 
-type newCacheFn func(*trillian.Tree) (cache.SubtreeCache, error)
+type newCacheFn func(*trillian.Tree) (*cache.SubtreeCache, error)
 
 func (t *treeStorage) getTreeAndConfig(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, proto.Message, error) {
 	config, err := unmarshalSettings(tree)
@@ -194,7 +195,7 @@ type treeTX struct {
 	// writeRev is the tree revision at which any writes will be made.
 	_writeRev int64
 
-	cache cache.SubtreeCache
+	cache *cache.SubtreeCache
 
 	getLatestRootOnce sync.Once
 }
@@ -217,7 +218,7 @@ func (t *treeTX) writeRev(ctx context.Context) (int64, error) {
 
 // storeSubtrees adds buffered writes to the in-flight transaction to store the
 // passed in subtrees.
-func (t *treeTX) storeSubtrees(sts []*storagepb.SubtreeProto) error {
+func (t *treeTX) storeSubtrees(ctx context.Context, sts []*storagepb.SubtreeProto) error {
 	stx, ok := t.stx.(*spanner.ReadWriteTransaction)
 	if !ok {
 		return ErrWrongTXType
@@ -242,15 +243,15 @@ func (t *treeTX) storeSubtrees(sts []*storagepb.SubtreeProto) error {
 	return nil
 }
 
-func (t *treeTX) flushSubtrees() error {
-	return t.cache.Flush(t.storeSubtrees)
+func (t *treeTX) flushSubtrees(ctx context.Context) error {
+	return t.cache.Flush(ctx, t.storeSubtrees)
 }
 
 // Commit attempts to apply all actions perfomed to the underlying Spanner
 // transaction.  If this call returns an error, any values READ via this
 // transaction MUST NOT be used.
 // On return from the call, this transaction will be in a closed state.
-func (t *treeTX) Commit() error {
+func (t *treeTX) Commit(ctx context.Context) error {
 	t.mu.Lock()
 	defer func() {
 		t.stx = nil
@@ -266,7 +267,7 @@ func (t *treeTX) Commit() error {
 		stx.Close()
 		return nil
 	case *spanner.ReadWriteTransaction:
-		return t.flushSubtrees()
+		return t.flushSubtrees(ctx)
 	default:
 		return fmt.Errorf("internal error: unknown transaction type %T", stx)
 	}
@@ -327,21 +328,25 @@ func (t *treeTX) WriteRevision(ctx context.Context) (int64, error) {
 	return rev, nil
 }
 
-// nodeIDToKey returns a []byte suitable for use as a primary key column for
-// the subtree which contains the id.
-// If id's prefix is not byte-aligned, an error will be returned.
-func subtreeKey(id storage.NodeID) ([]byte, error) {
-	// TODO(al): extend this check to ensure id is at a tree stratum boundary.
+// subtreeKey returns a non-nil []byte suitable for use as a primary key column
+// for the subtree rooted at the passed-in node ID. Returns an error if the ID
+// is not aligned to bytes.
+func subtreeKey(id tree.NodeID) ([]byte, error) {
+	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
 	if id.PrefixLenBits%8 != 0 {
-		return nil, fmt.Errorf("id.PrefixLenBits (%d) is not a multiple of 8; it cannot be a subtree prefix", id.PrefixLenBits)
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
 	}
-	return id.Path[:id.PrefixLenBits/8], nil
+	// The returned slice must not be nil, as it would correspond to NULL in SQL.
+	if bytes := id.Path; bytes != nil {
+		return bytes[:id.PrefixLenBits/8], nil
+	}
+	return []byte{}, nil
 }
 
 // getSubtree retrieves the most recent subtree specified by id at (or below)
 // the requested revision.
 // If no such subtree exists it returns nil.
-func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (p *storagepb.SubtreeProto, e error) {
+func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *storagepb.SubtreeProto, e error) {
 	stID, err := subtreeKey(id)
 	if err != nil {
 		return nil, err
@@ -398,7 +403,7 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 
 // GetMerkleNodes returns the requested set of nodes at, or before, the
 // specified tree revision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []storage.NodeID) ([]storage.Node, error) {
+func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []tree.NodeID) ([]tree.Node, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.stx == nil {
@@ -406,7 +411,7 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []storage.No
 	}
 
 	return t.cache.GetNodes(ids,
-		func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
 			// Request the various subtrees in parallel.
 			// c will carry any retrieved subtrees
 			c := make(chan *storagepb.SubtreeProto, len(ids))
@@ -447,7 +452,7 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []storage.No
 
 // SetMerkleNodes stores the provided merkle nodes at the writeRevision of the
 // transaction.
-func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
+func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.stx == nil {
@@ -463,7 +468,7 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error
 		err := t.cache.SetNodeHash(
 			n.NodeID,
 			n.Hash,
-			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
+			func(nID tree.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(ctx, writeRev-1, nID)
 			})
 		if err != nil {
@@ -491,7 +496,7 @@ type snapshotTX struct {
 	ls  *logStorage
 }
 
-func (t *snapshotTX) Commit() error {
+func (t *snapshotTX) Commit(ctx context.Context) error {
 	// No work required to commit snapshot transactions
 	return t.Close()
 }

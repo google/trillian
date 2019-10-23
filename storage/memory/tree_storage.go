@@ -25,9 +25,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/btree"
 	"github.com/google/trillian"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
+	stree "github.com/google/trillian/storage/tree"
 )
 
 const degree = 8
@@ -35,7 +35,7 @@ const degree = 8
 // unseqKey formats a key for use in a tree's BTree store.
 // The associated Item value will be the stubtreeProto with the given nodeID
 // prefix.
-func subtreeKey(treeID, rev int64, nodeID storage.NodeID) btree.Item {
+func subtreeKey(treeID, rev int64, nodeID stree.NodeID) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/subtree/%s/%d", treeID, nodeID.String(), rev)}
 }
 
@@ -111,10 +111,10 @@ func (a kv) Less(b btree.Item) bool {
 }
 
 // newTree creates and initializes a tree struct.
-func newTree(t trillian.Tree) *tree {
+func newTree(t *trillian.Tree) *tree {
 	ret := &tree{
 		store: btree.New(degree),
-		meta:  &t,
+		meta:  proto.Clone(t).(*trillian.Tree),
 	}
 	k := unseqKey(t.TreeId)
 	k.(*kv).v = list.New()
@@ -127,7 +127,7 @@ func newTree(t trillian.Tree) *tree {
 	return ret
 }
 
-func (m *TreeStorage) beginTreeTX(ctx context.Context, treeID int64, hashSizeBytes int, cache cache.SubtreeCache, readonly bool) (treeTX, error) {
+func (m *TreeStorage) beginTreeTX(ctx context.Context, treeID int64, hashSizeBytes int, cache *cache.SubtreeCache, readonly bool) (treeTX, error) {
 	tree := m.getTree(treeID)
 	// Lock the tree for the duration of the TX.
 	// It will be unlocked by a call to Commit or Rollback.
@@ -158,13 +158,13 @@ type treeTX struct {
 	tree          *tree
 	treeID        int64
 	hashSizeBytes int
-	subtreeCache  cache.SubtreeCache
+	subtreeCache  *cache.SubtreeCache
 	writeRevision int64
 	unlock        func()
 }
 
-func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID storage.NodeID) (*storagepb.SubtreeProto, error) {
-	s, err := t.getSubtrees(ctx, treeRevision, []storage.NodeID{nodeID})
+func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stree.NodeID) (*storagepb.SubtreeProto, error) {
+	s, err := t.getSubtrees(ctx, treeRevision, []stree.NodeID{nodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 	}
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []stree.NodeID) ([]*storagepb.SubtreeProto, error) {
 	if len(nodeIDs) == 0 {
 		return nil, nil
 	}
@@ -220,7 +220,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		if s.Prefix == nil {
 			panic(fmt.Errorf("nil prefix on %v", s))
 		}
-		k := subtreeKey(t.treeID, t.writeRevision, storage.NewNodeIDFromHash(s.Prefix))
+		k := subtreeKey(t.treeID, t.writeRevision, stree.NewNodeIDFromHash(s.Prefix))
 		k.(*kv).v = s
 		t.tx.ReplaceOrInsert(k)
 	}
@@ -229,20 +229,20 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
 func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
-	return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	return func(ids []stree.NodeID) ([]*storagepb.SubtreeProto, error) {
 		return t.getSubtrees(ctx, rev, ids)
 	}
 }
 
 // GetMerkleNodes returns the requests nodes at (or below) the passed in treeRevision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
+func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []stree.NodeID) ([]stree.Node, error) {
 	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
 }
 
-func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
+func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []stree.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
-			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
+			func(nID stree.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(ctx, t.writeRevision, nID)
 			})
 		if err != nil {
@@ -252,12 +252,12 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error
 	return nil
 }
 
-func (t *treeTX) Commit() error {
+func (t *treeTX) Commit(ctx context.Context) error {
 	defer t.unlock()
 
 	if t.writeRevision > -1 {
-		if err := t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error {
-			return t.storeSubtrees(context.TODO(), st)
+		if err := t.subtreeCache.Flush(ctx, func(ctx context.Context, st []*storagepb.SubtreeProto) error {
+			return t.storeSubtrees(ctx, st)
 		}); err != nil {
 			glog.Warningf("TX commit flush error: %v", err)
 			return err

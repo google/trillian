@@ -28,7 +28,7 @@ type ReadOnlyLogTX interface {
 
 	// Commit ensures the data read by the TX is consistent in the database. Only after Commit the
 	// data read should be regarded as valid.
-	Commit() error
+	Commit(context.Context) error
 
 	// Rollback discards the read-only TX.
 	Rollback() error
@@ -61,7 +61,7 @@ type ReadOnlyLogTreeTX interface {
 	// will be in ascending sequence number order.
 	GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error)
 	// LatestSignedLogRoot returns the most recent SignedLogRoot, if any.
-	LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error)
+	LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error)
 }
 
 // LogTreeTX is the transactional interface for reading/updating a Log.
@@ -74,7 +74,7 @@ type LogTreeTX interface {
 	TreeWriter
 
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
-	StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error
+	StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error
 
 	// QueueLeaves enqueues leaves for later integration into the tree.
 	// If error is nil, the returned slice of leaves will be the same size as the
@@ -197,11 +197,4 @@ type LogMetadata interface {
 	// GetActiveLogIDs returns a list of the IDs of all the logs that are
 	// configured in storage and are eligible to have entries sequenced.
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
-
-	// GetUnsequencedCounts returns a map of the number of unsequenced entries
-	// by log ID.
-	//
-	// This call is likely to be VERY expensive and take a long time to complete.
-	// Consider carefully whether you really need to call it!
-	GetUnsequencedCounts(ctx context.Context) (CountByLogID, error)
 }

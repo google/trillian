@@ -25,18 +25,14 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/types"
 )
 
 const (
 	defaultEmitSeconds = 10
-	// How many SMRs to hold on to.
-	smrCount = 30
 	// How far beyond current revision to request for invalid requests
 	invalidStretch = int64(10000)
 	// rev=-1 is used when requesting the latest revision
@@ -79,12 +75,16 @@ type MapEntrypointName string
 const (
 	GetLeavesName    = MapEntrypointName("GetLeaves")
 	GetLeavesRevName = MapEntrypointName("GetLeavesRev")
-	SetLeavesName    = MapEntrypointName("SetLeaves")
 	GetSMRName       = MapEntrypointName("GetSMR")
 	GetSMRRevName    = MapEntrypointName("GetSMRRev")
+	SetLeavesName    = MapEntrypointName("SetLeaves") // TODO(mhutchinson): rename to WriteLeaves.
 )
 
-var mapEntrypoints = []MapEntrypointName{GetLeavesName, GetLeavesRevName, SetLeavesName, GetSMRName, GetSMRRevName}
+// Read-only map entry points.
+var roMapEntrypoints = []MapEntrypointName{GetLeavesName, GetLeavesRevName, GetSMRName, GetSMRRevName}
+
+// All map entry points.
+var mapEntrypoints = append(roMapEntrypoints, SetLeavesName)
 
 // Choice is a readable representation of a choice about how to perform a hammering operation.
 type Choice string
@@ -133,23 +133,25 @@ func (hb *MapBias) invalid(ep MapEntrypointName, r *rand.Rand) bool {
 	if chance <= 0 {
 		return false
 	}
-	return (r.Intn(chance) == 0)
+	return r.Intn(chance) == 0
 }
 
 // MapConfig provides configuration for a stress/load test.
 type MapConfig struct {
-	MapID                int64 // 0 to use an ephemeral tree
-	MetricFactory        monitoring.MetricFactory
-	Client               trillian.TrillianMapClient
-	Admin                trillian.TrillianAdminClient
-	RandSource           rand.Source
-	EPBias               MapBias
-	LeafSize, ExtraSize  uint
-	MinLeaves, MaxLeaves int
-	Operations           uint64
-	EmitInterval         time.Duration
-	RetryErrors          bool
-	OperationDeadline    time.Duration
+	MapID                  int64 // 0 to use an ephemeral tree
+	MetricFactory          monitoring.MetricFactory
+	Client                 trillian.TrillianMapClient
+	Write                  trillian.TrillianMapWriteClient
+	Admin                  trillian.TrillianAdminClient
+	RandSource             rand.Source
+	EPBias                 MapBias
+	LeafSize, ExtraSize    uint
+	MinLeavesR, MaxLeavesR int
+	MinLeavesW, MaxLeavesW int
+	Operations             uint64
+	EmitInterval           time.Duration
+	RetryErrors            bool
+	OperationDeadline      time.Duration
 	// NumCheckers indicates how many separate inclusion checker goroutines
 	// to run.  Note that the behaviour of these checkers is not governed by
 	// RandSource.
@@ -166,8 +168,7 @@ func (c MapConfig) String() string {
 }
 
 // HitMap performs load/stress operations according to given config.
-func HitMap(cfg MapConfig) error {
-	ctx := context.Background()
+func HitMap(ctx context.Context, cfg MapConfig) error {
 	var firstErr error
 
 	if cfg.MapID == 0 {
@@ -212,8 +213,9 @@ func HitMap(cfg MapConfig) error {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
+			w := newReadWorker(s, i)
 			glog.Infof("%d: start checker %d", s.cfg.MapID, i)
-			err := s.readChecker(ctx, done, i)
+			err := w.run(ctx, done)
 			if err != nil {
 				errs <- err
 			}
@@ -224,8 +226,9 @@ func HitMap(cfg MapConfig) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		glog.Infof("%d: start main goroutine", s.cfg.MapID)
-		count, err := s.performOperations(ctx, done)
+		w := newWriteWorker(s)
+		glog.Infof("%d: start main goroutine", cfg.MapID)
+		count, err := w.run(ctx, done)
 		errs <- err // may be nil for the main goroutine completion
 		glog.Infof("%d: performed %d operations on map", cfg.MapID, count)
 	}()
@@ -256,29 +259,328 @@ func HitMap(cfg MapConfig) error {
 	return firstErr
 }
 
-// hammerState tracks the operations that have been performed during a test run.
-type hammerState struct {
-	cfg      *MapConfig
-	verifier *client.MapVerifier
+// mapWorker represents a single entity in the Verifiable Map ecosystem.
+// The worker may be a read-only client, or a writer which adds new entries to
+// the map. Each worker should be as independent as possible (i.e. share little
+// to no state), though through well defined interfaces this guideline may be
+// ignored, which will allow effectively an in-memory gossip network to develop
+// between workers, which makes the validation more significant.
+//
+// Each worker has its own PRNG, which makes the sequence of operations that it
+// performs deterministic.
+type mapWorker struct {
+	prng  *rand.Rand
+	mapID int64
+	label string
 
-	start time.Time
+	bias MapBias // Each worker can have its own customized map bias.
 
-	// prng is not thread-safe and should only be used from the main hammer
-	// goroutine for reproducability.
-	prng *rand.Rand
+	retryErrors       bool
+	operationDeadline time.Duration
+}
 
-	// copies of earlier contents of the map
-	prevContents testonly.VersionedMapContents
+func newWorker(cfg *MapConfig, bias MapBias, prng *rand.Rand) *mapWorker {
+	return &mapWorker{
+		prng:              prng,
+		mapID:             cfg.MapID,
+		label:             strconv.FormatInt(cfg.MapID, 10),
+		bias:              bias,
+		retryErrors:       cfg.RetryErrors,
+		operationDeadline: cfg.OperationDeadline,
+	}
+}
 
-	mu sync.RWMutex // Protects everything below
+func (w *mapWorker) retryOp(ctx context.Context, fn mapOperationFn, opName string) error {
+	defer func(start time.Time) {
+		rspLatency.Observe(time.Since(start).Seconds(), w.label, opName)
+	}(time.Now())
 
-	// SMRs are arranged from later to earlier (so [0] is the most recent), and the
-	// discovery of new SMRs will push older ones off the end.
-	smr [smrCount]*trillian.SignedMapRoot
+	deadline := time.Now().Add(w.operationDeadline)
+	seed := w.prng.Int63()
+	done := false
+	var firstErr error
+	for !done {
+		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
+		prng := rand.New(rand.NewSource(seed))
+		reqs.Inc(w.label, opName)
+		err := fn(ctx, prng)
+
+		switch err.(type) {
+		case nil:
+			rsps.Inc(w.label, opName)
+			if firstErr != nil {
+				glog.Warningf("%d: retry of op %v succeeded, previous error: %v", w.mapID, opName, firstErr)
+			}
+			firstErr = nil
+			done = true
+		case errSkip:
+			firstErr = nil
+			done = true
+		case testonly.ErrInvariant:
+			// Ensure invariant failures are not ignorable.  They indicate a design assumption
+			// being broken or incorrect, so must be seen.
+			firstErr = err
+			done = true
+		default:
+			errs.Inc(w.label, opName)
+			if firstErr == nil {
+				firstErr = err
+			}
+			if w.retryErrors {
+				glog.Warningf("%d: op %v failed (will retry): %v", w.mapID, opName, err)
+			} else {
+				done = true
+			}
+		}
+
+		if time.Now().After(deadline) {
+			if firstErr == nil {
+				// If there was no other error, we've probably hit the deadline - make sure we bubble that up.
+				firstErr = ctx.Err()
+			}
+			glog.Warningf("%d: gave up on operation %v after %v, returning first err %v", w.mapID, opName, w.operationDeadline, firstErr)
+			done = true
+		}
+	}
+	return firstErr
+}
+
+// readWorker performs read-only operations on a fixed map.
+type readWorker struct {
+	*mapWorker
+
+	validReadOps   *validReadOps
+	invalidReadOps *invalidReadOps
+}
+
+func newReadWorker(s *hammerState, idx int) *readWorker {
+	readBias := MapBias{
+		Bias:          make(map[MapEntrypointName]int),
+		InvalidChance: make(map[MapEntrypointName]int),
+	}
+	for _, ep := range roMapEntrypoints {
+		readBias.Bias[ep] = s.cfg.EPBias.Bias[ep]
+		readBias.InvalidChance[ep] = s.cfg.EPBias.InvalidChance[ep]
+	}
+	return &readWorker{
+		mapWorker: newWorker(s.cfg, readBias, rand.New(rand.NewSource(int64(idx)))),
+
+		validReadOps:   s.validReadOps,
+		invalidReadOps: s.invalidReadOps,
+	}
+}
+
+// run continuously performs read-only operations against the map until the
+// done channel is closed, or an error is encountered.
+func (w *readWorker) run(ctx context.Context, done <-chan struct{}) error {
+	for {
+		select {
+		case <-done:
+			return nil
+		default:
+		}
+		if err := w.readOnce(ctx); err != nil {
+			if _, ok := err.(errSkip); ok {
+				continue
+			}
+			return err
+		}
+	}
+}
+
+// TODO(mhutchinson): resolve duplication between this and retryOneOp.
+func (w *readWorker) readOnce(ctx context.Context) error {
+	ep := w.bias.choose(w.prng)
+	if w.bias.invalid(ep, w.prng) {
+		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
+		invalidReqs.Inc(w.label, string(ep))
+		op, err := getReadOp(ep, w.invalidReadOps)
+		if err != nil {
+			return err
+		}
+		return op(ctx, w.prng)
+	}
+
+	op, err := getReadOp(ep, w.validReadOps)
+	if err != nil {
+		return err
+	}
+
+	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
+	return w.retryOp(ctx, op, string(ep))
+}
+
+// writeWorker performs mutation operations on a fixed map.
+type writeWorker struct {
+	*mapWorker
+
+	head       *testonly.MapContents
+	operations uint64
+
+	// TODO(mhutchinson): Remove hammerState from here - it allows access to global info
+	// which makes reasoning about the behaviour difficult.
+	s *hammerState
 
 	// Counters for generating unique keys/values.
 	keyIdx   int
 	valueIdx int
+}
+
+func newWriteWorker(s *hammerState) *writeWorker {
+	return &writeWorker{
+		mapWorker: newWorker(s.cfg, s.cfg.EPBias, rand.New(s.cfg.RandSource)),
+
+		operations: s.cfg.Operations,
+		s:          s,
+	}
+}
+
+// run continuously performs mutation operations on the map until the done channel is
+// closed, an error is encountered, or the maximum number of operations have been performed.
+func (w *writeWorker) run(ctx context.Context, done <-chan struct{}) (uint64, error) {
+	count := uint64(0)
+
+	for ; count < w.operations; count++ {
+		select {
+		case <-done:
+			return count, nil
+		default:
+		}
+		if err := w.writeOnce(ctx); err != nil {
+			return count, err
+		}
+	}
+	return count, nil
+}
+
+func (w *writeWorker) writeOnce(ctx context.Context) error {
+	ep := SetLeavesName
+	if w.bias.invalid(ep, w.prng) {
+		glog.V(3).Infof("%d: perform invalid %s operation", w.mapID, ep)
+		invalidReqs.Inc(w.label, string(ep))
+		return w.setLeavesInvalid(ctx, w.prng)
+	}
+	glog.V(3).Infof("%d: perform %s operation", w.mapID, ep)
+	return w.retryOp(ctx, w.setLeaves, string(ep))
+}
+
+func (w *writeWorker) setLeaves(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
+
+	cfg := w.s.cfg
+	n := pickIntInRange(cfg.MinLeavesW, cfg.MaxLeavesW, prng)
+	if n == 0 {
+		n = 1
+	}
+	leaves := make([]*trillian.MapLeaf, 0, n)
+	rev := int64(0)
+	if w.head != nil {
+		rev = w.head.Rev
+	}
+leafloop:
+	for i := 0; i < n; i++ {
+		choice := choices[prng.Intn(len(choices))]
+		if w.head.Empty() {
+			choice = CreateLeaf
+		}
+		switch choice {
+		case CreateLeaf:
+			key, value := w.nextKey(), w.nextValue()
+			leaves = append(leaves, &trillian.MapLeaf{
+				Index:     testonly.TransparentHash(key),
+				LeafValue: value,
+				ExtraData: testonly.ExtraDataForValue(value, cfg.ExtraSize),
+			})
+			glog.V(3).Infof("%d: %v: data[%q]=%q", w.mapID, choice, key, string(value))
+		case UpdateLeaf, DeleteLeaf:
+			key := w.head.PickKey(prng)
+			// Not allowed to have the same key more than once in the same request
+			for _, leaf := range leaves {
+				if bytes.Equal(leaf.Index, key) {
+					// Go back to the beginning of the loop and choose again.
+					i--
+					continue leafloop
+				}
+			}
+			var value, extra []byte
+			if choice == UpdateLeaf {
+				value = w.nextValue()
+				extra = testonly.ExtraDataForValue(value, cfg.ExtraSize)
+			}
+			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
+			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", w.mapID, choice, dehash(key), string(value), string(extra))
+		}
+	}
+
+	writeRev := uint64(rev + 1)
+
+	req := trillian.WriteMapLeavesRequest{
+		MapId:          w.mapID,
+		Leaves:         leaves,
+		Metadata:       metadataForRev(writeRev),
+		ExpectRevision: int64(writeRev),
+	}
+
+	if err := w.s.sharedState.proposeLeaves(writeRev, leaves); err != nil {
+		return err
+	}
+	if _, err := cfg.Write.WriteLeaves(ctx, &req); err != nil {
+		return fmt.Errorf("failed to WriteLeaves(count=%d): %v", len(leaves), err)
+	}
+
+	glog.V(2).Infof("%d: set %d leaves, rev=%d", w.mapID, len(leaves), writeRev)
+	w.head = w.head.UpdatedWith(writeRev, leaves)
+	return nil
+}
+
+func (w *writeWorker) setLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
+	choices := []Choice{MalformedKey, DuplicateKey}
+
+	var leaves []*trillian.MapLeaf
+	value := []byte("value-for-invalid-req")
+
+	choice := choices[prng.Intn(len(choices))]
+	if w.head.Empty() {
+		choice = MalformedKey
+	}
+	switch choice {
+	case MalformedKey:
+		key := testonly.TransparentHash("..invalid-size")
+		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
+	case DuplicateKey:
+		key := w.head.PickKey(prng)
+		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
+		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
+	}
+	req := trillian.WriteMapLeavesRequest{MapId: w.mapID, Leaves: leaves}
+	rsp, err := w.s.cfg.Write.WriteLeaves(ctx, &req)
+	if err == nil {
+		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
+	}
+	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", w.mapID, choice, req, rsp)
+	return nil
+}
+
+func (w *writeWorker) nextKey() string {
+	w.keyIdx++
+	return fmt.Sprintf("key-%08d", w.keyIdx)
+}
+
+func (w *writeWorker) nextValue() []byte {
+	w.valueIdx++
+	result := make([]byte, w.s.cfg.LeafSize)
+	copy(result, fmt.Sprintf(valueFormat, w.valueIdx))
+	return result
+}
+
+// hammerState tracks the operations that have been performed during a test run.
+type hammerState struct {
+	cfg            *MapConfig
+	validReadOps   *validReadOps
+	invalidReadOps *invalidReadOps
+	sharedState    *sharedState
+
+	start time.Time
 }
 
 func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
@@ -287,7 +589,7 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		return nil, fmt.Errorf("failed to get tree information: %v", err)
 	}
 	glog.Infof("%d: hammering tree with configuration %+v", cfg.MapID, tree)
-	verifier, err := client.NewMapVerifierFromTree(tree)
+	mc, err := client.NewMapClientFromTree(cfg.Client, tree)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tree verifier: %v", err)
 	}
@@ -300,11 +602,17 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 	if cfg.EmitInterval == 0 {
 		cfg.EmitInterval = defaultEmitSeconds * time.Second
 	}
-	if cfg.MinLeaves < 0 {
-		return nil, fmt.Errorf("invalid MinLeaves %d", cfg.MinLeaves)
+	if cfg.MinLeavesR < 0 {
+		return nil, fmt.Errorf("invalid MinLeavesR %d", cfg.MinLeavesR)
 	}
-	if cfg.MaxLeaves < cfg.MinLeaves {
-		return nil, fmt.Errorf("invalid MaxLeaves %d is less than MinLeaves %d", cfg.MaxLeaves, cfg.MinLeaves)
+	if cfg.MaxLeavesR < cfg.MinLeavesR {
+		return nil, fmt.Errorf("invalid MaxLeavesR %d is less than MinLeavesR %d", cfg.MaxLeavesR, cfg.MinLeavesR)
+	}
+	if cfg.MinLeavesW < 0 {
+		return nil, fmt.Errorf("invalid MinLeavesW %d", cfg.MinLeavesW)
+	}
+	if cfg.MaxLeavesW < cfg.MinLeavesW {
+		return nil, fmt.Errorf("invalid MaxLeavesW %d is less than MinLeavesW %d", cfg.MaxLeavesW, cfg.MinLeavesW)
 	}
 	if int(cfg.LeafSize) < minValueLen {
 		return nil, fmt.Errorf("invalid LeafSize %d is smaller than min %d", cfg.LeafSize, minValueLen)
@@ -313,63 +621,29 @@ func newHammerState(ctx context.Context, cfg *MapConfig) (*hammerState, error) {
 		cfg.OperationDeadline = 60 * time.Second
 	}
 
+	sharedState := newSharedState()
+	validReadOps := validReadOps{
+		mc:           mc,
+		extraSize:    cfg.ExtraSize,
+		minLeaves:    cfg.MinLeavesR,
+		maxLeaves:    cfg.MaxLeavesR,
+		prevContents: sharedState.contents,
+		sharedState:  sharedState,
+	}
+	invalidReadOps := invalidReadOps{
+		mapID:        cfg.MapID,
+		client:       cfg.Client,
+		prevContents: sharedState.contents,
+		sharedState:  sharedState,
+	}
+
 	return &hammerState{
-		cfg:      cfg,
-		start:    time.Now(),
-		prng:     rand.New(cfg.RandSource),
-		verifier: verifier,
+		cfg:            cfg,
+		start:          time.Now(),
+		sharedState:    sharedState,
+		validReadOps:   &validReadOps,
+		invalidReadOps: &invalidReadOps,
 	}, nil
-}
-
-func (s *hammerState) performOperations(ctx context.Context, done <-chan struct{}) (uint64, error) {
-	count := uint64(0)
-	for ; count < s.cfg.Operations; count++ {
-		select {
-		case <-done:
-			return count, nil
-		default:
-		}
-		if err := s.retryOneOp(ctx); err != nil {
-			return count, err
-		}
-	}
-	return count, nil
-}
-
-// readChecker loops performing (read-only) checking operations until the done
-// channel is closed.
-func (s *hammerState) readChecker(ctx context.Context, done <-chan struct{}, idx int) error {
-	// Use a separate rand.Source so the main goroutine stays predictable.
-	prng := rand.New(rand.NewSource(int64(idx)))
-	for {
-		select {
-		case <-done:
-			return nil
-		default:
-		}
-		if err := s.doGetLeaves(ctx, prng, false /* latest */); err != nil {
-			if _, ok := err.(errSkip); ok {
-				continue
-			}
-			return err
-		}
-	}
-}
-
-func (s *hammerState) nextKey() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.keyIdx++
-	return fmt.Sprintf("key-%08d", s.keyIdx)
-}
-
-func (s *hammerState) nextValue() []byte {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.valueIdx++
-	result := make([]byte, s.cfg.LeafSize)
-	copy(result, fmt.Sprintf(valueFormat, s.valueIdx))
-	return result
 }
 
 func (s *hammerState) label() string {
@@ -391,471 +665,40 @@ func (s *hammerState) String() string {
 		totalInvalidReqs += int(invalidReqs.Value(s.label(), string(ep)))
 		totalErrs += int(errs.Value(s.label(), string(ep)))
 	}
-	smr := s.previousSMR(0)
-	return fmt.Sprintf("%d: lastSMR.rev=%s ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, smrRev(smr), totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
-}
-
-func (s *hammerState) pushSMR(smr *trillian.SignedMapRoot) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Shuffle earlier SMRs along.
-	for i := smrCount - 1; i > 0; i-- {
-		s.smr[i] = s.smr[i-1]
+	revStr := "N/A"
+	if latestRev, found := s.sharedState.getLastReadRev(); found {
+		revStr = strconv.FormatUint(latestRev, 10)
 	}
-
-	s.smr[0] = smr
+	return fmt.Sprintf("%d: lastSMR.rev=%v ops: total=%d (%f ops/sec) invalid=%d errs=%v%s", s.cfg.MapID, revStr, totalReqs, float64(totalReqs)/interval.Seconds(), totalInvalidReqs, totalErrs, details)
 }
 
-func (s *hammerState) previousSMR(which int) *trillian.SignedMapRoot {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.smr[which]
+func pickIntInRange(min, max int, prng *rand.Rand) int {
+	delta := 1 + max - min
+	return min + prng.Intn(delta)
 }
 
-func (s *hammerState) chooseOp(prng *rand.Rand) MapEntrypointName {
-	return s.cfg.EPBias.choose(prng)
+type readOps interface {
+	getLeaves(context.Context, *rand.Rand) error
+	getLeavesRev(context.Context, *rand.Rand) error
+	getSMR(context.Context, *rand.Rand) error
+	getSMRRev(context.Context, *rand.Rand) error
 }
 
-func (s *hammerState) chooseInvalid(ep MapEntrypointName, prng *rand.Rand) bool {
-	return s.cfg.EPBias.invalid(ep, prng)
-}
+type mapOperationFn func(context.Context, *rand.Rand) error
 
-func (s *hammerState) chooseLeafCount(prng *rand.Rand) int {
-	delta := 1 + s.cfg.MaxLeaves - s.cfg.MinLeaves
-	return s.cfg.MinLeaves + prng.Intn(delta)
-}
-
-func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
-	ep := s.chooseOp(s.prng)
-	if s.chooseInvalid(ep, s.prng) {
-		glog.V(3).Infof("%d: perform invalid %s operation", s.cfg.MapID, ep)
-		invalidReqs.Inc(s.label(), string(ep))
-		return s.performInvalidOp(ctx, ep, s.prng)
-	}
-
-	glog.V(3).Infof("%d: perform %s operation", s.cfg.MapID, ep)
-	defer func(start time.Time) {
-		rspLatency.Observe(time.Since(start).Seconds(), s.label(), string(ep))
-	}(time.Now())
-
-	deadline := time.Now().Add(s.cfg.OperationDeadline)
-	ctx, cancel := context.WithDeadline(ctx, deadline)
-	defer cancel()
-
-	var firstErr error
-	seed := s.prng.Int63()
-	done := false
-	for !done {
-		// Always re-create the same per-operation rand.Rand so any retries are exactly the same.
-		prng := rand.New(rand.NewSource(seed))
-		reqs.Inc(s.label(), string(ep))
-		err := s.performOp(ctx, ep, prng)
-
-		switch err.(type) {
-		case nil:
-			rsps.Inc(s.label(), string(ep))
-			if firstErr != nil {
-				glog.Warningf("%d: retry of op %v succeeded, previous error: %v", s.cfg.MapID, ep, firstErr)
-			}
-			firstErr = nil
-			done = true
-		case errSkip:
-			firstErr = nil
-			done = true
-		case testonly.ErrInvariant:
-			// Ensure invariant failures are not ignorable.  They indicate a design assumption
-			// being broken or incorrect, so must be seen.
-			firstErr = err
-			done = true
-		default:
-			errs.Inc(s.label(), string(ep))
-			if firstErr == nil {
-				firstErr = err
-			}
-			if s.cfg.RetryErrors {
-				glog.Warningf("%d: op %v failed (will retry): %v", s.cfg.MapID, ep, err)
-			} else {
-				done = true
-			}
-		}
-
-		if time.Now().After(deadline) {
-			glog.Warningf("%d: gave up on operation %v after %v, returning first err %v", s.cfg.MapID, ep, s.cfg.OperationDeadline, firstErr)
-			done = true
-		}
-	}
-	return firstErr
-}
-
-func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
+func getReadOp(ep MapEntrypointName, read readOps) (mapOperationFn, error) {
 	switch ep {
 	case GetLeavesName:
-		return s.getLeaves(ctx, prng)
+		return read.getLeaves, nil
 	case GetLeavesRevName:
-		return s.getLeavesRev(ctx, prng)
-	case SetLeavesName:
-		return s.setLeaves(ctx, prng)
+		return read.getLeavesRev, nil
 	case GetSMRName:
-		return s.getSMR(ctx, prng)
+		return read.getSMR, nil
 	case GetSMRRevName:
-		return s.getSMRRev(ctx, prng)
+		return read.getSMRRev, nil
 	default:
-		return fmt.Errorf("internal error: unknown entrypoint %s selected for valid request", ep)
+		return nil, fmt.Errorf("internal error: unknown read operation %s", ep)
 	}
-}
-
-func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName, prng *rand.Rand) error {
-	switch ep {
-	case GetLeavesName:
-		return s.getLeavesInvalid(ctx, prng)
-	case GetLeavesRevName:
-		return s.getLeavesRevInvalid(ctx, prng)
-	case SetLeavesName:
-		return s.setLeavesInvalid(ctx, prng)
-	case GetSMRRevName:
-		return s.getSMRRevInvalid(ctx, prng)
-	case GetSMRName:
-		return fmt.Errorf("no invalid request possible for entrypoint %s", ep)
-	default:
-		return fmt.Errorf("internal error: unknown entrypoint %s selected for invalid request", ep)
-	}
-}
-
-func (s *hammerState) getLeaves(ctx context.Context, prng *rand.Rand) error {
-	return s.doGetLeaves(ctx, prng, true /*latest*/)
-}
-
-func (s *hammerState) getLeavesRev(ctx context.Context, prng *rand.Rand) error {
-	return s.doGetLeaves(ctx, prng, false /*latest*/)
-}
-
-func (s *hammerState) doGetLeaves(ctx context.Context, prng *rand.Rand, latest bool) error {
-	choices := []Choice{ExistingKey, NonexistentKey}
-
-	if s.prevContents.Empty() {
-		glog.V(3).Infof("%d: skipping get-leaves as no data yet", s.cfg.MapID)
-		return errSkip{}
-	}
-	var contents *testonly.MapContents
-	if latest {
-		contents = s.prevContents.LastCopy()
-	} else {
-		contents = s.prevContents.PickCopy(prng)
-	}
-
-	n := s.chooseLeafCount(prng) // can be zero
-	indices := make([][]byte, n)
-	for i := 0; i < n; i++ {
-		choice := choices[prng.Intn(len(choices))]
-		if contents.Empty() {
-			choice = NonexistentKey
-		}
-		switch choice {
-		case ExistingKey:
-			// No duplicate removal, so we can end up asking for same key twice in the same request.
-			key := contents.PickKey(prng)
-			indices[i] = key
-		case NonexistentKey:
-			indices[i] = testonly.TransparentHash("non-existent-key")
-		}
-	}
-
-	var rsp *trillian.GetMapLeavesResponse
-	label := "get-leaves"
-	var err error
-	if latest {
-		req := &trillian.GetMapLeavesRequest{
-			MapId: s.cfg.MapID,
-			Index: indices,
-		}
-		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
-		if err != nil {
-			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
-		}
-	} else {
-		label += "-rev"
-		req := &trillian.GetMapLeavesByRevisionRequest{
-			MapId:    s.cfg.MapID,
-			Revision: int64(contents.Rev),
-			Index:    indices,
-		}
-		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
-		if err != nil {
-			return fmt.Errorf("failed to %s(%d leaves): %v", label, len(req.Index), err)
-		}
-	}
-
-	if glog.V(3) {
-		dumpRespKeyVals(rsp.MapLeafInclusion)
-	}
-
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
-	if err != nil {
-		return fmt.Errorf("failed to verify root: %v", err)
-	}
-	for _, inc := range rsp.MapLeafInclusion {
-		if err := s.verifier.VerifyMapLeafInclusionHash(root.RootHash, inc); err != nil {
-			return fmt.Errorf("failed to verify inclusion proof for Index=%x: %v", inc.Leaf.Index, err)
-		}
-	}
-
-	if err := contents.CheckContents(rsp.MapLeafInclusion, s.cfg.ExtraSize); err != nil {
-		return fmt.Errorf("incorrect contents of %s(): %v", label, err)
-	}
-	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
-	return nil
-}
-
-func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
-	fmt.Println("Rsp key-vals:")
-	for _, inc := range incls {
-		key := inc.Leaf.Index
-		leafVal := inc.Leaf.LeafValue
-		fmt.Printf("k: %v -> v: %v\n", string(key[:]), string(leafVal))
-	}
-	fmt.Println("~~~~~~~~~~~~~")
-}
-
-func (s *hammerState) getLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
-	key := testonly.TransparentHash("..invalid-size")
-	req := trillian.GetMapLeavesRequest{
-		MapId: s.cfg.MapID,
-		Index: [][]byte{key[2:]},
-	}
-	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: get-leaves(MalformedKey: %+v): %+v", req, rsp.MapRoot)
-	}
-	glog.V(2).Infof("%d: expected failure: get-leaves(MalformedKey: %+v): %+v", s.cfg.MapID, req, rsp)
-	return nil
-}
-
-func (s *hammerState) getLeavesRevInvalid(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{MalformedKey, RevTooBig, RevIsNegative}
-
-	req := trillian.GetMapLeavesByRevisionRequest{MapId: s.cfg.MapID}
-	contents := s.prevContents.LastCopy()
-	choice := choices[prng.Intn(len(choices))]
-
-	rev := int64(0)
-	var index []byte
-	if contents.Empty() {
-		// No contents so we can't choose a key
-		choice = MalformedKey
-	} else {
-		rev = contents.Rev
-		index = contents.PickKey(prng)
-	}
-	switch choice {
-	case MalformedKey:
-		key := testonly.TransparentHash("..invalid-size")
-		req.Index = [][]byte{key[2:]}
-		req.Revision = rev
-	case RevTooBig:
-		req.Index = [][]byte{index}
-		req.Revision = rev + invalidStretch
-	case RevIsNegative:
-		req.Index = [][]byte{index}
-		req.Revision = -rev - invalidStretch
-	}
-	rsp, err := s.cfg.Client.GetLeavesByRevision(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: get-leaves-rev(%v: %+v): %+v", choice, req, rsp.MapRoot)
-	}
-	glog.V(2).Infof("%d: expected failure: get-leaves-rev(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
-	return nil
-}
-
-func (s *hammerState) setLeaves(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf}
-
-	n := s.chooseLeafCount(prng)
-	if n == 0 {
-		n = 1
-	}
-	leaves := make([]*trillian.MapLeaf, 0, n)
-	contents := s.prevContents.LastCopy()
-	rev := int64(0)
-	if contents != nil {
-		rev = contents.Rev
-	}
-leafloop:
-	for i := 0; i < n; i++ {
-		choice := choices[prng.Intn(len(choices))]
-		if contents.Empty() {
-			choice = CreateLeaf
-		}
-		switch choice {
-		case CreateLeaf:
-			key := s.nextKey()
-			value := s.nextValue()
-			leaves = append(leaves, &trillian.MapLeaf{
-				Index:     testonly.TransparentHash(key),
-				LeafValue: value,
-				ExtraData: testonly.ExtraDataForValue(value, s.cfg.ExtraSize),
-			})
-			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, key, string(value))
-		case UpdateLeaf, DeleteLeaf:
-			key := contents.PickKey(prng)
-			// Not allowed to have the same key more than once in the same request
-			for _, leaf := range leaves {
-				if bytes.Equal(leaf.Index, key) {
-					break leafloop
-				}
-			}
-			var value, extra []byte
-			if choice == UpdateLeaf {
-				value = s.nextValue()
-				extra = testonly.ExtraDataForValue(value, s.cfg.ExtraSize)
-			}
-			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
-			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", s.cfg.MapID, choice, dehash(key), string(value), string(extra))
-		}
-	}
-	req := trillian.SetMapLeavesRequest{
-		MapId:    s.cfg.MapID,
-		Leaves:   leaves,
-		Metadata: metadataForRev(uint64(rev + 1)),
-	}
-	rsp, err := s.cfg.Client.SetLeaves(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("failed to set-leaves(count=%d): %v", len(req.Leaves), err)
-	}
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
-	if err != nil {
-		return err
-	}
-
-	s.pushSMR(rsp.MapRoot)
-	newContents, err := s.prevContents.UpdateContentsWith(root.Revision, leaves)
-	if err != nil {
-		return err
-	}
-	wantRootHash, err := newContents.RootHash(s.cfg.MapID, s.verifier.Hasher)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(root.RootHash, wantRootHash) {
-		return fmt.Errorf("failed to check root hash: got %x, want %x", root.RootHash, wantRootHash)
-	}
-	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
-	return nil
-}
-
-func (s *hammerState) setLeavesInvalid(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{MalformedKey, DuplicateKey}
-
-	var leaves []*trillian.MapLeaf
-	value := []byte("value-for-invalid-req")
-
-	choice := choices[prng.Intn(len(choices))]
-	contents := s.prevContents.LastCopy()
-	if contents.Empty() {
-		choice = MalformedKey
-	}
-	switch choice {
-	case MalformedKey:
-		key := testonly.TransparentHash("..invalid-size")
-		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
-	case DuplicateKey:
-		key := contents.PickKey(prng)
-		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
-		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
-	}
-	req := trillian.SetMapLeavesRequest{MapId: s.cfg.MapID, Leaves: leaves}
-	rsp, err := s.cfg.Client.SetLeaves(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.MapRoot)
-	}
-	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
-	return nil
-}
-
-func (s *hammerState) getSMR(ctx context.Context, prng *rand.Rand) error {
-	req := trillian.GetSignedMapRootRequest{MapId: s.cfg.MapID}
-	rsp, err := s.cfg.Client.GetSignedMapRoot(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("failed to get-smr: %v", err)
-	}
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
-	if err != nil {
-		return err
-	}
-	if got, want := string(root.Metadata), string(metadataForRev(root.Revision)); got != want {
-		return fmt.Errorf("map metadata=%q; want %q", got, want)
-	}
-
-	s.pushSMR(rsp.MapRoot)
-	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
-	return nil
-}
-
-func (s *hammerState) getSMRRev(ctx context.Context, prng *rand.Rand) error {
-	which := prng.Intn(smrCount)
-	smr := s.previousSMR(which)
-	if smr == nil || len(smr.MapRoot) == 0 {
-		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
-		return errSkip{}
-	}
-	smrRoot, err := s.verifier.VerifySignedMapRoot(smr)
-	if err != nil {
-		return err
-	}
-	rev := int64(smrRoot.Revision)
-
-	rsp, err := s.cfg.Client.GetSignedMapRootByRevision(ctx,
-		&trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: rev})
-	if err != nil {
-		return fmt.Errorf("failed to get-smr-rev(@%d): %v", rev, err)
-	}
-	root, err := s.verifier.VerifySignedMapRoot(rsp.MapRoot)
-	if err != nil {
-		return err
-	}
-	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
-
-	if !proto.Equal(rsp.MapRoot, smr) {
-		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, rsp.MapRoot, smr)
-	}
-	return nil
-}
-
-func (s *hammerState) getSMRRevInvalid(ctx context.Context, prng *rand.Rand) error {
-	choices := []Choice{RevTooBig, RevIsNegative}
-
-	rev := latestRevision
-	contents := s.prevContents.LastCopy()
-	if contents != nil {
-		rev = contents.Rev
-	}
-
-	choice := choices[prng.Intn(len(choices))]
-
-	switch choice {
-	case RevTooBig:
-		rev += invalidStretch
-	case RevIsNegative:
-		rev = -invalidStretch
-	}
-	req := trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: rev}
-	rsp, err := s.cfg.Client.GetSignedMapRootByRevision(ctx, &req)
-	if err == nil {
-		return fmt.Errorf("unexpected success: get-smr-rev(%v: @%d): %+v", choice, rev, rsp.MapRoot)
-	}
-	glog.V(2).Infof("%d: expected failure: get-smr-rev(%v: @%d): %+v", s.cfg.MapID, choice, rev, rsp)
-	return nil
-}
-
-func smrRev(smr *trillian.SignedMapRoot) string {
-	if smr == nil {
-		return "n/a"
-	}
-	var root types.MapRootV1
-	if err := root.UnmarshalBinary(smr.MapRoot); err != nil {
-		return "unknown"
-	}
-	return fmt.Sprintf("%d", root.Revision)
 }
 
 func dehash(index []byte) string {

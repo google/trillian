@@ -64,21 +64,21 @@ func TestFromContext(t *testing.T) {
 }
 
 func TestGetTree(t *testing.T) {
-	logTree := *testonly.LogTree
+	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 1
 
-	mapTree := *testonly.MapTree
+	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	mapTree.TreeId = 2
 
-	frozenTree := *testonly.LogTree
+	frozenTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	frozenTree.TreeId = 3
 	frozenTree.TreeState = trillian.TreeState_FROZEN
 
-	drainingTree := *testonly.LogTree
+	drainingTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	drainingTree.TreeId = 3
 	drainingTree.TreeState = trillian.TreeState_DRAINING
 
-	softDeletedTree := *testonly.LogTree
+	softDeletedTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	softDeletedTree.Deleted = true
 	softDeletedTree.DeleteTime = ptypes.TimestampNow()
 
@@ -95,42 +95,42 @@ func TestGetTree(t *testing.T) {
 			desc:        "anyTree",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query),
-			storageTree: &logTree,
-			wantTree:    &logTree,
+			storageTree: logTree,
+			wantTree:    logTree,
 		},
 		{
 			desc:        "logTree",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			storageTree: &logTree,
-			wantTree:    &logTree,
+			storageTree: logTree,
+			wantTree:    logTree,
 		},
 		{
 			desc:        "mapTree",
 			treeID:      mapTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_MAP),
-			storageTree: &mapTree,
-			wantTree:    &mapTree,
+			storageTree: mapTree,
+			wantTree:    mapTree,
 		},
 		{
 			desc:        "logTreeButMaybeMap",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG, trillian.TreeType_MAP),
-			storageTree: &logTree,
-			wantTree:    &logTree,
+			storageTree: logTree,
+			wantTree:    logTree,
 		},
 		{
 			desc:        "mapTreeButMaybeLog",
 			treeID:      mapTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG, trillian.TreeType_MAP),
-			storageTree: &mapTree,
-			wantTree:    &mapTree,
+			storageTree: mapTree,
+			wantTree:    mapTree,
 		},
 		{
 			desc:        "wrongType1",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_MAP),
-			storageTree: &logTree,
+			storageTree: logTree,
 			wantErr:     true,
 			code:        codes.InvalidArgument,
 		},
@@ -138,7 +138,7 @@ func TestGetTree(t *testing.T) {
 			desc:        "wrongType2",
 			treeID:      mapTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			storageTree: &mapTree,
+			storageTree: mapTree,
 			wantErr:     true,
 			code:        codes.InvalidArgument,
 		},
@@ -146,7 +146,7 @@ func TestGetTree(t *testing.T) {
 			desc:        "wrongType3",
 			treeID:      mapTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG),
-			storageTree: &mapTree,
+			storageTree: mapTree,
 			wantErr:     true,
 			code:        codes.InvalidArgument,
 		},
@@ -154,8 +154,8 @@ func TestGetTree(t *testing.T) {
 			desc:        "adminLog",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Admin, trillian.TreeType_LOG),
-			storageTree: &logTree,
-			wantTree:    &logTree,
+			storageTree: logTree,
+			wantTree:    logTree,
 		},
 		{
 			desc:        "adminPreordered",
@@ -166,24 +166,24 @@ func TestGetTree(t *testing.T) {
 		},
 		{
 			desc:        "adminFrozen",
-			treeID:      logTree.TreeId,
+			treeID:      frozenTree.TreeId,
 			opts:        NewGetOpts(Admin, trillian.TreeType_LOG),
-			storageTree: &frozenTree,
-			wantTree:    &frozenTree,
+			storageTree: frozenTree,
+			wantTree:    frozenTree,
 		},
 		{
 			desc:        "adminMap",
 			treeID:      mapTree.TreeId,
 			opts:        NewGetOpts(Admin, trillian.TreeType_MAP),
-			storageTree: &mapTree,
-			wantTree:    &mapTree,
+			storageTree: mapTree,
+			wantTree:    mapTree,
 		},
 		{
 			desc:        "queryLog",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			storageTree: &logTree,
-			wantTree:    &logTree,
+			storageTree: logTree,
+			wantTree:    logTree,
 		},
 		{
 			desc:        "queryPreordered",
@@ -196,22 +196,22 @@ func TestGetTree(t *testing.T) {
 			desc:        "queryMap",
 			treeID:      mapTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_MAP),
-			storageTree: &mapTree,
-			wantTree:    &mapTree,
+			storageTree: mapTree,
+			wantTree:    mapTree,
 		},
 		{
 			desc:        "queryFrozen",
 			treeID:      frozenTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			storageTree: &frozenTree,
-			wantTree:    &frozenTree,
+			storageTree: frozenTree,
+			wantTree:    frozenTree,
 		},
 		{
 			desc:        "sequenceFrozen",
 			treeID:      frozenTree.TreeId,
 			opts:        NewGetOpts(SequenceLog, trillian.TreeType_LOG),
-			storageTree: &frozenTree,
-			wantTree:    &frozenTree,
+			storageTree: frozenTree,
+			wantTree:    frozenTree,
 			wantErr:     true,
 			code:        codes.PermissionDenied,
 		},
@@ -219,8 +219,8 @@ func TestGetTree(t *testing.T) {
 			desc:        "queueFrozen",
 			treeID:      frozenTree.TreeId,
 			opts:        NewGetOpts(QueueLog, trillian.TreeType_LOG),
-			storageTree: &frozenTree,
-			wantTree:    &frozenTree,
+			storageTree: frozenTree,
+			wantTree:    frozenTree,
 			wantErr:     true,
 			code:        codes.PermissionDenied,
 		},
@@ -228,22 +228,22 @@ func TestGetTree(t *testing.T) {
 			desc:        "queryDraining",
 			treeID:      drainingTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			storageTree: &drainingTree,
-			wantTree:    &drainingTree,
+			storageTree: drainingTree,
+			wantTree:    drainingTree,
 		},
 		{
 			desc:        "sequenceDraining",
 			treeID:      drainingTree.TreeId,
 			opts:        NewGetOpts(SequenceLog, trillian.TreeType_LOG),
-			storageTree: &drainingTree,
-			wantTree:    &drainingTree,
+			storageTree: drainingTree,
+			wantTree:    drainingTree,
 		},
 		{
 			desc:        "queueDraining",
 			treeID:      drainingTree.TreeId,
 			opts:        NewGetOpts(QueueLog, trillian.TreeType_LOG),
-			storageTree: &drainingTree,
-			wantTree:    &drainingTree,
+			storageTree: drainingTree,
+			wantTree:    drainingTree,
 			wantErr:     true,
 			code:        codes.PermissionDenied,
 		},
@@ -251,7 +251,7 @@ func TestGetTree(t *testing.T) {
 			desc:        "softDeleted",
 			treeID:      softDeletedTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			storageTree: &softDeletedTree,
+			storageTree: softDeletedTree,
 			wantErr:     true, // Deleted = true makes the tree "invisible" for most RPCs
 			code:        codes.NotFound,
 		},
@@ -259,16 +259,18 @@ func TestGetTree(t *testing.T) {
 			desc:     "treeInCtx",
 			treeID:   logTree.TreeId,
 			opts:     NewGetOpts(Query, trillian.TreeType_LOG),
-			ctxTree:  &logTree,
-			wantTree: &logTree,
+			ctxTree:  logTree,
+			wantTree: logTree,
 		},
 		{
 			desc:        "wrongTreeInCtx",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			ctxTree:     &mapTree,
-			storageTree: &logTree,
-			wantTree:    &logTree,
+			ctxTree:     mapTree,
+			storageTree: logTree,
+			wantTree:    logTree,
+			wantErr:     true,
+			code:        codes.Internal,
 		},
 		{
 			desc:     "beginErr",
@@ -338,10 +340,10 @@ func TestHash(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tree := *testonly.LogTree
+		tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 		tree.HashAlgorithm = test.hashAlgo
 
-		hash, err := Hash(&tree)
+		hash, err := Hash(tree)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("Hash(%s) = (_, %q), wantErr = %v", test.hashAlgo, err, test.wantErr)
 			continue
@@ -414,7 +416,7 @@ func TestSigner(t *testing.T) {
 	ctx := context.Background()
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tree := *testonly.LogTree
+			tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 			tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
 			tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
 			tree.SignatureAlgorithm = test.sigAlgo
@@ -432,7 +434,7 @@ func TestSigner(t *testing.T) {
 			})
 			defer keys.UnregisterHandler(wantKeyProto.Message)
 
-			signer, err := Signer(ctx, &tree)
+			signer, err := Signer(ctx, tree)
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("Signer(_, %s) = (_, %q), wantErr = %v", test.sigAlgo, err, test.wantErr)
 			} else if hasErr {

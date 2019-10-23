@@ -26,7 +26,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/letsencrypt/pkcs11key"
+
+	pkcs11key "github.com/letsencrypt/pkcs11key/v3"
 )
 
 var pkcs11ConfigPath = flag.String("pkcs11_config_path", "", "Path to the PKCS #11 key configuration file")

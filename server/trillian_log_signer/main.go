@@ -21,14 +21,18 @@ import (
 	"fmt"
 	_ "net/http/pprof" // Register pprof HTTP handlers.
 	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
+	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
@@ -43,6 +47,10 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+
+	// Register supported storage providers.
+	_ "github.com/google/trillian/storage/cloudspanner"
+	_ "github.com/google/trillian/storage/mysql"
 
 	// Load hashers
 	_ "github.com/google/trillian/merkle/rfc6962"
@@ -71,6 +79,10 @@ var (
 	masterHoldJitter   = flag.Duration("master_hold_jitter", 120*time.Second, "Maximal random addition to --master_hold_interval")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
+
+	// Profiling related flags.
+	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
+	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
 )
 
 func main() {
@@ -87,8 +99,9 @@ func main() {
 	glog.Info("**** Log Signer Starting ****")
 
 	mf := prometheus.MetricFactory{}
+	monitoring.SetStartSpan(opencensus.StartSpan)
 
-	sp, err := server.NewStorageProviderFromFlags(mf)
+	sp, err := storage.NewProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
@@ -143,8 +156,8 @@ func main() {
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	log.QuotaIncreaseFactor = *quotaIncreaseFactor
-	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
-	info := server.LogOperationInfo{
+	sequencerManager := log.NewSequencerManager(registry, *sequencerGuardWindowFlag)
+	info := log.OperationInfo{
 		Registry:    registry,
 		BatchSize:   *batchSizeFlag,
 		NumWorkers:  *numSeqFlag,
@@ -157,8 +170,15 @@ func main() {
 			TimeSource:         clock.System,
 		},
 	}
-	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
+	sequencerTask := log.NewOperationManager(info, sequencerManager)
 	go sequencerTask.OperationLoop(ctx)
+
+	// Enable CPU profile if requested
+	if *cpuProfile != "" {
+		f := mustCreate(*cpuProfile)
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	m := server.Main{
 		RPCEndpoint:  *rpcEndpoint,
@@ -184,7 +204,20 @@ func main() {
 		glog.Exitf("Server exited with error: %v", err)
 	}
 
+	if *memProfile != "" {
+		f := mustCreate(*memProfile)
+		pprof.WriteHeapProfile(f)
+	}
+
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
 	time.Sleep(time.Second * 5)
+}
+
+func mustCreate(fileName string) *os.File {
+	f, err := os.Create(fileName)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	return f
 }

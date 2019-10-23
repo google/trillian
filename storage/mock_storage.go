@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
+	tree "github.com/google/trillian/storage/tree"
 	reflect "reflect"
 	time "time"
 )
@@ -440,17 +441,17 @@ func (mr *MockLogTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockLogTreeTX) Commit() error {
+func (m *MockLogTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockLogTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockLogTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockLogTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockLogTreeTX)(nil).Commit), arg0)
 }
 
 // DequeueLeaves mocks base method
@@ -514,10 +515,10 @@ func (mr *MockLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 interface
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -558,10 +559,10 @@ func (mr *MockLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedLogRoot mocks base method
-func (m *MockLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (trillian.SignedLogRoot, error) {
+func (m *MockLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.SignedLogRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedLogRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedLogRoot)
+	ret0, _ := ret[0].(*trillian.SignedLogRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -617,7 +618,7 @@ func (mr *MockLogTreeTXMockRecorder) Rollback() *gomock.Call {
 }
 
 // SetMerkleNodes mocks base method
-func (m *MockLogTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []Node) error {
+func (m *MockLogTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetMerkleNodes", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -631,7 +632,7 @@ func (mr *MockLogTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gom
 }
 
 // StoreSignedLogRoot mocks base method
-func (m *MockLogTreeTX) StoreSignedLogRoot(arg0 context.Context, arg1 trillian.SignedLogRoot) error {
+func (m *MockLogTreeTX) StoreSignedLogRoot(arg0 context.Context, arg1 *trillian.SignedLogRoot) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSignedLogRoot", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -724,21 +725,6 @@ func (mr *MockMapStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2 inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockMapStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2)
 }
 
-// Snapshot mocks base method
-func (m *MockMapStorage) Snapshot(arg0 context.Context) (ReadOnlyMapTX, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Snapshot", arg0)
-	ret0, _ := ret[0].(ReadOnlyMapTX)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Snapshot indicates an expected call of Snapshot
-func (mr *MockMapStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockMapStorage)(nil).Snapshot), arg0)
-}
-
 // SnapshotForTree mocks base method
 func (m *MockMapStorage) SnapshotForTree(arg0 context.Context, arg1 *trillian.Tree) (ReadOnlyMapTreeTX, error) {
 	m.ctrl.T.Helper()
@@ -792,24 +778,24 @@ func (mr *MockMapTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockMapTreeTX) Commit() error {
+func (m *MockMapTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockMapTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockMapTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockMapTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockMapTreeTX)(nil).Commit), arg0)
 }
 
 // Get mocks base method
-func (m *MockMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]trillian.MapLeaf, error) {
+func (m *MockMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]*trillian.MapLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]trillian.MapLeaf)
+	ret0, _ := ret[0].([]*trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -821,10 +807,10 @@ func (mr *MockMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.C
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -836,10 +822,10 @@ func (mr *MockMapTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}
 }
 
 // GetSignedMapRoot mocks base method
-func (m *MockMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (trillian.SignedMapRoot, error) {
+func (m *MockMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSignedMapRoot", arg0, arg1)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -865,10 +851,10 @@ func (mr *MockMapTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedMapRoot mocks base method
-func (m *MockMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (trillian.SignedMapRoot, error) {
+func (m *MockMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedMapRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -909,7 +895,7 @@ func (mr *MockMapTreeTXMockRecorder) Rollback() *gomock.Call {
 }
 
 // Set mocks base method
-func (m *MockMapTreeTX) Set(arg0 context.Context, arg1 []byte, arg2 trillian.MapLeaf) error {
+func (m *MockMapTreeTX) Set(arg0 context.Context, arg1 []byte, arg2 *trillian.MapLeaf) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Set", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
@@ -923,7 +909,7 @@ func (mr *MockMapTreeTXMockRecorder) Set(arg0, arg1, arg2 interface{}) *gomock.C
 }
 
 // SetMerkleNodes mocks base method
-func (m *MockMapTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []Node) error {
+func (m *MockMapTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetMerkleNodes", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -937,7 +923,7 @@ func (mr *MockMapTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gom
 }
 
 // StoreSignedMapRoot mocks base method
-func (m *MockMapTreeTX) StoreSignedMapRoot(arg0 context.Context, arg1 trillian.SignedMapRoot) error {
+func (m *MockMapTreeTX) StoreSignedMapRoot(arg0 context.Context, arg1 *trillian.SignedMapRoot) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSignedMapRoot", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -1127,17 +1113,17 @@ func (mr *MockReadOnlyLogTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockReadOnlyLogTX) Commit() error {
+func (m *MockReadOnlyLogTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockReadOnlyLogTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockReadOnlyLogTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Commit), arg0)
 }
 
 // GetActiveLogIDs mocks base method
@@ -1153,21 +1139,6 @@ func (m *MockReadOnlyLogTX) GetActiveLogIDs(arg0 context.Context) ([]int64, erro
 func (mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveLogIDs", reflect.TypeOf((*MockReadOnlyLogTX)(nil).GetActiveLogIDs), arg0)
-}
-
-// GetUnsequencedCounts mocks base method
-func (m *MockReadOnlyLogTX) GetUnsequencedCounts(arg0 context.Context) (CountByLogID, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUnsequencedCounts", arg0)
-	ret0, _ := ret[0].(CountByLogID)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetUnsequencedCounts indicates an expected call of GetUnsequencedCounts
-func (mr *MockReadOnlyLogTXMockRecorder) GetUnsequencedCounts(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnsequencedCounts", reflect.TypeOf((*MockReadOnlyLogTX)(nil).GetUnsequencedCounts), arg0)
 }
 
 // Rollback mocks base method
@@ -1222,17 +1193,17 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockReadOnlyLogTreeTX) Commit() error {
+func (m *MockReadOnlyLogTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockReadOnlyLogTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockReadOnlyLogTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Commit), arg0)
 }
 
 // GetLeavesByHash mocks base method
@@ -1281,10 +1252,10 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 i
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1325,10 +1296,10 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedLogRoot mocks base method
-func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (trillian.SignedLogRoot, error) {
+func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.SignedLogRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedLogRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedLogRoot)
+	ret0, _ := ret[0].(*trillian.SignedLogRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1406,24 +1377,24 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) Close() *gomock.Call {
 }
 
 // Commit mocks base method
-func (m *MockReadOnlyMapTreeTX) Commit() error {
+func (m *MockReadOnlyMapTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit
-func (mr *MockReadOnlyMapTreeTXMockRecorder) Commit() *gomock.Call {
+func (mr *MockReadOnlyMapTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).Commit), arg0)
 }
 
 // Get mocks base method
-func (m *MockReadOnlyMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]trillian.MapLeaf, error) {
+func (m *MockReadOnlyMapTreeTX) Get(arg0 context.Context, arg1 int64, arg2 [][]byte) ([]*trillian.MapLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]trillian.MapLeaf)
+	ret0, _ := ret[0].([]*trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1435,10 +1406,10 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *
 }
 
 // GetMerkleNodes mocks base method
-func (m *MockReadOnlyMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
+func (m *MockReadOnlyMapTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]Node)
+	ret0, _ := ret[0].([]tree.Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1450,10 +1421,10 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 int
 }
 
 // GetSignedMapRoot mocks base method
-func (m *MockReadOnlyMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (trillian.SignedMapRoot, error) {
+func (m *MockReadOnlyMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int64) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSignedMapRoot", arg0, arg1)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1479,10 +1450,10 @@ func (mr *MockReadOnlyMapTreeTXMockRecorder) IsOpen() *gomock.Call {
 }
 
 // LatestSignedMapRoot mocks base method
-func (m *MockReadOnlyMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (trillian.SignedMapRoot, error) {
+func (m *MockReadOnlyMapTreeTX) LatestSignedMapRoot(arg0 context.Context) (*trillian.SignedMapRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedMapRoot", arg0)
-	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret0, _ := ret[0].(*trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

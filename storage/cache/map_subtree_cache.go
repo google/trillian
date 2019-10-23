@@ -22,13 +22,13 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 )
 
 // NewMapSubtreeCache creates and returns a SubtreeCache appropriate for use with a map
 // tree. The caller must supply the strata depths to be used, the treeID and a suitable MapHasher.
-func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher) SubtreeCache {
+func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher) *SubtreeCache {
 	return NewSubtreeCache(mapStrata, populateMapSubtreeNodes(treeID, hasher), prepareMapSubtreeWrite())
 }
 
@@ -36,22 +36,22 @@ func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher)
 // subtree Leaves map.
 //
 // This uses HStar2 to repopulate internal nodes.
-func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.PopulateSubtreeFunc {
+func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) tree.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
-		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
+		leaves := make([]*merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
-			sfx, err := storage.ParseSuffix(k64)
+			sfx, err := tree.ParseSuffix(k64)
 			if err != nil {
 				return err
 			}
 			// TODO(gdbelvin): test against subtree depth.
-			if sfx.Bits%depthQuantum != 0 {
-				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits)
+			if sfx.Bits()%8 != 0 {
+				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits())
 			}
 
-			leaves = append(leaves, merkle.HStar2LeafHash{
-				Index:    storage.NewNodeIDFromPrefixSuffix(st.Prefix, sfx, hasher.BitLen()).BigInt(),
+			leaves = append(leaves, &merkle.HStar2LeafHash{
+				Index:    tree.NewNodeIDFromPrefixSuffix(st.Prefix, sfx, hasher.BitLen()).BigInt(),
 				LeafHash: v,
 			})
 		}
@@ -62,8 +62,8 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 					// no space for the root in the node cache
 					return nil
 				}
-				nodeID := storage.NewNodeIDFromBigInt(depth, index, hasher.BitLen())
-				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
+				nodeID := tree.NewNodeIDFromBigInt(depth, index, hasher.BitLen())
+				sfx := nodeID.Suffix(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				if glog.V(4) {
 					b, err := base64.StdEncoding.DecodeString(sfxKey)
@@ -85,7 +85,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 
 // prepareMapSubtreeWrite prepares a map subtree for writing. For maps the internal
 // nodes are never written to storage and are thus always cleared.
-func prepareMapSubtreeWrite() storage.PrepareSubtreeWriteFunc {
+func prepareMapSubtreeWrite() tree.PrepareSubtreeWriteFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = nil
 		// We don't check the node count for map subtrees but ensure it's zero for consistency

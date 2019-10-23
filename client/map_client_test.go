@@ -19,6 +19,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
@@ -48,7 +49,7 @@ func TestNewMapVerifier(t *testing.T) {
 		wantErr bool
 	}{
 		{desc: "success", tree: tree},
-		{desc: "nil PublicKey", tree: func() *trillian.Tree { t := *tree; t.PublicKey = nil; return &t }(), wantErr: true},
+		{desc: "nil PublicKey", tree: func() *trillian.Tree { t := proto.Clone(tree).(*trillian.Tree); t.PublicKey = nil; return t }(), wantErr: true},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			if _, err := NewMapClientFromTree(env.Map, tc.tree); (err != nil) != tc.wantErr {
@@ -87,6 +88,35 @@ func TestGetLatestMapRoot(t *testing.T) {
 	}
 }
 
+func TestGetMapRootByRevision(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+	ctx := context.Background()
+	env, err := integration.NewMapEnv(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: testonly.MapTree},
+		env.Admin, env.Map, nil)
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	client, err := NewMapClientFromTree(env.Map, tree)
+	if err != nil {
+		t.Fatalf("NewMapClientFromTree(): %v", err)
+	}
+
+	root, err := client.GetAndVerifyMapRootByRevision(ctx, 0)
+	if err != nil {
+		t.Fatalf("GetAndVerifyLatestMapRoot(): %v", err)
+	}
+	if got, want := root.Revision, uint64(0); got != want {
+		t.Errorf("root.Revision: %v, want %v", got, want)
+	}
+}
+
 func TestGetLeavesAtRevision(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
@@ -108,7 +138,7 @@ func TestGetLeavesAtRevision(t *testing.T) {
 	}
 
 	index := []byte("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-	if _, err := env.Map.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+	if _, err := env.Write.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
 		MapId: client.MapID,
 		Leaves: []*trillian.MapLeaf{
 			{
@@ -116,8 +146,9 @@ func TestGetLeavesAtRevision(t *testing.T) {
 				LeafValue: []byte("A"),
 			},
 		},
+		ExpectRevision: 1,
 	}); err != nil {
-		t.Fatalf("SetLeaves(): %v", err)
+		t.Fatalf("WriteLeaves(): %v", err)
 	}
 
 	for _, tc := range []struct {
@@ -129,7 +160,7 @@ func TestGetLeavesAtRevision(t *testing.T) {
 		{desc: "2", indexes: [][]byte{index, index}, wantCode: codes.InvalidArgument},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			leaves, err := client.GetAndVerifyMapLeaves(ctx, tc.indexes)
+			leaves, _, err := client.GetAndVerifyMapLeaves(ctx, tc.indexes)
 			if status.Code(err) != tc.wantCode {
 				t.Fatalf("GetAndVerifyMapLeavesAtRevision(): %v, wantErr %v", err, tc.wantCode)
 			}

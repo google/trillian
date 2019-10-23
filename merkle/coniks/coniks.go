@@ -16,6 +16,7 @@
 package coniks
 
 import (
+	"bytes"
 	"crypto"
 	"encoding/binary"
 	"fmt"
@@ -34,10 +35,11 @@ func init() {
 var (
 	leafIdentifier  = []byte("L")
 	emptyIdentifier = []byte("E")
+	// Default is the standard CONIKS hasher.
+	Default = New(crypto.SHA512_256)
+	// Some zeroes, to avoid allocating temporary slices.
+	zeroes = make([]byte, 32)
 )
-
-// Default is the standard CONIKS hasher.
-var Default = New(crypto.SHA512_256)
 
 // hasher implements the sparse merkle tree hashing algorithm specified in the CONIKS paper.
 type hasher struct {
@@ -54,45 +56,57 @@ func (m *hasher) EmptyRoot() []byte {
 	panic("EmptyRoot() not defined for coniks.Hasher")
 }
 
-// HashEmpty returns the hash of an empty branch at a given height.
-// A height of 0 indicates the hash of an empty leaf.
-// Empty branches within the tree are plain interior nodes e1 = H(e0, e0) etc.
+// HashEmpty returns the hash of an empty subtree of the given height at the
+// position defined by the BitLen()-height most significant bits of the given
+// index. Note that a height of 0 indicates a leaf.
 func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	depth := m.BitLen() - height
 
+	buf := bytes.NewBuffer(make([]byte, 0, 32))
 	h := m.New()
-	h.Write(emptyIdentifier)
-	binary.Write(h, binary.BigEndian, uint64(treeID))
-	h.Write(m.maskIndex(index, depth))
-	binary.Write(h, binary.BigEndian, uint32(depth))
+	buf.Write(emptyIdentifier)
+	binary.Write(buf, binary.BigEndian, uint64(treeID))
+	m.writeMaskedIndex(buf, index, depth)
+	binary.Write(buf, binary.BigEndian, uint32(depth))
+	h.Write(buf.Bytes())
 	r := h.Sum(nil)
-	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, r)
+	if glog.V(5) {
+		glog.Infof("HashEmpty(%x, %d): %x", index, depth, r)
+	}
 	return r
 }
 
 // HashLeaf calculate the merkle tree leaf value:
 // H(Identifier || treeID || depth || index || dataHash)
-func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error) {
+func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
 	depth := m.BitLen()
+	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
-	h.Write(leafIdentifier)
-	binary.Write(h, binary.BigEndian, uint64(treeID))
-	h.Write(m.maskIndex(index, depth))
-	binary.Write(h, binary.BigEndian, uint32(depth))
-	h.Write(leaf)
+	buf.Write(leafIdentifier)
+	binary.Write(buf, binary.BigEndian, uint64(treeID))
+	m.writeMaskedIndex(buf, index, depth)
+	binary.Write(buf, binary.BigEndian, uint32(depth))
+	buf.Write(leaf)
+	h.Write(buf.Bytes())
 	p := h.Sum(nil)
-	glog.V(5).Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
-	return p, nil
+	if glog.V(5) {
+		glog.Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
+	}
+	return p
 }
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is  H(l || r).
 func (m *hasher) HashChildren(l, r []byte) []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 32+len(l)+len(r)))
 	h := m.New()
-	h.Write(l)
-	h.Write(r)
+	buf.Write(l)
+	buf.Write(r)
+	h.Write(buf.Bytes())
 	p := h.Sum(nil)
-	glog.V(5).Infof("HashChildren(%x, %x): %x", l, r, p)
+	if glog.V(5) {
+		glog.Infof("HashChildren(%x, %x): %x", l, r, p)
+	}
 	return p
 }
 
@@ -106,25 +120,44 @@ func (m *hasher) BitLen() int {
 // is 0. leftmask is only used to mask the last byte.
 var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
-// maskIndex returns index with only the left depth bits set.
-// index must be of size m.Size() and 0 <= depth <= m.BitLen().
-// e.g.
-func (m *hasher) maskIndex(index []byte, depth int) []byte {
-	if got, want := len(index), m.Size(); got != want {
-		panic(fmt.Sprintf("index len: %d, want %d", got, want))
+// writeMaskedIndex writes the left depth bits of index to the Buffer (which
+// never returns an error on writes), padded with zero bits to the byte Size()
+// of the hashes in use by this hasher.
+//
+// TODO(pavelkalinnikov): We must not use BitLen() and Size() interchangeably.
+// The tree height and hash size could be different.
+// TODO(pavelkalinnikov): Padding with zeroes doesn't buy us anything, as the
+// depth is also written to the Buffer.
+func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
+	if got, min := len(index)*8, depth; got < min {
+		panic(fmt.Sprintf("index bits: %d, want >= %d", got, min))
 	}
 	if got, want := depth, m.BitLen(); got < 0 || got > want {
-		panic(fmt.Sprintf("depth: %d, want <= %d && > 0", got, want))
+		panic(fmt.Sprintf("depth: %d, want <= %d && >= 0", got, want))
 	}
 
-	// Create an empty index Size() bytes long.
-	ret := make([]byte, m.Size())
+	prevLen := b.Len()
 	if depth > 0 {
-		// Copy the first depthBytes.
-		depthBytes := (depth + 7) >> 3
-		copy(ret, index[:depthBytes])
-		// Mask off unwanted bits in the last byte.
-		ret[depthBytes-1] = ret[depthBytes-1] & leftmask[depth%8]
+		// Write the first depthBytes, if there are any complete bytes.
+		depthBytes := depth / 8
+		if depthBytes > 0 {
+			b.Write(index[:depthBytes])
+		}
+		// Mask off unwanted bits in the last byte, if there is an incomplete one.
+		if depth%8 != 0 {
+			b.WriteByte(index[depthBytes] & leftmask[depth%8])
+		}
 	}
-	return ret
+	// Pad to the correct length with zeroes. Allow for future hashers that might
+	// be > 256 bits.
+	// TODO(pavelkalinnikov): YAGNI. Simplify this until that actually happens.
+	for need := prevLen + m.Size() - b.Len(); need > 0; {
+		chunkSize := need
+		if chunkSize > 32 {
+			chunkSize = 32
+		}
+		// Use the pre-allocated zeroes to avoid allocating them each time.
+		b.Write(zeroes[:chunkSize])
+		need -= chunkSize
+	}
 }

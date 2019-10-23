@@ -30,8 +30,7 @@ message MapLeaf {
   // All indexes for a given Map must contain a constant number of bits.
   // These are not numeric indices. Note that this is typically derived using a
   // hash and thus the length of all indices in the map will match the number
-  // of bits in the hash function. Map entries do not have a well defined
-  // ordering and it's not possible to sequentially iterate over them.
+  // of bits in the hash function.
   bytes index = 1;
   // leaf_hash is the tree hash of leaf_value.  This does not need to be set
   // on SetMapLeavesRequest; the server will fill it in.
@@ -47,6 +46,10 @@ message MapLeaf {
   bytes leaf_value = 3;
   // extra_data holds related contextual data, but is not covered by any hash.
   bytes extra_data = 4;
+}
+
+message MapLeaves {
+  repeated MapLeaf leaves = 1;
 }
 
 message MapLeafInclusion {
@@ -67,18 +70,49 @@ message GetMapLeavesRequest {
   reserved 3;  // was 'revision'
 }
 
+message GetMapLeafRequest {
+  int64 map_id = 1;
+  bytes index = 2;
+}
+
+message GetMapLeafByRevisionRequest {
+  int64 map_id = 1;
+  bytes index = 2;
+  int64 revision = 3;
+}
+
 // This message replaces the current implementation of GetMapLeavesRequest
 // with the difference that revision must be >=0.
 message GetMapLeavesByRevisionRequest {
   int64 map_id = 1;
+  // index(es) to query.  It is an error to request the same index more than once.
   repeated bytes index = 2;
   // revision >= 0.
   int64 revision = 3;
 }
 
+message GetMapLeafResponse {
+  MapLeafInclusion map_leaf_inclusion = 1;
+  SignedMapRoot map_root = 2;
+} 
+
+
 message GetMapLeavesResponse {
   repeated MapLeafInclusion map_leaf_inclusion = 2;
   SignedMapRoot map_root = 3;
+}
+
+// GetLastInRangeByRevisionRequest specifies a range in the map at a revision.
+// The range is defined as the entire subtree below a particular point in the 
+// Merkle tree. Another way of saying this is that the range matches all leaves
+// that share a common prefix of `prefix_bits` with `prefix`.
+message GetLastInRangeByRevisionRequest {
+  int64 map_id = 1;
+  int64 revision = 2;
+  bytes prefix = 3;
+  // prefix_bits is the number of bits to include, starting from the left, or
+  // most significant bit (MSB).
+  int32 prefix_bits = 4;
 }
 
 message SetMapLeavesRequest {
@@ -95,13 +129,35 @@ message SetMapLeavesRequest {
   bytes metadata = 5;
   // The map revision to associate the leaves with. The request will fail if
   // this revision already exists, does not match the current write revision, or
-  // is negative. If revision = 0 then the leaves will be written to the current
-  // write revision.
+  // is not positive. Note that revision = 0 is reserved for the empty tree.
   int64 revision = 6;
 }
 
 message SetMapLeavesResponse {
   SignedMapRoot map_root = 2;
+}
+
+message WriteMapLeavesRequest {
+  int64 map_id = 1;
+  // The leaves being set must have unique Index values within the request.
+  repeated MapLeaf leaves = 2;
+  // Metadata that the Map should associate with the new Map root after
+  // incorporating the leaf changes.  The metadata will be reflected in the
+  // Map Root published for this revision.
+  // Map personalities should use metadata to persist any state needed later
+  // to continue mapping from an external data source.
+  bytes metadata = 3;
+  // The map revision to associate the leaves with. The request will fail if
+  // this revision already exists, does not match the current write revision, or
+  // is not positive. Note that revision = 0 is reserved for the empty tree.
+  int64 expect_revision = 4;
+}
+
+message WriteMapLeavesResponse {
+  // The map revision that the leaves will be published at.
+  // This may be accompanied by a proof that the write request has been included
+  // in an input log in the future.
+  int64 revision = 1;
 }
 
 message GetSignedMapRootRequest {
@@ -131,14 +187,26 @@ service TrillianMap {
   // GetLeaves returns an inclusion proof for each index requested.
   // For indexes that do not exist, the inclusion proof will use nil for the
   // empty leaf value.
+  rpc GetLeaf(GetMapLeafRequest) returns (GetMapLeafResponse) {}
+  rpc GetLeafByRevision(GetMapLeafByRevisionRequest) returns (GetMapLeafResponse) {}
   rpc GetLeaves(GetMapLeavesRequest) returns (GetMapLeavesResponse) {}
-  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest)
-      returns (GetMapLeavesResponse) {}
-  // SetLeaves sets the values for the provided leaves, and returns the new map
-  // root if successful. Note that if a SetLeaves request fails for a
-  // server-side reason (i.e. not an invalid request), the API user is required
-  // to retry the request before performing a different SetLeaves request.
-  rpc SetLeaves(SetMapLeavesRequest) returns (SetMapLeavesResponse) {}
+  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns (GetMapLeavesResponse) {}
+  // Deprecated: this should only be used by writers, which should migrate
+  // to TrillianMapWrite#GetLeavesByRevision
+  rpc GetLeavesByRevisionNoProof(GetMapLeavesByRevisionRequest) returns (MapLeaves) {
+    option deprecated = true;
+  }
+  // GetLastInRangeByRevision returns the last leaf in a requested range.
+  rpc GetLastInRangeByRevision(GetLastInRangeByRevisionRequest) returns (MapLeaf) {
+    option (google.api.http) = {
+      get: "/v1beta1/maps/{map_id}/roots/{revision}/leaves:last_in_range"
+    };
+  }
+  // Deprecated: this should only be used by writers, which should migrate
+  // to TrillianMapWrite#WriteLeaves
+  rpc SetLeaves(SetMapLeavesRequest) returns (SetMapLeavesResponse) {
+    option deprecated = true;
+  }
   rpc GetSignedMapRoot(GetSignedMapRootRequest)
       returns (GetSignedMapRootResponse) {
     option (google.api.http) = {
@@ -156,4 +224,17 @@ service TrillianMap {
       post: "/v1beta1/maps/{map_id}:init"
     };
   }
+}
+
+// TrillianMapWrite defines a service to allow writes against a Verifiable Map
+// that will be readable via the TrillianMap service. The write API does not
+// expose any Merkle Tree properties. This allows key/value writes to be
+// decoupled from the Merkle Tree synthesis and publishing.
+service TrillianMapWrite {
+  // GetLeavesByRevision returns the requested map leaves without inclusion proofs.
+  // This API is designed for internal use where verification is not needed.
+  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns (MapLeaves) {}
+  // WriteLeaves sets the values for the provided leaves, and returns the new map
+  // revision if successful.
+  rpc WriteLeaves(WriteMapLeavesRequest) returns (WriteMapLeavesResponse) {}
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 
@@ -39,42 +40,60 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
-	cleanTestDB(DB)
-	tree := createTreeOrPanic(DB, storageto.LogTree)
-	s := NewLogStorage(DB, nil)
-
-	const writeRevision = int64(100)
-	nodesToStore := createSomeNodes()
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
-	for i := range nodesToStore {
-		nodeIDsToRead[i] = nodesToStore[i].NodeID
+	nodes := createSomeNodes(256)
+	nodeIDs := make([]stree.NodeID, len(nodes))
+	for i := range nodes {
+		nodeIDs[i] = nodes[i].NodeID
 	}
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			forceWriteRevision(writeRevision, tx)
+	for _, tc := range []struct {
+		desc  string
+		store []stree.Node
+		read  []stree.NodeID
+		want  []stree.Node
+	}{
+		{desc: "store-4-read-4", store: nodes[:4], read: nodeIDs[:4], want: nodes[:4]},
+		{desc: "store-4-read-1", store: nodes[:4], read: nodeIDs[:1], want: nodes[:1]},
+		{desc: "store-2-read-4", store: nodes[:2], read: nodeIDs[:4], want: nodes[:2]},
+		{desc: "store-none-read-all", store: nil, read: nodeIDs, want: nil},
+		{desc: "store-all-read-all", store: nodes, read: nodeIDs, want: nodes},
+		{desc: "store-all-read-none", store: nodes, read: nil, want: nil},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := context.Background()
+			cleanTestDB(DB)
+			as := NewAdminStorage(DB)
+			tree := mustCreateTree(ctx, t, as, storageto.LogTree)
+			s := NewLogStorage(DB, nil)
 
-			// Need to read nodes before attempting to write
-			if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
-				t.Fatalf("Failed to read nodes: %s", err)
+			const writeRev = int64(100)
+			preread := make([]stree.NodeID, len(tc.store))
+			for i := range tc.store {
+				preread[i] = tc.store[i].NodeID
 			}
-			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
-				t.Fatalf("Failed to store nodes: %s", err)
-			}
-			return nil
-		})
-	}
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
-			if err != nil {
-				t.Fatalf("Failed to retrieve nodes: %s", err)
-			}
-			if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
-				t.Fatalf("Read back different nodes from the ones stored: %s", err)
-			}
-			return nil
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+				forceWriteRevision(writeRev, tx)
+				// Need to read nodes before attempting to write.
+				if _, err := tx.GetMerkleNodes(ctx, writeRev-1, preread); err != nil {
+					t.Fatalf("Failed to read nodes: %s", err)
+				}
+				if err := tx.SetMerkleNodes(ctx, tc.store); err != nil {
+					t.Fatalf("Failed to store nodes: %s", err)
+				}
+				return nil
+			})
+
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+				readNodes, err := tx.GetMerkleNodes(ctx, writeRev, tc.read)
+				if err != nil {
+					t.Fatalf("Failed to retrieve nodes: %s", err)
+				}
+				if err := nodesAreEqual(readNodes, tc.want); err != nil {
+					t.Fatalf("Read back different nodes from the ones stored: %s", err)
+				}
+				return nil
+			})
 		})
 	}
 }
@@ -82,16 +101,18 @@ func TestNodeRoundTrip(t *testing.T) {
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(DB)
-	tree := createTreeOrPanic(DB, storageto.LogTree)
+	as := NewAdminStorage(DB)
+	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
-	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
+	nodesToStore, err := createLogNodesForTreeAtSize(t, 871, writeRevision)
 	if err != nil {
 		t.Fatalf("failed to create test tree: %v", err)
 	}
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]stree.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}
@@ -140,10 +161,10 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 	mtx.treeTX.writeRevision = rev
 }
 
-func createSomeNodes() []storage.Node {
-	r := make([]storage.Node, 4)
+func createSomeNodes(count int) []stree.Node {
+	r := make([]stree.Node, count)
 	for i := range r {
-		r[i].NodeID = storage.NewNodeIDWithPrefix(uint64(i), 8, 8, 8)
+		r[i].NodeID = stree.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
 		glog.Infof("Node to store: %v\n", r[i].NodeID)
@@ -151,35 +172,44 @@ func createSomeNodes() []storage.Node {
 	return r
 }
 
-func createLogNodesForTreeAtSize(ts, rev int64) ([]storage.Node, error) {
-	tree := compact.NewTree(rfc6962.New(crypto.SHA256))
-	nodeMap := make(map[string]storage.Node)
-	for l := 0; l < int(ts); l++ {
-		// We're only interested in the side effects of adding leaves - the node updates
-		if _, _, err := tree.AddLeaf([]byte(fmt.Sprintf("Leaf %d", l)), func(depth int, index int64, hash []byte) error {
-			nID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 64)
-			if err != nil {
-				return fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
-					depth, index)
-			}
+func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]stree.Node, error) {
+	hasher := rfc6962.New(crypto.SHA256)
+	fact := compact.RangeFactory{Hash: hasher.HashChildren}
+	cr := fact.NewEmptyRange(0)
 
-			nodeMap[nID.String()] = storage.Node{NodeID: nID, NodeRevision: rev, Hash: hash}
-			return nil
-		}); err != nil {
+	nodeMap := make(map[compact.NodeID][]byte)
+	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
+
+	for l := 0; l < int(ts); l++ {
+		hash := hasher.HashLeaf([]byte(fmt.Sprintf("Leaf %d", l)))
+		// Store the new leaf node, and all new perfect nodes.
+		// TODO(pavelkalinnikov): Visit leaf hash in cr.Append.
+		store(compact.NewNodeID(0, cr.End()), hash)
+		if err := cr.Append(hash, store); err != nil {
 			return nil, err
 		}
 	}
+	// Store the ephemeral nodes as well.
+	if _, err := cr.GetRootHash(store); err != nil {
+		return nil, err
+	}
 
 	// Unroll the map, which has deduped the updates for us and retained the latest
-	nodes := make([]storage.Node, 0, len(nodeMap))
-	for _, v := range nodeMap {
-		nodes = append(nodes, v)
+	nodes := make([]stree.Node, 0, len(nodeMap))
+	for id, hash := range nodeMap {
+		nID, err := stree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
+		if err != nil {
+			t.Fatalf("failed to create NodeID for %+v: %v", id, err)
+		}
+		node := stree.Node{NodeID: nID, Hash: hash, NodeRevision: rev}
+		nodes = append(nodes, node)
 	}
 
 	return nodes, nil
 }
 
-func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
+// TODO(pavelkalinnikov): Allow nodes to be out of order.
+func nodesAreEqual(lhs []stree.Node, rhs []stree.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
 	}
@@ -194,9 +224,9 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
-func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
-	var missing []storage.Node
-	gotMap := make(map[string]storage.Node)
+func diffNodes(got, want []stree.Node) ([]stree.Node, []stree.Node) {
+	var missing []stree.Node
+	gotMap := make(map[string]stree.Node)
 	for _, n := range got {
 		gotMap[n.NodeID.String()] = n
 	}
@@ -208,19 +238,19 @@ func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
 		delete(gotMap, n.NodeID.String())
 	}
 	// Unpack the extra nodes to return both as slices
-	extra := make([]storage.Node, 0, len(gotMap))
+	extra := make([]stree.Node, 0, len(gotMap))
 	for _, v := range gotMap {
 		extra = append(extra, v)
 	}
 	return missing, extra
 }
 
-func openTestDBOrDie() *sql.DB {
-	db, err := testdb.NewTrillianDB(context.TODO())
+func openTestDBOrDie() (*sql.DB, func(context.Context)) {
+	db, done, err := testdb.NewTrillianDB(context.TODO())
 	if err != nil {
 		panic(err)
 	}
-	return db
+	return db, done
 }
 
 // cleanTestDB deletes all the entries in the database.
@@ -232,50 +262,33 @@ func cleanTestDB(db *sql.DB) {
 	}
 }
 
-func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
+func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
+	t.Helper()
 	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 
-	ctx := context.Background()
-	l := NewLogStorage(db, nil)
 	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
 		if err != nil {
 			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
 		}
-		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
 		}
 		return nil
 	})
 	if err != nil {
-		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
+		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}
 }
 
-// createTree creates the specified tree using AdminStorage.
-func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
-	ctx := context.Background()
-	s := NewAdminStorage(db)
+// mustCreateTree creates the specified tree using AdminStorage.
+func mustCreateTree(ctx context.Context, t *testing.T, s storage.AdminStorage, tree *trillian.Tree) *trillian.Tree {
+	t.Helper()
 	tree, err := storage.CreateTree(ctx, s, tree)
 	if err != nil {
-		return nil, err
-	}
-	return tree, nil
-}
-
-func createTreeOrPanic(db *sql.DB, create *trillian.Tree) *trillian.Tree {
-	tree, err := createTree(db, create)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating tree: %v", err))
+		t.Fatalf("storage.CreateTree(): %v", err)
 	}
 	return tree
-}
-
-// updateTree updates the specified tree using AdminStorage.
-func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
-	ctx := context.Background()
-	s := NewAdminStorage(db)
-	return storage.UpdateTree(ctx, s, treeID, updateFn)
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().
@@ -287,9 +300,12 @@ func TestMain(m *testing.M) {
 		glog.Errorf("MySQL not available, skipping all MySQL storage tests")
 		return
 	}
-	DB = openTestDBOrDie()
-	defer DB.Close()
-	cleanTestDB(DB)
-	ec := m.Run()
-	os.Exit(ec)
+
+	var done func(context.Context)
+
+	DB, done = openTestDBOrDie()
+
+	status := m.Run()
+	done(context.Background())
+	os.Exit(status)
 }

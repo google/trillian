@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -38,20 +39,6 @@ const (
 	selectGetSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
 		 FROM MapHead WHERE TreeId=? AND MapRevision=?`
 	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
-	selectMapLeafSQL = `
- SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
- FROM MapLeaf t1
- INNER JOIN
- (
-	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
-	FROM MapLeaf t0
-	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
-	      t0.TreeId = ? AND t0.MapRevision <= ?
-	GROUP BY t0.TreeId, t0.KeyHash
- ) t2
- ON t1.TreeId=t2.TreeId
- AND t1.KeyHash=t2.KeyHash
- AND t1.MapRevision=t2.maxrev`
 )
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
@@ -74,27 +61,15 @@ func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
 }
 
-type readOnlyMapTX struct {
-	*sql.Tx
-}
-
-func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	tx, err := m.db.BeginTx(ctx, nil /* opts */)
-	if err != nil {
-		return nil, err
-	}
-	return &readOnlyMapTX{tx}, nil
-}
-
-func (t *readOnlyMapTX) Close() error {
-	if err := t.Rollback(); err != nil && err != sql.ErrTxDone {
-		glog.Warningf("Rollback error on Close(): %v", err)
-		return err
-	}
-	return nil
-}
-
 func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool) (storage.MapTreeTX, error) {
+	// TODO: Find a stronger way to ensure that tree has been pulled from storage.
+	// This is a cheap safety-belt check to help us use this API consistently.
+	if tree.UpdateTime == nil {
+		return nil, fmt.Errorf("tree.UpdateTime: %v. tree must be pulled from storage", tree.UpdateTime)
+	}
+	if got, want := tree.TreeType, trillian.TreeType_MAP; got != want {
+		return nil, fmt.Errorf("begin(tree.TreeType: %v), want %v", got, want)
+	}
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
@@ -105,7 +80,6 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readon
 	if err != nil {
 		return nil, err
 	}
-
 	mtx := &mapTreeTX{
 		treeTX:       ttx,
 		ms:           m,
@@ -153,7 +127,7 @@ func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 type mapTreeTX struct {
@@ -163,22 +137,31 @@ type mapTreeTX struct {
 }
 
 func (m *mapTreeTX) ReadRevision(ctx context.Context) (int64, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	return int64(m.readRevision), nil
 }
 
 func (m *mapTreeTX) WriteRevision(ctx context.Context) (int64, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	if m.treeTX.writeRevision < 0 {
 		return m.treeTX.writeRevision, errors.New("mapTreeTX write revision not populated")
 	}
 	return m.treeTX.writeRevision, nil
 }
 
-func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error {
+func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value *trillian.MapLeaf) error {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
 	//           the failed set.
-	flatValue, err := proto.Marshal(&value)
+	flatValue, err := proto.Marshal(value)
 	if err != nil {
 		return nil
 	}
@@ -196,11 +179,29 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 // Get returns a list of map leaves indicated by indexes.
 // If an index is not found, no corresponding entry is returned.
 // Each MapLeaf.Index is overwritten with the index the leaf was found at.
-func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	// If no indexes are requested, return an empty set.
 	if len(indexes) == 0 {
-		return []trillian.MapLeaf{}, nil
+		return []*trillian.MapLeaf{}, nil
 	}
+	const selectMapLeafSQL = `
+ SELECT t1.KeyHash, t1.LeafValue
+ FROM MapLeaf t1
+ INNER JOIN
+ (
+	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
+	FROM MapLeaf t0
+	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
+	      t0.TreeId = ? AND t0.MapRevision <= ?
+	GROUP BY t0.TreeId, t0.KeyHash
+ ) t2
+ ON t1.TreeId=t2.TreeId
+ AND t1.KeyHash=t2.KeyHash
+ AND t1.MapRevision=t2.maxrev`
+
 	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
@@ -224,41 +225,44 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	}
 	defer rows.Close()
 
-	ret := make([]trillian.MapLeaf, 0, len(indexes))
-	nr := 0
-	er := 0
+	ret := make([]*trillian.MapLeaf, 0, len(indexes))
 	for rows.Next() {
-		var mapKeyHash []byte
-		var mapRevision int64
-		var flatData []byte
-		err = rows.Scan(&mapKeyHash, &mapRevision, &flatData)
+		var mapKeyHash, flatData []byte
+		if err := rows.Scan(&mapKeyHash, &flatData); err != nil {
+			return nil, err
+		}
+		mapLeaf, err := unmarshalMapLeaf(flatData, mapKeyHash)
 		if err != nil {
 			return nil, err
 		}
-		if len(flatData) == 0 {
-			er++
-			continue
-		}
-		var mapLeaf trillian.MapLeaf
-		err = proto.Unmarshal(flatData, &mapLeaf)
-		if err != nil {
-			return nil, err
-		}
-		mapLeaf.Index = mapKeyHash
 		ret = append(ret, mapLeaf)
-		nr++
 	}
 	return ret, nil
 }
 
-func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error) {
+func unmarshalMapLeaf(marshaledLeaf, mapKeyHash []byte) (*trillian.MapLeaf, error) {
+	if len(marshaledLeaf) == 0 {
+		return nil, errors.New("len(marshaledLeaf): 0 want > 0")
+	}
+	var mapLeaf trillian.MapLeaf
+	if err := proto.Unmarshal(marshaledLeaf, &mapLeaf); err != nil {
+		return nil, err
+	}
+	mapLeaf.Index = mapKeyHash
+	return &mapLeaf, nil
+}
+
+func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (*trillian.SignedMapRoot, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var mapperMetaBytes []byte
 
 	stmt, err := m.tx.PrepareContext(ctx, selectGetSignedMapRootSQL)
 	if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	defer stmt.Close()
 
@@ -266,22 +270,25 @@ func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trill
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 	if err != nil {
 		if revision == 0 {
-			return trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit
+			return nil, storage.ErrTreeNeedsInit
 		}
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	m.readRevision = mapRevision
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }
 
-func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error) {
+func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (*trillian.SignedMapRoot, error) {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var mapperMetaBytes []byte
 
 	stmt, err := m.tx.PrepareContext(ctx, selectLatestSignedMapRootSQL)
 	if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	defer stmt.Close()
 
@@ -290,15 +297,15 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 
 	// It's possible there are no roots for this tree yet
 	if err == sql.ErrNoRows {
-		return trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit
+		return nil, storage.ErrTreeNeedsInit
 	} else if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	m.readRevision = mapRevision
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }
 
-func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignature, mapperMeta []byte) (trillian.SignedMapRoot, error) {
+func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignature, mapperMeta []byte) (*trillian.SignedMapRoot, error) {
 	mapRoot, err := (&types.MapRootV1{
 		RootHash:       rootHash,
 		TimestampNanos: uint64(timestamp),
@@ -306,16 +313,19 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 		Metadata:       mapperMeta,
 	}).MarshalBinary()
 	if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 
-	return trillian.SignedMapRoot{
+	return &trillian.SignedMapRoot{
 		MapRoot:   mapRoot,
 		Signature: rootSignature,
 	}, nil
 }
 
-func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
+func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMapRoot) error {
+	m.treeTX.mu.Lock()
+	defer m.treeTX.mu.Unlock()
+
 	var r types.MapRootV1
 	if err := r.UnmarshalBinary(root.MapRoot); err != nil {
 		return err

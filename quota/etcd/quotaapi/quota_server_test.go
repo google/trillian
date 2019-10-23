@@ -27,13 +27,13 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/testonly/integration/etcd"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -74,9 +74,9 @@ var (
 )
 
 func copyWithName(c *quotapb.Config, name string) *quotapb.Config {
-	cp := *c
+	cp := proto.Clone(c).(*quotapb.Config)
 	cp.Name = name
-	return &cp
+	return cp
 }
 
 func TestMain(m *testing.M) {
@@ -102,14 +102,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestServer_CreateConfig(t *testing.T) {
-	globalWrite2 := *globalWrite
+	globalWrite2 := proto.Clone(globalWrite).(*quotapb.Config)
 	globalWrite2.MaxTokens += 10
 	globalWrite2.CurrentTokens = globalWrite2.MaxTokens
 
-	overrideName := *globalWrite
+	overrideName := proto.Clone(globalWrite).(*quotapb.Config)
 	overrideName.Name = "ignored"
 
-	invalidConfig := *globalWrite
+	invalidConfig := proto.Clone(globalWrite).(*quotapb.Config)
 	invalidConfig.State = quotapb.Config_UNKNOWN_CONFIG_STATE
 
 	tests := []upsertTest{
@@ -131,7 +131,7 @@ func TestServer_CreateConfig(t *testing.T) {
 		{
 			desc:     "alreadyExists",
 			baseCfg:  globalWrite,
-			req:      &quotapb.CreateConfigRequest{Name: globalWrite.Name, Config: &globalWrite2},
+			req:      &quotapb.CreateConfigRequest{Name: globalWrite.Name, Config: globalWrite2},
 			wantCode: codes.AlreadyExists,
 			wantCfg:  globalWrite,
 		},
@@ -139,7 +139,7 @@ func TestServer_CreateConfig(t *testing.T) {
 			desc: "overrideName",
 			req: &quotapb.CreateConfigRequest{
 				Name:   globalWrite.Name,
-				Config: &overrideName,
+				Config: overrideName,
 			},
 			wantCfg: globalWrite,
 		},
@@ -147,7 +147,7 @@ func TestServer_CreateConfig(t *testing.T) {
 			desc: "invalidConfig",
 			req: &quotapb.CreateConfigRequest{
 				Name:   "quotas/global/read/config",
-				Config: &invalidConfig,
+				Config: invalidConfig,
 			},
 			wantCode: codes.InvalidArgument,
 		},
@@ -165,12 +165,12 @@ func TestServer_CreateConfig(t *testing.T) {
 }
 
 func TestServer_UpdateConfig(t *testing.T) {
-	disabledGlobalWrite := *globalWrite
+	disabledGlobalWrite := proto.Clone(globalWrite).(*quotapb.Config)
 	// Disabled quotas have "infinite" tokens
 	disabledGlobalWrite.CurrentTokens = int64(quota.MaxTokens)
 	disabledGlobalWrite.State = quotapb.Config_DISABLED
 
-	timeBasedGlobalWrite := *globalWrite
+	timeBasedGlobalWrite := proto.Clone(globalWrite).(*quotapb.Config)
 	timeBasedGlobalWrite.MaxTokens += 100
 	timeBasedGlobalWrite.CurrentTokens = globalWrite.MaxTokens
 	timeBasedGlobalWrite.ReplenishmentStrategy = &quotapb.Config_TimeBased{
@@ -180,7 +180,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 		},
 	}
 
-	timeBasedGlobalWrite2 := timeBasedGlobalWrite
+	timeBasedGlobalWrite2 := proto.Clone(timeBasedGlobalWrite).(*quotapb.Config)
 	timeBasedGlobalWrite2.CurrentTokens = timeBasedGlobalWrite.MaxTokens
 	timeBasedGlobalWrite2.GetTimeBased().TokensToReplenish += 50
 	timeBasedGlobalWrite2.GetTimeBased().ReplenishIntervalSeconds -= 20
@@ -194,7 +194,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 				Config:     &quotapb.Config{State: disabledGlobalWrite.State},
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"state"}},
 			},
-			wantCfg: &disabledGlobalWrite,
+			wantCfg: disabledGlobalWrite,
 		},
 		{
 			desc:    "timeBasedGlobalWrite",
@@ -207,11 +207,11 @@ func TestServer_UpdateConfig(t *testing.T) {
 				},
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"max_tokens", "time_based"}},
 			},
-			wantCfg: &timeBasedGlobalWrite,
+			wantCfg: timeBasedGlobalWrite,
 		},
 		{
 			desc:    "timeBasedGlobalWrite2",
-			baseCfg: &timeBasedGlobalWrite,
+			baseCfg: timeBasedGlobalWrite,
 			req: &quotapb.UpdateConfigRequest{
 				Name: timeBasedGlobalWrite.Name,
 				Config: &quotapb.Config{
@@ -219,7 +219,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 				},
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"time_based"}},
 			},
-			wantCfg: &timeBasedGlobalWrite2,
+			wantCfg: timeBasedGlobalWrite2,
 		},
 		{
 			desc: "unknownConfig",
@@ -331,7 +331,7 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 		t.Fatalf("Get() returned err = %v", err)
 	}
 
-	cfg := *globalWrite
+	cfg := proto.Clone(globalWrite).(*quotapb.Config)
 	cfg.MaxTokens += 10
 
 	tests := []struct {
@@ -343,7 +343,7 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 			desc: "resetFalse",
 			req: &quotapb.UpdateConfigRequest{
 				Name:       globalWrite.Name,
-				Config:     &cfg,
+				Config:     cfg,
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"max_tokens"}},
 			},
 			wantTokens: 1,
@@ -355,24 +355,26 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if _, err := quotaClient.UpdateConfig(ctx, test.req); err != nil {
-			t.Errorf("%v: UpdateConfig() returned err = %v", test.desc, err)
-			continue
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			if _, err := quotaClient.UpdateConfig(ctx, test.req); err != nil {
+				t.Errorf("UpdateConfig() returned err = %v", err)
+				return
+			}
 
-		tokens, err := qs.Peek(ctx, []string{test.req.Name})
-		if err != nil {
-			t.Fatalf("%v: Peek() returned err = %v", test.desc, err)
-		}
-		if got := tokens[test.req.Name]; got != test.wantTokens {
-			t.Errorf("%v: %q has %v tokens, want = %v", test.desc, test.req.Name, got, test.wantTokens)
-		}
+			tokens, err := qs.Peek(ctx, []string{test.req.Name})
+			if err != nil {
+				t.Fatalf("Peek() returned err = %v", err)
+			}
+			if got := tokens[test.req.Name]; got != test.wantTokens {
+				t.Errorf("%q has %v tokens, want = %v", test.req.Name, got, test.wantTokens)
+			}
+		})
 	}
 }
 
-func TestServer_UpdateConfig_Race(t *testing.T) {
+func TestServer_UpdateConfig_ConcurrentUpdates(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping race test due to short mode")
+		t.Skip("Skipping concurrency test due to short mode")
 		return
 	}
 
@@ -435,7 +437,7 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 					want.CurrentTokens = got.CurrentTokens // Not important for this test
 					want.MaxTokens = tokens
 					if !proto.Equal(got, &want) {
-						diff := pretty.Compare(got, &want)
+						diff := cmp.Diff(got, &want, cmp.Comparer(proto.Equal))
 						t.Errorf("%v: post-UpdateConfig() diff (-got +want):\n%v", want.Name, diff)
 					}
 				}
@@ -481,7 +483,7 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 	case !ok || s.Code() != test.wantCode:
 		return fmt.Errorf("%v: %v() returned err = %v, wantCode = %s", test.desc, rpcName, err, test.wantCode)
 	case test.wantCode == codes.OK && !proto.Equal(cfg, test.wantCfg):
-		return fmt.Errorf("%v: post-%v() diff:\n%v", test.desc, rpcName, pretty.Compare(cfg, test.wantCfg))
+		return fmt.Errorf("%v: post-%v() diff:\n%v", test.desc, rpcName, cmp.Diff(cfg, test.wantCfg, cmp.Comparer(proto.Equal)))
 	case test.wantCfg == nil:
 		return nil
 	}
@@ -490,7 +492,7 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 	case err != nil:
 		return fmt.Errorf("%v: GetConfig() returned err = %v", test.desc, err)
 	case !proto.Equal(stored, test.wantCfg):
-		return fmt.Errorf("%v: post-GetConfig() diff:\n%v", test.desc, pretty.Compare(stored, test.wantCfg))
+		return fmt.Errorf("%v: post-GetConfig() diff:\n%v", test.desc, cmp.Diff(stored, test.wantCfg, cmp.Comparer(proto.Equal)))
 	}
 
 	return nil
@@ -741,7 +743,7 @@ func sortAndCompare(got, want []*quotapb.Config) error {
 	}
 	for i, cfg := range want {
 		if !proto.Equal(got[i], cfg) {
-			return fmt.Errorf("diff (-got +want):\n%v", pretty.Compare(got, want))
+			return fmt.Errorf("diff (-got +want):\n%v", cmp.Diff(got[i], cfg, cmp.Comparer(proto.Equal)))
 		}
 	}
 	return nil

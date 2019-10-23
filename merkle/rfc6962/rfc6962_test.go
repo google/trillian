@@ -16,6 +16,7 @@ package rfc6962
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	_ "github.com/golang/glog"
@@ -24,14 +25,8 @@ import (
 func TestRFC6962Hasher(t *testing.T) {
 	hasher := DefaultHasher
 
-	leafHash, err := hasher.HashLeaf([]byte("L123456"))
-	if err != nil {
-		t.Fatalf("HashLeaf(): %v", err)
-	}
-	emptyLeafHash, err := hasher.HashLeaf([]byte{})
-	if err != nil {
-		t.Fatalf("HashLeaf(empty): %v", err)
-	}
+	leafHash := hasher.HashLeaf([]byte("L123456"))
+	emptyLeafHash := hasher.HashLeaf([]byte{})
 
 	for _, tc := range []struct {
 		desc string
@@ -82,8 +77,8 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 
 	// Check that different leaves have different hashes.
 	leaf1, leaf2 := []byte("Hello"), []byte("World")
-	hash1, _ := hasher.HashLeaf(leaf1)
-	hash2, _ := hasher.HashLeaf(leaf2)
+	hash1 := hasher.HashLeaf(leaf1)
+	hash2 := hasher.HashLeaf(leaf2)
 	if bytes.Equal(hash1, hash2) {
 		t.Errorf("Leaf hashes should differ, but both are %x", hash1)
 	}
@@ -92,7 +87,7 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 	subHash1 := hasher.HashChildren(hash1, hash2)
 	// Check that this is not the same as a leaf hash of their concatenation.
 	preimage := append(hash1, hash2...)
-	forgedHash, _ := hasher.HashLeaf(preimage)
+	forgedHash := hasher.HashLeaf(preimage)
 	if bytes.Equal(subHash1, forgedHash) {
 		t.Errorf("Hasher is not second-preimage resistant")
 	}
@@ -102,4 +97,35 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 	if bytes.Equal(subHash1, subHash2) {
 		t.Errorf("Subtree hash does not depend on the order of leaves")
 	}
+}
+
+// TODO(al): Remove me.
+func BenchmarkHashChildrenOld(b *testing.B) {
+	h := DefaultHasher
+	l := h.HashLeaf([]byte("one"))
+	r := h.HashLeaf([]byte("or other"))
+	for i := 0; i < b.N; i++ {
+		_ = h.hashChildrenOld(l, r)
+	}
+}
+
+func BenchmarkHashChildren(b *testing.B) {
+	h := DefaultHasher
+	l := h.HashLeaf([]byte("one"))
+	r := h.HashLeaf([]byte("or other"))
+	for i := 0; i < b.N; i++ {
+		_ = h.HashChildren(l, r)
+	}
+}
+
+func TestHashChildrenEquivToOld(t *testing.T) {
+	h := DefaultHasher
+	for i := 0; i < 1000; i++ {
+		l := h.HashLeaf([]byte(fmt.Sprintf("leaf left %d", i)))
+		r := h.HashLeaf([]byte(fmt.Sprintf("leaf right %d", i)))
+		if oldHash, newHash := h.hashChildrenOld(l, r), h.HashChildren(l, r); !bytes.Equal(oldHash, newHash) {
+			t.Errorf("%d different hashes: %x vs %x", i, oldHash, newHash)
+		}
+	}
+
 }

@@ -15,6 +15,7 @@
 package opencensus
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -25,6 +26,17 @@ import (
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 )
+
+// This is the same set of views that used to be the default before that
+// was deprecated. Possibly some of these are not useful but for the moment
+// we don't really know that.
+var serverViews = []*view.View{ochttp.ServerRequestCountView,
+	ochttp.ServerRequestBytesView,
+	ochttp.ServerResponseBytesView,
+	ochttp.ServerLatencyView,
+	ochttp.ServerRequestCountByMethod,
+	ochttp.ServerResponseCountByStatusCode,
+}
 
 // EnableRPCServerTracing turns on Stackdriver tracing. The returned
 // options must be passed to the GRPC server. The supplied
@@ -61,7 +73,7 @@ func EnableHTTPServerTracing(projectID string, percent int) (http.Handler, error
 	if err := applyConfig(percent); err != nil {
 		return nil, err
 	}
-	if err := view.Register(ochttp.DefaultServerViews...); err != nil {
+	if err := view.Register(serverViews...); err != nil {
 		return nil, err
 	}
 	return &ochttp.Handler{}, nil
@@ -90,4 +102,12 @@ func applyConfig(percent int) error {
 		trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(float64(percent) / 100.0)})
 	}
 	return nil
+}
+
+// StartSpan starts a new tracing span.
+// The returned context should be used for all child calls within the span, and
+// the returned func should be called to close the span.
+func StartSpan(ctx context.Context, name string) (context.Context, func()) {
+	ctx, span := trace.StartSpan(ctx, name)
+	return ctx, span.End
 }

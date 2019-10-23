@@ -49,12 +49,14 @@ func main() {
 	}
 
 	var cl trillian.TrillianMapClient
+	var write trillian.TrillianMapWriteClient
 	if *rpcServer != "" {
 		c, err := grpc.Dial(*rpcServer, grpc.WithInsecure())
 		if err != nil {
 			glog.Exitf("Failed to create map client conn: %v", err)
 		}
 		cl = trillian.NewTrillianMapClient(c)
+		write = trillian.NewTrillianMapWriteClient(c)
 	}
 
 	pairRE := regexp.MustCompile(`(\d+):(\d+)`)
@@ -78,5 +80,7 @@ func main() {
 		}
 		mapmap[from] = to
 	}
-	hammer.ReplayFile(ctx, f, cl, mapmap)
+	if err := hammer.ReplayFile(ctx, f, cl, write, mapmap); err != nil {
+		glog.Exitf("Error replaying messages: %v", err)
+	}
 }

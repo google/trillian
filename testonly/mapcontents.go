@@ -83,9 +83,8 @@ func (m *MapContents) PickKey(prng *rand.Rand) []byte {
 
 // CheckContents compares information returned from the Map against a local copy
 // of the map's contents.
-func (m *MapContents) CheckContents(leafInclusions []*trillian.MapLeafInclusion, extraSize uint) error {
-	for _, inc := range leafInclusions {
-		leaf := inc.Leaf
+func (m *MapContents) CheckContents(leaves []*trillian.MapLeaf, extraSize uint) error {
+	for _, leaf := range leaves {
 		var key mapKey
 		copy(key[:], leaf.Index)
 		value, ok := m.data[key]
@@ -141,7 +140,7 @@ func truncateToNBits(in bitString, bitLen int) bitString {
 	result := bitString{bitLen: bitLen}
 	copy(result.data[:], in.data[:byteCount])
 
-	topBitsToKeep := (bitLen % 8)
+	topBitsToKeep := bitLen % 8
 
 	if topBitsToKeep > 0 {
 		mask := topBitsMask[topBitsToKeep]
@@ -177,11 +176,7 @@ func (m *MapContents) RootHash(treeID int64, hasher hashers.MapHasher) ([]byte, 
 	for k, v := range m.data {
 		prefixKey := bitString{bitLen: curBitLen}
 		copy(prefixKey.data[:], k[:])
-		var err error
-		curHashes[prefixKey], err = hasher.HashLeaf(treeID, k[:], []byte(v))
-		if err != nil {
-			return nil, err
-		}
+		curHashes[prefixKey] = hasher.HashLeaf(treeID, k[:], []byte(v))
 	}
 
 	for curBitLen > 0 {
@@ -283,6 +278,20 @@ func (p *VersionedMapContents) PickCopy(prng *rand.Rand) *MapContents {
 	return p.contents[choice]
 }
 
+// PickRevision returns the previous copy of the map's contents that match
+// the given revision, or nil if there are no matching copies.
+func (p *VersionedMapContents) PickRevision(rev uint64) *MapContents {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	for i := 0; i < copyCount && p.contents[i] != nil && p.contents[i].Rev >= int64(rev); i++ {
+		if p.contents[i].Rev == int64(rev) {
+			return p.contents[i]
+		}
+	}
+	return nil
+}
+
 // UpdateContentsWith stores a new copy of the Map's contents, updating the
 // most recent copy with the given leaves.  Returns the updated contents.
 func (p *VersionedMapContents) UpdateContentsWith(rev uint64, leaves []*trillian.MapLeaf) (*MapContents, error) {
@@ -290,11 +299,16 @@ func (p *VersionedMapContents) UpdateContentsWith(rev uint64, leaves []*trillian
 	defer p.mu.Unlock()
 
 	// Sanity check on rev being +ve and monotone increasing.
+	// If any revision is missed then the full contents cannot be maintained.
 	if rev < 1 {
 		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want >=1 when trying to update hammer state with contents", rev)}
 	}
-	if p.contents[0] != nil && int64(rev) <= p.contents[0].Rev {
-		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want >%d when trying to update hammer state with new contents", rev, p.contents[0].Rev)}
+	nextRev := uint64(1)
+	if c := p.contents[0]; c != nil {
+		nextRev = uint64(c.Rev + 1)
+	}
+	if rev != nextRev {
+		return nil, ErrInvariant{fmt.Sprintf("got rev %d, want %d when trying to update hammer state with new contents", rev, nextRev)}
 	}
 
 	// Shuffle earlier contents along.

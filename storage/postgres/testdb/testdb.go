@@ -26,13 +26,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/testonly"
-
-	_ "github.com/lib/pq" // pg driver
 )
 
 var (
-	trillianSQL = testonly.RelativeToPackage("../storage.sql")
+	trillianSQL = testonly.RelativeToPackage("../schema/storage.sql")
 	pgOpts      = flag.String("pg_opts", "sslmode=disable", "Database options to be included when connecting to the db")
 	dbName      = flag.String("db_name", "test", "The database name to be used when checking for pg connectivity")
 )
@@ -52,54 +51,83 @@ func PGAvailable() bool {
 	return true
 }
 
-// newEmptyDB creates a new, empty database.
-func newEmptyDB(ctx context.Context) (*sql.DB, error) {
+// TestSQL executes a simple query in the configured database.  Only used as a placeholder
+// for testing queries and how go returns results
+func TestSQL(ctx context.Context) string {
 	db, err := sql.Open("postgres", getConnStr(*dbName))
 	if err != nil {
-		return nil, err
+		fmt.Println("Error: ", err)
+		return "error"
+	}
+	defer db.Close()
+	result, err := db.QueryContext(ctx, "select 1=1")
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return "error"
+	}
+	var resultData bool
+	result.Scan(&resultData)
+	if resultData {
+		fmt.Println("Result: ", resultData)
+	}
+	return "done"
+}
+
+// newEmptyDB creates a new, empty database.
+// The returned clean up function should be called once the caller no longer
+// needs the test DB.
+func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
+	db, err := sql.Open("postgres", getConnStr(*dbName))
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Create a randomly-named database and then connect using the new name.
 	name := fmt.Sprintf("trl_%v", time.Now().UnixNano())
-
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
-		return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+		return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
-
 	db.Close()
 	db, err = sql.Open("postgres", getConnStr(name))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return db, db.Ping()
+	done := func(ctx context.Context) {
+		defer db.Close()
+		if _, err := db.ExecContext(ctx, "DROP DATABASE %v", name); err != nil {
+			glog.Warningf("Failed to drop test database %q: %v", name, err)
+		}
+	}
+
+	return db, done, db.Ping()
 }
 
 // NewTrillianDB creates an empty database with the Trillian schema. The database name is randomly
 // generated.
 // NewTrillianDB is equivalent to Default().NewTrillianDB(ctx).
-func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
-	db, err := newEmptyDB(ctx)
+func NewTrillianDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
+	db, done, err := newEmptyDB(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	sqlBytes, err := ioutil.ReadFile(trillianSQL)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	for _, stmt := range strings.Split(sanitize(string(sqlBytes)), ";") {
+	for _, stmt := range strings.Split(sanitize(string(sqlBytes)), ";--end") {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue
 		}
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+			return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 		}
 	}
-	return db, nil
+	return db, done, nil
 }
 
 // sanitize tries to remove empty lines and comments from a sql script
@@ -123,10 +151,10 @@ func getConnStr(name string) string {
 
 // NewTrillianDBOrDie attempts to return a connection to a new postgres
 // test database and fails if unable to do so.
-func NewTrillianDBOrDie(ctx context.Context) *sql.DB {
-	db, err := NewTrillianDB(ctx)
+func NewTrillianDBOrDie(ctx context.Context) (*sql.DB, func(context.Context)) {
+	db, done, err := NewTrillianDB(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return db
+	return db, done
 }

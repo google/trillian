@@ -19,7 +19,10 @@ spec:
           secretName: trillian-key
       restartPolicy: Always
       containers:
-      - args: [
+      - name: trillian-log-signer
+        # TODO(RJPercival): Pass STORAGE_FLAG via --config to protect any
+        # sensitive contents (e.g. passwords) from being seen in process list.
+        args: [
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
         "--etcd_servers=trillian-etcd-cluster-client:2379",
@@ -35,8 +38,10 @@ spec:
         "--alsologtostderr"
         ]
         envFrom:
-          - configMapRef:
-              name: deploy-config
+        - configMapRef:
+            name: deploy-config
+        - secretRef:
+            name: trillian-secrets
         # Update this with the name of your project:
         image: gcr.io/${PROJECT_ID}/log_signer:${IMAGE_TAG}
         imagePullPolicy: Always
@@ -52,14 +57,14 @@ spec:
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 5
-        name: trillian-log-signer
         ports:
         - containerPort: 8091
+          name: http-metrics
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
       - name: prometheus-to-sd
-        image: gcr.io/google-containers/prometheus-to-sd:v0.3.2
+        image: gcr.io/google-containers/prometheus-to-sd:v0.5.2
         ports:
           - name: profiler
             containerPort: 6060

@@ -18,11 +18,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/pem"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/google/certificate-transparency-go/x509"
 )
 
 // NewTLSCertificate returns a random TLS Certificate for testing.

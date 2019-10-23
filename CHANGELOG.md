@@ -2,7 +2,111 @@
 
 ## HEAD
 
-Not yet released; provisionally v2.0.0 (may change).
+Not yet released; provisionally v1.4.0 (may change).
+
+### Map Changes
+
+The verifiable map is still experimental. APIs, such as SetLeaves, have been
+deprecated and will be deleted in the near future. The semantics of WriteLeaves
+have become stricter: now it always requires the caller to specify the write
+revision. These changes will not affect the Trillian module semantic version due
+to the experimental status of the Map.
+
+The map client has been updated so that GetAndVerifyMapLeaves and
+GetAndVerifyMapLeavesByRevision return the MapRoot for the revision at which the
+leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
+were unable to reason about which map revision they were seeing. The
+SetAndVerifyMapLeaves method was deleted.
+
+### Storage
+
+The StorageProvider type and helpers have been moved from the server package to
+storage. Aliases for the old types/functions are created for backward
+compatibility, but the new code should not use them as we will remove them with
+the next major version bump. The individual storage providers have been moved to
+the corresponding packages, and are now required to be imported explicitly by
+the main file in order to be registered. We are including only MySQL and
+cloudspanner providers by default, since these are the ones that we support.
+
+## v1.3.2 - Module fixes
+
+Published 2019-09-05 17:30:00 +0000 UTC
+
+Patch release to address Go Module issue. Some dependencies use invalid pseudo-
+versions in their go.mod files that Go 1.13 rejects. We've added `replace`
+directives to our go.mod file to fix these invalid pseudo-versions.
+
+## v1.3.1 - Module and Bazel fixes
+
+Published 2019-08-16 15:00:00 +0000 UTC
+
+Patch release primarily to address Go Module issue. v1.3.0 declared a dependency
+on github.com/russross/blackfriday/v2 v2.0.1+incompatible which made downstream
+dependencies suffer.
+
+## v1.3.0
+
+Published 2019-07-17 15:00:00 +0000 UTC
+
+### Storage APIs GetSignedLogRoot / SetSignedLogRoot now take pointers
+
+This at the storage layer and does not affect the log server API.
+This is part of work to fix proto buffer usages where they are passed
+by value or compared by generic code like `reflect.DeepEquals()`. Passing
+them by value creates shallow copies that can share internal state. As the
+generated structs contain additional exported `XXX_` fields generic
+comparisons using all fields can produce incorrect results.
+
+### Storage Commit takes context.Context
+
+To support passing a context down to `NodeStorage.SetLeaves`, and remove various `context.TODO()`s, 
+the following functions have been modified to accept a `context.Context` parameter:
+
+- `storage/cache.NodeStorage.SetLeaves`
+- `storage/cache.SetSubtreesFunc`
+- `storage/cache.SubtreeCache.Flush`
+- `storage.ReadonlyLogTX.Commit`
+
+### Go Module Support
+
+Go Module support has been enabled. Please use GO111MODULE=on to build Trillian.
+Updating dependencies no longer requires updating the vendor directory.
+
+### TrillianMapWrite API
+New API service for writing to the Trillian Map. This allows APIs such as
+GetLeavesByRevisionNoProof to be removed from the read API, and these methods to
+be tuned & provisioned differently for read vs write performance.
+
+### GetLeavesByRevisionNoProof API
+Allow map clients to forgo fetching inclusion proofs.
+This dramatically speeds things up for clients that don't need verifiability.
+This situation occurs in some situation where a Trillian personality is
+interacting directly with the Trillian Map. 
+
+### GetMapLeafByRevision API
+New GetMapLeafByRevision API for fetching a single map leaf. This allows there
+to be a separate API end point for fetching a single leaf vs. the batch
+GetMapLeavesByRevision API which is much slower when many leaves are requested.
+This supports separate monitoring and alerting for different traffic patterns.
+
+### Add Profiling Flags to Binaries
+
+The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
+binaries now have CPU and heap profiling flags. Profiling is off by default.
+For more details see the
+[Go Blog](https://blog.golang.org/profiling-go-programs).
+### Map performance tweaks
+
+The map mode has had some performance tweaks added:
+* A workaround for locking issues which affect the map when it's used in
+  single-transaction mode.
+
+### Introduce BatchInclusionProof function
+
+Added a batch version of the Merkle Tree InclusionProof function.
+
+Updated the map RPC for getLeaves to use the new batch function to improve
+efficiency.
 
 ### Google Cloud Spanner support
 
@@ -63,7 +167,9 @@ if err != nil {
 }
 ```
 
-### Configurable number of connections for MySQL
+### MySQL changes
+
+#### Configurable number of connections for MySQL
 
 Two new flags have been added that limit connections to MySQL database servers:
 
@@ -74,6 +180,11 @@ By default, there is no maximum number of database connections. However, the
 database server will likely impose limits on the number of connections. The
 default limit on idle connections is controlled by
 [Go's `sql` package](https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns).
+
+#### Enfored no concurrent use of MySQL tx
+
+Concurrently using a single MySQL transaction can cause the driver to error
+out, so we now attempt to prevent this from happening.
 
 ### Removal of length limits for a tree's `display_name` and `description`
 
@@ -101,10 +212,14 @@ inclusion proof queries.
 
 ### Deployments
 
+The Trillian Docker images now accept GOFLAGS and GO111MODULE arguments
+and set them as environment variables inside the Docker container.
+
 The [db\_server Docker image](examples/deployment/docker/db_server/Dockerfile)
 is now based on
 [the MySQL 5.7 image from the Google Cloud Marketplace](https://console.cloud.google.com/marketplace/details/google/mysql5),
 rather than the [official MySQL 5.7 image](https://hub.docker.com/_/mysql).
+This Dockerfile supercedes Dockerfile.db, which has been removed.
 
 There is now a [mysql.cnf file](examples/deployment/docker/db_server/mysql.cnf)
 alongside the Dockerfile that makes it easy to build the image with a custom
@@ -128,6 +243,8 @@ testing and experimental purposes:
 docker-compose -f examples/deployment/docker-compose.yml up
 ```
 
+Docker Compose v3.1 or higher is required.
+
 The Terraform, Kubernetes and Docker configuration files, as well as various
 scripts, all now use the same, consistently-named environment variables for
 MySQL-related data (e.g. `MYSQL_DATABASE`). The variable names are based on
@@ -143,7 +260,13 @@ Quota metrics with specs of the form `users/<user>/read` and
 `users/<user>/write` are no longer exported by the Trillian binaries (as they
 lead to excessive storage requirements for Trillian metrics).
 
-### Fix Operation Loop Hang
+### Resilience improvements in `log_signer`
+
+#### Add timeout to sequencing loop
+
+Added a timeout to the context in the sequencing loop, with a default of 60s.
+
+#### Fix Operation Loop Hang
 
 Resolved a bug that would hide errors and cause the `OperationLoop` to hang
 until process exit if any error occurred.
@@ -153,10 +276,14 @@ until process exit if any error occurred.
 gometalinter has been replaced with golangci-lint for improved performance and
 Go module support.
 
-### CompactMerkleTree moved
+### Compact Merkle tree data structures
 
-The CompactMerkleTree has been moved from `github.com/google/trillian/merkle` to
-`github.com/google/trillian/merkle/compact` and renamed `Tree`.
+`CompactMerkleTree` has been removed from `github.com/google/trillian/merkle`,
+and a new package `github.com/google/trillian/merkle/compact` was introduced.  A
+new powerful data structure named "compact range" has been added to that
+package, and is now used throughout the repository instead of the compact tree.
+It is a generalization of the previous structure, as it allows manipulating
+arbitrary sub-ranges of leaves rather than only prefixes.
 
 ### Storage API changes
 
@@ -168,6 +295,12 @@ The `SubtreeCache.GetNodeHash()` method is no longer exported.
 
 The memory storage provider has been refactored to make it more consistent with
 the other storage providers.
+
+The `LogMetadata.GetUnsequencedCounts()` method has been removed.
+
+`NodeReader.GetMerkleNodes` now must return `Node` objects in the same order as
+node IDs requested. Storage implementations known to us already adhere to this
+requirement.
 
 ### Maphammer improvements
 

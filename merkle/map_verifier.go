@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
 
 // VerifyMapInclusionProof verifies that the passed in expectedRoot can be
@@ -43,10 +43,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 		}
 	}
 
-	leafHash, err := h.HashLeaf(treeID, leaf.Index, leaf.LeafValue)
-	if err != nil {
-		return fmt.Errorf("HashLeaf(): %v", err)
-	}
+	leafHash := h.HashLeaf(treeID, leaf.Index, leaf.LeafValue)
 	if len(leaf.LeafValue) == 0 && len(leaf.LeafHash) == 0 {
 		// This is an empty value that has never been set, and so has a LeafHash of nil
 		// (indicating that the effective hash value is h.HashEmpty(index, 0)).
@@ -54,7 +51,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 	}
 
 	runningHash := leafHash
-	nID := storage.NewNodeIDFromHash(leaf.Index)
+	nID := tree.NewNodeIDFromHash(leaf.Index)
 	for height, sib := range nID.Siblings() {
 		pElement := proof[height]
 
@@ -70,7 +67,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 		// for the branch that we are on before combining it with the neighbor.
 		if len(runningHash) == 0 && len(pElement) != 0 {
 			depth := nID.PrefixLenBits - height
-			emptyBranch := nID.Copy().MaskLeft(depth)
+			emptyBranch := nID.MaskLeft(depth)
 			runningHash = h.HashEmpty(treeID, emptyBranch.Path, height)
 		}
 
@@ -86,7 +83,7 @@ func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot 
 	}
 	if len(runningHash) == 0 {
 		depth := 0
-		emptyBranch := nID.Copy().MaskLeft(depth)
+		emptyBranch := nID.MaskLeft(depth)
 		runningHash = h.HashEmpty(treeID, emptyBranch.Path, h.BitLen())
 	}
 

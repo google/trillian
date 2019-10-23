@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -51,7 +52,7 @@ func TestIsHealthy(t *testing.T) {
 		fakeStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
 
 		server := NewTrillianMapServer(extension.Registry{
-			AdminStorage: fakeAdminStorageForMap(ctrl, 1, mapID1),
+			AdminStorage: fakeAdminStorageForMap(ctrl, mapID1),
 			MapStorage:   fakeStorage,
 		}, opts)
 
@@ -74,7 +75,7 @@ func TestInitMap(t *testing.T) {
 		wantCode   codes.Code
 	}{
 		{desc: "init new map", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
-		{desc: "init new map, no err", getRootErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new map, no err", getRootErr: nil, wantInit: false, root: nil, wantCode: codes.AlreadyExists},
 		{desc: "init already initialised map", getRootErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -84,21 +85,21 @@ func TestInitMap(t *testing.T) {
 			mockTX := storage.NewMockMapTreeTX(ctrl)
 			fakeStorage := &stestonly.FakeMapStorage{TX: mockTX}
 			if tc.getRootErr != nil {
-				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, tc.getRootErr)
+				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(nil, tc.getRootErr)
 			} else {
 				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(
-					trillian.SignedMapRoot{MapRoot: tc.root}, nil)
+					&trillian.SignedMapRoot{MapRoot: tc.root}, nil)
 			}
 
 			mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
 			mockTX.EXPECT().Close().Return(nil)
 			if tc.wantInit {
-				mockTX.EXPECT().Commit().Return(nil)
+				mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 				mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
 			}
 
 			server := NewTrillianMapServer(extension.Registry{
-				AdminStorage: fakeAdminStorageForMap(ctrl, 2, mapID1),
+				AdminStorage: fakeAdminStorageForMap(ctrl, mapID1),
 				MapStorage:   fakeStorage,
 			}, TrillianMapServerOptions{})
 
@@ -142,7 +143,7 @@ func TestGetSignedMapRoot_NotInitialised(t *testing.T) {
 		AdminStorage: fakeAdmin,
 	}, TrillianMapServerOptions{})
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
-	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
+	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(nil, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
 	smrResp, err := server.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: 12345})
@@ -163,18 +164,18 @@ func TestGetSignedMapRoot(t *testing.T) {
 	tests := []struct {
 		desc               string
 		req                *trillian.GetSignedMapRootRequest
-		mapRoot            trillian.SignedMapRoot
+		mapRoot            *trillian.SignedMapRoot
 		snapShErr, lsmrErr error
 	}{
 		{
 			desc:    "Map is empty, head at revision 0",
 			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: trillian.SignedMapRoot{Signature: []byte("notempty")},
+			mapRoot: &trillian.SignedMapRoot{Signature: []byte("notempty")},
 		},
 		{
 			desc:    "Map has leaves, head > revision 0",
 			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: trillian.SignedMapRoot{Signature: []byte("notempty2")},
+			mapRoot: &trillian.SignedMapRoot{Signature: []byte("notempty2")},
 		},
 		{
 			desc:    "LatestSignedMapRoot returns error",
@@ -190,7 +191,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			adminStorage := fakeAdminStorageForMap(ctrl, 2, mapID1)
+			adminStorage := fakeAdminStorageForMap(ctrl, mapID1)
 			fakeStorage := storage.NewMockMapStorage(ctrl)
 			mockTX := storage.NewMockMapTreeTX(ctrl)
 
@@ -199,7 +200,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			if test.snapShErr == nil {
 				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(test.mapRoot, test.lsmrErr)
 				if test.lsmrErr == nil {
-					mockTX.EXPECT().Commit().Return(nil)
+					mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 				}
 				mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
 			}
@@ -219,7 +220,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
+			want := &trillian.GetSignedMapRootResponse{MapRoot: test.mapRoot}
 			if got := smrResp; !proto.Equal(got, want) {
 				diff := pretty.Compare(got, want)
 				t.Errorf("GetSignedMapRoot() got != want, diff:\n%v", diff)
@@ -234,14 +235,14 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 	ctx := context.Background()
 
 	fakeStorage := storage.NewMockMapStorage(ctrl)
-	adminStorage := fakeAdminStorageForMap(ctrl, 2, 12345)
+	adminStorage := fakeAdminStorageForMap(ctrl, 12345)
 	mockTX := storage.NewMockMapTreeTX(ctrl)
 	server := NewTrillianMapServer(extension.Registry{
 		MapStorage:   fakeStorage,
 		AdminStorage: adminStorage,
 	}, TrillianMapServerOptions{})
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
-	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
+	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(nil, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
 	smrResp, err := server.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
@@ -263,7 +264,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	tests := []struct {
 		desc               string
 		req                *trillian.GetSignedMapRootByRevisionRequest
-		mapRoot            trillian.SignedMapRoot
+		mapRoot            *trillian.SignedMapRoot
 		snapShErr, lsmrErr error
 		wantErr            bool
 	}{
@@ -287,7 +288,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 		{
 			desc: "Request revision >0 for non-empty map",
 			req:  &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
-			mapRoot: trillian.SignedMapRoot{
+			mapRoot: &trillian.SignedMapRoot{
 				Signature: []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
 			},
 		},
@@ -298,7 +299,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			adminStorage := fakeAdminStorageForMap(ctrl, 1, mapID1)
+			adminStorage := fakeAdminStorageForMap(ctrl, mapID1)
 			fakeStorage := storage.NewMockMapStorage(ctrl)
 			mockTX := storage.NewMockMapTreeTX(ctrl)
 
@@ -307,7 +308,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 				if test.snapShErr == nil {
 					mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
 					if test.lsmrErr == nil {
-						mockTX.EXPECT().Commit().Return(nil)
+						mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 					}
 					mockTX.EXPECT().Close().Return(nil)
 					mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -327,7 +328,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			if err != nil {
 				return
 			}
-			want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
+			want := &trillian.GetSignedMapRootResponse{MapRoot: test.mapRoot}
 			if got := smrResp; !proto.Equal(got, want) {
 				diff := pretty.Compare(got, want)
 				t.Errorf("GetSignedMapRootByRevision() got != want, diff:\n%v", diff)
@@ -336,8 +337,79 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	}
 }
 
-func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) storage.AdminStorage {
-	tree := *stestonly.MapTree
+func makeSMR(t *testing.T, rev uint64) *trillian.SignedMapRoot {
+	t.Helper()
+	mapRoot := types.MapRootV1{
+		TimestampNanos: 1571152792498135318,
+		Revision:       rev,
+		RootHash:       []byte("fake_hash"),
+	}
+	bin, err := mapRoot.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary: %v", err)
+	}
+	return &trillian.SignedMapRoot{
+		MapRoot:   bin,
+		Signature: []byte("fake_signature"),
+	}
+}
+
+func TestSetLeavesEmpty(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		root     *trillian.SignedMapRoot
+		revShift int64
+		smrErr   error
+		wantErr  bool
+	}{
+		{root: makeSMR(t, 0), wantErr: false},
+		{root: makeSMR(t, 1), wantErr: true},
+		{root: makeSMR(t, 10), revShift: 10, wantErr: false},
+		{root: makeSMR(t, 0), revShift: -1, wantErr: true},
+		{root: makeSMR(t, 0), revShift: -10, wantErr: true},
+		{root: makeSMR(t, 0), revShift: 1, wantErr: true},
+		{root: nil, wantErr: true},
+		{root: &trillian.SignedMapRoot{MapRoot: []byte("invalid")}, wantErr: true},
+		{root: nil, smrErr: errors.New("you shall not pass"), wantErr: true},
+	} {
+		t.Run("", func(t *testing.T) {
+			fakeStorage := storage.NewMockMapStorage(ctrl)
+			adminStorage := fakeAdminStorageForMap(ctrl, 12345)
+			server := NewTrillianMapServer(extension.Registry{
+				MapStorage:   fakeStorage,
+				AdminStorage: adminStorage,
+			}, TrillianMapServerOptions{UseSingleTransaction: true})
+			mockTX := storage.NewMockMapTreeTX(ctrl)
+
+			rev := 1 + tc.revShift
+			if rev > 0 { // Otherwise the transaction is not even started.
+				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(tc.root, tc.smrErr)
+				if !tc.wantErr {
+					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+				}
+				fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+						return f(ctx, mockTX)
+					})
+			}
+
+			_, err := server.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+				MapId:    12345,
+				Revision: rev,
+				Leaves:   nil,
+			})
+			if got, want := err != nil, tc.wantErr; got != want {
+				t.Fatalf("SetLeaves: %v, wantErr=%v", err, want)
+			}
+		})
+	}
+}
+
+func fakeAdminStorageForMap(ctrl *gomock.Controller, treeID int64) storage.AdminStorage {
+	tree := proto.Clone(stestonly.MapTree).(*trillian.Tree)
 	tree.TreeId = treeID
 
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
@@ -345,9 +417,61 @@ func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) st
 		ReadOnlyTX: []storage.ReadOnlyAdminTX{adminTX},
 	}
 
-	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(times).Return(&tree, nil)
-	adminTX.EXPECT().Close().MaxTimes(times).Return(nil)
-	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(1).Return(tree, nil)
+	adminTX.EXPECT().Close().MaxTimes(1).Return(nil)
+	adminTX.EXPECT().Commit().MaxTimes(1).Return(nil)
 
 	return adminStorage
+}
+
+func TestRequestIndexValidator(t *testing.T) {
+	tests := []struct {
+		desc      string
+		indexSize int
+		indices   [][]byte
+		wantErr   bool
+	}{
+		{
+			desc:      "Single index of correct length",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}},
+		},
+		{
+			desc:      "Single index of longer correct length",
+			indexSize: 4,
+			indices:   [][]byte{{'a', 'b', 'c', 'd'}},
+		},
+		{
+			desc:      "Single index too long",
+			indexSize: 1,
+			indices:   [][]byte{{'a', 'b'}},
+			wantErr:   true,
+		},
+		{
+			desc:      "Single index too short",
+			indexSize: 2,
+			indices:   [][]byte{{'a'}},
+			wantErr:   true,
+		},
+		{
+			desc:      "Multiple indices of correct length & no duplicates",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}, {'b'}},
+		},
+		{
+			desc:      "Multiple indices of correct length with duplicates",
+			indexSize: 1,
+			indices:   [][]byte{{'a'}, {'a'}},
+			wantErr:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			err := validateIndices(tt.indexSize, len(tt.indices), func(i int) []byte { return tt.indices[i] })
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIndices() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

@@ -140,7 +140,9 @@ func (s *serviceInstanceInfo) Update() {
 	if _, err := tempFile.Write(jsonData); err != nil {
 		glog.Errorf("failed to write JSON data to tempfile %q: %v", tempFile.Name(), err)
 	}
-	tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		glog.Errorf("failed to close JSON file: %v", err)
+	}
 
 	// Rename the temporary file to the target so it is updated more atomically.
 	if err := os.Rename(tempFile.Name(), s.target); err != nil {

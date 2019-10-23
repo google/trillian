@@ -1,11 +1,17 @@
 apiVersion: v1
+kind: Secret
+metadata:
+  name: trillian-secrets
+type: Opaque
+stringData:
+  STORAGE_FLAG: --cloudspanner_uri=projects/${PROJECT_ID}/instances/trillian-spanner/databases/trillian-db
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: deploy-config
-  namespace: default
 data:
   STORAGE_SYSTEM: cloud_spanner
-  STORAGE_FLAG: --cloudspanner_uri=projects/${PROJECT_ID}/instances/trillian-spanner/databases/trillian-db
   GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
   SIGNER_DEQUEUE_BUCKET_FRACTION: "0.0078"
   SIGNER_BATCH_SIZE: "1800"

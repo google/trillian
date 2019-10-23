@@ -125,7 +125,10 @@ func request_Quota_ListConfigs_0(ctx context.Context, marshaler runtime.Marshale
 	var protoReq ListConfigsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_Quota_ListConfigs_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Quota_ListConfigs_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -314,15 +317,15 @@ func RegisterQuotaHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Quota_CreateConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, ""))
+	pattern_Quota_CreateConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Quota_DeleteConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, ""))
+	pattern_Quota_DeleteConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Quota_GetConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, ""))
+	pattern_Quota_GetConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Quota_ListConfigs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1beta1", "quotas"}, ""))
+	pattern_Quota_ListConfigs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1beta1", "quotas"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Quota_UpdateConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, ""))
+	pattern_Quota_UpdateConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

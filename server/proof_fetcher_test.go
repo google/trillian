@@ -24,8 +24,8 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
 )
 
 // rehashTest encapsulates one test case for the rehasher in isolation. Input data like the storage
@@ -33,27 +33,27 @@ import (
 type rehashTest struct {
 	desc    string
 	index   int64
-	nodes   []storage.Node
+	nodes   []tree.Node
 	fetches []merkle.NodeFetch
-	output  trillian.Proof
+	output  *trillian.Proof
 }
 
 // An arbitrary tree revision to be used in tests.
 const testTreeRevision int64 = 3
 
 // Raw hashes for dummy storage nodes
-var h1, _ = th.HashLeaf([]byte("Hash 1"))
-var h2, _ = th.HashLeaf([]byte("Hash 2"))
-var h3, _ = th.HashLeaf([]byte("Hash 3"))
-var h4, _ = th.HashLeaf([]byte("Hash 4"))
-var h5, _ = th.HashLeaf([]byte("Hash 5"))
+var h1 = th.HashLeaf([]byte("Hash 1"))
+var h2 = th.HashLeaf([]byte("Hash 2"))
+var h3 = th.HashLeaf([]byte("Hash 3"))
+var h4 = th.HashLeaf([]byte("Hash 4"))
+var h5 = th.HashLeaf([]byte("Hash 5"))
 
 // And the dummy nodes themselves.
-var sn1 = storage.Node{NodeID: storage.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
-var sn2 = storage.Node{NodeID: storage.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
-var sn3 = storage.Node{NodeID: storage.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
-var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
-var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
+var sn1 = tree.Node{NodeID: tree.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
+var sn2 = tree.Node{NodeID: tree.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
+var sn3 = tree.Node{NodeID: tree.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
+var sn4 = tree.Node{NodeID: tree.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
+var sn5 = tree.Node{NodeID: tree.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
 func TestRehasher(t *testing.T) {
 	hasher := rfc6962.DefaultHasher
@@ -61,9 +61,9 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "no rehash",
 			index:   126,
-			nodes:   []storage.Node{sn1, sn2, sn3},
+			nodes:   []tree.Node{sn1, sn2, sn3},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 126,
 				Hashes:    [][]byte{h1, h2, h3},
 			},
@@ -71,9 +71,9 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "single rehash",
 			index:   999,
-			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 999,
 				Hashes:    [][]byte{h1, th.HashChildren(h3, h2), h4, h5},
 			},
@@ -81,9 +81,9 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "single rehash at end",
 			index:   11,
-			nodes:   []storage.Node{sn1, sn2, sn3},
+			nodes:   []tree.Node{sn1, sn2, sn3},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 11,
 				Hashes:    [][]byte{h1, th.HashChildren(h3, h2)},
 			},
@@ -91,9 +91,9 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "single rehash multiple nodes",
 			index:   23,
-			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 23,
 				Hashes:    [][]byte{h1, th.HashChildren(h4, th.HashChildren(h3, h2)), h5},
 			},
@@ -101,9 +101,9 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "multiple rehash",
 			index:   45,
-			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
 			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
-			output: trillian.Proof{
+			output: &trillian.Proof{
 				LeafIndex: 45,
 				Hashes:    [][]byte{th.HashChildren(h2, h1), h3, th.HashChildren(h5, h4)},
 			},
@@ -123,7 +123,7 @@ func TestRehasher(t *testing.T) {
 			t.Fatalf("rehash test %s unexpected error: %v", rehashTest.desc, err)
 		}
 
-		if !proto.Equal(&got, &want) {
+		if !proto.Equal(got, want) {
 			t.Errorf("rehash test %s:\ngot: %v\nwant: %v", rehashTest.desc, got, want)
 		}
 	}
@@ -140,7 +140,7 @@ func TestTree813FetchAll(t *testing.T) {
 	})
 
 	for l := int64(271); l < ts; l++ {
-		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l, ts, 64)
+		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l, ts)
 
 		if err != nil {
 			t.Fatal(err)
@@ -156,7 +156,7 @@ func TestTree813FetchAll(t *testing.T) {
 
 		if got, want := len(proof.Hashes), len(refProof); got != want {
 			for i, f := range fetches {
-				t.Errorf("Fetch: %d => %s", i, f.NodeID.CoordString())
+				t.Errorf("Fetch: %d => %+v", i, f.ID)
 			}
 			t.Fatalf("(%d, %d): got proof len: %d, want: %d: %v\n%v", ts, l, got, want, fetches, refProof)
 		}
@@ -180,7 +180,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 
 		for s := int64(2); s <= int64(ts); s++ {
 			for l := int64(0); l < s; l++ {
-				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, int64(ts), 64)
+				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, int64(ts))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -222,7 +222,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 
 	for s := int64(2); s <= 32; s++ {
 		for l := int64(0); l < s; l++ {
-			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, 32, 64)
+			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, 32)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -260,7 +260,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 
 		for s1 := int64(2); s1 < int64(ts); s1++ {
 			for s2 := int64(s1 + 1); s2 < int64(ts); s2++ {
-				fetches, err := merkle.CalcConsistencyProofNodeAddresses(s1, s2, int64(ts), 64)
+				fetches, err := merkle.CalcConsistencyProofNodeAddresses(s1, s2, int64(ts))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -304,9 +304,7 @@ func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
 	mt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	for _, leaf := range leaves {
-		if _, _, err := mt.AddLeaf([]byte(leaf)); err != nil {
-			panic(err)
-		}
+		mt.AddLeaf([]byte(leaf))
 	}
 	return mt
 }

@@ -44,11 +44,13 @@ type MapEnv struct {
 
 	// Objects that need Close(), in order of creation.
 	DB         *sql.DB
+	dbDone     func(context.Context)
 	grpcServer *grpc.Server
 	clientConn *grpc.ClientConn
 
 	// Trillian API clients.
 	Map   trillian.TrillianMapClient
+	Write trillian.TrillianMapWriteClient
 	Admin trillian.TrillianAdminClient
 }
 
@@ -62,6 +64,7 @@ func NewMapEnvFromConn(addr string) (*MapEnv, error) {
 	return &MapEnv{
 		clientConn: cc,
 		Map:        trillian.NewTrillianMapClient(cc),
+		Write:      trillian.NewTrillianMapWriteClient(cc),
 		Admin:      trillian.NewTrillianAdminClient(cc),
 	}, nil
 }
@@ -72,7 +75,7 @@ func NewMapEnv(ctx context.Context, singleTX bool) (*MapEnv, error) {
 		return nil, errors.New("no MySQL available")
 	}
 
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +96,7 @@ func NewMapEnv(ctx context.Context, singleTX bool) (*MapEnv, error) {
 		return nil, err
 	}
 	ret.DB = db
+	ret.dbDone = done
 	return ret, nil
 }
 
@@ -116,7 +120,9 @@ func NewMapEnvWithRegistry(registry extension.Registry, singleTX bool) (*MapEnv,
 		)),
 	)
 	mapServer := server.NewTrillianMapServer(registry, server.TrillianMapServerOptions{UseSingleTransaction: singleTX})
+	writeServer := server.NewTrillianMapWriteServer(registry, mapServer)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
+	trillian.RegisterTrillianMapWriteServer(grpcServer, writeServer)
 	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry, nil /* allowedTreeTypes */))
 	go grpcServer.Serve(lis)
 
@@ -133,6 +139,7 @@ func NewMapEnvWithRegistry(registry extension.Registry, singleTX bool) (*MapEnv,
 		grpcServer: grpcServer,
 		clientConn: cc,
 		Map:        trillian.NewTrillianMapClient(cc),
+		Write:      trillian.NewTrillianMapWriteClient(cc),
 		Admin:      trillian.NewTrillianAdminClient(cc),
 	}, nil
 }
@@ -145,8 +152,7 @@ func (env *MapEnv) Close() {
 	if env.grpcServer != nil {
 		env.grpcServer.GracefulStop()
 	}
-	if env.DB != nil {
-		// TODO(pavelkalinnikov): Drop the database.
-		env.DB.Close()
+	if env.dbDone != nil {
+		env.dbDone(context.TODO())
 	}
 }

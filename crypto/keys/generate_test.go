@@ -23,6 +23,8 @@ import (
 )
 
 func TestNewFromSpec(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range []struct {
 		desc    string
 		keySpec *keyspb.Specification
@@ -83,6 +85,12 @@ func TestNewFromSpec(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			desc: "Ed25519",
+			keySpec: &keyspb.Specification{
+				Params: &keyspb.Specification_Ed25519Params{},
+			},
+		},
+		{
 			desc:    "No params",
 			keySpec: &keyspb.Specification{},
 			wantErr: true,
@@ -92,16 +100,20 @@ func TestNewFromSpec(t *testing.T) {
 			wantErr: true,
 		},
 	} {
-		key, err := NewFromSpec(test.keySpec)
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%v: NewFromSpec() = (_, %v), want err? %v", test.desc, err, test.wantErr)
-			continue
-		} else if gotErr {
-			continue
-		}
+		test := test
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
 
-		if err := testonly.CheckKeyMatchesSpec(key, test.keySpec); err != nil {
-			t.Errorf("%v: CheckKeyMatchesSpec(): %v", test.desc, err)
-		}
+			key, err := NewFromSpec(test.keySpec)
+			if gotErr := err != nil; gotErr != test.wantErr {
+				t.Fatalf("NewFromSpec() = (_, %v), want err? %v", err, test.wantErr)
+			} else if gotErr {
+				return
+			}
+
+			if err := testonly.CheckKeyMatchesSpec(key, test.keySpec); err != nil {
+				t.Fatalf("CheckKeyMatchesSpec(): %v", err)
+			}
+		})
 	}
 }

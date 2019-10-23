@@ -75,14 +75,10 @@ func (ms *mapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return checkDatabaseAccessible(ctx, ms.ts.client)
 }
 
-func (ms *mapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	return nil, ErrNotImplemented
-}
-
-func newMapCache(tree *trillian.Tree) (cache.SubtreeCache, error) {
+func newMapCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
-		return cache.SubtreeCache{}, err
+		return nil, err
 	}
 	return cache.NewMapSubtreeCache(defMapStrata, tree.TreeId, hasher), nil
 }
@@ -124,7 +120,7 @@ func (ms *mapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.T
 		if err := f(ctx, tx); err != nil {
 			return err
 		}
-		if err := tx.flushSubtrees(); err != nil {
+		if err := tx.flushSubtrees(ctx); err != nil {
 			glog.Errorf("failed to tx.flushSubtrees(): %v", err)
 			return err
 		}
@@ -144,7 +140,7 @@ type mapTX struct {
 }
 
 // sthToSMR converts a spannerpb.TreeHead to a trillian.SignedMapRoot.
-func sthToSMR(sth *spannerpb.TreeHead) (trillian.SignedMapRoot, error) {
+func sthToSMR(sth *spannerpb.TreeHead) (*trillian.SignedMapRoot, error) {
 	mapRoot, err := (&types.MapRootV1{
 		RootHash:       sth.RootHash,
 		TimestampNanos: uint64(sth.TsNanos),
@@ -152,10 +148,10 @@ func sthToSMR(sth *spannerpb.TreeHead) (trillian.SignedMapRoot, error) {
 		Metadata:       sth.Metadata,
 	}).MarshalBinary()
 	if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 
-	return trillian.SignedMapRoot{
+	return &trillian.SignedMapRoot{
 		MapRoot:   mapRoot,
 		Signature: sth.Signature,
 	}, nil
@@ -163,19 +159,19 @@ func sthToSMR(sth *spannerpb.TreeHead) (trillian.SignedMapRoot, error) {
 
 // LatestSignedMapRoot returns the freshest SignedMapRoot for this map at the
 // time the transaction was started.
-func (tx *mapTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error) {
+func (tx *mapTX) LatestSignedMapRoot(ctx context.Context) (*trillian.SignedMapRoot, error) {
 	currentSTH, err := tx.currentSTH(ctx)
 	if err != nil {
 		glog.Errorf("failed to determine current STH: %v", err)
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	writeRev, err := tx.writeRev(ctx)
 	if err != nil {
 		glog.Errorf("failed to determine write revision: %v", err)
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	if got, want := currentSTH.TreeRevision+1, writeRev; got != want {
-		return trillian.SignedMapRoot{}, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
+		return nil, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
 	}
 
 	// We already read the latest root as part of starting the transaction (in
@@ -186,7 +182,7 @@ func (tx *mapTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoo
 // StoreSignedMapRoot stores the provided root.
 // This method will return an error if the caller attempts to store more than
 // one root per map for a given map revision.
-func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
+func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMapRoot) error {
 	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)
 	if !ok {
 		return ErrWrongTXType
@@ -239,7 +235,7 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMap
 
 // Set sets the leaf with the specified index to value.
 // Returns an error if there's a problem with the underlying storage.
-func (tx *mapTX) Set(ctx context.Context, index []byte, value trillian.MapLeaf) error {
+func (tx *mapTX) Set(ctx context.Context, index []byte, value *trillian.MapLeaf) error {
 	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)
 	if !ok {
 		return ErrWrongTXType
@@ -302,7 +298,7 @@ func (tx *mapTX) getMapLeaf(ctx context.Context, revision int64, index []byte) (
 // as the corresponding values in indexes.
 // An error will be returned if there is a problem with the underlying
 // storage.
-func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, error) {
 	// c will carry any retrieved MapLeaves.
 	c := make(chan *trillian.MapLeaf, len(indexes))
 	// errc will carry any errors while reading from spanner, although we'll only
@@ -323,14 +319,14 @@ func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]t
 	}
 
 	// Now wait for the goroutines to do their thing.
-	ret := make([]trillian.MapLeaf, 0, len(indexes))
+	ret := make([]*trillian.MapLeaf, 0, len(indexes))
 	for range indexes {
 		select {
 		case err := <-errc:
 			return nil, err
 		case l := <-c:
 			if l != nil {
-				ret = append(ret, *l)
+				ret = append(ret, l)
 			}
 		}
 	}
@@ -339,7 +335,7 @@ func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]t
 
 // GetSignedMapRoot returns the SignedMapRoot for revision.
 // An error will be returned if there is a problem with the underlying storage.
-func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error) {
+func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (*trillian.SignedMapRoot, error) {
 	query := spanner.NewStatement(
 		`SELECT t.TreeID, t.TimestampNanos, t.TreeSize, t.RootHash, t.RootSignature, t.TreeRevision, t.TreeMetadata FROM TreeHeads t
 				WHERE t.TreeID = @tree_id
@@ -360,13 +356,13 @@ func (tx *mapTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian
 		return nil
 	})
 	if err != nil {
-		return trillian.SignedMapRoot{}, err
+		return nil, err
 	}
 	if th == nil {
 		if revision == 0 {
-			return trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit
+			return nil, storage.ErrTreeNeedsInit
 		}
-		return trillian.SignedMapRoot{}, status.Errorf(codes.NotFound, "map root %v not found", revision)
+		return nil, status.Errorf(codes.NotFound, "map root %v not found", revision)
 	}
 	return sthToSMR(th)
 }

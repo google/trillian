@@ -258,10 +258,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 // It is best to call this method with a context that will timeout to avoid
 // waiting forever.
 func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
-	leaf, err := c.BuildLeaf(data)
-	if err != nil {
-		return err
-	}
+	leaf := c.BuildLeaf(data)
 
 	// If a minimum merge delay has been configured, wait at least that long before
 	// starting to poll
@@ -288,7 +285,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		}
 
 		// If not found or tree is empty, wait for a root update before retrying again.
-		if _, err = c.WaitForRootUpdate(ctx); err != nil {
+		if _, err := c.WaitForRootUpdate(ctx); err != nil {
 			return err
 		}
 
@@ -298,10 +295,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 
 // VerifyInclusion ensures that the given leaf data has been included in the log.
 func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
-	leaf, err := c.BuildLeaf(data)
-	if err != nil {
-		return err
-	}
+	leaf := c.BuildLeaf(data)
 	root := c.GetRoot()
 	ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
 	if err != nil {
@@ -361,13 +355,9 @@ func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []b
 
 // AddSequencedLeaf adds a leaf at a particular index.
 func (c *LogClient) AddSequencedLeaf(ctx context.Context, data []byte, index int64) error {
-	leaf, err := c.BuildLeaf(data)
-	if err != nil {
-		return err
-	}
+	leaf := c.BuildLeaf(data)
 	leaf.LeafIndex = index
-
-	_, err = c.client.AddSequencedLeaf(ctx, &trillian.AddSequencedLeafRequest{
+	_, err := c.client.AddSequencedLeaf(ctx, &trillian.AddSequencedLeafRequest{
 		LogId: c.LogID,
 		Leaf:  leaf,
 	})
@@ -392,10 +382,7 @@ func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int6
 		if want := indexes[0] + int64(i); index != want {
 			return fmt.Errorf("missing index in contiugous index range. got: %v, want: %v", index, want)
 		}
-		leaf, err := c.BuildLeaf(dataByIndex[index])
-		if err != nil {
-			return fmt.Errorf("error building leaf %x: %v", index, err)
-		}
+		leaf := c.BuildLeaf(dataByIndex[index])
 		leaf.LeafIndex = index
 		leaves = append(leaves, leaf)
 	}
@@ -409,12 +396,8 @@ func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int6
 // QueueLeaf adds a leaf to a Trillian log without blocking.
 // AlreadyExists is considered a success case by this function.
 func (c *LogClient) QueueLeaf(ctx context.Context, data []byte) error {
-	leaf, err := c.BuildLeaf(data)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
+	leaf := c.BuildLeaf(data)
+	_, err := c.client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
 		LogId: c.LogID,
 		Leaf:  leaf,
 	})

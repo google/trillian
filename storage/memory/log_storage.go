@@ -128,7 +128,7 @@ func (m *memoryLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX,
 	return &readOnlyLogTX{m.TreeStorage}, nil
 }
 
-func (t *readOnlyLogTX) Commit() error {
+func (t *readOnlyLogTX) Commit(context.Context) error {
 	return nil
 }
 
@@ -194,7 +194,7 @@ func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, tree *trill
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
 func (m *memoryLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
@@ -225,7 +225,7 @@ func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree,
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
@@ -247,7 +247,7 @@ type logTreeTX struct {
 	treeTX
 	ls   *memoryLogStorage
 	root types.LogRootV1
-	slr  trillian.SignedLogRoot
+	slr  *trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
@@ -349,20 +349,20 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 	return ret, nil
 }
 
-func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	return t.slr, nil
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
-func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	r := t.tx.Get(sthKey(t.treeID, t.tree.currentSTH))
 	if r == nil {
-		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
+		return nil, storage.ErrTreeNeedsInit
 	}
-	return r.(*kv).v.(trillian.SignedLogRoot), nil
+	return r.(*kv).v.(*trillian.SignedLogRoot), nil
 }
 
-func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr trillian.SignedLogRoot) error {
+func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr *trillian.SignedLogRoot) error {
 	var root types.LogRootV1
 	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
 		return err
@@ -424,19 +424,4 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 
 func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return getActiveLogIDs(t.ts.trees), nil
-}
-
-func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.CountByLogID, error) {
-	t.ms.mu.RLock()
-	defer t.ms.mu.RUnlock()
-
-	ret := make(map[int64]int64)
-	for id, tree := range t.ms.trees {
-		tree.RLock()
-		k := unseqKey(id)
-		queue := tree.store.Get(k).(*kv).v.(*list.List)
-		ret[id] = int64(queue.Len())
-		tree.RUnlock()
-	}
-	return ret, nil
 }

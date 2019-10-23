@@ -20,6 +20,7 @@ import (
 	"crypto/rsa"
 
 	"github.com/google/trillian/crypto/sigpb"
+	"golang.org/x/crypto/ed25519"
 )
 
 // SignatureAlgorithm returns the algorithm used for this public key.
@@ -30,6 +31,8 @@ func SignatureAlgorithm(k gocrypto.PublicKey) sigpb.DigitallySigned_SignatureAlg
 		return sigpb.DigitallySigned_ECDSA
 	case *rsa.PublicKey:
 		return sigpb.DigitallySigned_RSA
+	case *ed25519.PublicKey:
+		return sigpb.DigitallySigned_ED25519
 	}
 
 	return sigpb.DigitallySigned_ANONYMOUS

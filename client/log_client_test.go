@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly/integration"
@@ -181,8 +182,8 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 
 func TestWaitForInclusion(t *testing.T) {
 	ctx := context.Background()
-	tree := *stestonly.LogTree
-	env, client := clientEnvForTest(ctx, t, &tree)
+	tree := proto.Clone(stestonly.LogTree).(*trillian.Tree)
+	env, client := clientEnvForTest(ctx, t, tree)
 	tree.TreeId = client.LogID
 	defer env.Close()
 
@@ -199,7 +200,7 @@ func TestWaitForInclusion(t *testing.T) {
 			client: &MutatingLogClient{TrillianLogClient: env.Log, mutateInclusionProof: true}, wantErr: true},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			client, err := NewFromTree(test.client, &tree, types.LogRootV1{})
+			client, err := NewFromTree(test.client, tree, types.LogRootV1{})
 			if err != nil {
 				t.Fatalf("NewFromTree(): %v", err)
 			}
@@ -259,8 +260,8 @@ func TestUpdateRoot(t *testing.T) {
 
 func TestUpdateRootSkew(t *testing.T) {
 	ctx := context.Background()
-	tree := *stestonly.LogTree
-	env, client := clientEnvForTest(ctx, t, &tree)
+	tree := proto.Clone(stestonly.LogTree).(*trillian.Tree)
+	env, client := clientEnvForTest(ctx, t, tree)
 	tree.TreeId = client.LogID
 	defer env.Close()
 
@@ -285,7 +286,7 @@ func TestUpdateRootSkew(t *testing.T) {
 
 	// Now force a bad request.
 	badRawClient := &MutatingLogClient{TrillianLogClient: env.Log, mutateRootSize: true}
-	badClient, err := NewFromTree(badRawClient, &tree, *root)
+	badClient, err := NewFromTree(badRawClient, tree, *root)
 	if err != nil {
 		t.Fatalf("failed to create mutating client: %v", err)
 	}

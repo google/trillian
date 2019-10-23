@@ -18,6 +18,8 @@ import (
 	"context"
 	"flag"
 	_ "net/http/pprof" // Register pprof HTTP handlers.
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/golang/glog"
@@ -27,11 +29,13 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -40,6 +44,10 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+
+	// Register supported storage providers.
+	_ "github.com/google/trillian/storage/cloudspanner"
+	_ "github.com/google/trillian/storage/mysql"
 
 	// Load hashers
 	_ "github.com/google/trillian/merkle/coniks"
@@ -66,6 +74,11 @@ var (
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 
 	useSingleTransaction = flag.Bool("single_transaction", false, "Experimental: use a single transaction when updating the map")
+	largePreload         = flag.Bool("large_preload_fix", true, "Experimental: work-around locking performance issues when using useSingleTransaction mode")
+
+	// Profiling related flags.
+	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
+	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
 )
 
 func main() {
@@ -79,6 +92,7 @@ func main() {
 
 	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}
+	monitoring.SetStartSpan(opencensus.StartSpan)
 
 	if *tracing {
 		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID, *tracingPercent)
@@ -89,10 +103,11 @@ func main() {
 		options = append(options, opts...)
 	}
 
-	sp, err := server.NewStorageProviderFromFlags(mf)
+	sp, err := storage.NewProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
+	defer sp.Close()
 
 	client, err := etcd.NewClientFromString(*server.EtcdServers)
 	if err != nil {
@@ -112,6 +127,15 @@ func main() {
 		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 			return der.NewProtoFromSpec(spec)
 		},
+	}
+
+	// Enable CPU profile if requested.
+	if *cpuProfile != "" {
+		f := mustCreate(*cpuProfile)
+		if err := pprof.StartCPUProfile(f); err != nil {
+			glog.Exitf("Failed to start CPU profiling: %v", err)
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	m := server.Main{
@@ -137,11 +161,22 @@ func main() {
 			mapServer := server.NewTrillianMapServer(registry,
 				server.TrillianMapServerOptions{
 					UseSingleTransaction: *useSingleTransaction,
+					UseLargePreload:      *largePreload,
 				})
 			if err := mapServer.IsHealthy(); err != nil {
 				return err
 			}
 			trillian.RegisterTrillianMapServer(s, mapServer)
+
+			if !*useSingleTransaction {
+				glog.Warning("Write API not recommended without single_transaction enabled")
+			}
+			writeServer := server.NewTrillianMapWriteServer(registry, mapServer)
+			if err := writeServer.IsHealthy(); err != nil {
+				return err
+			}
+			trillian.RegisterTrillianMapWriteServer(s, writeServer)
+
 			if *server.QuotaSystem == server.QuotaEtcd {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
@@ -162,4 +197,17 @@ func main() {
 	if err := m.Run(ctx); err != nil {
 		glog.Exitf("Server exited with error: %v", err)
 	}
+
+	if *memProfile != "" {
+		f := mustCreate(*memProfile)
+		pprof.WriteHeapProfile(f)
+	}
+}
+
+func mustCreate(fileName string) *os.File {
+	f, err := os.Create(fileName)
+	if err != nil {
+		glog.Fatal(err)
+	}
+	return f
 }

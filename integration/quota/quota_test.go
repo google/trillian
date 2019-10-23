@@ -50,10 +50,11 @@ func TestEtcdRateLimiting(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
-	registry, err := integration.NewRegistryForTests(ctx)
+	registry, done, err := integration.NewRegistryForTests(ctx)
 	if err != nil {
 		t.Fatalf("NewRegistryForTests() returned err = %v", err)
 	}
+	defer done(ctx)
 
 	_, etcdClient, cleanup, err := etcd.StartEtcd()
 	if err != nil {
@@ -98,11 +99,11 @@ func TestEtcdRateLimiting(t *testing.T) {
 func TestMySQLRateLimiting(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
-	defer db.Close()
+	defer done(ctx)
 
 	const maxUnsequenced = 20
 	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced}

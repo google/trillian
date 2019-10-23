@@ -20,15 +20,16 @@ import (
 	"sort"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
 
 type nodeIDEq struct {
-	expectedID storage.NodeID
+	expectedID tree.NodeID
 }
 
+// Matches implements the gomock.Matcher API.
 func (m nodeIDEq) Matches(x interface{}) bool {
-	n, ok := x.(storage.NodeID)
+	n, ok := x.(tree.NodeID)
 	if !ok {
 		return false
 	}
@@ -40,29 +41,30 @@ func (m nodeIDEq) String() string {
 }
 
 // NodeIDEq returns a matcher that expects the specified NodeID.
-func NodeIDEq(n storage.NodeID) gomock.Matcher {
+func NodeIDEq(n tree.NodeID) gomock.Matcher {
 	return nodeIDEq{n}
 }
 
 // We need a stable order to match the mock expectations so we sort them by
 // prefix len before passing them to the mock library. Might need extending
 // if we have more complex tests.
-func prefixLen(n1, n2 *storage.Node) bool {
+func prefixLen(n1, n2 *tree.Node) bool {
 	return n1.NodeID.PrefixLenBits < n2.NodeID.PrefixLenBits
 }
 
 // NodeSet returns a matcher that expects the given set of Nodes.
-func NodeSet(nodes []storage.Node) gomock.Matcher {
+func NodeSet(nodes []tree.Node) gomock.Matcher {
 	by(prefixLen).sort(nodes)
 	return nodeSet{nodes}
 }
 
 type nodeSet struct {
-	other []storage.Node
+	other []tree.Node
 }
 
+// Matches implements the gomock.Matcher API.
 func (n nodeSet) Matches(x interface{}) bool {
-	nodes, ok := x.([]storage.Node)
+	nodes, ok := x.([]tree.Node)
 	if !ok {
 		return false
 	}
@@ -76,26 +78,29 @@ func (n nodeSet) String() string {
 
 // Node sorting boilerplate below.
 
-type by func(n1, n2 *storage.Node) bool
+type by func(n1, n2 *tree.Node) bool
 
-func (by by) sort(nodes []storage.Node) {
+func (by by) sort(nodes []tree.Node) {
 	ns := &nodeSorter{nodes: nodes, by: by}
 	sort.Sort(ns)
 }
 
 type nodeSorter struct {
-	nodes []storage.Node
-	by    func(n1, n2 *storage.Node) bool
+	nodes []tree.Node
+	by    func(n1, n2 *tree.Node) bool
 }
 
+// Len implements the sort.Interface API.
 func (n *nodeSorter) Len() int {
 	return len(n.nodes)
 }
 
+// Swap implements the sort.Interface API.
 func (n *nodeSorter) Swap(i, j int) {
 	n.nodes[i], n.nodes[j] = n.nodes[j], n.nodes[i]
 }
 
+// Less implements the sort.Interface API.
 func (n *nodeSorter) Less(i, j int) bool {
 	return n.by(&n.nodes[i], &n.nodes[j])
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/log"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/admin"
@@ -58,8 +59,8 @@ type LogEnv struct {
 	grpcServer      *grpc.Server
 	adminServer     *admin.Server
 	logServer       *server.TrillianLogRPCServer
-	LogOperation    server.LogOperation
-	Sequencer       *server.LogOperationManager
+	LogOperation    log.Operation
+	Sequencer       *log.OperationManager
 	sequencerCancel context.CancelFunc
 	ClientConn      *grpc.ClientConn // TODO(gbelvin): Deprecate.
 
@@ -67,6 +68,7 @@ type LogEnv struct {
 	Log     trillian.TrillianLogClient
 	Admin   trillian.TrillianAdminClient
 	DB      *sql.DB
+	dbDone  func(context.Context)
 }
 
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
@@ -80,7 +82,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error
 
 // NewLogEnvWithGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
 func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
-	db, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +102,7 @@ func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts
 		return nil, err
 	}
 	ret.DB = db
+	ret.dbDone = done
 	return ret, nil
 }
 
@@ -126,11 +129,11 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
 	// Create Sequencer.
-	sequencerManager := server.NewSequencerManager(registry, sequencerWindow)
+	sequencerManager := log.NewSequencerManager(registry, sequencerWindow)
 	var wg sync.WaitGroup
-	var sequencerTask *server.LogOperationManager
+	var sequencerTask *log.OperationManager
 	ctx, cancel := context.WithCancel(ctx)
-	info := server.LogOperationInfo{
+	info := log.OperationInfo{
 		Registry:    registry,
 		BatchSize:   batchSize,
 		NumWorkers:  numSequencers,
@@ -138,9 +141,9 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 		TimeSource:  timeSource,
 	}
 	// Start a live sequencer in a goroutine.
-	sequencerTask = server.NewLogOperationManager(info, sequencerManager)
+	sequencerTask = log.NewOperationManager(info, sequencerManager)
 	wg.Add(1)
-	go func(wg *sync.WaitGroup, om *server.LogOperationManager) {
+	go func(wg *sync.WaitGroup, om *log.OperationManager) {
 		defer wg.Done()
 		om.OperationLoop(ctx)
 	}(&wg, sequencerTask)
@@ -195,7 +198,7 @@ func (env *LogEnv) Close() {
 	env.ClientConn.Close()
 	env.grpcServer.GracefulStop()
 	env.pendingTasks.Wait()
-	if env.DB != nil {
-		env.DB.Close()
+	if env.dbDone != nil {
+		env.dbDone(context.TODO())
 	}
 }

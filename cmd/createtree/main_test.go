@@ -29,7 +29,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/util/flagsaver"
+	"github.com/google/trillian/testonly/flagsaver"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -64,7 +64,7 @@ func mustMarshalAny(p proto.Message) *any.Any {
 }
 
 func TestCreateTree(t *testing.T) {
-	nonDefaultTree := *defaultTree
+	nonDefaultTree := proto.Clone(defaultTree).(*trillian.Tree)
 	nonDefaultTree.TreeType = trillian.TreeType_MAP
 	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 	nonDefaultTree.DisplayName = "Llamas Map"
@@ -84,7 +84,7 @@ func TestCreateTree(t *testing.T) {
 				*displayName = nonDefaultTree.DisplayName
 				*description = nonDefaultTree.Description
 			},
-			wantTree: &nonDefaultTree,
+			wantTree: nonDefaultTree,
 		},
 		{
 			desc: "mandatoryOptsNotSet",
@@ -132,7 +132,7 @@ func TestCreateTree(t *testing.T) {
 				nonDefaultTree.TreeType = trillian.TreeType_MAP
 				*treeType = nonDefaultTree.TreeType.String()
 			},
-			wantTree: &nonDefaultTree,
+			wantTree: nonDefaultTree,
 			initErr:  status.Errorf(codes.Unavailable, "map init failed"),
 			wantErr:  true,
 		},
@@ -157,7 +157,7 @@ func runTest(t *testing.T, tests []*testCase) {
 				t.Fatalf("Error starting fake server: %v", err)
 			}
 			defer stopFakeServer()
-			defer flagsaver.Save().Restore()
+			defer flagsaver.Save().MustRestore()
 			*adminServerAddr = s.Addr
 			if tc.setFlags != nil {
 				tc.setFlags()

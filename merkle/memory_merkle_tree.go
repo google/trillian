@@ -115,7 +115,7 @@ func isPowerOfTwoPlusOne(leafCount int64) bool {
 	}
 	// leaf_count is a power of two plus one if and only if
 	// ((leaf_count - 1) & (leaf_count - 2)) has no bits set.
-	return (((leafCount - 1) & (leafCount - 2)) == 0)
+	return ((leafCount - 1) & (leafCount - 2)) == 0
 }
 
 // sibling returns the index of the node's (left or right) sibling in the same level.
@@ -126,23 +126,16 @@ func sibling(leaf int64) int64 {
 	return leaf + 1
 }
 
-// NewInMemoryMerkleTree creates a new empty Merkle Tree using the specified Hasher
+// NewInMemoryMerkleTree creates a new empty Merkle Tree using the specified Hasher.
 func NewInMemoryMerkleTree(hasher hashers.LogHasher) *InMemoryMerkleTree {
-	mt := InMemoryMerkleTree{}
-
-	mt.hasher = hasher
-	mt.levelCount = 0
-	mt.leavesProcessed = 0
-
-	return &mt
+	return &InMemoryMerkleTree{hasher: hasher}
 }
 
-// LeafHash returns the hash of the requested leaf.
+// LeafHash returns the hash of the requested leaf, or nil if it doesn't exist.
 func (mt *InMemoryMerkleTree) LeafHash(leaf int64) []byte {
 	if leaf == 0 || leaf > mt.LeafCount() {
 		return nil
 	}
-
 	return mt.tree[0][leaf-1].hash
 }
 
@@ -157,7 +150,7 @@ func (mt *InMemoryMerkleTree) NodeCount(level int64) int64 {
 	return int64(len(mt.tree[level]))
 }
 
-// LevelCount returns the number of levels in the current Merkle tree
+// LevelCount returns the number of levels in the Merkle tree.
 func (mt *InMemoryMerkleTree) LevelCount() int64 {
 	return mt.levelCount
 }
@@ -228,13 +221,10 @@ func (mt *InMemoryMerkleTree) popBack(level int64) {
 //
 // Returns the position of the leaf in the tree. Indexing starts at 1,
 // so position = number of leaves in the tree after this update.
-func (mt *InMemoryMerkleTree) AddLeaf(leafData []byte) (int64, TreeEntry, error) {
-	leafHash, err := mt.hasher.HashLeaf(leafData)
-	if err != nil {
-		return 0, TreeEntry{}, err
-	}
+func (mt *InMemoryMerkleTree) AddLeaf(leafData []byte) (int64, TreeEntry) {
+	leafHash := mt.hasher.HashLeaf(leafData)
 	leafCount, treeEntry := mt.addLeafHash(leafHash)
-	return leafCount, treeEntry, nil
+	return leafCount, treeEntry
 }
 
 func (mt *InMemoryMerkleTree) addLeafHash(leafData []byte) (int64, TreeEntry) {
@@ -492,7 +482,7 @@ func (mt *InMemoryMerkleTree) pathFromNodeToRootAtSnapshot(node int64, level int
 
 // SnapshotConsistency gets the Merkle consistency proof between two snapshots.
 // Returns a slice of node hashes, ordered according to levels.
-// Returns an empty slice if snapshot1 is 0, snapshot 1 >= snapshot2,
+// Returns an empty slice if snapshot1 is 0, snapshot1 >= snapshot2,
 // or one of the snapshots requested is in the future.
 func (mt *InMemoryMerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int64) []TreeEntryDescriptor {
 	var proof []TreeEntryDescriptor

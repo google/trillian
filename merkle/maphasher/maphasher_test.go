@@ -54,11 +54,7 @@ func TestHashLeaf(t *testing.T) {
 		{[]byte{0x01}, []byte("foo"), h2b("1d2039fa7971f4bf01a1c20cb2a3fe7af46865ca9cd9b840c2063df8fec4ff75")},
 	}
 	for _, test := range tests {
-		got, err := Default.HashLeaf(6962, test.index, test.value)
-		if err != nil {
-			t.Errorf("HashLeaf(%x)=_,%v; want _,nil", test.value, err)
-			continue
-		}
+		got := Default.HashLeaf(6962, test.index, test.value)
 		if !bytes.Equal(got, test.want) {
 			t.Errorf("HashLeaf(%x)=%x; want %x", test.value, got, test.want)
 		}
@@ -68,10 +64,7 @@ func TestHashLeaf(t *testing.T) {
 // Compares the old HStar2 empty branch algorithm to the new.
 func TestHStar2Equivalence(t *testing.T) {
 	m := New(crypto.SHA256)
-	leafHash, err := m.HashLeaf(treeID, nil, []byte(""))
-	if err != nil {
-		t.Fatalf("HashLeaf(): %v", err)
-	}
+	leafHash := m.HashLeaf(treeID, nil, []byte(""))
 	star := hstar{
 		hasher:          m,
 		hStarEmptyCache: [][]byte{leafHash},

@@ -41,9 +41,9 @@ type ReadOnlyMapTreeTX interface {
 
 	// GetSignedMapRoot returns the SignedMapRoot associated with the
 	// specified revision.
-	GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error)
+	GetSignedMapRoot(ctx context.Context, revision int64) (*trillian.SignedMapRoot, error)
 	// LatestSignedMapRoot returns the most recently created SignedMapRoot.
-	LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error)
+	LatestSignedMapRoot(ctx context.Context) (*trillian.SignedMapRoot, error)
 
 	// Get retrieves the values associated with the keyHashes, if any, at the
 	// specified revision.
@@ -51,7 +51,7 @@ type ReadOnlyMapTreeTX interface {
 	// The returned array of MapLeaves will only contain entries for which values
 	// exist.  i.e. requesting a set of unknown keys would result in a
 	// zero-length array being returned.
-	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error)
+	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]*trillian.MapLeaf, error)
 }
 
 // MapTreeTX is the transactional interface for reading/modifying a Map.
@@ -64,17 +64,16 @@ type MapTreeTX interface {
 	TreeWriter
 
 	// StoreSignedMapRoot stores root.
-	StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error
+	StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMapRoot) error
 	// Set sets key to leaf
-	Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error
+	// TODO(mhutchinson): Remove the keyHash parameter or document why it is redundantly passed in
+	// (it is also inside the MapLeaf)
+	Set(ctx context.Context, keyHash []byte, value *trillian.MapLeaf) error
 }
 
 // ReadOnlyMapStorage provides a narrow read-only view into a MapStorage.
 type ReadOnlyMapStorage interface {
 	DatabaseChecker
-
-	// Snapshot starts a read-only transaction not tied to any particular tree.
-	Snapshot(ctx context.Context) (ReadOnlyMapTX, error)
 
 	// SnapshotForTree starts a new read-only transaction.
 	// Commit must be called when the caller is finished with the returned object,

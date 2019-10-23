@@ -12,7 +12,7 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - name: "8092"
+  - name: http-metrics
     port: 8092
     targetPort: 8091
   selector:

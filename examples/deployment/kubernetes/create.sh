@@ -69,7 +69,7 @@ done
 
 # Create cluster
 # TODO(https://github.com/google/trillian/issues/1183): Add support for priorities and preemption when Kubernetes 1.11 is GA.
-gcloud container clusters create "${CLUSTER_NAME}" --machine-type "${MACHINE_TYPE}" --image-type "COS" --num-nodes "${POOLSIZE}" --enable-autorepair --enable-autoupgrade --node-locations="${NODE_LOCATIONS}"
+gcloud container clusters create "${CLUSTER_NAME}" --machine-type "${MACHINE_TYPE}" --image-type "COS" --num-nodes "${POOLSIZE}" --enable-autorepair --enable-autoupgrade --node-locations="${NODE_LOCATIONS}" --addons=Istio --istio-config=auth=MTLS_PERMISSIVE
 gcloud container clusters get-credentials "${CLUSTER_NAME}"
 
 # Create spanner instance & DB
@@ -93,13 +93,10 @@ done
 COREACCOUNT=$(gcloud config config-helper --format=json | jq -r '.configuration.properties.core.account')
 kubectl create clusterrolebinding etcd-cluster-admin-binding --clusterrole=cluster-admin --user="${COREACCOUNT}"
 
-kubectl apply -f ${DIR}/etcd-role-binding.yaml
-kubectl apply -f ${DIR}/etcd-role.yaml
-kubectl apply -f ${DIR}/etcd-deployment.yaml
-kubectl apply -f ${DIR}/etcd-service.yaml
+for f in "etcd-role-binding.yaml" "etcd-role.yaml" "etcd-deployment.yaml"; do
+  envsubst < ${DIR}/${f} | kubectl apply --namespace="${NAMESPACE}" -f -
+done
 
-# TODO(al): wait for this properly somehow
-sleep 30
-
-# TODO(al): have to wait before doing this?
-kubectl apply -f ${DIR}/etcd-cluster.yaml
+# Wait for Custom Resource Definitions (CRD) to be installed before creating Etcd cluster
+kubectl wait --for=condition=Established crd/etcdclusters.etcd.database.coreos.com
+envsubst < ${DIR}/etcd-cluster.yaml | kubectl --namespace="${NAMESPACE}" apply -f -

@@ -90,7 +90,10 @@ func (s *Signer) Run() {
 
 	// Sanity check that the STH table has what we already know.
 	if dbSTHInfo.sth.TreeSize > 0 {
-		ourSTH := sthFromString(simkafka.Read("STHs/<treeID>", dbSTHInfo.sthOffset))
+		ourSTH, err := sthFromString(simkafka.Read("STHs/<treeID>", dbSTHInfo.sthOffset))
+		if err != nil {
+			glog.Errorf("%s: got an error unpacking STH: %v", s.Name, err)
+		}
 		if ourSTH == nil {
 			glog.Errorf("%s: local DB has data ahead of STHs topic!!", s.Name)
 			return
@@ -113,7 +116,11 @@ func (s *Signer) Run() {
 	var nextSTH *STH
 	for {
 		nextOffset++
-		nextSTH = sthFromString(simkafka.Read("STHs/<treeID>", nextOffset))
+		sth, err := sthFromString(simkafka.Read("STHs/<treeID>", nextOffset))
+		if err != nil {
+			glog.Errorf("%s: got an error unpacking STH: %v", s.Name, err)
+		}
+		nextSTH = sth
 		if nextSTH == nil {
 			break
 		}

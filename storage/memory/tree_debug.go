@@ -19,6 +19,7 @@ import (
 	"github.com/google/btree"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	stree "github.com/google/trillian/storage/tree"
 )
 
 // This file contains utilities that are not part of the Storage API contracts but may
@@ -38,7 +39,7 @@ func Dump(t *btree.BTree) {
 func DumpSubtrees(ls storage.LogStorage, treeID int64, callback func(string, *storagepb.SubtreeProto)) {
 	m := ls.(*memoryLogStorage)
 	tree := m.trees[treeID]
-	pi := subtreeKey(treeID, 0, storage.NewEmptyNodeID(64))
+	pi := subtreeKey(treeID, 0, stree.NodeID{})
 
 	tree.store.AscendGreaterOrEqual(pi, func(bi btree.Item) bool {
 		i := bi.(*kv)

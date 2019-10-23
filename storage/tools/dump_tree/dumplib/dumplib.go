@@ -19,7 +19,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -33,6 +32,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
@@ -47,6 +47,7 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
@@ -212,7 +213,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 	}
 
 	err = ls.ReadWriteTransaction(ctx, createdTree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, *sthZero); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, sthZero); err != nil {
 			glog.Fatalf("StoreSignedLogRoot: %v", err)
 		}
 		return nil
@@ -234,6 +235,7 @@ type Options struct {
 
 // Main runs the dump_tree tool
 func Main(args Options) string {
+	ctx := context.Background()
 	validateFlagsOrDie(args.Summary, args.RecordIO)
 
 	leafHashesFlag = args.LeafHashes
@@ -257,9 +259,9 @@ func Main(args Options) string {
 
 	// Read the latest STH back
 	var root types.LogRootV1
-	err := ls.ReadWriteTransaction(context.TODO(), tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+	err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		var err error
-		sth, err := tx.LatestSignedLogRoot(context.TODO())
+		sth, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil {
 			glog.Fatalf("LatestSignedLogRoot: %v", err)
 		}
@@ -281,11 +283,11 @@ func Main(args Options) string {
 	glog.Info("Producing output")
 
 	if args.Traverse {
-		return traverseTreeStorage(ls, tree, args.TreeSize, int64(root.Revision))
+		return traverseTreeStorage(ctx, ls, tree, args.TreeSize, int64(root.Revision))
 	}
 
 	if args.DumpLeaves {
-		return dumpLeaves(ls, tree, args.TreeSize)
+		return dumpLeaves(ctx, ls, tree, args.TreeSize)
 	}
 
 	var formatter func(*storagepb.SubtreeProto) string
@@ -311,7 +313,7 @@ func Main(args Options) string {
 	return allRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
 }
 
-func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func allRevisions(ls storage.LogStorage, treeID int64, repopFunc tree.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		if rebuildInternal {
@@ -325,7 +327,7 @@ func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Populat
 	return out.String()
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc tree.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
@@ -415,16 +417,16 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 	glog.Info("Finished sequencing")
 }
 
-func traverseTreeStorage(ls storage.LogStorage, tree *trillian.Tree, ts int, rev int64) string {
+func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillian.Tree, ts int, rev int64) string {
 	out := new(bytes.Buffer)
 	nodesAtLevel := int64(ts)
 
-	tx, err := ls.SnapshotForTree(context.TODO(), tree)
+	tx, err := ls.SnapshotForTree(context.TODO(), tt)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
 	defer func() {
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			glog.Fatalf("TX Commit(): %v", err)
 		}
 	}()
@@ -447,12 +449,12 @@ func traverseTreeStorage(ls storage.LogStorage, tree *trillian.Tree, ts int, rev
 		for node := int64(0); node < nodesAtLevel; node++ {
 			// We're going to request one node at a time, which would normally be slow but we have
 			// the tree in RAM so it's not a real problem.
-			nodeID, err := storage.NewNodeIDForTreeCoords(level, node, 64)
+			nodeID, err := tree.NewNodeIDForTreeCoords(level, node, 64)
 			if err != nil {
 				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, node, err)
 			}
 
-			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []storage.NodeID{nodeID})
+			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []tree.NodeID{nodeID})
 			if err != nil {
 				glog.Fatalf("GetMerkleNodes: %s: %v", nodeID.CoordString(), err)
 			}
@@ -473,20 +475,20 @@ func traverseTreeStorage(ls storage.LogStorage, tree *trillian.Tree, ts int, rev
 	return out.String()
 }
 
-func dumpLeaves(ls storage.LogStorage, tree *trillian.Tree, ts int) string {
+func dumpLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, ts int) string {
 	out := new(bytes.Buffer)
-	tx, err := ls.SnapshotForTree(context.TODO(), tree)
+	tx, err := ls.SnapshotForTree(ctx, tree)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
 	defer func() {
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			glog.Fatalf("TX Commit(): got: %v", err)
 		}
 	}()
 
 	for l := int64(0); l < int64(ts); l++ {
-		leaves, err := tx.GetLeavesByIndex(context.TODO(), []int64{l})
+		leaves, err := tx.GetLeavesByIndex(ctx, []int64{l})
 		if err != nil {
 			glog.Fatalf("GetLeavesByIndex for index %d got: %v", l, err)
 		}

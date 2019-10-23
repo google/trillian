@@ -17,11 +17,11 @@ package storage
 import (
 	"context"
 	"errors"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 )
 
@@ -94,7 +94,7 @@ func TestGetTree(t *testing.T) {
 				if err != nil {
 					t.Errorf("GetTree()=%v,%v, want: err=nil", tree, err)
 				}
-				if !reflect.DeepEqual(tc.wantTree, tree) {
+				if !proto.Equal(tc.wantTree, tree) {
 					t.Errorf("GetTree()=%v,%v, want: %v,nil", tree, err, tc.wantTree)
 				}
 			} else {

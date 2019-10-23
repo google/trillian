@@ -27,13 +27,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/testonly"
+	"golang.org/x/sys/unix"
 
 	_ "github.com/go-sql-driver/mysql" // mysql driver
 )
 
 var (
-	trillianSQL   = testonly.RelativeToPackage("../mysql/storage.sql")
+	trillianSQL   = testonly.RelativeToPackage("../mysql/schema/storage.sql")
 	dataSourceURI = flag.String("test_mysql_uri", "root@tcp(127.0.0.1)/", "The MySQL uri to use when running tests")
 )
 
@@ -52,11 +54,33 @@ func MySQLAvailable() bool {
 	return true
 }
 
+// SetFDULimit sets the soft limit on the maximum number of open file descriptors.
+// See http://man7.org/linux/man-pages/man2/setrlimit.2.html
+func SetFDLimit(uLimit uint64) error {
+	var rLimit unix.Rlimit
+	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit); err != nil {
+		return err
+	}
+	if uLimit > rLimit.Max {
+		return fmt.Errorf("Could not set FD limit to %v. Must be less than the hard limit %v", uLimit, rLimit.Max)
+	}
+	rLimit.Cur = uLimit
+	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)
+}
+
 // newEmptyDB creates a new, empty database.
-func newEmptyDB(ctx context.Context) (*sql.DB, error) {
+// It returns the database handle and a clean-up function, or an error.
+// The returned clean-up function should be called once the caller is finished
+// using the DB, the caller should not continue to use the returned DB after
+// calling this function as it may, for example, delete the underlying
+// instance.
+func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
+	if err := SetFDLimit(2048); err != nil {
+		return nil, nil, err
+	}
 	db, err := sql.Open("mysql", *dataSourceURI)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Create a randomly-named database and then connect using the new name.
@@ -64,30 +88,37 @@ func newEmptyDB(ctx context.Context) (*sql.DB, error) {
 
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
-		return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+		return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
 
 	db.Close()
 	db, err = sql.Open("mysql", *dataSourceURI+name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return db, db.Ping()
+	done := func(ctx context.Context) {
+		defer db.Close()
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE %v", name)); err != nil {
+			glog.Warningf("Failed to drop test database %q: %v", name, err)
+		}
+	}
+
+	return db, done, db.Ping()
 }
 
 // NewTrillianDB creates an empty database with the Trillian schema. The database name is randomly
 // generated.
 // NewTrillianDB is equivalent to Default().NewTrillianDB(ctx).
-func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
-	db, err := newEmptyDB(ctx)
+func NewTrillianDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
+	db, done, err := newEmptyDB(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	sqlBytes, err := ioutil.ReadFile(trillianSQL)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, stmt := range strings.Split(sanitize(string(sqlBytes)), ";") {
@@ -96,10 +127,10 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
 			continue
 		}
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return nil, fmt.Errorf("error running statement %q: %v", stmt, err)
+			return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 		}
 	}
-	return db, nil
+	return db, done, nil
 }
 
 func sanitize(script string) string {

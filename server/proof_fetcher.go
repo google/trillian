@@ -22,17 +22,23 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 )
+
+// proofMaxBitLen is the max depth of a tree. Used for tree.NodeID creation.
+const proofMaxBitLen = 64
 
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
 // from storage and converts them into the proof proto that will be returned to the client.
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
+	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
+	defer spanEnd()
 	proofNodes, err := fetchNodes(ctx, tx, treeRevision, proofNodeFetches)
 	if err != nil {
-		return trillian.Proof{}, err
+		return nil, err
 	}
 
 	r := &rehasher{th: th}
@@ -47,12 +53,12 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 type rehasher struct {
 	th         hashers.LogHasher
 	rehashing  bool
-	rehashNode storage.Node
+	rehashNode tree.Node
 	proof      [][]byte
 	proofError error
 }
 
-func (r *rehasher) process(node storage.Node, fetch merkle.NodeFetch) {
+func (r *rehasher) process(node tree.Node, fetch merkle.NodeFetch) {
 	switch {
 	case !r.rehashing && fetch.Rehash:
 		// Start of a rehashing chain
@@ -74,12 +80,12 @@ func (r *rehasher) process(node storage.Node, fetch merkle.NodeFetch) {
 	}
 }
 
-func (r *rehasher) emitNode(node storage.Node) {
+func (r *rehasher) emitNode(node tree.Node) {
 	r.proof = append(r.proof, node.Hash)
 }
 
-func (r *rehasher) startRehashing(node storage.Node) {
-	r.rehashNode = storage.Node{Hash: node.Hash}
+func (r *rehasher) startRehashing(node tree.Node) {
+	r.rehashNode = tree.Node{Hash: node.Hash}
 	r.rehashing = true
 }
 
@@ -90,9 +96,9 @@ func (r *rehasher) endRehashing() {
 	}
 }
 
-func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
+func (r *rehasher) rehashedProof(leafIndex int64) (*trillian.Proof, error) {
 	r.endRehashing()
-	return trillian.Proof{
+	return &trillian.Proof{
 		LeafIndex: leafIndex,
 		Hashes:    r.proof,
 	}, r.proofError
@@ -100,11 +106,17 @@ func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
 
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
 // to storage, returning the result after some additional validation checks.
-func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
-	proofNodeIDs := make([]storage.NodeID, 0, len(fetches))
+func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]tree.Node, error) {
+	ctx, spanEnd := spanFor(ctx, "fetchNodes")
+	defer spanEnd()
+	proofNodeIDs := make([]tree.NodeID, 0, len(fetches))
 
 	for _, fetch := range fetches {
-		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
+		id, err := tree.NewNodeIDForTreeCoords(int64(fetch.ID.Level), int64(fetch.ID.Index), proofMaxBitLen)
+		if err != nil {
+			return nil, err
+		}
+		proofNodeIDs = append(proofNodeIDs, id)
 	}
 
 	proofNodes, err := tx.GetMerkleNodes(ctx, treeRevision, proofNodeIDs)
@@ -117,9 +129,9 @@ func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, 
 	}
 
 	for i, node := range proofNodes {
-		// additional check that the correct node was returned
-		if !node.NodeID.Equivalent(fetches[i].NodeID) {
-			return []storage.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", fetches[i], i, node.NodeID)
+		// Additional check that the correct node was returned.
+		if !node.NodeID.Equivalent(proofNodeIDs[i]) {
+			return []tree.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
 		}
 	}
 

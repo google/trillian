@@ -38,15 +38,16 @@ func TestQuotaProviderRegistration(t *testing.T) {
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-
 			called := false
 			name := test.desc
 
 			if test.reg {
-				RegisterQuotaManager(name, func() (quota.Manager, error) {
+				if err := RegisterQuotaManager(name, func() (quota.Manager, error) {
 					called = true
 					return nil, nil
-				})
+				}); err != nil {
+					t.Fatalf("RegisterQuotaManager(%s)=%v", name, err)
+				}
 			}
 
 			_, err := NewQuotaManager(name)
@@ -65,8 +66,12 @@ func TestQuotaProviderRegistration(t *testing.T) {
 }
 
 func TestQuotaSystems(t *testing.T) {
-	RegisterQuotaManager("a", func() (quota.Manager, error) { return nil, nil })
-	RegisterQuotaManager("b", func() (quota.Manager, error) { return nil, nil })
+	if err := RegisterQuotaManager("a", func() (quota.Manager, error) { return nil, nil }); err != nil {
+		t.Fatalf("RegisterQuotaManager(a)=%v", err)
+	}
+	if err := RegisterQuotaManager("b", func() (quota.Manager, error) { return nil, nil }); err != nil {
+		t.Fatalf("RegisterQuotaManager(b)=%v", err)
+	}
 	qs := quotaSystems()
 
 	if got, want := len(qs), 2; got < want {

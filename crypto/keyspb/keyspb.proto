@@ -43,6 +43,10 @@ message Specification {
     int32 bits = 1;
   }
 
+  // Ed25519 defines (empty) parameters for an Ed25519 private key.
+  message Ed25519 {
+  }
+
   // The type of parameters provided determines the algorithm used for the key.
   oneof params {
     // The parameters for an ECDSA key.
@@ -50,6 +54,9 @@ message Specification {
 
     // The parameters for an RSA key.
     RSA rsa_params = 2;
+
+    // The parameters for an Ed25519 key.
+    Ed25519 ed25519_params = 3;
   }
 }
 
