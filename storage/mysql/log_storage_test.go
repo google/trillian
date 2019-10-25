@@ -371,6 +371,41 @@ func TestQueueLeaves(t *testing.T) {
 	}
 }
 
+func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
+	ctx := context.Background()
+
+	cleanTestDB(DB)
+	as := NewAdminStorage(DB)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
+	s := NewLogStorage(DB, nil)
+
+	const leafCount = 999 + 1
+	leaves := createTestLeaves(leafCount, 20)
+
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+		return nil
+	})
+
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+		return nil
+	})
+
+	// Should see the leaves in the database. There is no API to read from the unsequenced data.
+	var count int
+	if err := DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", tree.TreeId).Scan(&count); err != nil {
+		t.Fatalf("Could not query row count: %v", err)
+	}
+	if leafCount != count {
+		t.Fatalf("Expected %d unsequenced rows but got: %d", leafCount, count)
+	}
+}
+
 // AddSequencedLeaves tests. ---------------------------------------------------
 
 type addSequencedLeavesTest struct {
@@ -788,6 +823,36 @@ func TestGetLeavesByHash(t *testing.T) {
 			t.Fatalf("Got %d leaves but expected one", len(leaves))
 		}
 		checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+		return nil
+	})
+}
+
+func TestGetLeavesByHashBigBatch(t *testing.T) {
+	ctx := context.Background()
+
+	// Create fake leaf as if it had been sequenced
+	cleanTestDB(DB)
+	as := NewAdminStorage(DB)
+	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
+	s := NewLogStorage(DB, nil)
+
+	const leafCount = 999 + 1
+	hashes := make([][]byte, leafCount)
+	for i := 0; i < leafCount; i++ {
+		data := []byte(fmt.Sprintf("data %d", i))
+		hash := sha256.Sum256(data)
+		hashes[i] = hash[:]
+		createFakeLeaf(ctx, DB, tree.TreeId, hash[:], hash[:], data, someExtraData, sequenceNumber+int64(i), t)
+	}
+
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		leaves, err := tx.GetLeavesByHash(ctx, hashes, false)
+		if err != nil {
+			t.Fatalf("Unexpected error getting leaf by hash: %v", err)
+		}
+		if got, want := len(leaves), leafCount; got != want {
+			t.Fatalf("Got %d leaves, expected %d", got, want)
+		}
 		return nil
 	})
 }

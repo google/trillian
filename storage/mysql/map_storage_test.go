@@ -18,16 +18,19 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
@@ -372,6 +375,156 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	}
 }
 
+func TestMapMultiRevisionFetchBigBatch(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+
+	cleanTestDB(DB)
+	ctx := context.Background()
+	as := NewAdminStorage(DB)
+	s := NewMapStorage(DB)
+	tree := createInitializedMapForTests(ctx, t, s, as)
+
+	nodes1 := createMapNodes(1002)
+	nodeIDs := make([]stree.NodeID, len(nodes1))
+	for i := range nodes1 {
+		nodeIDs[i] = nodes1[i].NodeID
+	}
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		mapTX := tx.(*mapTreeTX)
+		mapTX.treeTX.writeRevision = 1
+		// Need to read nodes before attempting to write.
+		if _, err := tx.GetMerkleNodes(ctx, 0, nodeIDs); err != nil {
+			t.Fatalf("Failed to read nodes: %s", err)
+		}
+		if err := tx.SetMerkleNodes(ctx, nodes1); err != nil {
+			t.Fatalf("Failed to store nodes: %s", err)
+		}
+		return nil
+	})
+
+	nodes2 := make([]stree.Node, len(nodes1))
+	delta := make([]stree.Node, len(nodes1)/2)
+	for i := range nodes1 {
+		nodes2[i] = nodes1[i]
+		if i%2 == 0 && i/2 < cap(delta) {
+			h := sha256.Sum256([]byte{byte(42 + i*i)})
+			nodes2[i].Hash = h[:]
+			delta[i/2] = nodes2[i]
+		}
+	}
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		mapTX := tx.(*mapTreeTX)
+		mapTX.treeTX.writeRevision = 2
+		// Need to read nodes before attempting to write.
+		if _, err := tx.GetMerkleNodes(ctx, 1, nodeIDs); err != nil {
+			t.Fatalf("Failed to read nodes: %s", err)
+		}
+		if err := tx.SetMerkleNodes(ctx, delta); err != nil {
+			t.Fatalf("Failed to store nodes: %s", err)
+		}
+		return nil
+	})
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		readNodes, err := tx.GetMerkleNodes(ctx, 1, nodeIDs)
+		if err != nil {
+			t.Fatalf("Failed to retrieve nodes: %s", err)
+		}
+		if err := nodesAreEqual(readNodes, nodes1); err != nil {
+			t.Fatalf("Read back different nodes from the ones stored: %s", err)
+		}
+		return nil
+	})
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		readNodes, err := tx.GetMerkleNodes(ctx, 2, nodeIDs)
+		if err != nil {
+			t.Fatalf("Failed to retrieve nodes: %s", err)
+		}
+		if err := nodesAreEqual(readNodes, nodes2); err != nil {
+			t.Fatalf("Read back different nodes from the ones stored: %s", err)
+		}
+		return nil
+	})
+}
+
+func TestMapSetGetBigBatch(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
+
+	cleanTestDB(DB)
+	ctx := context.Background()
+	as := NewAdminStorage(DB)
+	s := NewMapStorage(DB)
+	tree := createInitializedMapForTests(ctx, t, s, as)
+
+	leaves := make([]*trillian.MapLeaf, 1001)
+	keys := make([][]byte, cap(leaves))
+	for i := 0; i < cap(leaves); i++ {
+		bs := []byte(fmt.Sprintf("leaf-%08d", i))
+		keys[i] = bs
+		leaves[i] = &trillian.MapLeaf{Index: bs, LeafHash: bs, LeafValue: bs, ExtraData: bs}
+	}
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		mapTX := tx.(*mapTreeTX)
+		mapTX.treeTX.writeRevision = 1
+		for _, l := range leaves {
+			if err := tx.Set(ctx, l.Index, l); err != nil {
+				t.Fatalf("Failed to set %v to %v: %v", l.Index, l, err)
+			}
+		}
+		return nil
+	})
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		mapTX := tx.(*mapTreeTX)
+		mapTX.treeTX.writeRevision = 2
+		for i, l := range leaves {
+			if i%2 == 0 {
+				u := &trillian.MapLeaf{Index: l.Index, LeafHash: []byte{}, LeafValue: []byte{}, ExtraData: []byte{}}
+				if err := tx.Set(ctx, l.Index, u); err != nil {
+					t.Fatalf("Failed to set %v to %v: %v", l.Index, l, err)
+				}
+			}
+		}
+		return nil
+	})
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		ls, err := tx.Get(ctx, 1, keys)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < len(leaves); i++ {
+			if got, want := ls[i], leaves[i]; !proto.Equal(got, want) {
+				t.Fatalf("Read != written leaf: got %v, want %v", got, want)
+			}
+		}
+		return nil
+	})
+
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		ls, err := tx.Get(ctx, 2, keys)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < len(leaves); i++ {
+			var want *trillian.MapLeaf
+			if i%2 == 0 {
+				want = &trillian.MapLeaf{Index: leaves[i].Index, LeafHash: []byte{}, LeafValue: []byte{}, ExtraData: []byte{}}
+			} else {
+				want = leaves[i]
+			}
+			if got := ls[i]; !proto.Equal(got, want) {
+				t.Fatalf("Read != written leaf: got %v, want %v", got, want)
+			}
+		}
+		return nil
+	})
+}
+
 func TestGetSignedMapRootNotExist(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 
@@ -569,4 +722,30 @@ func mapTree(mapID int64) *trillian.Tree {
 		TreeType:     trillian.TreeType_MAP,
 		HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 	}
+}
+
+func createMapNodes(count int) []stree.Node {
+	r := make([]stree.Node, count)
+	bs := make([]byte, 32) // Default value of 0 index in 2^256 keyspace.
+
+	const bottomStrataIdx = 9
+
+	for i := range r {
+		bt := make([]byte, len(bs))
+		copy(bt, bs)
+		r[i].NodeID = stree.NewNodeIDFromHash(bt)
+		h := sha256.Sum256(bs)
+		r[i].Hash = h[:]
+		glog.V(3).Infof("Node to store: %v\n", r[i].NodeID)
+
+		needsIncrement := true
+		for i := bottomStrataIdx; needsIncrement && i >= 0; i-- {
+			bs[i]++
+			needsIncrement = bs[i] == 0 // Keep incrementing if we overflowed this byte.
+		}
+		if needsIncrement {
+			panic(fmt.Sprintf("ran out of subtrees to create %d nodes", count))
+		}
+	}
+	return r
 }
