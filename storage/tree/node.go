@@ -26,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/storage/storagepb"
 )
 
 const hexChars = "0123456789abcdef"
@@ -470,11 +469,3 @@ func (n NodeID) Equivalent(other NodeID) bool {
 	mask := leftmask[n.PrefixLenBits%8]
 	return (n.Path[depthBytes] & mask) == (other.Path[depthBytes] & mask)
 }
-
-// PopulateSubtreeFunc is a function which knows how to re-populate a subtree
-// from just its leaf nodes.
-type PopulateSubtreeFunc func(*storagepb.SubtreeProto) error
-
-// PrepareSubtreeWriteFunc is a function that carries out any required tree type specific
-// manipulation of a subtree before it's written to storage
-type PrepareSubtreeWriteFunc func(*storagepb.SubtreeProto) error

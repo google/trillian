@@ -22,6 +22,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 )
@@ -36,12 +37,12 @@ func NewMapSubtreeCache(mapStrata []int, treeID int64, hasher hashers.MapHasher)
 // subtree Leaves map.
 //
 // This uses HStar2 to repopulate internal nodes.
-func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) tree.PopulateSubtreeFunc {
+func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		leaves := make([]*merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
-			sfx, err := tree.ParseSuffix(k64)
+			sfx, err := storage.ParseSuffix(k64)
 			if err != nil {
 				return err
 			}
@@ -85,7 +86,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) tree.Popula
 
 // prepareMapSubtreeWrite prepares a map subtree for writing. For maps the internal
 // nodes are never written to storage and are thus always cleared.
-func prepareMapSubtreeWrite() tree.PrepareSubtreeWriteFunc {
+func prepareMapSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = nil
 		// We don't check the node count for map subtrees but ensure it's zero for consistency

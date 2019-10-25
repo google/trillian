@@ -313,7 +313,7 @@ func Main(args Options) string {
 	return allRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
 }
 
-func allRevisions(ls storage.LogStorage, treeID int64, repopFunc tree.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		if rebuildInternal {
@@ -327,7 +327,7 @@ func allRevisions(ls storage.LogStorage, treeID int64, repopFunc tree.PopulateSu
 	return out.String()
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc tree.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
