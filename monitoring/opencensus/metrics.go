@@ -3,7 +3,6 @@ package opencensus
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"strings"
@@ -37,8 +36,9 @@ type MetricFactory struct {
 // Once registered with Opencensus' View, all metrics will export to these systems
 //TODO(dazwilkin) OpenCensus Agent Exporter should be configured by config
 //TODO(dazwilkin) Address 'WithInsecure()'
-func Initialize() (func(), error) {
+func Initialize(endpoint string) (func(), error) {
 	agent, err := ocagent.NewExporter(
+		ocagent.WithAddress(endpoint),
 		ocagent.WithInsecure(),
 		ocagent.WithServiceName(fmt.Sprintf("trillian-%d", os.Getpid())))
 	if err == nil {
@@ -54,6 +54,7 @@ func Initialize() (func(), error) {
 // -- contains non-printable ASCII
 // -- or len is 0 or >256
 // Printable ASCII 32-126 inclusive
+// TODO(dazwilkin) would it be better to trim labelnames>256?
 func checkLabelNames(names []string) {
 	nonPrintableASCII := func(r rune) bool { return (r < 32 || r > 126) }
 	for _, name := range names {
@@ -87,20 +88,22 @@ func createMeasureAndView(prefix, name, help string, aggregation *view.Aggregati
 		// OpenCensus requires labelNames be (printable) ASCII
 		checkLabelNames(labelNames)
 	}
-
-	prefixedName := prefix + separator + name
-	measure := stats.Float64(prefixedName, help, "1")
+	// if there is one, prepend the name w/ the prefix (and separator)
+	if prefix != "" {
+		name = prefix + separator + name
+	}
+	measure := stats.Float64(name, help, "1")
 	tagKeys := createTagKeys(labelNames)
 
 	v := &view.View{
-		Name:        prefixedName,
+		Name:        name,
 		Measure:     measure,
 		Description: help,
 		Aggregation: aggregation,
 		TagKeys:     tagKeys,
 	}
 	if err := view.Register(v); err != nil {
-		log.Fatal(err)
+		glog.Fatal(err)
 	}
 
 	return measure
@@ -131,7 +134,7 @@ func assignValuesToLabels(ctx context.Context, labels, values []string) context.
 // NewCounter create a new Counter object backed by OpenCensus.
 func (ocmf MetricFactory) NewCounter(name, help string, labelNames ...string) monitoring.Counter {
 	//TODO(dazwilkin) What View Aggregation is best for "Counter"? (sum?)
-	glog.Infof("[Counter] %s", name)
+	glog.Infof("[opencensus:Counter] %s", name)
 	measure := createMeasureAndView(ocmf.Prefix, name, help, view.Sum(), labelNames)
 	return &Counter{
 		labelNames: labelNames,
@@ -142,7 +145,7 @@ func (ocmf MetricFactory) NewCounter(name, help string, labelNames ...string) mo
 // NewGauge creates a new Gauge object backed by OpenCensus.
 func (ocmf MetricFactory) NewGauge(name, help string, labelNames ...string) monitoring.Gauge {
 	//TODO(dazwilkin) What View Aggregation is best for "Gauge"? (count+sum? lastvalue?)
-	glog.Infof("[Gauge] %s", name)
+	glog.Infof("[opencensus:Gauge] %s", name)
 	measure := createMeasureAndView(ocmf.Prefix, name, help, view.Sum(), labelNames)
 	return &Gauge{
 		labelNames: labelNames,
@@ -174,7 +177,7 @@ func (ocmf MetricFactory) NewHistogram(name, help string, labelNames ...string) 
 // NewHistogramWithBuckets creates a new Histogram object with a specified set of buckets backed by OpenCensus.
 func (ocmf MetricFactory) NewHistogramWithBuckets(name, help string, buckets []float64, labelNames ...string) monitoring.Histogram {
 	//TODO(dazwilkin) How is an OpenCensus Distribution treated by Stackdriver?
-	glog.Infof("[Histogram] %s", name)
+	glog.Infof("[opencensus:Histogram] %s", name)
 	if len(buckets) == 0 {
 		glog.Infof("[Histogram] %s: created with 0 buckets!", name)
 	}

@@ -18,9 +18,15 @@ mf := opencensus.MetricFactory{
     //Prefix: "YourDesiredPrefix",
 }
 ```
-The OpenCensus Exporter must be initialized (to connect it to an OpenCensus Agent) before use, so the following initialization is required too:
+The OpenCensus Exporter must be initialized (to connect it to an OpenCensus Agent) before use. We'll use the opportunity of initialization to parameterize the agent's endpoint:
+
+```Golang
+ocatEndpoint    = flag.String("ocat_endpoint", "localhost:55678", "Endpoint for OpenCensus Agent receiver (host:port)")
 ```
-flush, err := opencensus.Initialize()
+Then use the following initialization:
+```Golang
+glog.Infof("Initializing OpenCensus Agent exporter [%s]", *ocatEndpoint)
+flush, err := opencensus.Initialize(*ocatEndpoint)
 if err != nil {
 	glog.Exitf("Failed to initialize OpenCensus Agent: %v", err)
 }
@@ -31,14 +37,14 @@ The package (`"github.com/google/trillian/monitoring/opencensus"`) is already im
 
 ## 2. OpenCensus Agent
 
-The OpenCensus code exports to an OpenCensus Agent and, by default (not yet configurable), it expects this Agent to be listening on `55678`.
+The OpenCensus code exports to an OpenCensus Agent running in a separate process. By default, it expects this Agent to be listening on `:55678` but this is configurable when initializing the exporter (see above).
 
-Using the YAML below, configures the Agent to:
+The following YAML (conventionally: `ocagent.yaml`) configures the Agent to:
 * receive OpenCensus metric data on port `55678`
-* export zPages data (implicit) on port `55679` and endpoints `/debug/rpcs` and `/debug/tracez`
 * export Stackdriver data to `{PROJECT}` (this value needs to be replaced before use) using the key referenced by `GOOGLE_APPLICATION_CREDENTIALS`
 * export Prometheus data on a metrics endpoint on port `9090`.
 * export Datadog data to the Datadog Agent on port `8125`. [Currently Datadog does not support metrics!]
+* export zPages data on port `9999` with endpoints `/debug/rpcs` and `/debug/tracez`
 
 ```yaml
 receivers:
@@ -58,7 +64,9 @@ exporters:
     # The address:port of the Datadog Agent (:8125 is the default)
     # metrics_addr: ":8125"
     enable_metrics: true
-    enable_trace: false    
+    enable_trace: false
+zpages:
+  port: 9999
 ```
 The simplest way to run the Agent is using the Docker image:
 ```bash
@@ -72,14 +80,16 @@ docker run \
 --publish=55679:55679 \
 --env=GOOGLE_APPLICATION_CREDENTIALS=/secrets/key.json \
 omnition/opencensus-agent:0.1.5 \
-  --config=/configs/agent.yaml
+  --config=/configs/ocagent.yaml
 ```
+
+**NB** The above command assumes the existence of `${PWD}/configs/ocagent.yaml` (see example above) and `${PWD}/secrets/key.json` (see 'Stackdriver' below)
 
 ## 3. Monitoring
 ### 3.1. zPages
 
-* http://localhost:55679/debug/rpcz
-* http://localhost:55679/debug/tracez
+* http://localhost:9999/debug/rpcz
+* http://localhost:9999/debug/tracez
 
 ### 3.2. Stackdriver
 
@@ -106,10 +116,17 @@ gcloud iam service-accounts keys create ${FILE} \
 --iam-account=${ACCOUNT}@${PROJECT}.iam.gserviceaccount.com \
 --project=${PROJECT}
 
+# To permit the service account to write to Stackdriver Monitoring:
+
 gcloud projects add-iam-policy-binding ${PROJECT} \
 --member=serviceAccount:${ACCOUNT}@${PROJECT}.iam.gserviceaccount.com \
 --role=roles/monitoring.metricWriter
 
+# To permit the service account to write to Stackdriver Trace:
+
+gcloud projects add-iam-policy-binding ${PROJECT} \
+--member=serviceAccount:${ACCOUNT}@${PROJECT}.iam.gserviceaccount.com \
+--role=roles/cloudtrace.agent
 
 # Stackdriver must be provisioned through the UI
 google-chrome https://console.cloud.google.com/monitoring?project=${PROJECT}
@@ -125,11 +142,13 @@ Observe the metrics using Stackdriver Console, e.g. Metrics Explorer
 
 **NB** 
 
-The metric types will be `custom.googleapis.com/opencensus/{{MetricFactory.Prefix}}{{separator}}{{name}}`
+If a Prefix is defined, the metric types will be `custom.googleapis.com/opencensus/{{MetricFactory.Prefix}}{{separator}}{{name}}`
 
 So, for a `Prefix: "Freddie"`, the Trillian metric name `mysql_queue_leaf_latency_entry` will be `custom.googleapis.com/opencensus/Freddie_mysql_queue_leaf_leatency_entry`
 
 Stackdriver will display this name as `OpenCensus/Freddie_mysql_queue_leaf_latency_entry`
+
+If no Preix is define, metrics will be of the form `custom.googleapis.com/opencensus/{{name}}`
 
 #### 3.2.2. APIs Explorer
 
