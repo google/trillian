@@ -122,6 +122,7 @@ jobs:
       env: GO_TEST_TIMEOUT=20m
       script:
         - mysql -u root -e 'SHOW VARIABLES LIKE "%version%";'
+        - go test ./storage/mysql/...
         - ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
 
 services:
