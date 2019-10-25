@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 )
@@ -38,7 +39,7 @@ func NewLogSubtreeCache(logStrata []int, hasher hashers.LogHasher) *SubtreeCache
 
 // LogPopulateFunc obtains a log storage population function based on a supplied LogHasher.
 // This is intended for use by storage utilities.
-func LogPopulateFunc(hasher hashers.LogHasher) tree.PopulateSubtreeFunc {
+func LogPopulateFunc(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 	return populateLogSubtreeNodes(hasher)
 }
 
@@ -49,7 +50,7 @@ func LogPopulateFunc(hasher hashers.LogHasher) tree.PopulateSubtreeFunc {
 // handle imperfect (but left-hand dense) subtrees. Note that we only rebuild internal
 // nodes when the subtree is fully populated. For an explanation of why see the comments
 // below for PrepareLogSubtreeWrite.
-func populateLogSubtreeNodes(hasher hashers.LogHasher) tree.PopulateSubtreeFunc {
+func populateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		if st.Depth < 1 {
 			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
@@ -136,7 +137,7 @@ func populateLogSubtreeNodes(hasher hashers.LogHasher) tree.PopulateSubtreeFunc 
 //
 // Fully populated subtrees don't have this problem because by definition they can only
 // contain internal nodes built from their own contents.
-func prepareLogSubtreeWrite() tree.PrepareSubtreeWriteFunc {
+func prepareLogSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodeCount = uint32(len(st.InternalNodes))
 		if st.Depth < 1 {

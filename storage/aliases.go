@@ -14,16 +14,25 @@
 
 package storage
 
-import tree "github.com/google/trillian/storage/tree"
+import (
+	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
+)
 
-// TODO(pavelkalinnikov): These aliases were created to not break the code that
-// depended on these types. We should delete this file eventually.
+// TODO(pavelkalinnikov, v2): These aliases were created to not break the code
+// that depended on these types. We should delete this.
 
 type NodeID = tree.NodeID
 type Node = tree.Node
 type Suffix = tree.Suffix
-type PopulateSubtreeFunc = tree.PopulateSubtreeFunc
-type PrepareSubtreeWriteFunc = tree.PrepareSubtreeWriteFunc
+
+// PopulateSubtreeFunc is a function which knows how to re-populate a subtree
+// from just its leaf nodes.
+type PopulateSubtreeFunc func(*storagepb.SubtreeProto) error
+
+// PrepareSubtreeWriteFunc is a function that carries out any required tree
+// type specific manipulation of a subtree before it's written to storage
+type PrepareSubtreeWriteFunc func(*storagepb.SubtreeProto) error
 
 var (
 	NewNodeIDFromHash         = tree.NewNodeIDFromHash

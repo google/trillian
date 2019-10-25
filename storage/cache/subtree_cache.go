@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 )
@@ -66,18 +67,18 @@ type SubtreeCache struct {
 	dirtyPrefixes sync.Map
 
 	// populate is used to rebuild internal nodes when subtrees are loaded from storage.
-	populate tree.PopulateSubtreeFunc
+	populate storage.PopulateSubtreeFunc
 	// populateConcurrency sets the amount of concurrency when repopulating subtrees.
 	populateConcurrency int
 	// prepare is used for preparation work when subtrees are about to be written to storage.
-	prepare tree.PrepareSubtreeWriteFunc
+	prepare storage.PrepareSubtreeWriteFunc
 }
 
 // NewSubtreeCache returns a newly intialised cache ready for use.
 // populateSubtree is a function which knows how to populate a subtree's
 // internal nodes given its leaves, and will be called for each subtree loaded
 // from storage.
-func NewSubtreeCache(strataDepths []int, populateSubtree tree.PopulateSubtreeFunc, prepareSubtreeWrite tree.PrepareSubtreeWriteFunc) *SubtreeCache {
+func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) *SubtreeCache {
 	// TODO(al): pass this in
 	maxTreeDepth := maxSupportedTreeDepth
 	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
