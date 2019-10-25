@@ -1,0 +1,35 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: trillian-logserver-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: trillian-logserver
+          image: gcr.io/${project_id}/log_server
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: trillian-logsigner-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: trillian-log-signer
+          image: gcr.io/${project_id}/log_signer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploy-config
+data:
+  STORAGE_FLAG: --cloudspanner_uri=projects/${project_id}/instances/trillian-spanner/databases/trillian-db
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: trillian@${project_id}.iam.gserviceaccount.com
+  name: trillian-svc

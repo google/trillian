@@ -2,25 +2,19 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    io.kompose.service: trillian-log
+    app: trillian-log
   name: trillian-logserver-deployment
 spec:
   replicas: 4
-  strategy: {}
   template:
     metadata:
       labels:
-        io.kompose.service: trillian-log
+        app: trillian-log
     spec:
-      volumes:
-      - name: google-cloud-key
-        secret:
-          secretName: trillian-key
+      serviceAccountName: trillian-svc
       restartPolicy: Always
       containers:
       - name: trillian-logserver
-        # TODO(RJPercival): Pass STORAGE_FLAG via --config to protect any
-        # sensitive contents (e.g. passwords) from being seen in process list.
         args: [
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
@@ -35,9 +29,7 @@ spec:
         envFrom:
         - configMapRef:
             name: deploy-config
-        - secretRef:
-            name: trillian-secrets
-        image: gcr.io/${PROJECT_ID}/log_server:${IMAGE_TAG}
+        image: log_server
         imagePullPolicy: Always
         resources:
           limits:
@@ -56,9 +48,6 @@ spec:
           name: grpc
         - containerPort: 8091
           name: http-metrics
-        volumeMounts:
-        - name: google-cloud-key
-          mountPath: /var/secrets/google
       - name: prometheus-to-sd
         image: gcr.io/google-containers/prometheus-to-sd:v0.5.2
         ports:

@@ -3,15 +3,19 @@
 This document guides you through the process of spinning up an example Trillian
 deployment on Google Cloud using Kubernetes and Cloud Spanner.
 
+## Architecture
+
+The infrastructure is created using Terraform. It consists of a Cloud Spanner
+database, a Trillian-specific etcd cluster, the Trillian logservice and
+logsigner. A Workload Identity is setup by Terraform to give the services access
+to Cloud Spanner. The container images are built using Google Cloud Build.
 
 ## Prerequisites
 
 1. You should have this repo checked out :)
 1. A recent [Debian](https://debian.org) based distribution (other platforms
    may work, but YMMV)
-1. You must have the [`jq` binary](https://packages.debian.org/stretch/jq)
-   installed (for command-line manipulation of JSON)
-1. You have `gcloud`/`kubectl`/`go`/`Docker` etc. installed (See
+1. You have `terraform`, `kubectl` and `gcloud` installed (See
    [Cloud quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart)
    docs)
 1. You have a Google account with billing configured
@@ -22,27 +26,25 @@ deployment on Google Cloud using Kubernetes and Cloud Spanner.
 ## Process
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
-1. Create a new project
-1. Edit the [example-config.sh](example-config.sh) file, set `PROJECT_ID` to
-   the ID of your project
-1. Run: `./create.sh example-config.sh`.
-   This script will create the Kubernetes cluster, node pools, and Spanner
-   database, service account and etcd cluster.
-   It should take about 5 to 10 minutes to finish and must complete without
-   error.
-1. Now you can deploy the Trillian services.
-   Run: `./deploy.sh example-config.sh`
-   This will build the Trillian Docker images, tag them, and create/update the
-   Kubernetes deployment.
-1. To update a running deployment, simply re-run `./deploy.sh example-config.sh`
-   at any time.
+1. Create a new project and copy its [Project
+   ID](https://cloud.google.com/resource-manager/docs/creating-managing-projects#identifying_projects).
+1. Create the infrastructure: `terraform init && terraform apply -var="gcp_project=PROJECT_ID"`.
+   It is ok to re-execute this command at any time.
+1. The script will output a gcloud command similar to:
+   ```shell
+   gcloud config set project PROJECT_ID && \
+   gcloud container clusters get-credentials cluster --region=us-west1 && \
+   gcloud builds submit --config=cloudbuild.yaml ../../..
+   ```
+   Execute this set of commands to get the credentials for your new cluster and build
+   the docker images.
+1. Deploy the containers: `kubectl apply -k .`
 
 You should now have a working Trillian Log deployment in Kubernetes.
 
 **NOTE: none of the Trillian APIs are exposed to the internet with this config,
 this is intentional since the only access to Trillian should be via a
 personality layer.**
-
 
 ## Next steps
 
@@ -65,6 +67,9 @@ The CT repo includes Kubernetes
 and
 [deployment configurations](https://github.com/google/certificate-transparency-go/tree/master/trillian/examples/deployment/kubernetes/).
 
+## Uninstall
+
+`terraform destroy`
 
 ## Known Issues
 
