@@ -24,8 +24,8 @@ import "fmt"
 // code has migrated.
 type NodeID2 struct {
 	path string
-	last byte
-	bits uint8
+	last byte  // Invariant: Lowest (8-bits) bits are unset.
+	bits uint8 // Invariant: 1 <= bits <= 8, or bits == 0 if len(path) == 0.
 }
 
 // NewNodeID2 creates a NodeID2 from the given path bytes truncated to the
@@ -37,10 +37,28 @@ func NewNodeID2(path string, bits uint) NodeID2 {
 	} else if mx := uint(len(path)) * 8; bits > mx {
 		panic(fmt.Sprintf("NewNodeID2: bits %d > %d", bits, mx))
 	}
-	bytes, tail, mask := split(bits)
-	last := path[bytes] & mask
+	bytes, tailBits := split(bits)
 	// Note: Getting the substring is cheap because strings are immutable in Go.
-	return NodeID2{path: path[:bytes], last: last, bits: tail}
+	return newMaskedNodeID2(path[:bytes], path[bytes], tailBits)
+}
+
+// NewNodeID2WithLast creates a NodeID2 from the given path bytes and the
+// additional last byte, of which only the specified number of most significant
+// bits is used. The number of bits must be between 1 and 8, and can be 0 only
+// if the path bytes string is empty; otherwise the function panics.
+func NewNodeID2WithLast(path string, last byte, bits uint8) NodeID2 {
+	if bits > 8 {
+		panic(fmt.Sprintf("NewNodeID2WithLast: bits %d > 8", bits))
+	} else if bits == 0 && len(path) != 0 {
+		panic("NewNodeID2WithLast: bits=0, but path is not empty")
+	}
+	return newMaskedNodeID2(path, last, bits)
+}
+
+// newMaskedNodeID2 constructs a NodeID ensuring its invariants are met.
+func newMaskedNodeID2(path string, last byte, bits uint8) NodeID2 {
+	last &= ^byte(1<<(8-bits) - 1) // Unset the unused bits.
+	return NodeID2{path: path, last: last, bits: bits}
 }
 
 // BitLen returns the length of the NodeID2 in bits.
@@ -71,13 +89,12 @@ func (n NodeID2) Prefix(bits uint) NodeID2 {
 	} else if mx := n.BitLen(); bits > mx {
 		panic(fmt.Sprintf("Prefix: bits %d > %d", bits, mx))
 	}
+	bytes, tailBits := split(bits)
 	last := n.last
-	bytes, tail, mask := split(bits)
 	if bytes != uint(len(n.path)) {
 		last = n.path[bytes]
 	}
-	last &= mask
-	return NodeID2{path: n.path[:bytes], last: last, bits: tail}
+	return newMaskedNodeID2(n.path[:bytes], last, tailBits)
 }
 
 // Sibling returns the NodeID2 of the nodes's sibling in a binary tree, i.e.
@@ -101,15 +118,9 @@ func (n NodeID2) String() string {
 	return fmt.Sprintf("[%s%0*b]", path, n.bits, n.last>>(8-n.bits))
 }
 
-// split returns decomposition of a NodeID2 with the given number of bits.
-//
-// The first int of the returned triple is the number of full bytes stored in
-// the dynamically allocated part. The second one is the number of bits in the
-// tail byte (between 1 and 8). The third value is a mask with the
-// corresponding number of higher bits set.
-func split(bits uint) (uint, uint8, byte) {
-	bytes := (bits - 1) / 8
-	tailBits := uint8(1 + (bits-1)%8)
-	mask := ^byte(1<<(8-tailBits) - 1)
-	return bytes, tailBits, mask
+// split returns the decomposition of a NodeID2 with the given number of bits.
+// The first int returned is the number of full bytes stored in the dynamically
+// allocated part. The second one is the number of bits in the tail byte.
+func split(bits uint) (uint, uint8) {
+	return (bits - 1) / 8, uint8(1 + (bits-1)%8)
 }

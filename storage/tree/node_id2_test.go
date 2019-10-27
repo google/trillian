@@ -20,6 +20,40 @@ import (
 	"testing"
 )
 
+func TestNewNodeID2WithLast(t *testing.T) {
+	const bytes = "\x0A\x0B\x0C\xFA"
+	for _, tc := range []struct {
+		length uint
+		path   string
+		last   byte
+		bits   uint8
+	}{
+		{length: 0, last: 0, bits: 0},
+		{length: 0, last: 123, bits: 0},
+		{length: 1, last: 0, bits: 1},
+		{length: 1, last: 123, bits: 1},
+		{length: 4, last: 0, bits: 4},
+		{length: 5, last: 0xA, bits: 5},
+		{length: 5, last: 0xF, bits: 5},
+		{length: 7, last: 0xB, bits: 7},
+		{length: 8, last: 0xA, bits: 8},
+		{length: 9, path: bytes[:1], last: 0, bits: 1},
+		{length: 13, path: bytes[:1], last: 0xA, bits: 5},
+		{length: 24, path: bytes[:2], last: 0xC, bits: 8},
+		{length: 31, path: bytes[:3], last: 0xFB, bits: 7},
+		{length: 31, path: bytes[:3], last: 0xFA, bits: 7},
+		{length: 32, path: bytes[:3], last: 0xFA, bits: 8},
+	} {
+		id := NewNodeID2(bytes, tc.length)
+		t.Run(id.String(), func(t *testing.T) {
+			got := NewNodeID2WithLast(tc.path, tc.last, tc.bits)
+			if want := id; got != want {
+				t.Errorf("NewNodeID2WithLast: %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 func TestNodeID2String(t *testing.T) {
 	bytes := string([]byte{5, 1, 127})
 	for _, tc := range []struct {
