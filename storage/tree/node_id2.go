@@ -16,15 +16,34 @@ package tree
 
 import "fmt"
 
-// NodeID2 is a faster NodeID that does zero memory allocations in transforming
-// methods like Prefix and Sibling. NodeID2 can be used as a key in Golang maps
-// directly, as well as compared equal.
+// NodeID2 identifies a node of a Merkle tree. It is a bit string that counts
+// the node down from the tree root, i.e. 0 and 1 bits correspond to going to
+// the left or right child correspondingly.
 //
-// TODO(pavelkalinnikov): Rename to NodeID and document it properly when the
-// code has migrated.
+// NodeID2 is immutable, comparable, and can be used as a Golang map key. It
+// also incurs zero memory allocations in transforming methods like Prefix and
+// Sibling.
+//
+// The internal structure of NodeID2 is driven by its use-cases:
+// - To make NodeID2 objects immutable and comparable, the Golang string type
+//   is used for storing the bit string bytes.
+// - To make Sibling and Prefix operations fast, the last byte is stored
+//   separately from the rest of the bytes, so that it can be "amended".
+// - To make NodeID2 objects comparable, there is only one (canonical) way to
+//   encode an ID. For example, if the last byte is used partially, its unused
+//   bits are always unset. See invariants next to field definitions below.
+//
+// Constructors and methods of NodeID2 make sure its invariants are always met.
+//
+// For example, an 11-bit node ID [1010,1111,001] is structured as follows:
+// - path string contains 1 byte, which is [1010,1111].
+// - last byte is [0010,0000]. Note the unset lower 5 bits.
+// - bits is 3, so effectively only the upper 3 bits [001] of last are used.
+//
+// TODO(pavelkalinnikov, v2): Replace NodeID with this type.
 type NodeID2 struct {
 	path string
-	last byte  // Invariant: Lowest (8-bits) bits are unset.
+	last byte  // Invariant: Lowest (8-bits) bits of the last byte are unset.
 	bits uint8 // Invariant: 1 <= bits <= 8, or bits == 0 if len(path) == 0.
 }
 
@@ -55,7 +74,9 @@ func NewNodeID2WithLast(path string, last byte, bits uint8) NodeID2 {
 	return newMaskedNodeID2(path, last, bits)
 }
 
-// newMaskedNodeID2 constructs a NodeID ensuring its invariants are met.
+// newMaskedNodeID2 constructs a NodeID ensuring its invariants are met. The
+// last byte is masked so that the given number of upper bits are in use, and
+// the others are unset.
 func newMaskedNodeID2(path string, last byte, bits uint8) NodeID2 {
 	last &= ^byte(1<<(8-bits) - 1) // Unset the unused bits.
 	return NodeID2{path: path, last: last, bits: bits}
@@ -121,6 +142,6 @@ func (n NodeID2) String() string {
 // split returns the decomposition of a NodeID2 with the given number of bits.
 // The first int returned is the number of full bytes stored in the dynamically
 // allocated part. The second one is the number of bits in the tail byte.
-func split(bits uint) (uint, uint8) {
+func split(bits uint) (bytes uint, tailBits uint8) {
 	return (bits - 1) / 8, uint8(1 + (bits-1)%8)
 }
