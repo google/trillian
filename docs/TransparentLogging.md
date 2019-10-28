@@ -11,7 +11,7 @@
 
 ## Introduction
 
-The [Trillian project](https://github.com/google/trilllian) generalizes the
+The [Trillian project](https://github.com/google/trillian) generalizes the
 ideas behind [Certificate Transparency](https://certificate-transparency.org),
 to allow transparent, append-only logging of arbitrary data.
 
