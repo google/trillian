@@ -17,8 +17,8 @@ package tree
 import "fmt"
 
 // NodeID2 identifies a node of a Merkle tree. It is a bit string that counts
-// the node down from the tree root, i.e. 0 and 1 bits correspond to going to
-// the left or right child correspondingly.
+// the node down from the tree root, i.e. 0 and 1 bits represent going to the
+// left or right child correspondingly.
 //
 // NodeID2 is immutable, comparable, and can be used as a Golang map key. It
 // also incurs zero memory allocations in transforming methods like Prefix and
