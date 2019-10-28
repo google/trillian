@@ -25,6 +25,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
@@ -240,9 +241,9 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(int64(testRoot0.Revision+1), nil)
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{testLeaf0}, nil)
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testSignedRoot0, nil)
-	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), []*trillian.LogLeaf{testLeaf0Updated}).Return(nil)
+	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), cmpMatcher{[]*trillian.LogLeaf{testLeaf0Updated}}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(gomock.Any(), updatedNodes0).Return(nil)
-	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), updatedSignedRoot).Return(nil)
+	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), cmpMatcher{updatedSignedRoot}).Return(nil)
 
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
 	mockAdminTx.EXPECT().Commit().Return(nil)
@@ -256,6 +257,17 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 	sm.ExecutePass(ctx, logID, createTestInfo(registry))
+}
+
+// cmpMatcher is a custom gomock.Matcher that uses cmp.Equal combined with a
+// cmp.Comparer that knows how to properly compare proto.Message types.
+type cmpMatcher struct{ want interface{} }
+
+func (m cmpMatcher) Matches(got interface{}) bool {
+	return cmp.Equal(got, m.want, cmp.Comparer(proto.Equal))
+}
+func (m cmpMatcher) String() string {
+	return fmt.Sprintf("equals %v", m.want)
 }
 
 func TestSequencerManagerGuardWindow(t *testing.T) {

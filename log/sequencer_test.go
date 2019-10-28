@@ -322,7 +322,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	}
 
 	if params.updatedLeaves != nil {
-		mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), *params.updatedLeaves).Return(params.updatedLeavesError)
+		mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), cmpMatcher{*params.updatedLeaves}).Return(params.updatedLeavesError)
 	}
 
 	if params.merkleNodesSet != nil {
@@ -331,7 +331,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	if !params.skipStoreSignedRoot {
 		if params.storeSignedRoot != nil {
-			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), params.storeSignedRoot).Return(params.storeSignedRootError)
+			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), cmpMatcher{params.storeSignedRoot}).Return(params.storeSignedRootError)
 		} else {
 			// At the moment if we're going to fail the operation we accept any root
 			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any()).Return(params.storeSignedRootError)
