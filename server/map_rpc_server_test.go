@@ -455,14 +455,15 @@ func TestSetLeaves(t *testing.T) {
 					// One Set call per leaf.
 					mockTX.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(count)
 					if !tc.splitTX {
-						// One shard per leaf (note that they are random), plus the root shard.
+						// Leaves are in different shards because the leaf indices are
+						// random. We query one shard per leaf, plus the root shard.
 						merkleGets := count + 1
-						// Plus, possibly, the preloading phase.
+						// Plus, possibly, there is a "global" preloading query.
 						if tc.preload {
 							merkleGets++
 						}
 						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(merkleGets)
-						// Storing each shard and the common root.
+						// Store each leave's shard, and the root shard.
 						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).Times(count + 1)
 					}
 					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
