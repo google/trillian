@@ -422,14 +422,22 @@ func TestSetLeaves(t *testing.T) {
 		{Index: b64("sQJTdkyLIz+zdULiNAHHtFDlpvl1HztaAU9vZ+i8mZ0="), LeafValue: []byte("value2")},
 		{Index: b64("9XYQTuvqsJZR2DrP/HfIuMbqpLdnrqsk19qA+D9R2GU="), LeafValue: []byte("value3")},
 	}
+	// The root hash of the sparse Merkle when the leaves above are inserted.
+	// Copied from other tests in order to catch regressions.
+	rootHash := b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")
 
 	for _, tc := range []struct {
-		desc   string
-		leaves []*trillian.MapLeaf
-		want   []byte
+		desc    string
+		preload bool
+		splitTX bool
+		leaves  []*trillian.MapLeaf
+		want    []byte
 	}{
 		{desc: "one-leaf", leaves: leaves[:1], want: b64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA=")},
-		{desc: "multi-leaves", leaves: leaves, want: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")},
+		{desc: "multi-leaves", leaves: leaves, want: rootHash},
+		{desc: "preload", preload: true, leaves: leaves, want: rootHash},
+		{desc: "split-tx", splitTX: true, leaves: leaves, want: rootHash},
+		{desc: "split-tx-preload-ignored", preload: true, splitTX: true, leaves: leaves, want: rootHash},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			fakeStorage := storage.NewMockMapStorage(ctrl)
@@ -437,22 +445,42 @@ func TestSetLeaves(t *testing.T) {
 			server := NewTrillianMapServer(extension.Registry{
 				MapStorage:   fakeStorage,
 				AdminStorage: adminStorage,
-			}, TrillianMapServerOptions{UseSingleTransaction: true})
-			mockTX := storage.NewMockMapTreeTX(ctrl)
+			}, TrillianMapServerOptions{UseSingleTransaction: !tc.splitTX, UseLargePreload: tc.preload})
 
-			mockTX.EXPECT().WriteRevision(gomock.Any()).Return(int64(1), nil)
-			mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(0), nil)
-			// One call per leaf.
-			times := len(tc.leaves)
-			mockTX.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(times)
-			// One shard per leaf (note that they are random), plus the root shard.
-			mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(times + 1)
-			mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).Times(times + 1)
-			mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+			count := len(tc.leaves)
 			fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
 				DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+					mockTX := storage.NewMockMapTreeTX(ctrl)
+					mockTX.EXPECT().WriteRevision(gomock.Any()).Return(int64(1), nil)
+					mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(0), nil)
+					// One Set call per leaf.
+					mockTX.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(count)
+					if !tc.splitTX {
+						// Leaves are in different shards because the leaf indices are
+						// random. We query one shard per leaf, plus the root shard.
+						merkleGets := count + 1
+						// Plus, possibly, there is a "global" preloading query.
+						if tc.preload {
+							merkleGets++
+						}
+						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(merkleGets)
+						// Store each leaf's shard, and the root shard.
+						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).Times(count + 1)
+					}
+					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
 					return f(ctx, mockTX)
 				})
+
+			if tc.splitTX {
+				// Reading and storing each shard in a separate transaction.
+				fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+						mockTX := storage.NewMockMapTreeTX(ctrl)
+						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any())
+						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any())
+						return f(ctx, mockTX)
+					}).Times(count + 1)
+			}
 
 			rsp, err := server.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 				MapId:    12345,
