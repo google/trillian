@@ -463,7 +463,7 @@ func TestSetLeaves(t *testing.T) {
 							merkleGets++
 						}
 						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(merkleGets)
-						// Store each leave's shard, and the root shard.
+						// Store each leaf's shard, and the root shard.
 						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).Times(count + 1)
 					}
 					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
