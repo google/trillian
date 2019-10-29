@@ -424,12 +424,16 @@ func TestSetLeaves(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc   string
-		leaves []*trillian.MapLeaf
-		want   []byte
+		desc    string
+		preload bool
+		splitTX bool
+		leaves  []*trillian.MapLeaf
+		want    []byte
 	}{
 		{desc: "one-leaf", leaves: leaves[:1], want: b64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA=")},
 		{desc: "multi-leaves", leaves: leaves, want: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")},
+		{desc: "preload", preload: true, leaves: leaves, want: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")},
+		{desc: "split-tx", splitTX: true, leaves: leaves, want: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			fakeStorage := storage.NewMockMapStorage(ctrl)
@@ -437,22 +441,41 @@ func TestSetLeaves(t *testing.T) {
 			server := NewTrillianMapServer(extension.Registry{
 				MapStorage:   fakeStorage,
 				AdminStorage: adminStorage,
-			}, TrillianMapServerOptions{UseSingleTransaction: true})
-			mockTX := storage.NewMockMapTreeTX(ctrl)
+			}, TrillianMapServerOptions{UseSingleTransaction: !tc.splitTX, UseLargePreload: tc.preload})
 
-			mockTX.EXPECT().WriteRevision(gomock.Any()).Return(int64(1), nil)
-			mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(0), nil)
-			// One call per leaf.
-			times := len(tc.leaves)
-			mockTX.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(times)
-			// One shard per leaf (note that they are random), plus the root shard.
-			mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(times + 1)
-			mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).Times(times + 1)
-			mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+			count := len(tc.leaves)
 			fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
 				DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+					mockTX := storage.NewMockMapTreeTX(ctrl)
+					mockTX.EXPECT().WriteRevision(gomock.Any()).Return(int64(1), nil)
+					mockTX.EXPECT().ReadRevision(gomock.Any()).Return(int64(0), nil)
+					// One Set call per leaf.
+					mockTX.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(count)
+					if !tc.splitTX {
+						// One shard per leaf (note that they are random), plus the root shard.
+						merkleGets := count + 1
+						// Plus, possibly, the preloading phase.
+						if tc.preload {
+							merkleGets++
+						}
+						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(merkleGets)
+						// Storing each shard and the common root.
+						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).Times(count + 1)
+					}
+					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
 					return f(ctx, mockTX)
 				})
+
+			if tc.splitTX {
+				// Reading and storing each shard in a separate transaction.
+				fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
+						mockTX := storage.NewMockMapTreeTX(ctrl)
+						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any())
+						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any())
+						return f(ctx, mockTX)
+					}).Times(count + 1)
+			}
 
 			rsp, err := server.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 				MapId:    12345,

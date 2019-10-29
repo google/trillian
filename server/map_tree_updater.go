@@ -43,7 +43,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, hkv [
 	// single-transaction mode by preloading all the nodes we know the
 	// sparse Merkle writer is going to need.
 	if t.singleTX && t.preload {
-		if err := doPreload(ctx, tx, t.hasher.BitLen(), hkv); err != nil {
+		if err := doPreload(ctx, tx, t.hasher.BitLen(), hkv, rev-1); err != nil {
 			return nil, err
 		}
 	}
@@ -100,17 +100,11 @@ func (r *multiTXRunner) RunTX(ctx context.Context, f func(context.Context, stora
 // This is a performance workaround for locking issues which occur when the
 // sparse Merkle tree code is used with a single transaction (and therefore
 // a single subtreeCache too).
-func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []merkle.HashKeyValue) error {
+func doPreload(ctx context.Context, tx storage.MapTreeTX, treeDepth int, hkv []merkle.HashKeyValue, rev int64) error {
 	ctx, spanEnd := spanFor(ctx, "doPreload")
 	defer spanEnd()
-
-	readRev, err := tx.ReadRevision(ctx)
-	if err != nil {
-		return err
-	}
-
 	nids := calcAllSiblingsParallel(ctx, treeDepth, hkv)
-	_, err = tx.GetMerkleNodes(ctx, readRev, nids)
+	_, err := tx.GetMerkleNodes(ctx, rev, nids)
 	return err
 }
 
