@@ -376,6 +376,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 }
 
 func TestMapMultiRevisionFetchBigBatch(t *testing.T) {
+	t.Skip("Known Issue: https://github.com/google/trillian/issues/1845")
 	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
