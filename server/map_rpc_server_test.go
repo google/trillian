@@ -422,6 +422,8 @@ func TestSetLeaves(t *testing.T) {
 		{Index: b64("sQJTdkyLIz+zdULiNAHHtFDlpvl1HztaAU9vZ+i8mZ0="), LeafValue: []byte("value2")},
 		{Index: b64("9XYQTuvqsJZR2DrP/HfIuMbqpLdnrqsk19qA+D9R2GU="), LeafValue: []byte("value3")},
 	}
+	// The root hash of the sparse Merkle when the leaves above are inserted.
+	rootHash := b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")
 
 	for _, tc := range []struct {
 		desc    string
@@ -431,9 +433,10 @@ func TestSetLeaves(t *testing.T) {
 		want    []byte
 	}{
 		{desc: "one-leaf", leaves: leaves[:1], want: b64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA=")},
-		{desc: "multi-leaves", leaves: leaves, want: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")},
-		{desc: "preload", preload: true, leaves: leaves, want: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")},
-		{desc: "split-tx", splitTX: true, leaves: leaves, want: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")},
+		{desc: "multi-leaves", leaves: leaves, want: rootHash},
+		{desc: "preload", preload: true, leaves: leaves, want: rootHash},
+		{desc: "split-tx", splitTX: true, leaves: leaves, want: rootHash},
+		{desc: "split-tx-preload-ignored", preload: true, splitTX: true, leaves: leaves, want: rootHash},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			fakeStorage := storage.NewMockMapStorage(ctrl)
