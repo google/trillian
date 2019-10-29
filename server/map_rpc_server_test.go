@@ -423,6 +423,7 @@ func TestSetLeaves(t *testing.T) {
 		{Index: b64("9XYQTuvqsJZR2DrP/HfIuMbqpLdnrqsk19qA+D9R2GU="), LeafValue: []byte("value3")},
 	}
 	// The root hash of the sparse Merkle when the leaves above are inserted.
+	// Copied from other tests in order to catch regressions.
 	rootHash := b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")
 
 	for _, tc := range []struct {
