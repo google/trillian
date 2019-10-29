@@ -44,7 +44,7 @@ import "fmt"
 type NodeID2 struct {
 	path string
 	last byte  // Invariant: Lowest (8-bits) bits of the last byte are unset.
-	bits uint8 // Invariant: 1 <= bits <= 8, or bits == 0 if len(path) == 0.
+	bits uint8 // Invariant: 1 <= bits <= 8, or bits == 0 for the empty ID.
 }
 
 // NewNodeID2 creates a NodeID2 from the given path bytes truncated to the
