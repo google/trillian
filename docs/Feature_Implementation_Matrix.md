@@ -75,7 +75,7 @@ The state and characteristics of these implementations are detailed below.
 
 #### V1 log storage
 
-The Log storage implementations supporting the original Trilian log.
+The Log storage implementations supporting the original Trillian log.
 
 
 | Storage          | Status  | Deployed in prod    | Notes                                                                       |

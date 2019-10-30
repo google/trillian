@@ -37,7 +37,7 @@ deployment on Google Cloud using Kubernetes and Cloud Spanner.
 1. To update a running deployment, simply re-run `./deploy.sh example-config.sh`
    at any time.
 
-You should now have a working Trilian Log deployment in Kubernetes.
+You should now have a working Trillian Log deployment in Kubernetes.
 
 **NOTE: none of the Trillian APIs are exposed to the internet with this config,
 this is intentional since the only access to Trillian should be via a
