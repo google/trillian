@@ -189,6 +189,7 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID tree
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
+	glog.V(2).Infof("getSubtrees(len(nodeIDs)=%d)", len(nodeIDs))
 	glog.V(4).Infof("getSubtrees(")
 	if len(nodeIDs) == 0 {
 		return nil, nil
@@ -269,6 +270,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
+	glog.V(2).Infof("storeSubtrees(len(subtrees)=%d)", len(subtrees))
 	if glog.V(4) {
 		glog.Infof("storeSubtrees(")
 		for _, s := range subtrees {

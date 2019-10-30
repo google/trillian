@@ -168,7 +168,7 @@ func createSomeNodes(count int) []stree.Node {
 		r[i].NodeID = stree.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
-		glog.Infof("Node to store: %v\n", r[i].NodeID)
+		glog.V(3).Infof("Node to store: %v\n", r[i].NodeID)
 	}
 	return r
 }
