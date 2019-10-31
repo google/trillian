@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package storagepb contains protobuf definitions and helpers used by various
+// storage implementations.
+//
+// TODO(pavelkalinnikov, v2): It's a bad practice to reuse the same protobuf
+// across multiple repositories/implementations. Remove it, and operate with
+// regular in-memory Golang structs through the storage API boundary.
 package storagepb
 
 //go:generate protoc -I=. -I=$GOPATH/src/ --go_out=plugins=grpc:. storage.proto
