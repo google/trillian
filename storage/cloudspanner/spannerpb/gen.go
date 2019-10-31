@@ -14,4 +14,4 @@
 
 package spannerpb
 
-//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis/ --go_out=$GOPATH/src spanner.proto
+//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis/ --go_out=paths=source_relative:. spanner.proto

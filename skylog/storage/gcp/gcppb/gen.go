@@ -15,4 +15,4 @@
 // Package gcppb contains proto messages for GCP-based Skylog storage.
 package gcppb
 
-//go:generate protoc -I=. --go_out=$GOPATH/src gcp.proto
+//go:generate protoc -I=. --go_out=paths=source_relative:. gcp.proto
