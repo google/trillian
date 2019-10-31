@@ -49,29 +49,34 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 	}
 
 	// TODO(pavelkalinnikov): Make the layout configurable.
-	w := smt.NewWriter(t.tree.TreeId, t.hasher, uint(t.hasher.BitLen()), 8)
-	shards, err := w.Split(upd)
+	const topHeight = uint(8) // The height of the top shard.
+	w := smt.NewWriter(t.tree.TreeId, t.hasher, uint(t.hasher.BitLen()), topHeight)
+	shards, err := w.Split(upd) // Split the updates into shards below topHeight.
 	if err != nil {
 		return nil, err
 	}
 
 	runTX := t.newTXFunc(tx)
-	update := func(ctx context.Context, upd []smt.NodeUpdate) (smt.NodeUpdate, error) {
-		var rootUpd smt.NodeUpdate
-		err := runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
+	// The update function runs a read-write transaction that updates a shard of
+	// the map tree: either one of the "leaf" shards, or the top shard.
+	update := func(ctx context.Context, upd []smt.NodeUpdate) (root smt.NodeUpdate, err error) {
+		err = runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 			updCopy := make([]smt.NodeUpdate, len(upd))
 			copy(updCopy, upd) // Protect from TX restarts.
 			acc := &txAccessor{tx: tx, rev: writeRev}
 			var err error
-			rootUpd, err = w.Write(ctx, updCopy, acc)
+			root, err = w.Write(ctx, updCopy, acc)
 			return err
 		})
-		return rootUpd, err
+		return root, err
 	}
 
-	var mu sync.Mutex // Guards shardUpds.
-	shardUpds := make([]smt.NodeUpdate, 0, 256)
+	// topUpds accumulates root updates for all the "leaf" shards, which is then
+	// fed as an input to the topmost shard update.
+	topUpds := make([]smt.NodeUpdate, 0, 1<<topHeight)
+	var mu sync.Mutex // Guards topUpds.
 
+	// Run update calculations for "leaf" shards in parallel.
 	g, gCtx := errgroup.WithContext(ctx)
 	for _, upd := range shards {
 		upd := upd
@@ -82,15 +87,18 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			shardUpds = append(shardUpds, shardRootUpd)
+			topUpds = append(topUpds, shardRootUpd)
 			return nil
 		})
 	}
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
+	// Note: There is a memory barrier in g.Wait() sufficient to not lock the
+	// mutex guarding topUpds below this point.
 
-	rootUpd, err := update(ctx, shardUpds)
+	// Finally, update the topmost shard using the "leaf" shard roots updates.
+	rootUpd, err := update(ctx, topUpds)
 	if err != nil {
 		return nil, err
 	}
