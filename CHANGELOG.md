@@ -2,7 +2,15 @@
 
 ## HEAD
 
-Not yet released; provisionally v1.3.3 (may change).
+Not yet released; provisionally v1.3.4 (may change).
+
+## v1.3.3 - Module fixes
+
+Published 2019-10-31 17:30:00 +0000 UTC
+
+Patch release to address Go Module issue. Removes `replace` directives in our
+go.mod file now that our dependencies have fixed their invalid pseudo-version
+issues.
 
 ## v1.3.2 - Module fixes
 
