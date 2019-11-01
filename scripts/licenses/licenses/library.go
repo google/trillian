@@ -18,12 +18,22 @@ import (
 	"context"
 	"fmt"
 	"go/build"
+	"net/url"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/golang/glog"
 	"golang.org/x/tools/go/packages"
+)
+
+var (
+	// TODO(RJPercival): Support replacing "master" with Go Module version
+	repoPathPrefixes = map[string]string{
+		"github.com":    "blob/master/",
+		"bitbucket.org": "src/master/",
+	}
 )
 
 // Library is a collection of packages covered by the same license file.
@@ -157,6 +167,33 @@ func commonAncestor(paths []string) string {
 
 func (l *Library) String() string {
 	return l.Name()
+}
+
+// FileURL attempts to determine the URL for a file in this library.
+// This only works for certain supported package prefixes, such as github.com,
+// bitbucket.org and googlesource.com. Prefer GitRepo.FileURL() if possible.
+func (l *Library) FileURL(filePath string) (*url.URL, error) {
+	relFilePath, err := filepath.Rel(filepath.Dir(l.LicensePath), filePath)
+	if err != nil {
+		return nil, err
+	}
+	nameParts := strings.SplitN(l.Name(), "/", 4)
+	if len(nameParts) < 3 {
+		return nil, fmt.Errorf("cannot determine URL for %q package", l.Name())
+	}
+	host, user, project := nameParts[0], nameParts[1], nameParts[2]
+	pathPrefix, ok := repoPathPrefixes[host]
+	if !ok {
+		return nil, fmt.Errorf("unsupported package host %q for %q", host, l.Name())
+	}
+	if len(nameParts) == 4 {
+		pathPrefix = path.Join(pathPrefix, nameParts[3])
+	}
+	return &url.URL{
+		Scheme: "https",
+		Host:   host,
+		Path:   path.Join(user, project, pathPrefix, relFilePath),
+	}, nil
 }
 
 // isStdLib returns true if this package is part of the Go standard library.
