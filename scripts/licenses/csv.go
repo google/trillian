@@ -63,7 +63,13 @@ func csvMain(_ *cobra.Command, args []string) error {
 			var errs []string
 			repo, err := licenses.FindGitRepo(lib.LicensePath)
 			if err != nil {
-				errs = append(errs, err.Error())
+				// Can't find Git repo (possibly a Go Module?) - derive URL from lib name instead.
+				lURL, err := lib.FileURL(lib.LicensePath)
+				if err != nil {
+					errs = append(errs, err.Error())
+				} else {
+					licenseURL = lURL.String()
+				}
 			} else {
 				for _, remote := range gitRemotes {
 					url, err := repo.FileURL(lib.LicensePath, remote)
