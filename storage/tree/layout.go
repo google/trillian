@@ -14,9 +14,7 @@
 
 package tree
 
-import (
-	"fmt"
-)
+import "fmt"
 
 const (
 	// depthQuantum defines the smallest supported tile height, which all tile
@@ -97,9 +95,11 @@ func (l *Layout) Split(id NodeID) (TileID, *Suffix) {
 	return TileID{Root: NodeID{Path: []byte{}}}, EmptySuffix
 }
 
-// GetTileHeight returns the height of the tile with the passed-in ID.
-func (l *Layout) GetTileHeight(id TileID) int {
-	return l.getStratumAt(id.Root.PrefixLenBits).height
+// TileHeight returns the height of a tile with its root located at the
+// specified depth from the tree root. The result is not defined if rootDepth
+// is not a tile boundary.
+func (l *Layout) TileHeight(rootDepth int) int {
+	return l.getStratumAt(rootDepth).height
 }
 
 func (l *Layout) getStratumAt(depth int) stratumInfo {
