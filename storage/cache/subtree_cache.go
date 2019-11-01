@@ -431,7 +431,7 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 
 // newEmptySubtree creates an empty subtree for the passed-in ID.
 func (s *SubtreeCache) newEmptySubtree(id tree.TileID) *storagepb.SubtreeProto {
-	height := s.layout.GetTileHeight(id)
+	height := s.layout.TileHeight(id.Root.PrefixLenBits)
 	if glog.V(2) {
 		glog.Infof("Creating new empty subtree for %x, with height %d", id.AsBytes(), height)
 	}

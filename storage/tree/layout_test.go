@@ -100,3 +100,26 @@ func TestDefaultMapStrataIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestLayoutTileHeight(t *testing.T) {
+	layout := NewLayout(defaultMapStrata)
+	for _, tc := range []struct {
+		depth  int
+		height int
+	}{
+		{depth: 0, height: 8},
+		{depth: 5, height: 8},
+		{depth: 8, height: 8},
+		{depth: 16, height: 8},
+		{depth: 79, height: 8},
+		{depth: 80, height: 176},
+		{depth: 81, height: 176},
+		{depth: 255, height: 176},
+	} {
+		t.Run(fmt.Sprintf("depth:%d", tc.depth), func(t *testing.T) {
+			if got, want := layout.TileHeight(tc.depth), tc.height; got != want {
+				t.Errorf("TileHeight: got %d, want %d", got, want)
+			}
+		})
+	}
+}

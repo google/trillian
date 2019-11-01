@@ -156,8 +156,7 @@ func TestCacheFlush(t *testing.T) {
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			rootID := tree.NewNodeIDFromHash(s.Prefix)
-			subID := tree.TileID{Root: rootID}
-			if got, want := s.Depth, c.layout.GetTileHeight(subID); got != int32(want) {
+			if got, want := s.Depth, c.layout.TileHeight(rootID.PrefixLenBits); got != int32(want) {
 				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, rootID.PrefixLenBits)
 			}
 			state, ok := expectedSetIDs[rootID.String()]
