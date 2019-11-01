@@ -29,6 +29,7 @@ import (
 var (
 	gitRegexp = regexp.MustCompile(`^\.git$`)
 
+	// TODO(RJPercival): Support replacing "master" with Go Module version
 	gitRepoPathPrefixes = map[string]string{
 		"github.com":            "blob/master/",
 		"bitbucket.org":         "src/master/",
@@ -37,19 +38,30 @@ var (
 	}
 )
 
-// GitFileURL returns the URL of a file stored in a Git repository.
+// GitRepo represents a Git repository that exists on disk locally.
+type GitRepo struct {
+	dotGitPath string
+}
+
+// FindGitRepo finds the Git repository that contains the specified filePath
+// by searching upwards through the directory tree for a ".git" directory.
+func FindGitRepo(filePath string) (*GitRepo, error) {
+	path, err := findUpwards(filepath.Dir(filePath), gitRegexp, srcDirRegexps)
+	if err != nil {
+		return nil, err
+	}
+	return &GitRepo{dotGitPath: path}, nil
+}
+
+// FileURL returns the URL of a file stored in a Git repository.
 // It uses the URL of the specified Git remote repository to construct this URL.
 // It supports repositories hosted on github.com, bitbucket.org and googlesource.com.
-func GitFileURL(filePath string, remote string) (*url.URL, error) {
-	dotGitPath, err := findUpwards(filepath.Dir(filePath), gitRegexp, srcDirRegexps)
+func (g *GitRepo) FileURL(filePath string, remote string) (*url.URL, error) {
+	relFilePath, err := filepath.Rel(filepath.Dir(g.dotGitPath), filePath)
 	if err != nil {
 		return nil, err
 	}
-	relFilePath, err := filepath.Rel(filepath.Dir(dotGitPath), filePath)
-	if err != nil {
-		return nil, err
-	}
-	repoURL, err := gitRemoteURL(dotGitPath, remote)
+	repoURL, err := gitRemoteURL(g.dotGitPath, remote)
 	if err != nil {
 		return nil, err
 	}

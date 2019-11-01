@@ -61,14 +61,19 @@ func csvMain(_ *cobra.Command, args []string) error {
 		if lib.LicensePath != "" {
 			// Find a URL for the license file, based on the URL of a remote for the Git repository.
 			var errs []string
-			for _, remote := range gitRemotes {
-				url, err := licenses.GitFileURL(lib.LicensePath, remote)
-				if err != nil {
-					errs = append(errs, err.Error())
-					continue
+			repo, err := licenses.FindGitRepo(lib.LicensePath)
+			if err != nil {
+				errs = append(errs, err.Error())
+			} else {
+				for _, remote := range gitRemotes {
+					url, err := repo.FileURL(lib.LicensePath, remote)
+					if err != nil {
+						errs = append(errs, err.Error())
+						continue
+					}
+					licenseURL = url.String()
+					break
 				}
-				licenseURL = url.String()
-				break
 			}
 			if licenseURL == "Unknown" {
 				glog.Errorf("Error discovering URL for %q:\n- %s", lib.LicensePath, strings.Join(errs, "\n- "))

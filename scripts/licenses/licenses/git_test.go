@@ -61,15 +61,19 @@ func TestGitFileURL(t *testing.T) {
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			url, err := GitFileURL(test.file, test.remote)
+			repo, err := FindGitRepo(test.file)
+			if err != nil {
+				t.Fatalf("FindGitRepo(%q) = (_, %q), want (_, nil)", test.file, err)
+			}
+			url, err := repo.FileURL(test.file, test.remote)
 			if err != nil {
 				if err != test.wantErr {
-					t.Fatalf("GitFileURL(%q, %q) = (_, %q), want (_, %q)", test.file, test.remote, err, test.wantErr)
+					t.Fatalf("repo.FileURL(%q, %q) = (_, %q), want (_, %q)", test.file, test.remote, err, test.wantErr)
 				}
 				return
 			}
 			if url.String() != test.wantURL {
-				t.Fatalf("GitFileURL(%q, %q) = (%q, nil), want (%q, nil)", test.file, test.remote, url, test.wantURL)
+				t.Fatalf("repo.FileURL(%q, %q) = (%q, nil), want (%q, nil)", test.file, test.remote, url, test.wantURL)
 			}
 		})
 	}
