@@ -43,7 +43,7 @@ func checkMain(_ *cobra.Command, args []string) error {
 	}
 
 	importPath := args[0]
-	libs, err := licenses.Libraries(context.Background(), importPath)
+	libs, err := licenses.Libraries(context.Background(), classifier, importPath)
 	if err != nil {
 		return err
 	}

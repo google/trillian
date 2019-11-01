@@ -21,6 +21,17 @@ import (
 )
 
 func TestFind(t *testing.T) {
+	classifier := classifierStub{
+		licenseNames: map[string]string{
+			"../../../LICENSE":         "foo",
+			"testdata/licence/LICENCE": "foo",
+		},
+		licenseTypes: map[string]Type{
+			"../../../LICENSE":         Notice,
+			"testdata/licence/LICENCE": Notice,
+		},
+	}
+
 	for _, test := range []struct {
 		desc            string
 		dir             string
@@ -38,7 +49,7 @@ func TestFind(t *testing.T) {
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			licensePath, err := Find(test.dir)
+			licensePath, err := Find(test.dir, classifier)
 			if err != nil || licensePath != test.wantLicensePath {
 				t.Fatalf("Find(%v) = (%#v, %q), want (%q, nil)", test.dir, licensePath, err, test.wantLicensePath)
 			}

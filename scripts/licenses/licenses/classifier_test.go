@@ -15,8 +15,37 @@
 package licenses
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+// Useful in other tests in this package
+type classifierStub struct {
+	licenseNames map[string]string
+	licenseTypes map[string]Type
+	errors       map[string]error
+}
+
+func (c classifierStub) Identify(licensePath string) (string, Type, error) {
+	// Convert licensePath to relative path for tests.
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", Unknown, err
+	}
+	relPath, err := filepath.Rel(wd, licensePath)
+	if err != nil {
+		return "", Unknown, err
+	}
+	if name, ok := c.licenseNames[relPath]; ok {
+		return name, c.licenseTypes[relPath], c.errors[relPath]
+	}
+	if err := c.errors[relPath]; err != nil {
+		return "", Unknown, c.errors[relPath]
+	}
+	return "", Unknown, fmt.Errorf("classifierStub has no programmed response for %q", relPath)
+}
 
 func TestIdentify(t *testing.T) {
 	for _, test := range []struct {

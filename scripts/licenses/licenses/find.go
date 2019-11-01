@@ -35,14 +35,20 @@ var (
 )
 
 // Find returns the file path of the license for this package.
-func Find(dir string) (string, error) {
+func Find(dir string, classifier Classifier) (string, error) {
 	var stopAt []*regexp.Regexp
 	stopAt = append(stopAt, srcDirRegexps...)
 	stopAt = append(stopAt, vendorRegexp)
-	return findUpwards(dir, licenseRegexp, stopAt)
+	return findUpwards(dir, licenseRegexp, stopAt, func(path string) bool {
+		// TODO(RJPercival): Return license details
+		if _, _, err := classifier.Identify(path); err != nil {
+			return false
+		}
+		return true
+	})
 }
 
-func findUpwards(dir string, r *regexp.Regexp, stopAt []*regexp.Regexp) (string, error) {
+func findUpwards(dir string, r *regexp.Regexp, stopAt []*regexp.Regexp, predicate func(path string) bool) (string, error) {
 	start := dir
 	// Stop once dir matches a stopAt regexp or dir is the filesystem root
 	for !matchAny(stopAt, dir) {
@@ -52,7 +58,11 @@ func findUpwards(dir string, r *regexp.Regexp, stopAt []*regexp.Regexp) (string,
 		}
 		for _, f := range dirContents {
 			if r.MatchString(f.Name()) {
-				return filepath.Join(dir, f.Name()), nil
+				path := filepath.Join(dir, f.Name())
+				if predicate != nil && !predicate(path) {
+					continue
+				}
+				return path, nil
 			}
 		}
 		parent := filepath.Dir(dir)
