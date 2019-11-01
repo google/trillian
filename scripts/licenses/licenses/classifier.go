@@ -64,23 +64,27 @@ func (t Type) String() string {
 }
 
 // Classifier can detect the type of a software license.
-type Classifier struct {
+type Classifier interface {
+	Identify(licensePath string) (string, Type, error)
+}
+
+type googleClassifier struct {
 	classifier *licenseclassifier.License
 }
 
 // NewClassifier creates a classifier that requires a specified confidence threshold
 // in order to return a positive license classification.
-func NewClassifier(confidenceThreshold float64) (*Classifier, error) {
+func NewClassifier(confidenceThreshold float64) (Classifier, error) {
 	c, err := licenseclassifier.New(confidenceThreshold)
 	if err != nil {
 		return nil, err
 	}
-	return &Classifier{classifier: c}, nil
+	return &googleClassifier{classifier: c}, nil
 }
 
 // Identify returns the name and type of a license, given its file path.
 // An empty license path results in an empty name and Unknown type.
-func (c *Classifier) Identify(licensePath string) (string, Type, error) {
+func (c *googleClassifier) Identify(licensePath string) (string, Type, error) {
 	if licensePath == "" {
 		return "", Unknown, nil
 	}

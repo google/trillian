@@ -23,6 +23,19 @@ import (
 )
 
 func TestLibraries(t *testing.T) {
+	classifier := classifierStub{
+		licenseNames: map[string]string{
+			"testdata/LICENSE":          "foo",
+			"testdata/direct/LICENSE":   "foo",
+			"testdata/indirect/LICENSE": "foo",
+		},
+		licenseTypes: map[string]Type{
+			"testdata/LICENSE":          Notice,
+			"testdata/direct/LICENSE":   Notice,
+			"testdata/indirect/LICENSE": Notice,
+		},
+	}
+
 	for _, test := range []struct {
 		desc       string
 		importPath string
@@ -47,7 +60,7 @@ func TestLibraries(t *testing.T) {
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			gotLibs, err := Libraries(context.Background(), test.importPath)
+			gotLibs, err := Libraries(context.Background(), classifier, test.importPath)
 			if err != nil {
 				t.Fatalf("Libraries(_, %q) = (_, %q), want (_, nil)", test.importPath, err)
 			}

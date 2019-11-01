@@ -51,7 +51,7 @@ func csvMain(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	libs, err := licenses.Libraries(context.Background(), importPath)
+	libs, err := licenses.Libraries(context.Background(), classifier, importPath)
 	if err != nil {
 		return err
 	}
