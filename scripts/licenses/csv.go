@@ -86,7 +86,8 @@ func csvMain(_ *cobra.Command, args []string) error {
 			}
 			licenseName, _, err = classifier.Identify(lib.LicensePath)
 			if err != nil {
-				return err
+				glog.Errorf("Error identifying license in %q: %v", lib.LicensePath, err)
+				licenseName = "Unknown"
 			}
 		}
 		// Remove the "*/vendor/" prefix from the library name for conciseness.
