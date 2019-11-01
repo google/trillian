@@ -98,6 +98,8 @@ func (l *Layout) Split(id NodeID) (TileID, *Suffix) {
 // TileHeight returns the height of a tile with its root located at the
 // specified depth from the tree root. The result is not defined if rootDepth
 // is not a tile boundary.
+//
+// TODO(pavelkalinnikov, v2): Use "type-safe" structured argument like NodeID2.
 func (l *Layout) TileHeight(rootDepth int) int {
 	return l.getStratumAt(rootDepth).height
 }
