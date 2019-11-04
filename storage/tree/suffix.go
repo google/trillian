@@ -22,7 +22,7 @@ import (
 // key is used to look up variable length suffix values in the map.
 type key struct {
 	// The depth of this entry in bits (must be > 0).
-	depth byte
+	depth uint8
 	// The value of the path at this depth.
 	value byte
 }
@@ -45,8 +45,7 @@ var (
 // and base64 conversion overhead.
 type Suffix struct {
 	// bits is the number of bits in the node ID suffix.
-	// TODO(gdbelvin): make bits an integer.
-	bits byte
+	bits uint8
 	// path is the suffix itself.
 	path []byte
 	// asString is the string representation of the suffix.
@@ -55,10 +54,10 @@ type Suffix struct {
 
 // NewSuffix creates a new Suffix. The primary use for them is to get their
 // String value to use as a key so we compute that once up front.
-func NewSuffix(bits byte, path []byte) *Suffix {
+func NewSuffix(bits uint8, path []byte) *Suffix {
 	// Use a shared value for a short suffix if we have one, they're immutable.
 	if bits <= 8 {
-		if sfx, ok := fromRaw[key{bits, path[0]}]; ok {
+		if sfx, ok := fromRaw[key{depth: bits, value: path[0]}]; ok {
 			return sfx
 		}
 	}
@@ -72,7 +71,7 @@ func NewSuffix(bits byte, path []byte) *Suffix {
 }
 
 // Bits returns the number of significant bits in the Suffix path.
-func (s Suffix) Bits() byte {
+func (s Suffix) Bits() uint8 {
 	return s.bits
 }
 
@@ -118,7 +117,7 @@ func init() {
 			sfx := NewSuffix(byte(d), path)
 			// As an extra check there should be no collisions in the Suffix values
 			// that we build so map entries should not be overwritten.
-			k := key{byte(d), path[0]}
+			k := key{depth: uint8(d), value: path[0]}
 			if _, ok := fromRaw[k]; ok {
 				panic(fmt.Errorf("cache collision for: %v", k))
 			}
