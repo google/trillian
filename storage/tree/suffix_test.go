@@ -29,36 +29,46 @@ const (
 	// storage/cache when merkle no longer depends on storage.NodeID
 )
 
-//h2b6 takes a hex string and emits a base64 string
+// h2b6 takes a hex string and emits a base64 string.
 func h2b6(h string) string {
 	return base64.StdEncoding.EncodeToString(h2b(h))
 }
 
 func TestParseSuffix(t *testing.T) {
 	for _, tc := range []struct {
-		suffix   string
-		wantBits byte
-		wantPath []byte
-		wantErr  bool
+		str     string
+		bits    byte
+		path    []byte
+		wantErr bool
 	}{
-		{h2b6("0100"), 1, h2b("00"), false},
-		{h2b6("0801"), 8, h2b("01"), false},
-		{"----", 1, h2b("00"), true},
+		{str: h2b6(""), wantErr: true},
+		// TODO(pavelkalinnikov): Parse "00" without a segfault in NewSuffix.
+		{str: h2b6("0100"), bits: 1, path: h2b("00")},
+		// TODO(pavelkalinnikov): The last byte must be masked.
+		{str: h2b6("01FC"), bits: 1, path: h2b("FC")},
+		{str: h2b6("010123"), wantErr: true},
+		{str: h2b6("080123"), wantErr: true},
+		{str: h2b6("0801"), bits: 8, path: h2b("01")},
+		{str: h2b6("090123"), bits: 9, path: h2b("0123")},
+		{str: h2b6("1000"), wantErr: true},
+		{str: h2b6("100123"), bits: 16, path: h2b("0123")},
+		{str: h2b6("2001234567"), bits: 32, path: h2b("01234567")},
+		{str: "----", wantErr: true},
 	} {
-		sfx, err := ParseSuffix(tc.suffix)
-		if got, want := err != nil, tc.wantErr; got != want {
-			t.Errorf("ParseSuffix(%s): %v, wantErr: %v", tc.suffix, err, want)
-			continue
-		}
-		if err != nil {
-			continue
-		}
-		if got, want := sfx.Bits(), tc.wantBits; got != want {
-			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", tc.suffix, got, want)
-		}
-		if got, want := sfx.Path(), tc.wantPath; !bytes.Equal(got, want) {
-			t.Errorf("ParseSuffix(%s).Path: %x, want %x", tc.suffix, got, want)
-		}
+		t.Run("", func(t *testing.T) {
+			sfx, err := ParseSuffix(tc.str)
+			if got, want := err != nil, tc.wantErr; got != want {
+				t.Fatalf("ParseSuffix: %v, wantErr: %v", err, want)
+			} else if err != nil {
+				return
+			}
+			if got, want := sfx.Bits(), tc.bits; got != want {
+				t.Errorf("ParseSuffix: got %d bits, want %d", got, want)
+			}
+			if got, want := sfx.Path(), tc.path; !bytes.Equal(got, want) {
+				t.Errorf("ParseSuffix: got path %x, want %x", got, want)
+			}
+		})
 	}
 }
 
@@ -255,7 +265,6 @@ func Test8BitSuffixCache(t *testing.T) {
 		// 8 bits suffix should be cached.
 		{b: 8, path: []byte{0x76}, wantCache: true},
 		// above 8 bits should not be cached.
-		{b: 9, path: []byte{0x40}, wantCache: false},
 		{b: 9, path: []byte{0x40, 0x80}, wantCache: false},
 		{b: 12, path: []byte{0x40, 0x80}, wantCache: false},
 		{b: 15, path: []byte{0x40, 0xf0}, wantCache: false},
