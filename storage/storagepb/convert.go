@@ -23,19 +23,19 @@ import (
 
 // Unmarshal converts the given SubtreeProto to a Merkle tree tile.
 func Unmarshal(sp *SubtreeProto) (smt.Tile, error) {
-	if d := sp.Depth; d <= 0 {
+	if d := sp.GetDepth(); d <= 0 {
 		return smt.Tile{}, fmt.Errorf("wrong depth %d, want > 0", d)
 	}
-	height := uint(sp.Depth)
-	prefix := string(sp.Prefix)
-	id := tree.NewNodeID2(prefix, uint(len(sp.Prefix))*8)
-	if len(sp.Leaves) == 0 {
+	height := uint(sp.GetDepth())
+	prefix := string(sp.GetPrefix())
+	id := tree.NewNodeID2(prefix, uint(len(prefix)*8))
+	if len(sp.GetLeaves()) == 0 {
 		return smt.Tile{ID: id}, nil
 	}
 
 	tailBits := uint8((height-1)%8 + 1) // Bits of the last byte to use.
-	leaves := make([]smt.NodeUpdate, 0, len(sp.Leaves))
-	for idStr, hash := range sp.Leaves {
+	leaves := make([]smt.NodeUpdate, 0, len(sp.GetLeaves()))
+	for idStr, hash := range sp.GetLeaves() {
 		suf, err := tree.ParseSuffix(idStr) // Note: No allocation if height <= 8.
 		if err != nil {
 			return smt.Tile{}, fmt.Errorf("%s: ParseSuffix: %v", idStr, err)
