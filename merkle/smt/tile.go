@@ -22,6 +22,7 @@ import "github.com/google/trillian/storage/tree"
 // contains the list of non-empty leaf nodes, which can be used to reconstruct
 // all the remaining inner nodes of the tile.
 //
+// TODO(pavelkalinnikov): Make Tile immutable.
 // TODO(pavelkalinnikov): Introduce invariants on the order/content of Leaves.
 // TODO(pavelkalinnikov): Rename NodeUpdate to a more generic Node or NodeHash.
 type Tile struct {
