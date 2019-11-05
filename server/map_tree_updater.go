@@ -42,8 +42,11 @@ type mapTreeUpdater struct {
 func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd []smt.NodeUpdate, writeRev int64) ([]byte, error) {
 	// Work around a performance issue when using the map in single-transaction
 	// mode by preloading all the nodes we know the Writers are going to need.
-	if t.singleTX && t.preload {
-		if err := doPreload(ctx, tx, uint(t.hasher.BitLen()), upd, writeRev-1); err != nil {
+	var hashes map[tree.NodeID2][]byte
+	preload := t.singleTX && t.preload
+	if preload {
+		var err error
+		if hashes, err = doPreload(ctx, tx, uint(t.hasher.BitLen()), upd, writeRev-1); err != nil {
 			return nil, err
 		}
 	}
@@ -63,7 +66,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 		err = runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 			updCopy := make([]smt.NodeUpdate, len(upd))
 			copy(updCopy, upd) // Protect from TX restarts.
-			acc := &txAccessor{tx: tx, rev: writeRev}
+			acc := &txAccessor{hashes: hashes, preload: preload, tx: tx, rev: writeRev}
 			var err error
 			root, err = w.Write(ctx, updCopy, acc)
 			return err
@@ -106,11 +109,17 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 }
 
 type txAccessor struct {
-	tx  storage.MapTreeTX
-	rev int64
+	hashes  map[tree.NodeID2][]byte
+	preload bool
+	tx      storage.MapTreeTX
+	rev     int64
 }
 
 func (t txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
+	if t.preload {
+		return t.hashes, nil
+	}
+
 	// TODO(pavelkalinnikov): Pass NodeID2 directly to storage.
 	convIDs := make([]tree.NodeID, 0, len(ids))
 	for _, id := range ids {
@@ -159,22 +168,15 @@ func (t *mapTreeUpdater) newTXFunc(tx storage.MapTreeTX) txFunc {
 // This is a performance workaround for locking issues which occur when the
 // sparse Merkle tree code is used with a single transaction (and therefore a
 // single subtreeCache too).
-func doPreload(ctx context.Context, tx storage.MapTreeTX, depth uint, upd []smt.NodeUpdate, rev int64) error {
+func doPreload(ctx context.Context, tx storage.MapTreeTX, depth uint, upd []smt.NodeUpdate, rev int64) (map[tree.NodeID2][]byte, error) {
 	ctx, spanEnd := spanFor(ctx, "doPreload")
 	defer spanEnd()
 
 	// TODO(pavelkalinnikov): Avoid using HStar3 directly.
 	hs, err := smt.NewHStar3(upd, nil, depth, 0)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	ids := hs.Prepare()
-
-	nids := make([]tree.NodeID, 0, len(ids))
-	for _, id := range ids {
-		nids = append(nids, tree.NewNodeIDFromID2(id))
-	}
-	// TODO(pavelkalinnikov): Use the returned hashes to construct accessors.
-	_, err = tx.GetMerkleNodes(ctx, rev, nids)
-	return err
+	acc := txAccessor{tx: tx, rev: rev + 1}
+	return acc.Get(ctx, hs.Prepare())
 }
