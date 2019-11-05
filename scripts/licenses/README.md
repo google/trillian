@@ -28,6 +28,19 @@ $ licenses save "github.com/google/trillian/server/trillian_log_server" --save_d
 
 This command analyzes a binary/package's dependencies and determines what needs to be redistributed alongside that binary/package in order to comply with the license terms. This typically includes the license itself and a copyright notice, but may also include the dependency's source code. All of the required artifacts will be saved in the directory indicated by `--save_dir`.
 
+## Checking for forbidden licenses.
+
+```shell
+$ licenses check github.com/logrusorgru/aurora
+Forbidden license type WTFPL for library github.com/logrusorgru/auroraexit status 1
+```
+
+This command analyzes a package's dependencies and determines if any are
+considered forbidden by the license classifer. See
+[github.com/google/licenseclassifier](https://github.com/google/licenseclassifier/blob/842c0d70d7027215932deb13801890992c9ba364/license_type.go#L323)
+
+for licenses considered forbidden.
+
 ## Warnings and errors
 
 The tool will log warnings and errors in some scenarios. This section provides guidance on addressing them.

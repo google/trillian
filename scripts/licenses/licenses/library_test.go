@@ -109,3 +109,62 @@ func TestLibraryName(t *testing.T) {
 		})
 	}
 }
+
+func TestLibraryFileURL(t *testing.T) {
+	for _, test := range []struct {
+		desc    string
+		lib     *Library
+		path    string
+		wantURL string
+		wantErr bool
+	}{
+		{
+			desc: "Library on github.com",
+			lib: &Library{
+				Packages: []string{
+					"github.com/google/trillian",
+					"github.com/google/trillian/crypto",
+				},
+				LicensePath: "/go/src/github.com/google/trillian/LICENSE",
+			},
+			path:    "/go/src/github.com/google/trillian/foo/README.md",
+			wantURL: "https://github.com/google/trillian/blob/master/foo/README.md",
+		},
+		{
+			desc: "Library on bitbucket.org",
+			lib: &Library{
+				Packages: []string{
+					"bitbucket.org/user/project/pkg",
+					"bitbucket.org/user/project/pkg2",
+				},
+				LicensePath: "/foo/bar/bitbucket.org/user/project/LICENSE",
+			},
+			path:    "/foo/bar/bitbucket.org/user/project/foo/README.md",
+			wantURL: "https://bitbucket.org/user/project/src/master/pkg/foo/README.md",
+		},
+		{
+			desc: "Library on example.com",
+			lib: &Library{
+				Packages: []string{
+					"example.com/user/project/pkg",
+					"example.com/user/project/pkg2",
+				},
+				LicensePath: "/foo/bar/example.com/user/project/LICENSE",
+			},
+			path:    "/foo/bar/example.com/user/project/foo/README.md",
+			wantErr: true,
+		},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			fileURL, err := test.lib.FileURL(test.path)
+			if gotErr := err != nil; gotErr != test.wantErr {
+				t.Fatalf("FileURL(%q) = (_, %q), want err? %t", test.path, err, test.wantErr)
+			} else if gotErr {
+				return
+			}
+			if got, want := fileURL.String(), test.wantURL; got != want {
+				t.Fatalf("FileURL(%q) = %q, want %q", test.path, got, want)
+			}
+		})
+	}
+}
