@@ -31,6 +31,11 @@ func TestFind(t *testing.T) {
 			dir:             filepath.Join(build.Default.GOPATH, "src/github.com/google/trillian/scripts/licenses/licenses"),
 			wantLicensePath: filepath.Join(build.Default.GOPATH, "src/github.com/google/trillian/LICENSE"),
 		},
+		{
+			desc:            "Trillian licenCe",
+			dir:             filepath.Join(build.Default.GOPATH, "src/github.com/google/trillian/scripts/licenses/licenses/testdata/licence"),
+			wantLicensePath: filepath.Join(build.Default.GOPATH, "src/github.com/google/trillian/scripts/licenses/licenses/testdata/licence/LICENCE"),
+		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			licensePath, err := Find(test.dir)
