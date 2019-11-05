@@ -44,6 +44,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 	// mode by preloading all the nodes we know the Writers are going to need.
 	var hashes map[tree.NodeID2][]byte
 	preload := t.singleTX && t.preload
+	// Note: It's fine if hashes == nil, it only happens if preload == false.
 	if preload {
 		var err error
 		if hashes, err = doPreload(ctx, tx, uint(t.hasher.BitLen()), upd, writeRev-1); err != nil {
@@ -109,10 +110,13 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 }
 
 type txAccessor struct {
+	// hashes is a cache of node hashes that Get returns directly instead of
+	// calling GetMerkleNodes. Used only if preload is true.
 	hashes  map[tree.NodeID2][]byte
 	preload bool
-	tx      storage.MapTreeTX
-	rev     int64
+
+	tx  storage.MapTreeTX
+	rev int64
 }
 
 func (t txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
