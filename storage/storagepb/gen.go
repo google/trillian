@@ -15,9 +15,13 @@
 // Package storagepb contains protobuf definitions and helpers used by various
 // storage implementations.
 //
-// TODO(pavelkalinnikov, v2): It's a bad practice to reuse the same protobuf
-// across multiple repositories/implementations. Remove it, and operate with
-// regular in-memory Golang structs through the storage API boundary.
+// TODO(pavelkalinnikov, v2): SubtreeProto is used as:
+//  a) database storage unit in multiple storage implementations;
+//  b) data exchange format between storage and application layers;
+//  c) nodes index data structure.
+// We should change it so that:
+//  a) individual storage implementations define their own formats;
+//  b) data structures are defined in the application layer.
 package storagepb
 
 //go:generate protoc -I=. -I=$GOPATH/src/ --go_out=plugins=grpc:. storage.proto
