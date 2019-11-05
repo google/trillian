@@ -16,6 +16,7 @@ package tree
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 )
 
@@ -43,6 +44,8 @@ var (
 // We keep a cache of the Suffix values use by log trees, which will have a
 // depth between 1 and 8 bits. These are reused to avoid constant reallocation
 // and base64 conversion overhead.
+//
+// TODO(pavelkalinnikov, v2): This type is specific to SubtreeProto. Move it.
 type Suffix struct {
 	// bits is the number of bits in the node ID suffix.
 	bits uint8
@@ -54,6 +57,8 @@ type Suffix struct {
 
 // NewSuffix creates a new Suffix. The primary use for them is to get their
 // String value to use as a key so we compute that once up front.
+//
+// TODO(pavelkalinnikov): Mask the last byte of path.
 func NewSuffix(bits uint8, path []byte) *Suffix {
 	// Use a shared value for a short suffix if we have one, they're immutable.
 	if bits <= 8 {
@@ -98,8 +103,15 @@ func ParseSuffix(s string) (*Suffix, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(b) == 0 {
+		return nil, errors.New("empty bytes")
+	}
+	bits, b := b[0], b[1:]
+	if got, want := len(b), bytesForBits(int(bits)); got != want {
+		return nil, fmt.Errorf("unexpected length %d, need %d", got, want)
+	}
 
-	return NewSuffix(byte(b[0]), b[1:]), nil
+	return NewSuffix(bits, b), nil
 }
 
 // Precalculate all the one byte suffix values (from depths 1-8) so they can be
