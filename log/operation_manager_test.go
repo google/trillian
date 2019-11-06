@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/monitoring/testonly"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
+	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election2"
 	eto "github.com/google/trillian/util/election2/testonly"
 )
@@ -277,6 +278,63 @@ func TestOperationManagerOperationLoopPassesIDs(t *testing.T) {
 	lom.OperationLoop(ctx)
 }
 
+// TestOperationManagerOperationLoopExitOnContext is a regression test for a
+// deadlock condition wherein a masterelection queues up a Resignation (due to
+// having been master for too long) during a long-running sequencing operation.
+// Meanwhile, the context for the operation loop is cancelled, which causes the
+// operation loop to immediately exit upon the sequencing run finishing,
+// bypassing acting on the resignation, causing the election running to hang
+// forever.
+func TestOperationManagerOperationLoopExitOnContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	logID1 := int64(451)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fakeStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{451: "LogID1"})
+	registry := extension.Registry{
+		LogStorage:      fakeStorage,
+		AdminStorage:    mockAdmin,
+		ElectionFactory: &alwaysMasterFactory{},
+	}
+
+	fakeTime := clock.NewFake(time.Now())
+	d := election.MinMasterHoldInterval
+
+	info := defaultOperationInfo(registry)
+	info.RunInterval = time.Second
+	info.TimeSource = fakeTime
+	info.ElectionConfig.TimeSource = fakeTime
+	// We'll cause the master election to "quickly" resign here:
+	info.ElectionConfig.MasterHoldInterval = d
+	info.ElectionConfig.MasterHoldJitter = 0
+
+	mockLogOp := NewMockOperation(ctrl)
+	infoMatcher := logOpInfoMatcher{50}
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Do(func(_ context.Context, _ int64, _ *OperationInfo) {
+		// Wind the clock on so that we queue up a resignation while we're "working" on a signing run
+		fakeTime.Set(fakeTime.Now().Add(d * 3))
+		// Give some slack for it to take effect...
+		time.Sleep(time.Second)
+		// ...and then cancel the OperationLoop context
+		cancel()
+	}).Return(1, nil)
+
+	lom := NewOperationManager(info, mockLogOp)
+
+	// Prompt a signing run to happen once we're running the operation loop:
+	go func() {
+		time.Sleep(time.Second)
+		fakeTime.Set(fakeTime.Now().Add(info.RunInterval * 2))
+	}()
+
+	t.Logf("Entering operationLoop")
+	lom.OperationLoop(ctx)
+	t.Logf("Exited operationLoop")
+}
+
 func TestOperationManagerOperationLoopExecutePassError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -413,6 +471,13 @@ func TestMasterFor(t *testing.T) {
 			}
 		})
 	}
+}
+
+type alwaysMasterFactory struct{}
+
+func (m alwaysMasterFactory) NewElection(ctx context.Context, treeID string) (election2.Election, error) {
+	d := eto.NewDecorator(eto.NewElection())
+	return d, nil
 }
 
 type masterForEvenFactory struct{}
