@@ -4,6 +4,12 @@
 
 Not yet released; provisionally v1.4.0 (may change).
 
+### Log Changes
+
+#### Potential sequencer hang fixed
+A potential deadlock condition in the log sequencer when the process is
+attempting to exit has been addressed.
+
 ### Map Changes
 
 The verifiable map is still experimental. APIs, such as SetLeaves, have been
