@@ -332,14 +332,6 @@ loop:
 		}
 		glog.V(1).Infof("Log operation manager pass complete")
 
-		// See if it's time to quit
-		select {
-		case <-ctx.Done():
-			glog.Infof("Log operation manager shutting down")
-			break loop
-		default:
-		}
-
 		// Process any pending resignations while there's no activity.
 		doneResigning := false
 		for !doneResigning {
@@ -350,6 +342,14 @@ loop:
 			default:
 				doneResigning = true
 			}
+		}
+
+		// See if it's time to quit
+		select {
+		case <-ctx.Done():
+			glog.Infof("Log operation manager shutting down")
+			break loop
+		default:
 		}
 
 		// Wait for the configured time before going for another pass
