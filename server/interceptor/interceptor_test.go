@@ -837,11 +837,15 @@ func TestErrorWrapper(t *testing.T) {
 			if resp != test.resp {
 				t.Errorf("resp = %v, want = %v", resp, test.resp)
 			}
-			if diff := pretty.Compare(err, test.wantErr); diff != "" {
-				t.Errorf("post-WrapErrors diff:\n%v", diff)
+			if !equalError(err, test.wantErr) {
+				t.Errorf("post-WrapErrors: got %v, want %v", err, test.wantErr)
 			}
 		})
 	}
+}
+
+func equalError(x, y error) bool {
+	return x == y || (x != nil && y != nil && x.Error() == y.Error())
 }
 
 type fakeHandler struct {
