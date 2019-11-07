@@ -2,8 +2,9 @@ timeout: 1800s
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
-  _CONFIG_MAP: examples/deployment/kubernetes/trillian-ci-spanner.yaml
   _MYSQL_TAG: "5.7"
+  _MYSQL_ROOT_PASSWORD: ""
+  _MYSQL_PASSWORD: ""
 steps:
 - id: pull_mysql
   name : gcr.io/cloud-builders/docker
@@ -66,32 +67,111 @@ steps:
   - -t
   - envsubst
   waitFor: ["-"]
-- id: envsubst_kubernetes_configs
+# etcd-operator requires that a ClusterRole has been created for it already.
+# Do this manually using examples/deployment/kubernetes/etcd-role*.yaml.
+- id: apply_k8s_cfgs_for_clusterwide_etcd_operator
+  name: gcr.io/cloud-builders/kubectl
+  args:
+  - apply
+  - -f=examples/deployment/kubernetes/etcd-deployment.yaml
+  env:
+  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+  waitFor: ["-"]
+- id: copy_k8s_cfgs_for_spanner
+  name: busybox
+  entrypoint: cp
+  args:
+  - -r
+  - examples/deployment/kubernetes/
+  - envsubst-spanner/
+  waitFor: ['-']
+- id: envsubst_k8s_cfgs_for_spanner
   name: envsubst
   args:
-  - ${_CONFIG_MAP}
-  - examples/deployment/kubernetes/trillian-log-deployment.yaml
-  - examples/deployment/kubernetes/trillian-log-service.yaml
-  - examples/deployment/kubernetes/trillian-log-signer-deployment.yaml
-  - examples/deployment/kubernetes/trillian-log-signer-service.yaml
+  - envsubst-spanner/etcd-cluster.yaml
+  - envsubst-spanner/trillian-ci-spanner.yaml
+  - envsubst-spanner/trillian-log-deployment.yaml
+  - envsubst-spanner/trillian-log-service.yaml
+  - envsubst-spanner/trillian-log-signer-deployment.yaml
+  - envsubst-spanner/trillian-log-signer-service.yaml
+  - envsubst-spanner/trillian-map-deployment.yaml
+  - envsubst-spanner/trillian-map-service.yaml
   env:
   - PROJECT_ID=${PROJECT_ID}
   - IMAGE_TAG=${COMMIT_SHA}
   waitFor:
   - build_envsubst
-- id: update_kubernetes_configs
+  - copy_k8s_cfgs_for_spanner
+- id: apply_k8s_cfgs_for_spanner
   name: gcr.io/cloud-builders/kubectl
   args:
   - apply
-  - -f=${_CONFIG_MAP}
-  - -f=examples/deployment/kubernetes/trillian-log-deployment.yaml
-  - -f=examples/deployment/kubernetes/trillian-log-service.yaml
-  - -f=examples/deployment/kubernetes/trillian-log-signer-deployment.yaml
-  - -f=examples/deployment/kubernetes/trillian-log-signer-service.yaml
+  - -f=envsubst-spanner/etcd-cluster.yaml
+  - -f=envsubst-spanner/trillian-ci-spanner.yaml
+  - -f=envsubst-spanner/trillian-log-deployment.yaml
+  - -f=envsubst-spanner/trillian-log-service.yaml
+  - -f=envsubst-spanner/trillian-log-signer-deployment.yaml
+  - -f=envsubst-spanner/trillian-log-signer-service.yaml
+  - -f=envsubst-spanner/trillian-map-deployment.yaml
+  - -f=envsubst-spanner/trillian-map-service.yaml
   env:
   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
   waitFor:
-  - envsubst_kubernetes_configs
+  - envsubst_k8s_cfgs_for_spanner
   - build_log_server
   - build_log_signer
+  - build_map_server
+- id: copy_k8s_cfgs_for_mysql
+  name: busybox
+  entrypoint: cp
+  args:
+  - -r
+  - examples/deployment/kubernetes/
+  - envsubst-mysql/
+  waitFor: ['-']
+- id: envsubst_k8s_cfgs_for_mysql
+  name: envsubst
+  args:
+  - envsubst-mysql/etcd-cluster.yaml
+  - envsubst-mysql/trillian-ci-mysql.yaml
+  - envsubst-mysql/trillian-mysql.yaml
+  - envsubst-mysql/trillian-log-deployment.yaml
+  - envsubst-mysql/trillian-log-service.yaml
+  - envsubst-mysql/trillian-log-signer-deployment.yaml
+  - envsubst-mysql/trillian-log-signer-service.yaml
+  - envsubst-mysql/trillian-map-deployment.yaml
+  - envsubst-mysql/trillian-map-service.yaml
+  env:
+  - PROJECT_ID=${PROJECT_ID}
+  - IMAGE_TAG=${COMMIT_SHA}
+  - MYSQL_ROOT_PASSWORD=${_MYSQL_ROOT_PASSWORD}
+  - MYSQL_USER=trillian
+  - MYSQL_PASSWORD=${_MYSQL_PASSWORD}
+  - MYSQL_DATABASE=trillian
+  waitFor:
+  - build_envsubst
+  - copy_k8s_cfgs_for_mysql
+- id: apply_k8s_cfgs_for_mysql
+  name: gcr.io/cloud-builders/kubectl
+  args:
+  - apply
+  - --namespace=mysql
+  - -f=envsubst-mysql/trillian-ci-mysql.yaml
+  - -f=envsubst-mysql/trillian-mysql.yaml
+  - -f=envsubst-mysql/trillian-log-deployment.yaml
+  - -f=envsubst-mysql/trillian-log-service.yaml
+  - -f=envsubst-mysql/trillian-log-signer-deployment.yaml
+  - -f=envsubst-mysql/trillian-log-signer-service.yaml
+  - -f=envsubst-mysql/trillian-map-deployment.yaml
+  - -f=envsubst-mysql/trillian-map-service.yaml
+  env:
+  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+  waitFor:
+  - envsubst_k8s_cfgs_for_mysql
+  - build_db_server
+  - build_log_server
+  - build_log_signer
+  - build_map_server
