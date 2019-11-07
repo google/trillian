@@ -1,13 +1,20 @@
 apiVersion: v1
+kind: Secret
+metadata:
+  name: trillian-secrets
+type: Opaque
+stringData:
+  STORAGE_FLAG: --cloudspanner_uri=projects/${PROJECT_ID}/instances/trillian-opensource-ci/databases/trillian-opensource-ci-db
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: deploy-config
 data:
   STORAGE_SYSTEM: cloud_spanner
-  STORAGE_FLAG: --cloudspanner_uri=projects/${PROJECT_ID}/instances/trillian-opensource-ci/databases/trillian-opensource-ci-db
   GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
-  SIGNER_DEQUEUE_BUCKET_FRACTION: "0.0078"
-  SIGNER_BATCH_SIZE: "1800"
-  SIGNER_INTERVAL: "2ms"
-  SIGNER_NUM_SEQUENCERS: "10"
-  SIGNER_MASTER_HOLD_JITTER: "7200s"
+  SIGNER_DEQUEUE_BUCKET_FRACTION: "--cloudspanner_dequeue_bucket_fraction=0.0078"
+  SIGNER_BATCH_SIZE: "--batch_size=1800"
+  SIGNER_INTERVAL: "--sequencer_interval=2ms"
+  SIGNER_NUM_SEQUENCERS: "--num_sequencers=10"
+  SIGNER_MASTER_HOLD_JITTER: "--master_hold_jitter=7200s"

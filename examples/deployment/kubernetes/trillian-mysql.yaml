@@ -1,17 +1,86 @@
-# This configmap is for running Trillian with a MySQL database on Kubernetes.
-# You'll want to update the storage-flag below with the correct configuration
-# info for the database.
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: deploy-config
-data:
-  CLOUD_PROJECT: ${PROJECT_ID}
-  # Update this with your DB connection string:
-  STORAGE_FLAG: --mysql_uri=test:zaphod@tcp(db:3306)/test
-  STORAGE_SYSTEM: mysql
-  GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
-  SIGNER_BATCH_SIZE: "500"
-  SIGNER_INTERVAL: "20ms"
-  SIGNER_NUM_SEQUENCERS: "10"
-  SIGNER_MASTER_HOLD_JITTER: "7200s"
+  name: trillian-secrets
+type: Opaque
+stringData:
+  # TODO(RJPercival): Pass this flag via --config to protect the password from being seen by `ps`
+  STORAGE_FLAG: --mysql_uri=${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(trillian-mysql:3306)/${MYSQL_DATABASE}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: trillian-mysql-secrets
+  labels:
+    app: mysql
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+  MYSQL_USER: "${MYSQL_USER}"
+  MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+  MYSQL_DATABASE: "${MYSQL_DATABASE}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trillian-mysql
+  labels:
+    app: mysql
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+  selector:
+    app: mysql
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: trillian-mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  serviceName: trillian-mysql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: gcr.io/${PROJECT_ID}/db_server:${IMAGE_TAG}
+        envFrom:
+        - secretRef:
+            name: trillian-mysql-secrets
+        ports:
+        - name: mysql
+          containerPort: 3306
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+          subPath: mysql
+        resources:
+          requests:
+            cpu: 4
+            memory: 48Gi
+        # TODO(RJPercival): Add livenessProbe/readinessProbe
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      storageClassName: fast
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 500Gi
