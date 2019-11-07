@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package storagepb contains protobuf definitions and helpers used by various
-// storage implementations.
+// Package storagepb contains protobuf definitions used by various storage
+// implementations.
 //
 // TODO(pavelkalinnikov, v2): SubtreeProto is used as:
 //  a) database storage unit in multiple storage implementations;
