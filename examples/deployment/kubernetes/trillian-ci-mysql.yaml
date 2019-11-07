@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploy-config
+data:
+  STORAGE_SYSTEM: mysql
+  GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
+  SIGNER_BATCH_SIZE: "--batch_size=500"
+  SIGNER_INTERVAL: "--sequencer_interval=20ms"
+  SIGNER_NUM_SEQUENCERS: "--num_sequencers=10"
+  SIGNER_MASTER_HOLD_JITTER: "--master_hold_jitter=7200s"

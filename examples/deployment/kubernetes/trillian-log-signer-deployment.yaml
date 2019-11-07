@@ -30,11 +30,11 @@ spec:
         "--etcd_http_service=trillian-logsigner-http",
         "--http_endpoint=0.0.0.0:8091",
         "--sequencer_guard_window=1s",
-        "--sequencer_interval=$(SIGNER_INTERVAL)",
-        "--num_sequencers=$(SIGNER_NUM_SEQUENCERS)",
-        "--batch_size=$(SIGNER_BATCH_SIZE)",
-        "--cloudspanner_dequeue_bucket_fraction=$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
-        "--master_hold_jitter=$(SIGNER_MASTER_HOLD_JITTER)",
+        "$(SIGNER_INTERVAL)",
+        "$(SIGNER_NUM_SEQUENCERS)",
+        "$(SIGNER_BATCH_SIZE)",
+        "$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
+        "$(SIGNER_MASTER_HOLD_JITTER)",
         "--alsologtostderr"
         ]
         envFrom:
