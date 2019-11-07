@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storagepb
+package convert
 
 import (
 	"fmt"
 
 	"github.com/google/trillian/merkle/smt"
+	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 )
 
 // Unmarshal converts the given SubtreeProto to a Merkle tree tile.
-func Unmarshal(sp *SubtreeProto) (smt.Tile, error) {
+func Unmarshal(sp *storagepb.SubtreeProto) (smt.Tile, error) {
 	if d := sp.GetDepth(); d <= 0 {
 		return smt.Tile{}, fmt.Errorf("wrong depth %d, want > 0", d)
 	}
@@ -56,7 +57,7 @@ func Unmarshal(sp *SubtreeProto) (smt.Tile, error) {
 }
 
 // Marshal converts the given Merkle tree tile to SubtreeProto.
-func Marshal(t smt.Tile, height uint) (*SubtreeProto, error) {
+func Marshal(t smt.Tile, height uint) (*storagepb.SubtreeProto, error) {
 	if height == 0 || height > 255 {
 		return nil, fmt.Errorf("height out of [1,255] range: %d", height)
 	}
@@ -84,5 +85,5 @@ func Marshal(t smt.Tile, height uint) (*SubtreeProto, error) {
 		leaves[suf.String()] = upd.Hash
 	}
 	id := tree.NewNodeIDFromID2(t.ID)
-	return &SubtreeProto{Prefix: id.Path, Depth: int32(height), Leaves: leaves}, nil
+	return &storagepb.SubtreeProto{Prefix: id.Path, Depth: int32(height), Leaves: leaves}, nil
 }
