@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storagepb
+package convert
 
 import (
 	"reflect"
@@ -21,24 +21,25 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/merkle/smt"
+	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 )
 
 func TestUnmarshal(t *testing.T) {
 	type mappy map[string][]byte
 	for _, tc := range []struct {
-		sp      *SubtreeProto
+		sp      *storagepb.SubtreeProto
 		wantErr string
 	}{
-		{sp: &SubtreeProto{}, wantErr: "wrong depth"},
-		{sp: &SubtreeProto{Depth: -1}, wantErr: "wrong depth"},
-		{sp: &SubtreeProto{Depth: 8, Leaves: mappy{"huh?": nil}}, wantErr: "base64"},
-		{sp: &SubtreeProto{Depth: 8, Leaves: mappy{"": nil}}, wantErr: "ParseSuffix: empty bytes"},
-		{sp: &SubtreeProto{Depth: 12, Leaves: mappy{"DA==": nil}}, wantErr: "ParseSuffix: unexpected length"},
-		{sp: &SubtreeProto{Depth: 12, Leaves: mappy{"DAAA": nil}}},
-		{sp: &SubtreeProto{Depth: 13, Leaves: mappy{"DAAA": nil}}, wantErr: "wrong suffix bits"},
-		{sp: &SubtreeProto{Depth: 12, Leaves: mappy{"DAAA": nil, "DAAB": nil}}, wantErr: "Prepare"},
-		{sp: &SubtreeProto{Depth: 16, Leaves: mappy{"EAAA": nil, "EAAB": nil}}},
+		{sp: &storagepb.SubtreeProto{}, wantErr: "wrong depth"},
+		{sp: &storagepb.SubtreeProto{Depth: -1}, wantErr: "wrong depth"},
+		{sp: &storagepb.SubtreeProto{Depth: 8, Leaves: mappy{"huh?": nil}}, wantErr: "base64"},
+		{sp: &storagepb.SubtreeProto{Depth: 8, Leaves: mappy{"": nil}}, wantErr: "ParseSuffix: empty bytes"},
+		{sp: &storagepb.SubtreeProto{Depth: 12, Leaves: mappy{"DA==": nil}}, wantErr: "ParseSuffix: unexpected length"},
+		{sp: &storagepb.SubtreeProto{Depth: 12, Leaves: mappy{"DAAA": nil}}},
+		{sp: &storagepb.SubtreeProto{Depth: 13, Leaves: mappy{"DAAA": nil}}, wantErr: "wrong suffix bits"},
+		{sp: &storagepb.SubtreeProto{Depth: 12, Leaves: mappy{"DAAA": nil, "DAAB": nil}}, wantErr: "Prepare"},
+		{sp: &storagepb.SubtreeProto{Depth: 16, Leaves: mappy{"EAAA": nil, "EAAB": nil}}},
 	} {
 		t.Run("", func(t *testing.T) {
 			got := ""
@@ -122,7 +123,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Marshal: %v", err)
 			}
-			clone := proto.Clone(sp).(*SubtreeProto) // Break memory dependency.
+			clone := proto.Clone(sp).(*storagepb.SubtreeProto) // Break memory dependency.
 			tile, err := Unmarshal(clone)
 			if err != nil {
 				t.Fatalf("Unmarshal: %v", err)
