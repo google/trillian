@@ -459,9 +459,9 @@ func TestSetLeaves(t *testing.T) {
 						// Leaves are in different shards because the leaf indices are
 						// random. We query one shard per leaf, plus the root shard.
 						merkleGets := count + 1
-						// Plus, possibly, there is a "global" preloading query.
+						// There is only one "global" query if preloading is used.
 						if tc.preload {
-							merkleGets++
+							merkleGets = 1
 						}
 						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(merkleGets)
 						// Store each leaf's shard, and the root shard.
