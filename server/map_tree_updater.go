@@ -120,6 +120,7 @@ type txAccessor struct {
 }
 
 func (t txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
+	// TODO(pavelkalinnikov): Factor out preload into another accessor.
 	if t.preload {
 		return t.hashes, nil
 	}
