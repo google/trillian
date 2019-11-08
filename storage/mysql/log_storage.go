@@ -716,6 +716,10 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 		}
 		ret = append(ret, leaf)
 	}
+	if err := rows.Err(); err != nil {
+		glog.Warningf("Failed to read returned leaves: %s", err)
+		return nil, err
+	}
 
 	if got, want := len(ret), len(leaves); got != want {
 		return nil, status.Errorf(codes.Internal, "len(ret): %d, want %d", got, want)
@@ -790,6 +794,10 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
 		ret = append(ret, leaf)
+	}
+	if err := rows.Err(); err != nil {
+		glog.Warningf("Failed to read returned leaves: %s", err)
+		return nil, err
 	}
 
 	return ret, nil
@@ -937,6 +945,10 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		}
 
 		ret = append(ret, leaf)
+	}
+	if err := rows.Err(); err != nil {
+		glog.Warningf("Failed to read returned leaves: %s", err)
+		return nil, err
 	}
 
 	return ret, nil
