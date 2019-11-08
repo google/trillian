@@ -148,8 +148,12 @@ func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) erro
 		glog.Infof("%s: queue up resignation of mastership", er.id)
 		done := make(chan struct{})
 		r := Resignation{ID: er.id, er: er, done: done}
-		pending <- r
-		<-done // Block until acted on.
+		select {
+		case pending <- r:
+			<-done // Block until acted on.
+		default:
+			glog.Warning("Dropping resignation because operation manager seems to be exiting")
+		}
 	}
 	return nil
 }

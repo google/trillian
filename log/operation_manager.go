@@ -375,6 +375,14 @@ loop:
 		glog.V(1).Infof("cancel election runner for %s", logID)
 		runner.Cancel()
 	}
+
+	// Drain any remaining resignations which might have triggered.
+	close(o.pendingResignations)
+	for r := range o.pendingResignations {
+		resignations.Inc(r.ID)
+		r.Execute(ctx)
+	}
+
 	glog.Infof("wait for termination of election runners...")
 	o.runnerWG.Wait()
 	glog.Infof("wait for termination of election runners...done")
