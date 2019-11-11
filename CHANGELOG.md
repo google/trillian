@@ -4,6 +4,12 @@
 
 Not yet released; provisionally v1.4.0 (may change).
 
+### Bazel Changes
+Python support is disabled unless we hear that the community cares about this
+being re-enabled. This was broken by a downstream change and without a signal
+from the Trillian community to say this is needed, the pragmatic action is to
+not spend time investigating this issue.
+
 ### Log Changes
 
 #### Potential sequencer hang fixed
