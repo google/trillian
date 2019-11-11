@@ -72,11 +72,11 @@ func TestRetryExposesDeadlineError(t *testing.T) {
 		EPBias:        bias,
 		LeafSize:      1000,
 		ExtraSize:     100,
-		// TODO(mhutchinson): Increase these when #1845 is understood & fixed.
-		MinLeavesR:  100,
-		MaxLeavesR:  150,
-		MinLeavesW:  100,
-		MaxLeavesW:  150,
+		// TODO(mhutchinson): Increase these when #1845 is fixed.
+		MinLeavesR:  90,
+		MaxLeavesR:  100,
+		MinLeavesW:  90,
+		MaxLeavesW:  100,
 		Operations:  *operations,
 		NumCheckers: 1,
 	}
@@ -125,11 +125,11 @@ func TestInProcessMapHammer(t *testing.T) {
 		EPBias:        bias,
 		LeafSize:      1000,
 		ExtraSize:     100,
-		// TODO(mhutchinson): Increase these when #1845 is understood & fixed.
-		MinLeavesR:  100,
-		MaxLeavesR:  150,
-		MinLeavesW:  100,
-		MaxLeavesW:  150,
+		// TODO(mhutchinson): Increase these when #1845 is fixed.
+		MinLeavesR:  90,
+		MaxLeavesR:  100,
+		MinLeavesW:  90,
+		MaxLeavesW:  100,
 		Operations:  *operations,
 		NumCheckers: 1,
 	}
