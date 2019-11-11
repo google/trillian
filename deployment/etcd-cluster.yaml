@@ -1,0 +1,27 @@
+apiVersion: "etcd.database.coreos.com/v1beta2"
+kind: "EtcdCluster"
+metadata:
+  name: "trillian-etcd-cluster"
+  annotations:
+    etcd.database.coreos.com/scope: clusterwide
+spec:
+  size: 3
+  version: "3.2.13"
+  pod:
+    annotations:
+      # Do not inject an Istio sidecar, because Etcd nodes require a network
+      # connection on startup and don't retry on failure. This is a problem for
+      # Istio because it takes a moment to start its proxy sidecar and, during
+      # that time, all network connections will be blocked.
+      sidecar.istio.io/inject: "false"
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: etcd_cluster
+                operator: In
+                values:
+                - trillian-etcd-cluster
+          topologyKey: kubernetes.io/hostname

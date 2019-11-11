@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: trillian-log-service
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  ports:
+  - name: grpc
+    port: 8090
+    targetPort: 8090
+  - name: http-metrics
+    port: 8091
+    targetPort: 8091
+  selector:
+    app.kubernetes.io/name: trillian
+    app.kubernetes.io/component: logserver

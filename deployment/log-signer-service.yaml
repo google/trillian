@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: trillian-log-signer-service
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http-metrics
+    port: 8092
+    targetPort: 8091
+  selector:
+    app.kubernetes.io/name: trillian
+    app.kubernetes.io/component: logsigner
