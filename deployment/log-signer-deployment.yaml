@@ -1,0 +1,76 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: trillian
+    app.kubernetes.io/component: logsigner
+  name: trillian-log-signer-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trillian
+        app.kubernetes.io/component: logsigner
+    spec:
+      serviceAccountName: trillian-svc
+      restartPolicy: Always
+      containers:
+      - name: trillian-log-signer
+        args: [
+        "$(STORAGE_FLAG)",
+        "--storage_system=$(STORAGE_SYSTEM)",
+        "--etcd_servers=trillian-etcd-cluster-client:2379",
+        "--quota_system=etcd",
+        "--etcd_http_service=trillian-logsigner-http",
+        "--http_endpoint=0.0.0.0:8091",
+        "--sequencer_guard_window=1s",
+        "$(SIGNER_INTERVAL)",
+        "$(SIGNER_NUM_SEQUENCERS)",
+        "$(SIGNER_BATCH_SIZE)",
+        "$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
+        "$(SIGNER_MASTER_HOLD_JITTER)",
+        "--alsologtostderr"
+        ]
+        envFrom:
+        - configMapRef:
+            name: deploy-config
+        image: gcr.io/trillian-opensource-ci/log_signer:v1.3.3
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "1"
+          requests:
+            cpu: "1"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8091
+          failureThreshold: 3
+          periodSeconds: 30
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 8091
+          name: http-metrics
+      - name: prometheus-to-sd
+        image: gcr.io/google-containers/prometheus-to-sd:v0.5.2
+        ports:
+          - name: profiler
+            containerPort: 6060
+        command:
+          - /monitor
+          - --stackdriver-prefix=custom.googleapis.com
+          - --source=logsigner:http://localhost:8091/metrics
+          - --pod-id=$(POD_NAME)
+          - --namespace-id=$(POD_NAMESPACE)
+          - --scrape-interval=5s
+          - --export-interval=60s
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace

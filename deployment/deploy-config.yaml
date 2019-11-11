@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploy-config
+data:
+  STORAGE_SYSTEM: cloud_spanner
+  STORAGE_FLAG: --cloudspanner_uri=projects/PROJECT_ID/instances/trillian-spanner/databases/trillian-db
+  SIGNER_DEQUEUE_BUCKET_FRACTION: "--cloudspanner_dequeue_bucket_fraction=0.0078"
+  SIGNER_BATCH_SIZE: "--batch_size=1800"
+  SIGNER_INTERVAL: "--sequencer_interval=2ms"
+  SIGNER_NUM_SEQUENCERS: "--num_sequencers=10"
+  SIGNER_MASTER_HOLD_JITTER: "--master_hold_jitter=7200s"

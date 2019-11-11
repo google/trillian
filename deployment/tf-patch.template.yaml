@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploy-config
+data:
+  STORAGE_FLAG: --cloudspanner_uri=projects/${project_id}/instances/trillian-spanner/databases/trillian-db
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: trillian@${project_id}.iam.gserviceaccount.com
+  name: trillian-svc
