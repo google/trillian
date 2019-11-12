@@ -35,7 +35,7 @@ switched_rules_by_language(
     name = "com_google_googleapis_imports",
     go = True,
     java = True,
-    python = True,
+    python = False, # Broken by https://github.com/googleapis/googleapis/commit/248abde0
 )
 
 http_archive(
