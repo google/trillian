@@ -14,9 +14,7 @@ require (
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
 	github.com/emicklei/proto v1.6.13 // indirect
-	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/gliderlabs/ssh v0.1.4 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gobuffalo/flect v0.1.5 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
@@ -29,7 +27,6 @@ require (
 	github.com/google/btree v1.0.0
 	github.com/google/certificate-transparency-go v1.0.22-0.20190910093103-496c2e82955b
 	github.com/google/go-cmp v0.3.0
-	github.com/google/licenseclassifier v0.0.0-20190501212618-47b603fe1b8c
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gostaticanalysis/analysisutil v0.0.0-20190329151158-56bca42c7635 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
@@ -44,12 +41,11 @@ require (
 	github.com/lyft/protoc-gen-validate v0.0.14 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mwitkow/go-proto-validators v0.0.0-20190212092829-1f388280e944 // indirect
 	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
-	github.com/otiai10/copy v1.0.1
-	github.com/otiai10/curr v0.0.0-20190513014714-f5a3d24e5776 // indirect
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90
@@ -62,9 +58,8 @@ require (
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/viper v1.4.0 // indirect
+	github.com/spf13/viper v1.4.0
 	github.com/uber/prototool v1.8.2-0.20190910022025-7df3b957ffe3
-	github.com/xanzy/ssh-agent v0.2.1 // indirect
 	go.etcd.io/bbolt v1.3.3 // indirect
 	go.etcd.io/etcd v3.3.13+incompatible
 	go.opencensus.io v0.22.0
@@ -76,9 +71,6 @@ require (
 	golang.org/x/tools v0.0.0-20190909030654-5b82db07426d
 	google.golang.org/genproto v0.0.0-20190708153700-3bdd9d9f5532
 	google.golang.org/grpc v1.22.0
-	gopkg.in/src-d/go-billy.v4 v4.3.0 // indirect
-	gopkg.in/src-d/go-git-fixtures.v3 v3.5.0 // indirect
-	gopkg.in/src-d/go-git.v4 v4.11.0
 	mvdan.cc/unparam v0.0.0-20190310220240-1b9ccfa71afe // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
