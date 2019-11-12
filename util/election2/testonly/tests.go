@@ -210,7 +210,9 @@ func runElectionClose(t *testing.T, f election2.Factory) {
 		{desc: "master-error", beMaster: true, err: closeErr, wantErr: closeErr},
 		{desc: "not-master", beMaster: false, wantErr: nil},
 		{desc: "not-master-error", err: closeErr, wantErr: closeErr},
+		/* TODO(pavelkalinnikov): reinstate when not flaky.
 		{desc: "cancel", cancel: true, wantErr: nil},
+		*/
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := context.Background()
