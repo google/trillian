@@ -13,10 +13,10 @@ RUN go mod download
 # Now add the local Trillian repo, which typically isn't cacheable.
 COPY . .
 
-# Build the server and licensing tool.
-RUN go get ./server/trillian_map_server ./scripts/licenses
+# Build the server.
+RUN go get ./server/trillian_map_server
 # Run the licensing tool and save licenses, copyright notices, etc.
-RUN licenses save ./server/trillian_map_server --save_path /THIRD_PARTY_NOTICES
+RUN go run github.com/google/go-licenses save ./server/trillian_map_server --save_path /THIRD_PARTY_NOTICES
 
 # Make a minimal image.
 FROM gcr.io/distroless/base

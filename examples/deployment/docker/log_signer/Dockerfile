@@ -13,10 +13,10 @@ RUN go mod download
 # Now add the local Trillian repo, which typically isn't cacheable.
 COPY . .
 
-# Build the signer and licensing tool.
-RUN go get ./server/trillian_log_signer ./scripts/licenses
+# Build the signer.
+RUN go get ./server/trillian_log_signer
 # Run the licensing tool and save licenses, copyright notices, etc.
-RUN licenses save ./server/trillian_log_signer --save_path /THIRD_PARTY_NOTICES
+RUN go run github.com/google/go-licenses save ./server/trillian_log_signer --save_path /THIRD_PARTY_NOTICES
 
 # Make a minimal image.
 FROM gcr.io/distroless/base
