@@ -40,6 +40,11 @@ the corresponding packages, and are now required to be imported explicitly by
 the main file in order to be registered. We are including only MySQL and
 cloudspanner providers by default, since these are the ones that we support.
 
+### Tools
+
+The `licenses` tool has been moved from "scripts/licenses" to [a dedicated
+repository](https://github.com/google/go-licenses).
+
 ## v1.3.2 - Module fixes
 
 Published 2019-09-05 17:30:00 +0000 UTC
