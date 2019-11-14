@@ -25,7 +25,7 @@ require (
 	github.com/golangci/golangci-lint v1.17.2-0.20190910081718-bad04bb7378f
 	github.com/golangci/revgrep v0.0.0-20180812185044-276a5c0a1039 // indirect
 	github.com/google/btree v1.0.0
-	github.com/google/certificate-transparency-go v1.0.22-0.20190910093103-496c2e82955b
+	github.com/google/certificate-transparency-go v1.1.0
 	github.com/google/go-cmp v0.3.0
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gostaticanalysis/analysisutil v0.0.0-20190329151158-56bca42c7635 // indirect
