@@ -29,7 +29,6 @@ import (
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-	"github.com/kylelemons/godebug/pretty"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 )
@@ -212,7 +211,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 				}
 
 				got, want := getSmrByRevResp.GetMapRoot(), getSmrResp.GetMapRoot()
-				if diff := pretty.Compare(got, want); diff != "" {
+				if diff := cmp.Diff(got, want, cmp.Comparer(proto.Equal)); diff != "" {
 					t.Errorf("GetSignedMapRootByRevision() != GetSignedMapRoot(); diff (-got +want):\n%v", diff)
 				}
 

@@ -279,7 +279,7 @@ func TestServer_GetTree(t *testing.T) {
 
 		wantTree := proto.Clone(storedTree).(*trillian.Tree)
 		wantTree.PrivateKey = nil // redacted
-		if diff := pretty.Compare(tree, &wantTree); diff != "" {
+		if diff := cmp.Diff(tree, wantTree, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("%v: post-GetTree diff (-got +want):\n%v", test.desc, diff)
 		}
 	}

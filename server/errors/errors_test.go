@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	_ "github.com/golang/glog"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -48,8 +47,8 @@ func TestWrapError(t *testing.T) {
 	}
 	for _, test := range tests {
 		// We can't use == for rpcErrors because grpc.Errorf returns *rpcError.
-		if diff := pretty.Compare(WrapError(test.err), test.wantErr); diff != "" {
-			t.Errorf("WrapError('%T') diff:\n%s", test.err, diff)
+		if gotErr := WrapError(test.err); gotErr.Error() != test.wantErr.Error() {
+			t.Errorf("WrapError('%T') = %v, want %v", test.err, gotErr, test.wantErr)
 		}
 	}
 }
