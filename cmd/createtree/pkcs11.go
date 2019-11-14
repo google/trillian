@@ -27,7 +27,7 @@ import (
 	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
 
-	pkcs11key "github.com/letsencrypt/pkcs11key/v3"
+	pkcs11key "github.com/letsencrypt/pkcs11key/v4"
 )
 
 var pkcs11ConfigPath = flag.String("pkcs11_config_path", "", "Path to the PKCS #11 key configuration file")
