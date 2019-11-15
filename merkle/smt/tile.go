@@ -28,3 +28,34 @@ type Tile struct {
 	ID     tree.NodeID2
 	Leaves []Node
 }
+
+// scan visits all non-empty nodes of the tile except the root.
+func (t Tile) scan(lo *tree.Layout, h mapHasher, visit func(tree.NodeID2, []byte)) error {
+	top := t.ID.BitLen()
+	height := uint(lo.TileHeight(int(top)))
+	// TODO(pavelkalinnikov): Remove HStar3 side effects, to avoid copying here.
+	leaves := make([]Node, len(t.Leaves))
+	copy(leaves, t.Leaves)
+	hs, err := NewHStar3(leaves, h.mh.HashChildren, top+height, top)
+	if err != nil {
+		return err
+	}
+	_, err = hs.Update(emptyHashes{h: h, set: visit})
+	return err
+}
+
+// emptyHashes is a NodeAccessor used for computing node hashes of a tile.
+type emptyHashes struct {
+	h   mapHasher
+	set func(tree.NodeID2, []byte)
+}
+
+// Get returns an empty hash for the given root node ID.
+func (e emptyHashes) Get(id tree.NodeID2) ([]byte, error) {
+	return e.h.hashEmpty(id), nil
+}
+
+// Set calls the visitor callback for the given node and hash.
+func (e emptyHashes) Set(id tree.NodeID2, hash []byte) {
+	e.set(id, hash)
+}
