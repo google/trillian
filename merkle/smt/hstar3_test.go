@@ -24,14 +24,12 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/coniks"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
 )
 
 type emptyNodes struct {
-	treeID int64
-	hasher hashers.MapHasher
-	ids    map[tree.NodeID2]bool
+	h   mapHasher
+	ids map[tree.NodeID2]bool
 }
 
 func (e *emptyNodes) Get(id tree.NodeID2) ([]byte, error) {
@@ -41,7 +39,7 @@ func (e *emptyNodes) Get(id tree.NodeID2) ([]byte, error) {
 		}
 		delete(e.ids, id) // Allow getting this ID only once.
 	}
-	return hashEmpty(e.hasher, e.treeID, id), nil
+	return e.h.hashEmpty(id), nil
 }
 
 func (e *emptyNodes) Set(id tree.NodeID2, hash []byte) {}
@@ -54,7 +52,7 @@ func BenchmarkHStar3Root(b *testing.B) {
 		if err != nil {
 			b.Fatalf("NewHStar3: %v", err)
 		}
-		nodes := &emptyNodes{treeID: 42, hasher: hasher}
+		nodes := &emptyNodes{h: bindHasher(hasher, 42)}
 		if _, err := hs.Update(nodes); err != nil {
 			b.Fatalf("Update: %v", err)
 		}
@@ -69,7 +67,7 @@ func TestHStar3Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHStar3: %v", err)
 	}
-	nodes := &emptyNodes{treeID: 42, hasher: hasher}
+	nodes := &emptyNodes{h: bindHasher(hasher, 42)}
 	upd, err := hs.Update(nodes)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
@@ -140,7 +138,7 @@ func TestHStar3Prepare(t *testing.T) {
 	}
 	rs := idsToMap(t, hs.Prepare())
 
-	nodes := &emptyNodes{treeID: 42, hasher: hasher, ids: rs}
+	nodes := &emptyNodes{h: bindHasher(hasher, 42), ids: rs}
 	if _, err = hs.Update(nodes); err != nil {
 		t.Errorf("Update: %v", err)
 	}
