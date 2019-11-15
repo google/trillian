@@ -40,8 +40,7 @@ type NodeBatchAccessor interface {
 // and 2^split second-level shards each spanning levels from split to height.
 // If the split height is 0 then effectively there is only one "global" shard.
 type Writer struct {
-	treeID int64
-	hasher hashers.MapHasher
+	h      mapHasher
 	height uint // The height of the tree.
 	split  uint // The height of the top shard.
 }
@@ -52,7 +51,7 @@ func NewWriter(treeID int64, hasher hashers.MapHasher, height, split uint) *Writ
 	if split > height {
 		panic(fmt.Errorf("NewWriter: split(%d) > height(%d)", split, height))
 	}
-	return &Writer{treeID: treeID, hasher: hasher, height: height, split: split}
+	return &Writer{h: wrapHasher(hasher, treeID), height: height, split: split}
 }
 
 // Split sorts and splits the given list of node hash updates into shards, i.e.
@@ -97,7 +96,7 @@ func (w *Writer) Write(ctx context.Context, upd []NodeUpdate, acc NodeBatchAcces
 		return NodeUpdate{}, err
 	}
 
-	hs, err := NewHStar3(upd, w.hasher.HashChildren, depth, top)
+	hs, err := NewHStar3(upd, w.h.mh.HashChildren, depth, top)
 	if err != nil {
 		return NodeUpdate{}, err
 	}
@@ -155,17 +154,10 @@ func (s *shardAccessor) Get(id tree.NodeID2) ([]byte, error) {
 	if hash, ok := s.reads[id]; ok && hash != nil {
 		return hash, nil
 	}
-	return hashEmpty(s.w.hasher, s.w.treeID, id), nil
+	return s.w.h.hashEmpty(id), nil
 }
 
 // Set adds the given node hash update to the list of writes.
 func (s *shardAccessor) Set(id tree.NodeID2, hash []byte) {
 	s.writes = append(s.writes, NodeUpdate{ID: id, Hash: hash})
-}
-
-// TODO(pavelkalinnikov): Make MapHasher.HashEmpty method take the id directly.
-func hashEmpty(hasher hashers.MapHasher, treeID int64, id tree.NodeID2) []byte {
-	oldID := tree.NewNodeIDFromID2(id)
-	height := hasher.BitLen() - oldID.PrefixLenBits
-	return hasher.HashEmpty(treeID, oldID.Path, height)
 }
