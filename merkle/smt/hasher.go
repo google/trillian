@@ -25,8 +25,8 @@ type mapHasher struct {
 	treeID int64
 }
 
-// wrapHasher returns a mapHasher binding the given hasher to a tree ID.
-func wrapHasher(hasher hashers.MapHasher, treeID int64) mapHasher {
+// bindHasher returns a mapHasher binding the given hasher to a tree ID.
+func bindHasher(hasher hashers.MapHasher, treeID int64) mapHasher {
 	return mapHasher{mh: hasher, treeID: treeID}
 }
 

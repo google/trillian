@@ -52,7 +52,7 @@ func BenchmarkHStar3Root(b *testing.B) {
 		if err != nil {
 			b.Fatalf("NewHStar3: %v", err)
 		}
-		nodes := &emptyNodes{h: wrapHasher(hasher, 42)}
+		nodes := &emptyNodes{h: bindHasher(hasher, 42)}
 		if _, err := hs.Update(nodes); err != nil {
 			b.Fatalf("Update: %v", err)
 		}
@@ -67,7 +67,7 @@ func TestHStar3Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHStar3: %v", err)
 	}
-	nodes := &emptyNodes{h: wrapHasher(hasher, 42)}
+	nodes := &emptyNodes{h: bindHasher(hasher, 42)}
 	upd, err := hs.Update(nodes)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
@@ -138,7 +138,7 @@ func TestHStar3Prepare(t *testing.T) {
 	}
 	rs := idsToMap(t, hs.Prepare())
 
-	nodes := &emptyNodes{h: wrapHasher(hasher, 42), ids: rs}
+	nodes := &emptyNodes{h: bindHasher(hasher, 42), ids: rs}
 	if _, err = hs.Update(nodes); err != nil {
 		t.Errorf("Update: %v", err)
 	}

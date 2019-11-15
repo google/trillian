@@ -51,7 +51,7 @@ func NewWriter(treeID int64, hasher hashers.MapHasher, height, split uint) *Writ
 	if split > height {
 		panic(fmt.Errorf("NewWriter: split(%d) > height(%d)", split, height))
 	}
-	return &Writer{h: wrapHasher(hasher, treeID), height: height, split: split}
+	return &Writer{h: bindHasher(hasher, treeID), height: height, split: split}
 }
 
 // Split sorts and splits the given list of node hash updates into shards, i.e.
