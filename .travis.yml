@@ -54,6 +54,9 @@ jobs:
         # that would be trimmed by 'go mod tidy'
         echo "Checking that generated files are the same as checked-in versions."
         git diff --exit-code -- ':!*.pb.go' ':!*_string.go' ':!go.*'
+    - name: "gomod"
+      before_script: go mod tidy -v
+      script: git diff --exit-code -- go.mod go.sum
     - name: "lint"
       before_install: true
       install:

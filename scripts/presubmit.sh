@@ -81,6 +81,8 @@ main() {
     gofmt -s -w ${go_srcs}
     echo 'running goimports'
     goimports -w ${go_srcs}
+    echo 'running go mod tidy'
+    go mod tidy
   fi
 
   if [[ "${run_build}" -eq 1 ]]; then
