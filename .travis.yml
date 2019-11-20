@@ -16,18 +16,18 @@ matrix:
 jobs:
   include:
     - name: "build"
-      before_install: true # This step is empty.
-      install: true
-      before_script: true
+      before_install: skip
+      install: skip
+      before_script: skip
       script: go build ./...
     - name: "coverage"
-      before_install: true
-      install: true
-      before_script: true
+      before_install: skip
+      install: skip
+      before_script: skip
       script: go test -covermode=atomic -coverprofile=coverage.txt ./...
       after_success: bash <(curl -s https://codecov.io/bash)
     - name: "generate"
-      before_install: true
+      before_install: skip
       install:
       - mkdir ../protoc
       - |
@@ -44,7 +44,7 @@ jobs:
       - go install github.com/golang/protobuf/protoc-gen-go
       - go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
       - go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-      before_script: true
+      before_script: skip
       script: 
       - go generate ./...
       - |
@@ -58,12 +58,12 @@ jobs:
       before_script: go mod tidy -v
       script: git diff --exit-code -- go.mod go.sum
     - name: "lint"
-      before_install: true
+      before_install: skip
       install:
       - go install github.com/golangci/golangci-lint/cmd/golangci-lint
       - go install github.com/uber/prototool/cmd/prototool
       - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
-      before_script: true
+      before_script: skip
       script:
       - golangci-lint run --deadline=8m
       - prototool lint
