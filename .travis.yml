@@ -31,6 +31,7 @@ jobs:
       install:
       - mkdir ../protoc
       - |
+        echo "Installing Protobuf compiler"
         (
           set -e
           cd ../protoc
@@ -73,6 +74,7 @@ jobs:
     - name: "bazel"
       install:
       - |
+        echo "Installing Bazel"
         set -e
         BAZEL_VERSION='1.1.0'
         URL="https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh"
@@ -143,15 +145,15 @@ services:
 before_install:
   - sudo service mysql stop
   - |
+    echo "Attempting to move MySQL data to ramdisk..."
     set -e
     if [[ "$TRAVIS_SUDO" == "true" ]]; then
-      echo "Moving MySQL data to ramdisk..."
       sudo mkdir /mnt/ramdisk
       sudo mount -t tmpfs -o size=1024m tmpfs /mnt/ramdisk
       sudo mv /var/lib/mysql /mnt/ramdisk
       sudo ln -s /mnt/ramdisk/mysql /var/lib/mysql
     else
-     echo "MySQL data staying on disk because sudo unavailable."
+     echo "Failed - MySQL data staying on disk because sudo unavailable."
     fi
   - sudo service mysql start
 
