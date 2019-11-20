@@ -45,7 +45,7 @@ jobs:
       - go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
       - go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
       before_script: skip
-      script: 
+      script:
       - go generate ./...
       - |
         # Check re-generation didn't change anything. Skip protoc-generated files
@@ -78,7 +78,7 @@ jobs:
       - rm -f install.sh
       script: bazel --batch build //:*
     - name: "docker"
-      script: 
+      script:
       - |
         # TODO(RJPercival): Make docker-compose integration test work when PKCS#11
         # support is enabled. This requires running softhsm in a Docker container.
