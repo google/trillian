@@ -32,6 +32,7 @@ jobs:
       - mkdir ../protoc
       - |
         (
+          set -e
           cd ../protoc
           wget "https://github.com/google/protobuf/releases/download/v3.5.1/protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
           unzip "protoc-3.5.1-${TRAVIS_OS_NAME}-x86_64.zip"
@@ -87,13 +88,16 @@ jobs:
       - ./integration/docker_compose_integration_test.sh
     - name: "CT Integration"
       script:
-       - TRILLIAN_DIR=$(pwd)
-       - git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
-       - pushd "$GOPATH/src/github.com/google/certificate-transparency-go"
-       - echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
-       - chmod +x ./trillian/integration/integration_test.sh
-       - ./trillian/integration/integration_test.sh
-       - popd
+      - |
+        set -e
+        TRILLIAN_DIR=$(pwd)
+        git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
+        (
+          cd "$GOPATH/src/github.com/google/certificate-transparency-go"
+          echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
+          chmod +x ./trillian/integration/integration_test.sh
+         ./trillian/integration/integration_test.sh
+        )
     - name: "presubmit"
       env: GOFLAGS='-race' GO_TEST_TIMEOUT=20m
       script: ./scripts/presubmit.sh --no-linters --no-generate
@@ -136,6 +140,7 @@ services:
 before_install:
   - sudo service mysql stop
   - |
+    set -e
     if [[ "$TRAVIS_SUDO" == "true" ]]; then
       echo "Moving MySQL data to ramdisk..."
       sudo mkdir /mnt/ramdisk
