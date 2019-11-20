@@ -55,6 +55,8 @@ jobs:
         echo "Checking that generated files are the same as checked-in versions."
         git diff --exit-code -- ':!*.pb.go' ':!*_string.go' ':!go.*'
     - name: "gomod"
+      before_install: skip
+      install: skip
       before_script: go mod tidy -v
       script: git diff --exit-code -- go.mod go.sum
     - name: "lint"
