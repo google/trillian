@@ -40,6 +40,10 @@ the corresponding packages, and are now required to be imported explicitly by
 the main file in order to be registered. We are including only MySQL and
 cloudspanner providers by default, since these are the ones that we support.
 
+### Quota
+
+An experimental Redis-based `quota.Manager` implementation has been added.
+
 ### Tools
 
 The `licenses` tool has been moved from "scripts/licenses" to [a dedicated

@@ -153,15 +153,15 @@ Supported frameworks for providing Master Election.
 
 ### Quota
 
-Supported frameworks for providing Master Election.
+Supported frameworks for quota management.
 
-| Election        | Status  | Deployed in prod    | Notes                                                                       |
+| Implementation  | Status  | Deployed in prod    | Notes                                                                       |
 |:---             | :---:   | :---:               |:---                                                                         |
 | Google internal | GA      | ✓                   |                                                                             |
 | etcd            | GA      | ✓                   |                                                                             |
 | MySQL           | Beta    | ?                   |                                                                             |
+| Redis           | Alpha   | ✓                   |                                                                             |
 | Postgres        | NI      |                     |                                                                             |
-
 
 ### Key management
 
