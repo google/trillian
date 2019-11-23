@@ -38,10 +38,14 @@ type ManagerOptions struct {
 	Prefix string
 }
 
+// Manager implements the quota.Manager interface backed by a Redis-based token
+// bucket implementation.
 type Manager struct {
 	tb   *redistb.TokenBucket
 	opts ManagerOptions
 }
+
+var _ quota.Manager = &Manager{}
 
 // RedisClient is an interface that encompasses the various methods used by
 // this quota.Manager, and allows selecting among different Redis client
@@ -108,7 +112,7 @@ func (m *Manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota
 		// If we get back `MaxTokens` from our parameters call, this
 		// indicates that there's no actual limit. We don't need to do
 		// anything to "get" them; just set that value in the returned
-		// hash as well.
+		// map as well.
 		if capacity == quota.MaxTokens {
 			tokens[spec] = quota.MaxTokens
 			continue
@@ -180,5 +184,3 @@ func specNames(prefix string, specs []quota.Spec) []string {
 func specName(prefix string, spec quota.Spec) string {
 	return prefix + "trillian/" + spec.Name()
 }
-
-var _ quota.Manager = &Manager{}
