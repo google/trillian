@@ -788,6 +788,8 @@ func makeKeys() redisKeys {
 
 // Helper function to initialize Redis keys to given values
 func mustInitKeys(t *testing.T, c *redis.Client, keys redisKeys, tokens int64, refreshed time.Time) {
+	t.Helper()
+
 	refreshedSec, refreshedUs := timeToRedisPair(refreshed)
 
 	if err := c.Set(keys.Tokens, tokens, TTL*time.Second).Err(); err != nil {
@@ -803,6 +805,8 @@ func mustInitKeys(t *testing.T, c *redis.Client, keys redisKeys, tokens int64, r
 
 // Helper function that deserializes the returned values from our Redis script.
 func deserializeRedisResults(t *testing.T, resp *redis.Cmd) (bool, int64, int64, int64) {
+	t.Helper()
+
 	results, err := resp.Result()
 	if err != nil {
 		t.Fatalf("error calling script: %v", err)
@@ -833,6 +837,8 @@ func deserializeRedisResults(t *testing.T, resp *redis.Cmd) (bool, int64, int64,
 // Helper function that deserializes the returned values from our Redis script,
 // and then asserts that they match the expected values provided.
 func assertRedisResults(t *testing.T, resp *redis.Cmd, allowed bool, remaining, returnedTime, returnedTimeUs int64) {
+	t.Helper()
+
 	actualAllowed,
 		actualRemaining,
 		actualReturnedTime,
