@@ -82,7 +82,9 @@ jobs:
         chmod +x install.sh
         ./install.sh --user
         rm -f install.sh
-      script: bazel --batch build //:*
+      script:
+      - bazel build //:*
+      - bazel shutdown
     - name: "docker"
       script:
       - |
