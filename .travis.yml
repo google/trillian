@@ -10,10 +10,8 @@ cache:
     - "$HOME/google-cloud-sdk/"
     - "$HOME/gopath/pkg/mod"
 
-matrix:
-  fast_finish: true
-
 jobs:
+  fast_finish: true
   include:
     - name: "build"
       before_install: skip
