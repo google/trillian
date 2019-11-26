@@ -139,7 +139,7 @@ services:
   - docker
   - postgresql
   - mysql
-  - redis-server
+  - redis
 
 before_install:
   - sudo service mysql stop
