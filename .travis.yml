@@ -1,4 +1,3 @@
-sudo: true  # Only to move mysql onto ramdisk.
 os: linux
 dist: xenial
 language: go
