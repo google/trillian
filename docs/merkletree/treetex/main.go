@@ -185,7 +185,7 @@ func drawLeaf(prefix string, index uint64) {
 // Returns a func to be called to close the node.
 func openInnerNode(prefix string, id compact.NodeID) func() {
 	attr := nInfo[id].String()
-	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, id.Level, id.Index, attr, id.Index-1)
+	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, id.Level, id.Index, attr, id.Level)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
@@ -214,6 +214,9 @@ func perfectInner(prefix string, level uint, index uint64, top bool) {
 
 // renderTree renders a tree node and recurses if necessary.
 func renderTree(prefix string, treeSize, index uint64) {
+	if treeSize == 0 {
+		return
+	}
 	// Look at the bit of the treeSize corresponding to the current level:
 	height := uint(bits.Len64(treeSize) - 1)
 	b := uint64(1) << height
