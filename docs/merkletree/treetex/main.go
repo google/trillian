@@ -86,6 +86,9 @@ var (
 	megaMode  = flag.Uint("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
 	ranges    = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
 
+	attrPerfectRoot   = flag.String("attr_perfect_root", "line width=4pt", "Latex treatment for perfect root nodes")
+	attrEphemeralNode = flag.String("attr_ephemeral_node", "draw, dotted", "Latex treatment for ephemeral nodes")
+
 	// nInfo holds nodeInfo data for the tree.
 	nInfo = make(map[compact.NodeID]nodeInfo)
 )
@@ -111,13 +114,13 @@ func (n nodeInfo) String() string {
 	// Figure out which colour to fill with:
 	fill := "white"
 	if n.perfectRoot {
-		attr = append(attr, "line width=4pt")
+		attr = append(attr, *attrPerfectRoot)
 	}
 	if n.incProof {
 		fill = "inclusion"
 		if n.ephemeral {
 			fill = "inclusion_ephemeral"
-			attr = append(attr, "draw, dotted")
+			attr = append(attr, *attrEphemeralNode)
 		}
 	}
 	if n.target {
@@ -145,7 +148,7 @@ func (n nodeInfo) String() string {
 	if !n.leaf {
 		attr = append(attr, "circle, minimum size=3em")
 	} else {
-		attr = append(attr, "minimum size=1.5em")
+		attr = append(attr, "minimum size=1.5em, align=center, base=bottom")
 	}
 	return strings.Join(attr, ", ")
 }
