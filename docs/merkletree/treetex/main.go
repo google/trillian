@@ -183,7 +183,7 @@ func perfect(prefix string, height uint, index uint64, nodeText nodeTextFunc) {
 // drawLeaf emits TeX code to render a leaf.
 func drawLeaf(prefix string, index uint64, text string) {
 	a := nInfo[compact.NewNodeID(0, index)]
-	fmt.Printf("%s [%s, %s, tier=leaf]\n", prefix, text, a.String())
+	fmt.Printf("%s [%s, %s, align=center, tier=leaf]\n", prefix, text, a.String())
 }
 
 // openInnerNode renders TeX code to open an internal node.
@@ -328,7 +328,7 @@ var nodeFormats = map[string]nodeTextFunc{
 	"hash": func(id compact.NodeID) string {
 		childLevel := id.Level - 1
 		leftChild := id.Index * 2
-		return fmt.Sprintf("{$H_{%d.%d} = \\\\ H(H_{%d.%d} || H_{%d.%d})$}", id.Level, id.Index, childLevel, leftChild, childLevel, leftChild+1)
+		return fmt.Sprintf("{$H_{%d.%d} =$ \\\\ $H(H_{%d.%d} || H_{%d.%d})$}", id.Level, id.Index, childLevel, leftChild, childLevel, leftChild+1)
 	},
 }
 
@@ -345,7 +345,7 @@ func main() {
 
 	var ldf nodeTextFunc = func(id compact.NodeID) string {
 		if id.Level == 0 {
-			return fmt.Sprintf("%d", id.Index)
+			return fmt.Sprintf("{$H_{0.%d} =$ \\\\ $H(leaf_{%[1]d})$}", id.Index)
 		}
 		return innerNodeText(id)
 	}
