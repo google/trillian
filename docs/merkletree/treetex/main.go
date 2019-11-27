@@ -185,7 +185,7 @@ func drawLeaf(prefix string, index uint64) {
 // Returns a func to be called to close the node.
 func openInnerNode(prefix string, id compact.NodeID) func() {
 	attr := nInfo[id].String()
-	fmt.Printf("%s [%d.%d, %s, tier=%d\n", prefix, id.Level, id.Index, attr, id.Level)
+	fmt.Printf("%s [%d.%d, %s, tier=%[2]d\n", prefix, id.Level, id.Index, attr)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
