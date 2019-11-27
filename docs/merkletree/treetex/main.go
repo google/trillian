@@ -80,11 +80,12 @@ const (
 )
 
 var (
-	treeSize  = flag.Uint64("tree_size", 23, "Size of tree to produce")
-	leafData  = flag.String("leaf_data", "", "Comma separated list of leaf data text (setting this overrides --tree_size")
-	inclusion = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
-	megaMode  = flag.Uint("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
-	ranges    = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
+	treeSize   = flag.Uint64("tree_size", 23, "Size of tree to produce")
+	leafData   = flag.String("leaf_data", "", "Comma separated list of leaf data text (setting this overrides --tree_size")
+	nodeFormat = flag.String("node_format", "address", "Format for internal node text, one of: address, hash")
+	inclusion  = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
+	megaMode   = flag.Uint("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
+	ranges     = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
 
 	attrPerfectRoot   = flag.String("attr_perfect_root", "line width=4pt", "Latex treatment for perfect root nodes")
 	attrEphemeralNode = flag.String("attr_ephemeral_node", "draw, dotted", "Latex treatment for ephemeral nodes")
@@ -146,7 +147,7 @@ func (n nodeInfo) String() string {
 		attr = append(attr, "draw")
 	}
 	if !n.leaf {
-		attr = append(attr, "circle, minimum size=3em")
+		attr = append(attr, "circle, minimum size=3em, align=center")
 	} else {
 		attr = append(attr, "minimum size=1.5em, align=center, base=bottom")
 	}
@@ -320,17 +321,26 @@ func modifyRangeNodeInfo() error {
 	return nil
 }
 
+var nodeFormats = map[string]nodeTextFunc{
+	"address": func(id compact.NodeID) string {
+		return fmt.Sprintf("%d.%d", id.Level, id.Index)
+	},
+	"hash": func(id compact.NodeID) string {
+		childLevel := id.Level - 1
+		leftChild := id.Index * 2
+		return fmt.Sprintf("{$H_{%d.%d} = \\\\ H(H_{%d.%d} || H_{%d.%d})$}", id.Level, id.Index, childLevel, leftChild, childLevel, leftChild+1)
+	},
+}
+
 // Whee - here we go!
 func main() {
 	// TODO(al): check flag validity.
 	flag.Parse()
 	height := uint(bits.Len64(*treeSize-1)) + 1
 
-	var innerNodeText = func(id compact.NodeID) string {
-		if id.Level == 0 {
-			panic("attempting to use inner node text func for leaf text")
-		}
-		return fmt.Sprintf("%d.%d", id.Level, id.Index)
+	innerNodeText := nodeFormats[*nodeFormat]
+	if innerNodeText == nil {
+		log.Fatalf("unknown --node_format %s", *nodeFormat)
 	}
 
 	var ldf nodeTextFunc = func(id compact.NodeID) string {
