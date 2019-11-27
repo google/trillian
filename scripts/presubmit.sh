@@ -74,6 +74,14 @@ main() {
     grep -v _string.go | \
     tr '\n' ' ')"
 
+  # Prevent the creation of proto files with .txt extensions.
+  bad_protos="$(find . -name '*.pb.txt' -o -name '*.proto.txt')"
+  if [[ "${#bad_protos}" -ne 0 ]]; then
+    echo "Text-based protos must use the .textproto extension:"
+    echo $bad_protos
+    exit 1
+  fi
+
   if [[ "$fix" -eq 1 ]]; then
     check_pkg goimports golang.org/x/tools/cmd/goimports || exit 1
 
