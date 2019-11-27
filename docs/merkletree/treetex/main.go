@@ -80,10 +80,15 @@ const (
 )
 
 var (
-	treeSize  = flag.Uint64("tree_size", 23, "Size of tree to produce")
-	inclusion = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
-	megaMode  = flag.Uint("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
-	ranges    = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
+	treeSize   = flag.Uint64("tree_size", 23, "Size of tree to produce")
+	leafData   = flag.String("leaf_data", "", "Comma separated list of leaf data text (setting this overrides --tree_size")
+	nodeFormat = flag.String("node_format", "address", "Format for internal node text, one of: address, hash")
+	inclusion  = flag.Int64("inclusion", -1, "Leaf index to show inclusion proof")
+	megaMode   = flag.Uint("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
+	ranges     = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
+
+	attrPerfectRoot   = flag.String("attr_perfect_root", "line width=4pt", "Latex treatment for perfect root nodes")
+	attrEphemeralNode = flag.String("attr_ephemeral_node", "draw, dotted", "Latex treatment for ephemeral nodes")
 
 	// nInfo holds nodeInfo data for the tree.
 	nInfo = make(map[compact.NodeID]nodeInfo)
@@ -100,6 +105,8 @@ type nodeInfo struct {
 	rangeIndices []int
 }
 
+type nodeTextFunc func(id compact.NodeID) string
+
 // String returns a string containing Forest attributes suitable for
 // rendering the node, given its type.
 func (n nodeInfo) String() string {
@@ -108,13 +115,13 @@ func (n nodeInfo) String() string {
 	// Figure out which colour to fill with:
 	fill := "white"
 	if n.perfectRoot {
-		attr = append(attr, "line width=4pt")
+		attr = append(attr, *attrPerfectRoot)
 	}
 	if n.incProof {
 		fill = "inclusion"
 		if n.ephemeral {
 			fill = "inclusion_ephemeral"
-			attr = append(attr, "draw, dotted")
+			attr = append(attr, *attrEphemeralNode)
 		}
 	}
 	if n.target {
@@ -140,9 +147,9 @@ func (n nodeInfo) String() string {
 		attr = append(attr, "draw")
 	}
 	if !n.leaf {
-		attr = append(attr, "circle, minimum size=3em")
+		attr = append(attr, "circle, minimum size=3em, align=center")
 	} else {
-		attr = append(attr, "minimum size=1.5em")
+		attr = append(attr, "minimum size=1.5em, align=center, base=bottom")
 	}
 	return strings.Join(attr, ", ")
 }
@@ -169,54 +176,56 @@ func perfectMega(prefix string, height uint, leafIndex uint64) {
 }
 
 // perfect renders a perfect subtree.
-func perfect(prefix string, height uint, index uint64) {
-	perfectInner(prefix, height, index, true)
+func perfect(prefix string, height uint, index uint64, nodeText nodeTextFunc) {
+	perfectInner(prefix, height, index, true, nodeText)
 }
 
 // drawLeaf emits TeX code to render a leaf.
-func drawLeaf(prefix string, index uint64) {
+func drawLeaf(prefix string, index uint64, text string) {
 	a := nInfo[compact.NewNodeID(0, index)]
-	fmt.Printf("%s [%d, %s, tier=leaf]\n", prefix, index, a.String())
+	fmt.Printf("%s [%s, %s, align=center, tier=leaf]\n", prefix, text, a.String())
 }
 
 // openInnerNode renders TeX code to open an internal node.
 // The caller may emit any number of child nodes before calling the returned
 // func to close the node.
 // Returns a func to be called to close the node.
-func openInnerNode(prefix string, id compact.NodeID) func() {
+func openInnerNode(prefix string, id compact.NodeID, text string) func() {
 	attr := nInfo[id].String()
-	fmt.Printf("%s [%d.%d, %s, tier=%[2]d\n", prefix, id.Level, id.Index, attr)
+	fmt.Printf("%s [%s, %s, tier=%d\n", prefix, text, attr, id.Level)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
 // perfectInner renders the nodes of a perfect internal subtree.
-func perfectInner(prefix string, level uint, index uint64, top bool) {
+func perfectInner(prefix string, level uint, index uint64, top bool, nodeText nodeTextFunc) {
 	id := compact.NewNodeID(level, index)
 	modifyNodeInfo(id, func(n *nodeInfo) {
 		n.leaf = id.Level == 0
 		n.perfectRoot = top
 	})
 
+	text := nodeText(id)
 	if level == 0 {
-		drawLeaf(prefix, index)
+		drawLeaf(prefix, index, text)
 		return
 	}
-	c := openInnerNode(prefix, id)
+	c := openInnerNode(prefix, id, text)
 	childIndex := index << 1
 	if level > *megaMode {
 		perfectMega(prefix, level, index<<level)
 	} else {
-		perfectInner(prefix+" ", level-1, childIndex, false)
-		perfectInner(prefix+" ", level-1, childIndex+1, false)
+		perfectInner(prefix+" ", level-1, childIndex, false, nodeText)
+		perfectInner(prefix+" ", level-1, childIndex+1, false, nodeText)
 	}
 	c()
 }
 
 // renderTree renders a tree node and recurses if necessary.
-func renderTree(prefix string, treeSize, index uint64) {
+func renderTree(prefix string, treeSize, index uint64, nodeText nodeTextFunc) {
 	if treeSize == 0 {
 		return
 	}
+
 	// Look at the bit of the treeSize corresponding to the current level:
 	height := uint(bits.Len64(treeSize) - 1)
 	b := uint64(1) << height
@@ -230,12 +239,12 @@ func renderTree(prefix string, treeSize, index uint64) {
 		childHeight := height + 1
 		id := compact.NewNodeID(childHeight, index>>childHeight)
 		modifyNodeInfo(id, func(n *nodeInfo) { n.ephemeral = true })
-		c := openInnerNode(prefix, id)
+		c := openInnerNode(prefix, id, nodeText(id))
 		defer c()
 	}
-	perfect(prefix+" ", height, index>>height)
+	perfect(prefix+" ", height, index>>height, nodeText)
 	index += b
-	renderTree(prefix+" ", rest, index)
+	renderTree(prefix+" ", rest, index, nodeText)
 }
 
 // parseRanges parses and validates a string of comma-separates open-closed
@@ -312,11 +321,46 @@ func modifyRangeNodeInfo() error {
 	return nil
 }
 
+var nodeFormats = map[string]nodeTextFunc{
+	"address": func(id compact.NodeID) string {
+		return fmt.Sprintf("%d.%d", id.Level, id.Index)
+	},
+	"hash": func(id compact.NodeID) string {
+		childLevel := id.Level - 1
+		leftChild := id.Index * 2
+		return fmt.Sprintf("{$H_{%d.%d} =$ \\\\ $H(H_{%d.%d} || H_{%d.%d})$}", id.Level, id.Index, childLevel, leftChild, childLevel, leftChild+1)
+	},
+}
+
 // Whee - here we go!
 func main() {
 	// TODO(al): check flag validity.
 	flag.Parse()
 	height := uint(bits.Len64(*treeSize-1)) + 1
+
+	innerNodeText := nodeFormats[*nodeFormat]
+	if innerNodeText == nil {
+		log.Fatalf("unknown --node_format %s", *nodeFormat)
+	}
+
+	var ldf nodeTextFunc = func(id compact.NodeID) string {
+		if id.Level == 0 {
+			return fmt.Sprintf("{$H_{0.%d} =$ \\\\ $H(leaf_{%[1]d})$}", id.Index)
+		}
+		return innerNodeText(id)
+	}
+
+	if len(*leafData) > 0 {
+		leaves := strings.Split(*leafData, ",")
+		*treeSize = uint64(len(leaves))
+		log.Printf("Overriding treeSize to %d since --leaf_data was set", *treeSize)
+		ldf = func(id compact.NodeID) string {
+			if id.Level == 0 {
+				return leaves[id.Index]
+			}
+			return innerNodeText(id)
+		}
+	}
 
 	if *inclusion > 0 {
 		leafID := compact.NewNodeID(0, uint64(*inclusion))
@@ -343,6 +387,6 @@ func main() {
 	// TODO(al): structify this into a util, and add ability to output to an
 	// arbitrary stream.
 	fmt.Print(preamble)
-	renderTree("", *treeSize, 0)
+	renderTree("", *treeSize, 0, ldf)
 	fmt.Print(postfix)
 }
