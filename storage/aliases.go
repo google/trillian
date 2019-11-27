@@ -22,8 +22,13 @@ import (
 // TODO(pavelkalinnikov, v2): These aliases were created to not break the code
 // that depended on these types. We should delete this.
 
+// NodeID is an alias to github.com/google/trillian/storage/tree.NodeID.
 type NodeID = tree.NodeID
+
+// Node is an alias to github.com/google/trillian/storage/tree.Node.
 type Node = tree.Node
+
+// Suffix is an alias to github.com/google/trillian/storage/tree.Suffix.
 type Suffix = tree.Suffix
 
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree
@@ -34,6 +39,7 @@ type PopulateSubtreeFunc func(*storagepb.SubtreeProto) error
 // type specific manipulation of a subtree before it's written to storage
 type PrepareSubtreeWriteFunc func(*storagepb.SubtreeProto) error
 
+// These are aliases for the functions of the same name in github.com/google/trillian/storage/tree.
 var (
 	NewNodeIDFromHash         = tree.NewNodeIDFromHash
 	NewNodeIDFromPrefix       = tree.NewNodeIDFromPrefix

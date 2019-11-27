@@ -54,7 +54,7 @@ func MySQLAvailable() bool {
 	return true
 }
 
-// SetFDULimit sets the soft limit on the maximum number of open file descriptors.
+// SetFDLimit sets the soft limit on the maximum number of open file descriptors.
 // See http://man7.org/linux/man-pages/man2/setrlimit.2.html
 func SetFDLimit(uLimit uint64) error {
 	var rLimit unix.Rlimit

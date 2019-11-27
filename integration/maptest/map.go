@@ -581,6 +581,7 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 	}
 }
 
+// RunGetLeafByRevisionNoProof fails the test if the map server does not respond correctly to a GetLeavesByRevision request.
 func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, twrite trillian.TrillianMapWriteClient) {
 	tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_TEST_MAP_HASHER)
 	if err != nil {
@@ -597,6 +598,7 @@ func RunGetLeafByRevisionNoProof(ctx context.Context, t *testing.T, tadmin trill
 		leaves = append(leaves, l)
 	}
 
+	// TODO(RJPercival): Should this be calling tmap.GetLeavesByRevisionNoProof() instead?
 	getResp, err := twrite.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
 		MapId:    tree.TreeId,
 		Index:    indexes,
