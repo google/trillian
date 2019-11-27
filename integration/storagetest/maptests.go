@@ -28,12 +28,14 @@ import (
 // MapTests is a suite of tests to run against the storage.MapTest interface.
 type MapTests struct{}
 
+// TestCheckDatabaseAccessible fails the test if the map storage is not accessible.
 func (*MapTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.MapStorage, _ storage.AdminStorage) {
 	if err := s.CheckDatabaseAccessible(ctx); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
 }
 
+// TestMapSnapshot fails the test if MapStorage.SnapshotForTree() does not behave correctly.
 func (*MapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
 	frozenMap := createInitializedMapForTests(ctx, t, s, as)
 	storage.UpdateTree(ctx, as, frozenMap.TreeId, func(tree *trillian.Tree) {

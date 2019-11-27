@@ -23,7 +23,10 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+// MapStorageFactory creates MapStorage and AdminStorage for a test to use.
 type MapStorageFactory func(ctx context.Context, t *testing.T) (storage.MapStorage, storage.AdminStorage)
+
+// MapStorageTest executes a test using the given storage implementations.
 type MapStorageTest func(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage)
 
 // RunMapStorageTests runs all the map storage tests against the provided map storage implementation.
