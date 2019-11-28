@@ -67,7 +67,7 @@ func TestMarshalErrors(t *testing.T) {
 		{
 			tile: smt.Tile{
 				ID:     tree.NewNodeID2("\xFF", 8),
-				Leaves: []smt.NodeUpdate{{ID: tree.NewNodeID2("\xFF0000", 24)}},
+				Leaves: []smt.Node{{ID: tree.NewNodeID2("\xFF0000", 24)}},
 			},
 			height:  8,
 			wantErr: "wrong ID bits",
@@ -75,7 +75,7 @@ func TestMarshalErrors(t *testing.T) {
 		{
 			tile: smt.Tile{
 				ID:     tree.NewNodeID2("\xFF", 8),
-				Leaves: []smt.NodeUpdate{{ID: tree.NewNodeID2("\xF000", 16)}},
+				Leaves: []smt.Node{{ID: tree.NewNodeID2("\xF000", 16)}},
 			},
 			height:  8,
 			wantErr: "unrelated leaf ID",
@@ -94,11 +94,11 @@ func TestMarshalErrors(t *testing.T) {
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
-	upd := []smt.NodeUpdate{
+	upd := []smt.Node{
 		{ID: tree.NewNodeID2("0", 8), Hash: []byte("a")},
 		{ID: tree.NewNodeID2("1", 8), Hash: []byte("b")},
 	}
-	deepUpd := []smt.NodeUpdate{
+	deepUpd := []smt.Node{
 		{ID: tree.NewNodeID2("\x0F\x00\x00", 24), Hash: []byte("a")},
 		{ID: tree.NewNodeID2("\x0F\xFF\x00", 24), Hash: []byte("b")},
 		{ID: tree.NewNodeID2("\x0F\xFF\x01", 24), Hash: []byte("c")},

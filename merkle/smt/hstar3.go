@@ -43,7 +43,7 @@ type HashChildrenFn func(left, right []byte) []byte
 //
 // TODO(pavelkalinnikov): Swap in the code, and document it properly.
 type HStar3 struct {
-	upd   []NodeUpdate
+	upd   []Node
 	hash  HashChildrenFn
 	depth uint
 	top   uint
@@ -55,7 +55,7 @@ type HStar3 struct {
 //
 // Warning: This call and other HStar3 methods modify the updates slice
 // in-place, so the caller must ensure to not reuse it.
-func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HStar3, error) {
+func NewHStar3(updates []Node, hash HashChildrenFn, depth, top uint) (HStar3, error) {
 	if err := Prepare(updates, depth); err != nil {
 		return HStar3{}, err
 	} else if top > depth {
@@ -134,7 +134,7 @@ func (h HStar3) Prepare() []tree.NodeID2 {
 //
 // For that reason, Update doesn't invoke NodeAccessor.Set for the topmost
 // nodes. If it did then chained Updates would Set the borderline nodes twice.
-func (h HStar3) Update(na NodeAccessor) ([]NodeUpdate, error) {
+func (h HStar3) Update(na NodeAccessor) ([]Node, error) {
 	for d := h.depth; d > h.top; d-- {
 		var err error
 		if h.upd, err = h.updateAt(h.upd, d, na); err != nil {
@@ -146,7 +146,7 @@ func (h HStar3) Update(na NodeAccessor) ([]NodeUpdate, error) {
 
 // updateAt applies the given node updates at the specified tree level.
 // Returns the updates that propagated to the level above.
-func (h HStar3) updateAt(updates []NodeUpdate, depth uint, na NodeAccessor) ([]NodeUpdate, error) {
+func (h HStar3) updateAt(updates []Node, depth uint, na NodeAccessor) ([]Node, error) {
 	// Apply the updates.
 	for _, upd := range updates {
 		na.Set(upd.ID, upd.Hash)
@@ -174,7 +174,7 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, na NodeAccessor) ([]N
 			}
 		}
 		hash := h.hash(left, right)
-		updates[newLen] = NodeUpdate{ID: sib.Prefix(depth - 1), Hash: hash}
+		updates[newLen] = Node{ID: sib.Prefix(depth - 1), Hash: hash}
 		newLen++
 	}
 	return updates[:newLen], nil

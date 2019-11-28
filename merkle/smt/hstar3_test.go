@@ -91,24 +91,24 @@ func TestNewHStar3(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc    string
-		upd     []NodeUpdate
+		upd     []Node
 		top     uint
-		want    []NodeUpdate
+		want    []Node
 		wantErr string
 	}{
-		{desc: "depth-err", upd: []NodeUpdate{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
-		{desc: "dup-err1", upd: []NodeUpdate{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
-		{desc: "dup-err2", upd: []NodeUpdate{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
-		{desc: "top-vs-depth-err", upd: []NodeUpdate{{ID: id1}}, top: 300, wantErr: "top > depth"},
+		{desc: "depth-err", upd: []Node{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
+		{desc: "dup-err1", upd: []Node{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "dup-err2", upd: []Node{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "top-vs-depth-err", upd: []Node{{ID: id1}}, top: 300, wantErr: "top > depth"},
 		{
 			desc: "ok1",
-			upd:  []NodeUpdate{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},
-			want: []NodeUpdate{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
+			upd:  []Node{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},
+			want: []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
 		},
 		{
 			desc: "ok2",
-			upd:  []NodeUpdate{{ID: id4}, {ID: id3}, {ID: id2}, {ID: id1}},
-			want: []NodeUpdate{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
+			upd:  []Node{{ID: id4}, {ID: id3}, {ID: id2}, {ID: id1}},
+			want: []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -149,7 +149,7 @@ func TestHStar3Prepare(t *testing.T) {
 
 func TestHStar3PrepareAlternative(t *testing.T) {
 	// This is the intuitively simpler alternative Prepare implementation.
-	prepare := func(updates []NodeUpdate, depth, top uint) map[tree.NodeID2]bool {
+	prepare := func(updates []Node, depth, top uint) map[tree.NodeID2]bool {
 		ids := make(map[tree.NodeID2]bool)
 		// For each node, add all its ancestors' siblings, down to the given depth.
 		for _, upd := range updates {
@@ -198,11 +198,11 @@ func BenchmarkHStar3Prepare(b *testing.B) {
 // leafUpdates generates n leaf updates at depth 256. The function is
 // pseudo-random, and the returned data depends only on n. The algorithm is the
 // same as in HStar2 tests, which allows cross-checking their results.
-func leafUpdates(t testing.TB, n int) []NodeUpdate {
+func leafUpdates(t testing.TB, n int) []Node {
 	t.Helper()
 	// Use a random sequence that depends on n.
 	r := rand.New(rand.NewSource(int64(n)))
-	updates := make([]NodeUpdate, n)
+	updates := make([]Node, n)
 	for i := range updates {
 		updates[i].Hash = make([]byte, 32)
 		if _, err := r.Read(updates[i].Hash); err != nil {

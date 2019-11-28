@@ -30,22 +30,22 @@ func TestPrepare(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc    string
-		upd     []NodeUpdate
-		want    []NodeUpdate
+		upd     []Node
+		want    []Node
 		wantErr string
 	}{
-		{desc: "depth-err", upd: []NodeUpdate{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
-		{desc: "dup-err1", upd: []NodeUpdate{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
-		{desc: "dup-err2", upd: []NodeUpdate{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "depth-err", upd: []Node{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
+		{desc: "dup-err1", upd: []Node{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "dup-err2", upd: []Node{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
 		{
 			desc: "ok1",
-			upd:  []NodeUpdate{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},
-			want: []NodeUpdate{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
+			upd:  []Node{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},
+			want: []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
 		},
 		{
 			desc: "ok2",
-			upd:  []NodeUpdate{{ID: id4}, {ID: id3}, {ID: id2}, {ID: id1}},
-			want: []NodeUpdate{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
+			upd:  []Node{{ID: id4}, {ID: id3}, {ID: id2}, {ID: id1}},
+			want: []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

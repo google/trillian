@@ -22,28 +22,28 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
-// NodeUpdate represents an update of a node hash in a sparse Merkle tree.
-type NodeUpdate struct {
+// Node represents a sparse Merkle tree node.
+type Node struct {
 	ID   tree.NodeID2
 	Hash []byte
 }
 
-// Prepare sorts the updates slice for it to be usable by HStar3 algorithm and
+// Prepare sorts the nodes slice for it to be usable by HStar3 algorithm and
 // the sparse Merkle tree Writer. It also verifies that the nodes are placed at
 // the required depth, and there are no duplicate IDs.
 //
-// TODO(pavelkalinnikov): Make this algorithm independent of NodeUpdate type.
-func Prepare(updates []NodeUpdate, depth uint) error {
-	for i := range updates {
-		if d, want := updates[i].ID.BitLen(), depth; d != want {
+// TODO(pavelkalinnikov): Make this algorithm independent of Node type.
+func Prepare(nodes []Node, depth uint) error {
+	for i := range nodes {
+		if d, want := nodes[i].ID.BitLen(), depth; d != want {
 			return fmt.Errorf("upd #%d: invalid depth %d, want %d", i, d, want)
 		}
 	}
-	sort.Slice(updates, func(i, j int) bool {
-		return compareHorizontal(updates[i].ID, updates[j].ID)
+	sort.Slice(nodes, func(i, j int) bool {
+		return compareHorizontal(nodes[i].ID, nodes[j].ID)
 	})
-	for i, last := 0, len(updates)-1; i < last; i++ {
-		if id := updates[i].ID; id == updates[i+1].ID {
+	for i, last := 0, len(nodes)-1; i < last; i++ {
+		if id := nodes[i].ID; id == nodes[i+1].ID {
 			return fmt.Errorf("duplicate ID: %v", id)
 		}
 	}

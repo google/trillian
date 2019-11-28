@@ -32,7 +32,7 @@ type NodeBatchAccessor interface {
 	// The returned hashes may be missing or be nil for empty subtrees.
 	Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error)
 	// Set applies the given node hash updates.
-	Set(ctx context.Context, upd []NodeUpdate) error
+	Set(ctx context.Context, upd []Node) error
 }
 
 // Writer handles sharded writes to a sparse Merkle tree. The tree has two
@@ -57,12 +57,12 @@ func NewWriter(treeID int64, hasher hashers.MapHasher, height, split uint) *Writ
 // Split sorts and splits the given list of node hash updates into shards, i.e.
 // the subsets belonging to different subtrees. The updates must belong to the
 // same tree level which is equal to the tree height.
-func (w *Writer) Split(upd []NodeUpdate) ([][]NodeUpdate, error) {
+func (w *Writer) Split(upd []Node) ([][]Node, error) {
 	if err := Prepare(upd, w.height); err != nil {
 		return nil, err
 	}
 	// TODO(pavelkalinnikov): Try estimating the capacity for this slice.
-	var shards [][]NodeUpdate
+	var shards [][]Node
 	// The updates are sorted, so we can split them by prefix.
 	for begin, i := 0, 0; i < len(upd); i++ {
 		pref := upd[i].ID.Prefix(w.split)
@@ -81,38 +81,38 @@ func (w *Writer) Split(upd []NodeUpdate) ([][]NodeUpdate, error) {
 // reading and writing tree nodes.
 //
 // The typical usage pattern is as follows. For the lower shards, the input is
-// the []NodeUpdate slices returned from the Split method. For the top shard,
-// the input is all the NodeUpdates from the lower shards Write calls.
+// the []Node slices returned from the Split method. For the top shard, the
+// input is all the Node values from the lower shards Write calls.
 //
 // In another case, Write can be performed without Split if the shard split
 // depth is 0, which effectively means that there is only one "global" shard.
-func (w *Writer) Write(ctx context.Context, upd []NodeUpdate, acc NodeBatchAccessor) (NodeUpdate, error) {
+func (w *Writer) Write(ctx context.Context, upd []Node, acc NodeBatchAccessor) (Node, error) {
 	if len(upd) == 0 {
-		return NodeUpdate{}, errors.New("nothing to write")
+		return Node{}, errors.New("nothing to write")
 	}
 	depth := upd[0].ID.BitLen()
 	top, err := w.shardTop(depth)
 	if err != nil {
-		return NodeUpdate{}, err
+		return Node{}, err
 	}
 
 	hs, err := NewHStar3(upd, w.h.mh.HashChildren, depth, top)
 	if err != nil {
-		return NodeUpdate{}, err
+		return Node{}, err
 	}
 	nodes, err := acc.Get(ctx, hs.Prepare())
 	if err != nil {
-		return NodeUpdate{}, err
+		return Node{}, err
 	}
 	sa := w.newAccessor(nodes)
 	topUpd, err := hs.Update(sa)
 	if err != nil {
-		return NodeUpdate{}, err
+		return Node{}, err
 	} else if ln := len(topUpd); ln != 1 {
-		return NodeUpdate{}, fmt.Errorf("writing across %d shards, want 1", ln)
+		return Node{}, fmt.Errorf("writing across %d shards, want 1", ln)
 	}
 	if err := acc.Set(ctx, sa.writes); err != nil {
-		return NodeUpdate{}, err
+		return Node{}, err
 	}
 
 	return topUpd[0], nil
@@ -136,7 +136,7 @@ func (w *Writer) newAccessor(nodes map[tree.NodeID2][]byte) *shardAccessor {
 	// can pre-allocate this many items for the writes slice.
 	// TODO(pavelkalinnikov): The actual number of written nodes will be slightly
 	// bigger by at most the number of written leaves. Try allocating precisely.
-	writes := make([]NodeUpdate, 0, len(nodes))
+	writes := make([]Node, 0, len(nodes))
 	return &shardAccessor{w: w, reads: nodes, writes: writes}
 }
 
@@ -145,7 +145,7 @@ func (w *Writer) newAccessor(nodes map[tree.NodeID2][]byte) *shardAccessor {
 type shardAccessor struct {
 	w      *Writer
 	reads  map[tree.NodeID2][]byte
-	writes []NodeUpdate
+	writes []Node
 }
 
 // Get returns the hash of the given node from the preloaded map, or a hash of
@@ -159,5 +159,5 @@ func (s *shardAccessor) Get(id tree.NodeID2) ([]byte, error) {
 
 // Set adds the given node hash update to the list of writes.
 func (s *shardAccessor) Set(id tree.NodeID2, hash []byte) {
-	s.writes = append(s.writes, NodeUpdate{ID: id, Hash: hash})
+	s.writes = append(s.writes, Node{ID: id, Hash: hash})
 }

@@ -48,31 +48,31 @@ func TestWriterSplit(t *testing.T) {
 		tree.NewNodeID2("\x03\x00\x00\x00", 32),
 	}
 	// Generate some node updates based on IDs.
-	upd := make([]NodeUpdate, len(ids))
+	upd := make([]Node, len(ids))
 	for i, id := range ids {
-		upd[i] = NodeUpdate{ID: id, Hash: []byte(fmt.Sprintf("%32d", i))}
+		upd[i] = Node{ID: id, Hash: []byte(fmt.Sprintf("%32d", i))}
 	}
 
 	for _, tc := range []struct {
 		desc  string
 		split uint
-		upd   []NodeUpdate
-		want  [][]NodeUpdate
+		upd   []Node
+		want  [][]Node
 		err   bool
 	}{
 		{desc: "dup", upd: upd, err: true},
-		{desc: "wrong-len", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, err: true},
+		{desc: "wrong-len", upd: []Node{{ID: tree.NewNodeID2("ab", 10)}}, err: true},
 		{desc: "ok-24", split: 24, upd: upd[:5],
-			want: [][]NodeUpdate{{upd[1]}, {upd[0]}, {upd[2]}, {upd[4]}, {upd[3]}}},
+			want: [][]Node{{upd[1]}, {upd[0]}, {upd[2]}, {upd[4]}, {upd[3]}}},
 		{desc: "ok-21", split: 21, upd: upd[:5],
-			want: [][]NodeUpdate{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
+			want: [][]Node{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
 		{desc: "ok-16", split: 16, upd: upd[:5],
-			want: [][]NodeUpdate{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
+			want: [][]Node{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
 		{desc: "ok-0", split: 0, upd: upd[:5],
-			want: [][]NodeUpdate{{upd[1], upd[0], upd[2], upd[4], upd[3]}}},
+			want: [][]Node{{upd[1], upd[0], upd[2], upd[4], upd[3]}}},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			upd := make([]NodeUpdate, len(tc.upd))
+			upd := make([]Node, len(tc.upd))
 			copy(upd, tc.upd) // Avoid shuffling effects.
 
 			w := NewWriter(treeID, hasher, 32, tc.split)
@@ -89,33 +89,33 @@ func TestWriterSplit(t *testing.T) {
 
 func TestWriterWrite(t *testing.T) {
 	ctx := context.Background()
-	upd := []NodeUpdate{genUpd("key1", "value1"), genUpd("key2", "value2"), genUpd("key3", "value3")}
+	upd := []Node{genUpd("key1", "value1"), genUpd("key2", "value2"), genUpd("key3", "value3")}
 	for _, tc := range []struct {
 		desc     string
 		split    uint
 		acc      *testAccessor
-		upd      []NodeUpdate
+		upd      []Node
 		wantRoot []byte
 		wantErr  string
 	}{
 		// Taken from SparseMerkleTreeWriter tests.
 		{
 			desc:     "single-leaf",
-			upd:      []NodeUpdate{upd[0]},
+			upd:      []Node{upd[0]},
 			wantRoot: b64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA="),
 		},
 		{
 			desc:     "multi-leaf",
-			upd:      []NodeUpdate{upd[0], upd[1], upd[2]},
+			upd:      []Node{upd[0], upd[1], upd[2]},
 			wantRoot: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
 		},
 
 		{desc: "empty", wantErr: "nothing to write"},
-		{desc: "unaligned", upd: []NodeUpdate{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
-		{desc: "dup", upd: []NodeUpdate{upd[0], upd[0]}, wantErr: "duplicate ID"},
-		{desc: "2-shards", split: 128, upd: []NodeUpdate{upd[0], upd[1]}, wantErr: "writing across"},
-		{desc: "get-err", acc: &testAccessor{get: errors.New("fail")}, upd: []NodeUpdate{upd[0]}, wantErr: "fail"},
-		{desc: "set-err", acc: &testAccessor{set: errors.New("fail")}, upd: []NodeUpdate{upd[0]}, wantErr: "fail"},
+		{desc: "unaligned", upd: []Node{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
+		{desc: "dup", upd: []Node{upd[0], upd[0]}, wantErr: "duplicate ID"},
+		{desc: "2-shards", split: 128, upd: []Node{upd[0], upd[1]}, wantErr: "writing across"},
+		{desc: "get-err", acc: &testAccessor{get: errors.New("fail")}, upd: []Node{upd[0]}, wantErr: "fail"},
+		{desc: "set-err", acc: &testAccessor{set: errors.New("fail")}, upd: []Node{upd[0]}, wantErr: "fail"},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := NewWriter(treeID, hasher, 256, tc.split)
@@ -156,7 +156,7 @@ func testWriterBigBatch(t testing.TB) {
 
 	const batchSize = 1024
 	const numBatches = 4
-	upd := make([]NodeUpdate, 0, batchSize*numBatches)
+	upd := make([]Node, 0, batchSize*numBatches)
 	for x := 0; x < numBatches; x++ {
 		for y := 0; y < batchSize; y++ {
 			u := genUpd(fmt.Sprintf("key-%d-%d", x, y), fmt.Sprintf("value-%d-%d", x, y))
@@ -194,7 +194,7 @@ func TestWriterBigBatchMultipleWrites(t *testing.T) {
 	acc := &testAccessor{h: make(map[tree.NodeID2][]byte), save: true}
 
 	for i := 0; i < numBatches; i++ {
-		upd := make([]NodeUpdate, 0, batchSize)
+		upd := make([]Node, 0, batchSize)
 		for j := 0; j < batchSize; j++ {
 			u := genUpd(fmt.Sprintf("key-%d-%d", i, j), fmt.Sprintf("value-%d-%d", i, j))
 			upd = append(upd, u)
@@ -206,14 +206,14 @@ func TestWriterBigBatchMultipleWrites(t *testing.T) {
 	}
 }
 
-func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor, upd []NodeUpdate) NodeUpdate {
+func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor, upd []Node) Node {
 	shards, err := w.Split(upd)
 	if err != nil {
 		t.Fatalf("Split: %v", err)
 	}
 
 	var mu sync.Mutex
-	splitUpd := make([]NodeUpdate, 0, 256)
+	splitUpd := make([]Node, 0, 256)
 
 	eg, _ := errgroup.WithContext(ctx)
 	for _, upd := range shards {
@@ -240,12 +240,12 @@ func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor,
 	return rootUpd
 }
 
-// genUpd returns a NodeUpdate for the given key and value. The returned node
-// ID is 256-bit map key based on SHA256 of the given key string.
-func genUpd(key, value string) NodeUpdate {
+// genUpd returns a Node for the given key and value. The returned node ID is
+// 256-bit map key based on SHA256 of the given key string.
+func genUpd(key, value string) Node {
 	key256 := sha256.Sum256([]byte(key))
 	hash := hasher.HashLeaf(treeID, key256[:], []byte(value))
-	return NodeUpdate{ID: tree.NewNodeID2(string(key256[:]), 256), Hash: hash}
+	return Node{ID: tree.NewNodeID2(string(key256[:]), 256), Hash: hash}
 }
 
 // testAccessor implements NodeBatchAccessor for testing purposes.
@@ -274,7 +274,7 @@ func (t *testAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.No
 	return h, nil
 }
 
-func (t *testAccessor) Set(ctx context.Context, upd []NodeUpdate) error {
+func (t *testAccessor) Set(ctx context.Context, upd []Node) error {
 	if err := t.set; err != nil {
 		return err
 	} else if !t.save {
