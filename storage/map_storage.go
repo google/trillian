@@ -18,6 +18,8 @@ import (
 	"context"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/smt"
+	"github.com/google/trillian/storage/tree"
 )
 
 // ReadOnlyMapTX provides a read-only view into log data.
@@ -52,6 +54,10 @@ type ReadOnlyMapTreeTX interface {
 	// exist.  i.e. requesting a set of unknown keys would result in a
 	// zero-length array being returned.
 	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]*trillian.MapLeaf, error)
+
+	// GetTiles reads the Merkle tree tiles with the given root IDs at the given
+	// revision. A tile is empty if it is missing from the returned slice.
+	GetTiles(ctx context.Context, rev int64, ids []tree.NodeID2) ([]smt.Tile, error)
 }
 
 // MapTreeTX is the transactional interface for reading/modifying a Map.
@@ -69,6 +75,9 @@ type MapTreeTX interface {
 	// TODO(mhutchinson): Remove the keyHash parameter or document why it is redundantly passed in
 	// (it is also inside the MapLeaf)
 	Set(ctx context.Context, keyHash []byte, value *trillian.MapLeaf) error
+
+	// SetTiles stores the given tiles at the current write revision.
+	SetTiles(ctx context.Context, tiles []smt.Tile) error
 }
 
 // ReadOnlyMapStorage provides a narrow read-only view into a MapStorage.
@@ -80,6 +89,11 @@ type ReadOnlyMapStorage interface {
 	// and values read through it should only be propagated if Commit returns
 	// without error.
 	SnapshotForTree(ctx context.Context, tree *trillian.Tree) (ReadOnlyMapTreeTX, error)
+
+	// Layout returns the layout of the given tree.
+	// TODO(pavelkalinnikov): Return plain data rather than a data structure.
+	// TODO(pavelkalinnikov, v2): Consider moving it to TreeStorage.
+	Layout(tree *trillian.Tree) (*tree.Layout, error)
 }
 
 // MapTXFunc is the func signature for passing into ReadWriteTransaction.

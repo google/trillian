@@ -345,8 +345,13 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		})
 	}
 
+	layout, err := t.registry.MapStorage.Layout(tree)
+	if err != nil {
+		return nil, err
+	}
 	updater := &mapTreeUpdater{
 		tree:     tree,
+		layout:   layout,
 		hasher:   hasher,
 		ms:       t.registry.MapStorage,
 		singleTX: t.opts.UseSingleTransaction,

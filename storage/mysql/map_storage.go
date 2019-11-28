@@ -22,8 +22,12 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/storagepb/convert"
+	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 
 	"github.com/golang/glog"
@@ -41,7 +45,10 @@ const (
 	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
 )
 
-var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
+var (
+	defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
+	defaultLayout    = stree.NewLayout(defaultMapStrata)
+)
 
 type mySQLMapStorage struct {
 	*mySQLTreeStorage
@@ -80,9 +87,15 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readon
 	if err != nil {
 		return nil, err
 	}
+	l, err := m.Layout(tree)
+	if err != nil {
+		return nil, err
+	}
 	mtx := &mapTreeTX{
 		treeTX:       ttx,
+		layout:       l,
 		ms:           m,
+		hasher:       hasher,
 		readRevision: -1,
 	}
 
@@ -116,6 +129,11 @@ func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 	return m.begin(ctx, tree, true /* readonly */)
 }
 
+// Layout returns the layout of the given tree.
+func (m *mySQLMapStorage) Layout(*trillian.Tree) (*stree.Layout, error) {
+	return defaultLayout, nil
+}
+
 func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
 	tx, err := m.begin(ctx, tree, false /* readonly */)
 	if tx != nil {
@@ -132,7 +150,9 @@ func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 
 type mapTreeTX struct {
 	treeTX
+	layout       *stree.Layout
 	ms           *mySQLMapStorage
+	hasher       hashers.MapHasher
 	readRevision int64
 }
 
@@ -238,6 +258,44 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 		ret = append(ret, mapLeaf)
 	}
 	return ret, nil
+}
+
+// GetTiles reads the Merkle tree tiles with the given root IDs at the given
+// revision. A tile is empty if it is missing from the returned slice.
+func (m *mapTreeTX) GetTiles(ctx context.Context, rev int64, ids []stree.NodeID2) ([]smt.Tile, error) {
+	// TODO(pavelkalinnikov): Use NodeID2 directly.
+	rootIDs := make([]stree.NodeID, 0, len(ids))
+	for _, id := range ids {
+		rootIDs = append(rootIDs, stree.NewNodeIDFromID2(id))
+	}
+	subs, err := m.treeTX.getSubtreesWithLock(ctx, rev, rootIDs)
+	if err != nil {
+		return nil, err
+	}
+	tiles := make([]smt.Tile, 0, len(subs))
+	for _, sub := range subs {
+		tile, err := convert.Unmarshal(sub)
+		if err != nil {
+			return nil, err
+		}
+		tiles = append(tiles, tile)
+	}
+	return tiles, nil
+}
+
+// SetTiles stores the given tiles at the current write revision.
+func (m *mapTreeTX) SetTiles(ctx context.Context, tiles []smt.Tile) error {
+	subs := make([]*storagepb.SubtreeProto, 0, len(tiles))
+	for _, tile := range tiles {
+		height := m.layout.TileHeight(int(tile.ID.BitLen()))
+		pb, err := convert.Marshal(tile, uint(height))
+		if err != nil {
+			return err
+		}
+		subs = append(subs, pb)
+	}
+	m.treeTX.addSubtrees(subs)
+	return nil
 }
 
 func unmarshalMapLeaf(marshaledLeaf, mapKeyHash []byte) (*trillian.MapLeaf, error) {
