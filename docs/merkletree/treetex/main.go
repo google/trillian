@@ -87,7 +87,7 @@ var (
 	megaMode   = flag.Uint("megamode_threshold", 4, "Treat perfect trees larger than this many layers as a single entity")
 	ranges     = flag.String("ranges", "", "Comma-separated Open-Closed ranges of the form L:R")
 
-	attrPerfectRoot   = flag.String("attr_perfect_root", "line width=4pt", "Latex treatment for perfect root nodes")
+	attrPerfectRoot   = flag.String("attr_perfect_root", "", "Latex treatment for perfect root nodes (e.g. 'line width=3pt')")
 	attrEphemeralNode = flag.String("attr_ephemeral_node", "draw, dotted", "Latex treatment for ephemeral nodes")
 
 	// nInfo holds nodeInfo data for the tree.
@@ -181,23 +181,24 @@ func perfect(prefix string, height uint, index uint64, nodeText, dataText nodeTe
 }
 
 // drawLeaf emits TeX code to render a leaf.
-func drawLeaf(prefix string, index uint64, leafText, dataText string) {
-	a := nInfo[compact.NewNodeID(0, index)]
+func drawLeaf(prefix string, index uint64, leafText, dataText nodeTextFunc) {
+	id := compact.NewNodeID(0, index)
+	a := nInfo[id]
 
 	// First render the leaf node of the Merkle tree
-	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText, a.String())
+	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText(id), a.String())
 	// and then a child-node representing the leaf data itself:
 	a.leaf = true
-	fmt.Printf("  %s [%s, %s, align=center, tier=leafdata]\n]\n", prefix, dataText, a.String())
+	fmt.Printf("  %s [%s, %s, align=center, tier=leafdata]\n]\n", prefix, dataText(id), a.String())
 }
 
 // openInnerNode renders TeX code to open an internal node.
 // The caller may emit any number of child nodes before calling the returned
 // func to close the node.
 // Returns a func to be called to close the node.
-func openInnerNode(prefix string, id compact.NodeID, text string) func() {
+func openInnerNode(prefix string, id compact.NodeID, nodeText nodeTextFunc) func() {
 	attr := nInfo[id].String()
-	fmt.Printf("%s [%s, %s, tier=%d\n", prefix, text, attr, id.Level)
+	fmt.Printf("%s [%s, %s, tier=%d\n", prefix, nodeText(id), attr, id.Level)
 	return func() { fmt.Printf("%s ]\n", prefix) }
 }
 
@@ -209,13 +210,10 @@ func perfectInner(prefix string, level uint, index uint64, top bool, nodeText no
 	})
 
 	if level == 0 {
-		leafNodeText := nodeText(id)
-		dataNodeText := dataText(id)
-		drawLeaf(prefix, index, leafNodeText, dataNodeText)
+		drawLeaf(prefix, index, nodeText, dataText)
 		return
 	}
-	text := nodeText(id)
-	c := openInnerNode(prefix, id, text)
+	c := openInnerNode(prefix, id, nodeText)
 	childIndex := index << 1
 	if level > *megaMode {
 		perfectMega(prefix, level, index<<level)
@@ -245,7 +243,7 @@ func renderTree(prefix string, treeSize, index uint64, nodeText, dataText nodeTe
 		childHeight := height + 1
 		id := compact.NewNodeID(childHeight, index>>childHeight)
 		modifyNodeInfo(id, func(n *nodeInfo) { n.ephemeral = true })
-		c := openInnerNode(prefix, id, nodeText(id))
+		c := openInnerNode(prefix, id, nodeText)
 		defer c()
 	}
 	perfect(prefix+" ", height, index>>height, nodeText, dataText)
@@ -356,9 +354,7 @@ func main() {
 		log.Fatalf("unknown --node_format %s", *nodeFormat)
 	}
 
-	var nodeText nodeTextFunc = func(id compact.NodeID) string {
-		return innerNodeText(id)
-	}
+	nodeText := innerNodeText
 
 	if len(*leafData) > 0 {
 		leaves := strings.Split(*leafData, ",")
