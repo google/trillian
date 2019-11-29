@@ -45,8 +45,8 @@ const (
 \begin{document}
 
 % Change colours here:
-\definecolor{inclusion}{rgb}{1,0.5,0.5}
-\definecolor{inclusion_ephemeral}{rgb}{1,0.7,0.7}
+\definecolor{proof}{rgb}{1,0.5,0.5}
+\definecolor{proof_ephemeral}{rgb}{1,0.7,0.7}
 \definecolor{perfect}{rgb}{1,0.9,0.5}
 \definecolor{target}{rgb}{0.5,0.5,0.9}
 \definecolor{target_path}{rgb}{0.7,0.7,0.9}
@@ -96,13 +96,14 @@ var (
 
 // nodeInfo represents the style to be applied to a tree node.
 type nodeInfo struct {
-	incProof     bool
-	incPath      bool
-	target       bool
-	perfectRoot  bool
-	ephemeral    bool
-	leaf         bool
-	rangeIndices []int
+	proof             bool
+	incPath           bool
+	target            bool
+	perfectRoot       bool
+	ephemeral         bool
+	leaf              bool
+	rangeIndices      []int
+	proofRangeIndices []int
 }
 
 type nodeTextFunc func(id compact.NodeID) string
@@ -117,11 +118,30 @@ func (n nodeInfo) String() string {
 	if n.perfectRoot {
 		attr = append(attr, *attrPerfectRoot)
 	}
-	if n.incProof {
-		fill = "inclusion"
+
+	if n.proof {
+		if len(n.proofRangeIndices) == 0 {
+			fill = "proof"
+		} else {
+			attr = append(attr, "top color=proof")
+			for i, pi := range n.proofRangeIndices {
+				pos := []string{"bottom", "middle"}[i]
+				attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, pi))
+			}
+		}
 		if n.ephemeral {
-			fill = "inclusion_ephemeral"
+			fill = "proof_ephemeral"
 			attr = append(attr, *attrEphemeralNode)
+		}
+	} else /* !proof */ {
+		if l := len(n.rangeIndices); l == 1 {
+			fill = fmt.Sprintf("range%d!50", n.rangeIndices[0])
+		} else if l > 1 {
+			// Otherwise, we need to be a bit cleverer, and use the shading feature.
+			for i, ri := range n.rangeIndices {
+				pos := []string{"bottom", "middle"}[i]
+				attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, ri))
+			}
 		}
 	}
 	if n.target {
@@ -131,16 +151,6 @@ func (n nodeInfo) String() string {
 		fill = "target_path"
 	}
 
-	if len(n.rangeIndices) == 1 {
-		// For nodes in a single range just change the fill.
-		fill = fmt.Sprintf("range%d!50", n.rangeIndices[0])
-	} else {
-		// Otherwise, we need to be a bit cleverer, and use the shading feature.
-		for i, ri := range n.rangeIndices {
-			pos := []string{"left", "right", "middle"}[i]
-			attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, ri))
-		}
-	}
 	attr = append(attr, "fill="+fill)
 
 	if !n.ephemeral {
@@ -185,14 +195,19 @@ func drawLeaf(prefix string, index uint64, leafText, dataText nodeTextFunc) {
 	id := compact.NewNodeID(0, index)
 	a := nInfo[id]
 
-	// First render the leaf node of the Merkle tree
-	a.rangeIndices = nil
+	// First render the leaf node of the Merkle tree.
+	if len(a.rangeIndices) > 0 {
+		a.incPath = false
+	}
+	if !a.proof {
+		a.rangeIndices = nil
+	}
 	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText(id), a.String())
 
 	// and then a child-node representing the leaf data itself:
 	a = nInfo[id]
 	a.leaf = true
-	a.incProof = false                     // inclusion proofs don't include leafdata (just the leaf hash above)
+	a.proof = false                        // proofs don't include leafdata (just the leaf hash above)
 	a.incPath, a.target = false, a.incPath // draw the target leaf darker if necessary.
 	fmt.Printf("  %s [%s, %s, align=center, tier=leafdata]\n]\n", prefix, dataText(id), a.String())
 }
@@ -307,8 +322,8 @@ func modifyRangeNodeInfo() error {
 
 		for _, id := range compact.RangeNodes(l, r) {
 			modifyNodeInfo(id, func(n *nodeInfo) {
-				n.incProof = true
-				// n.rangeIndices = append(n.rangeIndices, ri)
+				n.proof = true
+				n.proofRangeIndices = append(n.proofRangeIndices, ri)
 			})
 		}
 	}
@@ -365,7 +380,7 @@ func main() {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}
 		for _, n := range nf {
-			modifyNodeInfo(n.ID, func(n *nodeInfo) { n.incProof = true })
+			modifyNodeInfo(n.ID, func(n *nodeInfo) { n.proof = true })
 		}
 		for h, i := uint(0), leafID.Index; h < height; h, i = h+1, i>>1 {
 			id := compact.NewNodeID(h, i)
