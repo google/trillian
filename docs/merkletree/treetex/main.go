@@ -334,6 +334,8 @@ var nodeFormats = map[string]nodeTextFunc{
 		return fmt.Sprintf("%d.%d", id.Level, id.Index)
 	},
 	"hash": func(id compact.NodeID) string {
+		// For "hash" format node text, levels >=1 need a different format
+		// [H=H(childL|childR)]from the base level (H=H(leafN)].
 		if id.Level >= 1 {
 			childLevel := id.Level - 1
 			leftChild := id.Index * 2
