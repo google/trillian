@@ -301,7 +301,6 @@ func modifyRangeNodeInfo() error {
 		for i := l; i < r; i++ {
 			id := compact.NewNodeID(0, i)
 			modifyNodeInfo(id, func(n *nodeInfo) {
-				n.incPath = true
 				n.rangeIndices = append(n.rangeIndices, ri)
 			})
 		}
