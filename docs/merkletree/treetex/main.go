@@ -189,6 +189,7 @@ func drawLeaf(prefix string, index uint64, leafText, dataText nodeTextFunc) {
 	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText(id), a.String())
 	// and then a child-node representing the leaf data itself:
 	a.leaf = true
+	a.incProof = false // inclusion proofs don't include leafdata (just the leaf hash above)
 	fmt.Printf("  %s [%s, %s, align=center, tier=leafdata]\n]\n", prefix, dataText(id), a.String())
 }
 
