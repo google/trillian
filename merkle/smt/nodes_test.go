@@ -30,27 +30,27 @@ func TestPrepare(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc    string
-		upd     []Node
+		nodes   []Node
 		want    []Node
 		wantErr string
 	}{
-		{desc: "depth-err", upd: []Node{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
-		{desc: "dup-err1", upd: []Node{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
-		{desc: "dup-err2", upd: []Node{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "depth-err", nodes: []Node{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
+		{desc: "dup-err1", nodes: []Node{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "dup-err2", nodes: []Node{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
 		{
-			desc: "ok1",
-			upd:  []Node{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},
-			want: []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
+			desc:  "ok1",
+			nodes: []Node{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},
+			want:  []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
 		},
 		{
-			desc: "ok2",
-			upd:  []Node{{ID: id4}, {ID: id3}, {ID: id2}, {ID: id1}},
-			want: []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
+			desc:  "ok2",
+			nodes: []Node{{ID: id4}, {ID: id3}, {ID: id2}, {ID: id1}},
+			want:  []Node{{ID: id1}, {ID: id2}, {ID: id3}, {ID: id4}},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			upd := tc.upd // No need to copy it here.
-			err := Prepare(upd, 256)
+			nodes := tc.nodes // No need to copy it here.
+			err := Prepare(nodes, 256)
 			got := ""
 			if err != nil {
 				got = err.Error()
@@ -58,8 +58,8 @@ func TestPrepare(t *testing.T) {
 			if want := tc.wantErr; !strings.Contains(got, want) {
 				t.Errorf("NewHStar3: want error containing %q, got %v", want, err)
 			}
-			if want := tc.want; want != nil && !reflect.DeepEqual(upd, want) {
-				t.Errorf("NewHStar3: want updates:\n%v\ngot:\n%v", upd, want)
+			if want := tc.want; want != nil && !reflect.DeepEqual(nodes, want) {
+				t.Errorf("NewHStar3: want nodes:\n%v\ngot:\n%v", nodes, want)
 			}
 		})
 	}

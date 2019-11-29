@@ -36,7 +36,7 @@ type Node struct {
 func Prepare(nodes []Node, depth uint) error {
 	for i := range nodes {
 		if d, want := nodes[i].ID.BitLen(), depth; d != want {
-			return fmt.Errorf("upd #%d: invalid depth %d, want %d", i, d, want)
+			return fmt.Errorf("node #%d: invalid depth %d, want %d", i, d, want)
 		}
 	}
 	sort.Slice(nodes, func(i, j int) bool {

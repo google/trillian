@@ -32,7 +32,7 @@ type NodeBatchAccessor interface {
 	// The returned hashes may be missing or be nil for empty subtrees.
 	Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error)
 	// Set applies the given node hash updates.
-	Set(ctx context.Context, upd []Node) error
+	Set(ctx context.Context, nodes []Node) error
 }
 
 // Writer handles sharded writes to a sparse Merkle tree. The tree has two
@@ -55,29 +55,29 @@ func NewWriter(treeID int64, hasher hashers.MapHasher, height, split uint) *Writ
 }
 
 // Split sorts and splits the given list of node hash updates into shards, i.e.
-// the subsets belonging to different subtrees. The updates must belong to the
+// the subsets belonging to different subtrees. The nodes must belong to the
 // same tree level which is equal to the tree height.
-func (w *Writer) Split(upd []Node) ([][]Node, error) {
-	if err := Prepare(upd, w.height); err != nil {
+func (w *Writer) Split(nodes []Node) ([][]Node, error) {
+	if err := Prepare(nodes, w.height); err != nil {
 		return nil, err
 	}
 	// TODO(pavelkalinnikov): Try estimating the capacity for this slice.
 	var shards [][]Node
-	// The updates are sorted, so we can split them by prefix.
-	for begin, i := 0, 0; i < len(upd); i++ {
-		pref := upd[i].ID.Prefix(w.split)
+	// The nodes are sorted, so we can split them by prefix.
+	for begin, i := 0, 0; i < len(nodes); i++ {
+		pref := nodes[i].ID.Prefix(w.split)
 		next := i + 1
 		// Check if this ID ends the shard.
-		if next == len(upd) || upd[next].ID.Prefix(w.split) != pref {
-			shards = append(shards, upd[begin:next])
+		if next == len(nodes) || nodes[next].ID.Prefix(w.split) != pref {
+			shards = append(shards, nodes[begin:next])
 			begin = next
 		}
 	}
 	return shards, nil
 }
 
-// Write applies the given list of updates to a single shard, and returns the
-// resulting update of the shard root. It uses the given node accessor for
+// Write applies the given list of node updates to a single shard, and returns
+// the resulting update of the shard root. It uses the given node accessor for
 // reading and writing tree nodes.
 //
 // The typical usage pattern is as follows. For the lower shards, the input is
@@ -86,25 +86,25 @@ func (w *Writer) Split(upd []Node) ([][]Node, error) {
 //
 // In another case, Write can be performed without Split if the shard split
 // depth is 0, which effectively means that there is only one "global" shard.
-func (w *Writer) Write(ctx context.Context, upd []Node, acc NodeBatchAccessor) (Node, error) {
-	if len(upd) == 0 {
+func (w *Writer) Write(ctx context.Context, nodes []Node, acc NodeBatchAccessor) (Node, error) {
+	if len(nodes) == 0 {
 		return Node{}, errors.New("nothing to write")
 	}
-	depth := upd[0].ID.BitLen()
+	depth := nodes[0].ID.BitLen()
 	top, err := w.shardTop(depth)
 	if err != nil {
 		return Node{}, err
 	}
 
-	hs, err := NewHStar3(upd, w.h.mh.HashChildren, depth, top)
+	hs, err := NewHStar3(nodes, w.h.mh.HashChildren, depth, top)
 	if err != nil {
 		return Node{}, err
 	}
-	nodes, err := acc.Get(ctx, hs.Prepare())
+	hashes, err := acc.Get(ctx, hs.Prepare())
 	if err != nil {
 		return Node{}, err
 	}
-	sa := w.newAccessor(nodes)
+	sa := w.newAccessor(hashes)
 	topUpd, err := hs.Update(sa)
 	if err != nil {
 		return Node{}, err

@@ -94,11 +94,11 @@ func TestMarshalErrors(t *testing.T) {
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
-	upd := []smt.Node{
+	nodes := []smt.Node{
 		{ID: tree.NewNodeID2("0", 8), Hash: []byte("a")},
 		{ID: tree.NewNodeID2("1", 8), Hash: []byte("b")},
 	}
-	deepUpd := []smt.Node{
+	deepNodes := []smt.Node{
 		{ID: tree.NewNodeID2("\x0F\x00\x00", 24), Hash: []byte("a")},
 		{ID: tree.NewNodeID2("\x0F\xFF\x00", 24), Hash: []byte("b")},
 		{ID: tree.NewNodeID2("\x0F\xFF\x01", 24), Hash: []byte("c")},
@@ -112,11 +112,11 @@ func TestMarshalUnmarshal(t *testing.T) {
 		height uint
 	}{
 		{tile: smt.Tile{}, height: 8},
-		{tile: smt.Tile{Leaves: upd[:1]}, height: 8},
-		{tile: smt.Tile{Leaves: upd}, height: 8},
-		{tile: smt.Tile{ID: tree.NewNodeID2("\x0F", 0), Leaves: deepUpd}, height: 24},
-		{tile: smt.Tile{ID: tree.NewNodeID2("\x0F", 8), Leaves: deepUpd}, height: 16},
-		{tile: smt.Tile{ID: tree.NewNodeID2("\x0F\xFF", 16), Leaves: deepUpd[1:]}, height: 8},
+		{tile: smt.Tile{Leaves: nodes[:1]}, height: 8},
+		{tile: smt.Tile{Leaves: nodes}, height: 8},
+		{tile: smt.Tile{ID: tree.NewNodeID2("\x0F", 0), Leaves: deepNodes}, height: 24},
+		{tile: smt.Tile{ID: tree.NewNodeID2("\x0F", 8), Leaves: deepNodes}, height: 16},
+		{tile: smt.Tile{ID: tree.NewNodeID2("\x0F\xFF", 16), Leaves: deepNodes[1:]}, height: 8},
 	} {
 		t.Run("", func(t *testing.T) {
 			sp, err := Marshal(tc.tile, tc.height)

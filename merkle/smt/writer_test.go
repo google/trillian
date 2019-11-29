@@ -47,36 +47,36 @@ func TestWriterSplit(t *testing.T) {
 		tree.NewNodeID2("\x02\x00\x01\x00", 32),
 		tree.NewNodeID2("\x03\x00\x00\x00", 32),
 	}
-	// Generate some node updates based on IDs.
-	upd := make([]Node, len(ids))
+	// Generate some nodes based on IDs.
+	all := make([]Node, len(ids))
 	for i, id := range ids {
-		upd[i] = Node{ID: id, Hash: []byte(fmt.Sprintf("%32d", i))}
+		all[i] = Node{ID: id, Hash: []byte(fmt.Sprintf("%32d", i))}
 	}
 
 	for _, tc := range []struct {
 		desc  string
 		split uint
-		upd   []Node
+		nodes []Node
 		want  [][]Node
 		err   bool
 	}{
-		{desc: "dup", upd: upd, err: true},
-		{desc: "wrong-len", upd: []Node{{ID: tree.NewNodeID2("ab", 10)}}, err: true},
-		{desc: "ok-24", split: 24, upd: upd[:5],
-			want: [][]Node{{upd[1]}, {upd[0]}, {upd[2]}, {upd[4]}, {upd[3]}}},
-		{desc: "ok-21", split: 21, upd: upd[:5],
-			want: [][]Node{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
-		{desc: "ok-16", split: 16, upd: upd[:5],
-			want: [][]Node{{upd[1]}, {upd[0]}, {upd[2], upd[4]}, {upd[3]}}},
-		{desc: "ok-0", split: 0, upd: upd[:5],
-			want: [][]Node{{upd[1], upd[0], upd[2], upd[4], upd[3]}}},
+		{desc: "dup", nodes: all, err: true},
+		{desc: "wrong-len", nodes: []Node{{ID: tree.NewNodeID2("ab", 10)}}, err: true},
+		{desc: "ok-24", split: 24, nodes: all[:5],
+			want: [][]Node{{all[1]}, {all[0]}, {all[2]}, {all[4]}, {all[3]}}},
+		{desc: "ok-21", split: 21, nodes: all[:5],
+			want: [][]Node{{all[1]}, {all[0]}, {all[2], all[4]}, {all[3]}}},
+		{desc: "ok-16", split: 16, nodes: all[:5],
+			want: [][]Node{{all[1]}, {all[0]}, {all[2], all[4]}, {all[3]}}},
+		{desc: "ok-0", split: 0, nodes: all[:5],
+			want: [][]Node{{all[1], all[0], all[2], all[4], all[3]}}},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			upd := make([]Node, len(tc.upd))
-			copy(upd, tc.upd) // Avoid shuffling effects.
+			nodes := make([]Node, len(tc.nodes))
+			copy(nodes, tc.nodes) // Avoid shuffling effects.
 
 			w := NewWriter(treeID, hasher, 32, tc.split)
-			shards, err := w.Split(upd)
+			shards, err := w.Split(nodes)
 			if !reflect.DeepEqual(shards, tc.want) {
 				t.Error("shards mismatch")
 			}
@@ -89,33 +89,33 @@ func TestWriterSplit(t *testing.T) {
 
 func TestWriterWrite(t *testing.T) {
 	ctx := context.Background()
-	upd := []Node{genUpd("key1", "value1"), genUpd("key2", "value2"), genUpd("key3", "value3")}
+	all := []Node{genNode("key1", "value1"), genNode("key2", "value2"), genNode("key3", "value3")}
 	for _, tc := range []struct {
 		desc     string
 		split    uint
 		acc      *testAccessor
-		upd      []Node
+		nodes    []Node
 		wantRoot []byte
 		wantErr  string
 	}{
 		// Taken from SparseMerkleTreeWriter tests.
 		{
 			desc:     "single-leaf",
-			upd:      []Node{upd[0]},
+			nodes:    []Node{all[0]},
 			wantRoot: b64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA="),
 		},
 		{
 			desc:     "multi-leaf",
-			upd:      []Node{upd[0], upd[1], upd[2]},
+			nodes:    []Node{all[0], all[1], all[2]},
 			wantRoot: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
 		},
 
 		{desc: "empty", wantErr: "nothing to write"},
-		{desc: "unaligned", upd: []Node{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
-		{desc: "dup", upd: []Node{upd[0], upd[0]}, wantErr: "duplicate ID"},
-		{desc: "2-shards", split: 128, upd: []Node{upd[0], upd[1]}, wantErr: "writing across"},
-		{desc: "get-err", acc: &testAccessor{get: errors.New("fail")}, upd: []Node{upd[0]}, wantErr: "fail"},
-		{desc: "set-err", acc: &testAccessor{set: errors.New("fail")}, upd: []Node{upd[0]}, wantErr: "fail"},
+		{desc: "unaligned", nodes: []Node{{ID: tree.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
+		{desc: "dup", nodes: []Node{all[0], all[0]}, wantErr: "duplicate ID"},
+		{desc: "2-shards", split: 128, nodes: []Node{all[0], all[1]}, wantErr: "writing across"},
+		{desc: "get-err", acc: &testAccessor{get: errors.New("fail")}, nodes: []Node{all[0]}, wantErr: "fail"},
+		{desc: "set-err", acc: &testAccessor{set: errors.New("fail")}, nodes: []Node{all[0]}, wantErr: "fail"},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			w := NewWriter(treeID, hasher, 256, tc.split)
@@ -123,7 +123,7 @@ func TestWriterWrite(t *testing.T) {
 			if acc == nil {
 				acc = &testAccessor{}
 			}
-			rootUpd, err := w.Write(ctx, tc.upd, acc)
+			rootUpd, err := w.Write(ctx, tc.nodes, acc)
 			gotErr := ""
 			if err != nil {
 				gotErr = err.Error()
@@ -156,16 +156,16 @@ func testWriterBigBatch(t testing.TB) {
 
 	const batchSize = 1024
 	const numBatches = 4
-	upd := make([]Node, 0, batchSize*numBatches)
+	nodes := make([]Node, 0, batchSize*numBatches)
 	for x := 0; x < numBatches; x++ {
 		for y := 0; y < batchSize; y++ {
-			u := genUpd(fmt.Sprintf("key-%d-%d", x, y), fmt.Sprintf("value-%d-%d", x, y))
-			upd = append(upd, u)
+			u := genNode(fmt.Sprintf("key-%d-%d", x, y), fmt.Sprintf("value-%d-%d", x, y))
+			nodes = append(nodes, u)
 		}
 	}
 
 	w := NewWriter(treeID, hasher, 256, 8)
-	rootUpd := update(ctx, t, w, &testAccessor{}, upd)
+	rootUpd := update(ctx, t, w, &testAccessor{}, nodes)
 
 	// Calculated using Python code from the original Revocation Transparency
 	// doc: https://www.links.org/files/RevocationTransparency.pdf.
@@ -194,20 +194,20 @@ func TestWriterBigBatchMultipleWrites(t *testing.T) {
 	acc := &testAccessor{h: make(map[tree.NodeID2][]byte), save: true}
 
 	for i := 0; i < numBatches; i++ {
-		upd := make([]Node, 0, batchSize)
+		nodes := make([]Node, 0, batchSize)
 		for j := 0; j < batchSize; j++ {
-			u := genUpd(fmt.Sprintf("key-%d-%d", i, j), fmt.Sprintf("value-%d-%d", i, j))
-			upd = append(upd, u)
+			u := genNode(fmt.Sprintf("key-%d-%d", i, j), fmt.Sprintf("value-%d-%d", i, j))
+			nodes = append(nodes, u)
 		}
-		rootUpd := update(ctx, t, w, acc, upd)
+		rootUpd := update(ctx, t, w, acc, nodes)
 		if got, want := rootUpd.Hash, roots[i]; !bytes.Equal(got, want) {
 			t.Errorf("%d: root mismatch: got %x, want %x", i, got, want)
 		}
 	}
 }
 
-func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor, upd []Node) Node {
-	shards, err := w.Split(upd)
+func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor, nodes []Node) Node {
+	shards, err := w.Split(nodes)
 	if err != nil {
 		t.Fatalf("Split: %v", err)
 	}
@@ -216,10 +216,10 @@ func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor,
 	splitUpd := make([]Node, 0, 256)
 
 	eg, _ := errgroup.WithContext(ctx)
-	for _, upd := range shards {
-		upd := upd
+	for _, nodes := range shards {
+		nodes := nodes
 		eg.Go(func() error {
-			rootUpd, err := w.Write(ctx, upd, acc)
+			rootUpd, err := w.Write(ctx, nodes, acc)
 			if err != nil {
 				return err
 			}
@@ -240,9 +240,9 @@ func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor,
 	return rootUpd
 }
 
-// genUpd returns a Node for the given key and value. The returned node ID is
+// genNode returns a Node for the given key and value. The returned node ID is
 // 256-bit map key based on SHA256 of the given key string.
-func genUpd(key, value string) Node {
+func genNode(key, value string) Node {
 	key256 := sha256.Sum256([]byte(key))
 	hash := hasher.HashLeaf(treeID, key256[:], []byte(value))
 	return Node{ID: tree.NewNodeID2(string(key256[:]), 256), Hash: hash}
@@ -274,7 +274,7 @@ func (t *testAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.No
 	return h, nil
 }
 
-func (t *testAccessor) Set(ctx context.Context, upd []Node) error {
+func (t *testAccessor) Set(ctx context.Context, nodes []Node) error {
 	if err := t.set; err != nil {
 		return err
 	} else if !t.save {
@@ -282,8 +282,8 @@ func (t *testAccessor) Set(ctx context.Context, upd []Node) error {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	for _, u := range upd {
-		t.h[u.ID] = u.Hash
+	for _, n := range nodes {
+		t.h[n.ID] = n.Hash
 	}
 	return nil
 }
