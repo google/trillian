@@ -3,7 +3,7 @@ Treetex
 
 `treetex` is a tool for drawing/visualising Merkle trees.
 
-Ensure you have LaTeX installed on your system if you want to this; the tool
+Ensure you have `LaTeX` installed on your system if you want to this; the tool
 outputs `LaTeX` commands to stdout, and so needs to be used in conjuction with
 that.
 
@@ -30,7 +30,7 @@ Treetex has a few tricks up its sleeve:
 
 This tool draws trees with all the leaves at the same level as opposed to
 floating them up to their real level - mainly because this is how the trees in
-RFC6962 are drawn.
+[RFC6962](https://tools.ietf.org/html/rfc6962) are drawn.
 Nodes which aren't yet final are displayed with no border.
 
 ### Large trees
@@ -44,7 +44,7 @@ go run github.com/google/trillian/docs/merkletree/treetex --tree_size=100023 --m
 
 
 ### Inclusion proofs
-Highlight an inclusion proof.
+Highlight an inclusion proof using the `--inclusion` flag.
 
 ```bash
 go run github.com/google/trillian/docs/merkletree/treetex --tree_size=23 --inclusion=13
@@ -54,6 +54,7 @@ go run github.com/google/trillian/docs/merkletree/treetex --tree_size=23 --inclu
 
 ### Explicit leaf data
 Choose-your-own-~~adventure~~-data.
+Use the `--leaf_data` flags to specify comma-separated leaf data text explicity.
 Takes LaTex commands too.
 
 ```bash
@@ -63,7 +64,8 @@ go run github.com/google/trillian/docs/merkletree/treetex --leaf_data='entry1,th
 ![leaf data](images/leafdata.png)
 
 ### Explain-Merkle-trees mode
-Draw diagrams which explain what each node hash is.
+To draw diagrams which explain what each node hash is, use the
+`--node_format=hash` flag.
 
 ```bash
 go run github.com/google/trillian/docs/merkletree/treetex --tree_size=7 --node_format=hash
@@ -72,7 +74,8 @@ go run github.com/google/trillian/docs/merkletree/treetex --tree_size=7 --node_f
 ![hash mode](images/hashmode.png)
 
 ### Compact Range proofs
-Highlight node which make up (multiple) range proofs
+To highlight nodes which make up (multiple) range proofs, use the
+`--node_format=address` flag.
 
 ```bash
 go run github.com/google/trillian/docs/merkletree/treetex --tree_size=18 --ranges=1:3,7:14
