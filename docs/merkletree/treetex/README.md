@@ -3,9 +3,9 @@ Treetex
 
 `treetex` is a tool for drawing/visualising Merkle trees.
 
-Ensure you have `LaTeX` installed on your system if you want to this; the tool
-outputs `LaTeX` commands to stdout, and so needs to be used in conjuction with
-that.
+Ensure you have `LaTeX` installed on your system if you want to use this; the
+tool outputs `LaTeX` commands to stdout, and so needs to be used in conjuction
+with that.
 
 For debian-derived systems, `sudo apt install texlive` should do the trick.
 
@@ -54,7 +54,8 @@ go run github.com/google/trillian/docs/merkletree/treetex --tree_size=23 --inclu
 
 ### Explicit leaf data
 Choose-your-own-~~adventure~~-data.
-Use the `--leaf_data` flags to specify comma-separated leaf data text explicity.
+Use the `--leaf_data` flag to specify comma-separated leaf data text
+explicitly.
 Takes LaTex commands too.
 
 ```bash
@@ -74,8 +75,8 @@ go run github.com/google/trillian/docs/merkletree/treetex --tree_size=7 --node_f
 ![hash mode](images/hashmode.png)
 
 ### Compact Range proofs
-To highlight nodes which make up (multiple) range proofs, use the
-`--node_format=address` flag.
+To highlight nodes which make up (multiple) range proofs, use the `--ranges`
+flag.
 
 ```bash
 go run github.com/google/trillian/docs/merkletree/treetex --tree_size=18 --ranges=1:3,7:14
