@@ -32,7 +32,7 @@ func TestTileScan(t *testing.T) {
 		tree.NewNodeID2("\xF0", 8),
 		tree.NewNodeID2("\x00\x01\x02\x03", 32),
 	}
-	prefs := func(high, low uint, ids ...tree.NodeID2) []tree.NodeID2 {
+	prefixes := func(high, low uint, ids ...tree.NodeID2) []tree.NodeID2 {
 		ret := make([]tree.NodeID2, 0, int(high-low)*len(ids))
 		for i := high; i > low; i-- {
 			for _, id := range ids {
@@ -48,22 +48,22 @@ func TestTileScan(t *testing.T) {
 		visits []tree.NodeID2
 	}{
 		{leaves: nil, visits: []tree.NodeID2{}},
-		{leaves: []Node{{ID: ids[0]}}, visits: prefs(8, 0, ids[0])},
+		{leaves: []Node{{ID: ids[0]}}, visits: prefixes(8, 0, ids[0])},
 		{
 			leaves: []Node{{ID: ids[0]}, {ID: ids[1]}},
-			visits: append(prefs(8, 6, ids[0], ids[1]), prefs(6, 0, ids[0])...),
+			visits: append(prefixes(8, 6, ids[0], ids[1]), prefixes(6, 0, ids[0])...),
 		},
 		{
 			leaves: []Node{{ID: ids[0]}, {ID: ids[2]}},
-			visits: prefs(8, 0, ids[0], ids[2]),
+			visits: prefixes(8, 0, ids[0], ids[2]),
 		},
-		{id: ids[0], leaves: []Node{{ID: ids[3]}}, visits: prefs(32, 8, ids[3])},
+		{id: ids[0], leaves: []Node{{ID: ids[3]}}, visits: prefixes(32, 8, ids[3])},
 	} {
 		t.Run("", func(t *testing.T) {
 			tile := Tile{ID: tc.id, Leaves: tc.leaves}
 			visits := make([]tree.NodeID2, 0, len(tc.visits))
-			if err := tile.scan(lo, h, func(id tree.NodeID2, hash []byte) {
-				visits = append(visits, id)
+			if err := tile.scan(lo, h, func(node Node) {
+				visits = append(visits, node.ID)
 			}); err != nil {
 				t.Fatalf("scan: %v", err)
 			}
