@@ -43,7 +43,7 @@ type HashChildrenFn func(left, right []byte) []byte
 //
 // TODO(pavelkalinnikov): Swap in the code, and document it properly.
 type HStar3 struct {
-	upd   []NodeUpdate
+	nodes []Node
 	hash  HashChildrenFn
 	depth uint
 	top   uint
@@ -53,15 +53,15 @@ type HStar3 struct {
 // updates at the specified tree depth. This HStar3 is capable of propagating
 // these updates up to the passed-in top level of the tree.
 //
-// Warning: This call and other HStar3 methods modify the updates slice
-// in-place, so the caller must ensure to not reuse it.
-func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HStar3, error) {
-	if err := Prepare(updates, depth); err != nil {
+// Warning: This call and other HStar3 methods modify the nodes slice in-place,
+// so the caller must ensure to not reuse it.
+func NewHStar3(nodes []Node, hash HashChildrenFn, depth, top uint) (HStar3, error) {
+	if err := Prepare(nodes, depth); err != nil {
 		return HStar3{}, err
 	} else if top > depth {
 		return HStar3{}, fmt.Errorf("top > depth: %d vs. %d", top, depth)
 	}
-	return HStar3{upd: updates, hash: hash, depth: depth, top: top}, nil
+	return HStar3{nodes: nodes, hash: hash, depth: depth, top: top}, nil
 }
 
 // Prepare returns the list of all the node IDs that the Update method will
@@ -74,7 +74,7 @@ func NewHStar3(updates []NodeUpdate, hash HashChildrenFn, depth, top uint) (HSta
 func (h HStar3) Prepare() []tree.NodeID2 {
 	// Start with a single "sentinel" empty ID, which helps maintaining the loop
 	// invariants below. Preallocate enough memory to store all the node IDs.
-	ids := make([]tree.NodeID2, 1, len(h.upd)*int(h.depth-h.top)+1)
+	ids := make([]tree.NodeID2, 1, len(h.nodes)*int(h.depth-h.top)+1)
 	pos := make([]int, h.depth-h.top)
 	// Note: This variable compares equal to ids[0].
 	empty := tree.NodeID2{}
@@ -89,8 +89,8 @@ func (h HStar3) Prepare() []tree.NodeID2 {
 	//    added so far, or an empty ID if there is none at this depth yet.
 	//
 	// Note: The algorithm works because the list of updates is sorted.
-	for _, upd := range h.upd {
-		for id, d := upd.ID, h.depth; d > h.top; d-- {
+	for _, n := range h.nodes {
+		for id, d := n.ID, h.depth; d > h.top; d-- {
 			pref := id.Prefix(d)
 			idx := d - h.top - 1
 			if p := pos[idx]; ids[p] == pref {
@@ -134,33 +134,33 @@ func (h HStar3) Prepare() []tree.NodeID2 {
 //
 // For that reason, Update doesn't invoke NodeAccessor.Set for the topmost
 // nodes. If it did then chained Updates would Set the borderline nodes twice.
-func (h HStar3) Update(na NodeAccessor) ([]NodeUpdate, error) {
+func (h HStar3) Update(na NodeAccessor) ([]Node, error) {
 	for d := h.depth; d > h.top; d-- {
 		var err error
-		if h.upd, err = h.updateAt(h.upd, d, na); err != nil {
+		if h.nodes, err = h.updateAt(h.nodes, d, na); err != nil {
 			return nil, fmt.Errorf("depth %d: %v", d, err)
 		}
 	}
-	return h.upd, nil
+	return h.nodes, nil
 }
 
 // updateAt applies the given node updates at the specified tree level.
 // Returns the updates that propagated to the level above.
-func (h HStar3) updateAt(updates []NodeUpdate, depth uint, na NodeAccessor) ([]NodeUpdate, error) {
+func (h HStar3) updateAt(nodes []Node, depth uint, na NodeAccessor) ([]Node, error) {
 	// Apply the updates.
-	for _, upd := range updates {
-		na.Set(upd.ID, upd.Hash)
+	for _, n := range nodes {
+		na.Set(n.ID, n.Hash)
 	}
 	// Calculate the updates that propagate to one level above. The result of
 	// this is a slice of newLen items, between len/2 and len. The length shrinks
 	// whenever two updated nodes share the same parent.
 	newLen := 0
-	for i, ln := 0, len(updates); i < ln; i++ {
-		sib := updates[i].ID.Sibling()
+	for i, ln := 0, len(nodes); i < ln; i++ {
+		sib := nodes[i].ID.Sibling()
 		var left, right []byte
-		if next := i + 1; next < ln && updates[next].ID == sib {
-			// The sibling is the right child here, as updates are sorted.
-			left, right = updates[i].Hash, updates[next].Hash
+		if next := i + 1; next < ln && nodes[next].ID == sib {
+			// The sibling is the right child here, as nodes are sorted.
+			left, right = nodes[i].Hash, nodes[next].Hash
 			i = next // Skip the next update in the outer loop.
 		} else {
 			// The sibling is not updated, so fetch the original from NodeAccessor.
@@ -168,16 +168,16 @@ func (h HStar3) updateAt(updates []NodeUpdate, depth uint, na NodeAccessor) ([]N
 			if err != nil {
 				return nil, err
 			}
-			left, right = updates[i].Hash, hash
+			left, right = nodes[i].Hash, hash
 			if isLeftChild(sib) {
 				left, right = right, left
 			}
 		}
 		hash := h.hash(left, right)
-		updates[newLen] = NodeUpdate{ID: sib.Prefix(depth - 1), Hash: hash}
+		nodes[newLen] = Node{ID: sib.Prefix(depth - 1), Hash: hash}
 		newLen++
 	}
-	return updates[:newLen], nil
+	return nodes[:newLen], nil
 }
 
 // isLeftChild returns whether the the given node is a left child.

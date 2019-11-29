@@ -336,10 +336,10 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 	// Overwrite/set the leaf hashes in the request and create a summary of
 	// the leaf indices and new hash values.
-	upd := make([]smt.NodeUpdate, 0, len(req.Leaves))
+	nodes := make([]smt.Node, 0, len(req.Leaves))
 	for _, l := range req.Leaves {
 		l.LeafHash = hasher.HashLeaf(tree.TreeId, l.Index, l.LeafValue)
-		upd = append(upd, smt.NodeUpdate{
+		nodes = append(nodes, smt.Node{
 			ID:   stree.NewNodeID2(string(l.Index), uint(hasher.BitLen())),
 			Hash: l.LeafHash,
 		})
@@ -364,7 +364,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err := t.writeLeaves(ctx, tx, req.Leaves); err != nil {
 			return err
 		}
-		hash, err := updater.update(ctx, tx, upd, writeRev)
+		hash, err := updater.update(ctx, tx, nodes, writeRev)
 		if err != nil {
 			return err
 		}

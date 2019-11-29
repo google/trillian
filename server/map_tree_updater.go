@@ -37,9 +37,9 @@ type mapTreeUpdater struct {
 }
 
 // update updates the sparse Merkle tree at the passed-in revision with the
-// given leaf updates, and writes it to the storage. Returns the new root hash.
-// Requires updates to be non-empty.
-func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd []smt.NodeUpdate, writeRev int64) ([]byte, error) {
+// given leaf node updates, and writes it to the storage. Returns the new root
+// hash. Requires nodes to be non-empty.
+func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes []smt.Node, writeRev int64) ([]byte, error) {
 	// Work around a performance issue when using the map in single-transaction
 	// mode by preloading all the nodes we know the Writers are going to need.
 	var hashes map[tree.NodeID2][]byte
@@ -47,7 +47,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 	// Note: It's fine if hashes == nil, it only happens if preload == false.
 	if preload {
 		var err error
-		if hashes, err = doPreload(ctx, tx, uint(t.hasher.BitLen()), upd, writeRev-1); err != nil {
+		if hashes, err = doPreload(ctx, tx, uint(t.hasher.BitLen()), nodes, writeRev-1); err != nil {
 			return nil, err
 		}
 	}
@@ -55,7 +55,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 	// TODO(pavelkalinnikov): Make the layout configurable.
 	const topHeight = uint(8) // The height of the top shard.
 	w := smt.NewWriter(t.tree.TreeId, t.hasher, uint(t.hasher.BitLen()), topHeight)
-	shards, err := w.Split(upd) // Split the updates into shards below topHeight.
+	shards, err := w.Split(nodes) // Split the nodes into shards below topHeight.
 	if err != nil {
 		return nil, err
 	}
@@ -63,35 +63,35 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 	runTX := t.newTXFunc(tx)
 	// The update function runs a read-write transaction that updates a shard of
 	// the map tree: either one of the "leaf" shards, or the top shard.
-	update := func(ctx context.Context, upd []smt.NodeUpdate) (root smt.NodeUpdate, err error) {
+	update := func(ctx context.Context, nodes []smt.Node) (root smt.Node, err error) {
 		err = runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
-			updCopy := make([]smt.NodeUpdate, len(upd))
-			copy(updCopy, upd) // Protect from TX restarts.
+			nodesCopy := make([]smt.Node, len(nodes))
+			copy(nodesCopy, nodes) // Protect from TX restarts.
 			acc := &txAccessor{hashes: hashes, preload: preload, tx: tx, rev: writeRev}
 			var err error
-			root, err = w.Write(ctx, updCopy, acc)
+			root, err = w.Write(ctx, nodesCopy, acc)
 			return err
 		})
 		return root, err
 	}
 
-	// topUpds accumulates root updates for all the "leaf" shards, which is then
-	// fed as an input to the topmost shard update.
-	topUpds := make([]smt.NodeUpdate, 0, 1<<topHeight)
+	// shardRoots accumulates root updates for all the "leaf" shards, which is
+	// then fed as an input to the topmost shard update.
+	shardRoots := make([]smt.Node, 0, 1<<topHeight)
 	var mu sync.Mutex // Guards topUpds.
 
 	// Run update calculations for "leaf" shards in parallel.
 	g, gCtx := errgroup.WithContext(ctx)
-	for _, upd := range shards {
-		upd := upd
+	for _, nodes := range shards {
+		nodes := nodes
 		g.Go(func() error {
-			shardRootUpd, err := update(gCtx, upd)
+			shardRoot, err := update(gCtx, nodes)
 			if err != nil {
 				return err
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			topUpds = append(topUpds, shardRootUpd)
+			shardRoots = append(shardRoots, shardRoot)
 			return nil
 		})
 	}
@@ -102,11 +102,11 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, upd [
 	// mutex guarding topUpds below this point.
 
 	// Finally, update the topmost shard using the "leaf" shard roots updates.
-	rootUpd, err := update(ctx, topUpds)
+	root, err := update(ctx, shardRoots)
 	if err != nil {
 		return nil, err
 	}
-	return rootUpd.Hash, nil
+	return root.Hash, nil
 }
 
 type txAccessor struct {
@@ -141,13 +141,13 @@ func (t txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeI
 	return res, nil
 }
 
-func (t txAccessor) Set(ctx context.Context, upd []smt.NodeUpdate) error {
-	nodes := make([]tree.Node, 0, len(upd))
-	for _, u := range upd {
-		id := tree.NewNodeIDFromID2(u.ID)
-		nodes = append(nodes, tree.Node{NodeID: id, Hash: u.Hash, NodeRevision: t.rev})
+func (t txAccessor) Set(ctx context.Context, nodes []smt.Node) error {
+	stNodes := make([]tree.Node, 0, len(nodes))
+	for _, n := range nodes {
+		id := tree.NewNodeIDFromID2(n.ID)
+		stNodes = append(stNodes, tree.Node{NodeID: id, Hash: n.Hash, NodeRevision: t.rev})
 	}
-	return t.tx.SetMerkleNodes(ctx, nodes)
+	return t.tx.SetMerkleNodes(ctx, stNodes)
 }
 
 type txFunc func(context.Context, func(context.Context, storage.MapTreeTX) error) error
@@ -173,7 +173,7 @@ func (t *mapTreeUpdater) newTXFunc(tx storage.MapTreeTX) txFunc {
 // This is a performance workaround for locking issues which occur when the
 // sparse Merkle tree code is used with a single transaction (and therefore a
 // single subtreeCache too).
-func doPreload(ctx context.Context, tx storage.MapTreeTX, depth uint, upd []smt.NodeUpdate, rev int64) (map[tree.NodeID2][]byte, error) {
+func doPreload(ctx context.Context, tx storage.MapTreeTX, depth uint, upd []smt.Node, rev int64) (map[tree.NodeID2][]byte, error) {
 	ctx, spanEnd := spanFor(ctx, "doPreload")
 	defer spanEnd()
 

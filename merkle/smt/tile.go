@@ -24,8 +24,7 @@ import "github.com/google/trillian/storage/tree"
 //
 // TODO(pavelkalinnikov): Make Tile immutable.
 // TODO(pavelkalinnikov): Introduce invariants on the order/content of Leaves.
-// TODO(pavelkalinnikov): Rename NodeUpdate to a more generic Node or NodeHash.
 type Tile struct {
 	ID     tree.NodeID2
-	Leaves []NodeUpdate
+	Leaves []Node
 }

@@ -35,7 +35,7 @@ func Unmarshal(sp *storagepb.SubtreeProto) (smt.Tile, error) {
 	}
 
 	tailBits := uint8((height-1)%8 + 1) // Bits of the last byte to use.
-	leaves := make([]smt.NodeUpdate, 0, len(sp.GetLeaves()))
+	leaves := make([]smt.Node, 0, len(sp.GetLeaves()))
 	for idStr, hash := range sp.GetLeaves() {
 		suf, err := tree.ParseSuffix(idStr) // Note: No allocation if height <= 8.
 		if err != nil {
@@ -47,7 +47,7 @@ func Unmarshal(sp *storagepb.SubtreeProto) (smt.Tile, error) {
 		count := len(path)
 		bytes := prefix + string(path[:count-1]) // Note: No allocation if height <= 8.
 		id := tree.NewNodeID2WithLast(bytes, path[count-1], tailBits)
-		leaves = append(leaves, smt.NodeUpdate{ID: id, Hash: hash})
+		leaves = append(leaves, smt.Node{ID: id, Hash: hash})
 	}
 	// Canonicalize the leaves list.
 	if err := smt.Prepare(leaves, id.BitLen()+height); err != nil {
