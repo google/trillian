@@ -186,14 +186,12 @@ func drawLeaf(prefix string, index uint64, leafText, dataText nodeTextFunc) {
 	a := nInfo[id]
 
 	// First render the leaf node of the Merkle tree
-	rangeIndices := a.rangeIndices
-	incPath := a.incPath
 	a.rangeIndices = nil
 	a.incPath = false
 	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText(id), a.String())
+
 	// and then a child-node representing the leaf data itself:
-	a.rangeIndices = rangeIndices
-	a.incPath = incPath
+	a = nInfo[id]
 	a.leaf = true
 	a.incProof = false // inclusion proofs don't include leafdata (just the leaf hash above)
 	fmt.Printf("  %s [%s, %s, align=center, tier=leafdata]\n]\n", prefix, dataText(id), a.String())
