@@ -22,7 +22,8 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
-// TileSet represenst a set of Merkle tree tiles and the corresponding nodes.
+// TileSet represents a set of Merkle tree tiles and the corresponding nodes.
+// This type is not thread-safe.
 //
 // TODO(pavelkalinnikov): Make it immutable.
 type TileSet struct {
@@ -45,7 +46,7 @@ func (t *TileSet) Hashes() map[tree.NodeID2][]byte {
 	return t.hashes
 }
 
-// Add puts the given tile into the set.
+// Add puts the given tile into the set. Not thread-safe.
 //
 // TODO(pavelkalinnikov): Take a whole list of Tiles instead.
 func (t *TileSet) Add(tile Tile) error {
@@ -58,7 +59,8 @@ func (t *TileSet) Add(tile Tile) error {
 	})
 }
 
-// TileSetMutation accumulates tree tiles that need to be updated.
+// TileSetMutation accumulates tree tiles that need to be updated. This type is
+// not thread-safe.
 type TileSetMutation struct {
 	read  *TileSet
 	tiles map[tree.NodeID2][]Node
@@ -74,7 +76,7 @@ func NewTileSetMutation(ts *TileSet) *TileSetMutation {
 	return &TileSetMutation{read: ts, tiles: tiles, dirty: dirty}
 }
 
-// Set updates the hash of the given tree node.
+// Set updates the hash of the given tree node. Not thread-safe.
 func (t *TileSetMutation) Set(id tree.NodeID2, hash []byte) {
 	root := t.read.layout.GetTileRootID(id)
 	height := uint(t.read.layout.TileHeight(int(root.BitLen())))
