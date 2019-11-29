@@ -298,28 +298,8 @@ func modifyRangeNodeInfo() error {
 			modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 		}
 
-		// Now perfect roots which comprise the range:
-		maskL, maskR := compact.Decompose(l, r)
-		p := l
-		// Do left perfect subtree roots:
-		nBitsL := uint(bits.Len64(maskL))
-		for i, bit := uint(0), uint64(1); i < nBitsL; i, bit = i+1, bit<<1 {
-			if maskL&bit != 0 {
-				if i > 0 {
-					id := compact.NewNodeID(i, p>>i)
-					modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
-				}
-				p += bit
-			}
-		}
-		// Do right perfect subtree roots:
-		nBitsR := uint(bits.Len64(maskR))
-		for i, bit := nBitsR, uint64(1<<nBitsR); i > 1; i, bit = i-1, bit>>1 {
-			if maskR&bit != 0 {
-				id := compact.NewNodeID(i, p>>i)
-				modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
-				p += bit
-			}
+		for _, id := range compact.RangeNodes(l, r) {
+			modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 		}
 	}
 	return nil
