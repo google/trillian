@@ -143,7 +143,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 		{
 			upd: []Node{{ID: ids[0], Hash: []byte("new_0000")}},
 			want: map[tree.NodeID2][]Node{
-				ids[0].Prefix(8): []Node{
+				ids[0].Prefix(8): {
 					{ID: ids[0], Hash: []byte("new_0000")},
 					{ID: ids[1], Hash: []byte("hash_0070")},
 				},
@@ -152,7 +152,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 		{
 			upd: []Node{{ID: ids[0].Sibling(), Hash: []byte("new_0001")}},
 			want: map[tree.NodeID2][]Node{
-				ids[0].Prefix(8): []Node{
+				ids[0].Prefix(8): {
 					{ID: ids[0].Sibling(), Hash: []byte("new_0001")},
 					{ID: ids[0], Hash: []byte("hash_0000")},
 					{ID: ids[1], Hash: []byte("hash_0070")},
@@ -165,11 +165,11 @@ func TestTileSetMutationBuild(t *testing.T) {
 				{ID: ids[2], Hash: []byte("new_0101")},
 			},
 			want: map[tree.NodeID2][]Node{
-				ids[0].Prefix(8): []Node{
+				ids[0].Prefix(8): {
 					{ID: ids[0], Hash: []byte("new_0000")},
 					{ID: ids[1], Hash: []byte("hash_0070")},
 				},
-				ids[2].Prefix(8): []Node{
+				ids[2].Prefix(8): {
 					{ID: ids[2], Hash: []byte("new_0101")},
 				},
 			},
