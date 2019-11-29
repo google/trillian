@@ -123,27 +123,30 @@ func (n nodeInfo) String() string {
 	}
 
 	if n.proof {
-		proofFill := "proof"
 		if n.ephemeral {
-			proofFill = "proof_ephemeral"
-		}
-		if len(n.proofRangeIndices) == 0 {
-			fill = proofFill
+			fill = "proof_ephemeral"
 		} else {
-			attr = append(attr, fmt.Sprintf("top color=%s", proofFill))
-			for i, pi := range n.proofRangeIndices {
-				pos := []string{"bottom", "middle"}[i]
-				attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, pi))
-			}
+			fill = "proof"
 		}
-	} else /* !proof */ {
+	}
+
+	if n.leaf {
 		if l := len(n.rangeIndices); l == 1 {
 			fill = fmt.Sprintf("target%d!50", n.rangeIndices[0])
 		} else if l > 1 {
 			// Otherwise, we need to be a bit cleverer, and use the shading feature.
 			for i, ri := range n.rangeIndices {
-				pos := []string{"bottom", "middle"}[i]
+				pos := []string{"left", "right", "middle"}[i]
 				attr = append(attr, fmt.Sprintf("%s color=target%d!50", pos, ri))
+			}
+		}
+	} else {
+		if l := len(n.proofRangeIndices); l == 1 {
+			fill = fmt.Sprintf("range%d!50", n.proofRangeIndices[0])
+		} else if l > 1 {
+			for i, pi := range n.proofRangeIndices {
+				pos := []string{"left", "right", "middle"}[i]
+				attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, pi))
 			}
 		}
 	}
@@ -327,7 +330,6 @@ func modifyRangeNodeInfo() error {
 
 		for _, id := range compact.RangeNodes(l, r) {
 			modifyNodeInfo(id, func(n *nodeInfo) {
-				n.proof = true
 				n.proofRangeIndices = append(n.proofRangeIndices, ri)
 			})
 		}
