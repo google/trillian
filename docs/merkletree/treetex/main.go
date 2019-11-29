@@ -123,18 +123,18 @@ func (n nodeInfo) String() string {
 	}
 
 	if n.proof {
+		proofFill := "proof"
+		if n.ephemeral {
+			proofFill = "proof_ephemeral"
+		}
 		if len(n.proofRangeIndices) == 0 {
-			fill = "proof"
+			fill = proofFill
 		} else {
-			attr = append(attr, "top color=proof")
+			attr = append(attr, fmt.Sprintf("top color=%s", proofFill))
 			for i, pi := range n.proofRangeIndices {
 				pos := []string{"bottom", "middle"}[i]
 				attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, pi))
 			}
-		}
-		if n.ephemeral {
-			fill = "proof_ephemeral"
-			attr = append(attr, *attrEphemeralNode)
 		}
 	} else /* !proof */ {
 		if l := len(n.rangeIndices); l == 1 {
@@ -158,6 +158,8 @@ func (n nodeInfo) String() string {
 
 	if !n.ephemeral {
 		attr = append(attr, "draw")
+	} else {
+		attr = append(attr, *attrEphemeralNode)
 	}
 	if !n.leaf {
 		attr = append(attr, "circle, minimum size=3em, align=center")
