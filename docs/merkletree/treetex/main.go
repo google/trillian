@@ -51,6 +51,9 @@ const (
 \definecolor{target}{rgb}{0.5,0.5,0.9}
 \definecolor{target_path}{rgb}{0.7,0.7,0.9}
 \definecolor{mega}{rgb}{0.9,0.9,0.9}
+\definecolor{target0}{rgb}{0.1,0.9,0.1}
+\definecolor{target1}{rgb}{0.1,0.1,0.9}
+\definecolor{target2}{rgb}{0.9,0.1,0.9}
 \definecolor{range0}{rgb}{0.3,0.9,0.3}
 \definecolor{range1}{rgb}{0.3,0.3,0.9}
 \definecolor{range2}{rgb}{0.9,0.3,0.9}
@@ -135,12 +138,12 @@ func (n nodeInfo) String() string {
 		}
 	} else /* !proof */ {
 		if l := len(n.rangeIndices); l == 1 {
-			fill = fmt.Sprintf("range%d!50", n.rangeIndices[0])
+			fill = fmt.Sprintf("target%d!50", n.rangeIndices[0])
 		} else if l > 1 {
 			// Otherwise, we need to be a bit cleverer, and use the shading feature.
 			for i, ri := range n.rangeIndices {
 				pos := []string{"bottom", "middle"}[i]
-				attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, ri))
+				attr = append(attr, fmt.Sprintf("%s color=target%d!50", pos, ri))
 			}
 		}
 	}
