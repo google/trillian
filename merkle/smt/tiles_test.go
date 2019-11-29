@@ -106,6 +106,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 		tree.NewNodeID2("\x00\x70", 16),
 		tree.NewNodeID2("\x01\x01", 16),
 		tree.NewNodeID2("\xFF\xFF", 16),
+		tree.NewNodeID2("\x77\x77", 16),
 	}
 	ts := NewTileSet(0, maphasher.Default, l)
 	for _, tile := range []Tile{
@@ -140,7 +141,21 @@ func TestTileSetMutationBuild(t *testing.T) {
 		want map[tree.NodeID2][]Node // Updated tiles.
 	}{
 		{upd: nil, want: make(map[tree.NodeID2][]Node)},
-		{
+		{ // Updating the hash with the old value.
+			upd:  []Node{{ID: ids[0], Hash: []byte("hash_0000")}},
+			want: make(map[tree.NodeID2][]Node), // Tiles are intact.
+		},
+		{ // Ignoring non-leaf node updates for tiles.
+			upd:  []Node{{ID: ids[0].Prefix(1), Hash: []byte("root")}},
+			want: make(map[tree.NodeID2][]Node),
+		},
+		{ // Updating a non-existing node of a non-existing tile.
+			upd: []Node{{ID: ids[4], Hash: []byte("new_7777")}},
+			want: map[tree.NodeID2][]Node{
+				ids[4].Prefix(8): {{ID: ids[4], Hash: []byte("new_7777")}},
+			},
+		},
+		{ // Updating an existing node.
 			upd: []Node{{ID: ids[0], Hash: []byte("new_0000")}},
 			want: map[tree.NodeID2][]Node{
 				ids[0].Prefix(8): {
@@ -149,7 +164,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // Updating nodes of an existing tile.
 			upd: []Node{{ID: ids[0].Sibling(), Hash: []byte("new_0001")}},
 			want: map[tree.NodeID2][]Node{
 				ids[0].Prefix(8): {
@@ -159,7 +174,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // Updating multiple existing tiles.
 			upd: []Node{
 				{ID: ids[0], Hash: []byte("new_0000")},
 				{ID: ids[2], Hash: []byte("new_0101")},
