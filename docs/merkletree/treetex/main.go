@@ -298,9 +298,8 @@ func modifyRangeNodeInfo() error {
 			modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
 		}
 
-		for _, id := range compact.RangeNodes(lr[0], lr[1]) {
+		for _, id := range compact.RangeNodes(l, r) {
 			modifyNodeInfo(id, func(n *nodeInfo) { n.rangeIndices = append(n.rangeIndices, ri) })
-
 		}
 	}
 	return nil
