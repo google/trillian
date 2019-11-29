@@ -79,7 +79,7 @@ To highlight nodes which make up (multiple) range proofs, use the `--ranges`
 flag.
 
 ```bash
-go run github.com/google/trillian/docs/merkletree/treetex --tree_size=18 --ranges=1:3,7:14
+go run github.com/google/trillian/docs/merkletree/treetex --tree_size=18 --ranges=1:4,7:14
 ```
 
 ![compact ranges](images/compactrange.png)
