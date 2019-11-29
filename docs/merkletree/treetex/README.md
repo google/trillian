@@ -14,7 +14,7 @@ Usage
 -----
 
 ```bash
-go run github.com/google/trillian/docs/merkletree/treetex | latex
+go run github.com/google/trillian/docs/merkletree/treetex | pdflatex
 ```
 (if you've not used that much tex - that'll create a file called `texput.pdf`)
 You can use `okular` (or your favourite PDF viewer) to view it.
