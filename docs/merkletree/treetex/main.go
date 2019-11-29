@@ -362,11 +362,8 @@ func main() {
 		leaves := strings.Split(*leafData, ",")
 		*treeSize = uint64(len(leaves))
 		log.Printf("Overriding treeSize to %d since --leaf_data was set", *treeSize)
-		nodeText = func(id compact.NodeID) string {
-			if id.Level == 0 {
-				return leaves[id.Index]
-			}
-			return innerNodeText(id)
+		dataFormat = func(id compact.NodeID) string {
+			return leaves[id.Index]
 		}
 	}
 
