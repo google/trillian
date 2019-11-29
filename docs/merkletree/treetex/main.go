@@ -187,13 +187,13 @@ func drawLeaf(prefix string, index uint64, leafText, dataText nodeTextFunc) {
 
 	// First render the leaf node of the Merkle tree
 	a.rangeIndices = nil
-	a.incPath = false
 	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText(id), a.String())
 
 	// and then a child-node representing the leaf data itself:
 	a = nInfo[id]
 	a.leaf = true
-	a.incProof = false // inclusion proofs don't include leafdata (just the leaf hash above)
+	a.incProof = false                     // inclusion proofs don't include leafdata (just the leaf hash above)
+	a.incPath, a.target = false, a.incPath // draw the target leaf darker if necessary.
 	fmt.Printf("  %s [%s, %s, align=center, tier=leafdata]\n]\n", prefix, dataText(id), a.String())
 }
 
@@ -308,7 +308,6 @@ func modifyRangeNodeInfo() error {
 		for _, id := range compact.RangeNodes(l, r) {
 			modifyNodeInfo(id, func(n *nodeInfo) {
 				n.incProof = true
-				// TODO(al): make the multi-range stuff work here.
 				// n.rangeIndices = append(n.rangeIndices, ri)
 			})
 		}
@@ -360,7 +359,7 @@ func main() {
 
 	if *inclusion > 0 {
 		leafID := compact.NewNodeID(0, uint64(*inclusion))
-		modifyNodeInfo(leafID, func(n *nodeInfo) { n.target = true })
+		modifyNodeInfo(leafID, func(n *nodeInfo) { n.incPath = true })
 		nf, err := merkle.CalcInclusionProofNodeAddresses(int64(*treeSize), *inclusion, int64(*treeSize))
 		if err != nil {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
