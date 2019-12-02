@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/smt"
@@ -27,11 +29,9 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/storagepb/convert"
-	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 
-	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
+	stree "github.com/google/trillian/storage/tree"
 )
 
 const (
