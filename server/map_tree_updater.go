@@ -130,11 +130,11 @@ func (t *txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.Node
 }
 
 func (t *txAccessor) Set(ctx context.Context, nodes []smt.Node) error {
-	mut := smt.NewTileSetMutation(t.read)
+	m := smt.NewTileSetMutation(t.read)
 	for _, n := range nodes {
-		mut.Set(n.ID, n.Hash)
+		m.Set(n.ID, n.Hash)
 	}
-	tiles, err := mut.Build()
+	tiles, err := m.Build()
 	if err != nil {
 		return err
 	}
