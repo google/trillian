@@ -66,7 +66,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes
 		err = runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 			nodesCopy := make([]smt.Node, len(nodes))
 			copy(nodesCopy, nodes) // Protect from TX restarts.
-			acc := &txAccessor{mtu: t, read: preload, tx: tx, rev: writeRev}
+			acc := &txAccessor{updater: t, read: preload, tx: tx, rev: writeRev}
 			var err error
 			root, err = w.Write(ctx, nodesCopy, acc)
 			return err
@@ -109,7 +109,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes
 }
 
 type txAccessor struct {
-	mtu *mapTreeUpdater
+	updater *mapTreeUpdater
 	// read is a cache of tree tiles that Get returns directly instead of calling
 	// GetTiles. It is initialized by the first Get call if not specified.
 	read *smt.TileSet
@@ -122,7 +122,7 @@ func (t *txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.Node
 	// TODO(pavelkalinnikov): Factor out preload into another accessor.
 	if t.read == nil {
 		var err error
-		if t.read, err = t.mtu.load(ctx, t.tx, ids, t.rev-1); err != nil {
+		if t.read, err = t.updater.load(ctx, t.tx, ids, t.rev-1); err != nil {
 			return nil, err
 		}
 	}
