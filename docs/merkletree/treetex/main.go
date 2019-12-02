@@ -98,15 +98,16 @@ var (
 )
 
 // nodeInfo represents the style to be applied to a tree node.
+// TODO(al): separate out leafdata bits from here.
 type nodeInfo struct {
-	proof             bool
-	incPath           bool
-	target            bool
-	perfectRoot       bool
-	ephemeral         bool
-	leaf              bool
-	rangeIndices      []int
-	proofRangeIndices []int
+	proof            bool
+	incPath          bool
+	target           bool
+	perfectRoot      bool
+	ephemeral        bool
+	leaf             bool
+	dataRangeIndices []int
+	rangeIndices     []int
 }
 
 type nodeTextFunc func(id compact.NodeID) string
@@ -131,20 +132,20 @@ func (n nodeInfo) String() string {
 	}
 
 	if n.leaf {
-		if l := len(n.rangeIndices); l == 1 {
-			fill = fmt.Sprintf("target%d!50", n.rangeIndices[0])
+		if l := len(n.dataRangeIndices); l == 1 {
+			fill = fmt.Sprintf("target%d!50", n.dataRangeIndices[0])
 		} else if l > 1 {
 			// Otherwise, we need to be a bit cleverer, and use the shading feature.
-			for i, ri := range n.rangeIndices {
+			for i, ri := range n.dataRangeIndices {
 				pos := []string{"left", "right", "middle"}[i]
 				attr = append(attr, fmt.Sprintf("%s color=target%d!50", pos, ri))
 			}
 		}
 	} else {
-		if l := len(n.proofRangeIndices); l == 1 {
-			fill = fmt.Sprintf("range%d!50", n.proofRangeIndices[0])
+		if l := len(n.rangeIndices); l == 1 {
+			fill = fmt.Sprintf("range%d!50", n.rangeIndices[0])
 		} else if l > 1 {
-			for i, pi := range n.proofRangeIndices {
+			for i, pi := range n.rangeIndices {
 				pos := []string{"left", "right", "middle"}[i]
 				attr = append(attr, fmt.Sprintf("%s color=range%d!50", pos, pi))
 			}
@@ -204,11 +205,11 @@ func drawLeaf(prefix string, index uint64, leafText, dataText nodeTextFunc) {
 	a := nInfo[id]
 
 	// First render the leaf node of the Merkle tree.
-	if len(a.rangeIndices) > 0 {
+	if len(a.dataRangeIndices) > 0 {
 		a.incPath = false
 	}
 	if !a.proof {
-		a.rangeIndices = nil
+		a.dataRangeIndices = nil
 	}
 	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText(id), a.String())
 
@@ -324,13 +325,13 @@ func modifyRangeNodeInfo() error {
 		for i := l; i < r; i++ {
 			id := compact.NewNodeID(0, i)
 			modifyNodeInfo(id, func(n *nodeInfo) {
-				n.rangeIndices = append(n.rangeIndices, ri)
+				n.dataRangeIndices = append(n.dataRangeIndices, ri)
 			})
 		}
 
 		for _, id := range compact.RangeNodes(l, r) {
 			modifyNodeInfo(id, func(n *nodeInfo) {
-				n.proofRangeIndices = append(n.proofRangeIndices, ri)
+				n.rangeIndices = append(n.rangeIndices, ri)
 			})
 		}
 	}
