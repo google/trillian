@@ -124,10 +124,9 @@ func (n nodeInfo) String() string {
 	}
 
 	if n.proof {
+		fill = "proof"
 		if n.ephemeral {
 			fill = "proof_ephemeral"
-		} else {
-			fill = "proof"
 		}
 	}
 
@@ -207,9 +206,6 @@ func drawLeaf(prefix string, index uint64, leafText, dataText nodeTextFunc) {
 	// First render the leaf node of the Merkle tree.
 	if len(a.dataRangeIndices) > 0 {
 		a.incPath = false
-	}
-	if !a.proof {
-		a.dataRangeIndices = nil
 	}
 	fmt.Printf("%s [%s, %s, align=center, tier=leaf\n", prefix, leafText(id), a.String())
 
