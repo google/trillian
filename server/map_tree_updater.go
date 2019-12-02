@@ -131,6 +131,9 @@ func (t *txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.Node
 	return t.tiles.Hashes(), nil
 }
 
+// Set puts the updates of the given tree nodes to the transaction. It accepts
+// all nodes updated in the tree. However, only "leaf" nodes of tiles are used
+// to build the updated tiles, before they are passed in to the storage layer.
 func (t *txAccessor) Set(ctx context.Context, nodes []smt.Node) error {
 	m := smt.NewTileSetMutation(t.tiles)
 	for _, n := range nodes {
