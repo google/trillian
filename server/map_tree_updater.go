@@ -43,10 +43,10 @@ type mapTreeUpdater struct {
 func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes []smt.Node, writeRev int64) ([]byte, error) {
 	// Work around a performance issue when using the map in single-transaction
 	// mode by preloading all the tiles we know the Writer is going to need.
-	var preload *smt.TileSet
+	var preloaded *smt.TileSet
 	if t.singleTX && t.preload {
 		var err error
-		if preload, err = t.doPreload(ctx, tx, nodes, writeRev-1); err != nil {
+		if preloaded, err = t.doPreload(ctx, tx, nodes, writeRev-1); err != nil {
 			return nil, err
 		}
 	}
@@ -66,7 +66,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes
 		err = runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 			nodesCopy := make([]smt.Node, len(nodes))
 			copy(nodesCopy, nodes) // Protect from TX restarts.
-			acc := &txAccessor{updater: t, read: preload, tx: tx, rev: writeRev}
+			acc := &txAccessor{updater: t, tiles: preloaded, tx: tx, rev: writeRev}
 			var err error
 			root, err = w.Write(ctx, nodesCopy, acc)
 			return err
@@ -110,27 +110,29 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes
 
 type txAccessor struct {
 	updater *mapTreeUpdater
-	// read is a cache of tree tiles that Get returns directly instead of calling
-	// GetTiles. It is initialized by the first Get call if not specified.
-	read *smt.TileSet
-	tx   storage.MapTreeTX
-	rev  int64
+	// tiles is a cache of tree tiles that Get uses to fetch node hashes from. It
+	// is either specified when this accessor is created (i.e. the hashes were
+	// preloaded), or otherwise set when the first (and the only) Get call
+	// occurs. A missing tile is interpreted as empty.
+	tiles *smt.TileSet
+	tx    storage.MapTreeTX
+	rev   int64
 }
 
 // TODO(pavelkalinnikov): Get should take a list of tile IDs.
 func (t *txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error) {
 	// TODO(pavelkalinnikov): Factor out preload into another accessor.
-	if t.read == nil {
+	if t.tiles == nil {
 		var err error
-		if t.read, err = t.updater.load(ctx, t.tx, ids, t.rev-1); err != nil {
+		if t.tiles, err = t.updater.load(ctx, t.tx, ids, t.rev-1); err != nil {
 			return nil, err
 		}
 	}
-	return t.read.Hashes(), nil
+	return t.tiles.Hashes(), nil
 }
 
 func (t *txAccessor) Set(ctx context.Context, nodes []smt.Node) error {
-	m := smt.NewTileSetMutation(t.read)
+	m := smt.NewTileSetMutation(t.tiles)
 	for _, n := range nodes {
 		m.Set(n.ID, n.Hash)
 	}
