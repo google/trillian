@@ -110,10 +110,10 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes
 
 type txAccessor struct {
 	updater *mapTreeUpdater
-	// tiles is a cache of tree tiles that Get uses to fetch node hashes from. It
-	// is either specified when this accessor is created (i.e. the hashes were
-	// preloaded), or otherwise set when the first (and the only) Get call
-	// occurs. A missing tile is interpreted as empty.
+	// tiles is a cache of tree tiles that Get uses to fetch node hashes from,
+	// and Set mutates tiles from. It is either specified when this accessor is
+	// created (i.e. the hashes were preloaded), or otherwise set when the first
+	// (and the only) Get call occurs. A missing tile is interpreted as empty.
 	tiles *smt.TileSet
 	tx    storage.MapTreeTX
 	rev   int64
@@ -131,7 +131,7 @@ func (t *txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.Node
 	return t.tiles.Hashes(), nil
 }
 
-// Set puts the updates of the given tree nodes to the transaction. It accepts
+// Set applies the updates of the given nodes to the transaction. It accepts
 // all nodes updated in the tree. However, only "leaf" nodes of tiles are used
 // to build the updated tiles, before they are passed in to the storage layer.
 func (t *txAccessor) Set(ctx context.Context, nodes []smt.Node) error {
