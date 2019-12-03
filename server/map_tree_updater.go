@@ -170,6 +170,7 @@ func (t *mapTreeUpdater) doPreload(ctx context.Context, tx storage.MapTreeTX, no
 	ctx, spanEnd := spanFor(ctx, "doPreload")
 	defer spanEnd()
 	// TODO(pavelkalinnikov): Avoid using HStar3 directly.
+	// TODO(pavelkalinnikov): Introduce layout "height" method and use it here.
 	hs, err := smt.NewHStar3(nodes, nil, uint(t.hasher.BitLen()), 0)
 	if err != nil {
 		return nil, err
