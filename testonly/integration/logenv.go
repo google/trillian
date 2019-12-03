@@ -83,7 +83,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error
 // NewLogEnvWithGRPCOptions creates a fresh DB, log server, and client. The
 // numSequencers parameter indicates how many sequencers to run in parallel;
 // if numSequencers is zero a manually-controlled test sequencer is used.
-// additional grpc.ServerOption and grpc.DialOption values can be provided.
+// Additional grpc.ServerOption and grpc.DialOption values can be provided.
 func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
 	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
