@@ -30,7 +30,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"time"
@@ -62,31 +61,25 @@ var (
 	privateKeyFormat   = flag.String("private_key_format", "", "Type of protobuf message to send the key as (PrivateKey, PEMKeyFile, or PKCS11ConfigFile). If empty, a key will be generated for you by Trillian.")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
-
-	errAdminAddrNotSet = errors.New("empty --admin_server, please provide the Admin server host:port")
 )
 
-// TODO(Martin2112): Pass everything needed into this and don't refer to flags.
-func createTree(ctx context.Context) (*trillian.Tree, error) {
-	if *adminServerAddr == "" {
-		return nil, errAdminAddrNotSet
-	}
+type createParams struct {
+	treeState string
+	treeType string
+	hashStrategy string
+	hashAlgorithm string
+	signatureAlgorithm string
+	displayName string
+	description string
+	maxRootDuration time.Duration
+	privateKeyFormat string
+}
 
-	req, err := newRequest()
+func createTree(ctx context.Context, conn *grpc.ClientConn, cp createParams) (*trillian.Tree, error) {
+	req, err := newRequest(cp)
 	if err != nil {
 		return nil, err
 	}
-
-	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine dial options: %v", err)
-	}
-
-	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to dial %v: %v", *adminServerAddr, err)
-	}
-	defer conn.Close()
 
 	adminClient := trillian.NewTrillianAdminClient(conn)
 	mapClient := trillian.NewTrillianMapClient(conn)
@@ -95,30 +88,30 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 	return client.CreateAndInitTree(ctx, req, adminClient, mapClient, logClient)
 }
 
-func newRequest() (*trillian.CreateTreeRequest, error) {
-	ts, ok := trillian.TreeState_value[*treeState]
+func newRequest(cp createParams) (*trillian.CreateTreeRequest, error) {
+	ts, ok := trillian.TreeState_value[cp.treeState]
 	if !ok {
-		return nil, fmt.Errorf("unknown TreeState: %v", *treeState)
+		return nil, fmt.Errorf("unknown TreeState: %v", cp.treeState)
 	}
 
-	tt, ok := trillian.TreeType_value[*treeType]
+	tt, ok := trillian.TreeType_value[cp.treeType]
 	if !ok {
-		return nil, fmt.Errorf("unknown TreeType: %v", *treeType)
+		return nil, fmt.Errorf("unknown TreeType: %v", cp.treeType)
 	}
 
-	hs, ok := trillian.HashStrategy_value[*hashStrategy]
+	hs, ok := trillian.HashStrategy_value[cp.hashStrategy]
 	if !ok {
-		return nil, fmt.Errorf("unknown HashStrategy: %v", *hashStrategy)
+		return nil, fmt.Errorf("unknown HashStrategy: %v", cp.hashStrategy)
 	}
 
-	ha, ok := sigpb.DigitallySigned_HashAlgorithm_value[*hashAlgorithm]
+	ha, ok := sigpb.DigitallySigned_HashAlgorithm_value[cp.hashAlgorithm]
 	if !ok {
-		return nil, fmt.Errorf("unknown HashAlgorithm: %v", *hashAlgorithm)
+		return nil, fmt.Errorf("unknown HashAlgorithm: %v", cp.hashAlgorithm)
 	}
 
-	sa, ok := sigpb.DigitallySigned_SignatureAlgorithm_value[*signatureAlgorithm]
+	sa, ok := sigpb.DigitallySigned_SignatureAlgorithm_value[cp.signatureAlgorithm]
 	if !ok {
-		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", *signatureAlgorithm)
+		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", cp.signatureAlgorithm)
 	}
 
 	ctr := &trillian.CreateTreeRequest{Tree: &trillian.Tree{
@@ -127,9 +120,9 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		HashStrategy:       trillian.HashStrategy(hs),
 		HashAlgorithm:      sigpb.DigitallySigned_HashAlgorithm(ha),
 		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
-		DisplayName:        *displayName,
-		Description:        *description,
-		MaxRootDuration:    ptypes.DurationProto(*maxRootDuration),
+		DisplayName:        cp.displayName,
+		Description:        cp.description,
+		MaxRootDuration:    ptypes.DurationProto(cp.maxRootDuration),
 	}}
 	glog.Infof("Creating tree %+v", ctr.Tree)
 
@@ -169,9 +162,40 @@ func main() {
 		}
 	}
 
+	if *adminServerAddr == "" {
+		glog.Exitf("empty --admin_server, please provide the Admin server host:port")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), *rpcDeadline)
 	defer cancel()
-	tree, err := createTree(ctx)
+	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
+	if err != nil {
+		glog.Exitf("failed to create dial options: %v", err)
+	}
+
+	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
+	if err != nil {
+		glog.Exitf("failed to dial %v: %v", *adminServerAddr, err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			glog.Warningf("Close: %v", err)
+		}
+	}()
+
+	cp := createParams{
+		treeState:          *treeState,
+		treeType:           *treeType,
+		hashStrategy:       *hashStrategy,
+		hashAlgorithm:      *hashAlgorithm,
+		signatureAlgorithm: *signatureAlgorithm,
+		displayName:        *displayName,
+		description:        *description,
+		maxRootDuration:    *maxRootDuration,
+		privateKeyFormat:   *privateKeyFormat,
+	}
+
+	tree, err := createTree(ctx, conn, cp)
 	if err != nil {
 		glog.Exitf("Failed to create tree: %v", err)
 	}

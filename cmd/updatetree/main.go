@@ -47,36 +47,36 @@ var (
 	printTree       = flag.Bool("print", false, "Print the resulting tree")
 )
 
-// TODO(Martin2112): Pass everything needed into this and don't refer to flags.
-func updateTree(ctx context.Context) (*trillian.Tree, error) {
-	if *adminServerAddr == "" {
-		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")
-	}
+type updateParams struct {
+	treeState string
+	treeType string
+}
 
+func updateTree(ctx context.Context, conn *grpc.ClientConn, up updateParams) (*trillian.Tree, error) {
 	tree := &trillian.Tree{TreeId: *treeID}
 	paths := make([]string, 0)
 
-	if len(*treeState) > 0 {
+	if len(up.treeState) > 0 {
 		m := proto.EnumValueMap("trillian.TreeState")
 		if m == nil {
 			return nil, fmt.Errorf("can't find enum value map for states")
 		}
-		newState, ok := m[*treeState]
+		newState, ok := m[up.treeState]
 		if !ok {
-			return nil, fmt.Errorf("invalid tree state: %v", *treeState)
+			return nil, fmt.Errorf("invalid tree state: %v", up.treeState)
 		}
 		tree.TreeState = trillian.TreeState(newState)
 		paths = append(paths, "tree_state")
 	}
 
-	if len(*treeType) > 0 {
+	if len(up.treeType) > 0 {
 		m := proto.EnumValueMap("trillian.TreeType")
 		if m == nil {
 			return nil, fmt.Errorf("can't find enum value map for types")
 		}
-		newType, ok := m[*treeType]
+		newType, ok := m[up.treeType]
 		if !ok {
-			return nil, fmt.Errorf("invalid tree type: %v", *treeType)
+			return nil, fmt.Errorf("invalid tree type: %v", up.treeType)
 		}
 		tree.TreeType = trillian.TreeType(newType)
 		paths = append(paths, "tree_type")
@@ -92,17 +92,6 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 		Tree:       tree,
 		UpdateMask: &field_mask.FieldMask{Paths: paths},
 	}
-
-	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine dial options: %v", err)
-	}
-
-	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to dial %v: %v", *adminServerAddr, err)
-	}
-	defer conn.Close()
 
 	client := trillian.NewTrillianAdminClient(conn)
 	for {
@@ -123,9 +112,32 @@ func main() {
 	flag.Parse()
 	defer glog.Flush()
 
+	if *adminServerAddr == "" {
+		glog.Exitf("empty --admin_server, please provide the Admin server host:port")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), *rpcDeadline)
 	defer cancel()
-	tree, err := updateTree(ctx)
+	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
+	if err != nil {
+		glog.Exitf("failed to create dial options: %v", err)
+	}
+	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
+	if err != nil {
+		glog.Exitf("failed to dial %v: %v", *adminServerAddr, err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			glog.Warningf("Close: %v", err)
+		}
+	}()
+
+	up := updateParams{
+		treeState: *treeState,
+		treeType: *treeType,
+	}
+
+	tree, err := updateTree(ctx, conn, up)
 	if err != nil {
 		glog.Exitf("Failed to update tree: %v", err)
 	}
