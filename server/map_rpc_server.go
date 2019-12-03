@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
@@ -28,13 +29,12 @@ import (
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
-
-	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	stree "github.com/google/trillian/storage/tree"
 )
 
 const (
