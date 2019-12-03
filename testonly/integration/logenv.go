@@ -74,8 +74,8 @@ type LogEnv struct {
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
 // indicates how many sequencers to run in parallel; if numSequencers is zero a
 // manually-controlled test sequencer is used.
-// TODO(codingllama): Remove 3rd parameter (need to coordinate with
-// github.com/google/certificate-transparency-go)
+// TODO(Martin2112): Remove this constructor, it is only used by tests and
+// can be replaced by one of the others.
 func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error) {
 	return NewLogEnvWithGRPCOptions(ctx, numSequencers, nil, nil)
 }

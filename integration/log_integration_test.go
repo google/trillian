@@ -95,7 +95,7 @@ func TestInProcessLogIntegration(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	const numSequencers = 2
-	env, err := integration.NewLogEnv(ctx, numSequencers, "unused")
+	env, err := integration.NewLogEnvWithGRPCOptions(ctx, 1, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
