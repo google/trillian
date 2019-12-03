@@ -33,20 +33,21 @@ type mapTreeUpdater struct {
 	layout   *tree.Layout
 	hasher   hashers.MapHasher
 	ms       storage.MapStorage
+	writeRev int64
 	singleTX bool
 	preload  bool
 }
 
-// update updates the sparse Merkle tree at the passed-in revision with the
+// update updates the sparse Merkle tree at the current write revision with the
 // given leaf node updates, and writes it to the storage. Returns the new root
 // hash. Requires nodes slice to be non-empty.
-func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes []smt.Node, writeRev int64) ([]byte, error) {
+func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes []smt.Node) ([]byte, error) {
 	// Work around a performance issue when using the map in single-transaction
 	// mode by preloading all the tiles we know the Writer is going to need.
 	var preloaded *smt.TileSet
 	if t.singleTX && t.preload {
 		var err error
-		if preloaded, err = t.doPreload(ctx, tx, nodes, writeRev-1); err != nil {
+		if preloaded, err = t.doPreload(ctx, tx, nodes); err != nil {
 			return nil, err
 		}
 	}
@@ -66,7 +67,7 @@ func (t *mapTreeUpdater) update(ctx context.Context, tx storage.MapTreeTX, nodes
 		err = runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 			nodesCopy := make([]smt.Node, len(nodes))
 			copy(nodesCopy, nodes) // Protect from TX restarts.
-			acc := &txAccessor{updater: t, tiles: preloaded, tx: tx, rev: writeRev}
+			acc := &txAccessor{updater: t, tiles: preloaded, tx: tx}
 			var err error
 			root, err = w.Write(ctx, nodesCopy, acc)
 			return err
@@ -116,7 +117,6 @@ type txAccessor struct {
 	// (and the only) Get call occurs. A missing tile is interpreted as empty.
 	tiles *smt.TileSet
 	tx    storage.MapTreeTX
-	rev   int64
 }
 
 // TODO(pavelkalinnikov): Get should take a list of tile IDs.
@@ -124,7 +124,7 @@ func (t *txAccessor) Get(ctx context.Context, ids []tree.NodeID2) (map[tree.Node
 	// TODO(pavelkalinnikov): Factor out preload into another accessor.
 	if t.tiles == nil {
 		var err error
-		if t.tiles, err = t.updater.load(ctx, t.tx, ids, t.rev-1); err != nil {
+		if t.tiles, err = t.updater.load(ctx, t.tx, ids); err != nil {
 			return nil, err
 		}
 	}
@@ -166,7 +166,7 @@ func (t *mapTreeUpdater) newTXFunc(tx storage.MapTreeTX) txFunc {
 
 // doPreload loads all Merkle tree tiles that will be involved when updating
 // the given set of nodes at the specified revision.
-func (t *mapTreeUpdater) doPreload(ctx context.Context, tx storage.MapTreeTX, nodes []smt.Node, rev int64) (*smt.TileSet, error) {
+func (t *mapTreeUpdater) doPreload(ctx context.Context, tx storage.MapTreeTX, nodes []smt.Node) (*smt.TileSet, error) {
 	ctx, spanEnd := spanFor(ctx, "doPreload")
 	defer spanEnd()
 	// TODO(pavelkalinnikov): Avoid using HStar3 directly.
@@ -175,13 +175,13 @@ func (t *mapTreeUpdater) doPreload(ctx context.Context, tx storage.MapTreeTX, no
 	if err != nil {
 		return nil, err
 	}
-	return t.load(ctx, tx, hs.Prepare(), rev)
+	return t.load(ctx, tx, hs.Prepare())
 }
 
 // load fetches Merkle tree tiles containing the given node IDs.
-func (t *mapTreeUpdater) load(ctx context.Context, tx storage.MapTreeTX, ids []tree.NodeID2, rev int64) (*smt.TileSet, error) {
+func (t *mapTreeUpdater) load(ctx context.Context, tx storage.MapTreeTX, ids []tree.NodeID2) (*smt.TileSet, error) {
 	tileIDs := toTileIDs(ids, t.layout)
-	tiles, err := tx.GetTiles(ctx, rev, tileIDs)
+	tiles, err := tx.GetTiles(ctx, t.writeRev-1, tileIDs)
 	if err != nil {
 		return nil, err
 	}

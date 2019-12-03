@@ -354,6 +354,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		layout:   layout,
 		hasher:   hasher,
 		ms:       t.registry.MapStorage,
+		writeRev: req.Revision,
 		singleTX: t.opts.UseSingleTransaction,
 		preload:  t.opts.UseLargePreload,
 	}
@@ -369,7 +370,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err := t.writeLeaves(ctx, tx, req.Leaves); err != nil {
 			return err
 		}
-		hash, err := updater.update(ctx, tx, nodes, writeRev)
+		hash, err := updater.update(ctx, tx, nodes)
 		if err != nil {
 			return err
 		}
