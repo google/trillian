@@ -16,6 +16,9 @@ not spend time investigating this issue.
 A potential deadlock condition in the log sequencer when the process is
 attempting to exit has been addressed.
 
+### Log Server Changes
+Log Server HTTP Endpoint default has been changed to OFF.
+
 ### Map Changes
 
 The verifiable map is still experimental. APIs, such as SetLeaves, have been
