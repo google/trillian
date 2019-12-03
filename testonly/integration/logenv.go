@@ -74,13 +74,19 @@ type LogEnv struct {
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
 // indicates how many sequencers to run in parallel; if numSequencers is zero a
 // manually-controlled test sequencer is used.
-// TODO(codingllama): Remove 3rd parameter (need to coordinate with
-// github.com/google/certificate-transparency-go)
+//
+// Deprecated: Use NewLogEnvWithGRPCOptions instead
+//
+// TODO(Martin2112): Remove this constructor, it is only used by tests and
+// can be replaced by one of the others.
 func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error) {
 	return NewLogEnvWithGRPCOptions(ctx, numSequencers, nil, nil)
 }
 
-// NewLogEnvWithGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
+// NewLogEnvWithGRPCOptions creates a fresh DB, log server, and client. The
+// numSequencers parameter indicates how many sequencers to run in parallel;
+// if numSequencers is zero a manually-controlled test sequencer is used.
+// Additional grpc.ServerOption and grpc.DialOption values can be provided.
 func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
 	db, done, err := testdb.NewTrillianDB(ctx)
 	if err != nil {

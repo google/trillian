@@ -57,7 +57,7 @@ func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *Lo
 func clientEnvForTest(ctx context.Context, t *testing.T, template *trillian.Tree) (*integration.LogEnv, *LogClient) {
 	t.Helper()
 	testdb.SkipIfNoMySQL(t)
-	env, err := integration.NewLogEnv(ctx, 1, "unused")
+	env, err := integration.NewLogEnvWithGRPCOptions(ctx, 1, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
