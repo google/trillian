@@ -10,7 +10,7 @@ if [[ ! -f "${MAP_JOURNAL}" ]]; then
 fi
 
 echo "Building mapreplay"
-go build github.com/google/trillian/testonly/hammer/mapreplay
+go build github.com/google/trillian/testonly/internal/hammer/mapreplay
 
 declare -a OLD_MAP_ARRAY
 OLD_MAP_IDS=$(./mapreplay --logtostderr -v 2 --replay_from ${MAP_JOURNAL} 2>&1 >/dev/null | grep "map_id:" | sed 's/.*map_id:\([0-9]\+\).*/\1/' | sort | uniq)

@@ -6,7 +6,7 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 # Default to one map
 MAP_COUNT=${1:-1}
 
-go build ${GOFLAGS} github.com/google/trillian/testonly/hammer/maphammer
+go build ${GOFLAGS} github.com/google/trillian/testonly/internal/hammer/maphammer
 map_prep_test 1
 TO_KILL+=(${RPC_SERVER_PIDS[@]})
 
