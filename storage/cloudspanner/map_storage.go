@@ -24,9 +24,11 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -110,6 +112,11 @@ func (ms *mapStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) 
 	return ms.begin(ctx, tree, true, ms.ts.client.ReadOnlyTransaction())
 }
 
+// Layout is not implemented.
+func (ms *mapStorage) Layout(tree *trillian.Tree) (*tree.Layout, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (ms *mapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
 	_, err := ms.ts.client.ReadWriteTransaction(ctx, func(ctx context.Context, stx *spanner.ReadWriteTransaction) error {
 		tx, err := ms.begin(ctx, tree, false /* readonly */, stx)
@@ -134,7 +141,6 @@ func (ms *mapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.T
 type mapTX struct {
 	// treeTX embeds the merkle-tree level transactional actions.
 	*treeTX
-
 	// ms is the MapStorage which begat this mapTX.
 	ms *mapStorage
 }
@@ -261,6 +267,16 @@ func (tx *mapTX) Set(ctx context.Context, index []byte, value *trillian.MapLeaf)
 		[]interface{}{tx.treeID, index, writeRev, value.LeafHash, leafValue, value.ExtraData})
 
 	return stx.BufferWrite([]*spanner.Mutation{m})
+}
+
+// GetTiles is not implemented.
+func (tx *mapTX) GetTiles(ctx context.Context, rev int64, ids []tree.NodeID2) ([]smt.Tile, error) {
+	return nil, errors.New("not implemented")
+}
+
+// SetTiles is not implemented.
+func (tx *mapTX) SetTiles(ctx context.Context, tiles []smt.Tile) error {
+	return errors.New("not implemented")
 }
 
 // getMapLeaf fetches and returns the MapLeaf stored at the specified index and

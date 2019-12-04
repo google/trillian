@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
@@ -426,6 +427,7 @@ func TestSetLeaves(t *testing.T) {
 	// Copied from other tests in order to catch regressions.
 	rootHash := b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ=")
 
+	l := tree.NewLayout([]int{8, 248})
 	for _, tc := range []struct {
 		desc    string
 		preload bool
@@ -448,6 +450,7 @@ func TestSetLeaves(t *testing.T) {
 			}, TrillianMapServerOptions{UseSingleTransaction: !tc.splitTX, UseLargePreload: tc.preload})
 
 			count := len(tc.leaves)
+			fakeStorage.EXPECT().Layout(gomock.Any()).Return(l, nil)
 			fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
 				DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
 					mockTX := storage.NewMockMapTreeTX(ctrl)
@@ -463,9 +466,9 @@ func TestSetLeaves(t *testing.T) {
 						if tc.preload {
 							merkleGets = 1
 						}
-						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any()).Times(merkleGets)
+						mockTX.EXPECT().GetTiles(gomock.Any(), gomock.Any(), gomock.Any()).Times(merkleGets)
 						// Store each leaf's shard, and the root shard.
-						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).Times(count + 1)
+						mockTX.EXPECT().SetTiles(gomock.Any(), gomock.Any()).Times(count + 1)
 					}
 					mockTX.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
 					return f(ctx, mockTX)
@@ -476,8 +479,8 @@ func TestSetLeaves(t *testing.T) {
 				fakeStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(func(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
 						mockTX := storage.NewMockMapTreeTX(ctrl)
-						mockTX.EXPECT().GetMerkleNodes(gomock.Any(), gomock.Any(), gomock.Any())
-						mockTX.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any())
+						mockTX.EXPECT().GetTiles(gomock.Any(), gomock.Any(), gomock.Any())
+						mockTX.EXPECT().SetTiles(gomock.Any(), gomock.Any())
 						return f(ctx, mockTX)
 					}).Times(count + 1)
 			}

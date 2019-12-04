@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -129,6 +130,11 @@ func (f *FakeMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, e
 // SnapshotForTree implements MapStorage.SnapshotForTree
 func (f *FakeMapStorage) SnapshotForTree(ctx context.Context, _ *trillian.Tree) (storage.ReadOnlyMapTreeTX, error) {
 	return f.ReadOnlyTX, f.SnapshotErr
+}
+
+// Layout is not implemented.
+func (f *FakeMapStorage) Layout(*trillian.Tree) (*tree.Layout, error) {
+	return nil, errors.New("not implemented")
 }
 
 // ReadWriteTransaction implements MapStorage.ReadWriteTransaction

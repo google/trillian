@@ -24,6 +24,10 @@ have become stricter: now it always requires the caller to specify the write
 revision. These changes will not affect the Trillian module semantic version due
 to the experimental status of the Map.
 
+Map API has been extended with Layout, GetTiles and SetTiles calls which allow
+for more direct processing of sparse Merkle tree tiles in the application layer.
+Map storage implementations are simpler, and no longer use the SubtreeCache.
+
 The map client has been updated so that GetAndVerifyMapLeaves and
 GetAndVerifyMapLeavesByRevision return the MapRoot for the revision at which the
 leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
@@ -39,6 +43,10 @@ the next major version bump. The individual storage providers have been moved to
 the corresponding packages, and are now required to be imported explicitly by
 the main file in order to be registered. We are including only MySQL and
 cloudspanner providers by default, since these are the ones that we support.
+
+The cloudspanner storage is supported for logs only, while the Map storage API
+is being polished and decoupled from the log storage API. We may return the
+support when the new API is tested.
 
 ### Quota
 

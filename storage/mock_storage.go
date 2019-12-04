@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
+	smt "github.com/google/trillian/merkle/smt"
 	tree "github.com/google/trillian/storage/tree"
 	reflect "reflect"
 	time "time"
@@ -711,6 +712,21 @@ func (mr *MockMapStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDatabaseAccessible", reflect.TypeOf((*MockMapStorage)(nil).CheckDatabaseAccessible), arg0)
 }
 
+// Layout mocks base method
+func (m *MockMapStorage) Layout(arg0 *trillian.Tree) (*tree.Layout, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Layout", arg0)
+	ret0, _ := ret[0].(*tree.Layout)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Layout indicates an expected call of Layout
+func (mr *MockMapStorageMockRecorder) Layout(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Layout", reflect.TypeOf((*MockMapStorage)(nil).Layout), arg0)
+}
+
 // ReadWriteTransaction mocks base method
 func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 *trillian.Tree, arg2 MapTXFunc) error {
 	m.ctrl.T.Helper()
@@ -836,6 +852,21 @@ func (mr *MockMapTreeTXMockRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignedMapRoot", reflect.TypeOf((*MockMapTreeTX)(nil).GetSignedMapRoot), arg0, arg1)
 }
 
+// GetTiles mocks base method
+func (m *MockMapTreeTX) GetTiles(arg0 context.Context, arg1 int64, arg2 []tree.NodeID2) ([]smt.Tile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTiles", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]smt.Tile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTiles indicates an expected call of GetTiles
+func (mr *MockMapTreeTXMockRecorder) GetTiles(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTiles", reflect.TypeOf((*MockMapTreeTX)(nil).GetTiles), arg0, arg1, arg2)
+}
+
 // IsOpen mocks base method
 func (m *MockMapTreeTX) IsOpen() bool {
 	m.ctrl.T.Helper()
@@ -920,6 +951,20 @@ func (m *MockMapTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) e
 func (mr *MockMapTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMerkleNodes", reflect.TypeOf((*MockMapTreeTX)(nil).SetMerkleNodes), arg0, arg1)
+}
+
+// SetTiles mocks base method
+func (m *MockMapTreeTX) SetTiles(arg0 context.Context, arg1 []smt.Tile) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetTiles", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetTiles indicates an expected call of SetTiles
+func (mr *MockMapTreeTXMockRecorder) SetTiles(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTiles", reflect.TypeOf((*MockMapTreeTX)(nil).SetTiles), arg0, arg1)
 }
 
 // StoreSignedMapRoot mocks base method
@@ -1433,6 +1478,21 @@ func (m *MockReadOnlyMapTreeTX) GetSignedMapRoot(arg0 context.Context, arg1 int6
 func (mr *MockReadOnlyMapTreeTXMockRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignedMapRoot", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).GetSignedMapRoot), arg0, arg1)
+}
+
+// GetTiles mocks base method
+func (m *MockReadOnlyMapTreeTX) GetTiles(arg0 context.Context, arg1 int64, arg2 []tree.NodeID2) ([]smt.Tile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTiles", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]smt.Tile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTiles indicates an expected call of GetTiles
+func (mr *MockReadOnlyMapTreeTXMockRecorder) GetTiles(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTiles", reflect.TypeOf((*MockReadOnlyMapTreeTX)(nil).GetTiles), arg0, arg1, arg2)
 }
 
 // IsOpen mocks base method

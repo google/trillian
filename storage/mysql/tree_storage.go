@@ -123,7 +123,6 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 	}
 
 	s, err := m.db.PrepareContext(ctx, expandPlaceholderSQL(statement, num, first, rest))
-
 	if err != nil {
 		glog.Warningf("Failed to prepare statement %d: %s", num, err)
 		return nil, err
@@ -170,6 +169,7 @@ type treeTX struct {
 	treeType      trillian.TreeType
 	hashSizeBytes int
 	subtreeCache  *cache.SubtreeCache
+	dirty         []*storagepb.SubtreeProto
 	writeRevision int64
 }
 
@@ -186,6 +186,12 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID tree
 	default:
 		return nil, fmt.Errorf("got %d subtrees, but expected 1", len(s))
 	}
+}
+
+func (t *treeTX) getSubtreesWithLock(ctx context.Context, rev int64, ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.getSubtrees(ctx, rev, ids)
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
@@ -267,6 +273,12 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
 	return ret, nil
+}
+
+func (t *treeTX) addSubtrees(subtrees []*storagepb.SubtreeProto) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.dirty = append(t.dirty, subtrees...)
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
@@ -384,6 +396,10 @@ func (t *treeTX) Commit(ctx context.Context) error {
 		if err := t.subtreeCache.Flush(ctx, func(ctx context.Context, st []*storagepb.SubtreeProto) error {
 			return t.storeSubtrees(ctx, st)
 		}); err != nil {
+			glog.Warningf("TX commit flush error: %v", err)
+			return err
+		}
+		if err := t.storeSubtrees(ctx, t.dirty); err != nil {
 			glog.Warningf("TX commit flush error: %v", err)
 			return err
 		}
