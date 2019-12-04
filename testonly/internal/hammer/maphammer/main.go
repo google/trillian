@@ -36,7 +36,7 @@ import (
 	"github.com/google/trillian/client/timeout"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
-	"github.com/google/trillian/testonly/hammer"
+	"github.com/google/trillian/testonly/internal/hammer"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 
