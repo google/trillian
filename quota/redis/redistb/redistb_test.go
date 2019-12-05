@@ -549,7 +549,7 @@ func TestReturnedTimeAcrossSecondBoundary(t *testing.T) {
 	// This case is a little complicated to get right, so make sure that
 	// sure that waiting the difference between `SingleTokenDripTimeUs`
 	// and `extra_time` does indeed give us one more token.
-	argTimeUs += (SingleTokenDripTimeUs - extraTime)
+	argTimeUs += SingleTokenDripTimeUs - extraTime
 
 	resp = updateTokenBucketScript.Eval(
 		rdb,
