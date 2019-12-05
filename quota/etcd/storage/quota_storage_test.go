@@ -397,7 +397,12 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if _, err := qs.UpdateConfigs(ctx, false /* reset */, test.update); !strings.Contains(err.Error(), test.wantErr) {
+		var errStr string
+		_, err := qs.UpdateConfigs(ctx, false /* reset */, test.update)
+		if err != nil {
+			errStr = err.Error()
+		}
+		if !strings.Contains(errStr, test.wantErr) {
 			// Fatal because the config has been changed, which will break all following tests.
 			t.Fatalf("%v: UpdateConfigs() returned err = %v, want substring %q", test.desc, err, test.wantErr)
 		}
