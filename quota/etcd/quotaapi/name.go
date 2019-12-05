@@ -68,7 +68,7 @@ func newNameFilter(name string) (nameFilter, error) {
 		return nil, fmt.Errorf("invalid name filter: %q", name)
 	}
 
-	nf := strings.Split(string(name), "/")
+	nf := strings.Split(name, "/")
 
 	// Guard against some ambiguous / incorrect wildcards that the regexes won't protect against
 	switch collection := nf[1]; collection {
