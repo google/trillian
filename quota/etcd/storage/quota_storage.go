@@ -155,7 +155,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 					return err
 				}
 				s.Put(key, string(pb))
-			case prev != nil && cfg.MaxTokens < prev.MaxTokens: // lowered bucket
+			case cfg.MaxTokens < prev.MaxTokens: // lowered bucket
 				// modBucket will coerce tokens to cfg.MaxTokens, if necessary
 				if _, err := modBucket(s, cfg, now, 0 /* add */); err != nil {
 					return err
