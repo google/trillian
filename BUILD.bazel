@@ -6,7 +6,7 @@
 # example, the following command will list the proto files required to use
 # the Trillian Admin gRPC interface:
 #
-# bazel query --nohost_deps --noimplicit_deps \
+# bazel query --notool_deps --noimplicit_deps \
 #   'kind("source file", deps(:trillian_admin_api_proto))'
 package(default_visibility = ["//visibility:public"])
 
