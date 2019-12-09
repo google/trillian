@@ -48,7 +48,7 @@ func NewMockServer(ctrl *gomock.Controller) (*MockServer, func(), error) {
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 	trillian.RegisterTrillianAdminServer(grpcServer, adminServer)
 
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	lis, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return nil, nil, err
 	}
