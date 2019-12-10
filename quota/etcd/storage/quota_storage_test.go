@@ -393,7 +393,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 
 	want := &storagepb.Configs{} // default cfgs is empty
 	if _, err := qs.UpdateConfigs(ctx, true /* reset */, updater(want)); err != nil {
-		t.Fatalf("UpdateConfigs() returned err = %v", err)
+		t.Fatalf("UpdateConfigs()= _,%v want: _,nil", err)
 	}
 
 	for _, test := range tests {
