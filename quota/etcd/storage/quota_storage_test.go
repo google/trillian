@@ -406,12 +406,12 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 			// Then if we got an error check that it was the expected one.
 			if err != nil && !strings.Contains(err.Error(), test.wantErr) {
 				// Fatal because the config has been changed, which will break all following tests.
-				t.Fatalf("UpdateConfigs() returned err = %v, want substring %q", err, test.wantErr)
+				t.Fatalf("UpdateConfigs()=_,%v, want substring %q", err, test.wantErr)
 			}
 
 			stored, err := qs.Configs(ctx)
 			if err != nil {
-				t.Errorf("Configs() returned err = %v", err)
+				t.Errorf("Configs()=_,%v want: _,nil", err)
 				return
 			}
 			if got := stored; !proto.Equal(got, want) {
