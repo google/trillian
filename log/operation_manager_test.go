@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -456,14 +457,18 @@ func TestMasterFor(t *testing.T) {
 			lom := NewOperationManager(info, nil)
 
 			// Check mastership twice, to give the election threads a chance to get started and report.
-			lom.masterFor(testCtx, firstIDs)
+			if _, err := lom.masterFor(testCtx, firstIDs); err != nil && !strings.Contains(test.desc, "fail") {
+				t.Fatalf("masterFor(firstIDs)=_,%v", err)
+			}
 			time.Sleep(100 * time.Millisecond)
 			logIDs, err := lom.masterFor(testCtx, firstIDs)
 			if !reflect.DeepEqual(logIDs, test.want1) {
 				t.Fatalf("masterFor(factory=%T)=%v,%v; want %v,_", test.factory, logIDs, err, test.want1)
 			}
 			// Now add extra IDs and re-check.
-			lom.masterFor(testCtx, allIDs)
+			if _, err := lom.masterFor(testCtx, allIDs); err != nil && !strings.Contains(test.desc, "fail") {
+				t.Fatalf("masterFor(allIDs)=_,%v", err)
+			}
 			time.Sleep(100 * time.Millisecond)
 			logIDs, err = lom.masterFor(testCtx, allIDs)
 			if !reflect.DeepEqual(logIDs, test.want2) {

@@ -149,7 +149,11 @@ func (o *OperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %v", err)
 	}
-	defer tx.Close()
+	defer func() {
+		if err := tx.Close(); err != nil {
+			glog.Errorf("tx.Close()=%v", err)
+		}
+	}()
 
 	logIDs, err := tx.GetActiveLogIDs(ctx)
 	if err != nil {
