@@ -686,7 +686,11 @@ func (tester *AdminStorageTester) TestAdminTXReadWriteTransaction(t *testing.T) 
 			if err != nil {
 				t.Fatalf("%v: Snapshot() = (_, %v), want = (_, nil)", i, err)
 			}
-			defer tx2.Close()
+			defer func() {
+				if err := tx2.Close(); err != nil {
+					t.Errorf("tx2.Close()=%v", err)
+				}
+			}()
 			_, err = tx2.GetTree(ctx, tree.TreeId)
 			if hasErr := err != nil; !test.wantCommit != hasErr {
 				t.Errorf("%v: GetTree() = (_, %v), but wantCommit = %v", i, err, test.wantCommit)

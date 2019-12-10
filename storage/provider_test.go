@@ -50,10 +50,12 @@ func TestProviderRegistration(t *testing.T) {
 			name := test.desc
 
 			if test.reg {
-				RegisterProvider(name, func(_ monitoring.MetricFactory) (Provider, error) {
+				if err := RegisterProvider(name, func(_ monitoring.MetricFactory) (Provider, error) {
 					called = true
 					return &provider{}, nil
-				})
+				}); err != nil {
+					t.Fatalf("RegisterProvider()=%v", err)
+				}
 			}
 
 			_, err := NewProvider(name, nil)
@@ -71,12 +73,16 @@ func TestProviderRegistration(t *testing.T) {
 }
 
 func TestProviders(t *testing.T) {
-	RegisterProvider("a", func(_ monitoring.MetricFactory) (Provider, error) {
+	if err := RegisterProvider("a", func(_ monitoring.MetricFactory) (Provider, error) {
 		return &provider{}, nil
-	})
-	RegisterProvider("b", func(_ monitoring.MetricFactory) (Provider, error) {
+	}); err != nil {
+		t.Fatalf("RegisterProvider(a)=%v", err)
+	}
+	if err := RegisterProvider("b", func(_ monitoring.MetricFactory) (Provider, error) {
 		return &provider{}, nil
-	})
+	}); err != nil {
+		t.Fatalf("RegisterProvider(b)=%v", err)
+	}
 	sp := providers()
 
 	if got, want := len(sp), 2; got < want {
