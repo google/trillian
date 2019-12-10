@@ -389,14 +389,14 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	qs := &QuotaStorage{Client: client}
-
-	want := &storagepb.Configs{} // default cfgs is empty
-	if _, err := qs.UpdateConfigs(ctx, true /* reset */, updater(want)); err != nil {
-		t.Fatalf("UpdateConfigs()= (_,%q), want (_,nil)", err)
-	}
-
 	for _, test := range tests {
+		qs := &QuotaStorage{Client: client}
+
+		want := &storagepb.Configs{} // default cfgs is empty
+		if _, err := qs.UpdateConfigs(ctx, true /* reset */, updater(want)); err != nil {
+			t.Fatalf("UpdateConfigs()= (_,%q), want (_,nil)", err)
+		}
+
 		t.Run(test.desc, func(t *testing.T) {
 			_, err := qs.UpdateConfigs(ctx, false /* reset */, test.update)
 			// All the test cases should result in an error.
@@ -404,7 +404,6 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 				t.Fatalf("UpdateConfigs()=_, %v, want: _, %v", err, test.wantErr)
 			}
 			if !strings.Contains(err.Error(), test.wantErr) {
-				// Fatal because the config has been changed, which will break all following tests.
 				t.Fatalf("UpdateConfigs()=_,%v, want substring %q", err, test.wantErr)
 			}
 
