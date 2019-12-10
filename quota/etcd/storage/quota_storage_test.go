@@ -397,25 +397,28 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		var errStr string
-		_, err := qs.UpdateConfigs(ctx, false /* reset */, test.update)
-		if err != nil {
-			errStr = err.Error()
-		}
-		if !strings.Contains(errStr, test.wantErr) {
-			// Fatal because the config has been changed, which will break all following tests.
-			t.Fatalf("%v: UpdateConfigs() returned err = %v, want substring %q", test.desc, err, test.wantErr)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			_, err := qs.UpdateConfigs(ctx, false /* reset */, test.update)
+			// First check that an error did / did not occur as the test expects.
+			if (err != nil) != (test.wantErr != "") {
+				t.Fatalf("UpdateConfigs()=_, %v, want: _, %v", err, test.wantErr)
+			}
+			// Then if we got an error check that it was the expected one.
+			if err != nil && !strings.Contains(err.Error(), test.wantErr) {
+				// Fatal because the config has been changed, which will break all following tests.
+				t.Fatalf("UpdateConfigs() returned err = %v, want substring %q", err, test.wantErr)
+			}
 
-		stored, err := qs.Configs(ctx)
-		if err != nil {
-			t.Errorf("%v:Configs() returned err = %v", test.desc, err)
-			continue
-		}
-		if got := stored; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
-			t.Fatalf("%v: post-Configs() diff (-got +want)\n%v", test.desc, diff)
-		}
+			stored, err := qs.Configs(ctx)
+			if err != nil {
+				t.Errorf("Configs() returned err = %v", err)
+				return
+			}
+			if got := stored; !proto.Equal(got, want) {
+				diff := pretty.Compare(got, want)
+				t.Fatalf("post-Configs() diff (-got +want)\n%v", diff)
+			}
+		})
 	}
 }
 
