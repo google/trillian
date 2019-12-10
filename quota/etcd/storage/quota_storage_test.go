@@ -399,12 +399,11 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			_, err := qs.UpdateConfigs(ctx, false /* reset */, test.update)
-			// First check that an error did / did not occur as the test expects.
-			if (err != nil) != (test.wantErr != "") {
+			// All the test cases should result in an error.
+			if err == nil {
 				t.Fatalf("UpdateConfigs()=_, %v, want: _, %v", err, test.wantErr)
 			}
-			// Then if we got an error check that it was the expected one.
-			if err != nil && !strings.Contains(err.Error(), test.wantErr) {
+			if !strings.Contains(err.Error(), test.wantErr) {
 				// Fatal because the config has been changed, which will break all following tests.
 				t.Fatalf("UpdateConfigs()=_,%v, want substring %q", err, test.wantErr)
 			}
