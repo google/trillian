@@ -120,7 +120,9 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
-	sm.ExecutePass(ctx, logID, createTestInfo(registry))
+	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err != nil {
+		t.Fatalf("sm.ExecutePass()=_,%v", err)
+	}
 }
 
 func TestSequencerManagerCachesSigners(t *testing.T) {
@@ -256,7 +258,9 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
-	sm.ExecutePass(ctx, logID, createTestInfo(registry))
+	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err != nil {
+		t.Fatalf("sm.ExecutePass()=_,%v", err)
+	}
 }
 
 // cmpMatcher is a custom gomock.Matcher that uses cmp.Equal combined with a
@@ -307,7 +311,9 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	}
 
 	sm := NewSequencerManager(registry, time.Second*5)
-	sm.ExecutePass(ctx, logID, createTestInfo(registry))
+	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err != nil {
+		t.Fatalf("sm.ExecutePass()=_,%v", err)
+	}
 }
 
 func createTestInfo(registry extension.Registry) *OperationInfo {
