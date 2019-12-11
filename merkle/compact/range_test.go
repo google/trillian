@@ -588,7 +588,7 @@ func TestDecomposeCases(t *testing.T) {
 func verifyDecompose(begin, end uint64) error {
 	left, right := Decompose(begin, end)
 	// Smoke test the sum of decomposition masks.
-	if left+right != uint64(end-begin) {
+	if left+right != end-begin {
 		return fmt.Errorf("%d+%d != %d-%d", left, right, begin, end)
 	}
 

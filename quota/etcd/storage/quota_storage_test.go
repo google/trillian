@@ -389,28 +389,34 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	qs := &QuotaStorage{Client: client}
-
-	want := &storagepb.Configs{} // default cfgs is empty
-	if _, err := qs.UpdateConfigs(ctx, true /* reset */, updater(want)); err != nil {
-		t.Fatalf("UpdateConfigs() returned err = %v", err)
-	}
-
 	for _, test := range tests {
-		if _, err := qs.UpdateConfigs(ctx, false /* reset */, test.update); !strings.Contains(err.Error(), test.wantErr) {
-			// Fatal because the config has been changed, which will break all following tests.
-			t.Fatalf("%v: UpdateConfigs() returned err = %v, want substring %q", test.desc, err, test.wantErr)
+		qs := &QuotaStorage{Client: client}
+
+		want := &storagepb.Configs{} // default cfgs is empty
+		if _, err := qs.UpdateConfigs(ctx, true /* reset */, updater(want)); err != nil {
+			t.Fatalf("UpdateConfigs()= (_,%q), want (_,nil)", err)
 		}
 
-		stored, err := qs.Configs(ctx)
-		if err != nil {
-			t.Errorf("%v:Configs() returned err = %v", test.desc, err)
-			continue
-		}
-		if got := stored; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
-			t.Fatalf("%v: post-Configs() diff (-got +want)\n%v", test.desc, diff)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			_, err := qs.UpdateConfigs(ctx, false /* reset */, test.update)
+			// All the test cases should result in an error.
+			if err == nil {
+				t.Fatalf("UpdateConfigs()=_, %v, want: _, %v", err, test.wantErr)
+			}
+			if !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("UpdateConfigs()=_,%v, want substring %q", err, test.wantErr)
+			}
+
+			stored, err := qs.Configs(ctx)
+			if err != nil {
+				t.Errorf("Configs()=_,%v want: _,nil", err)
+				return
+			}
+			if got := stored; !proto.Equal(got, want) {
+				diff := pretty.Compare(got, want)
+				t.Fatalf("post-Configs() diff (-got +want)\n%v", diff)
+			}
+		})
 	}
 }
 
