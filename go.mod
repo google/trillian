@@ -11,7 +11,6 @@ require (
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
-	github.com/aws/aws-sdk-go v1.25.37 // indirect
 	github.com/bombsimon/wsl v1.2.8 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/coreos/bbolt v1.3.3 // indirect
@@ -33,6 +32,7 @@ require (
 	github.com/google/certificate-transparency-go v1.1.0
 	github.com/google/go-cmp v0.3.1
 	github.com/google/monologue v0.0.0-20191105172128-0324c8b45f6f // indirect
+	github.com/google/tink v1.3.0-rc2
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/gostaticanalysis/analysisutil v0.0.3 // indirect
@@ -73,7 +73,7 @@ require (
 	go.opencensus.io v0.22.2
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
-	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
+	golang.org/x/crypto v0.0.0-20191119213627-4f8c1d86b1ba
 	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/sys v0.0.0-20191119060738-e882bf8e40c2
