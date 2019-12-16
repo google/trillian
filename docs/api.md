@@ -30,7 +30,6 @@
     - [InitLogRequest](#trillian.InitLogRequest)
     - [InitLogResponse](#trillian.InitLogResponse)
     - [LogLeaf](#trillian.LogLeaf)
-    - [Proof](#trillian.Proof)
     - [QueueLeafRequest](#trillian.QueueLeafRequest)
     - [QueueLeafResponse](#trillian.QueueLeafResponse)
     - [QueueLeavesRequest](#trillian.QueueLeavesRequest)
@@ -91,6 +90,7 @@
   
 
 - [trillian.proto](#trillian.proto)
+    - [Proof](#trillian.Proof)
     - [SignedEntryTimestamp](#trillian.SignedEntryTimestamp)
     - [SignedLogRoot](#trillian.SignedLogRoot)
     - [SignedMapRoot](#trillian.SignedMapRoot)
@@ -566,23 +566,6 @@ Continuing the CT example, for a CT mirror personality (which must allow dupes s
 TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing identity hash dupes in `PREORDERED_LOG` mode, for it can later be upgraded to `LOG` which will need to correctly detect duplicates with older entries when new ones get queued. |
 | queue_timestamp | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | queue_timestamp holds the time at which this leaf was queued for inclusion in the Log, or zero if the entry was submitted without queuing. Clients should not set this field on submissions. |
 | integrate_timestamp | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | integrate_timestamp holds the time at which this leaf was integrated into the tree. Clients should not set this field on submissions. |
-
-
-
-
-
-
-<a name="trillian.Proof"></a>
-
-### Proof
-Proof holds a consistency or inclusion proof for a Merkle tree, as returned
-by the API.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| leaf_index | [int64](#int64) |  | leaf_index indicates the requested leaf index when this message is used for a leaf inclusion proof. This field is set to zero when this message is used for a consistency proof. |
-| hashes | [bytes](#bytes) | repeated |  |
 
 
 
@@ -1275,6 +1258,23 @@ Allows creation and management of Trillian trees (both log and map trees).
 <p align="right"><a href="#top">Top</a></p>
 
 ## trillian.proto
+
+
+
+<a name="trillian.Proof"></a>
+
+### Proof
+Proof holds a consistency or inclusion proof for a Merkle tree, as returned
+by the API.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| leaf_index | [int64](#int64) |  | leaf_index indicates the requested leaf index when this message is used for a leaf inclusion proof. This field is set to zero when this message is used for a consistency proof. |
+| hashes | [bytes](#bytes) | repeated |  |
+
+
+
 
 
 
