@@ -491,14 +491,3 @@ message LogLeaf {
   // the tree.  Clients should not set this field on submissions.
   google.protobuf.Timestamp integrate_timestamp = 7;
 }
-
-// Proof holds a consistency or inclusion proof for a Merkle tree, as returned
-// by the API.
-message Proof {
-  // leaf_index indicates the requested leaf index when this message is used for
-  // a leaf inclusion proof.  This field is set to zero when this message is
-  // used for a consistency proof.
-  int64 leaf_index = 1;
-  reserved 2; // Contained internal node details (removed)
-  repeated bytes hashes = 3;
-}

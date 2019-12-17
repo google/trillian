@@ -1103,11 +1103,15 @@ type TrillianMapClient interface {
 	GetLeavesByRevision(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#GetLeavesByRevision
+	//
+	// Deprecated: Do not use.
 	GetLeavesByRevisionNoProof(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(ctx context.Context, in *GetLastInRangeByRevisionRequest, opts ...grpc.CallOption) (*MapLeaf, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#WriteLeaves
+	//
+	// Deprecated: Do not use.
 	SetLeaves(ctx context.Context, in *SetMapLeavesRequest, opts ...grpc.CallOption) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(ctx context.Context, in *GetSignedMapRootRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(ctx context.Context, in *GetSignedMapRootByRevisionRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
@@ -1225,11 +1229,15 @@ type TrillianMapServer interface {
 	GetLeavesByRevision(context.Context, *GetMapLeavesByRevisionRequest) (*GetMapLeavesResponse, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#GetLeavesByRevision
+	//
+	// Deprecated: Do not use.
 	GetLeavesByRevisionNoProof(context.Context, *GetMapLeavesByRevisionRequest) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(context.Context, *GetLastInRangeByRevisionRequest) (*MapLeaf, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#WriteLeaves
+	//
+	// Deprecated: Do not use.
 	SetLeaves(context.Context, *SetMapLeavesRequest) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(context.Context, *GetSignedMapRootRequest) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(context.Context, *GetSignedMapRootByRevisionRequest) (*GetSignedMapRootResponse, error)
