@@ -91,7 +91,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	}
 	treeID := tree.TreeId
 
-	if err := setNulls(t, ctx, DB, treeID); err != nil {
+	if err := setNulls(ctx, t, DB, treeID); err != nil {
 		t.Fatalf("setNulls() = %v, want = nil", err)
 	}
 
@@ -241,7 +241,7 @@ func TestCheckDatabaseAccessible_OK(t *testing.T) {
 	}
 }
 
-func setNulls(t *testing.T, ctx context.Context, db *sql.DB, treeID int64) error {
+func setNulls(ctx context.Context, t *testing.T, db *sql.DB, treeID int64) error {
 	t.Helper()
 	stmt, err := db.PrepareContext(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = ?")
 	if err != nil {
