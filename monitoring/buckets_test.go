@@ -63,9 +63,9 @@ func TestPercentileBuckets(t *testing.T) {
 func TestLatencyBuckets(t *testing.T) {
 	// Just do some probes on the result to make sure it looks sensible.
 	buckets := monitoring.LatencyBuckets()
-	checkExpBuckets(t, buckets, 0.04, 1.05, 300)
-	// Highest bucket should be about 86400 sec = 1 day (allow some leeway).
-	if got, want := math.Abs(buckets[len(buckets)-1]-86400.0), 300.0; got > want {
+	checkExpBuckets(t, buckets, 0.04, 1.07, 300)
+	// Highest bucket should be about 282 days (allow some leeway).
+	if got, want := math.Abs(buckets[len(buckets)-1]-282*24*3600.0), 72000.0; got > want {
 		t.Errorf("LatencyBuckets(): got last bucket diff: %v, want: <%v", got, want)
 	}
 }
