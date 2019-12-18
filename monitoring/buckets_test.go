@@ -63,18 +63,47 @@ func TestPercentileBuckets(t *testing.T) {
 func TestLatencyBuckets(t *testing.T) {
 	// Just do some probes on the result to make sure it looks sensible.
 	buckets := monitoring.LatencyBuckets()
-	// Lowest bucket should be about 0.04 sec.
-	if math.Abs(buckets[0]-0.04) > 0.001 {
-		t.Errorf("PercentileBuckets(): got first bucket: %v, want: ~0.04", buckets[0])
+	checkExpBuckets(t, buckets, 0.04, 1.05, 300)
+	// Highest bucket should be about 86400 sec = 1 day (allow some leeway).
+	if got, want := math.Abs(buckets[len(buckets)-1]-86400.0), 300.0; got > want {
+		t.Errorf("LatencyBuckets(): got last bucket diff: %v, want: <%v", got, want)
+	}
+}
+
+func TestExpBuckets(t *testing.T) {
+	for _, tc := range []struct {
+		base  float64
+		mult  float64
+		count uint
+	}{
+		{base: 1.0, mult: 2.0, count: 20},
+		{base: 0.04, mult: 1.07, count: 300},
+	} {
+		t.Run("", func(t *testing.T) {
+			buckets := monitoring.ExpBuckets(tc.base, tc.mult, tc.count)
+			checkExpBuckets(t, buckets, tc.base, tc.mult, tc.count)
+		})
+	}
+}
+
+func checkExpBuckets(t *testing.T, buckets []float64, base, mult float64, count uint) {
+	t.Helper()
+	if got, want := len(buckets), int(count); got != want {
+		t.Errorf("unexpected length %d, want %d", got, want)
+	}
+	// Bucket thresholds should increase monotonically.
+	for i := 0; i < len(buckets)-1; i++ {
+		if buckets[i] >= buckets[i+1] {
+			t.Fatalf("out of order at index %d", i)
+		}
+	}
+	// Lowest bucket should be equal to base.
+	if got, want := buckets[0], base; math.Abs(got-want) > 0.001 {
+		t.Errorf("got first bucket: %v, want: ~%v", got, want)
 	}
 	// Highest bucket should be about 86400 sec = 1 day (allow some leeway)/
-	if got, want := math.Abs(buckets[len(buckets)-1]-86400.0), 300.0; got > want {
-		t.Errorf("PercentileBuckets(): got last bucket diff: %v, want: <%v", got, want)
-	}
-	// Latency buckets should increase monotonically.
-	for i := 0; i < len(buckets)-1; i++ {
-		if buckets[i] > buckets[i+1] {
-			t.Errorf("LatencyBuckets(): buckets out of order at index: %d", i)
-		}
+	last := base * math.Pow(mult, float64(count-1))
+	if got, want := buckets[len(buckets)-1], last; math.Abs(got-want) > 0.001 {
+		t.Errorf("got last bucket: %v, want: ~%v", got, want)
 	}
 }

@@ -14,10 +14,6 @@
 
 package monitoring
 
-import (
-	"math"
-)
-
 // This file contains helpers for constructing buckets for use with
 // Histogram metrics.
 
@@ -38,16 +34,19 @@ func PercentileBuckets(inc int64) []float64 {
 }
 
 // LatencyBuckets returns a reasonable range of histogram upper limits for most
-// latency-in-seconds usecases.
+// latency-in-seconds usecases. The thresholds increase exponentially from 0.04
+// seconds to ~1 day.
 func LatencyBuckets() []float64 {
-	// These parameters give an exponential range from 0.04 seconds to ~1 day.
-	num := 300
-	b := 1.05
-	scale := 0.04
+	return ExpBuckets(0.04, 1.05, 300)
+}
 
-	r := make([]float64, 0, num)
-	for i := 0; i < num; i++ {
-		r = append(r, math.Pow(b, float64(i))*scale)
+// ExpBuckets returns the specified number of histogram buckets with
+// exponentially increasing thresholds. The thresholds vary between base and
+// base * mult^(buckets-1).
+func ExpBuckets(base, mult float64, buckets uint) []float64 {
+	r := make([]float64, buckets)
+	for i, exp := uint(0), base; i < buckets; i, exp = i+1, exp*mult {
+		r[i] = exp
 	}
 	return r
 }
