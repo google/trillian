@@ -407,7 +407,7 @@ type PKCS11Config struct {
 	TokenLabel string `protobuf:"bytes,1,opt,name=token_label,json=tokenLabel,proto3" json:"token_label,omitempty"`
 	// The PIN for the specific token.
 	Pin string `protobuf:"bytes,2,opt,name=pin,proto3" json:"pin,omitempty"`
-	// The PEM public key assosciated with the private key to be used.
+	// The PEM public key associated with the private key to be used.
 	PublicKey            string   `protobuf:"bytes,3,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

@@ -89,6 +89,6 @@ message PKCS11Config {
   string token_label = 1;
   // The PIN for the specific token.
   string pin = 2;
-  // The PEM public key assosciated with the private key to be used.
+  // The PEM public key associated with the private key to be used.
   string public_key = 3;
 }
