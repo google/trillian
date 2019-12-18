@@ -41,7 +41,8 @@ func LatencyBuckets() []float64 {
 }
 
 // ExpBuckets returns the specified number of histogram buckets with
-// exponentially increasing thresholds.
+// exponentially increasing thresholds. The thresholds vary between base and
+// base * mult^(buckets-1).
 func ExpBuckets(base, mult float64, buckets uint) []float64 {
 	r := make([]float64, buckets)
 	for i, exp := uint(0), base; i < buckets; i, exp = i+1, exp*mult {
