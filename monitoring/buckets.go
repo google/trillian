@@ -35,9 +35,9 @@ func PercentileBuckets(inc int64) []float64 {
 
 // LatencyBuckets returns a reasonable range of histogram upper limits for most
 // latency-in-seconds usecases. The thresholds increase exponentially from 0.04
-// seconds to ~1 day.
+// seconds to ~282 days.
 func LatencyBuckets() []float64 {
-	return ExpBuckets(0.04, 1.05, 300)
+	return ExpBuckets(0.04, 1.07, 300)
 }
 
 // ExpBuckets returns the specified number of histogram buckets with
