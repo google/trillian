@@ -10,6 +10,14 @@ being re-enabled. This was broken by a downstream change and without a signal
 from the Trillian community to say this is needed, the pragmatic action is to
 not spend time investigating this issue.
 
+### Deployments
+
+The Kubernetes configs will now provision 5 nodes for Trillian's Etcd cluster,
+instead of 3 nodes.
+[This makes the Etcd cluster more resilient](https://etcd.io/docs/v3.2.17/faq/#what-is-failure-tolerance)
+to nodes becoming temporarily unavailable, such as during updates (it can now
+tolerate 2 nodes being unavailable, instead of just 1).
+
 ### Log Changes
 
 #### Potential sequencer hang fixed
