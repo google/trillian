@@ -32,6 +32,7 @@ require (
 	github.com/google/btree v1.0.0
 	github.com/google/certificate-transparency-go v1.1.0
 	github.com/google/go-cmp v0.3.1
+	github.com/google/go-licenses v0.0.0-20191202171624-5c9bd38848c7
 	github.com/google/monologue v0.0.0-20191105172128-0324c8b45f6f // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
@@ -74,7 +75,6 @@ require (
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
-	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/sys v0.0.0-20191119060738-e882bf8e40c2
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0

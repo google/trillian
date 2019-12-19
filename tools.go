@@ -23,6 +23,7 @@ import (
 	_ "github.com/golang/mock/mockgen"
 	_ "github.com/golang/protobuf/proto"
 	_ "github.com/golang/protobuf/protoc-gen-go"
+	_ "github.com/google/go-licenses"
 	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
 	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 	_ "github.com/uber/prototool/cmd/prototool"
