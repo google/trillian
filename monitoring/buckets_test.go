@@ -65,8 +65,10 @@ func TestLatencyBuckets(t *testing.T) {
 	buckets := monitoring.LatencyBuckets()
 	checkExpBuckets(t, buckets, 0.04, 1.07, 300)
 	// Highest bucket should be about 282 days (allow some leeway).
-	if got, want := math.Abs(buckets[len(buckets)-1]-282*24*3600.0), 72000.0; got > want {
-		t.Errorf("LatencyBuckets(): got last bucket diff: %v, want: <%v", got, want)
+	expected := 282 * 24 * 3600.0 // 282 days.
+	precision := 17 * 3600.0      // A bit less than one day.
+	if got := math.Abs(buckets[len(buckets)-1] - expected); got > precision {
+		t.Errorf("LatencyBuckets(): got last bucket diff: %v, want: <%v", got, precision)
 	}
 }
 
