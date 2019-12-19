@@ -511,7 +511,7 @@ type SignedLogRoot struct {
 	// A serialized v1 log root will therefore be laid out as:
 	//
 	// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
-	// | ver=1 |          tree_size            |len|    root_hashlen   |
+	// | ver=1 |          tree_size            |len|    root_hash      |
 	// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-....--+
 	//
 	// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
