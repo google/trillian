@@ -21,7 +21,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/client/backoff"
+	"github.com/google/trillian/internal/backoff"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

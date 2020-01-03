@@ -26,7 +26,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/client/backoff"
+	"github.com/google/trillian/internal/backoff"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"

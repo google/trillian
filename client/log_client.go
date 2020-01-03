@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/client/backoff"
+	"github.com/google/trillian/internal/backoff"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
