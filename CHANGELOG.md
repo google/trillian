@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v1.4.0 (may change).
 
+### Internal Packages
+In order to reduce the surface area of maintainable code, we will be moving
+various packages to the `internal` directory. This will help ease the transition
+to fully supporting semantic versioning.
+
 ### Bazel Changes
 Python support is disabled unless we hear that the community cares about this
 being re-enabled. This was broken by a downstream change and without a signal
