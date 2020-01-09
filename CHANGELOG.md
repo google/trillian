@@ -24,6 +24,10 @@ tolerate 2 nodes being unavailable, instead of just 1).
 A potential deadlock condition in the log sequencer when the process is
 attempting to exit has been addressed.
 
+#### Monitoring & Metrics
+A count of the total number of individual leaves fetched via the GetEntries.\*
+API methods has been added.
+
 ### Map Changes
 
 The verifiable map is still experimental. APIs, such as SetLeaves, have been
