@@ -50,6 +50,7 @@ type TrillianLogRPCServer struct {
 	timeSource            clock.TimeSource
 	leafCounter           monitoring.Counter
 	proofIndexPercentiles monitoring.Histogram
+	fetchedLeaves         monitoring.Counter
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
@@ -70,6 +71,10 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource clock.TimeS
 			"proof_index_percentiles",
 			"Count of inclusion proof request index using percentage of current log size at the time",
 			monitoring.PercentileBuckets(1),
+		),
+		fetchedLeaves: mf.NewCounter(
+			"fetched_leaves",
+			"Count of individual leaves fetched through get-entries calls",
 		),
 	}
 }
@@ -509,6 +514,8 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, err
 	}
 
+	t.fetchedLeaves.Add(float64(len(req.LeafIndex)))
+
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
@@ -540,6 +547,8 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 		return nil, err
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRange")
+
+	t.fetchedLeaves.Add(float64(req.Count))
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -593,6 +602,8 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 	if err != nil {
 		return nil, err
 	}
+
+	t.fetchedLeaves.Add(float64(len(req.LeafHash)))
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
