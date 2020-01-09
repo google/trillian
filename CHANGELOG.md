@@ -25,8 +25,8 @@ A potential deadlock condition in the log sequencer when the process is
 attempting to exit has been addressed.
 
 #### Monitoring & Metrics
-A count of the total number of individual leaves fetched via the GetEntries.\*
-API methods has been added.
+A count of the total number of individual leaves the logserver attempts to
+fetch via the GetEntries.\* API methods has been added.
 
 ### Map Changes
 

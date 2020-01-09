@@ -505,6 +505,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByIndex")
 
+	t.fetchedLeaves.Add(float64(len(req.LeafIndex)))
 	leaves, err := tx.GetLeavesByIndex(ctx, req.LeafIndex)
 	if err != nil {
 		return nil, err
@@ -513,8 +514,6 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByIndex"); err != nil {
 		return nil, err
 	}
-
-	t.fetchedLeaves.Add(float64(len(req.LeafIndex)))
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -548,8 +547,6 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByRange")
 
-	t.fetchedLeaves.Add(float64(req.Count))
-
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
@@ -562,6 +559,7 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	r := &trillian.GetLeavesByRangeResponse{SignedLogRoot: slr}
 
 	if req.StartIndex < int64(root.TreeSize) {
+		t.fetchedLeaves.Add(float64(req.Count))
 		leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
 		if err != nil {
 			return nil, err
@@ -598,12 +596,11 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByHash")
 
+	t.fetchedLeaves.Add(float64(len(req.LeafHash)))
 	leaves, err := tx.GetLeavesByHash(ctx, req.LeafHash, req.OrderBySequence)
 	if err != nil {
 		return nil, err
 	}
-
-	t.fetchedLeaves.Add(float64(len(req.LeafHash)))
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
