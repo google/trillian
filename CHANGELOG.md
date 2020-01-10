@@ -62,7 +62,17 @@ support when the new API is tested.
 
 ### Quota
 
+#### New Features
+
 An experimental Redis-based `quota.Manager` implementation has been added.
+
+#### Behaviour Changes
+
+Quota used to be refunded for all failed requests. For uses of quota that were
+to protect against abuse or fair utilization, this could allow infinite QPS in
+situations that really should have the requests throttled. Refunds are now only
+performed for tokens in `Global` buckets, which prevents tokens being leaked if
+duplicate leaves are queued.
 
 ### Tools
 

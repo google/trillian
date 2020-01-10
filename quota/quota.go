@@ -67,6 +67,10 @@ type Spec struct {
 	// User identifies the user for specs of the User group.
 	// Not used for other specs.
 	User string
+
+	// Refundable indicates that the tokens acquired before the operation should be returned if
+	// the operation fails.
+	Refundable bool
 }
 
 // Name returns a textual representation of the Spec. Names are constant and may be relied upon to
