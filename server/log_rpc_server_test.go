@@ -19,6 +19,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -287,7 +288,9 @@ func TestGetLeavesByRange(t *testing.T) {
 	defer ctrl.Finish()
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	fakeAdmin := storage.NewMockAdminStorage(ctrl)
-	tree := &trillian.Tree{TreeId: 6962, TreeType: trillian.TreeType_LOG, TreeState: trillian.TreeState_ACTIVE}
+	treeID := int64(6962)
+	tree := &trillian.Tree{TreeId: treeID, TreeType: trillian.TreeType_LOG, TreeState: trillian.TreeState_ACTIVE}
+	metricLabel := strconv.FormatInt(treeID, 10)
 
 	var tests = []struct {
 		start, count int64
@@ -426,7 +429,7 @@ func TestGetLeavesByRange(t *testing.T) {
 			t.Errorf("GetLeavesByRange(%d, %+d)=%+v; want %+v", req.StartIndex, req.Count, got, test.want)
 		}
 
-		if gotCount, wantCount := server.fetchedLeaves.Value(), float64(test.count); gotCount != wantCount {
+		if gotCount, wantCount := server.fetchedLeaves.Value(metricLabel), float64(test.count); gotCount != wantCount {
 			t.Errorf("GetLeavesByRange() incremented fetched count by %f,  want %f", gotCount, wantCount)
 		}
 	}
