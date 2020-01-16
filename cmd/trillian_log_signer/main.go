@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
+	"github.com/google/trillian/cmd/internal/serverutil"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring"
@@ -43,6 +44,7 @@ import (
 	"google.golang.org/grpc"
 
 	tpb "github.com/google/trillian"
+
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
@@ -148,7 +150,7 @@ func main() {
 	// Start HTTP server (optional)
 	if *httpEndpoint != "" {
 		// Announce our endpoint to etcd if so configured.
-		unannounceHTTP := server.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
 		defer unannounceHTTP()
 	}
 
@@ -180,7 +182,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	m := server.Main{
+	m := serverutil.Main{
 		RPCEndpoint:  *rpcEndpoint,
 		HTTPEndpoint: *httpEndpoint,
 		TLSCertFile:  *tlsCertFile,
