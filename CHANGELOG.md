@@ -4,6 +4,13 @@
 
 Not yet released; provisionally v1.4.0 (may change).
 
+### Server Binaries
+
+The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
+binaries have moved from `github.com/google/trillian/server/` to
+`github.com/google/trillian/cmd`. A subset of the `server` package has also
+moved and now resides in `github.com/google/trillian/cmd/internal/serverutil`.
+
 ### Bazel Changes
 Python support is disabled unless we hear that the community cares about this
 being re-enabled. This was broken by a downstream change and without a signal

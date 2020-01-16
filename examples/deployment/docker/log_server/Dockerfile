@@ -14,9 +14,9 @@ RUN go mod download
 COPY . .
 
 # Build the server.
-RUN go get ./server/trillian_log_server
+RUN go get ./cmd/trillian_log_server
 # Run the licensing tool and save licenses, copyright notices, etc.
-RUN go run github.com/google/go-licenses save ./server/trillian_log_server --save_path /THIRD_PARTY_NOTICES
+RUN go run github.com/google/go-licenses save ./cmd/trillian_log_server --save_path /THIRD_PARTY_NOTICES
 
 # Make a minimal image.
 FROM gcr.io/distroless/base

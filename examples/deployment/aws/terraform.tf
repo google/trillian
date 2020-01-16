@@ -132,7 +132,7 @@ mkdir -p /go
 export GOPATH=/go
 
 # Install Trillian
-go get github.com/google/trillian/server/trillian_log_server
+go get github.com/google/trillian/cmd/trillian_log_server
 
 # Setup the DB
 cd /go/src/github.com/google/trillian

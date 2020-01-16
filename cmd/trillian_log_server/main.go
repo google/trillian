@@ -28,6 +28,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
+	"github.com/google/trillian/cmd/internal/serverutil"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
@@ -68,8 +69,8 @@ var (
 	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
 	treeGCEnabled            = flag.Bool("tree_gc", true, "If true, tree garbage collection (hard-deletion) is periodically performed")
-	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
-	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", server.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
+	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", serverutil.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
+	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", serverutil.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
 
 	tracing          = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
 	tracingProjectID = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
@@ -119,10 +120,10 @@ func main() {
 	}
 
 	// Announce our endpoints to etcd if so configured.
-	unannounce := server.AnnounceSelf(ctx, client, *etcdService, *rpcEndpoint)
+	unannounce := serverutil.AnnounceSelf(ctx, client, *etcdService, *rpcEndpoint)
 	defer unannounce()
 	if *httpEndpoint != "" {
-		unannounceHTTP := server.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
 		defer unannounceHTTP()
 	}
 
@@ -148,7 +149,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	m := server.Main{
+	m := serverutil.Main{
 		RPCEndpoint:  *rpcEndpoint,
 		HTTPEndpoint: *httpEndpoint,
 		TLSCertFile:  *tlsCertFile,
