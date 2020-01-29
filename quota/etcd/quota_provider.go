@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package etcd
 
 import (
 	"flag"
@@ -22,15 +22,16 @@ import (
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/etcdqm"
+	"github.com/google/trillian/server"
 	"github.com/google/trillian/util/etcd"
 )
 
-// QuotaEtcd represents the etcd quota implementation.
-const QuotaEtcd = "etcd"
+// Quota represents the etcd quota implementation.
+const Quota = "etcd"
 
 var (
-	// EtcdServers is a flag containing the address(es) of etcd servers
-	EtcdServers = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
+	// Servers is a flag containing the address(es) of etcd servers
+	Servers = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
 	// TODO(Martin2112): suggested renaming these to etc_... to avoid clashes, but will it break existing deploys?
 	quotaMinBatchSize = flag.Int("quota_min_batch_size", cacheqm.DefaultMinBatchSize, "Minimum number of tokens to request from the quota system. "+
 		"Zero or lower means batching is disabled. Applicable for etcd quotas.")
@@ -39,18 +40,18 @@ var (
 )
 
 func init() {
-	if err := RegisterQuotaManager(QuotaEtcd, newEtcdQuotaManager); err != nil {
-		glog.Fatalf("Failed to register quota manager %v: %v", QuotaEtcd, err)
+	if err := server.RegisterQuotaManager(Quota, newEtcdQuotaManager); err != nil {
+		glog.Fatalf("Failed to register quota manager %v: %v", Quota, err)
 	}
 }
 
 func newEtcdQuotaManager() (quota.Manager, error) {
-	if *EtcdServers == "" {
+	if *Servers == "" {
 		return nil, fmt.Errorf("can't create etcd quotamanager - etcd_servers flag is unset")
 	}
-	client, err := etcd.NewClientFromString(*EtcdServers)
+	client, err := etcd.NewClientFromString(*Servers)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to etcd at %v: %v", *EtcdServers, err)
+		return nil, fmt.Errorf("failed to connect to etcd at %v: %v", *Servers, err)
 	}
 
 	qm := etcdqm.New(client)
