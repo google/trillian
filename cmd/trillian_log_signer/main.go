@@ -32,8 +32,8 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd"
-	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
@@ -138,7 +138,7 @@ func main() {
 		glog.Exit("Either --force_master or --etcd_servers must be supplied")
 	}
 
-	qm, err := server.NewQuotaManagerFromFlags()
+	qm, err := quota.NewManagerFromFlags()
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}

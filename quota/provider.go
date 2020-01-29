@@ -12,49 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package quota
 
 import (
 	"flag"
 	"fmt"
 	"sync"
-
-	"github.com/golang/glog"
-	"github.com/google/trillian/quota"
 )
-
-const (
-	// QuotaNoop represents the noop quota implementation.
-	QuotaNoop = "noop"
-)
-
-// NewQuotaManagerFunc is the signature of a function which can be registered
-// to provide instances of a quota manager.
-type NewQuotaManagerFunc func() (quota.Manager, error)
 
 var (
-	// QuotaSystem is a flag specifying which quota system is in use.
-	QuotaSystem = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quotaSystems()))
+	// System is a flag specifying which quota system is in use.
+	// TODO(RJPercival): Only the "noop" quota system is guaranteed to be
+	// present, so should default to that.
+	System = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quotaSystems()))
 
 	qpMu     sync.RWMutex
-	qpByName map[string]NewQuotaManagerFunc
+	qpByName map[string]NewManagerFunc
 )
 
-func init() {
-	if err := RegisterQuotaManager(QuotaNoop, func() (quota.Manager, error) {
-		return quota.Noop(), nil
-	}); err != nil {
-		glog.Fatalf("Failed to register %v: %v", QuotaNoop, err)
-	}
-}
+// NewManagerFunc is the signature of a function which can be registered
+// to provide instances of a quota manager.
+type NewManagerFunc func() (Manager, error)
 
-// RegisterQuotaManager registers the provided QuotaManager.
-func RegisterQuotaManager(name string, qp NewQuotaManagerFunc) error {
+// RegisterManager registers the provided Manager.
+func RegisterManager(name string, qp NewManagerFunc) error {
 	qpMu.Lock()
 	defer qpMu.Unlock()
 
 	if qpByName == nil {
-		qpByName = make(map[string]NewQuotaManagerFunc)
+		qpByName = make(map[string]NewManagerFunc)
 	}
 
 	_, exists := qpByName[name]
@@ -78,13 +64,13 @@ func quotaSystems() []string {
 	return r
 }
 
-// NewQuotaManagerFromFlags returns a quota.Manager implementation as speficied by flag.
-func NewQuotaManagerFromFlags() (quota.Manager, error) {
-	return NewQuotaManager(*QuotaSystem)
+// NewManagerFromFlags returns a Manager implementation as speficied by flag.
+func NewManagerFromFlags() (Manager, error) {
+	return NewManager(*System)
 }
 
-// NewQuotaManager returns a quota.Manager implementation.
-func NewQuotaManager(name string) (quota.Manager, error) {
+// NewManager returns a Manager implementation.
+func NewManager(name string) (Manager, error) {
 	qpMu.RLock()
 	defer qpMu.RUnlock()
 

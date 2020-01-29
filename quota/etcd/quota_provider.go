@@ -22,12 +22,11 @@ import (
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/etcdqm"
-	"github.com/google/trillian/server"
 	"github.com/google/trillian/util/etcd"
 )
 
-// Quota represents the etcd quota implementation.
-const Quota = "etcd"
+// QuotaManagerName identifies the etcd quota implementation.
+const QuotaManagerName = "etcd"
 
 var (
 	// Servers is a flag containing the address(es) of etcd servers
@@ -40,8 +39,8 @@ var (
 )
 
 func init() {
-	if err := server.RegisterQuotaManager(Quota, newEtcdQuotaManager); err != nil {
-		glog.Fatalf("Failed to register quota manager %v: %v", Quota, err)
+	if err := quota.RegisterManager(QuotaManagerName, newEtcdQuotaManager); err != nil {
+		glog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
 	}
 }
 

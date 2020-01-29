@@ -17,9 +17,22 @@ package quota
 import (
 	"context"
 	"fmt"
+
+	"github.com/golang/glog"
 )
 
+// NoopManagerName represents the noop quota implementation.
+const NoopManagerName = "noop"
+
 type noopManager struct{}
+
+func init() {
+	if err := RegisterManager(NoopManagerName, func() (Manager, error) {
+		return Noop(), nil
+	}); err != nil {
+		glog.Fatalf("Failed to register %v: %v", NoopManagerName, err)
+	}
+}
 
 // Noop returns a noop implementation of Manager. It allows all requests without restriction.
 func Noop() Manager {
