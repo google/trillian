@@ -9,9 +9,8 @@ Not yet released; provisionally v1.4.0 (may change).
 The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
 binaries have moved from `github.com/google/trillian/server/` to
 `github.com/google/trillian/cmd`. A subset of the `server` package has also
-moved and has been split into
-`github.com/google/trillian/cmd/internal/serverutil` and
-`github.com/google/trillian/quota/etcd`.
+moved and has been split into `cmd/internal/serverutil`, `quota/etcd` and
+`quota/mysqlqm` packages.
 
 ### Bazel Changes
 
