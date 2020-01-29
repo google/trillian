@@ -35,12 +35,13 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
+	"github.com/google/trillian/quota/etcd"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
-	"github.com/google/trillian/util/etcd"
+	etcdutil "github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
@@ -114,9 +115,9 @@ func main() {
 	}
 	defer sp.Close()
 
-	client, err := etcd.NewClientFromString(*server.EtcdServers)
+	client, err := etcdutil.NewClientFromString(*etcd.Servers)
 	if err != nil {
-		glog.Exitf("Failed to connect to etcd at %v: %v", *server.EtcdServers, err)
+		glog.Exitf("Failed to connect to etcd at %v: %v", *etcd.Servers, err)
 	}
 
 	// Announce our endpoints to etcd if so configured.
@@ -163,7 +164,7 @@ func main() {
 			if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
 				return err
 			}
-			if *server.QuotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == etcd.Quota {
 				return quotapb.RegisterQuotaHandlerFromEndpoint(ctx, mux, endpoint, opts)
 			}
 			return nil
@@ -174,7 +175,7 @@ func main() {
 				return err
 			}
 			trillian.RegisterTrillianLogServer(s, logServer)
-			if *server.QuotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == etcd.Quota {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
 			return nil

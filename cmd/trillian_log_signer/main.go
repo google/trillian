@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
+	"github.com/google/trillian/quota/etcd"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
@@ -39,7 +40,7 @@ import (
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election2"
 	etcdelect "github.com/google/trillian/util/election2/etcd"
-	"github.com/google/trillian/util/etcd"
+	etcdutil "github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
@@ -109,9 +110,9 @@ func main() {
 	}
 	defer sp.Close()
 
-	client, err := etcd.NewClientFromString(*server.EtcdServers)
+	client, err := etcdutil.NewClientFromString(*etcd.Servers)
 	if err != nil {
-		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
+		glog.Exitf("Failed to connect to etcd at %v: %v", etcd.Servers, err)
 	}
 	if client != nil {
 		defer client.Close()
