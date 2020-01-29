@@ -54,6 +54,9 @@ import (
 	// Load hashers
 	_ "github.com/google/trillian/merkle/coniks"
 	_ "github.com/google/trillian/merkle/maphasher"
+
+	// Load MySQL quota provider
+	_ "github.com/google/trillian/quota/mysqlqm"
 )
 
 var (
