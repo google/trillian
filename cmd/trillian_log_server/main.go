@@ -35,6 +35,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
@@ -131,7 +132,7 @@ func main() {
 		defer unannounceHTTP()
 	}
 
-	qm, err := server.NewQuotaManagerFromFlags()
+	qm, err := quota.NewManagerFromFlags()
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}
@@ -167,7 +168,7 @@ func main() {
 			if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
 				return err
 			}
-			if *server.QuotaSystem == etcd.Quota {
+			if *quota.System == etcd.QuotaManagerName {
 				return quotapb.RegisterQuotaHandlerFromEndpoint(ctx, mux, endpoint, opts)
 			}
 			return nil
@@ -178,7 +179,7 @@ func main() {
 				return err
 			}
 			trillian.RegisterTrillianLogServer(s, logServer)
-			if *server.QuotaSystem == etcd.Quota {
+			if *quota.System == etcd.QuotaManagerName {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
 			return nil

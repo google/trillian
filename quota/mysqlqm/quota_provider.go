@@ -19,12 +19,11 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
-	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 )
 
-// Quota represents the MySQL quota implementation.
-const Quota = "mysql"
+// QuotaManagerName identifies the MySQL quota implementation.
+const QuotaManagerName = "mysql"
 
 var (
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
@@ -32,8 +31,8 @@ var (
 )
 
 func init() {
-	if err := server.RegisterQuotaManager(Quota, newMySQLQuotaManager); err != nil {
-		glog.Fatalf("Failed to register quota manager %v: %v", Quota, err)
+	if err := quota.RegisterManager(QuotaManagerName, newMySQLQuotaManager); err != nil {
+		glog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
 	}
 }
 

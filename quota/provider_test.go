@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package quota
 
 import (
 	"testing"
-
-	"github.com/google/trillian/quota"
 )
 
 func TestQuotaProviderRegistration(t *testing.T) {
@@ -42,20 +40,20 @@ func TestQuotaProviderRegistration(t *testing.T) {
 			name := test.desc
 
 			if test.reg {
-				if err := RegisterQuotaManager(name, func() (quota.Manager, error) {
+				if err := RegisterManager(name, func() (Manager, error) {
 					called = true
 					return nil, nil
 				}); err != nil {
-					t.Fatalf("RegisterQuotaManager(%s)=%v", name, err)
+					t.Fatalf("RegisterManager(%s)=%v", name, err)
 				}
 			}
 
-			_, err := NewQuotaManager(name)
+			_, err := NewManager(name)
 			if err != nil && !test.wantErr {
-				t.Fatalf("NewQuotaManager = %v, want no error", err)
+				t.Fatalf("NewManager = %v, want no error", err)
 			}
 			if err == nil && test.wantErr {
-				t.Fatalf("NewQuotaManager = no error, want error")
+				t.Fatalf("NewManager = no error, want error")
 			}
 
 			if !called && !test.wantErr {
@@ -66,11 +64,11 @@ func TestQuotaProviderRegistration(t *testing.T) {
 }
 
 func TestQuotaSystems(t *testing.T) {
-	if err := RegisterQuotaManager("a", func() (quota.Manager, error) { return nil, nil }); err != nil {
-		t.Fatalf("RegisterQuotaManager(a)=%v", err)
+	if err := RegisterManager("a", func() (Manager, error) { return nil, nil }); err != nil {
+		t.Fatalf("RegisterManager(a)=%v", err)
 	}
-	if err := RegisterQuotaManager("b", func() (quota.Manager, error) { return nil, nil }); err != nil {
-		t.Fatalf("RegisterQuotaManager(b)=%v", err)
+	if err := RegisterManager("b", func() (Manager, error) { return nil, nil }); err != nil {
+		t.Fatalf("RegisterManager(b)=%v", err)
 	}
 	qs := quotaSystems()
 
