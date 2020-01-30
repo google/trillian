@@ -27,7 +27,7 @@ const noopManagerName = "noop"
 type noopManager struct{}
 
 func init() {
-	if err := RegisterManager(noopManagerName, func() (Manager, error) {
+	if err := RegisterProvider(noopManagerName, func() (Manager, error) {
 		return Noop(), nil
 	}); err != nil {
 		glog.Fatalf("Failed to register %q: %v", noopManagerName, err)

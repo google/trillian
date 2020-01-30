@@ -38,11 +38,11 @@ func TestQuotaProviderRegistration(t *testing.T) {
 			name := test.desc
 
 			if test.reg {
-				if err := RegisterManager(name, func() (Manager, error) {
+				if err := RegisterProvider(name, func() (Manager, error) {
 					called = true
 					return nil, nil
 				}); err != nil {
-					t.Fatalf("RegisterManager(%s)=%v", name, err)
+					t.Fatalf("RegisterProvider(%s)=%v", name, err)
 				}
 			}
 
@@ -62,11 +62,11 @@ func TestQuotaProviderRegistration(t *testing.T) {
 }
 
 func TestQuotaSystems(t *testing.T) {
-	if err := RegisterManager("a", func() (Manager, error) { return nil, nil }); err != nil {
-		t.Fatalf("RegisterManager(a)=%v", err)
+	if err := RegisterProvider("a", func() (Manager, error) { return nil, nil }); err != nil {
+		t.Fatalf("RegisterProvider(a)=%v", err)
 	}
-	if err := RegisterManager("b", func() (Manager, error) { return nil, nil }); err != nil {
-		t.Fatalf("RegisterManager(b)=%v", err)
+	if err := RegisterProvider("b", func() (Manager, error) { return nil, nil }); err != nil {
+		t.Fatalf("RegisterProvider(b)=%v", err)
 	}
 	qs := quotaSystems()
 

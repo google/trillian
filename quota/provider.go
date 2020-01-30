@@ -34,8 +34,8 @@ var (
 // to provide instances of a quota manager.
 type NewManagerFunc func() (Manager, error)
 
-// RegisterManager registers the provided Manager function.
-func RegisterManager(name string, qp NewManagerFunc) error {
+// RegisterProvider registers a function that provides Manager instances.
+func RegisterProvider(name string, qp NewManagerFunc) error {
 	qpMu.Lock()
 	defer qpMu.Unlock()
 
