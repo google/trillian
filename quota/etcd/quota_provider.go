@@ -39,7 +39,7 @@ var (
 )
 
 func init() {
-	if err := quota.RegisterManager(QuotaManagerName, newEtcdQuotaManager); err != nil {
+	if err := quota.RegisterProvider(QuotaManagerName, newEtcdQuotaManager); err != nil {
 		glog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
 	}
 }
