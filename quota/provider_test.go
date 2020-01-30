@@ -14,9 +14,7 @@
 
 package quota
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestQuotaProviderRegistration(t *testing.T) {
 	for _, test := range []struct {
