@@ -13,3 +13,10 @@ ignore:
   - "examples"
   - "integration"
   - "testonly"
+
+coverage:
+  status:
+    project:
+      default:
+        # Allow 1% coverage drop without complaining, to avoid being too noisy.
+        threshold: 1%
