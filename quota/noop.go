@@ -21,16 +21,16 @@ import (
 	"github.com/golang/glog"
 )
 
-// NoopManagerName represents the noop quota implementation.
-const NoopManagerName = "noop"
+// noopManagerName represents the noop quota implementation.
+const noopManagerName = "noop"
 
 type noopManager struct{}
 
 func init() {
-	if err := RegisterManager(NoopManagerName, func() (Manager, error) {
+	if err := RegisterManager(noopManagerName, func() (Manager, error) {
 		return Noop(), nil
 	}); err != nil {
-		glog.Fatalf("Failed to register %v: %v", NoopManagerName, err)
+		glog.Fatalf("Failed to register %q: %v", noopManagerName, err)
 	}
 }
 
