@@ -228,6 +228,17 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 	//   cause a corresponding sequencing to happen)
 	// * Requests that filter out duplicates (e.g., QueueLeaf and QueueLeaves, for the same
 	//   reason as above: duplicates aren't queued for sequencing)
+	// These are only applied for Refundable specs.
+	refunds := make([]quota.Spec, 0)
+	for _, s := range tp.info.specs {
+		if s.Refundable {
+			refunds = append(refunds, s)
+		}
+	}
+	if len(refunds) == 0 {
+		return
+	}
+
 	tokens := 0
 	if handlerErr != nil {
 		// Return the tokens spent by invalid requests
@@ -252,7 +263,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 			}
 		}
 	}
-	if len(tp.info.specs) > 0 && tokens > 0 {
+	if tokens > 0 {
 		// Run PutTokens in a separate goroutine and with a separate context.
 		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
 		go func() {
@@ -265,11 +276,11 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 			// this case, we may want to keep tabs on how many tokens we failed to replenish and bundle
 			// them up in the next PutTokens call (possibly as a QuotaManager decorator, or internally
 			// in its impl).
-			err := tp.parent.qm.PutTokens(ctx, tokens, tp.info.specs)
+			err := tp.parent.qm.PutTokens(ctx, tokens, refunds)
 			if err != nil {
 				glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
 			}
-			quota.Metrics.IncReturned(tokens, tp.info.specs, err == nil)
+			quota.Metrics.IncReturned(tokens, refunds, err == nil)
 		}()
 	}
 }
@@ -495,7 +506,7 @@ func newRPCInfo(req interface{}) (*rpcInfo, error) {
 		}
 		info.specs = append(info.specs, []quota.Spec{
 			{Group: quota.Tree, Kind: kind, TreeID: info.treeID},
-			{Group: quota.Global, Kind: kind},
+			{Group: quota.Global, Kind: kind, Refundable: true}, // Only Global tokens are refunded.
 		}...)
 	}
 
