@@ -13,6 +13,7 @@ linters-settings:
       - golang.org/x/net/context
       - github.com/gogo/protobuf/proto
       - github.com/google/certificate-transparency-go/trillian
+      - github.com/google/certificate-transparency-go/x509
       - encoding/asn1
       - crypto/x509
 

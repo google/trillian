@@ -16,12 +16,12 @@ package pem
 
 import (
 	"crypto"
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
 
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 )
