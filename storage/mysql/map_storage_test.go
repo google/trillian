@@ -26,17 +26,16 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
-	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 
 	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
+	stree "github.com/google/trillian/storage/tree"
 )
 
 var fixedSigner = tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
@@ -141,7 +140,7 @@ func TestMapRootUpdate(t *testing.T) {
 	s := NewMapStorage(DB)
 	tree := createInitializedMapForTests(ctx, t, s, as)
 
-	populatedMetadata := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
+	populatedMetadata := []byte("d47a")
 
 	for _, tc := range []struct {
 		desc         string

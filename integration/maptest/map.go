@@ -26,7 +26,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
-	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 
@@ -551,11 +550,9 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 				}
 
 				if _, err := twrite.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
-					MapId:  tree.TreeId,
-					Leaves: tc.leaves,
-					Metadata: testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{
-						HighestFullyCompletedSeq: 0xcafe,
-					}),
+					MapId:          tree.TreeId,
+					Leaves:         tc.leaves,
+					Metadata:       []byte("d47a"),
 					ExpectRevision: 1,
 				}); err != nil {
 					t.Fatalf("WriteLeaves(): %v", err)
