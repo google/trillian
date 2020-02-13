@@ -18,11 +18,11 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/trillian"
 	"github.com/google/trillian/types"
 	"golang.org/x/crypto/ed25519"
