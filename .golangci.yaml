@@ -15,8 +15,6 @@ linters-settings:
       - github.com/google/certificate-transparency-go/trillian
       - github.com/google/certificate-transparency-go/x509
       - github.com/google/certificate-transparency-go/asn1
-      - encoding/asn1
-      - crypto/x509
 
 linters:
   disable-all: true
