@@ -14,8 +14,7 @@ linters-settings:
       - github.com/gogo/protobuf/proto
       - github.com/google/certificate-transparency-go/trillian
       - github.com/google/certificate-transparency-go/x509
-      - encoding/asn1
-      - crypto/x509
+      - github.com/google/certificate-transparency-go/asn1
 
 linters:
   disable-all: true
