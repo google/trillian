@@ -5,7 +5,7 @@ go 1.13
 require (
 	bitbucket.org/creachadair/shell v0.0.6
 	cloud.google.com/go v0.48.0 // indirect
-	cloud.google.com/go/pubsub v1.1.0
+	cloud.google.com/go/pubsub v1.2.0
 	cloud.google.com/go/spanner v1.1.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.12.8
 	github.com/Masterminds/goutils v1.1.0 // indirect
