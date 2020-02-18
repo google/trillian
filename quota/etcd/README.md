@@ -16,7 +16,7 @@ For example:
 ```bash
 trillian_log_server \
   --etcd_servers=... \
-  --http_endpoint=localhost:8091 \
+  --rpc_endpoint=localhost:8090 \
   --quota_system=etcd
 
 trillian_log_signer --etcd_servers=... --quota_system=etcd
@@ -32,7 +32,7 @@ Assuming an expected sequencing performance of 50 QPS, the `max_tokens`
 specified below implies a backlog of 4h.
 
 ```bash
-grpc_cli localhost:8091 v1beta1/quotas/global/write/config <<EOF
+grpcurl -plaintext -d @ localhost:8090 v1beta1/quotas/global/write/config <<EOF
 {
   "name": "quotas/global/write/config",
   "config": {
@@ -48,7 +48,7 @@ EOF
 To list all configured quotas, run:
 
 ```bash
-grpc_cli localhost:8091 v1beta1/quotas ?view=FULL'
+grpcurl -plaintext -d '{"view": "FULL"}' localhost:8090 v1beta1/quotas
 ```
 
 Quotas may be retrieved individually or via a series of filters, updated and
