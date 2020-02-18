@@ -41,7 +41,6 @@ import (
 	"github.com/google/trillian/util/election2"
 	etcdelect "github.com/google/trillian/util/election2/etcd"
 	etcdutil "github.com/google/trillian/util/etcd"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
 	tpb "github.com/google/trillian"
@@ -194,10 +193,6 @@ func main() {
 		StatsPrefix:  "logsigner",
 		DBClose:      sp.Close,
 		Registry:     registry,
-		RegisterHandlerFn: func(_ context.Context, _ *runtime.ServeMux, _ string, _ []grpc.DialOption) error {
-			// No HTTP APIs are being exported.
-			return nil
-		},
 		RegisterServerFn: func(s *grpc.Server, _ extension.Registry) error {
 			tpb.RegisterTrillianLogSequencerServer(s, &struct{}{})
 			return nil

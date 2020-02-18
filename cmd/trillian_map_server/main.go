@@ -40,7 +40,6 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	etcdutil "github.com/google/trillian/util/etcd"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
 	// Register key ProtoHandlers
@@ -62,7 +61,7 @@ import (
 
 var (
 	rpcEndpoint    = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
-	httpEndpoint   = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
+	httpEndpoint   = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics (host:port, empty means disabled)")
 	healthzTimeout = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
 	tlsCertFile    = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile     = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
@@ -154,15 +153,6 @@ func main() {
 		QuotaDryRun:  *quotaDryRun,
 		DBClose:      sp.Close,
 		Registry:     registry,
-		RegisterHandlerFn: func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
-			if err := trillian.RegisterTrillianMapHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
-				return err
-			}
-			if *quota.System == etcd.QuotaManagerName {
-				return quotapb.RegisterQuotaHandlerFromEndpoint(ctx, mux, endpoint, opts)
-			}
-			return nil
-		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
 			mapServer := server.NewTrillianMapServer(registry,
 				server.TrillianMapServerOptions{

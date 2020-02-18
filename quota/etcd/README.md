@@ -2,21 +2,19 @@
 
 Package etcd (and its subpackages) contain an etcd-based
 [quota.Manager](https://github.com/google/trillian/blob/3cf59cdfd0/quota/quota.go#L101)
-implementation, with a corresponding REST-based configuration service.
+implementation, with a corresponding configuration service.
 
 ## Usage
 
 First, ensure both `logserver` and `logsigner` are started with the
-`--etcd_servers` and `--quota_system=etcd` flags, in addition to other flags.
-`logserver` must also be started with a non-empty `--http_endpoint` flag, so the
-REST quota API can be bound.
+`--etcd_servers` and `--quota_system=etcd` flags.
 
 For example:
 
 ```bash
 trillian_log_server \
   --etcd_servers=... \
-  --http_endpoint=localhost:8091 \
+  --rpc_endpoint=localhost:8090 \
   --quota_system=etcd
 
 trillian_log_signer --etcd_servers=... --quota_system=etcd
@@ -25,19 +23,14 @@ trillian_log_signer --etcd_servers=... --quota_system=etcd
 If correctly started, the servers will be using etcd quotas. The default
 configuration is empty, which means no quotas are enforced.
 
-The REST quota API may be used to create and update configurations.
+The quota API may be used to create and update configurations.
 
 For example, the command below creates a sequencing-based, `global/write` quota.
 Assuming an expected sequencing performance of 50 QPS, the `max_tokens`
 specified below implies a backlog of 4h.
 
 ```bash
-curl \
-  -d '@-' \
-  -s \
-  -H 'Content-Type: application/json' \
-  -X POST \
-  'localhost:8091/v1beta1/quotas/global/write/config' <<EOF
+grpcurl -plaintext -d @ localhost:8090 v1beta1/quotas/global/write/config <<EOF
 {
   "name": "quotas/global/write/config",
   "config": {
@@ -53,11 +46,11 @@ EOF
 To list all configured quotas, run:
 
 ```bash
-curl 'localhost:8091/v1beta1/quotas?view=FULL'
+grpcurl -plaintext -d '{"view": "FULL"}' localhost:8090 v1beta1/quotas
 ```
 
 Quotas may be retrieved individually or via a series of filters, updated and
-deleted through the REST API as well. See
+deleted through the quota API as well. See
 [quotapb.proto](https://github.com/google/trillian/blob/master/quota/etcd/quotapb/quotapb.proto)
 for an in-depth description of entities and available methods.
 

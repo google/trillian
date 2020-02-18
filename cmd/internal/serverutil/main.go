@@ -30,7 +30,6 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -55,8 +54,8 @@ const (
 
 // Main encapsulates the data and logic to start a Trillian server (Log or Map).
 type Main struct {
-	// Endpoints for RPC and HTTP/REST servers.
-	// HTTP/REST is optional, if empty it'll not be bound.
+	// Endpoints for RPC and HTTP servers.
+	// HTTP is optional, if empty it'll not be bound.
 	RPCEndpoint, HTTPEndpoint string
 
 	// TLS Certificate and Key files for the server.
@@ -69,8 +68,6 @@ type Main struct {
 	StatsPrefix string
 	QuotaDryRun bool
 
-	// RegisterHandlerFn is called to register REST-proxy handlers.
-	RegisterHandlerFn func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error
 	// RegisterServerFn is called to register RPC servers.
 	RegisterServerFn func(*grpc.Server, extension.Registry) error
 
@@ -130,16 +127,6 @@ func (m *Main) Run(ctx context.Context) error {
 	reflection.Register(srv)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
-		gatewayMux := runtime.NewServeMux()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
-		if err := m.RegisterHandlerFn(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
-			return err
-		}
-		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, gatewayMux, m.RPCEndpoint, opts); err != nil {
-			return err
-		}
-
-		http.Handle("/", gatewayMux)
 		http.Handle("/metrics", promhttp.Handler())
 		http.HandleFunc("/healthz", m.healthz)
 

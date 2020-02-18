@@ -70,7 +70,6 @@ main() {
   go_srcs="$(find . -name '*.go' | \
     grep -v mock_ | \
     grep -v .pb.go | \
-    grep -v .pb.gw.go | \
     grep -v _string.go | \
     tr '\n' ' ')"
 

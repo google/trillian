@@ -179,7 +179,7 @@ log_prep_test() {
 
   # Setup etcd quotas, if applicable
   if [[ ${has_etcd} -eq 1 ]]; then
-    setup_etcd_quotas "${HTTP_SERVER_1}"
+    setup_etcd_quotas "${RPC_SERVER_1}"
   fi
 
   # Start a set of signers.
@@ -231,10 +231,10 @@ log_stop_test() {
 # setup_etcd_quotas creates the etcd quota configurations used by tests.
 #
 # Parameters:
-#   - server : HTTP endpoint for the quota API (eg, logserver http port)
+#   - server : GRPC endpoint for the quota API (eg, logserver grpc port)
 #
 # Outputs:
-#   DELETE and POST responses.
+#   DeleteConfig and CreateConfig responses.
 #
 # Returns:
 #   0 if success, non-zero otherwise.
@@ -243,15 +243,10 @@ setup_etcd_quotas() {
   local name='quotas/global/write/config'
 
   # Remove the config before creating. It's OK if it doesn't exist.
-  local delete_output=$(curl -s -X DELETE "${server}/v1beta1/${name}")
-  printf 'DELETE %s: %s\n' "${name}" "${delete_output}"
+  local delete_output=$(grpcurl -plaintext -d "name: ${name}" ${server} quotapb.Quota.DeleteConfig )
+  printf 'quotapb.Quota.DeleteConfig %s: %s\n' "${name}" "${delete_output}"
 
-  local create_output=$(curl \
-      -d '@-' \
-      -s \
-      -H 'Content-Type: application/json' \
-      -X POST \
-      "${server}/v1beta1/${name}" <<EOF
+  local create_output=$(grpcurl -plaintext -d @ ${server} quotapb.Quota.CreateConfig <<EOF
 {
   "name": "${name}",
   "config": {
@@ -263,7 +258,7 @@ setup_etcd_quotas() {
 }
 EOF
   )
-  printf 'POST %s: %s\n' "${name}" "${create_output}"
+  printf 'quotapb.Quota.CreateConfig %s: %s\n' "${name}" "${create_output}"
 
   # Success responses have the config name in them
   echo "${create_output}" | grep '"name":' > /dev/null

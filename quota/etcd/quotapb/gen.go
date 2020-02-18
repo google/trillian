@@ -15,4 +15,4 @@
 package quotapb
 
 //go:generate -command pc protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis
-//go:generate pc --go_out=plugins=grpc:. --grpc-gateway_out=logtostderr=true:. quotapb.proto
+//go:generate pc --go_out=plugins=grpc:. quotapb.proto
