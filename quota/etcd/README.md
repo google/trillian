@@ -32,12 +32,7 @@ Assuming an expected sequencing performance of 50 QPS, the `max_tokens`
 specified below implies a backlog of 4h.
 
 ```bash
-curl \
-  -d '@-' \
-  -s \
-  -H 'Content-Type: application/json' \
-  -X POST \
-  'localhost:8091/v1beta1/quotas/global/write/config' <<EOF
+grpc_cli localhost:8091 v1beta1/quotas/global/write/config <<EOF
 {
   "name": "quotas/global/write/config",
   "config": {
@@ -53,7 +48,7 @@ EOF
 To list all configured quotas, run:
 
 ```bash
-curl 'localhost:8091/v1beta1/quotas?view=FULL'
+grpc_cli localhost:8091 v1beta1/quotas ?view=FULL'
 ```
 
 Quotas may be retrieved individually or via a series of filters, updated and
