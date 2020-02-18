@@ -6,7 +6,7 @@ Not yet released; provisionally v1.4.0 (may change).
 
 ### HTTP APIs
 
-The HTTP/JSON APIs have been deprecated in favor of a pure gRPC intereface.
+The HTTP/JSON APIs have been removed in favor of a pure gRPC intereface.
 [grpcurl](https://github.com/fullstorydev/grpcurl) is the recommended way
 of interacting with the gRPC API from the commandline.
 
