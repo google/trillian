@@ -54,8 +54,8 @@ const (
 
 // Main encapsulates the data and logic to start a Trillian server (Log or Map).
 type Main struct {
-	// Endpoints for RPC and HTTP/REST servers.
-	// HTTP/REST is optional, if empty it'll not be bound.
+	// Endpoints for RPC and HTTP servers.
+	// HTTP is optional, if empty it'll not be bound.
 	RPCEndpoint, HTTPEndpoint string
 
 	// TLS Certificate and Key files for the server.
