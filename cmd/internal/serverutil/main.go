@@ -30,7 +30,6 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -128,9 +127,6 @@ func (m *Main) Run(ctx context.Context) error {
 	reflection.Register(srv)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
-		gatewayMux := runtime.NewServeMux()
-
-		http.Handle("/", gatewayMux)
 		http.Handle("/metrics", promhttp.Handler())
 		http.HandleFunc("/healthz", m.healthz)
 
