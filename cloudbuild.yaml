@@ -67,6 +67,16 @@ steps:
   - -t
   - envsubst
   waitFor: ["-"]
+- id: apply_k8s_cfgs_for_clusterwide_etcd_operator_dryrun
+  name: gcr.io/cloud-builders/kubectl
+  args:
+  - apply
+  - --server-dry-run
+  - -f=examples/deployment/kubernetes/etcd-deployment.yaml
+  env:
+  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+  waitFor: ["-"]
 - id: copy_k8s_cfgs_for_spanner
   name: busybox
   entrypoint: cp
