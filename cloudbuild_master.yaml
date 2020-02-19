@@ -162,6 +162,7 @@ steps:
   args:
   - apply
   - --namespace=mysql
+  - -f=envsubst-mysql/etcd-cluster.yaml
   - -f=envsubst-mysql/trillian-ci-mysql.yaml
   - -f=envsubst-mysql/trillian-mysql.yaml
   - -f=envsubst-mysql/trillian-log-deployment.yaml
