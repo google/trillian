@@ -33,6 +33,8 @@ instead of 3 nodes.
 to nodes becoming temporarily unavailable, such as during updates (it can now
 tolerate 2 nodes being unavailable, instead of just 1).
 
+The etcd-operator deployment has been updated from v0.9.1 to v0.9.4.
+
 ### Log Changes
 
 #### Potential sequencer hang fixed
