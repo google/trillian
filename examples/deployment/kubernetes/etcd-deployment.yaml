@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: trillian-etcd-operator
-        image: quay.io/coreos/etcd-operator:v0.9.1
+        image: quay.io/coreos/etcd-operator:v0.9.4
         command:
         - etcd-operator
         - -cluster-wide
