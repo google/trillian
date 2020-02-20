@@ -96,6 +96,14 @@ duplicate leaves are queued.
 The `licenses` tool has been moved from "scripts/licenses" to [a dedicated
 repository](https://github.com/google/go-licenses).
 
+## v1.3.3 - Module fixes
+
+Published 2019-10-31 17:30:00 +0000 UTC
+
+Patch release to address Go Module issue. Removes `replace` directives in our
+go.mod file now that our dependencies have fixed their invalid pseudo-version
+issues.
+
 ## v1.3.2 - Module fixes
 
 Published 2019-09-05 17:30:00 +0000 UTC
@@ -127,7 +135,7 @@ comparisons using all fields can produce incorrect results.
 
 ### Storage Commit takes context.Context
 
-To support passing a context down to `NodeStorage.SetLeaves`, and remove various `context.TODO()`s, 
+To support passing a context down to `NodeStorage.SetLeaves`, and remove various `context.TODO()`s,
 the following functions have been modified to accept a `context.Context` parameter:
 
 - `storage/cache.NodeStorage.SetLeaves`
@@ -149,7 +157,7 @@ be tuned & provisioned differently for read vs write performance.
 Allow map clients to forgo fetching inclusion proofs.
 This dramatically speeds things up for clients that don't need verifiability.
 This situation occurs in some situation where a Trillian personality is
-interacting directly with the Trillian Map. 
+interacting directly with the Trillian Map.
 
 ### GetMapLeafByRevision API
 New GetMapLeafByRevision API for fetching a single map leaf. This allows there
