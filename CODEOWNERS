@@ -3,8 +3,13 @@
 
 # It uses the same pattern rule for gitignore file
 # https://git-scm.com/docs/gitignore#_pattern_format
+#
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @google/trillian-team will be requested for
+# review when someone opens a pull request.
+*                                @google/trillian-team
 
-# Default
 /*.proto                         @Martin2112 @AlCutter
 /trillian_map_api.proto          @Martin2112 @AlCutter @mhutchinson
 /storage/storagepb/storage.proto @Martin2112 @AlCutter
