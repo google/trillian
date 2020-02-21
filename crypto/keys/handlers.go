@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto"
 	"fmt"
+	"sync"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -27,8 +28,11 @@ import (
 // For example, the protobuf message may contain a key or identify where a key can be found.
 type ProtoHandler func(context.Context, proto.Message) (crypto.Signer, error)
 
-// handlers convert a protobuf message into a crypto.Signer.
-var handlers = make(map[string]ProtoHandler)
+var (
+	// handlers convert a protobuf message into a crypto.Signer.
+	handlers   = make(map[string]ProtoHandler)
+	handlersMu sync.RWMutex
+)
 
 // RegisterHandler enables transformation of protobuf messages of the same
 // type as keyProto into crypto.Signer by invoking the provided handler.
@@ -37,6 +41,8 @@ var handlers = make(map[string]ProtoHandler)
 // If a handler for this type of protobuf message has already been added, it will
 // be replaced.
 func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
+	handlersMu.Lock()
+	defer handlersMu.Unlock()
 	keyProtoType := proto.MessageName(keyProto)
 
 	if _, alreadyExists := handlers[keyProtoType]; alreadyExists {
@@ -49,6 +55,8 @@ func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
 // UnregisterHandler removes a previously-added protobuf message handler.
 // See RegisterHandler().
 func UnregisterHandler(keyProto proto.Message) {
+	handlersMu.Lock()
+	defer handlersMu.Unlock()
 	delete(handlers, proto.MessageName(keyProto))
 }
 
@@ -57,6 +65,8 @@ func UnregisterHandler(keyProto proto.Message) {
 // If there is no ProtoHandler registered for this type of protobuf message, an
 // error will be returned.
 func NewSigner(ctx context.Context, keyProto proto.Message) (crypto.Signer, error) {
+	handlersMu.RLock()
+	defer handlersMu.RUnlock()
 	keyProtoType := proto.MessageName(keyProto)
 
 	if handler, ok := handlers[keyProtoType]; ok {
