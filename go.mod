@@ -52,7 +52,7 @@ require (
 	github.com/onsi/gomega v1.7.1 // indirect
 	github.com/prometheus/client_golang v1.5.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/pseudomuto/protoc-gen-doc v1.3.0
+	github.com/pseudomuto/protoc-gen-doc v1.3.1
 	github.com/pseudomuto/protokit v0.2.0 // indirect
 	github.com/uber/prototool v1.9.0
 	github.com/urfave/cli v1.22.1 // indirect
