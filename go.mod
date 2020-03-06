@@ -24,7 +24,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/golang/mock v1.4.0
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.3.4
 	github.com/google/btree v1.0.0
 	github.com/google/certificate-transparency-go v1.1.0
 	github.com/google/go-cmp v0.4.0
@@ -62,14 +62,14 @@ require (
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
-	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
+	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82
+	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	golang.org/x/tools v0.0.0-20191118222007-07fc4c7f2b98
 	google.golang.org/appengine v1.6.5 // indirect
-	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
-	google.golang.org/grpc v1.25.1
+	google.golang.org/genproto v0.0.0-20200306153348-d950eab6f860
+	google.golang.org/grpc v1.27.1
 	gopkg.in/yaml.v2 v2.2.6 // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )

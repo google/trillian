@@ -472,7 +472,9 @@ func init() {
 	proto.RegisterType((*PKCS11Config)(nil), "keyspb.PKCS11Config")
 }
 
-func init() { proto.RegisterFile("crypto/keyspb/keyspb.proto", fileDescriptor_c8ca2ab097770992) }
+func init() {
+	proto.RegisterFile("crypto/keyspb/keyspb.proto", fileDescriptor_c8ca2ab097770992)
+}
 
 var fileDescriptor_c8ca2ab097770992 = []byte{
 	// 432 bytes of a gzipped FileDescriptorProto

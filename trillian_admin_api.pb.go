@@ -347,7 +347,9 @@ func init() {
 	proto.RegisterType((*UndeleteTreeRequest)(nil), "trillian.UndeleteTreeRequest")
 }
 
-func init() { proto.RegisterFile("trillian_admin_api.proto", fileDescriptor_aac35e28a5dd9ee3) }
+func init() {
+	proto.RegisterFile("trillian_admin_api.proto", fileDescriptor_aac35e28a5dd9ee3)
+}
 
 var fileDescriptor_aac35e28a5dd9ee3 = []byte{
 	// 548 bytes of a gzipped FileDescriptorProto
@@ -390,11 +392,11 @@ var fileDescriptor_aac35e28a5dd9ee3 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // TrillianAdminClient is the client API for TrillianAdmin service.
 //
@@ -423,10 +425,10 @@ type TrillianAdminClient interface {
 }
 
 type trillianAdminClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewTrillianAdminClient(cc *grpc.ClientConn) TrillianAdminClient {
+func NewTrillianAdminClient(cc grpc.ClientConnInterface) TrillianAdminClient {
 	return &trillianAdminClient{cc}
 }
 

@@ -214,7 +214,9 @@ func init() {
 	proto.RegisterType((*SequenceSharding)(nil), "gcppb.SequenceSharding")
 }
 
-func init() { proto.RegisterFile("gcp.proto", fileDescriptor_b1f553190b5184fe) }
+func init() {
+	proto.RegisterFile("gcp.proto", fileDescriptor_b1f553190b5184fe)
+}
 
 var fileDescriptor_b1f553190b5184fe = []byte{
 	// 276 bytes of a gzipped FileDescriptorProto

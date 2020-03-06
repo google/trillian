@@ -622,7 +622,9 @@ func init() {
 	proto.RegisterType((*TreeHead)(nil), "spannerpb.TreeHead")
 }
 
-func init() { proto.RegisterFile("spanner.proto", fileDescriptor_879d3e919e93c6ba) }
+func init() {
+	proto.RegisterFile("spanner.proto", fileDescriptor_879d3e919e93c6ba)
+}
 
 var fileDescriptor_879d3e919e93c6ba = []byte{
 	// 958 bytes of a gzipped FileDescriptorProto

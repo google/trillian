@@ -157,7 +157,9 @@ func init() {
 	proto.RegisterType((*DigitallySigned)(nil), "sigpb.DigitallySigned")
 }
 
-func init() { proto.RegisterFile("crypto/sigpb/sigpb.proto", fileDescriptor_5a159192b6f2430c) }
+func init() {
+	proto.RegisterFile("crypto/sigpb/sigpb.proto", fileDescriptor_5a159192b6f2430c)
+}
 
 var fileDescriptor_5a159192b6f2430c = []byte{
 	// 280 bytes of a gzipped FileDescriptorProto

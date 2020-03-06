@@ -1789,7 +1789,9 @@ func init() {
 	proto.RegisterType((*LogLeaf)(nil), "trillian.LogLeaf")
 }
 
-func init() { proto.RegisterFile("trillian_log_api.proto", fileDescriptor_5ad20a6a54aa5af3) }
+func init() {
+	proto.RegisterFile("trillian_log_api.proto", fileDescriptor_5ad20a6a54aa5af3)
+}
 
 var fileDescriptor_5ad20a6a54aa5af3 = []byte{
 	// 1512 bytes of a gzipped FileDescriptorProto
@@ -1892,11 +1894,11 @@ var fileDescriptor_5ad20a6a54aa5af3 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // TrillianLogClient is the client API for TrillianLog service.
 //
@@ -1969,10 +1971,10 @@ type TrillianLogClient interface {
 }
 
 type trillianLogClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewTrillianLogClient(cc *grpc.ClientConn) TrillianLogClient {
+func NewTrillianLogClient(cc grpc.ClientConnInterface) TrillianLogClient {
 	return &trillianLogClient{cc}
 }
 

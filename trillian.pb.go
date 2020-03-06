@@ -707,7 +707,9 @@ func init() {
 	proto.RegisterType((*Proof)(nil), "trillian.Proof")
 }
 
-func init() { proto.RegisterFile("trillian.proto", fileDescriptor_364603a4e17a2a56) }
+func init() {
+	proto.RegisterFile("trillian.proto", fileDescriptor_364603a4e17a2a56)
+}
 
 var fileDescriptor_364603a4e17a2a56 = []byte{
 	// 1095 bytes of a gzipped FileDescriptorProto

@@ -1014,7 +1014,9 @@ func init() {
 	proto.RegisterType((*InitMapResponse)(nil), "trillian.InitMapResponse")
 }
 
-func init() { proto.RegisterFile("trillian_map_api.proto", fileDescriptor_28d34dfba22a7ce2) }
+func init() {
+	proto.RegisterFile("trillian_map_api.proto", fileDescriptor_28d34dfba22a7ce2)
+}
 
 var fileDescriptor_28d34dfba22a7ce2 = []byte{
 	// 988 bytes of a gzipped FileDescriptorProto
@@ -1084,11 +1086,11 @@ var fileDescriptor_28d34dfba22a7ce2 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // TrillianMapClient is the client API for TrillianMap service.
 //
@@ -1103,11 +1105,15 @@ type TrillianMapClient interface {
 	GetLeavesByRevision(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*GetMapLeavesResponse, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#GetLeavesByRevision
+	//
+	// Deprecated: Do not use.
 	GetLeavesByRevisionNoProof(ctx context.Context, in *GetMapLeavesByRevisionRequest, opts ...grpc.CallOption) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(ctx context.Context, in *GetLastInRangeByRevisionRequest, opts ...grpc.CallOption) (*MapLeaf, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#WriteLeaves
+	//
+	// Deprecated: Do not use.
 	SetLeaves(ctx context.Context, in *SetMapLeavesRequest, opts ...grpc.CallOption) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(ctx context.Context, in *GetSignedMapRootRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(ctx context.Context, in *GetSignedMapRootByRevisionRequest, opts ...grpc.CallOption) (*GetSignedMapRootResponse, error)
@@ -1115,10 +1121,10 @@ type TrillianMapClient interface {
 }
 
 type trillianMapClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewTrillianMapClient(cc *grpc.ClientConn) TrillianMapClient {
+func NewTrillianMapClient(cc grpc.ClientConnInterface) TrillianMapClient {
 	return &trillianMapClient{cc}
 }
 
@@ -1225,11 +1231,15 @@ type TrillianMapServer interface {
 	GetLeavesByRevision(context.Context, *GetMapLeavesByRevisionRequest) (*GetMapLeavesResponse, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#GetLeavesByRevision
+	//
+	// Deprecated: Do not use.
 	GetLeavesByRevisionNoProof(context.Context, *GetMapLeavesByRevisionRequest) (*MapLeaves, error)
 	// GetLastInRangeByRevision returns the last leaf in a requested range.
 	GetLastInRangeByRevision(context.Context, *GetLastInRangeByRevisionRequest) (*MapLeaf, error)
 	// Deprecated: this should only be used by writers, which should migrate
 	// to TrillianMapWrite#WriteLeaves
+	//
+	// Deprecated: Do not use.
 	SetLeaves(context.Context, *SetMapLeavesRequest) (*SetMapLeavesResponse, error)
 	GetSignedMapRoot(context.Context, *GetSignedMapRootRequest) (*GetSignedMapRootResponse, error)
 	GetSignedMapRootByRevision(context.Context, *GetSignedMapRootByRevisionRequest) (*GetSignedMapRootResponse, error)
@@ -1517,10 +1527,10 @@ type TrillianMapWriteClient interface {
 }
 
 type trillianMapWriteClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewTrillianMapWriteClient(cc *grpc.ClientConn) TrillianMapWriteClient {
+func NewTrillianMapWriteClient(cc grpc.ClientConnInterface) TrillianMapWriteClient {
 	return &trillianMapWriteClient{cc}
 }
 

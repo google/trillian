@@ -350,7 +350,9 @@ func init() {
 	proto.RegisterType((*TimeBasedStrategy)(nil), "storagepb.TimeBasedStrategy")
 }
 
-func init() { proto.RegisterFile("storagepb.proto", fileDescriptor_607098b00d790b85) }
+func init() {
+	proto.RegisterFile("storagepb.proto", fileDescriptor_607098b00d790b85)
+}
 
 var fileDescriptor_607098b00d790b85 = []byte{
 	// 422 bytes of a gzipped FileDescriptorProto

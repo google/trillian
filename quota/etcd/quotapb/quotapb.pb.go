@@ -645,7 +645,9 @@ func init() {
 	proto.RegisterType((*UpdateConfigRequest)(nil), "quotapb.UpdateConfigRequest")
 }
 
-func init() { proto.RegisterFile("quotapb.proto", fileDescriptor_7358794d7f8089dd) }
+func init() {
+	proto.RegisterFile("quotapb.proto", fileDescriptor_7358794d7f8089dd)
+}
 
 var fileDescriptor_7358794d7f8089dd = []byte{
 	// 759 bytes of a gzipped FileDescriptorProto
@@ -701,11 +703,11 @@ var fileDescriptor_7358794d7f8089dd = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // QuotaClient is the client API for Quota service.
 //
@@ -725,10 +727,10 @@ type QuotaClient interface {
 }
 
 type quotaClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewQuotaClient(cc *grpc.ClientConn) QuotaClient {
+func NewQuotaClient(cc grpc.ClientConnInterface) QuotaClient {
 	return &quotaClient{cc}
 }
 
