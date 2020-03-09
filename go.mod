@@ -12,17 +12,10 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/aws/aws-sdk-go v1.25.37 // indirect
-	github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa // indirect
 	github.com/coreos/bbolt v1.3.3 // indirect
 	github.com/coreos/etcd v3.3.18+incompatible
-	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
-	github.com/coreos/go-systemd/v22 v22.0.0 // indirect
-	github.com/coreos/license-bill-of-materials v0.0.0-20190913234955-13baff47494e // indirect
-	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/creack/pty v1.1.7 // indirect
-	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/emicklei/proto v1.8.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-redis/redis v6.15.7+incompatible
@@ -61,7 +54,6 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.3.0
 	github.com/pseudomuto/protokit v0.2.0 // indirect
-	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	github.com/uber/prototool v1.9.0
 	github.com/urfave/cli v1.22.1 // indirect
 	go.etcd.io/bbolt v1.3.3 // indirect
