@@ -12,14 +12,19 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/aws/aws-sdk-go v1.25.37 // indirect
+	github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa // indirect
 	github.com/coreos/bbolt v1.3.3 // indirect
 	github.com/coreos/etcd v3.3.18+incompatible
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
+	github.com/coreos/go-systemd/v22 v22.0.0 // indirect
+	github.com/coreos/license-bill-of-materials v0.0.0-20190913234955-13baff47494e // indirect
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/creack/pty v1.1.7 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/emicklei/proto v1.8.0 // indirect
+	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gogo/protobuf v1.3.1 // indirect
@@ -28,7 +33,7 @@ require (
 	github.com/golang/mock v1.4.1
 	github.com/golang/protobuf v1.3.2
 	github.com/google/btree v1.0.0
-	github.com/google/certificate-transparency-go v1.0.21
+	github.com/google/certificate-transparency-go v1.1.0
 	github.com/google/go-cmp v0.4.0
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
@@ -59,7 +64,8 @@ require (
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	github.com/uber/prototool v1.9.0
 	github.com/urfave/cli v1.22.1 // indirect
-	go.etcd.io/etcd v0.5.0-alpha.5.0.20200306183522-221f0cc107cb
+	go.etcd.io/bbolt v1.3.3 // indirect
+	go.etcd.io/etcd v3.3.13+incompatible
 	go.opencensus.io v0.22.3
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
@@ -72,6 +78,6 @@ require (
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
 	google.golang.org/grpc v1.26.0
-	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/yaml.v2 v2.2.6 // indirect
+	sigs.k8s.io/yaml v1.1.0 // indirect
 )
