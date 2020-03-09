@@ -186,6 +186,7 @@ the original files; if you do, you'll need to install the prerequisites:
     compatible and tested:
 
     ```
+    cd $(go list -f '{{ .Dir }}' github.com/google/trillian); \
     go install github.com/golang/protobuf/proto; \
     go install github.com/golang/mock/mockgen; \
     go install golang.org/x/tools/cmd/stringer; \
