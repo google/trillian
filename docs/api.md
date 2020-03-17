@@ -1387,9 +1387,7 @@ preimage protection, which can be application specific.
 | UNKNOWN_HASH_STRATEGY | 0 | Hash strategy cannot be determined. Included to enable detection of mismatched proto versions being used. Represents an invalid value. |
 | RFC6962_SHA256 | 1 | Certificate Transparency strategy: leaf hash prefix = 0x00, node prefix = 0x01, empty hash is digest([]byte{}), as defined in the specification. |
 | TEST_MAP_HASHER | 2 | Sparse Merkle Tree strategy: leaf hash prefix = 0x00, node prefix = 0x01, empty branch is recursively computed from empty leaf nodes. NOT secure in a multi tree environment. For testing only. |
-| OBJECT_RFC6962_SHA256 | 3 | Append-only log strategy where leaf nodes are defined as the ObjectHash. All other properties are equal to RFC6962_SHA256. |
 | CONIKS_SHA512_256 | 4 | The CONIKS sparse tree hasher with SHA512_256 as the hash algorithm. |
-| CONIKS_SHA256 | 5 | The CONIKS sparse tree hasher with SHA256 as the hash algorithm. |
 
 
 

@@ -60,15 +60,10 @@ enum HashStrategy {
   // NOT secure in a multi tree environment. For testing only.
   TEST_MAP_HASHER = 2;
 
-  // Append-only log strategy where leaf nodes are defined as the ObjectHash.
-  // All other properties are equal to RFC6962_SHA256.
-  OBJECT_RFC6962_SHA256 = 3;
-
   // The CONIKS sparse tree hasher with SHA512_256 as the hash algorithm.
   CONIKS_SHA512_256 = 4;
 
-  // The CONIKS sparse tree hasher with SHA256 as the hash algorithm.
-  CONIKS_SHA256 = 5;
+  reserved 3, 5;
 }
 
 // State of the tree.
