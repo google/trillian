@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v1.4.0 (may change).
 
+### Remove Unsupported Hashers
+
+- `OBJECT_RFC6962_SHA256`
+- `CONIKS_SHA256`
+
 ### HTTP APIs
 
 The HTTP/JSON APIs have been removed in favor of a pure gRPC intereface.
