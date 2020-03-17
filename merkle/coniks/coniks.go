@@ -28,7 +28,6 @@ import (
 
 func init() {
 	hashers.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA512_256, Default)
-	hashers.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA256, New(crypto.SHA256))
 }
 
 // Domain separation prefixes

@@ -174,7 +174,6 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 			hashStrategy: []hashStrategyAndRoot{
 				{trillian.HashStrategy_TEST_MAP_HASHER, testonly.MustDecodeBase64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")},
 				{trillian.HashStrategy_CONIKS_SHA512_256, nil /* TODO: need to fix the treeID to have a known answer */},
-				{trillian.HashStrategy_CONIKS_SHA256, nil /* TODO: need to fix the treeID to have a known answer */},
 			},
 			wantRev: 0,
 		},
@@ -241,7 +240,7 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 	}{
 		{
 			desc:         "single leaf update",
-			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			set: [][]*trillian.MapLeaf{
 				{}, // Advance revision without changing anything.
 				{{Index: index1, LeafValue: []byte("A")}},
@@ -368,7 +367,7 @@ func RunWriteLeavesRevision(ctx context.Context, t *testing.T, tadmin trillian.T
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_CONIKS_SHA256)
+			tree, err := newTreeWithHasher(ctx, tadmin, tmap, trillian.HashStrategy_CONIKS_SHA512_256)
 			if err != nil {
 				t.Fatalf("newTreeWithHasher: %v", err)
 			}
@@ -427,7 +426,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 	}{
 		{
 			desc:         "single leaf update",
-			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			set: [][]*trillian.MapLeaf{
 				{}, // Advance revision without changing anything.
 				{
@@ -515,14 +514,14 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 	}{
 		{
 			desc:         "single",
-			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			leaves: []*trillian.MapLeaf{
 				{Index: index0, LeafValue: []byte("A")},
 			},
 		},
 		{
 			desc:         "multi",
-			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			leaves: []*trillian.MapLeaf{
 				{Index: index0, LeafValue: []byte("A")},
 				{Index: index1, LeafValue: []byte("B")},
@@ -532,7 +531,7 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 		},
 		{
 			desc:         "across subtrees",
-			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256, trillian.HashStrategy_CONIKS_SHA256},
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			leaves: []*trillian.MapLeaf{
 				{Index: index0, LeafValue: []byte("Z")},
 			},
