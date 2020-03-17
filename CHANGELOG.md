@@ -6,8 +6,12 @@ Not yet released; provisionally v1.4.0 (may change).
 
 ### Remove Unsupported Hashers
 
-- `OBJECT_RFC6962_SHA256`
-- `CONIKS_SHA256`
+The following hashers have been removed because of security vulnerabilities and
+performance issues:
+
+- `OBJECT_RFC6962_SHA256` - Security vulnerability
+- `CONIKS_SHA256` - Less than ideal performance 
+
 
 ### HTTP APIs
 
