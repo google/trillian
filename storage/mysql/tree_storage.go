@@ -297,7 +297,6 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		}
 	}
 	if len(subtrees) == 0 {
-		glog.Warning("attempted to store 0 subtrees...")
 		return nil
 	}
 
