@@ -39,7 +39,6 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
 	github.com/lib/pq v1.3.0
-	github.com/lyft/protoc-gen-validate v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mattn/go-runewidth v0.0.6 // indirect
@@ -53,7 +52,6 @@ require (
 	github.com/prometheus/client_golang v1.5.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.3.1
-	github.com/pseudomuto/protokit v0.2.0 // indirect
 	github.com/uber/prototool v1.9.0
 	github.com/urfave/cli v1.22.1 // indirect
 	go.etcd.io/bbolt v1.3.3 // indirect
