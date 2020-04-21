@@ -27,6 +27,9 @@ import (
 	spb "github.com/google/trillian/crypto/sigpb"
 )
 
+// This matches the legacy Trillian configuration, but is overkill for most maps.
+const defaultMapIndexStrata = 10
+
 // ToMillisSinceEpoch converts a timestamp into milliseconds since epoch
 func ToMillisSinceEpoch(t time.Time) int64 {
 	return t.UnixNano() / 1000000
@@ -146,6 +149,11 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse delete time: %v", err)
 		}
+	}
+
+	// TODO(mhutchinson): Read this value from the DB and only default it if absent.
+	if tree.TreeType == trillian.TreeType_MAP {
+		tree.IndexBytes = defaultMapIndexStrata
 	}
 
 	return tree, nil

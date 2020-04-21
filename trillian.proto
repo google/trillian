@@ -201,6 +201,15 @@ message Tree {
   // Time of tree deletion, if any.
   // Readonly.
   google.protobuf.Timestamp delete_time = 20;
+
+  // For a fixed-size data structure, the number of prefix bytes assigned to single-byte index shards.
+  // Not applicable to variable-size logs.
+  // Example, if the tree is a fixed-size data structure with 256 bits (32 bytes), and index_bytes=3:
+  // there will be 4 tiles to describe the path for any leaf;
+  //  * 3 index tiles of 1 byte each; and
+  //  * 1 final leaf tile of 29 bytes height.
+  // Readonly.
+  int32 index_bytes = 21;
 }
 
 message SignedEntryTimestamp {

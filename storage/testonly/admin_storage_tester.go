@@ -126,6 +126,7 @@ var (
 			Der: ktestonly.MustMarshalPublicPEMToDER(testonly.DemoPublicKey),
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+		IndexBytes:      10,
 	}
 )
 

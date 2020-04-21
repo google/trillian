@@ -45,14 +45,19 @@ const (
 	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
 )
 
-var (
-	defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
-	defaultLayout    = stree.NewLayout(defaultMapStrata)
-)
-
 type mySQLMapStorage struct {
 	*mySQLTreeStorage
 	admin storage.AdminStorage
+}
+
+func strataForTree(tree *trillian.Tree) []int {
+	strata := make([]int, tree.IndexBytes+1)
+	for i := 0; i < int(tree.IndexBytes); i++ {
+		strata[i] = 8
+	}
+	// If we support tree heights other than 256 bit then this will need changing.
+	strata[tree.IndexBytes] = 256 - 8*int(tree.IndexBytes)
+	return strata
 }
 
 // NewMapStorage creates a storage.MapStorage instance for the specified MySQL URL.
@@ -82,7 +87,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readon
 		return nil, err
 	}
 
-	stCache := cache.NewMapSubtreeCache(defaultMapStrata, tree.TreeId, hasher)
+	stCache := cache.NewMapSubtreeCache(strataForTree(tree), tree.TreeId, hasher)
 	ttx, err := m.beginTreeTx(ctx, tree, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
@@ -130,8 +135,8 @@ func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 }
 
 // Layout returns the layout of the given tree.
-func (m *mySQLMapStorage) Layout(*trillian.Tree) (*stree.Layout, error) {
-	return defaultLayout, nil
+func (m *mySQLMapStorage) Layout(t *trillian.Tree) (*stree.Layout, error) {
+	return stree.NewLayout(strataForTree(t)), nil
 }
 
 func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
