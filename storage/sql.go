@@ -153,7 +153,7 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 
 	// TODO(mhutchinson): Read this value from the DB and only default it if absent.
 	if tree.TreeType == trillian.TreeType_MAP {
-		tree.IndexBytes = defaultMapIndexStrata
+		tree.PrefixStrata = defaultMapIndexStrata
 	}
 
 	return tree, nil

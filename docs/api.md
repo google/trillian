@@ -1368,7 +1368,7 @@ not created dynamically.
 | update_time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Time of last tree update. Readonly (automatically assigned on updates). |
 | deleted | [bool](#bool) |  | If true, the tree has been deleted. Deleted trees may be undeleted during a certain time window, after which they&#39;re permanently deleted (and unrecoverable). Readonly. |
 | delete_time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Time of tree deletion, if any. Readonly. |
-| index_bytes | [int32](#int32) |  | For a fixed-size data structure, the number of prefix bytes assigned to single-byte index shards. Not applicable to variable-size logs. Example, if the tree is a fixed-size data structure with 256 bits (32 bytes), and index_bytes=3: there will be 4 tiles to describe the path for any leaf; * 3 index tiles of 1 byte each; and * 1 final leaf tile of 29 bytes height. Readonly. |
+| prefix_strata | [int32](#int32) |  | The number of 8-bit prefix strata in the tree layout. Applies to maps only. The final stratum spans the remaining 256-8*prefix_strata bits. For example, if prefix_strata=3 then there will be 4 tiles in any path: * 3 prefix tiles of 1 byte each; and * 1 final leaf tile of 29 bytes height. Readonly. |
 
 
 

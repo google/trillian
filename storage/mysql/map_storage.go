@@ -51,12 +51,12 @@ type mySQLMapStorage struct {
 }
 
 func strataForTree(tree *trillian.Tree) []int {
-	strata := make([]int, tree.IndexBytes+1)
-	for i := 0; i < int(tree.IndexBytes); i++ {
+	strata := make([]int, tree.PrefixStrata+1)
+	for i := 0; i < int(tree.PrefixStrata); i++ {
 		strata[i] = 8
 	}
 	// If we support tree heights other than 256 bit then this will need changing.
-	strata[tree.IndexBytes] = 256 - 8*int(tree.IndexBytes)
+	strata[tree.PrefixStrata] = 256 - 8*int(tree.PrefixStrata)
 	return strata
 }
 
