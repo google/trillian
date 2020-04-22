@@ -33,7 +33,7 @@ jobs:
         (
           set -e
           cd ../protoc
-          PROTOC_VERSION=3.5.1
+          PROTOC_VERSION=3.11.4
           wget "https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${TRAVIS_OS_NAME}-x86_64.zip"
           unzip "protoc-${PROTOC_VERSION}-${TRAVIS_OS_NAME}-x86_64.zip"
         )
