@@ -119,6 +119,7 @@ func tryStartEtcd(dir string) (*embed.Etcd, error) {
 	cfg.LPUrls = []url.URL{*peerURL}   // listen peer URLS
 	cfg.APUrls = []url.URL{*peerURL}   // advertise peer URLS
 	cfg.InitialCluster = fmt.Sprintf("default=%v", peerURL)
+	cfg.Logger = "zap"
 
 	return embed.StartEtcd(cfg)
 }
