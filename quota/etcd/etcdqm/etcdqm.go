@@ -19,9 +19,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storage"
+	"go.etcd.io/etcd/clientv3"
 )
 
 type manager struct {
