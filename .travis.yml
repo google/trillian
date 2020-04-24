@@ -99,7 +99,7 @@ jobs:
         git clone --depth=1 https://github.com/google/certificate-transparency-go.git "$GOPATH/src/github.com/google/certificate-transparency-go"
         (
           cd "$GOPATH/src/github.com/google/certificate-transparency-go"
-          echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
+          # echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
           chmod +x ./trillian/integration/integration_test.sh
          ./trillian/integration/integration_test.sh
         )
