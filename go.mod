@@ -55,6 +55,7 @@ require (
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	github.com/uber/prototool v1.9.0
 	github.com/urfave/cli v1.22.1 // indirect
+	go.etcd.io/bbolt v1.3.4 // indirect
 	go.etcd.io/etcd v0.0.0-20200401174654-e694b7bb0875
 	go.opencensus.io v0.22.3
 	go.uber.org/multierr v1.4.0 // indirect
@@ -62,7 +63,7 @@ require (
 	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
 	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82
+	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	golang.org/x/tools v0.0.0-20191118222007-07fc4c7f2b98
 	google.golang.org/appengine v1.6.5 // indirect
