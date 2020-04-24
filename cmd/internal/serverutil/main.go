@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
@@ -31,13 +30,14 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.etcd.io/etcd/clientv3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/naming"
 	"google.golang.org/grpc/reflection"
 
-	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	etcdnaming "go.etcd.io/etcd/clientv3/naming"
 )
 
 const (
