@@ -11,7 +11,7 @@ Both build and example deployment files are stored within this repo. For any of
 the below deployment methods, start by cloning the repo.
 
 ```shell
-git clone https://github.com/google/trillian.git/
+git clone https://github.com/google/trillian.git
 cd trillian
 ```
 
