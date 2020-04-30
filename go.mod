@@ -12,12 +12,12 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/aws/aws-sdk-go v1.25.37 // indirect
-	github.com/coreos/bbolt v1.3.3 // indirect
-	github.com/coreos/etcd v3.3.18+incompatible
+	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190620071333-e64a0ec8b42a // indirect
+	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/emicklei/proto v1.8.0 // indirect
-	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gogo/protobuf v1.3.1 // indirect
@@ -26,7 +26,7 @@ require (
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.3.2
 	github.com/google/btree v1.0.0
-	github.com/google/certificate-transparency-go v1.1.0
+	github.com/google/certificate-transparency-go v1.0.21
 	github.com/google/go-cmp v0.4.0
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
@@ -52,22 +52,23 @@ require (
 	github.com/prometheus/client_golang v1.5.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.3.1
+	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	github.com/uber/prototool v1.9.0
 	github.com/urfave/cli v1.22.1 // indirect
-	go.etcd.io/bbolt v1.3.3 // indirect
-	go.etcd.io/etcd v3.3.18+incompatible
+	go.etcd.io/bbolt v1.3.4 // indirect
+	go.etcd.io/etcd v0.0.0-20200401174654-e694b7bb0875
 	go.opencensus.io v0.22.3
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
 	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82
+	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	golang.org/x/tools v0.0.0-20191118222007-07fc4c7f2b98
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
 	google.golang.org/grpc v1.25.1
+	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/yaml.v2 v2.2.6 // indirect
-	sigs.k8s.io/yaml v1.1.0 // indirect
 )

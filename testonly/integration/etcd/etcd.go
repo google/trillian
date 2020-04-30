@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
-	"github.com/coreos/etcd/embed"
+	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/embed"
 )
 
 const (
@@ -119,6 +119,7 @@ func tryStartEtcd(dir string) (*embed.Etcd, error) {
 	cfg.LPUrls = []url.URL{*peerURL}   // listen peer URLS
 	cfg.APUrls = []url.URL{*peerURL}   // advertise peer URLS
 	cfg.InitialCluster = fmt.Sprintf("default=%v", peerURL)
+	cfg.Logger = "zap"
 
 	return embed.StartEtcd(cfg)
 }
