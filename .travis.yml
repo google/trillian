@@ -63,12 +63,10 @@ jobs:
       before_install: skip
       install:
       - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.21.0
-      - go install github.com/uber/prototool/cmd/prototool
       - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
       before_script: skip
       script:
       - golangci-lint run --deadline=8m
-      - prototool lint
       - ./scripts/check_license.sh $(find . -name '*.go' | grep -v mock_ | grep -v .pb.go | grep -v .pb.gw.go | grep -v _string.go | tr '\n' ' ')
     - name: "bazel"
       install:

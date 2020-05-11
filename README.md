@@ -236,11 +236,6 @@ and tests over the codebase.
 go install github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 
-#### Install [prototool](https://github.com/uber/prototool#installation)
-```bash
-go install github.com/uber/prototool/cmd/prototool
-```
-
 #### Run code generation, build, test and linters
 ```bash
 ./scripts/presubmit.sh
@@ -249,7 +244,6 @@ go install github.com/uber/prototool/cmd/prototool
 #### Or just run the linters alone
 ```bash
 golangci-lint run
-prototool lint
 ```
 
 

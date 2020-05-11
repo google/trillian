@@ -52,8 +52,9 @@ require (
 	github.com/prometheus/client_golang v1.5.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
+	github.com/spf13/cobra v0.0.5 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
-	github.com/uber/prototool v1.9.0
 	github.com/urfave/cli v1.22.1 // indirect
 	go.etcd.io/bbolt v1.3.4 // indirect
 	go.etcd.io/etcd v0.0.0-20200401174654-e694b7bb0875

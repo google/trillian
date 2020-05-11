@@ -25,7 +25,6 @@ import (
 	_ "github.com/golang/protobuf/proto"
 	_ "github.com/golang/protobuf/protoc-gen-go"
 	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
-	_ "github.com/uber/prototool/cmd/prototool"
 	_ "go.etcd.io/etcd"
 	_ "go.etcd.io/etcd/etcdctl"
 	_ "golang.org/x/tools/cmd/stringer"
