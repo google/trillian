@@ -36,18 +36,11 @@
     - [QueueLeavesResponse](#trillian.QueueLeavesResponse)
     - [QueuedLogLeaf](#trillian.QueuedLogLeaf)
   
-  
-  
     - [TrillianLog](#trillian.TrillianLog)
   
-
 - [trillian_log_sequencer_api.proto](#trillian_log_sequencer_api.proto)
-  
-  
-  
     - [TrillianLogSequencer](#trillian.TrillianLogSequencer)
   
-
 - [trillian_map_api.proto](#trillian_map_api.proto)
     - [GetLastInRangeByRevisionRequest](#trillian.GetLastInRangeByRevisionRequest)
     - [GetMapLeafByRevisionRequest](#trillian.GetMapLeafByRevisionRequest)
@@ -69,12 +62,9 @@
     - [WriteMapLeavesRequest](#trillian.WriteMapLeavesRequest)
     - [WriteMapLeavesResponse](#trillian.WriteMapLeavesResponse)
   
-  
-  
     - [TrillianMap](#trillian.TrillianMap)
     - [TrillianMapWrite](#trillian.TrillianMapWrite)
   
-
 - [trillian_admin_api.proto](#trillian_admin_api.proto)
     - [CreateTreeRequest](#trillian.CreateTreeRequest)
     - [DeleteTreeRequest](#trillian.DeleteTreeRequest)
@@ -84,11 +74,8 @@
     - [UndeleteTreeRequest](#trillian.UndeleteTreeRequest)
     - [UpdateTreeRequest](#trillian.UpdateTreeRequest)
   
-  
-  
     - [TrillianAdmin](#trillian.TrillianAdmin)
   
-
 - [trillian.proto](#trillian.proto)
     - [Proof](#trillian.Proof)
     - [SignedEntryTimestamp](#trillian.SignedEntryTimestamp)
@@ -102,9 +89,6 @@
     - [TreeState](#trillian.TreeState)
     - [TreeType](#trillian.TreeType)
   
-  
-  
-
 - [Scalar Value Types](#scalar-value-types)
 
 
