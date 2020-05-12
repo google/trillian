@@ -17,7 +17,7 @@ require (
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
-	github.com/emicklei/proto v1.8.0 // indirect
+	github.com/fullstorydev/grpcurl v1.4.0
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gogo/protobuf v1.3.1 // indirect
