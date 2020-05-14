@@ -83,7 +83,7 @@ func RootHashes() [][]byte {
 func CompactTrees() [][][]byte {
 	nh := NodeHashes()
 	return [][][]byte{
-		{}, // Empty tree.
+		nil, // Empty tree.
 		{nh[0][0]},
 		{nh[1][0]},
 		{nh[1][0], nh[0][2]},

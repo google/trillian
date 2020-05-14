@@ -17,19 +17,20 @@ package interceptor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/trees"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -182,7 +183,7 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 				case !ok:
 					t.Error("tree not in handler ctx")
 				case !proto.Equal(tree, test.wantTree):
-					diff := pretty.Compare(tree, test.wantTree)
+					diff := cmp.Diff(tree, test.wantTree)
 					t.Errorf("post-FromContext diff:\n%v", diff)
 				}
 			}
@@ -811,8 +812,8 @@ func TestCombine(t *testing.T) {
 				}
 				wantCtx = h.ctx
 			}
-			if diff := pretty.Compare(handler.ctx, wantCtx); diff != "" {
-				t.Errorf("handler ctx diff:\n%v", diff)
+			if got, want := fmt.Sprintf("%v", handler.ctx), fmt.Sprintf("%v", wantCtx); got != want {
+				t.Errorf("handler ctx, %v, want %v", got, want)
 			}
 		})
 	}

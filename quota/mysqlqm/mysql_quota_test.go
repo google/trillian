@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
@@ -31,7 +32,6 @@ import (
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
-	"github.com/kylelemons/godebug/pretty"
 
 	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -219,7 +219,7 @@ func TestQuotaManager_PeekTokens(t *testing.T) {
 	}
 	wantTokens[quota.Spec{Group: quota.Global, Kind: quota.Write}] = wantRows
 
-	if diff := pretty.Compare(tokens, wantTokens); diff != "" {
+	if diff := cmp.Diff(tokens, wantTokens); diff != "" {
 		t.Errorf("post-PeekTokens() diff:\n%v", diff)
 	}
 }

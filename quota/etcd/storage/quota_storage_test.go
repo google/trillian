@@ -23,11 +23,12 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/testonly/integration/etcd"
 	"github.com/google/trillian/util/clock"
-	"github.com/kylelemons/godebug/pretty"
 	"go.etcd.io/etcd/clientv3"
 )
 
@@ -207,7 +208,7 @@ func TestQuotaStorage_UpdateConfigs(t *testing.T) {
 			continue
 		}
 		if got, want := cfgs, test.wantCfgs; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-UpdateConfigs() diff (-got +want)\n%v", test.desc, diff)
 		}
 
@@ -217,7 +218,7 @@ func TestQuotaStorage_UpdateConfigs(t *testing.T) {
 			continue
 		}
 		if got, want := stored, cfgs; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-Configs() diff (-got +want)\n%v", test.desc, diff)
 		}
 
@@ -413,7 +414,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 				return
 			}
 			if got := stored; !proto.Equal(got, want) {
-				diff := pretty.Compare(got, want)
+				diff := cmp.Diff(got, want)
 				t.Fatalf("post-Configs() diff (-got +want)\n%v", diff)
 			}
 		})
@@ -925,7 +926,7 @@ func peekAndDiff(ctx context.Context, qs *QuotaStorage, want map[string]int64) e
 	if err != nil {
 		return err
 	}
-	if diff := pretty.Compare(got, want); diff != "" {
+	if diff := cmp.Diff(got, want, cmpopts.EquateEmpty()); diff != "" {
 		return fmt.Errorf("post-Peek() diff (-got +want):\n%v", diff)
 	}
 	return nil

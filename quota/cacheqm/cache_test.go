@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/testonly/matchers"
-	"github.com/kylelemons/godebug/pretty"
 )
 
 const (
@@ -88,7 +88,7 @@ func TestCachedManager_PeekTokens(t *testing.T) {
 		}
 
 		tokens, err := qm.PeekTokens(ctx, specs)
-		if diff := pretty.Compare(tokens, test.wantTokens); diff != "" {
+		if diff := cmp.Diff(tokens, test.wantTokens); diff != "" {
 			t.Errorf("%v: post-PeekTokens() diff (-got +want):\n%v", test.desc, diff)
 		}
 		if err != test.wantErr {

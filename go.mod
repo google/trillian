@@ -36,7 +36,6 @@ require (
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/kylelemons/godebug v1.1.0
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
 	github.com/lib/pq v1.5.2
 	github.com/mattn/go-colorable v0.1.4 // indirect

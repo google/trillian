@@ -28,11 +28,11 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/types"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -1151,7 +1151,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	want := []int64{log1.TreeId, log2.TreeId, log3.TreeId, drainingLog.TreeId}
 	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
 	sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
-	if diff := pretty.Compare(got, want); diff != "" {
+	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("post-GetActiveLogIDs diff (-got +want):\n%v", diff)
 	}
 }

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kylelemons/godebug/pretty"
+	"github.com/google/go-cmp/cmp"
 )
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
@@ -71,7 +71,7 @@ func TestStrataIndex(t *testing.T) {
 	want := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
 
 	layout := NewLayout(heights)
-	if diff := pretty.Compare(layout.sIndex, want); diff != "" {
+	if diff := cmp.Diff(layout.sIndex, want, cmp.AllowUnexported(stratumInfo{})); diff != "" {
 		t.Fatalf("sIndex diff:\n%v", diff)
 	}
 }

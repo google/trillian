@@ -41,7 +41,6 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -188,7 +187,7 @@ func TestServer_ListTrees(t *testing.T) {
 		}
 		for i, wantTree := range want {
 			if !proto.Equal(resp.Tree[i], wantTree) {
-				t.Errorf("%v: post-ListTrees() diff (-got +want):\n%v", test.desc, pretty.Compare(resp.Tree, want))
+				t.Errorf("%v: post-ListTrees() diff (-got +want):\n%v", test.desc, cmp.Diff(resp.Tree, want))
 				break
 			}
 		}
@@ -738,7 +737,7 @@ func TestServer_UpdateTree(t *testing.T) {
 		}
 
 		if !proto.Equal(tree, test.wantTree) {
-			diff := pretty.Compare(tree, test.wantTree)
+			diff := cmp.Diff(tree, test.wantTree)
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
 		}
 	}
@@ -787,7 +786,7 @@ func TestServer_DeleteTree(t *testing.T) {
 		want := proto.Clone(test.tree).(*trillian.Tree)
 		want.PrivateKey = nil // redacted
 		if !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-DeleteTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
@@ -874,7 +873,7 @@ func TestServer_UndeleteTree(t *testing.T) {
 		want := proto.Clone(test.tree).(*trillian.Tree)
 		want.PrivateKey = nil // redacted
 		if !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-UneleteTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
