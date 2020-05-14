@@ -57,7 +57,7 @@ require (
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	github.com/urfave/cli v1.22.1 // indirect
 	go.etcd.io/bbolt v1.3.4 // indirect
-	go.etcd.io/etcd v0.0.0-20200508030026-2333c727a236
+	go.etcd.io/etcd v0.0.0-20200513171258-e048e166ab9c
 	go.opencensus.io v0.22.3
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
@@ -69,7 +69,7 @@ require (
 	golang.org/x/tools v0.0.0-20191118222007-07fc4c7f2b98
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
-	google.golang.org/grpc v1.25.1
+	google.golang.org/grpc v1.26.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/yaml.v2 v2.2.6 // indirect
 )
