@@ -26,7 +26,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/merkle/testonly"
 )
@@ -214,8 +213,7 @@ func TestGoldenRanges(t *testing.T) {
 			if want := roots[size]; !bytes.Equal(hash, want) {
 				t.Errorf("root hash mismatch: got %x, want %x", hash, want)
 			}
-			// TODO(): Remove equate empty
-			if diff := cmp.Diff(cr.Hashes(), hashes[size], cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(cr.Hashes(), hashes[size]); diff != "" {
 				t.Errorf("hashes mismatch:\n%v", diff)
 			}
 		})
