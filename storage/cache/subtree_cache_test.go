@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/merkle/rfc6962"
@@ -28,7 +29,6 @@ import (
 	"github.com/google/trillian/storage/tree"
 
 	"github.com/golang/mock/gomock"
-	"github.com/kylelemons/godebug/pretty"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 )
@@ -272,7 +272,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			if len(s.InternalNodes) != 0 {
 				t.Fatalf("(it %d) internal nodes should be empty but got: %v", numLeaves, s.InternalNodes)
 			}
-		} else if diff := pretty.Compare(cmtStorage.InternalNodes, s.InternalNodes); diff != "" {
+		} else if diff := cmp.Diff(cmtStorage.InternalNodes, s.InternalNodes); diff != "" {
 			t.Fatalf("(it %d) CMT/sparse internal nodes diff:\n%v", numLeaves, diff)
 		}
 	}

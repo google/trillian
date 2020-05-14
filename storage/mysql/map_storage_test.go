@@ -25,13 +25,13 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-	"github.com/kylelemons/godebug/pretty"
 
 	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
@@ -204,7 +204,7 @@ func TestMapRootUpdate(t *testing.T) {
 				}
 
 				if got, want := root.Metadata, tc.wantMetadata; !bytes.Equal(got, want) {
-					t.Errorf("%v: LatestSignedMapRoot() diff(-got, +want) \n%v", tc.desc, pretty.Compare(got, want))
+					t.Errorf("%v: LatestSignedMapRoot() diff(-got, +want) \n%v", tc.desc, cmp.Diff(got, want))
 				}
 				return nil
 			})

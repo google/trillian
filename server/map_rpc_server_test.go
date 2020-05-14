@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
@@ -29,7 +30,6 @@ import (
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -227,7 +227,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			}
 			want := &trillian.GetSignedMapRootResponse{MapRoot: test.mapRoot}
 			if got := smrResp; !proto.Equal(got, want) {
-				diff := pretty.Compare(got, want)
+				diff := cmp.Diff(got, want)
 				t.Errorf("GetSignedMapRoot() got != want, diff:\n%v", diff)
 			}
 		})
@@ -335,7 +335,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			}
 			want := &trillian.GetSignedMapRootResponse{MapRoot: test.mapRoot}
 			if got := smrResp; !proto.Equal(got, want) {
-				diff := pretty.Compare(got, want)
+				diff := cmp.Diff(got, want)
 				t.Errorf("GetSignedMapRootByRevision() got != want, diff:\n%v", diff)
 			}
 		})

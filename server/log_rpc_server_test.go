@@ -35,7 +35,6 @@ import (
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -502,7 +501,7 @@ func TestQueueLeaves(t *testing.T) {
 		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status.Code, code.Code_OK)
 	}
 	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
-		diff := pretty.Compare(queueRequest0.Leaves[0], queuedLeaf.Leaf)
+		diff := cmp.Diff(queueRequest0.Leaves[0], queuedLeaf.Leaf)
 		t.Errorf("post-QueueLeaves() diff:\n%v", diff)
 	}
 
@@ -523,7 +522,7 @@ func TestQueueLeaves(t *testing.T) {
 		t.Errorf("QueueLeaves().Status=%v,nil; want %v,nil", sc, code.Code_ALREADY_EXISTS)
 	}
 	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
-		diff := pretty.Compare(queueRequest0.Leaves[0], queuedLeaf.Leaf)
+		diff := cmp.Diff(queueRequest0.Leaves[0], queuedLeaf.Leaf)
 		t.Errorf("post-QueueLeaves() diff:\n%v", diff)
 	}
 }

@@ -18,9 +18,9 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storagepb"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
 )
 
@@ -178,7 +178,7 @@ func TestApplyMask(t *testing.T) {
 	for _, test := range tests {
 		applyMask(test.src, test.dest, test.mask)
 		if !proto.Equal(test.dest, test.want) {
-			t.Errorf("%v: post-applyMask() diff (-got +want):\n%v", test.desc, pretty.Compare(test.dest, test.want))
+			t.Errorf("%v: post-applyMask() diff (-got +want):\n%v", test.desc, cmp.Diff(test.dest, test.want))
 		}
 	}
 }
@@ -207,10 +207,10 @@ func TestConvert_APIAndStorage(t *testing.T) {
 	}
 	for _, test := range tests {
 		if got, want := convertToAPI(test.storage), test.api; !proto.Equal(got, want) {
-			t.Errorf("%v: post-convertToAPI() diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
+			t.Errorf("%v: post-convertToAPI() diff (-got +want):\n%v", test.desc, cmp.Diff(got, want))
 		}
 		if got, want := convertToStorage(test.api), test.storage; !proto.Equal(got, want) {
-			t.Errorf("%v: post-convertToStorage() diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
+			t.Errorf("%v: post-convertToStorage() diff (-got +want):\n%v", test.desc, cmp.Diff(got, want))
 		}
 	}
 }

@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -231,7 +230,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		want.CreateTime = tree.CreateTime
 		want.UpdateTime = tree.UpdateTime
 		if !proto.Equal(tree, want) {
-			diff := pretty.Compare(tree, want)
+			diff := cmp.Diff(tree, want)
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
 		}
 	}
@@ -379,7 +378,7 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 		want.Deleted = true
 		want.DeleteTime = deletedTree.DeleteTime
 		if got := deletedTree; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-DeleteTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 
@@ -388,7 +387,7 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 			t.Fatalf("%v: GetTree() returned err = %v", test.desc, err)
 		}
 		if got, want := storedTree, deletedTree; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-GetTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
@@ -470,7 +469,7 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 			continue
 		}
 		if got, want := undeletedTree, createdTree; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-UndeleteTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 
@@ -479,7 +478,7 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 			t.Fatalf("%v: GetTree() returned err = %v", test.desc, err)
 		}
 		if got, want := storedTree, createdTree; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
+			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-GetTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}

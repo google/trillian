@@ -23,17 +23,18 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -323,7 +324,7 @@ func TestGetTree(t *testing.T) {
 		}
 
 		if !proto.Equal(tree, test.wantTree) {
-			diff := pretty.Compare(tree, test.wantTree)
+			diff := cmp.Diff(tree, test.wantTree)
 			t.Errorf("%v: post-GetTree diff:\n%v", test.desc, diff)
 		}
 	}
@@ -442,7 +443,7 @@ func TestSigner(t *testing.T) {
 			}
 
 			want := tcrypto.NewSigner(0, test.signer, crypto.SHA256)
-			if diff := pretty.Compare(signer, want); diff != "" {
+			if diff := cmp.Diff(signer, want, cmp.Comparer(func(a, b *big.Int) bool { return a.Cmp(b) == 0 })); diff != "" {
 				t.Fatalf("post-Signer(_, %s) diff:\n%v", test.sigAlgo, diff)
 			}
 		})

@@ -22,11 +22,11 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/testonly/integration/etcd"
-	"github.com/kylelemons/godebug/pretty"
 	"go.etcd.io/etcd/clientv3"
 )
 
@@ -200,7 +200,7 @@ func TestManager_PeekTokens(t *testing.T) {
 			t.Errorf("%v: PeekTokens() returned err = %v", test.desc, err)
 			continue
 		}
-		if diff := pretty.Compare(tokens, test.want); diff != "" {
+		if diff := cmp.Diff(tokens, test.want); diff != "" {
 			t.Errorf("%v: post-PeekTokens() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
@@ -286,7 +286,7 @@ func TestManager_ResetQuota(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v: PeekTokens() returned err = %v", test.desc, err)
 		}
-		if diff := pretty.Compare(tokens, test.want); diff != "" {
+		if diff := cmp.Diff(tokens, test.want); diff != "" {
 			t.Errorf("%v: post-PeekTokens() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}

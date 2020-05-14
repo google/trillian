@@ -27,13 +27,13 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
-	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -230,7 +230,7 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 			// Ignore storage_settings changes (OK to vary between implementations)
 			wantTree.StorageSettings = newTree.StorageSettings
 			if !proto.Equal(newTree, wantTree) {
-				diff := pretty.Compare(newTree, &wantTree)
+				diff := cmp.Diff(newTree, &wantTree)
 				t.Errorf("%v: post-CreateTree diff:\n%v", test.desc, diff)
 				return
 			}
@@ -396,7 +396,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 			t.StorageSettings = updatedTree.StorageSettings
 		})
 		if !proto.Equal(updatedTree, wantTree) {
-			diff := pretty.Compare(updatedTree, wantTree)
+			diff := cmp.Diff(updatedTree, wantTree)
 			t.Errorf("%v: updatedTree doesn't match wantTree:\n%s", test.desc, diff)
 		}
 
@@ -457,7 +457,7 @@ func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, include
 
 	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
 	sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
-	if diff := pretty.Compare(got, want); diff != "" {
+	if diff := cmp.Diff(got, want); diff != "" {
 		return fmt.Errorf("post-ListTreeIDs() diff (-got +want):\n%v", diff)
 	}
 	return nil
@@ -479,7 +479,7 @@ func runListTreesTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDe
 
 	for i, wantTree := range want {
 		if !proto.Equal(got[i], wantTree) {
-			return fmt.Errorf("post-ListTrees() diff (-got +want):\n%v", pretty.Compare(got, want))
+			return fmt.Errorf("post-ListTrees() diff (-got +want):\n%v", cmp.Diff(got, want))
 		}
 	}
 	return nil
@@ -515,7 +515,7 @@ func (tester *AdminStorageTester) TestSoftDeleteTree(t *testing.T) {
 		wantTree.Deleted = true
 		wantTree.DeleteTime = deletedTree.DeleteTime
 		if got, want := deletedTree, wantTree; !proto.Equal(got, want) {
-			t.Errorf("%v: post-SoftDeleteTree diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
+			t.Errorf("%v: post-SoftDeleteTree diff (-got +want):\n%v", test.desc, cmp.Diff(got, want))
 		}
 
 		if err := assertStoredTree(ctx, s, deletedTree); err != nil {
@@ -619,7 +619,7 @@ func (tester *AdminStorageTester) TestUndeleteTree(t *testing.T) {
 		want.Deleted = false
 		want.DeleteTime = nil
 		if got := tree; !proto.Equal(got, want) {
-			t.Errorf("%v: post-UndeleteTree diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
+			t.Errorf("%v: post-UndeleteTree diff (-got +want):\n%v", test.desc, cmp.Diff(got, want))
 		}
 
 		if err := assertStoredTree(ctx, s, tree); err != nil {
@@ -708,7 +708,7 @@ func assertStoredTree(ctx context.Context, s storage.AdminStorage, want *trillia
 		return fmt.Errorf("GetTree() returned err = %v", err)
 	}
 	if !proto.Equal(got, want) {
-		return fmt.Errorf("post-GetTree() diff (-got +want):\n%v", pretty.Compare(got, want))
+		return fmt.Errorf("post-GetTree() diff (-got +want):\n%v", cmp.Diff(got, want))
 	}
 	return nil
 }
