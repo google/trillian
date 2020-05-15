@@ -373,7 +373,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		if createdTree.TreeId != updatedTree.TreeId {
 			t.Errorf("%v: TreeId = %v, want = %v", test.desc, updatedTree.TreeId, createdTree.TreeId)
 		}
-		if !reflect.DeepEqual(createdTree.CreateTime, updatedTree.CreateTime) {
+		if !proto.Equal(createdTree.CreateTime, updatedTree.CreateTime) {
 			t.Errorf("%v: CreateTime = %v, want = %v", test.desc, updatedTree.CreateTime, createdTree.CreateTime)
 		}
 		createUpdateTime, err := ptypes.Timestamp(createdTree.UpdateTime)

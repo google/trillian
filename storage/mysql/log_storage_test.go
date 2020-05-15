@@ -927,7 +927,7 @@ func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
 		k := sha256.Sum256([]byte(g.String()))
 		got[string(k[:])] = g
 	}
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, cmp.Comparer(proto.Equal)); diff != "" {
 		t.Errorf("leaves not equivalent: diff -want,+got:\n%v", diff)
 	}
 }
