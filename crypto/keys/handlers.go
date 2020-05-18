@@ -44,7 +44,7 @@ var (
 func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
 	handlersMu.Lock()
 	defer handlersMu.Unlock()
-	keyProtoType := proto.MessageV2(keyProto).ProtoReflect().Descriptor().FullName()
+	keyProtoType := proto.MessageReflect(keyProto).Descriptor().FullName()
 
 	if _, alreadyExists := handlers[keyProtoType]; alreadyExists {
 		glog.Warningf("Overridding ProtoHandler for protobuf %q", keyProtoType)
@@ -58,7 +58,7 @@ func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
 func UnregisterHandler(keyProto proto.Message) {
 	handlersMu.Lock()
 	defer handlersMu.Unlock()
-	delete(handlers, proto.MessageV2(keyProto).ProtoReflect().Descriptor().FullName())
+	delete(handlers, proto.MessageReflect(keyProto).Descriptor().FullName())
 }
 
 // NewSigner uses a registered ProtoHandler (see RegisterHandler()) to convert a
@@ -68,7 +68,10 @@ func UnregisterHandler(keyProto proto.Message) {
 func NewSigner(ctx context.Context, keyProto proto.Message) (crypto.Signer, error) {
 	handlersMu.RLock()
 	defer handlersMu.RUnlock()
-	keyProtoType := proto.MessageV2(keyProto).ProtoReflect().Descriptor().FullName()
+	if keyProto == nil {
+		return nil, fmt.Errorf("nil keyProto")
+	}
+	keyProtoType := proto.MessageReflect(keyProto).Descriptor().FullName()
 
 	if handler, ok := handlers[keyProtoType]; ok {
 		return handler(ctx, keyProto)
