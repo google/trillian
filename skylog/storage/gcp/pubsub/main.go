@@ -22,7 +22,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	pb "github.com/google/trillian/skylog/storage/gcp/gcppb"
 	"golang.org/x/time/rate"
 )
