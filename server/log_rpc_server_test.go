@@ -2300,9 +2300,9 @@ type storageParams struct {
 }
 
 func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
-	tree := *stestonly.LogTree
+	tree := proto.Clone(stestonly.LogTree).(*trillian.Tree)
 	if params.preordered {
-		tree = *stestonly.PreorderedLogTree
+		tree = proto.Clone(stestonly.PreorderedLogTree).(*trillian.Tree)
 	}
 	tree.TreeId = params.treeID
 
@@ -2316,7 +2316,7 @@ func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.Adm
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 
 	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(params.numSnapshots).Return(adminTX, params.snapErr)
-	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(&tree, params.treeErr)
+	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(tree, params.treeErr)
 	adminTX.EXPECT().Close().MaxTimes(params.numSnapshots).Return(nil)
 	adminTX.EXPECT().Commit().MaxTimes(params.numSnapshots).Return(nil)
 

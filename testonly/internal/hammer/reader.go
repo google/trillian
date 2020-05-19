@@ -184,11 +184,11 @@ type invalidReadOps struct {
 
 func (o *invalidReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
 	key := testonly.TransparentHash("..invalid-size")
-	req := trillian.GetMapLeavesRequest{
+	req := &trillian.GetMapLeavesRequest{
 		MapId: o.mapID,
 		Index: [][]byte{key[2:]},
 	}
-	rsp, err := o.client.GetLeaves(ctx, &req)
+	rsp, err := o.client.GetLeaves(ctx, req)
 	if err == nil {
 		return fmt.Errorf("unexpected success: get-leaves(MalformedKey: %+v): %+v", req, rsp.MapRoot)
 	}
@@ -199,7 +199,7 @@ func (o *invalidReadOps) getLeaves(ctx context.Context, prng *rand.Rand) error {
 func (o *invalidReadOps) getLeavesRev(ctx context.Context, prng *rand.Rand) error {
 	choices := []Choice{MalformedKey, RevTooBig, RevIsNegative}
 
-	req := trillian.GetMapLeavesByRevisionRequest{MapId: o.mapID}
+	req := &trillian.GetMapLeavesByRevisionRequest{MapId: o.mapID}
 	contents := o.prevContents.LastCopy()
 	choice := choices[prng.Intn(len(choices))]
 
@@ -224,7 +224,7 @@ func (o *invalidReadOps) getLeavesRev(ctx context.Context, prng *rand.Rand) erro
 		req.Index = [][]byte{index}
 		req.Revision = -rev - invalidStretch
 	}
-	rsp, err := o.client.GetLeavesByRevision(ctx, &req)
+	rsp, err := o.client.GetLeavesByRevision(ctx, req)
 	if err == nil {
 		return fmt.Errorf("unexpected success: get-leaves-rev(%v: %+v): %+v", choice, req, rsp.MapRoot)
 	}

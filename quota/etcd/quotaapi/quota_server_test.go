@@ -25,7 +25,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/quotapb"
@@ -38,6 +37,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -417,7 +417,7 @@ func TestServer_UpdateConfig_ConcurrentUpdates(t *testing.T) {
 	for _, cfg := range configs {
 		for num := 0; num < routinesPerConfig; num++ {
 			wg.Add(1)
-			go func(num int, want quotapb.Config) {
+			go func(num int, want *quotapb.Config) {
 				defer wg.Done()
 				baseTokens := 1 + rand.Intn(routinesPerConfig*100)
 				reset := num%2 == 0
@@ -436,12 +436,12 @@ func TestServer_UpdateConfig_ConcurrentUpdates(t *testing.T) {
 
 					want.CurrentTokens = got.CurrentTokens // Not important for this test
 					want.MaxTokens = tokens
-					if !proto.Equal(got, &want) {
+					if !proto.Equal(got, want) {
 						diff := cmp.Diff(got, &want, cmp.Comparer(proto.Equal))
 						t.Errorf("%v: post-UpdateConfig() diff (-got +want):\n%v", want.Name, diff)
 					}
 				}
-			}(num, *cfg)
+			}(num, proto.Clone(cfg).(*quotapb.Config))
 		}
 	}
 	wg.Wait()
