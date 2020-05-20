@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS Trees(
   TreeType              ENUM('LOG', 'MAP', 'PREORDERED_LOG') NOT NULL,
   HashStrategy          ENUM('RFC6962_SHA256', 'TEST_MAP_HASHER', 'OBJECT_RFC6962_SHA256', 'CONIKS_SHA512_256', 'CONIKS_SHA256') NOT NULL,
   HashAlgorithm         ENUM('SHA256') NOT NULL,
-  SignatureAlgorithm    ENUM('ECDSA', 'RSA') NOT NULL,
+  SignatureAlgorithm    ENUM('ECDSA', 'RSA', 'ED25519') NOT NULL,
   DisplayName           VARCHAR(20),
   Description           VARCHAR(200),
   CreateTimeMillis      BIGINT NOT NULL,
