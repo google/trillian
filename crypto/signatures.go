@@ -31,7 +31,7 @@ func SignatureAlgorithm(k gocrypto.PublicKey) sigpb.DigitallySigned_SignatureAlg
 		return sigpb.DigitallySigned_ECDSA
 	case *rsa.PublicKey:
 		return sigpb.DigitallySigned_RSA
-	case *ed25519.PublicKey:
+	case ed25519.PublicKey:
 		return sigpb.DigitallySigned_ED25519
 	}
 
