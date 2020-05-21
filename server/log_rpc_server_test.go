@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
@@ -2300,9 +2300,9 @@ type storageParams struct {
 }
 
 func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
-	tree := *stestonly.LogTree
+	tree := proto.Clone(stestonly.LogTree).(*trillian.Tree)
 	if params.preordered {
-		tree = *stestonly.PreorderedLogTree
+		tree = proto.Clone(stestonly.PreorderedLogTree).(*trillian.Tree)
 	}
 	tree.TreeId = params.treeID
 
@@ -2316,7 +2316,7 @@ func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.Adm
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 
 	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(params.numSnapshots).Return(adminTX, params.snapErr)
-	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(&tree, params.treeErr)
+	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(tree, params.treeErr)
 	adminTX.EXPECT().Close().MaxTimes(params.numSnapshots).Return(nil)
 	adminTX.EXPECT().Commit().MaxTimes(params.numSnapshots).Return(nil)
 

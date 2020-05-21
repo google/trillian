@@ -29,13 +29,15 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/rpcflags"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
 var (
@@ -57,28 +59,28 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 	paths := make([]string, 0)
 
 	if len(*treeState) > 0 {
-		m := proto.EnumValueMap("trillian.TreeState")
-		if m == nil {
-			return nil, fmt.Errorf("can't find enum value map for states")
+		m, err := protoregistry.GlobalTypes.FindEnumByName("trillian.TreeState")
+		if err != nil {
+			return nil, fmt.Errorf("can't find enum value map for states: %w", err)
 		}
-		newState, ok := m[*treeState]
-		if !ok {
+		newState := m.Descriptor().Values().ByName(protoreflect.Name(*treeState))
+		if newState == nil {
 			return nil, fmt.Errorf("invalid tree state: %v", *treeState)
 		}
-		tree.TreeState = trillian.TreeState(newState)
+		tree.TreeState = trillian.TreeState(newState.Number())
 		paths = append(paths, "tree_state")
 	}
 
 	if len(*treeType) > 0 {
-		m := proto.EnumValueMap("trillian.TreeType")
-		if m == nil {
-			return nil, fmt.Errorf("can't find enum value map for types")
+		m, err := protoregistry.GlobalTypes.FindEnumByName("trillian.TreeType")
+		if err != nil {
+			return nil, fmt.Errorf("can't find enum value map for types: %w", err)
 		}
-		newType, ok := m[*treeType]
-		if !ok {
+		newType := m.Descriptor().Values().ByName(protoreflect.Name(*treeType))
+		if newType == nil {
 			return nil, fmt.Errorf("invalid tree type: %v", *treeType)
 		}
-		tree.TreeType = trillian.TreeType(newType)
+		tree.TreeType = trillian.TreeType(newType.Number())
 		paths = append(paths, "tree_type")
 	}
 

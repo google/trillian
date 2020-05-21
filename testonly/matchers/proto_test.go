@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	_ "github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 )
 

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"

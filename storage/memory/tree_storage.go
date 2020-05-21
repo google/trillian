@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/btree"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"

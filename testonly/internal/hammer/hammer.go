@@ -552,8 +552,8 @@ func (w *writeWorker) setLeavesInvalid(ctx context.Context, prng *rand.Rand) err
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 	}
-	req := trillian.WriteMapLeavesRequest{MapId: w.mapID, Leaves: leaves}
-	rsp, err := w.s.cfg.Write.WriteLeaves(ctx, &req)
+	req := &trillian.WriteMapLeavesRequest{MapId: w.mapID, Leaves: leaves}
+	rsp, err := w.s.cfg.Write.WriteLeaves(ctx, req)
 	if err == nil {
 		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.Revision)
 	}

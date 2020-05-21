@@ -23,7 +23,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/spanner"
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/skylog/core"

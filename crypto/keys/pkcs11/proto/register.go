@@ -22,7 +22,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pkcs11"
 	"github.com/google/trillian/crypto/keyspb"
