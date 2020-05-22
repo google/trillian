@@ -430,7 +430,7 @@ func TestReferenceMerklePathSanity(t *testing.T) {
 		}
 
 		for i := int64(0); i < path.pathLength; i++ {
-			if (bytes.Compare(referencePath[i], decodeHexStringOrPanic(path.testVector[i]))) != 0 {
+			if !bytes.Equal(referencePath[i], decodeHexStringOrPanic(path.testVector[i])) {
 				t.Errorf("Path mismatch: %s, %s", hex.EncodeToString(referencePath[i]),
 					path.testVector[i])
 			}
