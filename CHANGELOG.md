@@ -77,6 +77,10 @@ The cloudspanner storage is supported for logs only, while the Map storage API
 is being polished and decoupled from the log storage API. We may return the
 support when the new API is tested.
 
+Support for storage of Ed25519 signatures has been added to the mysql and
+postgres storage drivers (only applicable in new installations) and bugs 
+preventing correct usage of that algorithm have been fixed.
+
 ### Quota
 
 #### New Features
