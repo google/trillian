@@ -4,9 +4,8 @@ go 1.13
 
 require (
 	bitbucket.org/creachadair/shell v0.0.6
-	cloud.google.com/go v0.48.0 // indirect
-	cloud.google.com/go/pubsub v1.1.0
-	cloud.google.com/go/spanner v1.1.0
+	cloud.google.com/go/pubsub v1.3.1
+	cloud.google.com/go/spanner v1.6.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.0
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
@@ -22,7 +21,6 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
 	github.com/google/btree v1.0.0
@@ -34,7 +32,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.12.1 // indirect
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
-	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
 	github.com/lib/pq v1.6.0
@@ -61,11 +58,10 @@ require (
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
-	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
+	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	golang.org/x/sys v0.0.0-20200523222454-059865788121
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	golang.org/x/tools v0.0.0-20200426102838-f3a5411a4c3b
-	google.golang.org/appengine v1.6.5 // indirect
+	golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0
