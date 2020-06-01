@@ -66,9 +66,9 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	golang.org/x/tools v0.0.0-20200426102838-f3a5411a4c3b
 	google.golang.org/appengine v1.6.5 // indirect
-	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.23.0
+	google.golang.org/protobuf v1.24.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/yaml.v2 v2.2.6 // indirect
 )
