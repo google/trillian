@@ -37,7 +37,7 @@ require (
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
-	github.com/lib/pq v1.5.2
+	github.com/lib/pq v1.6.0
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mattn/go-runewidth v0.0.6 // indirect
@@ -60,7 +60,7 @@ require (
 	go.opencensus.io v0.22.3
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
-	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
+	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/sys v0.0.0-20200202164722-d101bd2416d5
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
