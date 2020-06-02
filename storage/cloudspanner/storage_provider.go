@@ -28,6 +28,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -76,7 +77,6 @@ type cloudSpannerProvider struct {
 
 func configFromFlags() spanner.ClientConfig {
 	r := spanner.ClientConfig{}
-	setIntIfNotDefault(&r.NumChannels, *csNumChannels)
 	setUint64IfNotDefault(&r.SessionPoolConfig.MaxOpened, *csSessionMaxOpened)
 	setUint64IfNotDefault(&r.SessionPoolConfig.MinOpened, *csSessionMinOpened)
 	setUint64IfNotDefault(&r.SessionPoolConfig.MaxIdle, *csSessionMaxIdle)
@@ -87,6 +87,14 @@ func configFromFlags() spanner.ClientConfig {
 	return r
 }
 
+func optionsFromFlags() []option.ClientOption {
+	opts := []option.ClientOption{}
+	if numConns := *csNumChannels; numConns != 0 {
+		opts = append(opts, option.WithGRPCConnectionPool(numConns))
+	}
+	return opts
+}
+
 func newCloudSpannerStorageProvider(_ monitoring.MetricFactory) (storage.Provider, error) {
 	csMu.Lock()
 	defer csMu.Unlock()
@@ -95,7 +103,7 @@ func newCloudSpannerStorageProvider(_ monitoring.MetricFactory) (storage.Provide
 		return csStorageInstance, nil
 	}
 
-	client, err := spanner.NewClientWithConfig(context.TODO(), *csURI, configFromFlags())
+	client, err := spanner.NewClientWithConfig(context.TODO(), *csURI, configFromFlags(), optionsFromFlags()...)
 	if err != nil {
 		return nil, err
 	}
