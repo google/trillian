@@ -14,7 +14,11 @@
 
 package smt
 
-import "github.com/google/trillian/storage/tree"
+import (
+	"errors"
+
+	"github.com/google/trillian/storage/tree"
+)
 
 // Tile represents a sparse Merkle tree tile, i.e. a dense set of tree nodes
 // located under a single "root" node at a distance not exceeding the tile
@@ -35,6 +39,35 @@ import "github.com/google/trillian/storage/tree"
 type Tile struct {
 	ID     tree.NodeID2
 	Leaves []Node
+}
+
+// Merge returns a new tile which is a combination of this tile with the given
+// updates. The resulting tile contains all the nodes from the updates tile,
+// and all the nodes from the original tile not present in the updates.
+func (t Tile) Merge(updates Tile) (Tile, error) {
+	if t.ID != updates.ID {
+		return Tile{}, errors.New("tile IDs mismatch")
+	}
+	return Tile{ID: t.ID, Leaves: merge(t.Leaves, updates.Leaves)}, nil
+}
+
+// merge merges two sorted slices of nodes into one sorted slice. If a node ID
+// exists in both slices, then the one from the updates slice is taken, i.e. it
+// overrides the node from the nodes slice.
+func merge(nodes, updates []Node) []Node {
+	res := make([]Node, 0, len(nodes)+len(updates))
+	i := 0
+	for _, u := range updates {
+		for ; i < len(nodes); i++ {
+			if c := compareHorizontal(nodes[i].ID, u.ID); c < 0 {
+				res = append(res, nodes[i])
+			} else if c > 0 {
+				break
+			}
+		}
+		res = append(res, u)
+	}
+	return append(res, nodes[i:]...)
 }
 
 // scan visits all non-empty nodes of the tile except the root. The order of

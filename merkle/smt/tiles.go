@@ -65,7 +65,6 @@ func (t *TileSet) Add(tile Tile) error {
 type TileSetMutation struct {
 	read  *TileSet
 	tiles map[tree.NodeID2][]Node
-	dirty map[tree.NodeID2]bool
 }
 
 // NewTileSetMutation creates a mutation which is based off the provided
@@ -73,8 +72,7 @@ type TileSetMutation struct {
 // this set, and is applied if it does change the hash.
 func NewTileSetMutation(ts *TileSet) *TileSetMutation {
 	tiles := make(map[tree.NodeID2][]Node)
-	dirty := make(map[tree.NodeID2]bool)
-	return &TileSetMutation{read: ts, tiles: tiles, dirty: dirty}
+	return &TileSetMutation{read: ts, tiles: tiles}
 }
 
 // Set updates the hash of the given tree node. Not thread-safe.
@@ -89,37 +87,29 @@ func (t *TileSetMutation) Set(id tree.NodeID2, hash []byte) {
 		return // Not a leaf node of a tile.
 	}
 	if bytes.Equal(t.read.hashes[id], hash) {
-		// TODO(pavelkalinnikov): Consider checking the dirty state.
 		return // Nothing changed.
 	}
 	t.tiles[root] = append(t.tiles[root], Node{ID: id, Hash: hash})
-	t.dirty[id] = true
 }
 
 // Build returns the full set of tiles modified by this mutation.
 func (t *TileSetMutation) Build() ([]Tile, error) {
 	res := make([]Tile, 0, len(t.tiles))
 	for id, upd := range t.tiles {
+		sort.Slice(upd, func(i, j int) bool {
+			return compareHorizontal(upd[i].ID, upd[j].ID) < 0
+		})
+		updates := Tile{ID: id, Leaves: upd}
 		had, ok := t.read.tiles[id]
 		if !ok {
-			sort.Slice(upd, func(i, j int) bool {
-				return compareHorizontal(upd[i].ID, upd[j].ID) < 0
-			})
-			res = append(res, Tile{ID: id, Leaves: upd})
+			res = append(res, updates)
 			continue
 		}
-		leaves := make([]Node, len(upd), len(upd)+len(had))
-		copy(leaves, upd)
-		for _, u := range had {
-			if !t.dirty[u.ID] {
-				leaves = append(leaves, u)
-			}
+		tile, err := Tile{ID: id, Leaves: had}.Merge(updates)
+		if err != nil {
+			return nil, err
 		}
-		// TODO(pavelkalinnikov): Introduce a Tile merge operation.
-		sort.Slice(leaves, func(i, j int) bool {
-			return compareHorizontal(leaves[i].ID, leaves[j].ID) < 0
-		})
-		res = append(res, Tile{ID: id, Leaves: leaves})
+		res = append(res, tile)
 	}
 	return res, nil
 }
