@@ -40,7 +40,7 @@ func Prepare(nodes []Node, depth uint) error {
 		}
 	}
 	sort.Slice(nodes, func(i, j int) bool {
-		return compareHorizontal(nodes[i].ID, nodes[j].ID)
+		return compareHorizontal(nodes[i].ID, nodes[j].ID) < 0
 	})
 	for i, last := 0, len(nodes)-1; i < last; i++ {
 		if id := nodes[i].ID; id == nodes[i+1].ID {
@@ -50,13 +50,20 @@ func Prepare(nodes []Node, depth uint) error {
 	return nil
 }
 
-// compareHorizontal returns whether the first node ID is to the left from the
-// second one. The result only makes sense for IDs at the same tree level.
-func compareHorizontal(a, b tree.NodeID2) bool {
+// compareHorizontal compares relative position of two node IDs at the same
+// tree level. Returns -1 if the first node is to the left from the second one,
+// 1 if the first node is to the right, and 0 if IDs are the same. The result
+// is undefined if nodes are not at the same level.
+func compareHorizontal(a, b tree.NodeID2) int {
 	if res := strings.Compare(a.FullBytes(), b.FullBytes()); res != 0 {
-		return res < 0
+		return res
 	}
 	aLast, _ := a.LastByte()
 	bLast, _ := b.LastByte()
-	return aLast < bLast
+	if aLast == bLast {
+		return 0
+	} else if aLast < bLast {
+		return -1
+	}
+	return 1
 }
