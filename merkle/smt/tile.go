@@ -22,8 +22,16 @@ import "github.com/google/trillian/storage/tree"
 // contains the list of non-empty leaf nodes, which can be used to reconstruct
 // all the remaining inner nodes of the tile.
 //
-// TODO(pavelkalinnikov): Make Tile immutable.
-// TODO(pavelkalinnikov): Introduce invariants on the order/content of Leaves.
+// Invariants of this structure that must be preserved at all times:
+//  - ID is a prefix of Leaves' IDs, i.e. the nodes are in the same subtree.
+//  - IDs of Leaves have the same length, i.e. the nodes are at the same level.
+//  - Leaves are ordered by ID from left to right.
+//  - IDs of Leaves are unique.
+//
+// Algorithms that create Tile structures must ensure that these invariants
+// hold. Use smt.Prepare function to help ordering nodes.
+//
+// TODO(pavelkalinnikov): Add SortedNodes type to statically "assert" order.
 type Tile struct {
 	ID     tree.NodeID2
 	Leaves []Node

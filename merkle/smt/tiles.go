@@ -17,6 +17,7 @@ package smt
 import (
 	"bytes"
 	"fmt"
+	"sort"
 
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
@@ -77,6 +78,10 @@ func NewTileSetMutation(ts *TileSet) *TileSetMutation {
 }
 
 // Set updates the hash of the given tree node. Not thread-safe.
+//
+// TODO(pavelkalinnikov): Elaborate on the expected order of Set calls.
+// Currently, Build method sorts nodes to allow any order, but it can be
+// avoided.
 func (t *TileSetMutation) Set(id tree.NodeID2, hash []byte) {
 	root := t.read.layout.GetTileRootID(id)
 	height := uint(t.read.layout.TileHeight(int(root.BitLen())))
@@ -97,6 +102,9 @@ func (t *TileSetMutation) Build() ([]Tile, error) {
 	for id, upd := range t.tiles {
 		had, ok := t.read.tiles[id]
 		if !ok {
+			sort.Slice(upd, func(i, j int) bool {
+				return compareHorizontal(upd[i].ID, upd[j].ID) < 0
+			})
 			res = append(res, Tile{ID: id, Leaves: upd})
 			continue
 		}
@@ -108,7 +116,9 @@ func (t *TileSetMutation) Build() ([]Tile, error) {
 			}
 		}
 		// TODO(pavelkalinnikov): Introduce a Tile merge operation.
-		// TODO(pavelkalinnikov): Sort leaves when the invariant is introduced.
+		sort.Slice(leaves, func(i, j int) bool {
+			return compareHorizontal(leaves[i].ID, leaves[j].ID) < 0
+		})
 		res = append(res, Tile{ID: id, Leaves: leaves})
 	}
 	return res, nil

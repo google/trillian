@@ -107,6 +107,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 		tree.NewNodeID2("\x01\x01", 16),
 		tree.NewNodeID2("\xFF\xFF", 16),
 		tree.NewNodeID2("\x77\x77", 16),
+		tree.NewNodeID2("\x77\x88", 16),
 	}
 	ts := NewTileSet(0, maphasher.Default, l)
 	for _, tile := range []Tile{
@@ -168,9 +169,57 @@ func TestTileSetMutationBuild(t *testing.T) {
 			upd: []Node{{ID: ids[0].Sibling(), Hash: []byte("new_0001")}},
 			want: map[tree.NodeID2][]Node{
 				ids[0].Prefix(8): {
-					{ID: ids[0].Sibling(), Hash: []byte("new_0001")},
 					{ID: ids[0], Hash: []byte("hash_0000")},
+					{ID: ids[0].Sibling(), Hash: []byte("new_0001")},
 					{ID: ids[1], Hash: []byte("hash_0070")},
+				},
+			},
+		},
+		{ // Multiple updates in order.
+			upd: []Node{
+				{ID: ids[0], Hash: []byte("new_0000")},
+				{ID: ids[1], Hash: []byte("new_0001")},
+			},
+			want: map[tree.NodeID2][]Node{
+				ids[0].Prefix(8): {
+					{ID: ids[0], Hash: []byte("new_0000")},
+					{ID: ids[1], Hash: []byte("new_0001")},
+				},
+			},
+		},
+		{ // Multiple updates out of order.
+			upd: []Node{
+				{ID: ids[1], Hash: []byte("new_0001")},
+				{ID: ids[0], Hash: []byte("new_0000")},
+			},
+			want: map[tree.NodeID2][]Node{
+				ids[0].Prefix(8): {
+					{ID: ids[0], Hash: []byte("new_0000")},
+					{ID: ids[1], Hash: []byte("new_0001")},
+				},
+			},
+		},
+		{ // Multiple updates of a non-existing tile in order.
+			upd: []Node{
+				{ID: ids[4], Hash: []byte("new_7777")},
+				{ID: ids[5], Hash: []byte("new_7788")},
+			},
+			want: map[tree.NodeID2][]Node{
+				ids[4].Prefix(8): {
+					{ID: ids[4], Hash: []byte("new_7777")},
+					{ID: ids[5], Hash: []byte("new_7788")},
+				},
+			},
+		},
+		{ // Multiple updates of a non-existing tile out of order.
+			upd: []Node{
+				{ID: ids[5], Hash: []byte("new_7788")},
+				{ID: ids[4], Hash: []byte("new_7777")},
+			},
+			want: map[tree.NodeID2][]Node{
+				ids[4].Prefix(8): {
+					{ID: ids[4], Hash: []byte("new_7777")},
+					{ID: ids[5], Hash: []byte("new_7788")},
 				},
 			},
 		},
