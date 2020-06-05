@@ -19,8 +19,60 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/storage/tree"
 )
+
+func TestNewNodesRow(t *testing.T) {
+	for _, tc := range []struct {
+		desc    string
+		nodes   []Node
+		want    NodesRow
+		wantErr string
+	}{
+		{desc: "empty", want: nil},
+		{
+			desc:    "error-depth",
+			nodes:   []Node{{ID: tree.NewNodeID2("00", 16)}, {ID: tree.NewNodeID2("001", 24)}},
+			wantErr: "invalid depth",
+		},
+		{
+			desc:    "error-dups",
+			nodes:   []Node{{ID: tree.NewNodeID2("01", 16)}, {ID: tree.NewNodeID2("01", 16)}},
+			wantErr: "duplicate ID",
+		},
+		{
+			desc: "sorted",
+			nodes: []Node{
+				{ID: tree.NewNodeID2("01", 16)},
+				{ID: tree.NewNodeID2("00", 16)},
+				{ID: tree.NewNodeID2("02", 16)},
+			},
+			want: []Node{
+				{ID: tree.NewNodeID2("00", 16)},
+				{ID: tree.NewNodeID2("01", 16)},
+				{ID: tree.NewNodeID2("02", 16)},
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			row, err := NewNodesRow(tc.nodes)
+			if err != nil {
+				if tc.wantErr == "" {
+					t.Fatalf("NewNodesRow: want no error, returned: %v", err)
+				}
+				if want := tc.wantErr; !strings.Contains(err.Error(), want) {
+					t.Fatalf("NewNodesRow: got error: %v; want substring %q", err, want)
+				}
+			} else if want := tc.wantErr; want != "" {
+				t.Fatalf("NewNodesRow: got no error; want prefix %q", want)
+			}
+			if d := cmp.Diff(row, tc.want, cmp.AllowUnexported(tree.NodeID2{})); d != "" {
+				t.Errorf("NewNodesRow result mismatch:\n%s", d)
+			}
+		})
+	}
+}
 
 func TestPrepare(t *testing.T) {
 	id1 := tree.NewNodeID2("01234567890000000000000000000001", 256)
@@ -37,6 +89,7 @@ func TestPrepare(t *testing.T) {
 		{desc: "depth-err", nodes: []Node{{ID: id1.Prefix(10)}}, wantErr: "invalid depth"},
 		{desc: "dup-err1", nodes: []Node{{ID: id1}, {ID: id1}}, wantErr: "duplicate ID"},
 		{desc: "dup-err2", nodes: []Node{{ID: id1}, {ID: id2}, {ID: id1}}, wantErr: "duplicate ID"},
+		{desc: "ok-empty", want: nil},
 		{
 			desc:  "ok1",
 			nodes: []Node{{ID: id2}, {ID: id1}, {ID: id4}, {ID: id3}},

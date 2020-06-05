@@ -29,14 +29,14 @@ import (
 // TODO(pavelkalinnikov): Make it immutable.
 type TileSet struct {
 	layout *tree.Layout
-	tiles  map[tree.NodeID2][]Node
+	tiles  map[tree.NodeID2]NodesRow
 	hashes map[tree.NodeID2][]byte
 	h      mapHasher
 }
 
 // NewTileSet creates an empty TileSet with the given tree parameters.
 func NewTileSet(treeID int64, hasher hashers.MapHasher, layout *tree.Layout) *TileSet {
-	tiles := make(map[tree.NodeID2][]Node)
+	tiles := make(map[tree.NodeID2]NodesRow)
 	hashes := make(map[tree.NodeID2][]byte)
 	h := bindHasher(hasher, treeID)
 	return &TileSet{layout: layout, tiles: tiles, hashes: hashes, h: h}
@@ -99,13 +99,12 @@ func (t *TileSetMutation) Build() ([]Tile, error) {
 		sort.Slice(upd, func(i, j int) bool {
 			return compareHorizontal(upd[i].ID, upd[j].ID) < 0
 		})
-		updates := Tile{ID: id, Leaves: upd}
 		had, ok := t.read.tiles[id]
 		if !ok {
-			res = append(res, updates)
+			res = append(res, Tile{ID: id, Leaves: upd})
 			continue
 		}
-		tile, err := Tile{ID: id, Leaves: had}.Merge(updates)
+		tile, err := Tile{ID: id, Leaves: had}.Merge(upd)
 		if err != nil {
 			return nil, err
 		}
