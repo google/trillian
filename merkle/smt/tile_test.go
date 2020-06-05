@@ -38,11 +38,12 @@ func TestTileMerge(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc string
-		was  []Node
-		upd  []Node
-		want []Node
+		was  NodesRow
+		upd  NodesRow
+		want NodesRow
 	}{
-		{desc: "empty", want: []Node{}},
+		{desc: "empty", want: nil},
+		{desc: "no-updates", was: []Node{n(3, "h")}, want: []Node{n(3, "h")}},
 		{desc: "add-to-empty", upd: []Node{n(0, "h")}, want: []Node{n(0, "h")}},
 		{
 			desc: "override-one",
@@ -71,8 +72,7 @@ func TestTileMerge(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			was := Tile{ID: id, Leaves: tc.was}
-			upd := Tile{ID: id, Leaves: tc.upd}
-			got, err := was.Merge(upd)
+			got, err := was.Merge(tc.upd)
 			if err != nil {
 				t.Fatalf("Merge: %v", err)
 			}

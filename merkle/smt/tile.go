@@ -16,6 +16,7 @@ package smt
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/google/trillian/storage/tree"
 )
@@ -33,28 +34,34 @@ import (
 //  - IDs of Leaves are unique.
 //
 // Algorithms that create Tile structures must ensure that these invariants
-// hold. Use smt.Prepare function to help ordering nodes.
-//
-// TODO(pavelkalinnikov): Add SortedNodes type to statically "assert" order.
+// hold. Use NewNodesRow function for ordering nodes correctly.
 type Tile struct {
 	ID     tree.NodeID2
-	Leaves []Node
+	Leaves NodesRow
 }
 
 // Merge returns a new tile which is a combination of this tile with the given
 // updates. The resulting tile contains all the nodes from the updates tile,
 // and all the nodes from the original tile not present in the updates.
-func (t Tile) Merge(updates Tile) (Tile, error) {
-	if t.ID != updates.ID {
-		return Tile{}, errors.New("tile IDs mismatch")
+func (t Tile) Merge(updates NodesRow) (Tile, error) {
+	if len(updates) == 0 {
+		return t, nil
+	} else if len(t.Leaves) == 0 {
+		return Tile{ID: t.ID, Leaves: updates}, nil
 	}
-	return Tile{ID: t.ID, Leaves: merge(t.Leaves, updates.Leaves)}, nil
+	if at, want := updates[0].ID.BitLen(), t.Leaves[0].ID.BitLen(); at != want {
+		return Tile{}, fmt.Errorf("updates are at depth %d, want %d", at, want)
+	}
+	if !updates.inSubtree(t.ID) {
+		return Tile{}, errors.New("updates are not entirely in this tile")
+	}
+	return Tile{ID: t.ID, Leaves: merge(t.Leaves, updates)}, nil
 }
 
 // merge merges two sorted slices of nodes into one sorted slice. If a node ID
 // exists in both slices, then the one from the updates slice is taken, i.e. it
 // overrides the node from the nodes slice.
-func merge(nodes, updates []Node) []Node {
+func merge(nodes, updates NodesRow) NodesRow {
 	res := make([]Node, 0, len(nodes)+len(updates))
 	i := 0
 	for _, u := range updates {

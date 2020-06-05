@@ -28,6 +28,39 @@ type Node struct {
 	Hash []byte
 }
 
+// NodesRow contains nodes at the same tree level sorted by ID from left to
+// right. The IDs of the nodes are unique.
+//
+// TODO(pavelkalinnikov): Hide nodes so that only this package can modify them.
+type NodesRow []Node
+
+// NewNodesRow creates a NodesRow from the given list of nodes. The nodes are
+// reordered in-place if not already sorted.
+func NewNodesRow(nodes []Node) (NodesRow, error) {
+	if len(nodes) == 0 {
+		return nodes, nil
+	}
+	if err := Prepare(nodes, nodes[0].ID.BitLen()); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+// inSubtree returns whether all the nodes in this row are strictly under the
+// node with the given ID. Panics if the row is empty.
+func (n NodesRow) inSubtree(root tree.NodeID2) bool {
+	rootLen := root.BitLen()
+	if n[0].ID.BitLen() <= rootLen {
+		return false
+	}
+	if n[0].ID.Prefix(rootLen) != root {
+		return false
+	}
+	// Note: It is enough to check only the first and the last node ID because
+	// the list is sorted.
+	return len(n) == 1 || n[len(n)-1].ID.Prefix(rootLen) == root
+}
+
 // Prepare sorts the nodes slice for it to be usable by HStar3 algorithm and
 // the sparse Merkle tree Writer. It also verifies that the nodes are placed at
 // the required depth, and there are no duplicate IDs.
