@@ -41,8 +41,8 @@ type Tile struct {
 }
 
 // Merge returns a new tile which is a combination of this tile with the given
-// updates. The resulting tile contains all the nodes from the updates tile,
-// and all the nodes from the original tile not present in the updates.
+// updates. The resulting tile contains all the nodes from the updates, and all
+// the nodes from the original tile not present in the updates.
 func (t Tile) Merge(updates NodesRow) (Tile, error) {
 	if len(updates) == 0 {
 		return t, nil
