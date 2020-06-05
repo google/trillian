@@ -18,9 +18,71 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage/tree"
 )
+
+func TestTileMerge(t *testing.T) {
+	ids := []tree.NodeID2{
+		tree.NewNodeID2("\xAB\x00", 15),
+		tree.NewNodeID2("\xAB\x10", 15),
+		tree.NewNodeID2("\xAB\x20", 15),
+		tree.NewNodeID2("\xAB\x30", 15),
+		tree.NewNodeID2("\xAB\x40", 15),
+	}
+	id := ids[0].Prefix(8)
+	n := func(idIndex int, hash string) Node {
+		return Node{ID: ids[idIndex], Hash: []byte(hash)}
+	}
+
+	for _, tc := range []struct {
+		desc string
+		was  []Node
+		upd  []Node
+		want []Node
+	}{
+		{desc: "empty", want: []Node{}},
+		{desc: "add-to-empty", upd: []Node{n(0, "h")}, want: []Node{n(0, "h")}},
+		{
+			desc: "override-one",
+			was:  []Node{n(0, "old")},
+			upd:  []Node{n(0, "new")},
+			want: []Node{n(0, "new")},
+		},
+		{
+			desc: "add-multiple",
+			was:  []Node{n(0, "old0"), n(3, "old3")},
+			upd:  []Node{n(1, "new1"), n(2, "new2"), n(4, "new4")},
+			want: []Node{n(0, "old0"), n(1, "new1"), n(2, "new2"), n(3, "old3"), n(4, "new4")},
+		},
+		{
+			desc: "override-some",
+			was:  []Node{n(0, "old0"), n(1, "old1"), n(2, "old2"), n(3, "old3")},
+			upd:  []Node{n(1, "new1"), n(2, "new2")},
+			want: []Node{n(0, "old0"), n(1, "new1"), n(2, "new2"), n(3, "old3")},
+		},
+		{
+			desc: "override-and-add",
+			was:  []Node{n(0, "old0"), n(1, "old1"), n(3, "old3"), n(4, "old4")},
+			upd:  []Node{n(1, "new1"), n(2, "new2")},
+			want: []Node{n(0, "old0"), n(1, "new1"), n(2, "new2"), n(3, "old3"), n(4, "old4")},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			was := Tile{ID: id, Leaves: tc.was}
+			upd := Tile{ID: id, Leaves: tc.upd}
+			got, err := was.Merge(upd)
+			if err != nil {
+				t.Fatalf("Merge: %v", err)
+			}
+			want := Tile{ID: id, Leaves: tc.want}
+			if d := cmp.Diff(got, want, cmp.AllowUnexported(tree.NodeID2{})); d != "" {
+				t.Errorf("Merge result mismatch:\n%s", d)
+			}
+		})
+	}
+}
 
 func TestTileScan(t *testing.T) {
 	lo := tree.NewLayout([]int{8, 24})
