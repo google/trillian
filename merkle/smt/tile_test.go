@@ -16,6 +16,7 @@ package smt
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,6 +31,7 @@ func TestTileMerge(t *testing.T) {
 		tree.NewNodeID2("\xAB\x20", 15),
 		tree.NewNodeID2("\xAB\x30", 15),
 		tree.NewNodeID2("\xAB\x40", 15),
+		tree.NewNodeID2("\xAC\x00", 15), // In another tile.
 	}
 	id := ids[0].Prefix(8)
 	n := func(idIndex int, hash string) Node {
@@ -37,10 +39,11 @@ func TestTileMerge(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc string
-		was  NodesRow
-		upd  NodesRow
-		want NodesRow
+		desc    string
+		was     NodesRow
+		upd     NodesRow
+		want    NodesRow
+		wantErr string
 	}{
 		{desc: "empty", want: nil},
 		{desc: "no-updates", was: []Node{n(3, "h")}, want: []Node{n(3, "h")}},
@@ -69,13 +72,34 @@ func TestTileMerge(t *testing.T) {
 			upd:  []Node{n(1, "new1"), n(2, "new2")},
 			want: []Node{n(0, "old0"), n(1, "new1"), n(2, "new2"), n(3, "old3"), n(4, "old4")},
 		},
+		{
+			desc:    "wrong-depth",
+			was:     []Node{n(0, "old")},
+			upd:     []Node{{ID: id}},
+			wantErr: "updates are at depth",
+		},
+		{
+			desc:    "wrong-tile",
+			was:     []Node{n(0, "old")},
+			upd:     []Node{n(5, "new")},
+			wantErr: "updates are not entirely in this tile",
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			was := Tile{ID: id, Leaves: tc.was}
 			got, err := was.Merge(tc.upd)
 			if err != nil {
-				t.Fatalf("Merge: %v", err)
+				if tc.wantErr == "" {
+					t.Fatalf("Merge: want no error, returned: %v", err)
+				}
+				if want := tc.wantErr; !strings.HasPrefix(err.Error(), want) {
+					t.Fatalf("Merge: got error: %v; want prefix %q", err, want)
+				}
+				return
+			} else if want := tc.wantErr; want != "" {
+				t.Fatalf("Merge: got no error; want prefix %q", want)
 			}
+
 			want := Tile{ID: id, Leaves: tc.want}
 			if d := cmp.Diff(got, want, cmp.AllowUnexported(tree.NodeID2{})); d != "" {
 				t.Errorf("Merge result mismatch:\n%s", d)
