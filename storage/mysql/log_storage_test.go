@@ -141,67 +141,6 @@ func TestLogSuite(t *testing.T) {
 	storagetest.RunLogStorageTests(t, storageFactory)
 }
 
-func TestReadWriteTransaction(t *testing.T) {
-	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	s := NewLogStorage(DB, nil)
-	activeLog := mustCreateTree(ctx, t, as, testonly.LogTree)
-	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0)
-
-	tests := []struct {
-		desc          string
-		tree          *trillian.Tree
-		wantNeedsInit bool
-		wantErr       bool
-		wantLogRoot   []byte
-		wantTXRev     int64
-	}{
-		{
-			desc:          "uninitializedBegin",
-			tree:          logTree(-1),
-			wantNeedsInit: true,
-			wantTXRev:     0,
-		},
-		{
-			desc: "activeLogBegin",
-			tree: activeLog,
-			wantLogRoot: func() []byte {
-				b, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
-				if err != nil {
-					panic(err)
-				}
-				return b
-			}(),
-			wantTXRev: 1,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			err := s.ReadWriteTransaction(ctx, test.tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-				root, err := tx.LatestSignedLogRoot(ctx)
-				if err != nil && !(err == storage.ErrTreeNeedsInit && test.wantNeedsInit) {
-					t.Fatalf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
-				}
-				gotRev, _ := tx.WriteRevision(ctx)
-				if gotRev != test.wantTXRev {
-					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, gotRev, test.wantTXRev)
-				}
-				if got, want := root.GetLogRoot(), test.wantLogRoot; !bytes.Equal(got, want) {
-					t.Errorf("%v: LogRoot: \n%x, want \n%x", test.desc, got, want)
-				}
-				return nil
-			})
-			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
-			} else if hasErr {
-				return
-			}
-		})
-	}
-}
-
 func TestQueueDuplicateLeaf(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)

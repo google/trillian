@@ -15,6 +15,7 @@
 package storagetest
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"fmt"
@@ -134,6 +135,67 @@ func (*LogTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 			}
 			if err := tx.Commit(ctx); err != nil {
 				t.Errorf("Commit() returned err = %v", err)
+			}
+		})
+	}
+}
+
+func (*LogTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	activeLog := mustCreateTree(ctx, t, as, storageto.LogTree)
+	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0)
+
+	tests := []struct {
+		desc          string
+		tree          *trillian.Tree
+		wantNeedsInit bool
+		wantErr       bool
+		wantLogRoot   []byte
+		wantTXRev     int64
+	}{
+		{
+			desc:          "uninitializedBegin",
+			tree:          logTree(-1),
+			wantNeedsInit: true,
+			wantTXRev:     0,
+		},
+		{
+			desc: "activeLogBegin",
+			tree: activeLog,
+			wantLogRoot: func() []byte {
+				b, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
+				if err != nil {
+					panic(err)
+				}
+				return b
+			}(),
+			wantTXRev: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			err := s.ReadWriteTransaction(ctx, test.tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+				root, err := tx.LatestSignedLogRoot(ctx)
+				if err != nil && !(err == storage.ErrTreeNeedsInit && test.wantNeedsInit) {
+					t.Fatalf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
+				}
+				gotRev, _ := tx.WriteRevision(ctx)
+				if gotRev != test.wantTXRev {
+					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, gotRev, test.wantTXRev)
+				}
+				if got, want := root.GetLogRoot(), test.wantLogRoot; !bytes.Equal(got, want) {
+					var logRoot types.LogRootV1
+					if err := logRoot.UnmarshalBinary(got); err != nil {
+						t.Error(err)
+					}
+					t.Errorf("%v: LogRoot: \n%x, want \n%x \nUnpacked: %#v", test.desc, got, want, logRoot)
+				}
+				return nil
+			})
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
+			} else if hasErr {
+				return
 			}
 		})
 	}

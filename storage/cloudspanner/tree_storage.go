@@ -147,11 +147,12 @@ func (t *treeStorage) begin(ctx context.Context, tree *trillian.Tree, newCache n
 		return nil, err
 	}
 	treeTX := &treeTX{
-		treeID: tree.TreeId,
-		ts:     t,
-		stx:    stx,
-		cache:  subtreeCache,
-		config: config,
+		treeID:    tree.TreeId,
+		ts:        t,
+		stx:       stx,
+		cache:     subtreeCache,
+		config:    config,
+		_writeRev: -1,
 	}
 
 	return treeTX, nil
@@ -208,12 +209,8 @@ func (t *treeTX) currentSTH(ctx context.Context) (*spannerpb.TreeHead, error) {
 }
 
 func (t *treeTX) writeRev(ctx context.Context) (int64, error) {
-	if err := t.getLatestRoot(ctx); err == storage.ErrTreeNeedsInit {
-		return 0, nil
-	} else if err != nil {
-		return -1, fmt.Errorf("writeRev(): %v", err)
-	}
-	return t._writeRev, nil
+	err := t.getLatestRoot(ctx)
+	return t._writeRev, err
 }
 
 // storeSubtrees adds buffered writes to the in-flight transaction to store the

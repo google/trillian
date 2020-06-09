@@ -141,11 +141,6 @@ func (ls *logStorage) begin(ctx context.Context, tree *trillian.Tree, readonly b
 		return nil, err
 	}
 
-	// Sanity check tx.config
-	if cfg, ok := tx.config.(*spannerpb.LogStorageConfig); !ok || cfg == nil {
-		return nil, fmt.Errorf("unexpected config type for LOG tree %v: %T", tx.treeID, tx.config)
-	}
-
 	return &logTX{
 		ls:       ls,
 		dequeued: make(map[string]*QueuedEntry),
