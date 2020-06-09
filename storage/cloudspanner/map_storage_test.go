@@ -119,7 +119,7 @@ func TestSuite(t *testing.T) {
 	db := GetTestDB(ctx, t)
 
 	storageFactory := func(context.Context, *testing.T) (storage.MapStorage, storage.AdminStorage) {
-		cleanTestDB(ctx, t, db)
+		t.Cleanup(func() { cleanTestDB(ctx, t, db) })
 		return NewMapStorage(ctx, db), NewAdminStorage(db)
 	}
 
