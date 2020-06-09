@@ -16,11 +16,19 @@ package storagetest
 
 import (
 	"context"
+	"crypto"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
+
+	tcrypto "github.com/google/trillian/crypto"
+	storageto "github.com/google/trillian/storage/testonly"
 )
 
 // LogStorageFactory creates LogStorage and AdminStorage for a test to use.
@@ -64,5 +72,96 @@ type LogTests struct{}
 func (*LogTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
 	if err := s.CheckDatabaseAccessible(ctx); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	}
+}
+
+func (*LogTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	frozenLog := mustCreateTree(ctx, t, as, storageto.LogTree)
+	mustSignAndStoreLogRoot(ctx, t, s, frozenLog, 0)
+	if _, err := storage.UpdateTree(ctx, as, frozenLog.TreeId, func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_FROZEN
+	}); err != nil {
+		t.Fatalf("Error updating frozen tree: %v", err)
+	}
+
+	activeLog := mustCreateTree(ctx, t, as, storageto.LogTree)
+	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0)
+	mapTreeID := mustCreateTree(ctx, t, as, storageto.MapTree).TreeId
+
+	tests := []struct {
+		desc    string
+		tree    *trillian.Tree
+		wantErr bool
+	}{
+		{
+			desc:    "unknownSnapshot",
+			tree:    logTree(-1),
+			wantErr: true,
+		},
+		{
+			desc: "activeLogSnapshot",
+			tree: activeLog,
+		},
+		{
+			desc: "frozenSnapshot",
+			tree: frozenLog,
+		},
+		{
+			desc:    "mapSnapshot",
+			tree:    logTree(mapTreeID),
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			tx, err := s.SnapshotForTree(ctx, test.tree)
+
+			if err == storage.ErrTreeNeedsInit {
+				defer tx.Close()
+			}
+
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
+			} else if hasErr {
+				return
+			}
+			defer tx.Close()
+
+			_, err = tx.LatestSignedLogRoot(ctx)
+			if err != nil {
+				t.Errorf("LatestSignedLogRoot() returned err = %v", err)
+			}
+			if err := tx.Commit(ctx); err != nil {
+				t.Errorf("Commit() returned err = %v", err)
+			}
+		})
+	}
+}
+
+func logTree(logID int64) *trillian.Tree {
+	return &trillian.Tree{
+		TreeId:       logID,
+		TreeType:     trillian.TreeType_LOG,
+		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
+	}
+}
+
+func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
+	t.Helper()
+	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
+
+	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
+		if err != nil {
+			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
+		}
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
+			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}
 }
