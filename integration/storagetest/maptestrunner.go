@@ -38,32 +38,35 @@ func RunMapStorageTests(t *testing.T, storageFactory MapStorageFactory) {
 	}
 }
 
-func mapTestFunctions(t *testing.T, x interface{}) map[string]MapStorageTest {
+func testFunctions(x interface{}) []string {
 	const prefix = "Test"
 	xt := reflect.TypeOf(x)
-	xv := reflect.ValueOf(x)
-
-	tests := make(map[string]MapStorageTest)
+	tests := []string{}
 	for i := 0; i < xt.NumMethod(); i++ {
 		methodName := xt.Method(i).Name
 		if !strings.HasPrefix(methodName, prefix) {
 			continue
 		}
-		name := strings.TrimPrefix(methodName, "Test")
-		tests[name] = getMapTestFunc(t, xv, methodName)
+		tests = append(tests, methodName)
 	}
 	return tests
 }
 
-func getMapTestFunc(t *testing.T, xv reflect.Value, name string) MapStorageTest {
-	m := xv.MethodByName(name)
-	if !m.IsValid() {
-		t.Fatalf("storagetest: function %v is not valid", name)
+func mapTestFunctions(t *testing.T, x interface{}) map[string]MapStorageTest {
+	tests := make(map[string]MapStorageTest)
+	xv := reflect.ValueOf(x)
+	for _, name := range testFunctions(x) {
+		m := xv.MethodByName(name)
+		if !m.IsValid() {
+			t.Fatalf("storagetest: function %v is not valid", name)
+		}
+		f, ok := m.Interface().(func(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage))
+		if !ok {
+			// Method exists but has the wrong type signature.
+			t.Fatalf("storagetest: function %v has unexpected signature (%T), want %v", name, m.Interface(), m)
+		}
+		nickname := strings.TrimPrefix(name, "Test")
+		tests[nickname] = f
 	}
-	f, ok := m.Interface().(func(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage))
-	if !ok {
-		// Method exists but has the wrong type signature.
-		t.Fatalf("storagetest: function %v has unexpected signature (%T), want %v", name, m.Interface(), m)
-	}
-	return f
+	return tests
 }

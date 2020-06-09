@@ -30,6 +30,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
+	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/types"
@@ -131,12 +132,13 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 	}
 }
 
-func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewLogStorage(DB, nil)
-	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
-		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+func TestLogSuite(t *testing.T) {
+	storageFactory := func(context.Context, *testing.T) (storage.LogStorage, storage.AdminStorage) {
+		t.Cleanup(func() { cleanTestDB(DB) })
+		return NewLogStorage(DB, nil), NewAdminStorage(DB)
 	}
+
+	storagetest.RunLogStorageTests(t, storageFactory)
 }
 
 func TestSnapshot(t *testing.T) {
