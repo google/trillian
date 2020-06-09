@@ -17,11 +17,23 @@ package cloudspanner
 import (
 	"context"
 	"flag"
+	"fmt"
+	"os"
+	"path"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/spanner"
+	"cloud.google.com/go/spanner/spannertest"
 	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
+
+	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 // To run cloudspanner tests,
@@ -33,12 +45,72 @@ var cloudDBPath = flag.String("test_cloud_spanner_database", "", "eg: projects/m
 func GetTestDB(ctx context.Context, t *testing.T) *spanner.Client {
 	t.Helper()
 	if *cloudDBPath == "" {
-		t.Skip("-test_cloud_spanner_database flag is unset")
+		ddl, err := readDDL()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return inMemClient(ctx, t, uniqueDBName("fakeProject", "fakeInstance"), ddl)
 	}
 	client, err := spanner.NewClient(ctx, *cloudDBPath)
 	if err != nil {
 		t.Fatalf("spanner.NewClient(): %v", err)
 	}
+	return client
+}
+
+// Unique per test binary invocation
+var timestamp = time.Now().UTC().Format("jan-02-15-04-05")
+var testBinary = strings.ToLower(strings.Replace(path.Base(os.Args[0]), ".test", "", 1))
+var invocationID = fmt.Sprintf("%s-%s", timestamp, testBinary)
+var dbCount uint32 // Unique per test invocation
+
+func uniqueDBName(project, instance string) string {
+	database := fmt.Sprintf("%s-%d", invocationID, atomic.AddUint32(&dbCount, 1))
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
+}
+
+func inMemClient(ctx context.Context, t testing.TB, dbName string, statements []string) *spanner.Client {
+	t.Helper()
+	// Don't use SPANNER_EMULATOR_HOST because we need the raw connection for
+	// the database admin client anyway.
+
+	t.Logf("Using in-memory fake Spanner DB: %s", dbName)
+	srv, err := spannertest.NewServer("localhost:0")
+	if err != nil {
+		t.Fatalf("Starting in-memory fake: %v", err)
+	}
+	t.Cleanup(srv.Close)
+	srv.SetLogger(t.Logf)
+	dialCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(dialCtx, srv.Addr, grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("Dialing in-memory fake: %v", err)
+	}
+	client, err := spanner.NewClient(ctx, dbName, option.WithGRPCConn(conn))
+	if err != nil {
+		conn.Close()
+		t.Fatalf("Connecting to in-memory fake: %v", err)
+	}
+	t.Cleanup(client.Close)
+
+	// Set database schema
+	t.Logf("DDL update: %s", statements)
+	adminClient, err := database.NewDatabaseAdminClient(ctx, option.WithGRPCConn(conn))
+	if err != nil {
+		t.Fatalf("Connecting to in-memory fake DB admin: %v", err)
+	}
+	op, err := adminClient.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
+		Database:   dbName,
+		Statements: statements,
+	})
+	if err != nil {
+		t.Fatalf("Starting DDL update: %v", err)
+	}
+	if err := op.Wait(ctx); err != nil {
+		t.Fatal(err)
+	}
+
 	return client
 }
 
