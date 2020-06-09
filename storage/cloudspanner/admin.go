@@ -280,6 +280,10 @@ func (t *adminTX) getTreeInfo(ctx context.Context, treeID int64) (*spannerpb.Tre
 
 	// Sanity checks
 	switch tt := info.TreeType; tt {
+	case spannerpb.TreeType_PREORDERED_LOG:
+		if info.GetLogStorageConfig() == nil {
+			return nil, status.Errorf(codes.Internal, "corrupt TreeInfo %#v: LogStorageConfig is nil", treeID)
+		}
 	case spannerpb.TreeType_LOG:
 		if info.GetLogStorageConfig() == nil {
 			return nil, status.Errorf(codes.Internal, "corrupt TreeInfo %#v: LogStorageConfig is nil", treeID)

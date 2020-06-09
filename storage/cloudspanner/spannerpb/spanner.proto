@@ -20,6 +20,7 @@ enum TreeType {
   UNKNOWN = 0;
   LOG = 1;
   MAP = 2;
+  PREORDERED_LOG = 3;
 }
 
 // Defines the preimage protection used for tree leaves / nodes.
