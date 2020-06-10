@@ -45,6 +45,7 @@ func GetTestDB(ctx context.Context, t *testing.T) *spanner.Client {
 	switch dbPath := *cloudDBPath; dbPath {
 	case "":
 		t.Skip("-test_cloud_spanner_database flag is unset")
+		return nil
 	case ":memory:":
 		ddl, err := readDDL()
 		if err != nil {

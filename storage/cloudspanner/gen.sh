@@ -4,8 +4,8 @@ cat > spanner.sdl.go <<EOF
 
 package cloudspanner
 
-const ddlString = \`
+const base64DDL = \`
 EOF
-cat spanner.sdl >> spanner.sdl.go
+base64 < spanner.sdl >> spanner.sdl.go
 echo '`' >> spanner.sdl.go
 

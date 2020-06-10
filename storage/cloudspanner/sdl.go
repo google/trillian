@@ -14,13 +14,21 @@
 
 package cloudspanner
 
-import "cloud.google.com/go/spanner/spansql"
+import (
+	"encoding/base64"
+
+	"cloud.google.com/go/spanner/spansql"
+)
 
 //go:generate sh gen.sh
 
 // readDDL returns a list of DDL statements from the database schema.
 func readDDL() ([]string, error) {
-	ddl, err := spansql.ParseDDL("spanner.sdl.go", ddlString)
+	ddlString, err := base64.StdEncoding.DecodeString(base64DDL)
+	if err != nil {
+		return nil, err
+	}
+	ddl, err := spansql.ParseDDL("spanner.sdl.go", string(ddlString))
 	if err != nil {
 		return nil, err
 	}
