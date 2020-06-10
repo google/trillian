@@ -98,9 +98,9 @@ type spanRead interface {
 // latestSTH reads and returns the newest STH.
 func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64) (*spannerpb.TreeHead, error) {
 	query := spanner.NewStatement(
-		"SELECT t.TreeID, t.TimestampNanos, t.TreeSize, t.RootHash, t.RootSignature, t.TreeRevision, t.TreeMetadata FROM TreeHeads t" +
-			"   WHERE t.TreeID = @tree_id" +
-			"   ORDER BY t.TreeRevision DESC " +
+		"SELECT TreeID, TimestampNanos, TreeSize, RootHash, RootSignature, TreeRevision, TreeMetadata FROM TreeHeads" +
+			"   WHERE TreeID = @tree_id" +
+			"   ORDER BY TreeRevision DESC " +
 			"   LIMIT 1")
 	query.Params["tree_id"] = treeID
 

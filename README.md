@@ -78,7 +78,7 @@ The current state of feature implementation is recorded in the
 
 To build and test Trillian you need:
 
- - Go 1.11 or later.
+ - Go 1.14 or later.
 
 To run many of the tests (and production deployment) you need:
 

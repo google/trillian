@@ -1,4 +1,4 @@
-// Copyright 2019 Google Inc. All Rights Reserved.
+// Copyright 2020 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,21 +15,26 @@
 package cloudspanner
 
 import (
-	"context"
-	"testing"
+	"encoding/base64"
 
-	"github.com/google/trillian/integration/storagetest"
-	"github.com/google/trillian/storage"
+	"cloud.google.com/go/spanner/spansql"
 )
 
-func TestMapSuite(t *testing.T) {
-	ctx := context.Background()
-	db := GetTestDB(ctx, t)
+//go:generate sh gen.sh
 
-	storageFactory := func(context.Context, *testing.T) (storage.MapStorage, storage.AdminStorage) {
-		t.Cleanup(func() { cleanTestDB(ctx, t, db) })
-		return NewMapStorage(ctx, db), NewAdminStorage(db)
+// readDDL returns a list of DDL statements from the database schema.
+func readDDL() ([]string, error) {
+	ddlString, err := base64.StdEncoding.DecodeString(base64DDL)
+	if err != nil {
+		return nil, err
 	}
-
-	storagetest.RunMapStorageTests(t, storageFactory)
+	ddl, err := spansql.ParseDDL("spanner.sdl.go", string(ddlString))
+	if err != nil {
+		return nil, err
+	}
+	stmts := make([]string, 0, len(ddl.List))
+	for _, s := range ddl.List {
+		stmts = append(stmts, s.SQL())
+	}
+	return stmts, nil
 }

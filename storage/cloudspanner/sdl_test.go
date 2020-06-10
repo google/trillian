@@ -1,4 +1,4 @@
-// Copyright 2019 Google Inc. All Rights Reserved.
+// Copyright 2020 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,22 +14,11 @@
 
 package cloudspanner
 
-import (
-	"context"
-	"testing"
+import "testing"
 
-	"github.com/google/trillian/integration/storagetest"
-	"github.com/google/trillian/storage"
-)
-
-func TestMapSuite(t *testing.T) {
-	ctx := context.Background()
-	db := GetTestDB(ctx, t)
-
-	storageFactory := func(context.Context, *testing.T) (storage.MapStorage, storage.AdminStorage) {
-		t.Cleanup(func() { cleanTestDB(ctx, t, db) })
-		return NewMapStorage(ctx, db), NewAdminStorage(db)
+func TestDDL(t *testing.T) {
+	_, err := readDDL()
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	storagetest.RunMapStorageTests(t, storageFactory)
 }
