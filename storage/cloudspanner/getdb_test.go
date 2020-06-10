@@ -21,7 +21,7 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
 
@@ -61,7 +61,10 @@ func GetTestDB(ctx context.Context, t *testing.T) *spanner.Client {
 	}
 }
 
-var dbCount uint32 // Unique per test invocation
+var dbCount struct {
+	sync.Mutex
+	count int
+}
 
 func uniqueDBName(project, instance string) string {
 	// Unique per test binary invocation
@@ -69,7 +72,11 @@ func uniqueDBName(project, instance string) string {
 	testBinary := strings.ToLower(strings.Replace(path.Base(os.Args[0]), ".test", "", 1))
 	invocationID := fmt.Sprintf("%s-%s", timestamp, testBinary)
 
-	database := fmt.Sprintf("%s-%d", invocationID, atomic.AddUint32(&dbCount, 1))
+	dbCount.Lock()
+	dbCount.count++
+	defer dbCount.Unlock()
+
+	database := fmt.Sprintf("%s-%d", invocationID, dbCount.count)
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
 }
 
