@@ -73,8 +73,8 @@ func uniqueDBName(project, instance string) string {
 	invocationID := fmt.Sprintf("%s-%s", timestamp, testBinary)
 
 	dbCount.Lock()
-	dbCount.count++
 	defer dbCount.Unlock()
+	dbCount.count++
 
 	database := fmt.Sprintf("%s-%d", invocationID, dbCount.count)
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
