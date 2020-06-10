@@ -17,6 +17,8 @@ package storagetest
 
 import (
 	"context"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/trillian"
@@ -24,6 +26,40 @@ import (
 
 	storageto "github.com/google/trillian/storage/testonly"
 )
+
+// MapStorageFactory creates MapStorage and AdminStorage for a test to use.
+type MapStorageFactory = func(ctx context.Context, t *testing.T) (storage.MapStorage, storage.AdminStorage)
+
+// MapStorageTest executes a test using the given storage implementations.
+type MapStorageTest = func(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage)
+
+// RunMapStorageTests runs all the map storage tests against the provided map storage implementation.
+func RunMapStorageTests(t *testing.T, storageFactory MapStorageFactory) {
+	ctx := context.Background()
+	for name, f := range mapTestFunctions(t, &MapTests{}) {
+		ms, as := storageFactory(ctx, t)
+		t.Run(name, func(t *testing.T) { f(ctx, t, ms, as) })
+	}
+}
+
+func mapTestFunctions(t *testing.T, x interface{}) map[string]MapStorageTest {
+	tests := make(map[string]MapStorageTest)
+	xv := reflect.ValueOf(x)
+	for _, name := range testFunctions(x) {
+		m := xv.MethodByName(name)
+		if !m.IsValid() {
+			t.Fatalf("storagetest: function %v is not valid", name)
+		}
+		f, ok := m.Interface().(MapStorageTest)
+		if !ok {
+			// Method exists but has the wrong type signature.
+			t.Fatalf("storagetest: function %v has unexpected signature (%T), want %v", name, m.Interface(), m)
+		}
+		nickname := strings.TrimPrefix(name, "Test")
+		tests[nickname] = f
+	}
+	return tests
+}
 
 // MapTests is a suite of tests to run against the storage.MapTest interface.
 type MapTests struct{}

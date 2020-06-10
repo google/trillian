@@ -24,12 +24,12 @@ import (
 )
 
 // LogStorageFactory creates LogStorage and AdminStorage for a test to use.
-type LogStorageFactory func(ctx context.Context, t *testing.T) (storage.LogStorage, storage.AdminStorage)
+type LogStorageFactory = func(ctx context.Context, t *testing.T) (storage.LogStorage, storage.AdminStorage)
 
 // LogStorageTest executes a test using the given storage implementations.
-type LogStorageTest func(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage)
+type LogStorageTest = func(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage)
 
-// RunLogStorageTests runs all the map storage tests against the provided map storage implementation.
+// RunLogStorageTests runs all the log storage tests against the provided log storage implementation.
 func RunLogStorageTests(t *testing.T, storageFactory LogStorageFactory) {
 	ctx := context.Background()
 	for name, f := range logTestFunctions(t, &LogTests{}) {
@@ -46,10 +46,11 @@ func logTestFunctions(t *testing.T, x interface{}) map[string]LogStorageTest {
 		if !m.IsValid() {
 			t.Fatalf("storagetest: function %v is not valid", name)
 		}
-		f, ok := m.Interface().(func(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage))
+		i := m.Interface()
+		f, ok := i.(LogStorageTest)
 		if !ok {
 			// Method exists but has the wrong type signature.
-			t.Fatalf("storagetest: function %v has unexpected signature (%T), want %v", name, m.Interface(), m)
+			t.Fatalf("storagetest: function %v has unexpected signature %T, %v", name, m.Interface(), m)
 		}
 		nickname := strings.TrimPrefix(name, "Test")
 		tests[nickname] = f
