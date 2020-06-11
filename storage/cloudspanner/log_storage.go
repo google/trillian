@@ -353,13 +353,6 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRo
 // This method will return an error if the caller attempts to store more than
 // one root per log for a given tree size.
 func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
-	writeRev, err := tx.writeRev(ctx)
-	if err == storage.ErrTreeNeedsInit {
-		writeRev = 0
-	} else if err != nil {
-		return err
-	}
-
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
@@ -383,7 +376,7 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLo
 			int64(logRoot.TreeSize),
 			logRoot.RootHash,
 			root.LogRootSignature,
-			writeRev,
+			int64(logRoot.Revision),
 			logRoot.Metadata,
 		})
 
