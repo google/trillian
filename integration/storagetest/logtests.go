@@ -123,7 +123,7 @@ func (*LogTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 			}
 
 			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
+				t.Fatalf("err: %v, wantErr = %v", err, test.wantErr)
 			} else if hasErr {
 				return
 			}
@@ -131,10 +131,10 @@ func (*LogTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 
 			_, err = tx.LatestSignedLogRoot(ctx)
 			if err != nil {
-				t.Errorf("LatestSignedLogRoot() returned err = %v", err)
+				t.Errorf("LatestSignedLogRoot() returned err: %v", err)
 			}
 			if err := tx.Commit(ctx); err != nil {
-				t.Errorf("Commit() returned err = %v", err)
+				t.Errorf("Commit() returned err: %v", err)
 			}
 		})
 	}
