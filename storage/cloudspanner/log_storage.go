@@ -283,20 +283,23 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 }
 
 func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	// Avoid running empty transaction because it's an error in Spanner.
-	if len(leaves) == 0 {
-		return make([]*trillian.QueuedLogLeaf, 0), nil
-	}
+	return nil, ErrNotImplemented
+	/*
+		// Avoid running empty transaction because it's an error in Spanner.
+		if len(leaves) == 0 {
+			return make([]*trillian.QueuedLogLeaf, 0), nil
+		}
 
-	var ret []*trillian.QueuedLogLeaf
-	if err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		var err error
-		ret, err = tx.AddSequencedLeaves(ctx, leaves, ts)
-		return err
-	}); err != nil {
-		return nil, err
-	}
-	return ret, nil
+		var ret []*trillian.QueuedLogLeaf
+		if err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+			var err error
+			ret, err = tx.AddSequencedLeaves(ctx, leaves, ts)
+			return err
+		}); err != nil {
+			return nil, err
+		}
+		return ret, nil
+	*/
 }
 
 // readDupeLeaves reads the leaves whose ids are passed as keys in the dupes map,
@@ -481,10 +484,14 @@ func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts
 }
 
 func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)
+	if !ok {
+		return nil, ErrWrongTXType
+	}
 	ctx, span := trace.StartSpan(ctx, "AddSequencedLeaves")
 	defer span.End()
 
-	ok := status.New(codes.OK, "OK").Proto()
+	okProto := status.New(codes.OK, "OK").Proto()
 
 	_, span = trace.StartSpan(ctx, "insert")
 	defer span.End()
@@ -500,7 +507,7 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 
 		// Capture the values for later reference in the MutationResultFunc below.
 		i, l := i, l
-		res[i] = &trillian.QueuedLogLeaf{Status: ok}
+		res[i] = &trillian.QueuedLogLeaf{Status: okProto}
 
 		wg.Add(1)
 		// The insert of the LeafData and SequencedLeafData must happen atomically.
@@ -529,8 +536,7 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 		doneFunc := func(err error) {
 			defer wg.Done()
 			if err != nil {
-				// If failed because of a duplicate insert, set the status
-				// correspondingly.
+				// If failed because of a duplicate insert, set the status correspondingly.
 				if status.Code(err) == codes.AlreadyExists {
 					glog.V(2).Infof("Found already exists: index=%v, id=%v", l.LeafIndex, l.LeafIdentityHash)
 					res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex or LeafIdentityHash").Proto()
@@ -547,10 +553,7 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 		} else {
 			go func() {
 				defer tx.ls.writeSem.Release(1)
-				doneFunc(func() error {
-					_, err := tx.ls.ts.client.Apply(ctx, m)
-					return err
-				}())
+				doneFunc(stx.BufferWrite(m))
 			}()
 		}
 	}
@@ -569,7 +572,6 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 	}
 
 	//tx.expectEmpty = true
-
 	return res, nil
 }
 

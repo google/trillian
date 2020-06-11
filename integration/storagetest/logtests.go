@@ -245,6 +245,7 @@ type addSequencedLeavesTest struct {
 
 func initAddSequencedLeavesTest(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) addSequencedLeavesTest {
 	tree := mustCreateTree(ctx, t, as, storageto.PreorderedLogTree)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 	return addSequencedLeavesTest{t, s, tree}
 }
 
@@ -262,6 +263,7 @@ func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp [
 	var stored []*trillian.LogLeaf
 	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		var err error
+		t.t.Logf("GetLeavesByRange(%v, %v)", start, count)
 		stored, err = tx.GetLeavesByRange(ctx, start, count)
 		if err != nil {
 			t.t.Fatalf("Failed to read sequenced leaves: %v", err)
