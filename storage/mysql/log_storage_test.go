@@ -1396,11 +1396,3 @@ func (l byLeafIdentityHash) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 func (l byLeafIdentityHash) Less(i, j int) bool {
 	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
 }
-
-func logTree(logID int64) *trillian.Tree {
-	return &trillian.Tree{
-		TreeId:       logID,
-		TreeType:     trillian.TreeType_LOG,
-		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
-	}
-}
