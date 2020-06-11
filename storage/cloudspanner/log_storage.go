@@ -32,6 +32,8 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"github.com/google/trillian/types"
+	"go.opencensus.io/trace"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -84,14 +86,31 @@ type LogStorageOptions struct {
 
 var (
 	// Spanner DB columns:
-	colExtraData               = "ExtraData"
-	colLeafValue               = "LeafValue"
+	colLeafTreeID              = "TreeID"
 	colLeafIdentityHash        = "LeafIdentityHash"
+	colLeafValue               = "LeafValue"
+	colExtraData               = "ExtraData"
 	colMerkleLeafHash          = "MerkleLeafHash"
 	colSequenceNumber          = "SequenceNumber"
 	colQueueTimestampNanos     = "QueueTimestampNanos"
 	colIntegrateTimestampNanos = "IntegrateTimestampNanos"
 )
+
+type LeafDataCols struct {
+	TreeID              int64
+	LeafIdentityHash    []byte
+	LeafValue           []byte
+	ExtraData           []byte
+	QueueTimestampNanos int64
+}
+
+type SequencedLeafDataCols struct {
+	TreeID                  int64
+	SequenceNumber          int64
+	LeafIdentityHash        []byte
+	MerkleLeafHash          []byte
+	IntegrateTimestampNanos int64
+}
 
 // NewLogStorage initialises and returns a new LogStorage.
 func NewLogStorage(client *spanner.Client) storage.LogStorage {
@@ -104,12 +123,14 @@ func NewLogStorageWithOpts(client *spanner.Client, opts LogStorageOptions) stora
 	if opts.DequeueAcrossMerkleBucketsRangeFraction <= 0 || opts.DequeueAcrossMerkleBucketsRangeFraction > 1.0 {
 		opts.DequeueAcrossMerkleBucketsRangeFraction = 1.0
 	}
-	ret := &logStorage{
-		ts:   newTreeStorageWithOpts(client, opts.TreeStorageOptions),
-		opts: opts,
+	return &logStorage{
+		ts: newTreeStorageWithOpts(client, opts.TreeStorageOptions),
+		// This number is taken from the maximum number of in-flight
+		// transaction in the mutation pool. Add a field to opts if we decide to
+		// adopt this strategy.
+		writeSem: semaphore.NewWeighted(128),
+		opts:     opts,
 	}
-
-	return ret
 }
 
 // logStorage provides a Cloud Spanner backed trillian.LogStorage implementation.
@@ -118,6 +139,9 @@ type logStorage struct {
 	// ts provides the merkle-tree level primitives which are built upon by this
 	// logStorage.
 	ts *treeStorage
+
+	// writeSem controls how many concurrent writes QueueLeaves/AddSequencedLeaves will do.
+	writeSem *semaphore.Weighted
 
 	// Additional options applied to this logStorage
 	opts LogStorageOptions
@@ -258,8 +282,21 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 	return results, nil
 }
 
-func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	return nil, ErrNotImplemented
+func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	// Avoid running empty transaction because it's an error in Spanner.
+	if len(leaves) == 0 {
+		return make([]*trillian.QueuedLogLeaf, 0), nil
+	}
+
+	var ret []*trillian.QueuedLogLeaf
+	if err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		var err error
+		ret, err = tx.AddSequencedLeaves(ctx, leaves, ts)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
 // readDupeLeaves reads the leaves whose ids are passed as keys in the dupes map,
@@ -443,8 +480,97 @@ func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts
 	return nil, ErrNotImplemented
 }
 
-func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	return nil, ErrNotImplemented
+func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	ctx, span := trace.StartSpan(ctx, "AddSequencedLeaves")
+	defer span.End()
+
+	ok := status.New(codes.OK, "OK").Proto()
+
+	_, span = trace.StartSpan(ctx, "insert")
+	defer span.End()
+	res := make([]*trillian.QueuedLogLeaf, len(leaves))
+	errs := make(chan error, 1)
+	var wg sync.WaitGroup
+	for i, l := range leaves {
+		var err error
+		l.QueueTimestamp, err = ptypes.TimestampProto(ts)
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+
+		// Capture the values for later reference in the MutationResultFunc below.
+		i, l := i, l
+		res[i] = &trillian.QueuedLogLeaf{Status: ok}
+
+		wg.Add(1)
+		// The insert of the LeafData and SequencedLeafData must happen atomically.
+		m1, err := spanner.InsertStruct(leafDataTbl, LeafDataCols{
+			TreeID:              tx.treeID,
+			LeafIdentityHash:    l.LeafIdentityHash,
+			LeafValue:           l.LeafValue,
+			ExtraData:           l.ExtraData,
+			QueueTimestampNanos: ts.UnixNano(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		m2, err := spanner.InsertStruct(seqDataTbl, SequencedLeafDataCols{
+			TreeID:                  tx.treeID,
+			SequenceNumber:          l.LeafIndex,
+			LeafIdentityHash:        l.LeafIdentityHash,
+			MerkleLeafHash:          l.MerkleLeafHash,
+			IntegrateTimestampNanos: 0,
+		})
+		if err != nil {
+			return nil, err
+		}
+		m := []*spanner.Mutation{m1, m2}
+
+		doneFunc := func(err error) {
+			defer wg.Done()
+			if err != nil {
+				// If failed because of a duplicate insert, set the status
+				// correspondingly.
+				if status.Code(err) == codes.AlreadyExists {
+					glog.V(2).Infof("Found already exists: index=%v, id=%v", l.LeafIndex, l.LeafIdentityHash)
+					res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex or LeafIdentityHash").Proto()
+					return
+				}
+				select {
+				case errs <- err:
+				default: // Skip this error, we only need one.
+				}
+			}
+		}
+		if err := tx.ls.writeSem.Acquire(ctx, 1); err != nil {
+			doneFunc(err)
+		} else {
+			go func() {
+				defer tx.ls.writeSem.Release(1)
+				doneFunc(func() error {
+					_, err := tx.ls.ts.client.Apply(ctx, m)
+					return err
+				}())
+			}()
+		}
+	}
+	span.End()
+
+	// Wait for all of our mutations to apply (or fail).
+	_, span = trace.StartSpan(ctx, "wait")
+	wg.Wait()
+	span.End()
+
+	// Check if any failed, and return the first error if so.
+	select {
+	case err := <-errs:
+		return nil, err
+	default: // No error.
+	}
+
+	//tx.expectEmpty = true
+
+	return res, nil
 }
 
 // DequeueLeaves removes [0, limit) leaves from the to-be-sequenced queue.
