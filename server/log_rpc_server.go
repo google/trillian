@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -63,9 +64,9 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource clock.TimeS
 		registry:   registry,
 		timeSource: timeSource,
 		leafCounter: mf.NewCounter(
-			"queued_leaves",
-			"Number of leaves requested to be queued",
-			"status",
+			"added_leaves",
+			"Number of leaves requested to be added",
+			"logid", "status",
 		),
 		proofIndexPercentiles: mf.NewHistogramWithBuckets(
 			"proof_index_percentiles",
@@ -143,13 +144,15 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
+	label := strconv.FormatInt(logID, 10)
 	for _, l := range ret {
 		if l.Status == nil || l.Status.Code == int32(codes.OK) {
-			t.leafCounter.Inc("new")
+			t.leafCounter.Inc(label, "queued")
 		} else if l.Status.Code == int32(codes.AlreadyExists) {
-			t.leafCounter.Inc("existing")
+			t.leafCounter.Inc(label, "duplicate")
 		}
 	}
+
 	return &trillian.QueueLeavesResponse{QueuedLeaves: ret}, nil
 }
 
@@ -201,6 +204,15 @@ func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *tril
 	}
 	if got, want := len(leaves), len(req.Leaves); got != want {
 		return nil, status.Errorf(codes.Internal, "AddSequencedLeaves returned %d leaves, want: %d", got, want)
+	}
+
+	label := strconv.FormatInt(req.LogId, 10)
+	for _, l := range leaves {
+		if l.Status == nil || l.Status.Code == int32(codes.OK) {
+			t.leafCounter.Inc(label, "inserted")
+		} else {
+			t.leafCounter.Inc(label, "skipped")
+		}
 	}
 
 	return &trillian.AddSequencedLeavesResponse{Results: leaves}, nil
