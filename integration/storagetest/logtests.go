@@ -41,7 +41,7 @@ type LogStorageTest = func(ctx context.Context, t *testing.T, s storage.LogStora
 // RunLogStorageTests runs all the log storage tests against the provided log storage implementation.
 func RunLogStorageTests(t *testing.T, storageFactory LogStorageFactory) {
 	ctx := context.Background()
-	for name, f := range logTestFunctions(t, &LogTests{}) {
+	for name, f := range logTestFunctions(t, &logTests{}) {
 		s, as := storageFactory(ctx, t)
 		t.Run(name, func(t *testing.T) { f(ctx, t, s, as) })
 	}
@@ -67,16 +67,16 @@ func logTestFunctions(t *testing.T, x interface{}) map[string]LogStorageTest {
 	return tests
 }
 
-// LogTests is a suite of tests to run against the storage.LogTest interface.
-type LogTests struct{}
+// logTests is a suite of tests to run against the storage.LogTest interface.
+type logTests struct{}
 
-func (*LogTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+func (*logTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
 	if err := s.CheckDatabaseAccessible(ctx); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
 }
 
-func (*LogTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
 	frozenLog := mustCreateTree(ctx, t, as, storageto.LogTree)
 	mustSignAndStoreLogRoot(ctx, t, s, frozenLog, 0)
 	if _, err := storage.UpdateTree(ctx, as, frozenLog.TreeId, func(tree *trillian.Tree) {
@@ -140,7 +140,7 @@ func (*LogTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 	}
 }
 
-func (*LogTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+func (*logTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
 	activeLog := mustCreateTree(ctx, t, as, storageto.LogTree)
 	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0)
 
