@@ -231,7 +231,7 @@ func TestReadWriteTransaction(t *testing.T) {
 			desc:          "unknownBegin",
 			tree:          logTree(-1),
 			wantNeedsInit: true,
-			wantTXRev:     -1,
+			wantTXRev:     0,
 		},
 		{
 			desc: "activeLogBegin",
@@ -1152,7 +1152,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		Revision:       5,
+		Revision:       0,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {
@@ -1191,7 +1191,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		Revision:       5,
+		Revision:       0,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {
@@ -1222,7 +1222,7 @@ func TestLogRootUpdate(t *testing.T) {
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		Revision:       5,
+		Revision:       0,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {
@@ -1231,7 +1231,7 @@ func TestLogRootUpdate(t *testing.T) {
 	root2, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98766,
 		TreeSize:       16,
-		Revision:       6,
+		Revision:       1,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {
@@ -1239,13 +1239,10 @@ func TestLogRootUpdate(t *testing.T) {
 	}
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
-			t.Fatalf("Failed to store signed root: %v", err)
-		}
-		if err := tx.StoreSignedLogRoot(ctx, root2); err != nil {
-			t.Fatalf("Failed to store signed root: %v", err)
-		}
-		return nil
+		return tx.StoreSignedLogRoot(ctx, root)
+	})
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		return tx.StoreSignedLogRoot(ctx, root2)
 	})
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
