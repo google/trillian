@@ -45,6 +45,9 @@ attempting to exit has been addressed.
 A count of the total number of individual leaves the logserver attempts to
 fetch via the GetEntries.\* API methods has been added.
 
+The `queued_leaves` metric is removed, and replaced by `added_leaves` which
+covers both `QueueLeaves` and `AddSequencedLeaves`, and is labeled by log ID.
+
 ### Map Changes
 
 The verifiable map is still experimental. APIs, such as SetLeaves, have been
