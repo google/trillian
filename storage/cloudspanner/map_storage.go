@@ -120,7 +120,7 @@ func (ms *mapStorage) Layout(tree *trillian.Tree) (*tree.Layout, error) {
 func (ms *mapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
 	_, err := ms.ts.client.ReadWriteTransaction(ctx, func(ctx context.Context, stx *spanner.ReadWriteTransaction) error {
 		tx, err := ms.begin(ctx, tree, false /* readonly */, stx)
-		if err != nil {
+		if err != nil && err != storage.ErrTreeNeedsInit {
 			glog.Errorf("failed to mapStorage.begin(treeID=%d): %v", tree.TreeId, err)
 			return err
 		}
