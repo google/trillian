@@ -328,23 +328,6 @@ func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp [
 	}
 }
 
-func TestAddSequencedLeavesUnordered(t *testing.T) {
-	ctx := context.Background()
-	const chunk = leavesToInsert
-	const count = chunk * 5
-	const extraCount = 16
-	leaves := createTestLeaves(count, 0)
-
-	aslt := initAddSequencedLeavesTest(ctx, t)
-	for _, idx := range []int{1, 0, 4, 2} {
-		aslt.addSequencedLeaves(leaves[chunk*idx : chunk*(idx+1)])
-	}
-	aslt.verifySequencedLeaves(0, count+extraCount, leaves[:chunk*3])
-	aslt.verifySequencedLeaves(chunk*4, chunk+extraCount, leaves[chunk*4:count])
-	aslt.addSequencedLeaves(leaves[chunk*3 : chunk*4])
-	aslt.verifySequencedLeaves(0, count+extraCount, leaves)
-}
-
 func TestAddSequencedLeavesWithDuplicates(t *testing.T) {
 	ctx := context.Background()
 	leaves := createTestLeaves(6, 0)
