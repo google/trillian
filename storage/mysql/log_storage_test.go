@@ -227,8 +227,7 @@ func TestReadWriteTransaction(t *testing.T) {
 		wantTXRev     int64
 	}{
 		{
-			// Unknown logs IDs are now handled outside storage.
-			desc:          "unknownBegin",
+			desc:          "uninitializedBegin",
 			tree:          logTree(-1),
 			wantNeedsInit: true,
 			wantTXRev:     0,
