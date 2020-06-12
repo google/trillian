@@ -106,7 +106,7 @@ func inMemClient(ctx context.Context, t testing.TB, dbName string, statements []
 	t.Cleanup(client.Close)
 
 	// Set database schema
-	t.Logf("DDL update: %s", statements)
+	t.Logf("DDL update: %q", statements)
 	adminClient, err := database.NewDatabaseAdminClient(ctx, option.WithGRPCConn(conn))
 	if err != nil {
 		t.Fatalf("Connecting to in-memory fake DB admin: %v", err)

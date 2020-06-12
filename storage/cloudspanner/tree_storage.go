@@ -147,11 +147,12 @@ func (t *treeStorage) begin(ctx context.Context, tree *trillian.Tree, newCache n
 		return nil, err
 	}
 	treeTX := &treeTX{
-		treeID: tree.TreeId,
-		ts:     t,
-		stx:    stx,
-		cache:  subtreeCache,
-		config: config,
+		treeID:    tree.TreeId,
+		ts:        t,
+		stx:       stx,
+		cache:     subtreeCache,
+		config:    config,
+		_writeRev: -1,
 	}
 
 	return treeTX, nil

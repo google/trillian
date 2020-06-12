@@ -141,16 +141,20 @@ func (ls *logStorage) begin(ctx context.Context, tree *trillian.Tree, readonly b
 		return nil, err
 	}
 
-	// Sanity check tx.config
-	if cfg, ok := tx.config.(*spannerpb.LogStorageConfig); !ok || cfg == nil {
-		return nil, fmt.Errorf("unexpected config type for LOG tree %v: %T", tx.treeID, tx.config)
-	}
-
-	return &logTX{
+	ltx := &logTX{
 		ls:       ls,
 		dequeued: make(map[string]*QueuedEntry),
 		treeTX:   tx,
-	}, nil
+	}
+
+	// Needed to generate ErrTreeNeedsInit in SnapshotForTree and other methods.
+	if err := ltx.getLatestRoot(ctx); err == storage.ErrTreeNeedsInit {
+		return ltx, err
+	} else if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	return ltx, nil
 }
 
 func (ls *logStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
@@ -160,7 +164,7 @@ func (ls *logStorage) BeginForTree(ctx context.Context, treeID int64) (storage.L
 func (ls *logStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
 	_, err := ls.ts.client.ReadWriteTransaction(ctx, func(ctx context.Context, stx *spanner.ReadWriteTransaction) error {
 		tx, err := ls.begin(ctx, tree, false /* readonly */, stx)
-		if err != nil {
+		if err != nil && err != storage.ErrTreeNeedsInit {
 			return err
 		}
 		if err := f(ctx, tx); err != nil {
@@ -360,6 +364,10 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLo
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
+	}
+
+	if got, want := int64(logRoot.Revision), writeRev; got != want {
+		return status.Errorf(codes.Internal, "root.Revision: %v, want %v", got, want)
 	}
 
 	m := spanner.Insert(
