@@ -898,7 +898,7 @@ func validateRange(start, count, treeSize int64) error {
 	if start < 0 {
 		return status.Errorf(codes.InvalidArgument, "invalid start %d", start)
 	}
-	if start >= treeSize {
+	if treeSize >= 0 && start >= treeSize {
 		return status.Errorf(codes.OutOfRange, "start index %d beyond tree size %d", start, treeSize)
 	}
 	return nil
@@ -912,8 +912,18 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 		return nil, err
 	}
 
-	if err := validateRange(start, count, currentSTH.TreeSize); err != nil {
+	xsize := currentSTH.TreeSize
+	if tx.treeType == trillian.TreeType_PREORDERED_LOG {
+		xsize = -1 // Allow requesting entries beyond the tree size.
+	}
+	if err := validateRange(start, count, xsize); err != nil {
 		return nil, err
+	}
+
+	xend := start + count
+	if tx.treeType != trillian.TreeType_PREORDERED_LOG && xend > xsize {
+		xend = xsize
+		count = xend - start
 	}
 
 	stmt := spanner.NewStatement(
@@ -931,11 +941,6 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 		   SequenceNumber < @xend`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["start"] = start
-	xend := start + count
-	if xend > currentSTH.TreeSize {
-		xend = currentSTH.TreeSize
-		count = xend - start
-	}
 	stmt.Params["xend"] = xend
 	seqLeaves := make(map[string]sequencedLeafDataCols)
 	if err := tx.stx.Query(ctx, stmt).Do(func(r *spanner.Row) error {
