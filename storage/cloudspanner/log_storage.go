@@ -49,9 +49,9 @@ const (
 	// t.TreeType: 1 = Log, 3 = PreorderedLog.
 	// t.TreeState: 1 = Active, 5 = Draining.
 	getActiveLogIDsSQL = `SELECT t.TreeID FROM TreeRoots t
-													WHERE (t.TreeType = 1 OR t.TreeType = 3)
-													AND (t.TreeState = 1 OR t.TreeState = 5)
-													AND t.Deleted=false`
+WHERE (t.TreeType = 1 OR t.TreeType = 3)
+AND (t.TreeState = 1 OR t.TreeState = 5)
+AND t.Deleted=false`
 )
 
 type leafDataCols struct {
@@ -86,7 +86,6 @@ type LogStorageOptions struct {
 
 var (
 	// Spanner DB columns:
-	colLeafTreeID              = "TreeID"
 	colLeafIdentityHash        = "LeafIdentityHash"
 	colLeafValue               = "LeafValue"
 	colExtraData               = "ExtraData"
@@ -96,7 +95,7 @@ var (
 	colIntegrateTimestampNanos = "IntegrateTimestampNanos"
 )
 
-type LeafDataCols struct {
+type leafDataCols struct {
 	TreeID              int64
 	LeafIdentityHash    []byte
 	LeafValue           []byte
@@ -104,7 +103,7 @@ type LeafDataCols struct {
 	QueueTimestampNanos int64
 }
 
-type SequencedLeafDataCols struct {
+type sequencedLeafDataCols struct {
 	TreeID                  int64
 	SequenceNumber          int64
 	LeafIdentityHash        []byte
@@ -511,7 +510,7 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 
 		wg.Add(1)
 		// The insert of the LeafData and SequencedLeafData must happen atomically.
-		m1, err := spanner.InsertStruct(leafDataTbl, LeafDataCols{
+		m1, err := spanner.InsertStruct(leafDataTbl, leafDataCols{
 			TreeID:              tx.treeID,
 			LeafIdentityHash:    l.LeafIdentityHash,
 			LeafValue:           l.LeafValue,
@@ -521,7 +520,7 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 		if err != nil {
 			return nil, err
 		}
-		m2, err := spanner.InsertStruct(seqDataTbl, SequencedLeafDataCols{
+		m2, err := spanner.InsertStruct(seqDataTbl, sequencedLeafDataCols{
 			TreeID:                  tx.treeID,
 			SequenceNumber:          l.LeafIndex,
 			LeafIdentityHash:        l.LeafIdentityHash,
