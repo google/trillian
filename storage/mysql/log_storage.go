@@ -255,6 +255,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	}
 	ltx.slr, err = ltx.fetchLatestRoot(ctx)
 	if err == storage.ErrTreeNeedsInit {
+		ltx.treeTX.writeRevision = 0
 		return ltx, err
 	} else if err != nil {
 		ttx.Rollback()
@@ -875,6 +876,9 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
+	}
+	if got, want := int64(logRoot.Revision), t.treeTX.writeRevision; got != want {
+		return status.Errorf(codes.Internal, "root.Revision: %v, want %v", got, want)
 	}
 	if len(logRoot.Metadata) != 0 {
 		return fmt.Errorf("unimplemented: mysql storage does not support log root metadata")
