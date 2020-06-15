@@ -52,6 +52,22 @@ const (
 													AND t.Deleted=false`
 )
 
+type leafDataCols struct {
+	TreeID              int64
+	LeafIdentityHash    []byte
+	LeafValue           []byte
+	ExtraData           []byte
+	QueueTimestampNanos int64
+}
+
+type sequencedLeafDataCols struct {
+	TreeID                  int64
+	SequenceNumber          int64
+	LeafIdentityHash        []byte
+	MerkleLeafHash          []byte
+	IntegrateTimestampNanos int64
+}
+
 // LogStorageOptions are tuning, experiments and workarounds that can be used.
 type LogStorageOptions struct {
 	TreeStorageOptions
@@ -573,38 +589,37 @@ func (tx *logTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 type leafmap map[int64]*trillian.LogLeaf
 
 // addFullRow appends the leaf data in row to the array
-func (l leafmap) addFullRow(r *spanner.Row) error {
-	var (
-		merkleLeafHash, leafValue, extraData []byte
-		sequenceNumber                       int64
-		leafIDHash                           []byte
-		qTimestamp                           int64
-		iTimestamp                           int64
-	)
+func (l leafmap) addFullRow(seqLeaves map[string]sequencedLeafDataCols) func(r *spanner.Row) error {
+	return func(r *spanner.Row) error {
+		var leafData leafDataCols
+		if err := r.ToStruct(&leafData); err != nil {
+			return err
+		}
+		seqLeaf, ok := seqLeaves[string(leafData.LeafIdentityHash)]
+		if !ok {
+			return fmt.Errorf("LeafIdentityHash %x not found in SequencedLeafData",
+				leafData.LeafIdentityHash)
+		}
+		leaf := &trillian.LogLeaf{
+			MerkleLeafHash:   seqLeaf.MerkleLeafHash,
+			LeafValue:        leafData.LeafValue,
+			ExtraData:        leafData.ExtraData,
+			LeafIndex:        seqLeaf.SequenceNumber,
+			LeafIdentityHash: leafData.LeafIdentityHash,
+		}
+		var err error
+		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, leafData.QueueTimestampNanos))
+		if err != nil {
+			return fmt.Errorf("got invalid queue timestamp %v", err)
+		}
+		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, seqLeaf.IntegrateTimestampNanos))
+		if err != nil {
+			return fmt.Errorf("got invalid integrate timestamp %v", err)
+		}
 
-	//`SELECT sd.MerkleLeafHash, ld.LeafValue, ld.ExtraData, sd.SequenceNumber, ld.LeafIdentityHash, ld.QueueTimestampNanos, sd.IntegrateTimestampNanos
-	if err := r.Columns(&merkleLeafHash, &leafValue, &extraData, &sequenceNumber, &leafIDHash, &qTimestamp, &iTimestamp); err != nil {
-		return err
+		l[seqLeaf.SequenceNumber] = leaf
+		return nil
 	}
-	leaf := &trillian.LogLeaf{
-		MerkleLeafHash:   merkleLeafHash,
-		LeafValue:        leafValue,
-		ExtraData:        extraData,
-		LeafIndex:        sequenceNumber,
-		LeafIdentityHash: leafIDHash,
-	}
-	var err error
-	leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
-	if err != nil {
-		return fmt.Errorf("got invalid queue timestamp %v", err)
-	}
-	leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
-	if err != nil {
-		return fmt.Errorf("got invalid integrate timestamp %v", err)
-	}
-
-	l[sequenceNumber] = leaf
-	return nil
 }
 
 // leavesByHash is a map of []LogLeaf (keyed by value hash) which knows how to
@@ -681,18 +696,53 @@ func (tx *logTX) GetLeavesByIndex(ctx context.Context, indices []int64) ([]*tril
 		return nil, err
 	}
 
-	leaves := make(leafmap)
 	stmt := spanner.NewStatement(
-		`SELECT sd.MerkleLeafHash, ld.LeafValue, ld.ExtraData, sd.SequenceNumber, ld.LeafIdentityHash, ld.QueueTimestampNanos, sd.IntegrateTimestampNanos
-FROM SequencedLeafData as sd
-INNER JOIN LeafData as ld
-ON sd.TreeID = ld.TreeID AND sd.LeafIdentityHash = ld.LeafIdentityHash
-WHERE sd.TreeID = @tree_id and sd.SequenceNumber IN UNNEST(@seq_nums)`)
+		`SELECT 
+		   TreeID,
+		   SequenceNumber,
+		   LeafIdentityHash,
+		   MerkleLeafHash, 
+		   IntegrateTimestampNanos
+		FROM 
+		   SequencedLeafData
+		WHERE 
+		   TreeID = @tree_id AND 
+		   SequenceNumber IN UNNEST(@seq_nums)`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["seq_nums"] = indices
+	seqLeaves := make(map[string]sequencedLeafDataCols)
+	if err := tx.stx.Query(ctx, stmt).Do(func(r *spanner.Row) error {
+		var seqLeaf sequencedLeafDataCols
+		if err := r.ToStruct(&seqLeaf); err != nil {
+			return err
+		}
+		seqLeaves[string(seqLeaf.LeafIdentityHash)] = seqLeaf
+		return nil
+	}); err != nil {
+		return nil, err
+	}
 
-	rows := tx.stx.Query(ctx, stmt)
-	if err := rows.Do(leaves.addFullRow); err != nil {
+	idHashes := make([][]byte, 0, len(seqLeaves))
+	for _, l := range seqLeaves {
+		idHashes = append(idHashes, l.LeafIdentityHash)
+	}
+
+	stmt = spanner.NewStatement(
+		`SELECT 
+		   TreeID,
+		   LeafIdentityHash, 
+		   LeafValue, 
+		   ExtraData, 
+		   QueueTimestampNanos
+		 FROM 
+		   SequencedLeafData
+		 WHERE 
+		   TreeID = @tree_id AND 
+		   LeafIdentityHash IN UNNEST(@id_hashes)`)
+	stmt.Params["tree_id"] = tx.treeID
+	stmt.Params["id_hashes"] = idHashes
+	leaves := make(leafmap)
+	if err := tx.stx.Query(ctx, stmt).Do(leaves.addFullRow(seqLeaves)); err != nil {
 		return nil, err
 	}
 
@@ -740,11 +790,18 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 	}
 
 	stmt := spanner.NewStatement(
-		`SELECT sd.MerkleLeafHash, ld.LeafValue, ld.ExtraData, sd.SequenceNumber, ld.LeafIdentityHash, ld.QueueTimestampNanos, sd.IntegrateTimestampNanos
-FROM SequencedLeafData as sd
-INNER JOIN LeafData as ld
-ON sd.TreeID = ld.TreeID AND sd.LeafIdentityHash = ld.LeafIdentityHash
-WHERE sd.TreeID = @tree_id AND sd.SequenceNumber >= @start AND sd.SequenceNumber < @xend`)
+		`SELECT 
+		   TreeID,
+		   SequenceNumber,
+		   LeafIdentityHash,
+		   MerkleLeafHash, 
+		   IntegrateTimestampNanos
+		 FROM 
+		   SequencedLeafData
+		 WHERE 
+		   TreeID = @tree_id AND 
+		   SequenceNumber >= @start AND 
+		   SequenceNumber < @xend`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["start"] = start
 	xend := start + count
@@ -753,12 +810,43 @@ WHERE sd.TreeID = @tree_id AND sd.SequenceNumber >= @start AND sd.SequenceNumber
 		count = xend - start
 	}
 	stmt.Params["xend"] = xend
+	seqLeaves := make(map[string]sequencedLeafDataCols)
+	if err := tx.stx.Query(ctx, stmt).Do(func(r *spanner.Row) error {
+		var seqLeaf sequencedLeafDataCols
+		if err := r.ToStruct(&seqLeaf); err != nil {
+			return err
+		}
+		seqLeaves[string(seqLeaf.LeafIdentityHash)] = seqLeaf
+		return nil
+	}); err != nil {
+		return nil, err
+	}
 
-	// Results need to be returned in order [start, end), all of which should be
-	// available (as we restricted xend/count to TreeSize).
+	idHashes := make([][]byte, 0, len(seqLeaves))
+	for _, l := range seqLeaves {
+		idHashes = append(idHashes, l.LeafIdentityHash)
+	}
+
+	stmt = spanner.NewStatement(
+		`SELECT 
+		   TreeID,
+		   LeafIdentityHash, 
+		   LeafValue, 
+		   ExtraData, 
+		   QueueTimestampNanos
+		 FROM 
+		   LeafData
+		 WHERE 
+		   TreeID = @tree_id AND 
+		   LeafIdentityHash IN UNNEST(@id_hashes)`)
+	stmt.Params["tree_id"] = tx.treeID
+	stmt.Params["id_hashes"] = idHashes
+
+	// Results need to be returned in order [start, end), all of which
+	// should be available (as we restricted xend/count to TreeSize).
 	leaves := make(leafmap)
-	rows := tx.stx.Query(ctx, stmt)
-	if err := rows.Do(leaves.addFullRow); err != nil {
+	if err := tx.stx.Query(ctx, stmt).
+		Do(leaves.addFullRow(seqLeaves)); err != nil {
 		return nil, err
 	}
 	ret := make([]*trillian.LogLeaf, 0, count)
