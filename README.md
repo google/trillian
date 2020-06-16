@@ -360,7 +360,7 @@ without anyone noticing.
 
 A future plan to deal with this is to create a *Logged Map*, which combines a
 Trillian Map with a Trillian Log so that all published revisions of the Map
-have their signed tree head data appended to the corresponding Map.
+have their signed tree head data appended to the corresponding Log.
 
 The mapping between the source Log data and the key:value data stored in the
 Map is application-specific, and so is implemented as a Trillian personality.
