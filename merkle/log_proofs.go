@@ -384,12 +384,14 @@ func lastNodePresent(level, ts int64) bool {
 	return b&mask != 0
 }
 
-// skipMissingLevels moves down the tree a level towards the leaves until the node exists. This
-// must terminate successfully as we will eventually reach the leaves, which are always written
-// and are at level 0. Missing nodes are intermediate nodes with one child, hence their value
-// is the same as the node lower down the tree as there is nothing to hash it with.
-func skipMissingLevels(snapshot, lastNode int64, level int, node int64) (int, int64) {
+// siblingIDSkipLevels returns the ID of the sibling to the passed-in node,
+// taking into account the skipping of levels in a non-perfect tree.
+func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64) compact.NodeID {
 	sibling := node ^ 1
+	// Move level towards the leaves until the node exists. This terminates
+	// successfully as the leaves (level 0) are always written. Missing nodes are
+	// intermediate nodes with one child, hence their value is the same as the
+	// node lower down the tree as there is nothing to hash it with.
 	for level > 0 && sibling == lastNode && !lastNodePresent(int64(level), snapshot) {
 		level--
 		sibling *= 2
@@ -398,8 +400,7 @@ func skipMissingLevels(snapshot, lastNode int64, level int, node int64) (int, in
 			glog.Infof("Move down: S:%d L:%d LN:%d", sibling, level, lastNode)
 		}
 	}
-
-	return level, sibling
+	return compact.NewNodeID(uint(level), uint64(sibling))
 }
 
 // checkRecomputation carries out an additional check that the results of recomputePastSnapshot
@@ -423,12 +424,4 @@ func checkRecomputation(fetches []NodeFetch) error {
 	}
 
 	return nil
-}
-
-// siblingIDSkipLevels creates a new NodeID for the supplied node, accounting for levels skipped
-// in storage. Note that it returns an ID for the node sibling so care should be taken to pass the
-// correct value for the node parameter.
-func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64) compact.NodeID {
-	l, sibling := skipMissingLevels(snapshot, lastNode, level, node)
-	return compact.NewNodeID(uint(l), uint64(sibling))
 }
