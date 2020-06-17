@@ -310,17 +310,17 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int) ([]NodeFetch
 //
 // As depicted in RFC 6962, nodes "float" upwards.
 //
-//            hash2
-//            /  \
-//           /    \
-//          /      \
-//         /        \
-//        /          \
-//        k            i
-//       / \           |
-//      /   \          e
-//     /     \         |
-//    g       h       d4
+//              hash
+//             /    \
+//            /      \
+//           /        \
+//          /          \
+//         /            \
+//        k              i
+//       / \             |
+//      /   \            d4
+//     /     \
+//    g       h
 //   / \     / \
 //   a b     c d
 //   | |     | |
@@ -331,40 +331,40 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int) ([]NodeFetch
 // sibling. More detail is given in the comments of:
 // https://github.com/google/certificate-transparency/blob/master/cpp/merkletree/merkle_tree.h
 //
-//             hash2
-//             /  \
-//            /    \
-//           /      \
-//          /        \
-//         /          \
-//        k            e
-//       / \             \
-//      /   \             \
-//     /     \             \
-//    g       h           e
-//   / \     / \         /
-//   a b     c d        e
-//   | |     | |        |
-//   d0 d1   d2 d3      d4
+//              hash
+//             /    \
+//            /      \
+//           /        \
+//          /          \
+//         /            \
+//        k              e
+//       / \            /
+//      /   \          /
+//     /     \        /
+//    g       h      e
+//   / \     / \    /
+//   a b     c d   e
+//   | |     | |   |
+//   d0 d1   d2 d3 d4
 //
 // In our storage implementation shown in the next diagram, nodes "sink" downwards, [X] nodes
 // with one child are not written, there is no dummy copy. Leaves are at level zero.
 //
-//             hash2
-//             /  \
-//            /    \
-//           /      \
-//          /        \
-//         /          \
-//        k            [X]           Level 2
-//       / \             \
-//      /   \             \
-//     /     \             \
-//    g       h           [X]        Level 1
-//   / \     / \         /
-//   a b     c d        e            Level 0
-//   | |     | |        |
-//   d0 d1   d2 d3      d4
+//              hash         Level 3
+//             /    \
+//            /      \
+//           /        \
+//          /          \
+//         /            \
+//        k             [X]  Level 2
+//       / \            /
+//      /   \          /
+//     /     \        /
+//    g       h     [X]      Level 1
+//   / \     / \    /
+//   a b     c d   e         Level 0 (leaves)
+//   | |     | |   |
+//   d0 d1   d2 d3 d4
 //
 // Tree size = 5, last index = 4 in binary = 100, append 1 for leaves = 1001.
 // Reading down the RHS: present, not present, not present, present = 1001. So when
