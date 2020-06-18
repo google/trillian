@@ -21,12 +21,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-type auditPathTestData struct {
-	treeSize     int64
-	leafIndex    int64
-	expectedPath []NodeFetch
-}
-
 type consistencyProofTestData struct {
 	priorTreeSize int64
 	treeSize      int64
@@ -187,7 +181,11 @@ var (
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	// These should all successfully compute the expected path.
-	for _, testCase := range []auditPathTestData{
+	for _, testCase := range []struct {
+		treeSize     int64
+		leafIndex    int64
+		expectedPath []NodeFetch
+	}{
 		{1, 0, []NodeFetch{}},
 		{7, 3, expectedPathSize7Index3},
 		{7, 6, expectedPathSize7Index6},
@@ -206,13 +204,16 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 
 func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 	// These should all fail.
-	for _, testCase := range []auditPathTestData{
-		{0, 1, []NodeFetch{}},
-		{1, 2, []NodeFetch{}},
-		{0, 3, []NodeFetch{}},
-		{-1, 3, []NodeFetch{}},
-		{7, -1, []NodeFetch{}},
-		{7, 8, []NodeFetch{}},
+	for _, testCase := range []struct {
+		treeSize  int64
+		leafIndex int64
+	}{
+		{0, 1},
+		{1, 2},
+		{0, 3},
+		{-1, 3},
+		{7, -1},
+		{7, 8},
 	} {
 		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
 
