@@ -153,27 +153,6 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	//
 	// Remember that our storage node layers are always populated from the bottom
 	// up, hence the gap at level 1, index 3 in the above picture.
-	var (
-		expectedPathSize7Index0 = []NodeFetch{ // from a
-			newNodeFetch(0, 1, false), // b
-			newNodeFetch(1, 1, false), // h
-			newNodeFetch(2, 1, false), // l
-		}
-		expectedPathSize7Index3 = []NodeFetch{ // from d
-			newNodeFetch(0, 2, false), // c
-			newNodeFetch(1, 0, false), // g
-			newNodeFetch(2, 1, false), // l
-		}
-		expectedPathSize7Index4 = []NodeFetch{ // from e
-			newNodeFetch(0, 5, false), // f
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(2, 0, false), // k
-		}
-		expectedPathSize7Index6 = []NodeFetch{ // from j
-			newNodeFetch(1, 2, false), // i
-			newNodeFetch(2, 0, false), // k
-		}
-	)
 
 	// These should all successfully compute the expected path.
 	for _, testCase := range []struct {
@@ -182,10 +161,25 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		expectedPath []NodeFetch
 	}{
 		{1, 0, []NodeFetch{}},
-		{7, 0, expectedPathSize7Index0},
-		{7, 3, expectedPathSize7Index3},
-		{7, 4, expectedPathSize7Index4},
-		{7, 6, expectedPathSize7Index6},
+		{7, 0, []NodeFetch{ // from a
+			newNodeFetch(0, 1, false), // b
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(2, 1, false), // l
+		}},
+		{7, 3, []NodeFetch{ // from d
+			newNodeFetch(0, 2, false), // c
+			newNodeFetch(1, 0, false), // g
+			newNodeFetch(2, 1, false), // l
+		}},
+		{7, 4, []NodeFetch{ // from e
+			newNodeFetch(0, 5, false), // f
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
+		}},
+		{7, 6, []NodeFetch{ // from j
+			newNodeFetch(1, 2, false), // i
+			newNodeFetch(2, 0, false), // k
+		}},
 	} {
 		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
 
