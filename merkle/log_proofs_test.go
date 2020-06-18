@@ -166,6 +166,16 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			newNodeFetch(1, 1, false), // h
 			newNodeFetch(2, 1, false), // l
 		}},
+		{size: 7, index: 1, want: []NodeFetch{ // from b
+			newNodeFetch(0, 0, false), // a
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(2, 1, false), // l
+		}},
+		{size: 7, index: 2, want: []NodeFetch{ // from c
+			newNodeFetch(0, 3, false), // d
+			newNodeFetch(1, 0, false), // g
+			newNodeFetch(2, 1, false), // l
+		}},
 		{size: 7, index: 3, want: []NodeFetch{ // from d
 			newNodeFetch(0, 2, false), // c
 			newNodeFetch(1, 0, false), // g
@@ -173,6 +183,11 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		}},
 		{size: 7, index: 4, want: []NodeFetch{ // from e
 			newNodeFetch(0, 5, false), // f
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
+		}},
+		{size: 7, index: 5, want: []NodeFetch{ // from f
+			newNodeFetch(0, 4, false), // e
 			newNodeFetch(0, 6, false), // j
 			newNodeFetch(2, 0, false), // k
 		}},
