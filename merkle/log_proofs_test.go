@@ -267,6 +267,7 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 
 // TODO(pkalinnikov): Remove desc when all the tests use t.Run.
 func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
+	t.Helper()
 	if len(expected) != len(got) {
 		t.Fatalf("%s: expected %d nodes in path but got %d: %v", desc, len(expected), len(got), got)
 	}
