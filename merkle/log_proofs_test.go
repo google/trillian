@@ -21,32 +21,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-type auditPathTestData struct {
-	treeSize     int64
-	leafIndex    int64
-	expectedPath []NodeFetch
-}
-
-type consistencyProofTestData struct {
-	priorTreeSize int64
-	treeSize      int64
-	expectedProof []NodeFetch
-}
-
-var lastNodeWrittenVec = []struct {
-	ts     int64
-	result string
-}{
-	{3, "101"},
-	{5, "1001"},
-	{11, "10101"},
-	{14, "11011"},
-	{15, "11101"},
-}
-
-// For the path test tests at tree sizes up to this value
-const testUpToTreeSize = 99
-
 // Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
 //
 //                hash              <== Level 3
@@ -67,40 +41,40 @@ const testUpToTreeSize = 99
 //
 // When comparing with the document remember that our storage node layers are always
 // populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
-
-var expectedPathSize7Index0 = []NodeFetch{ // from a
-	NodeFetchForTreeCoords(0, 1, false), // b
-	NodeFetchForTreeCoords(1, 1, false), // h
-	NodeFetchForTreeCoords(2, 1, false), // l
-}
-var expectedPathSize7Index3 = []NodeFetch{ // from d
-	NodeFetchForTreeCoords(0, 2, false), // c
-	NodeFetchForTreeCoords(1, 0, false), // g
-	NodeFetchForTreeCoords(2, 1, false), // l
-}
-var expectedPathSize7Index4 = []NodeFetch{ // from e
-	NodeFetchForTreeCoords(0, 5, false), // f
-	NodeFetchForTreeCoords(0, 6, false), // j
-	NodeFetchForTreeCoords(2, 0, false), // k
-}
-var expectedPathSize7Index6 = []NodeFetch{ // from j
-	NodeFetchForTreeCoords(1, 2, false), // i
-	NodeFetchForTreeCoords(2, 0, false), // k
-}
+var (
+	expectedPathSize7Index0 = []NodeFetch{ // from a
+		newNodeFetch(0, 1, false), // b
+		newNodeFetch(1, 1, false), // h
+		newNodeFetch(2, 1, false), // l
+	}
+	expectedPathSize7Index3 = []NodeFetch{ // from d
+		newNodeFetch(0, 2, false), // c
+		newNodeFetch(1, 0, false), // g
+		newNodeFetch(2, 1, false), // l
+	}
+	expectedPathSize7Index4 = []NodeFetch{ // from e
+		newNodeFetch(0, 5, false), // f
+		newNodeFetch(0, 6, false), // j
+		newNodeFetch(2, 0, false), // k
+	}
+	expectedPathSize7Index6 = []NodeFetch{ // from j
+		newNodeFetch(1, 2, false), // i
+		newNodeFetch(2, 0, false), // k
+	}
+)
 
 // Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
 // node layers are filled from the bottom upwards.
-var expectedConsistencyProofFromSize1To2 = []NodeFetch{
+var (
 	//                     hash1=g
 	//                          / \
 	//  hash0=a      =>         a b
 	//        |                 | |
 	//        d0               d0 d1
-	NodeFetchForTreeCoords(0, 1, false), // b
-}
-var expectedConsistencyProofFromSize1To4 = []NodeFetch{
-	//
-	//
+	expectedConsistencyProofFromSize1To2 = []NodeFetch{
+		newNodeFetch(0, 1, false), // b
+	}
+
 	//  hash0=a      =>           hash1=k
 	//        |                  /   \
 	//        d0                /     \
@@ -111,12 +85,11 @@ var expectedConsistencyProofFromSize1To4 = []NodeFetch{
 	//                        a b     c d
 	//                        | |     | |
 	//                       d0 d1   d2 d3
-	//
-	//
-	NodeFetchForTreeCoords(0, 1, false), // b
-	NodeFetchForTreeCoords(1, 1, false), // h
-}
-var expectedConsistencyProofFromSize3To7 = []NodeFetch{
+	expectedConsistencyProofFromSize1To4 = []NodeFetch{
+		newNodeFetch(0, 1, false), // b
+		newNodeFetch(1, 1, false), // h
+	}
+
 	//                                             hash
 	//                                            /    \
 	//                                           /      \
@@ -132,12 +105,13 @@ var expectedConsistencyProofFromSize3To7 = []NodeFetch{
 	//    a b    c                      a b     c d    e f    j
 	//    | |    |                      | |     | |    | |    |
 	//   d0 d1   d2                     d0 d1   d2 d3  d4 d5  d6
-	NodeFetchForTreeCoords(0, 2, false), // c
-	NodeFetchForTreeCoords(0, 3, false), // d
-	NodeFetchForTreeCoords(1, 0, false), // g
-	NodeFetchForTreeCoords(2, 1, false), // l
-}
-var expectedConsistencyProofFromSize4To7 = []NodeFetch{
+	expectedConsistencyProofFromSize3To7 = []NodeFetch{
+		newNodeFetch(0, 2, false), // c
+		newNodeFetch(0, 3, false), // d
+		newNodeFetch(1, 0, false), // g
+		newNodeFetch(2, 1, false), // l
+	}
+
 	//                                             hash
 	//                                            /    \
 	//                                           /      \
@@ -153,9 +127,10 @@ var expectedConsistencyProofFromSize4To7 = []NodeFetch{
 	//    a b     c d                   a b     c d    e f    j
 	//    | |     | |                   | |     | |    | |    |
 	//   d0 d1   d2 d3                  d0 d1   d2 d3  d4 d5  d6
-	NodeFetchForTreeCoords(2, 1, false), // l
-}
-var expectedConsistencyProofFromSize6To7 = []NodeFetch{
+	expectedConsistencyProofFromSize4To7 = []NodeFetch{
+		newNodeFetch(2, 1, false), // l
+	}
+
 	//             hash2                           hash
 	//             /  \                           /    \
 	//            /    \                         /      \
@@ -171,11 +146,12 @@ var expectedConsistencyProofFromSize6To7 = []NodeFetch{
 	//   a b     c d     e f            a b     c d    e f    j
 	//   | |     | |     | |            | |     | |    | |    |
 	//   d0 d1   d2 d3  d4 d5           d0 d1   d2 d3  d4 d5  d6
-	NodeFetchForTreeCoords(1, 2, false), // i
-	NodeFetchForTreeCoords(0, 6, false), // j
-	NodeFetchForTreeCoords(2, 0, false), // k
-}
-var expectedConsistencyProofFromSize2To8 = []NodeFetch{
+	expectedConsistencyProofFromSize6To7 = []NodeFetch{
+		newNodeFetch(1, 2, false), // i
+		newNodeFetch(0, 6, false), // j
+		newNodeFetch(2, 0, false), // k
+	}
+
 	//                               hash8
 	//                              /    \
 	//                             /      \
@@ -191,57 +167,25 @@ var expectedConsistencyProofFromSize2To8 = []NodeFetch{
 	//    a b             a b     c d    e f    j m
 	//    | |             | |     | |    | |    | |
 	//   d0 d1            d0 d1   d2 d3  d4 d5 d6 d7
-	NodeFetchForTreeCoords(1, 1, false), // h
-	NodeFetchForTreeCoords(2, 1, false), // l
-}
-
-// These should all successfully compute the expected path
-var pathTests = []auditPathTestData{
-	{1, 0, []NodeFetch{}},
-	{7, 3, expectedPathSize7Index3},
-	{7, 6, expectedPathSize7Index6},
-	{7, 0, expectedPathSize7Index0},
-	{7, 4, expectedPathSize7Index4},
-}
-
-// These should all fail
-var pathTestBad = []auditPathTestData{
-	{0, 1, []NodeFetch{}},
-	{1, 2, []NodeFetch{}},
-	{0, 3, []NodeFetch{}},
-	{-1, 3, []NodeFetch{}},
-	{7, -1, []NodeFetch{}},
-	{7, 8, []NodeFetch{}},
-}
-
-// These should compute the expected consistency proofs
-var consistencyTests = []consistencyProofTestData{
-	{1, 2, expectedConsistencyProofFromSize1To2},
-	{1, 4, expectedConsistencyProofFromSize1To4},
-	{6, 7, expectedConsistencyProofFromSize6To7},
-	{3, 7, expectedConsistencyProofFromSize3To7},
-	{4, 7, expectedConsistencyProofFromSize4To7},
-	{2, 8, expectedConsistencyProofFromSize2To8},
-	{1, 1, []NodeFetch{}},
-	{2, 2, []NodeFetch{}},
-	{3, 3, []NodeFetch{}},
-	{4, 4, []NodeFetch{}},
-	{5, 5, []NodeFetch{}},
-	{7, 7, []NodeFetch{}},
-	{8, 8, []NodeFetch{}},
-}
-
-// These should all fail to provide proofs
-var consistencyTestsBad = []consistencyProofTestData{
-	{0, -1, []NodeFetch{}},
-	{-10, 0, []NodeFetch{}},
-	{-1, -1, []NodeFetch{}},
-	{0, 0, []NodeFetch{}},
-	{9, 8, []NodeFetch{}},
-}
+	expectedConsistencyProofFromSize2To8 = []NodeFetch{
+		newNodeFetch(1, 1, false), // h
+		newNodeFetch(2, 1, false), // l
+	}
+)
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
-	for _, testCase := range pathTests {
+	// These should all successfully compute the expected path.
+	for _, testCase := range []struct {
+		treeSize     int64
+		leafIndex    int64
+		expectedPath []NodeFetch
+	}{
+		{1, 0, []NodeFetch{}},
+		{7, 3, expectedPathSize7Index3},
+		{7, 6, expectedPathSize7Index6},
+		{7, 0, expectedPathSize7Index0},
+		{7, 4, expectedPathSize7Index4},
+	} {
 		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
 
 		if err != nil {
@@ -253,7 +197,18 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 }
 
 func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
-	for _, testCase := range pathTestBad {
+	// These should all fail.
+	for _, testCase := range []struct {
+		treeSize  int64
+		leafIndex int64
+	}{
+		{0, 1},
+		{1, 2},
+		{0, 3},
+		{-1, 3},
+		{7, -1},
+		{7, 8},
+	} {
 		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
 
 		if err == nil {
@@ -263,7 +218,26 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 }
 
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
-	for _, testCase := range consistencyTests {
+	// These should compute the expected consistency proofs.
+	for _, testCase := range []struct {
+		priorTreeSize int64
+		treeSize      int64
+		expectedProof []NodeFetch
+	}{
+		{1, 2, expectedConsistencyProofFromSize1To2},
+		{1, 4, expectedConsistencyProofFromSize1To4},
+		{6, 7, expectedConsistencyProofFromSize6To7},
+		{3, 7, expectedConsistencyProofFromSize3To7},
+		{4, 7, expectedConsistencyProofFromSize4To7},
+		{2, 8, expectedConsistencyProofFromSize2To8},
+		{1, 1, []NodeFetch{}},
+		{2, 2, []NodeFetch{}},
+		{3, 3, []NodeFetch{}},
+		{4, 4, []NodeFetch{}},
+		{5, 5, []NodeFetch{}},
+		{7, 7, []NodeFetch{}},
+		{8, 8, []NodeFetch{}},
+	} {
 		proof, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
 
 		if err != nil {
@@ -275,7 +249,17 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 }
 
 func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
-	for _, testCase := range consistencyTestsBad {
+	// These should all fail to provide proofs.
+	for _, testCase := range []struct {
+		priorTreeSize int64
+		treeSize      int64
+	}{
+		{0, -1},
+		{-10, 0},
+		{-1, -1},
+		{0, 0},
+		{9, 8},
+	} {
 		_, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
 
 		if err == nil {
@@ -297,7 +281,16 @@ func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
 }
 
 func TestLastNodeWritten(t *testing.T) {
-	for _, testCase := range lastNodeWrittenVec {
+	for _, testCase := range []struct {
+		ts     int64
+		result string
+	}{
+		{3, "101"},
+		{5, "1001"},
+		{11, "10101"},
+		{14, "11011"},
+		{15, "11101"},
+	} {
 		str := ""
 		for d := int64(len(testCase.result) - 1); d >= 0; d-- {
 			if lastNodePresent(d, testCase.ts) {
@@ -314,7 +307,8 @@ func TestLastNodeWritten(t *testing.T) {
 }
 
 func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
-	for ts := 1; ts < testUpToTreeSize; ts++ {
+	const maxSize = 555
+	for ts := 1; ts <= maxSize; ts++ {
 		for i := ts; i < ts; i++ {
 			if _, err := CalcInclusionProofNodeAddresses(int64(ts), int64(i), int64(ts)); err != nil {
 				t.Errorf("CalcInclusionProofNodeAddresses(ts:%d, i:%d) = %v", ts, i, err)
@@ -324,8 +318,9 @@ func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 }
 
 func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
-	for s1 := 1; s1 < testUpToTreeSize; s1++ {
-		for s2 := s1 + 1; s2 < testUpToTreeSize; s2++ {
+	const maxSize = 100
+	for s1 := 1; s1 < maxSize; s1++ {
+		for s2 := s1 + 1; s2 <= maxSize; s2++ {
 			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2), int64(s2)); err != nil {
 				t.Errorf("CalcConsistencyProofNodeAddresses(%d, %d) = %v", s1, s2, err)
 			}
@@ -333,7 +328,6 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 	}
 }
 
-func NodeFetchForTreeCoords(depth, index int64, rehash bool) NodeFetch {
-	n := compact.NewNodeID(uint(depth), uint64(index))
-	return NodeFetch{ID: n, Rehash: rehash}
+func newNodeFetch(level uint, index uint64, rehash bool) NodeFetch {
+	return NodeFetch{ID: compact.NewNodeID(level, index), Rehash: rehash}
 }
