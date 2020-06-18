@@ -182,10 +182,10 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		expectedPath []NodeFetch
 	}{
 		{1, 0, []NodeFetch{}},
-		{7, 3, expectedPathSize7Index3},
-		{7, 6, expectedPathSize7Index6},
 		{7, 0, expectedPathSize7Index0},
+		{7, 3, expectedPathSize7Index3},
 		{7, 4, expectedPathSize7Index4},
+		{7, 6, expectedPathSize7Index6},
 	} {
 		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
 
