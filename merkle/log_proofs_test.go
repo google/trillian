@@ -33,17 +33,6 @@ type consistencyProofTestData struct {
 	expectedProof []NodeFetch
 }
 
-var lastNodeWrittenVec = []struct {
-	ts     int64
-	result string
-}{
-	{3, "101"},
-	{5, "1001"},
-	{11, "10101"},
-	{14, "11011"},
-	{15, "11101"},
-}
-
 // Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
 //
 //                hash              <== Level 3
@@ -192,53 +181,15 @@ var expectedConsistencyProofFromSize2To8 = []NodeFetch{
 	newNodeFetch(2, 1, false), // l
 }
 
-// These should all successfully compute the expected path
-var pathTests = []auditPathTestData{
-	{1, 0, []NodeFetch{}},
-	{7, 3, expectedPathSize7Index3},
-	{7, 6, expectedPathSize7Index6},
-	{7, 0, expectedPathSize7Index0},
-	{7, 4, expectedPathSize7Index4},
-}
-
-// These should all fail
-var pathTestBad = []auditPathTestData{
-	{0, 1, []NodeFetch{}},
-	{1, 2, []NodeFetch{}},
-	{0, 3, []NodeFetch{}},
-	{-1, 3, []NodeFetch{}},
-	{7, -1, []NodeFetch{}},
-	{7, 8, []NodeFetch{}},
-}
-
-// These should compute the expected consistency proofs
-var consistencyTests = []consistencyProofTestData{
-	{1, 2, expectedConsistencyProofFromSize1To2},
-	{1, 4, expectedConsistencyProofFromSize1To4},
-	{6, 7, expectedConsistencyProofFromSize6To7},
-	{3, 7, expectedConsistencyProofFromSize3To7},
-	{4, 7, expectedConsistencyProofFromSize4To7},
-	{2, 8, expectedConsistencyProofFromSize2To8},
-	{1, 1, []NodeFetch{}},
-	{2, 2, []NodeFetch{}},
-	{3, 3, []NodeFetch{}},
-	{4, 4, []NodeFetch{}},
-	{5, 5, []NodeFetch{}},
-	{7, 7, []NodeFetch{}},
-	{8, 8, []NodeFetch{}},
-}
-
-// These should all fail to provide proofs
-var consistencyTestsBad = []consistencyProofTestData{
-	{0, -1, []NodeFetch{}},
-	{-10, 0, []NodeFetch{}},
-	{-1, -1, []NodeFetch{}},
-	{0, 0, []NodeFetch{}},
-	{9, 8, []NodeFetch{}},
-}
-
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
-	for _, testCase := range pathTests {
+	// These should all successfully compute the expected path.
+	for _, testCase := range []auditPathTestData{
+		{1, 0, []NodeFetch{}},
+		{7, 3, expectedPathSize7Index3},
+		{7, 6, expectedPathSize7Index6},
+		{7, 0, expectedPathSize7Index0},
+		{7, 4, expectedPathSize7Index4},
+	} {
 		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
 
 		if err != nil {
@@ -250,7 +201,15 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 }
 
 func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
-	for _, testCase := range pathTestBad {
+	// These should all fail.
+	for _, testCase := range []auditPathTestData{
+		{0, 1, []NodeFetch{}},
+		{1, 2, []NodeFetch{}},
+		{0, 3, []NodeFetch{}},
+		{-1, 3, []NodeFetch{}},
+		{7, -1, []NodeFetch{}},
+		{7, 8, []NodeFetch{}},
+	} {
 		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
 
 		if err == nil {
@@ -260,7 +219,22 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 }
 
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
-	for _, testCase := range consistencyTests {
+	// These should compute the expected consistency proofs.
+	for _, testCase := range []consistencyProofTestData{
+		{1, 2, expectedConsistencyProofFromSize1To2},
+		{1, 4, expectedConsistencyProofFromSize1To4},
+		{6, 7, expectedConsistencyProofFromSize6To7},
+		{3, 7, expectedConsistencyProofFromSize3To7},
+		{4, 7, expectedConsistencyProofFromSize4To7},
+		{2, 8, expectedConsistencyProofFromSize2To8},
+		{1, 1, []NodeFetch{}},
+		{2, 2, []NodeFetch{}},
+		{3, 3, []NodeFetch{}},
+		{4, 4, []NodeFetch{}},
+		{5, 5, []NodeFetch{}},
+		{7, 7, []NodeFetch{}},
+		{8, 8, []NodeFetch{}},
+	} {
 		proof, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
 
 		if err != nil {
@@ -272,7 +246,14 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 }
 
 func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
-	for _, testCase := range consistencyTestsBad {
+	// These should all fail to provide proofs.
+	for _, testCase := range []consistencyProofTestData{
+		{0, -1, []NodeFetch{}},
+		{-10, 0, []NodeFetch{}},
+		{-1, -1, []NodeFetch{}},
+		{0, 0, []NodeFetch{}},
+		{9, 8, []NodeFetch{}},
+	} {
 		_, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
 
 		if err == nil {
@@ -294,7 +275,16 @@ func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
 }
 
 func TestLastNodeWritten(t *testing.T) {
-	for _, testCase := range lastNodeWrittenVec {
+	for _, testCase := range []struct {
+		ts     int64
+		result string
+	}{
+		{3, "101"},
+		{5, "1001"},
+		{11, "10101"},
+		{14, "11011"},
+		{15, "11101"},
+	} {
 		str := ""
 		for d := int64(len(testCase.result) - 1); d >= 0; d-- {
 			if lastNodePresent(d, testCase.ts) {
