@@ -190,23 +190,23 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 }
 
 func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
-	// These should all fail.
-	for _, testCase := range []struct {
-		treeSize  int64
-		leafIndex int64
+	for _, tc := range []struct {
+		size  int64
+		index int64
 	}{
-		{0, 1},
-		{1, 2},
-		{0, 3},
-		{-1, 3},
-		{7, -1},
-		{7, 8},
+		{size: 0, index: 1},
+		{size: 1, index: 2},
+		{size: 0, index: 3},
+		{size: -1, index: 3},
+		{size: 7, index: -1},
+		{size: 7, index: 8},
 	} {
-		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
-
-		if err == nil {
-			t.Fatalf("incorrectly accepted bad params: %v", testCase)
-		}
+		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
+			_, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.size)
+			if err == nil {
+				t.Fatal("accepted bad params")
+			}
+		})
 	}
 }
 
