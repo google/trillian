@@ -21,48 +21,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-// Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
-//
-//                hash              <== Level 3
-//               /    \
-//              /      \
-//             /        \
-//            /          \
-//           /            \
-//          k              l        <== Level 2
-//         / \            / \
-//        /   \          /   \
-//       /     \        /     \
-//      g       h      i      [ ]   <== Level 1
-//     / \     / \    / \    /
-//     a b     c d    e f    j      <== Level 0
-//     | |     | |    | |    |
-//     d0 d1   d2 d3  d4 d5  d6
-//
-// When comparing with the document remember that our storage node layers are always
-// populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
-var (
-	expectedPathSize7Index0 = []NodeFetch{ // from a
-		newNodeFetch(0, 1, false), // b
-		newNodeFetch(1, 1, false), // h
-		newNodeFetch(2, 1, false), // l
-	}
-	expectedPathSize7Index3 = []NodeFetch{ // from d
-		newNodeFetch(0, 2, false), // c
-		newNodeFetch(1, 0, false), // g
-		newNodeFetch(2, 1, false), // l
-	}
-	expectedPathSize7Index4 = []NodeFetch{ // from e
-		newNodeFetch(0, 5, false), // f
-		newNodeFetch(0, 6, false), // j
-		newNodeFetch(2, 0, false), // k
-	}
-	expectedPathSize7Index6 = []NodeFetch{ // from j
-		newNodeFetch(1, 2, false), // i
-		newNodeFetch(2, 0, false), // k
-	}
-)
-
 // Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
 // node layers are filled from the bottom upwards.
 var (
@@ -174,6 +132,48 @@ var (
 )
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
+	// Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
+	//
+	//                hash              <== Level 3
+	//               /    \
+	//              /      \
+	//             /        \
+	//            /          \
+	//           /            \
+	//          k              l        <== Level 2
+	//         / \            / \
+	//        /   \          /   \
+	//       /     \        /     \
+	//      g       h      i      [ ]   <== Level 1
+	//     / \     / \    / \    /
+	//     a b     c d    e f    j      <== Level 0
+	//     | |     | |    | |    |
+	//     d0 d1   d2 d3  d4 d5  d6
+	//
+	// When comparing with the document remember that our storage node layers are always
+	// populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
+	var (
+		expectedPathSize7Index0 = []NodeFetch{ // from a
+			newNodeFetch(0, 1, false), // b
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(2, 1, false), // l
+		}
+		expectedPathSize7Index3 = []NodeFetch{ // from d
+			newNodeFetch(0, 2, false), // c
+			newNodeFetch(1, 0, false), // g
+			newNodeFetch(2, 1, false), // l
+		}
+		expectedPathSize7Index4 = []NodeFetch{ // from e
+			newNodeFetch(0, 5, false), // f
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
+		}
+		expectedPathSize7Index6 = []NodeFetch{ // from j
+			newNodeFetch(1, 2, false), // i
+			newNodeFetch(2, 0, false), // k
+		}
+	)
+
 	// These should all successfully compute the expected path.
 	for _, testCase := range []struct {
 		treeSize     int64
