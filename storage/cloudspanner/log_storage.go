@@ -981,19 +981,19 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 		Do(leaves.addFullRow(seqLeaves)); err != nil {
 		return nil, err
 	}
+
+	if got := int64(len(leaves)); got > count {
+		return nil, fmt.Errorf("unexpected number of leaves %d, want <= %d", got, count)
+	}
+
 	ret := make([]*trillian.LogLeaf, 0, count)
 	for i := start; i < (start + count); i++ {
 		l, ok := leaves[i]
 		if !ok {
-			return nil, fmt.Errorf("inconsistency: missing data for index %d", i)
+			break
 		}
 		ret = append(ret, l)
-		delete(leaves, i)
 	}
-	if len(leaves) > 0 {
-		return nil, fmt.Errorf("inconsistency: unexpected extra data outside range %d, +%d", start, count)
-	}
-
 	return ret, nil
 }
 
