@@ -21,12 +21,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-type consistencyProofTestData struct {
-	priorTreeSize int64
-	treeSize      int64
-	expectedProof []NodeFetch
-}
-
 // Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
 //
 //                hash              <== Level 3
@@ -225,7 +219,11 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	// These should compute the expected consistency proofs.
-	for _, testCase := range []consistencyProofTestData{
+	for _, testCase := range []struct {
+		priorTreeSize int64
+		treeSize      int64
+		expectedProof []NodeFetch
+	}{
 		{1, 2, expectedConsistencyProofFromSize1To2},
 		{1, 4, expectedConsistencyProofFromSize1To4},
 		{6, 7, expectedConsistencyProofFromSize6To7},
@@ -252,12 +250,15 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 
 func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 	// These should all fail to provide proofs.
-	for _, testCase := range []consistencyProofTestData{
-		{0, -1, []NodeFetch{}},
-		{-10, 0, []NodeFetch{}},
-		{-1, -1, []NodeFetch{}},
-		{0, 0, []NodeFetch{}},
-		{9, 8, []NodeFetch{}},
+	for _, testCase := range []struct {
+		priorTreeSize int64
+		treeSize      int64
+	}{
+		{0, -1},
+		{-10, 0},
+		{-1, -1},
+		{0, 0},
+		{9, 8},
 	} {
 		_, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
 
