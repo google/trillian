@@ -181,13 +181,13 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			newNodeFetch(2, 0, false), // k
 		}},
 	} {
-		proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.size)
-
-		if err != nil {
-			t.Fatalf("unexpected error calculating proof %v: %v", tc, err)
-		}
-
-		comparePaths(t, fmt.Sprintf("i(%d,%d)", tc.index, tc.size), proof, tc.want)
+		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
+			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.size)
+			if err != nil {
+				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
+			}
+			comparePaths(t, "", proof, tc.want)
+		})
 	}
 }
 
@@ -263,6 +263,7 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 	}
 }
 
+// TODO(pkalinnikov): Remove desc when all the tests use t.Run.
 func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
 	if len(expected) != len(got) {
 		t.Fatalf("%s: expected %d nodes in path but got %d: %v", desc, len(expected), len(got), got)
