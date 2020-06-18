@@ -154,6 +154,9 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	// Remember that our storage node layers are always populated from the bottom
 	// up, hence the gap at level 1, index 3 in the above picture.
 
+	node := func(level uint, index uint64) NodeFetch {
+		return newNodeFetch(level, index, false)
+	}
 	// These should all successfully compute the expected proof.
 	for _, tc := range []struct {
 		size  int64
@@ -161,40 +164,20 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		want  []NodeFetch
 	}{
 		{size: 1, index: 0, want: nil},
-		{size: 7, index: 0, want: []NodeFetch{ // from a
-			newNodeFetch(0, 1, false), // b
-			newNodeFetch(1, 1, false), // h
-			newNodeFetch(2, 1, false), // l
-		}},
-		{size: 7, index: 1, want: []NodeFetch{ // from b
-			newNodeFetch(0, 0, false), // a
-			newNodeFetch(1, 1, false), // h
-			newNodeFetch(2, 1, false), // l
-		}},
-		{size: 7, index: 2, want: []NodeFetch{ // from c
-			newNodeFetch(0, 3, false), // d
-			newNodeFetch(1, 0, false), // g
-			newNodeFetch(2, 1, false), // l
-		}},
-		{size: 7, index: 3, want: []NodeFetch{ // from d
-			newNodeFetch(0, 2, false), // c
-			newNodeFetch(1, 0, false), // g
-			newNodeFetch(2, 1, false), // l
-		}},
-		{size: 7, index: 4, want: []NodeFetch{ // from e
-			newNodeFetch(0, 5, false), // f
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(2, 0, false), // k
-		}},
-		{size: 7, index: 5, want: []NodeFetch{ // from f
-			newNodeFetch(0, 4, false), // e
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(2, 0, false), // k
-		}},
-		{size: 7, index: 6, want: []NodeFetch{ // from j
-			newNodeFetch(1, 2, false), // i
-			newNodeFetch(2, 0, false), // k
-		}},
+		{size: 7, index: 0, want: []NodeFetch{
+			node(0, 1), node(1, 1), node(2, 1)}}, // b h l
+		{size: 7, index: 1, want: []NodeFetch{
+			node(0, 0), node(1, 1), node(2, 1)}}, // a h l
+		{size: 7, index: 2, want: []NodeFetch{
+			node(0, 3), node(1, 0), node(2, 1)}}, // d g l
+		{size: 7, index: 3, want: []NodeFetch{
+			node(0, 2), node(1, 0), node(2, 1)}}, // c g l
+		{size: 7, index: 4, want: []NodeFetch{
+			node(0, 5), node(0, 6), node(2, 0)}}, // f j k
+		{size: 7, index: 5, want: []NodeFetch{
+			node(0, 4), node(0, 6), node(2, 0)}}, // e j k
+		{size: 7, index: 6, want: []NodeFetch{
+			node(1, 2), node(2, 0)}}, // i k
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
 			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.size)
