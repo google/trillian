@@ -132,7 +132,8 @@ var (
 )
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
-	// Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
+	// Expected inclusion proofs built by examination of the example 7 leaf tree
+	// in RFC 6962:
 	//
 	//                hash              <== Level 3
 	//               /    \
@@ -150,8 +151,8 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	//     | |     | |    | |    |
 	//     d0 d1   d2 d3  d4 d5  d6
 	//
-	// When comparing with the document remember that our storage node layers are always
-	// populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
+	// Remember that our storage node layers are always populated from the bottom
+	// up, hence the gap at level 1, index 3 in the above picture.
 	var (
 		expectedPathSize7Index0 = []NodeFetch{ // from a
 			newNodeFetch(0, 1, false), // b
