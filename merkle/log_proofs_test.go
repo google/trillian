@@ -69,23 +69,23 @@ const testUpToTreeSize = 99
 // populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
 
 var expectedPathSize7Index0 = []NodeFetch{ // from a
-	NodeFetchForTreeCoords(0, 1, false), // b
-	NodeFetchForTreeCoords(1, 1, false), // h
-	NodeFetchForTreeCoords(2, 1, false), // l
+	newNodeFetch(0, 1, false), // b
+	newNodeFetch(1, 1, false), // h
+	newNodeFetch(2, 1, false), // l
 }
 var expectedPathSize7Index3 = []NodeFetch{ // from d
-	NodeFetchForTreeCoords(0, 2, false), // c
-	NodeFetchForTreeCoords(1, 0, false), // g
-	NodeFetchForTreeCoords(2, 1, false), // l
+	newNodeFetch(0, 2, false), // c
+	newNodeFetch(1, 0, false), // g
+	newNodeFetch(2, 1, false), // l
 }
 var expectedPathSize7Index4 = []NodeFetch{ // from e
-	NodeFetchForTreeCoords(0, 5, false), // f
-	NodeFetchForTreeCoords(0, 6, false), // j
-	NodeFetchForTreeCoords(2, 0, false), // k
+	newNodeFetch(0, 5, false), // f
+	newNodeFetch(0, 6, false), // j
+	newNodeFetch(2, 0, false), // k
 }
 var expectedPathSize7Index6 = []NodeFetch{ // from j
-	NodeFetchForTreeCoords(1, 2, false), // i
-	NodeFetchForTreeCoords(2, 0, false), // k
+	newNodeFetch(1, 2, false), // i
+	newNodeFetch(2, 0, false), // k
 }
 
 // Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
@@ -96,7 +96,7 @@ var expectedConsistencyProofFromSize1To2 = []NodeFetch{
 	//  hash0=a      =>         a b
 	//        |                 | |
 	//        d0               d0 d1
-	NodeFetchForTreeCoords(0, 1, false), // b
+	newNodeFetch(0, 1, false), // b
 }
 var expectedConsistencyProofFromSize1To4 = []NodeFetch{
 	//
@@ -113,8 +113,8 @@ var expectedConsistencyProofFromSize1To4 = []NodeFetch{
 	//                       d0 d1   d2 d3
 	//
 	//
-	NodeFetchForTreeCoords(0, 1, false), // b
-	NodeFetchForTreeCoords(1, 1, false), // h
+	newNodeFetch(0, 1, false), // b
+	newNodeFetch(1, 1, false), // h
 }
 var expectedConsistencyProofFromSize3To7 = []NodeFetch{
 	//                                             hash
@@ -132,10 +132,10 @@ var expectedConsistencyProofFromSize3To7 = []NodeFetch{
 	//    a b    c                      a b     c d    e f    j
 	//    | |    |                      | |     | |    | |    |
 	//   d0 d1   d2                     d0 d1   d2 d3  d4 d5  d6
-	NodeFetchForTreeCoords(0, 2, false), // c
-	NodeFetchForTreeCoords(0, 3, false), // d
-	NodeFetchForTreeCoords(1, 0, false), // g
-	NodeFetchForTreeCoords(2, 1, false), // l
+	newNodeFetch(0, 2, false), // c
+	newNodeFetch(0, 3, false), // d
+	newNodeFetch(1, 0, false), // g
+	newNodeFetch(2, 1, false), // l
 }
 var expectedConsistencyProofFromSize4To7 = []NodeFetch{
 	//                                             hash
@@ -153,7 +153,7 @@ var expectedConsistencyProofFromSize4To7 = []NodeFetch{
 	//    a b     c d                   a b     c d    e f    j
 	//    | |     | |                   | |     | |    | |    |
 	//   d0 d1   d2 d3                  d0 d1   d2 d3  d4 d5  d6
-	NodeFetchForTreeCoords(2, 1, false), // l
+	newNodeFetch(2, 1, false), // l
 }
 var expectedConsistencyProofFromSize6To7 = []NodeFetch{
 	//             hash2                           hash
@@ -171,9 +171,9 @@ var expectedConsistencyProofFromSize6To7 = []NodeFetch{
 	//   a b     c d     e f            a b     c d    e f    j
 	//   | |     | |     | |            | |     | |    | |    |
 	//   d0 d1   d2 d3  d4 d5           d0 d1   d2 d3  d4 d5  d6
-	NodeFetchForTreeCoords(1, 2, false), // i
-	NodeFetchForTreeCoords(0, 6, false), // j
-	NodeFetchForTreeCoords(2, 0, false), // k
+	newNodeFetch(1, 2, false), // i
+	newNodeFetch(0, 6, false), // j
+	newNodeFetch(2, 0, false), // k
 }
 var expectedConsistencyProofFromSize2To8 = []NodeFetch{
 	//                               hash8
@@ -191,8 +191,8 @@ var expectedConsistencyProofFromSize2To8 = []NodeFetch{
 	//    a b             a b     c d    e f    j m
 	//    | |             | |     | |    | |    | |
 	//   d0 d1            d0 d1   d2 d3  d4 d5 d6 d7
-	NodeFetchForTreeCoords(1, 1, false), // h
-	NodeFetchForTreeCoords(2, 1, false), // l
+	newNodeFetch(1, 1, false), // h
+	newNodeFetch(2, 1, false), // l
 }
 
 // These should all successfully compute the expected path
@@ -333,7 +333,6 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 	}
 }
 
-func NodeFetchForTreeCoords(depth, index int64, rehash bool) NodeFetch {
-	n := compact.NewNodeID(uint(depth), uint64(index))
-	return NodeFetch{ID: n, Rehash: rehash}
+func newNodeFetch(level uint, index uint64, rehash bool) NodeFetch {
+	return NodeFetch{ID: compact.NewNodeID(level, index), Rehash: rehash}
 }
