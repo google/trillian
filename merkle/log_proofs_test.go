@@ -53,40 +53,40 @@ type consistencyProofTestData struct {
 //
 // When comparing with the document remember that our storage node layers are always
 // populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
-
-var expectedPathSize7Index0 = []NodeFetch{ // from a
-	newNodeFetch(0, 1, false), // b
-	newNodeFetch(1, 1, false), // h
-	newNodeFetch(2, 1, false), // l
-}
-var expectedPathSize7Index3 = []NodeFetch{ // from d
-	newNodeFetch(0, 2, false), // c
-	newNodeFetch(1, 0, false), // g
-	newNodeFetch(2, 1, false), // l
-}
-var expectedPathSize7Index4 = []NodeFetch{ // from e
-	newNodeFetch(0, 5, false), // f
-	newNodeFetch(0, 6, false), // j
-	newNodeFetch(2, 0, false), // k
-}
-var expectedPathSize7Index6 = []NodeFetch{ // from j
-	newNodeFetch(1, 2, false), // i
-	newNodeFetch(2, 0, false), // k
-}
+var (
+	expectedPathSize7Index0 = []NodeFetch{ // from a
+		newNodeFetch(0, 1, false), // b
+		newNodeFetch(1, 1, false), // h
+		newNodeFetch(2, 1, false), // l
+	}
+	expectedPathSize7Index3 = []NodeFetch{ // from d
+		newNodeFetch(0, 2, false), // c
+		newNodeFetch(1, 0, false), // g
+		newNodeFetch(2, 1, false), // l
+	}
+	expectedPathSize7Index4 = []NodeFetch{ // from e
+		newNodeFetch(0, 5, false), // f
+		newNodeFetch(0, 6, false), // j
+		newNodeFetch(2, 0, false), // k
+	}
+	expectedPathSize7Index6 = []NodeFetch{ // from j
+		newNodeFetch(1, 2, false), // i
+		newNodeFetch(2, 0, false), // k
+	}
+)
 
 // Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
 // node layers are filled from the bottom upwards.
-var expectedConsistencyProofFromSize1To2 = []NodeFetch{
+var (
 	//                     hash1=g
 	//                          / \
 	//  hash0=a      =>         a b
 	//        |                 | |
 	//        d0               d0 d1
-	newNodeFetch(0, 1, false), // b
-}
-var expectedConsistencyProofFromSize1To4 = []NodeFetch{
-	//
-	//
+	expectedConsistencyProofFromSize1To2 = []NodeFetch{
+		newNodeFetch(0, 1, false), // b
+	}
+
 	//  hash0=a      =>           hash1=k
 	//        |                  /   \
 	//        d0                /     \
@@ -97,12 +97,11 @@ var expectedConsistencyProofFromSize1To4 = []NodeFetch{
 	//                        a b     c d
 	//                        | |     | |
 	//                       d0 d1   d2 d3
-	//
-	//
-	newNodeFetch(0, 1, false), // b
-	newNodeFetch(1, 1, false), // h
-}
-var expectedConsistencyProofFromSize3To7 = []NodeFetch{
+	expectedConsistencyProofFromSize1To4 = []NodeFetch{
+		newNodeFetch(0, 1, false), // b
+		newNodeFetch(1, 1, false), // h
+	}
+
 	//                                             hash
 	//                                            /    \
 	//                                           /      \
@@ -118,12 +117,13 @@ var expectedConsistencyProofFromSize3To7 = []NodeFetch{
 	//    a b    c                      a b     c d    e f    j
 	//    | |    |                      | |     | |    | |    |
 	//   d0 d1   d2                     d0 d1   d2 d3  d4 d5  d6
-	newNodeFetch(0, 2, false), // c
-	newNodeFetch(0, 3, false), // d
-	newNodeFetch(1, 0, false), // g
-	newNodeFetch(2, 1, false), // l
-}
-var expectedConsistencyProofFromSize4To7 = []NodeFetch{
+	expectedConsistencyProofFromSize3To7 = []NodeFetch{
+		newNodeFetch(0, 2, false), // c
+		newNodeFetch(0, 3, false), // d
+		newNodeFetch(1, 0, false), // g
+		newNodeFetch(2, 1, false), // l
+	}
+
 	//                                             hash
 	//                                            /    \
 	//                                           /      \
@@ -139,9 +139,10 @@ var expectedConsistencyProofFromSize4To7 = []NodeFetch{
 	//    a b     c d                   a b     c d    e f    j
 	//    | |     | |                   | |     | |    | |    |
 	//   d0 d1   d2 d3                  d0 d1   d2 d3  d4 d5  d6
-	newNodeFetch(2, 1, false), // l
-}
-var expectedConsistencyProofFromSize6To7 = []NodeFetch{
+	expectedConsistencyProofFromSize4To7 = []NodeFetch{
+		newNodeFetch(2, 1, false), // l
+	}
+
 	//             hash2                           hash
 	//             /  \                           /    \
 	//            /    \                         /      \
@@ -157,11 +158,12 @@ var expectedConsistencyProofFromSize6To7 = []NodeFetch{
 	//   a b     c d     e f            a b     c d    e f    j
 	//   | |     | |     | |            | |     | |    | |    |
 	//   d0 d1   d2 d3  d4 d5           d0 d1   d2 d3  d4 d5  d6
-	newNodeFetch(1, 2, false), // i
-	newNodeFetch(0, 6, false), // j
-	newNodeFetch(2, 0, false), // k
-}
-var expectedConsistencyProofFromSize2To8 = []NodeFetch{
+	expectedConsistencyProofFromSize6To7 = []NodeFetch{
+		newNodeFetch(1, 2, false), // i
+		newNodeFetch(0, 6, false), // j
+		newNodeFetch(2, 0, false), // k
+	}
+
 	//                               hash8
 	//                              /    \
 	//                             /      \
@@ -177,9 +179,11 @@ var expectedConsistencyProofFromSize2To8 = []NodeFetch{
 	//    a b             a b     c d    e f    j m
 	//    | |             | |     | |    | |    | |
 	//   d0 d1            d0 d1   d2 d3  d4 d5 d6 d7
-	newNodeFetch(1, 1, false), // h
-	newNodeFetch(2, 1, false), // l
-}
+	expectedConsistencyProofFromSize2To8 = []NodeFetch{
+		newNodeFetch(1, 1, false), // h
+		newNodeFetch(2, 1, false), // l
+	}
+)
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	// These should all successfully compute the expected path.
