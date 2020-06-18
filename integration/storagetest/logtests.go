@@ -68,12 +68,6 @@ func logTestFunctions(t *testing.T, x interface{}) map[string]LogStorageTest {
 	return tests
 }
 
-// Time we will queue all leaves at
-var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
-
-const leavesToInsert = 5
-const sequenceNumber int64 = 237
-
 // logTests is a suite of tests to run against the storage.LogTest interface.
 type logTests struct{}
 
@@ -251,8 +245,15 @@ func initAddSequencedLeavesTest(ctx context.Context, t *testing.T, s storage.Log
 
 func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
 	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if _, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime); err != nil {
+		// Time we will queue all leaves at.
+		var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+
+		queued, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime)
+		if err != nil {
 			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
+		}
+		if got, want := len(queued), len(leaves); got != want {
+			t.t.Errorf("AddSequencedLeaves(): %v queued leaves, want %v", got, want)
 		}
 		// TODO(pavelkalinnikov): Verify returned status for each leaf.
 		return nil
@@ -285,7 +286,7 @@ func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp [
 }
 
 func (*logTests) TestAddSequencedLeavesUnordered(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
-	const chunk = leavesToInsert
+	const chunk = 5
 	const count = chunk * 5
 	const extraCount = 16
 	leaves := createTestLeaves(count, 0)

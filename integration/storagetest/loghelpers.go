@@ -24,7 +24,7 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-// Convenience methods to avoid copying out "if err != nil { blah }" all over the place
+// runLogTX is a helps avoid copying out "if err != nil { blah }" all over the place
 func runLogTX(s storage.LogStorage, tree *trillian.Tree, t *testing.T, f storage.LogTXFunc) {
 	t.Helper()
 	if err := s.ReadWriteTransaction(context.Background(), tree, f); err != nil {
@@ -32,17 +32,15 @@ func runLogTX(s storage.LogStorage, tree *trillian.Tree, t *testing.T, f storage
 	}
 }
 
-// Creates some test leaves with predictable data
+// createTestLeaves creates some test leaves with predictable data
 func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 	var leaves []*trillian.LogLeaf
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l+startSeq)
-		h := sha256.New()
-		h.Write([]byte(lv))
-		leafHash := h.Sum(nil)
+		leafHash := sha256.Sum256([]byte(lv))
 		leaf := &trillian.LogLeaf{
-			LeafIdentityHash: leafHash,
-			MerkleLeafHash:   leafHash,
+			LeafIdentityHash: leafHash[:],
+			MerkleLeafHash:   leafHash[:],
 			LeafValue:        []byte(lv),
 			ExtraData:        []byte(fmt.Sprintf("Extra %d", l)),
 			LeafIndex:        int64(startSeq + l),

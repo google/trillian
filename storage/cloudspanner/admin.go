@@ -465,7 +465,7 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		// Nothing to validate on MapStorageConfig.
 		info.StorageConfig = &spannerpb.TreeInfo_MapStorageConfig{MapStorageConfig: config}
 	default:
-		return nil, fmt.Errorf("Unknown tree type %T", tt)
+		return nil, fmt.Errorf("Unknown tree type %v", tt)
 	}
 
 	return info, nil
@@ -708,7 +708,7 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 	case spannerpb.TreeType_MAP:
 		config = info.GetMapStorageConfig()
 	default:
-		return nil, fmt.Errorf("Unknown tree type %T", tt)
+		return nil, fmt.Errorf("Unknown tree type %v", tt)
 	}
 	settings, err := ptypes.MarshalAny(config)
 	if err != nil {

@@ -283,22 +283,6 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 
 func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
-	/*
-		// Avoid running empty transaction because it's an error in Spanner.
-		if len(leaves) == 0 {
-			return make([]*trillian.QueuedLogLeaf, 0), nil
-		}
-
-		var ret []*trillian.QueuedLogLeaf
-		if err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-			var err error
-			ret, err = tx.AddSequencedLeaves(ctx, leaves, ts)
-			return err
-		}); err != nil {
-			return nil, err
-		}
-		return ret, nil
-	*/
 }
 
 // readDupeLeaves reads the leaves whose ids are passed as keys in the dupes map,
@@ -570,7 +554,6 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 	default: // No error.
 	}
 
-	//tx.expectEmpty = true
 	return res, nil
 }
 
