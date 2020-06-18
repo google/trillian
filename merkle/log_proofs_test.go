@@ -21,48 +21,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-// Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
-//
-//                hash              <== Level 3
-//               /    \
-//              /      \
-//             /        \
-//            /          \
-//           /            \
-//          k              l        <== Level 2
-//         / \            / \
-//        /   \          /   \
-//       /     \        /     \
-//      g       h      i      [ ]   <== Level 1
-//     / \     / \    / \    /
-//     a b     c d    e f    j      <== Level 0
-//     | |     | |    | |    |
-//     d0 d1   d2 d3  d4 d5  d6
-//
-// When comparing with the document remember that our storage node layers are always
-// populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
-var (
-	expectedPathSize7Index0 = []NodeFetch{ // from a
-		newNodeFetch(0, 1, false), // b
-		newNodeFetch(1, 1, false), // h
-		newNodeFetch(2, 1, false), // l
-	}
-	expectedPathSize7Index3 = []NodeFetch{ // from d
-		newNodeFetch(0, 2, false), // c
-		newNodeFetch(1, 0, false), // g
-		newNodeFetch(2, 1, false), // l
-	}
-	expectedPathSize7Index4 = []NodeFetch{ // from e
-		newNodeFetch(0, 5, false), // f
-		newNodeFetch(0, 6, false), // j
-		newNodeFetch(2, 0, false), // k
-	}
-	expectedPathSize7Index6 = []NodeFetch{ // from j
-		newNodeFetch(1, 2, false), // i
-		newNodeFetch(2, 0, false), // k
-	}
-)
-
 // Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
 // node layers are filled from the bottom upwards.
 var (
@@ -174,46 +132,85 @@ var (
 )
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
-	// These should all successfully compute the expected path.
-	for _, testCase := range []struct {
-		treeSize     int64
-		leafIndex    int64
-		expectedPath []NodeFetch
+	// Expected inclusion proofs built by examination of the example 7 leaf tree
+	// in RFC 6962:
+	//
+	//                hash              <== Level 3
+	//               /    \
+	//              /      \
+	//             /        \
+	//            /          \
+	//           /            \
+	//          k              l        <== Level 2
+	//         / \            / \
+	//        /   \          /   \
+	//       /     \        /     \
+	//      g       h      i      [ ]   <== Level 1
+	//     / \     / \    / \    /
+	//     a b     c d    e f    j      <== Level 0
+	//     | |     | |    | |    |
+	//     d0 d1   d2 d3  d4 d5  d6
+	//
+	// Remember that our storage node layers are always populated from the bottom
+	// up, hence the gap at level 1, index 3 in the above picture.
+
+	node := func(level uint, index uint64) NodeFetch {
+		return newNodeFetch(level, index, false)
+	}
+	// These should all successfully compute the expected proof.
+	for _, tc := range []struct {
+		size  int64
+		index int64
+		want  []NodeFetch
 	}{
-		{1, 0, []NodeFetch{}},
-		{7, 3, expectedPathSize7Index3},
-		{7, 6, expectedPathSize7Index6},
-		{7, 0, expectedPathSize7Index0},
-		{7, 4, expectedPathSize7Index4},
+		{size: 1, index: 0, want: nil},
+		{size: 7, index: 0, want: []NodeFetch{
+			node(0, 1), node(1, 1), node(2, 1)}}, // b h l
+		{size: 7, index: 1, want: []NodeFetch{
+			node(0, 0), node(1, 1), node(2, 1)}}, // a h l
+		{size: 7, index: 2, want: []NodeFetch{
+			node(0, 3), node(1, 0), node(2, 1)}}, // d g l
+		{size: 7, index: 3, want: []NodeFetch{
+			node(0, 2), node(1, 0), node(2, 1)}}, // c g l
+		{size: 7, index: 4, want: []NodeFetch{
+			node(0, 5), node(0, 6), node(2, 0)}}, // f j k
+		{size: 7, index: 5, want: []NodeFetch{
+			node(0, 4), node(0, 6), node(2, 0)}}, // e j k
+		{size: 7, index: 6, want: []NodeFetch{
+			node(1, 2), node(2, 0)}}, // i k
 	} {
-		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
-
-		if err != nil {
-			t.Fatalf("unexpected error calculating path %v: %v", testCase, err)
-		}
-
-		comparePaths(t, fmt.Sprintf("i(%d,%d)", testCase.leafIndex, testCase.treeSize), path, testCase.expectedPath)
+		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
+			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.size)
+			if err != nil {
+				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
+			}
+			comparePaths(t, "", proof, tc.want)
+		})
 	}
 }
 
 func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
-	// These should all fail.
-	for _, testCase := range []struct {
-		treeSize  int64
-		leafIndex int64
+	for _, tc := range []struct {
+		size    int64 // The requested past tree size.
+		index   int64 // Leaf index in the requested tree.
+		bigSize int64 // The current tree size.
 	}{
-		{0, 1},
-		{1, 2},
-		{0, 3},
-		{-1, 3},
-		{7, -1},
-		{7, 8},
+		{size: 0, index: 0, bigSize: 0},
+		{size: 0, index: 1, bigSize: 0},
+		{size: 1, index: 0, bigSize: 0},
+		{size: 1, index: 2, bigSize: 1},
+		{size: 0, index: 3, bigSize: 0},
+		{size: -1, index: 3, bigSize: -1},
+		{size: 7, index: -1, bigSize: 7},
+		{size: 7, index: 8, bigSize: 7},
+		{size: 7, index: 3, bigSize: -7},
 	} {
-		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
-
-		if err == nil {
-			t.Fatalf("incorrectly accepted bad params: %v", testCase)
-		}
+		t.Run(fmt.Sprintf("%d:%d:%d", tc.size, tc.index, tc.bigSize), func(t *testing.T) {
+			_, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.bigSize)
+			if err == nil {
+				t.Fatal("accepted bad params")
+			}
+		})
 	}
 }
 
@@ -268,7 +265,9 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 	}
 }
 
+// TODO(pkalinnikov): Remove desc when all the tests use t.Run.
 func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
+	t.Helper()
 	if len(expected) != len(got) {
 		t.Fatalf("%s: expected %d nodes in path but got %d: %v", desc, len(expected), len(got), got)
 	}
