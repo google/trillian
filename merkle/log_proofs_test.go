@@ -154,11 +154,11 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	// Remember that our storage node layers are always populated from the bottom
 	// up, hence the gap at level 1, index 3 in the above picture.
 
-	// These should all successfully compute the expected path.
-	for _, testCase := range []struct {
-		treeSize     int64
-		leafIndex    int64
-		expectedPath []NodeFetch
+	// These should all successfully compute the expected proof.
+	for _, tc := range []struct {
+		size  int64
+		index int64
+		want  []NodeFetch
 	}{
 		{1, 0, []NodeFetch{}},
 		{7, 0, []NodeFetch{ // from a
@@ -181,13 +181,13 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			newNodeFetch(2, 0, false), // k
 		}},
 	} {
-		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize)
+		proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.size)
 
 		if err != nil {
-			t.Fatalf("unexpected error calculating path %v: %v", testCase, err)
+			t.Fatalf("unexpected error calculating proof %v: %v", tc, err)
 		}
 
-		comparePaths(t, fmt.Sprintf("i(%d,%d)", testCase.leafIndex, testCase.treeSize), path, testCase.expectedPath)
+		comparePaths(t, fmt.Sprintf("i(%d,%d)", tc.index, tc.size), proof, tc.want)
 	}
 }
 
