@@ -32,6 +32,8 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"github.com/google/trillian/types"
+	"go.opencensus.io/trace"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -47,9 +49,34 @@ const (
 	// t.TreeType: 1 = Log, 3 = PreorderedLog.
 	// t.TreeState: 1 = Active, 5 = Draining.
 	getActiveLogIDsSQL = `SELECT t.TreeID FROM TreeRoots t
-													WHERE (t.TreeType = 1 OR t.TreeType = 3)
-													AND (t.TreeState = 1 OR t.TreeState = 5)
-													AND t.Deleted=false`
+WHERE (t.TreeType = 1 OR t.TreeType = 3)
+AND (t.TreeState = 1 OR t.TreeState = 5)
+AND t.Deleted=false`
+)
+
+// LogStorageOptions are tuning, experiments and workarounds that can be used.
+type LogStorageOptions struct {
+	TreeStorageOptions
+
+	// DequeueAcrossMerkleBuckets controls whether DequeueLeaves will only dequeue
+	// from within the chosen Time+Merkle bucket, or whether it will attempt to
+	// continue reading from contiguous Merkle buckets until a sufficient number
+	// of leaves have been dequeued, or the entire Time bucket has been read.
+	DequeueAcrossMerkleBuckets bool
+	// DequeueAcrossMerkleBucketsRangeFraction specifies the fraction of Merkle
+	// keyspace to dequeue from when using multi-bucket-dequeue.
+	DequeueAcrossMerkleBucketsRangeFraction float64
+}
+
+var (
+	// Spanner DB columns:
+	colLeafIdentityHash        = "LeafIdentityHash"
+	colLeafValue               = "LeafValue"
+	colExtraData               = "ExtraData"
+	colMerkleLeafHash          = "MerkleLeafHash"
+	colSequenceNumber          = "SequenceNumber"
+	colQueueTimestampNanos     = "QueueTimestampNanos"
+	colIntegrateTimestampNanos = "IntegrateTimestampNanos"
 )
 
 type leafDataCols struct {
@@ -68,31 +95,6 @@ type sequencedLeafDataCols struct {
 	IntegrateTimestampNanos int64
 }
 
-// LogStorageOptions are tuning, experiments and workarounds that can be used.
-type LogStorageOptions struct {
-	TreeStorageOptions
-
-	// DequeueAcrossMerkleBuckets controls whether DequeueLeaves will only dequeue
-	// from within the chosen Time+Merkle bucket, or whether it will attempt to
-	// continue reading from contiguous Merkle buckets until a sufficient number
-	// of leaves have been dequeued, or the entire Time bucket has been read.
-	DequeueAcrossMerkleBuckets bool
-	// DequeueAcrossMerkleBucketsRangeFraction specifies the fraction of Merkle
-	// keyspace to dequeue from when using multi-bucket-dequeue.
-	DequeueAcrossMerkleBucketsRangeFraction float64
-}
-
-var (
-	// Spanner DB columns:
-	colExtraData               = "ExtraData"
-	colLeafValue               = "LeafValue"
-	colLeafIdentityHash        = "LeafIdentityHash"
-	colMerkleLeafHash          = "MerkleLeafHash"
-	colSequenceNumber          = "SequenceNumber"
-	colQueueTimestampNanos     = "QueueTimestampNanos"
-	colIntegrateTimestampNanos = "IntegrateTimestampNanos"
-)
-
 // NewLogStorage initialises and returns a new LogStorage.
 func NewLogStorage(client *spanner.Client) storage.LogStorage {
 	return NewLogStorageWithOpts(client, LogStorageOptions{})
@@ -104,12 +106,14 @@ func NewLogStorageWithOpts(client *spanner.Client, opts LogStorageOptions) stora
 	if opts.DequeueAcrossMerkleBucketsRangeFraction <= 0 || opts.DequeueAcrossMerkleBucketsRangeFraction > 1.0 {
 		opts.DequeueAcrossMerkleBucketsRangeFraction = 1.0
 	}
-	ret := &logStorage{
-		ts:   newTreeStorageWithOpts(client, opts.TreeStorageOptions),
-		opts: opts,
+	return &logStorage{
+		ts: newTreeStorageWithOpts(client, opts.TreeStorageOptions),
+		// This number is taken from the maximum number of in-flight
+		// transaction in the mutation pool. Add a field to opts if we decide to
+		// adopt this strategy.
+		writeSem: semaphore.NewWeighted(128),
+		opts:     opts,
 	}
-
-	return ret
 }
 
 // logStorage provides a Cloud Spanner backed trillian.LogStorage implementation.
@@ -118,6 +122,9 @@ type logStorage struct {
 	// ts provides the merkle-tree level primitives which are built upon by this
 	// logStorage.
 	ts *treeStorage
+
+	// writeSem controls how many concurrent writes QueueLeaves/AddSequencedLeaves will do.
+	writeSem *semaphore.Weighted
 
 	// Additional options applied to this logStorage
 	opts LogStorageOptions
@@ -258,7 +265,7 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 	return results, nil
 }
 
-func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
 }
 
@@ -443,8 +450,95 @@ func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts
 	return nil, ErrNotImplemented
 }
 
-func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	return nil, ErrNotImplemented
+func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)
+	if !ok {
+		return nil, ErrWrongTXType
+	}
+	ctx, span := trace.StartSpan(ctx, "AddSequencedLeaves")
+	defer span.End()
+
+	okProto := status.New(codes.OK, "OK").Proto()
+
+	_, span = trace.StartSpan(ctx, "insert")
+	defer span.End()
+	res := make([]*trillian.QueuedLogLeaf, len(leaves))
+	errs := make(chan error, 1)
+	var wg sync.WaitGroup
+	for i, l := range leaves {
+		var err error
+		l.QueueTimestamp, err = ptypes.TimestampProto(ts)
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+
+		// Capture the values for later reference in the MutationResultFunc below.
+		i, l := i, l
+		res[i] = &trillian.QueuedLogLeaf{Status: okProto}
+
+		wg.Add(1)
+		// The insert of the LeafData and SequencedLeafData must happen atomically.
+		m1, err := spanner.InsertStruct(leafDataTbl, leafDataCols{
+			TreeID:              tx.treeID,
+			LeafIdentityHash:    l.LeafIdentityHash,
+			LeafValue:           l.LeafValue,
+			ExtraData:           l.ExtraData,
+			QueueTimestampNanos: ts.UnixNano(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		m2, err := spanner.InsertStruct(seqDataTbl, sequencedLeafDataCols{
+			TreeID:                  tx.treeID,
+			SequenceNumber:          l.LeafIndex,
+			LeafIdentityHash:        l.LeafIdentityHash,
+			MerkleLeafHash:          l.MerkleLeafHash,
+			IntegrateTimestampNanos: 0,
+		})
+		if err != nil {
+			return nil, err
+		}
+		m := []*spanner.Mutation{m1, m2}
+
+		doneFunc := func(err error) {
+			defer wg.Done()
+			if err != nil {
+				// If failed because of a duplicate insert, set the status correspondingly.
+				if status.Code(err) == codes.AlreadyExists {
+					glog.V(2).Infof("Found already exists: index=%v, id=%v", l.LeafIndex, l.LeafIdentityHash)
+					res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex or LeafIdentityHash").Proto()
+					return
+				}
+				select {
+				case errs <- err:
+				default: // Skip this error, we only need one.
+				}
+			}
+		}
+		if err := tx.ls.writeSem.Acquire(ctx, 1); err != nil {
+			doneFunc(err)
+		} else {
+			go func() {
+				defer tx.ls.writeSem.Release(1)
+				doneFunc(stx.BufferWrite(m))
+			}()
+		}
+	}
+	span.End()
+
+	// Wait for all of our mutations to apply (or fail).
+	_, span = trace.StartSpan(ctx, "wait")
+	wg.Wait()
+	span.End()
+
+	// Check if any failed, and return the first error if so.
+	select {
+	case err := <-errs:
+		return nil, err
+	default: // No error.
+	}
+
+	return res, nil
 }
 
 // DequeueLeaves removes [0, limit) leaves from the to-be-sequenced queue.
@@ -696,6 +790,8 @@ func (tx *logTX) GetLeavesByIndex(ctx context.Context, indices []int64) ([]*tril
 		return nil, err
 	}
 
+	// TODO: replace with INNER JOIN when spannertest supports JOINs
+	// https://github.com/googleapis/google-cloud-go/tree/master/spanner/spannertest
 	stmt := spanner.NewStatement(
 		`SELECT 
 		   TreeID,
@@ -771,7 +867,7 @@ func validateRange(start, count, treeSize int64) error {
 	if start < 0 {
 		return status.Errorf(codes.InvalidArgument, "invalid start %d", start)
 	}
-	if start >= treeSize {
+	if treeSize >= 0 && start >= treeSize {
 		return status.Errorf(codes.OutOfRange, "start index %d beyond tree size %d", start, treeSize)
 	}
 	return nil
@@ -785,10 +881,21 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 		return nil, err
 	}
 
-	if err := validateRange(start, count, currentSTH.TreeSize); err != nil {
+	xsize := currentSTH.TreeSize
+	if tx.treeType == trillian.TreeType_PREORDERED_LOG {
+		xsize = -1 // Allow requesting entries beyond the tree size.
+	}
+	if err := validateRange(start, count, xsize); err != nil {
 		return nil, err
 	}
+	xend := start + count
+	if tx.treeType != trillian.TreeType_PREORDERED_LOG && xend > xsize {
+		xend = xsize
+		count = xend - start
+	}
 
+	// TODO: replace with INNER JOIN when spannertest supports JOINs
+	// https://github.com/googleapis/google-cloud-go/tree/master/spanner/spannertest
 	stmt := spanner.NewStatement(
 		`SELECT 
 		   TreeID,
@@ -804,11 +911,6 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 		   SequenceNumber < @xend`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["start"] = start
-	xend := start + count
-	if xend > currentSTH.TreeSize {
-		xend = currentSTH.TreeSize
-		count = xend - start
-	}
 	stmt.Params["xend"] = xend
 	seqLeaves := make(map[string]sequencedLeafDataCols)
 	if err := tx.stx.Query(ctx, stmt).Do(func(r *spanner.Row) error {
@@ -849,19 +951,19 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 		Do(leaves.addFullRow(seqLeaves)); err != nil {
 		return nil, err
 	}
+
+	if got := int64(len(leaves)); got > count {
+		return nil, fmt.Errorf("unexpected number of leaves %d, want <= %d", got, count)
+	}
+
 	ret := make([]*trillian.LogLeaf, 0, count)
 	for i := start; i < (start + count); i++ {
 		l, ok := leaves[i]
 		if !ok {
-			return nil, fmt.Errorf("inconsistency: missing data for index %d", i)
+			break
 		}
 		ret = append(ret, l)
-		delete(leaves, i)
 	}
-	if len(leaves) > 0 {
-		return nil, fmt.Errorf("inconsistency: unexpected extra data outside range %d, +%d", start, count)
-	}
-
 	return ret, nil
 }
 

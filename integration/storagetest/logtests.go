@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
@@ -226,4 +227,76 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 	if err != nil {
 		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}
+}
+
+// AddSequencedLeaves tests. ---------------------------------------------------
+
+type addSequencedLeavesTest struct {
+	t    *testing.T
+	s    storage.LogStorage
+	tree *trillian.Tree
+}
+
+func initAddSequencedLeavesTest(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) addSequencedLeavesTest {
+	tree := mustCreateTree(ctx, t, as, storageto.PreorderedLogTree)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
+	return addSequencedLeavesTest{t, s, tree}
+}
+
+func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
+	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		// Time we will queue all leaves at.
+		var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+
+		queued, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime)
+		if err != nil {
+			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
+		}
+		if got, want := len(queued), len(leaves); got != want {
+			t.t.Errorf("AddSequencedLeaves(): %v queued leaves, want %v", got, want)
+		}
+		// TODO(pavelkalinnikov): Verify returned status for each leaf.
+		return nil
+	})
+}
+
+func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp []*trillian.LogLeaf) {
+	var stored []*trillian.LogLeaf
+	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		var err error
+		t.t.Logf("GetLeavesByRange(%v, %v)", start, count)
+		stored, err = tx.GetLeavesByRange(ctx, start, count)
+		if err != nil {
+			t.t.Fatalf("Failed to read sequenced leaves: %v", err)
+		}
+		return nil
+	})
+	if got, want := len(stored), len(exp); got != want {
+		t.t.Fatalf("Unexpected number of leaves: got %d, want %d", got, want)
+	}
+
+	for i, leaf := range stored {
+		if got, want := leaf.LeafIndex, exp[i].LeafIndex; got != want {
+			t.t.Fatalf("Leaf #%d: LeafIndex=%v, want %v", i, got, want)
+		}
+		if got, want := leaf.LeafIdentityHash, exp[i].LeafIdentityHash; !bytes.Equal(got, want) {
+			t.t.Fatalf("Leaf #%d: LeafIdentityHash=%v, want %v", i, got, want)
+		}
+	}
+}
+
+func (*logTests) TestAddSequencedLeavesUnordered(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	const chunk = 5
+	const count = chunk * 5
+	const extraCount = 16
+	leaves := createTestLeaves(count, 0)
+
+	aslt := initAddSequencedLeavesTest(ctx, t, s, as)
+	for _, idx := range []int{1, 0, 4, 2} {
+		aslt.addSequencedLeaves(leaves[chunk*idx : chunk*(idx+1)])
+	}
+	aslt.verifySequencedLeaves(0, count+extraCount, leaves[:chunk*3])
+	aslt.verifySequencedLeaves(chunk*4, chunk+extraCount, leaves[chunk*4:count])
+	aslt.addSequencedLeaves(leaves[chunk*3 : chunk*4])
+	aslt.verifySequencedLeaves(0, count+extraCount, leaves)
 }

@@ -148,6 +148,7 @@ func (t *treeStorage) begin(ctx context.Context, tree *trillian.Tree, newCache n
 	}
 	treeTX := &treeTX{
 		treeID:    tree.TreeId,
+		treeType:  tree.TreeType,
 		ts:        t,
 		stx:       stx,
 		cache:     subtreeCache,
@@ -174,7 +175,8 @@ func (t *treeTX) getLatestRoot(ctx context.Context) error {
 // treeTX is a concrete implementation of the Trillian
 // storage.TreeTX interface.
 type treeTX struct {
-	treeID int64
+	treeID   int64
+	treeType trillian.TreeType
 
 	ts *treeStorage
 

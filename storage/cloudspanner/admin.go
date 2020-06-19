@@ -49,8 +49,9 @@ var (
 		trillian.TreeState_FROZEN: spannerpb.TreeState_FROZEN,
 	}
 	treeTypeMap = map[trillian.TreeType]spannerpb.TreeType{
-		trillian.TreeType_LOG: spannerpb.TreeType_LOG,
-		trillian.TreeType_MAP: spannerpb.TreeType_MAP,
+		trillian.TreeType_LOG:            spannerpb.TreeType_LOG,
+		trillian.TreeType_MAP:            spannerpb.TreeType_MAP,
+		trillian.TreeType_PREORDERED_LOG: spannerpb.TreeType_PREORDERED_LOG,
 	}
 	hashStrategyMap = map[trillian.HashStrategy]spannerpb.HashStrategy{
 		trillian.HashStrategy_RFC6962_SHA256:        spannerpb.HashStrategy_RFC_6962,
@@ -281,9 +282,7 @@ func (t *adminTX) getTreeInfo(ctx context.Context, treeID int64) (*spannerpb.Tre
 	// Sanity checks
 	switch tt := info.TreeType; tt {
 	case spannerpb.TreeType_PREORDERED_LOG:
-		if info.GetLogStorageConfig() == nil {
-			return nil, status.Errorf(codes.Internal, "corrupt TreeInfo %#v: LogStorageConfig is nil", treeID)
-		}
+		fallthrough
 	case spannerpb.TreeType_LOG:
 		if info.GetLogStorageConfig() == nil {
 			return nil, status.Errorf(codes.Internal, "corrupt TreeInfo %#v: LogStorageConfig is nil", treeID)
@@ -446,7 +445,9 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		MaxRootDurationMillis: int64(maxRootDuration / time.Millisecond),
 	}
 
-	switch tree.TreeType {
+	switch tt := tree.TreeType; tt {
+	case trillian.TreeType_PREORDERED_LOG:
+		fallthrough
 	case trillian.TreeType_LOG:
 		config, err := logConfigOrDefault(tree)
 		if err != nil {
@@ -463,6 +464,8 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		}
 		// Nothing to validate on MapStorageConfig.
 		info.StorageConfig = &spannerpb.TreeInfo_MapStorageConfig{MapStorageConfig: config}
+	default:
+		return nil, fmt.Errorf("Unknown tree type %v", tt)
 	}
 
 	return info, nil
@@ -697,15 +700,19 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 	tree.SignatureAlgorithm = sa
 
 	var config proto.Message
-	switch info.TreeType {
+	switch tt := info.TreeType; tt {
+	case spannerpb.TreeType_PREORDERED_LOG:
+		fallthrough
 	case spannerpb.TreeType_LOG:
 		config = info.GetLogStorageConfig()
 	case spannerpb.TreeType_MAP:
 		config = info.GetMapStorageConfig()
+	default:
+		return nil, fmt.Errorf("Unknown tree type %v", tt)
 	}
 	settings, err := ptypes.MarshalAny(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ptypes.MarshalAny(): %w", err)
 	}
 	tree.StorageSettings = settings
 
