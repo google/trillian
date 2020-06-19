@@ -54,22 +54,6 @@ AND (t.TreeState = 1 OR t.TreeState = 5)
 AND t.Deleted=false`
 )
 
-type leafDataCols struct {
-	TreeID              int64
-	LeafIdentityHash    []byte
-	LeafValue           []byte
-	ExtraData           []byte
-	QueueTimestampNanos int64
-}
-
-type sequencedLeafDataCols struct {
-	TreeID                  int64
-	SequenceNumber          int64
-	LeafIdentityHash        []byte
-	MerkleLeafHash          []byte
-	IntegrateTimestampNanos int64
-}
-
 // LogStorageOptions are tuning, experiments and workarounds that can be used.
 type LogStorageOptions struct {
 	TreeStorageOptions
@@ -806,6 +790,8 @@ func (tx *logTX) GetLeavesByIndex(ctx context.Context, indices []int64) ([]*tril
 		return nil, err
 	}
 
+	// TODO: replace with INNER JOIN when spannertest supports JOINs
+	// https://github.com/googleapis/google-cloud-go/tree/master/spanner/spannertest
 	stmt := spanner.NewStatement(
 		`SELECT 
 		   TreeID,
@@ -902,13 +888,14 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 	if err := validateRange(start, count, xsize); err != nil {
 		return nil, err
 	}
-
 	xend := start + count
 	if tx.treeType != trillian.TreeType_PREORDERED_LOG && xend > xsize {
 		xend = xsize
 		count = xend - start
 	}
 
+	// TODO: replace with INNER JOIN when spannertest supports JOINs
+	// https://github.com/googleapis/google-cloud-go/tree/master/spanner/spannertest
 	stmt := spanner.NewStatement(
 		`SELECT 
 		   TreeID,
