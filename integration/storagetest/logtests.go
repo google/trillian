@@ -300,3 +300,26 @@ func (*logTests) TestAddSequencedLeavesUnordered(ctx context.Context, t *testing
 	aslt.addSequencedLeaves(leaves[chunk*3 : chunk*4])
 	aslt.verifySequencedLeaves(0, count+extraCount, leaves)
 }
+
+func (*logTests) TestAddSequencedLeavesWithDuplicates(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	leaves := createTestLeaves(6, 0)
+
+	aslt := initAddSequencedLeavesTest(ctx, t, s, as)
+	aslt.addSequencedLeaves(leaves[:3])
+	aslt.verifySequencedLeaves(0, 3, leaves[:3])
+	aslt.addSequencedLeaves(leaves[2:]) // Full dup.
+	aslt.verifySequencedLeaves(0, 6, leaves)
+
+	dupLeaves := createTestLeaves(4, 6)
+	dupLeaves[0].LeafIdentityHash = leaves[0].LeafIdentityHash // Hash dup.
+	dupLeaves[2].LeafIndex = 2                                 // Index dup.
+	aslt.addSequencedLeaves(dupLeaves)
+	aslt.verifySequencedLeaves(6, 4, nil)
+	aslt.verifySequencedLeaves(7, 4, dupLeaves[1:2])
+	aslt.verifySequencedLeaves(8, 4, nil)
+	aslt.verifySequencedLeaves(9, 4, dupLeaves[3:4])
+
+	dupLeaves = createTestLeaves(4, 6)
+	aslt.addSequencedLeaves(dupLeaves)
+	aslt.verifySequencedLeaves(6, 4, dupLeaves)
+}

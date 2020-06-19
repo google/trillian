@@ -328,30 +328,6 @@ func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp [
 	}
 }
 
-func TestAddSequencedLeavesWithDuplicates(t *testing.T) {
-	ctx := context.Background()
-	leaves := createTestLeaves(6, 0)
-
-	aslt := initAddSequencedLeavesTest(ctx, t)
-	aslt.addSequencedLeaves(leaves[:3])
-	aslt.verifySequencedLeaves(0, 3, leaves[:3])
-	aslt.addSequencedLeaves(leaves[2:]) // Full dup.
-	aslt.verifySequencedLeaves(0, 6, leaves)
-
-	dupLeaves := createTestLeaves(4, 6)
-	dupLeaves[0].LeafIdentityHash = leaves[0].LeafIdentityHash // Hash dup.
-	dupLeaves[2].LeafIndex = 2                                 // Index dup.
-	aslt.addSequencedLeaves(dupLeaves)
-	aslt.verifySequencedLeaves(6, 4, nil)
-	aslt.verifySequencedLeaves(7, 4, dupLeaves[1:2])
-	aslt.verifySequencedLeaves(8, 4, nil)
-	aslt.verifySequencedLeaves(9, 4, dupLeaves[3:4])
-
-	dupLeaves = createTestLeaves(4, 6)
-	aslt.addSequencedLeaves(dupLeaves)
-	aslt.verifySequencedLeaves(6, 4, dupLeaves)
-}
-
 // -----------------------------------------------------------------------------
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {
