@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"strings"
@@ -311,6 +312,8 @@ func (*logTests) TestAddSequencedLeavesWithDuplicates(ctx context.Context, t *te
 	dupLeaves := createTestLeaves(4, 6)
 	dupLeaves[0].LeafIdentityHash = leaves[0].LeafIdentityHash // Hash dup.
 	dupLeaves[2].LeafIndex = 2                                 // Index dup.
+	leafHash := sha256.Sum256([]byte("foobar"))
+	dupLeaves[2].LeafIdentityHash = leafHash[:] // TODO: Remove when spannertest has transaction support.
 	aslt.addSequencedLeaves(dupLeaves)
 	aslt.verifySequencedLeaves(6, 4, nil)
 	aslt.verifySequencedLeaves(7, 4, dupLeaves[1:2])
