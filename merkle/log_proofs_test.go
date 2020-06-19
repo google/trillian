@@ -341,32 +341,6 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 	}
 }
 
-func TestCalcInclusionProofNodeAddressesAll(t *testing.T) {
-	for bigSize := int64(1); bigSize <= int64(100); bigSize++ {
-		for size := int64(1); size <= bigSize; size++ {
-			for index := int64(0); index < size; index++ {
-				_, err := CalcInclusionProofNodeAddresses(size, index, bigSize)
-				if err != nil {
-					t.Fatalf("failed on %d,%d,%d: %v", size, index, bigSize, err)
-				}
-			}
-		}
-	}
-}
-
-func TestCalcConsistencyProofNodeAddressesAll(t *testing.T) {
-	for bigSize := int64(1); bigSize <= int64(100); bigSize++ {
-		for size2 := int64(1); size2 <= bigSize; size2++ {
-			for size1 := int64(1); size1 <= size2; size1++ {
-				_, err := CalcConsistencyProofNodeAddresses(size1, size2, bigSize)
-				if err != nil {
-					t.Fatalf("failed on %d,%d,%d: %v", size1, size2, bigSize, err)
-				}
-			}
-		}
-	}
-}
-
 func newNodeFetch(level uint, index uint64, rehash bool) NodeFetch {
 	return NodeFetch{ID: compact.NewNodeID(level, index), Rehash: rehash}
 }
