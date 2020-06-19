@@ -16,7 +16,6 @@ package merkle
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/google/trillian/merkle/compact"
@@ -320,32 +319,6 @@ func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
 	}
 }
 
-func TestLastNodeWritten(t *testing.T) {
-	for _, testCase := range []struct {
-		ts     int64
-		result string
-	}{
-		{3, "101"},
-		{5, "1001"},
-		{11, "10101"},
-		{14, "11011"},
-		{15, "11101"},
-	} {
-		str := ""
-		for d := len(testCase.result) - 1; d >= 0; d-- {
-			if lastNodePresent(uint(d), testCase.ts) {
-				str += "1"
-			} else {
-				str += "0"
-			}
-		}
-
-		if got, want := str, testCase.result; got != want {
-			t.Errorf("lastNodeWritten(%d) got: %s, want: %s", testCase.ts, got, want)
-		}
-	}
-}
-
 func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 	const maxSize = 555
 	for ts := 1; ts <= maxSize; ts++ {
@@ -369,30 +342,26 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 }
 
 func TestCalcInclusionProofNodeAddressesAll(t *testing.T) {
-	for bigSize := int64(-1); bigSize <= int64(500); bigSize++ {
-		for size := int64(-1); size <= bigSize+1; size++ {
-			for index := int64(-1); index <= size+1; index++ {
-				oldProof, oldErr := CalcInclusionProofOld(size, index, bigSize)
-				proof, err := CalcInclusionProofNodeAddresses(size, index, bigSize)
-				if !reflect.DeepEqual(oldErr, err) {
-					t.Fatalf("got error: %v; want: %v", err, oldErr)
+	for bigSize := int64(1); bigSize <= int64(100); bigSize++ {
+		for size := int64(1); size <= bigSize; size++ {
+			for index := int64(0); index < size; index++ {
+				_, err := CalcInclusionProofNodeAddresses(size, index, bigSize)
+				if err != nil {
+					t.Fatalf("failed on %d,%d,%d: %v", size, index, bigSize, err)
 				}
-				comparePaths(t, fmt.Sprintf("%d:%d:%d", index, size, bigSize), proof, oldProof)
 			}
 		}
 	}
 }
 
 func TestCalcConsistencyProofNodeAddressesAll(t *testing.T) {
-	for bigSize := int64(-1); bigSize <= int64(500); bigSize++ {
-		for size2 := int64(-1); size2 <= bigSize+1; size2++ {
-			for size1 := int64(-1); size1 <= size2+1; size1++ {
-				oldProof, oldErr := CalcConsistencyProofOld(size1, size2, bigSize)
-				proof, err := CalcConsistencyProofNodeAddresses(size1, size2, bigSize)
-				if !reflect.DeepEqual(oldErr, err) {
-					t.Fatalf("got error: %v; want: %v", err, oldErr)
+	for bigSize := int64(1); bigSize <= int64(100); bigSize++ {
+		for size2 := int64(1); size2 <= bigSize; size2++ {
+			for size1 := int64(1); size1 <= size2; size1++ {
+				_, err := CalcConsistencyProofNodeAddresses(size1, size2, bigSize)
+				if err != nil {
+					t.Fatalf("failed on %d,%d,%d: %v", size1, size2, bigSize, err)
 				}
-				comparePaths(t, fmt.Sprintf("%d:%d:%d", size1, size2, bigSize), proof, oldProof)
 			}
 		}
 	}
