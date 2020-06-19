@@ -244,20 +244,18 @@ func initAddSequencedLeavesTest(ctx context.Context, t *testing.T, s storage.Log
 }
 
 func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
-	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		// Time we will queue all leaves at.
-		var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+	ctx := context.TODO()
+	// Time we will queue all leaves at.
+	var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
 
-		queued, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime)
-		if err != nil {
-			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
-		}
-		if got, want := len(queued), len(leaves); got != want {
-			t.t.Errorf("AddSequencedLeaves(): %v queued leaves, want %v", got, want)
-		}
-		// TODO(pavelkalinnikov): Verify returned status for each leaf.
-		return nil
-	})
+	queued, err := t.s.AddSequencedLeaves(ctx, t.tree, leaves, fakeQueueTime)
+	if err != nil {
+		t.t.Fatalf("Failed to add sequenced leaves: %v", err)
+	}
+	if got, want := len(queued), len(leaves); got != want {
+		t.t.Errorf("AddSequencedLeaves(): %v queued leaves, want %v", got, want)
+	}
+	// TODO(pavelkalinnikov): Verify returned status for each leaf.
 }
 
 func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp []*trillian.LogLeaf) {

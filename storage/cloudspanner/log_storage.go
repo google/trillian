@@ -266,7 +266,93 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 }
 
 func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	return nil, ErrNotImplemented
+	ctx, span := trace.StartSpan(ctx, "AddSequencedLeaves")
+	defer span.End()
+
+	okProto := status.New(codes.OK, "OK").Proto()
+
+	_, span = trace.StartSpan(ctx, "insert")
+	defer span.End()
+	res := make([]*trillian.QueuedLogLeaf, len(leaves))
+	errs := make(chan error, 1)
+	var wg sync.WaitGroup
+	for i, l := range leaves {
+		var err error
+		l.QueueTimestamp, err = ptypes.TimestampProto(ts)
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+
+		// Capture the values for later reference in the MutationResultFunc below.
+		i, l := i, l
+		res[i] = &trillian.QueuedLogLeaf{Status: okProto}
+
+		wg.Add(1)
+		// The insert of the LeafData and SequencedLeafData must happen atomically.
+		m1, err := spanner.InsertStruct(leafDataTbl, leafDataCols{
+			TreeID:              tree.TreeId,
+			LeafIdentityHash:    l.LeafIdentityHash,
+			LeafValue:           l.LeafValue,
+			ExtraData:           l.ExtraData,
+			QueueTimestampNanos: ts.UnixNano(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		m2, err := spanner.InsertStruct(seqDataTbl, sequencedLeafDataCols{
+			TreeID:                  tree.TreeId,
+			SequenceNumber:          l.LeafIndex,
+			LeafIdentityHash:        l.LeafIdentityHash,
+			MerkleLeafHash:          l.MerkleLeafHash,
+			IntegrateTimestampNanos: 0,
+		})
+		if err != nil {
+			return nil, err
+		}
+		m := []*spanner.Mutation{m1, m2}
+
+		doneFunc := func(err error) {
+			defer wg.Done()
+			if err != nil {
+				// If failed because of a duplicate insert, set the status correspondingly.
+				if status.Code(err) == codes.AlreadyExists {
+					glog.Infof("Found already exists: index=%v, id=%v", l.LeafIndex, l.LeafIdentityHash)
+					res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex or LeafIdentityHash").Proto()
+					return
+				}
+				select {
+				case errs <- err:
+				default: // Skip this error, we only need one.
+				}
+			}
+		}
+		if err := ls.writeSem.Acquire(ctx, 1); err != nil {
+			doneFunc(err)
+		} else {
+			go func() {
+				defer ls.writeSem.Release(1)
+				doneFunc(func() error {
+					_, err := ls.ts.client.Apply(ctx, m)
+					return err
+				}())
+			}()
+		}
+	}
+	span.End()
+
+	// Wait for all of our mutations to apply (or fail).
+	_, span = trace.StartSpan(ctx, "wait")
+	wg.Wait()
+	span.End()
+
+	// Check if any failed, and return the first error if so.
+	select {
+	case err := <-errs:
+		return nil, err
+	default: // No error.
+	}
+
+	return res, nil
 }
 
 // readDupeLeaves reads the leaves whose ids are passed as keys in the dupes map,
@@ -451,94 +537,7 @@ func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts
 }
 
 func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)
-	if !ok {
-		return nil, ErrWrongTXType
-	}
-	ctx, span := trace.StartSpan(ctx, "AddSequencedLeaves")
-	defer span.End()
-
-	okProto := status.New(codes.OK, "OK").Proto()
-
-	_, span = trace.StartSpan(ctx, "insert")
-	defer span.End()
-	res := make([]*trillian.QueuedLogLeaf, len(leaves))
-	errs := make(chan error, 1)
-	var wg sync.WaitGroup
-	for i, l := range leaves {
-		var err error
-		l.QueueTimestamp, err = ptypes.TimestampProto(ts)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
-		}
-
-		// Capture the values for later reference in the MutationResultFunc below.
-		i, l := i, l
-		res[i] = &trillian.QueuedLogLeaf{Status: okProto}
-
-		wg.Add(1)
-		// The insert of the LeafData and SequencedLeafData must happen atomically.
-		m1, err := spanner.InsertStruct(leafDataTbl, leafDataCols{
-			TreeID:              tx.treeID,
-			LeafIdentityHash:    l.LeafIdentityHash,
-			LeafValue:           l.LeafValue,
-			ExtraData:           l.ExtraData,
-			QueueTimestampNanos: ts.UnixNano(),
-		})
-		if err != nil {
-			return nil, err
-		}
-		m2, err := spanner.InsertStruct(seqDataTbl, sequencedLeafDataCols{
-			TreeID:                  tx.treeID,
-			SequenceNumber:          l.LeafIndex,
-			LeafIdentityHash:        l.LeafIdentityHash,
-			MerkleLeafHash:          l.MerkleLeafHash,
-			IntegrateTimestampNanos: 0,
-		})
-		if err != nil {
-			return nil, err
-		}
-		m := []*spanner.Mutation{m1, m2}
-
-		doneFunc := func(err error) {
-			defer wg.Done()
-			if err != nil {
-				// If failed because of a duplicate insert, set the status correspondingly.
-				if status.Code(err) == codes.AlreadyExists {
-					glog.V(2).Infof("Found already exists: index=%v, id=%v", l.LeafIndex, l.LeafIdentityHash)
-					res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex or LeafIdentityHash").Proto()
-					return
-				}
-				select {
-				case errs <- err:
-				default: // Skip this error, we only need one.
-				}
-			}
-		}
-		if err := tx.ls.writeSem.Acquire(ctx, 1); err != nil {
-			doneFunc(err)
-		} else {
-			go func() {
-				defer tx.ls.writeSem.Release(1)
-				doneFunc(stx.BufferWrite(m))
-			}()
-		}
-	}
-	span.End()
-
-	// Wait for all of our mutations to apply (or fail).
-	_, span = trace.StartSpan(ctx, "wait")
-	wg.Wait()
-	span.End()
-
-	// Check if any failed, and return the first error if so.
-	select {
-	case err := <-errs:
-		return nil, err
-	default: // No error.
-	}
-
-	return res, nil
+	return nil, ErrNotImplemented
 }
 
 // DequeueLeaves removes [0, limit) leaves from the to-be-sequenced queue.
