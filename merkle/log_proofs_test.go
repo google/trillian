@@ -157,13 +157,23 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	node := func(level uint, index uint64) NodeFetch {
 		return newNodeFetch(level, index, false)
 	}
+	rehash := func(level uint, index uint64) NodeFetch {
+		return newNodeFetch(level, index, true)
+	}
 	// These should all successfully compute the expected proof.
 	for _, tc := range []struct {
-		size  int64
-		index int64
-		want  []NodeFetch
+		size    int64 // The requested past tree size.
+		index   int64 // Leaf index in the requested tree.
+		bigSize int64 // The current tree size.
+		want    []NodeFetch
 	}{
+		// Small trees.
 		{size: 1, index: 0, want: nil},
+		{size: 2, index: 0, want: []NodeFetch{node(0, 1)}},             // b
+		{size: 2, index: 1, want: []NodeFetch{node(0, 0)}},             // a
+		{size: 3, index: 1, want: []NodeFetch{node(0, 0), node(0, 2)}}, // a c
+
+		// Tree of size 7.
 		{size: 7, index: 0, want: []NodeFetch{
 			node(0, 1), node(1, 1), node(2, 1)}}, // b h l
 		{size: 7, index: 1, want: []NodeFetch{
@@ -178,9 +188,39 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			node(0, 4), node(0, 6), node(2, 0)}}, // e j k
 		{size: 7, index: 6, want: []NodeFetch{
 			node(1, 2), node(2, 0)}}, // i k
+
+		// Smaller trees within a bigger stored tree.
+		{size: 4, index: 2, bigSize: 7, want: []NodeFetch{
+			node(0, 3), node(1, 0)}}, // d g
+		{size: 5, index: 3, bigSize: 7, want: []NodeFetch{
+			node(0, 2), node(1, 0), node(0, 4)}}, // c g e
+		{size: 6, index: 3, bigSize: 7, want: []NodeFetch{
+			node(0, 2), node(1, 0), node(1, 2)}}, // c g i
+		{size: 6, index: 4, bigSize: 8, want: []NodeFetch{
+			node(0, 5), node(2, 0)}}, // f k
+		{size: 7, index: 1, bigSize: 8, want: []NodeFetch{
+			node(0, 0), node(1, 1), rehash(0, 6), rehash(1, 2)}}, // a h l=hash(i,j)
+		{size: 7, index: 3, bigSize: 8, want: []NodeFetch{
+			node(0, 2), node(1, 0), rehash(0, 6), rehash(1, 2)}}, // c g l=hash(i,j)
+
+		// Some rehashes in the middle of the returned list.
+		{size: 15, index: 10, bigSize: 21, want: []NodeFetch{
+			node(0, 11), node(1, 4), rehash(0, 14), rehash(1, 6), node(3, 0)}},
+		{size: 31, index: 24, bigSize: 41, want: []NodeFetch{
+			node(0, 25), node(1, 13),
+			rehash(0, 30), rehash(1, 14),
+			node(3, 2), node(4, 0)}},
+		{size: 95, index: 81, bigSize: 111, want: []NodeFetch{
+			node(0, 80), node(1, 41), node(2, 21),
+			rehash(0, 94), rehash(1, 46), rehash(2, 22),
+			node(4, 4), node(6, 0)}},
 	} {
-		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
-			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.size)
+		bigSize := tc.size // Use the same tree size by default.
+		if s := tc.bigSize; s != 0 {
+			bigSize = s
+		}
+		t.Run(fmt.Sprintf("%d:%d:%d", tc.size, tc.index, bigSize), func(t *testing.T) {
+			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, bigSize)
 			if err != nil {
 				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
 			}
