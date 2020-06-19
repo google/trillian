@@ -21,11 +21,55 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/compact"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-// snapshotConsistency does the calculation of consistency proof node addresses between
+// CalcInclusionProofOld returns the tree node IDs needed to build an
+// inclusion proof for a specified leaf and tree size. The snapshot parameter
+// is the tree size being queried for, treeSize is the actual size of the tree
+// at the revision we are using to fetch nodes (this can be > snapshot).
+func CalcInclusionProofOld(snapshot, index, treeSize int64) ([]NodeFetch, error) {
+	if err := checkSnapshot("snapshot", snapshot, treeSize); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
+	}
+	if index >= snapshot {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is >= snapshot %d", index, snapshot)
+	}
+	if index < 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
+	}
+
+	return pathFromNodeToRootAtSnapshot(index, 0, snapshot, treeSize)
+}
+
+// CalcConsistencyProofOld returns the tree node IDs needed to build
+// a consistency proof between two specified tree sizes. snapshot1 and
+// snapshot2 represent the two tree sizes for which consistency should be
+// proved, treeSize is the actual size of the tree at the revision we are using
+// to fetch nodes (this can be > snapshot2).
+//
+// The caller is responsible for checking that the input tree sizes correspond
+// to valid tree heads. All returned NodeIDs are tree coordinates within the
+// new tree. It is assumed that they will be fetched from storage at a revision
+// corresponding to the STH associated with the treeSize parameter.
+func CalcConsistencyProofOld(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
+	if err := checkSnapshot("snapshot1", snapshot1, treeSize); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+	}
+	if err := checkSnapshot("snapshot2", snapshot2, treeSize); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+	}
+	if snapshot1 > snapshot2 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: snapshot1 %d > snapshot2 %d", snapshot1, snapshot2)
+	}
+
+	return snapshotConsistencyOld(snapshot1, snapshot2, treeSize)
+}
+
+// snapshotConsistencyOld does the calculation of consistency proof node addresses between
 // two snapshots. Based on the C++ code used by CT but adjusted to fit our situation.
-func snapshotConsistency(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
+func snapshotConsistencyOld(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
 	proof := make([]NodeFetch, 0, bits.Len64(uint64(snapshot2))+1)
 
 	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)

@@ -16,6 +16,7 @@ package merkle
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/trillian/merkle/compact"
@@ -362,6 +363,36 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 		for s2 := s1 + 1; s2 <= maxSize; s2++ {
 			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2), int64(s2)); err != nil {
 				t.Errorf("CalcConsistencyProofNodeAddresses(%d, %d) = %v", s1, s2, err)
+			}
+		}
+	}
+}
+
+func TestCalcInclusionProofNodeAddressesAll(t *testing.T) {
+	for bigSize := int64(-1); bigSize <= int64(500); bigSize++ {
+		for size := int64(-1); size <= bigSize+1; size++ {
+			for index := int64(-1); index <= size+1; index++ {
+				oldProof, oldErr := CalcInclusionProofOld(size, index, bigSize)
+				proof, err := CalcInclusionProofNodeAddresses(size, index, bigSize)
+				if !reflect.DeepEqual(oldErr, err) {
+					t.Fatalf("got error: %v; want: %v", err, oldErr)
+				}
+				comparePaths(t, fmt.Sprintf("%d:%d:%d", index, size, bigSize), proof, oldProof)
+			}
+		}
+	}
+}
+
+func TestCalcConsistencyProofNodeAddressesAll(t *testing.T) {
+	for bigSize := int64(-1); bigSize <= int64(500); bigSize++ {
+		for size2 := int64(-1); size2 <= bigSize+1; size2++ {
+			for size1 := int64(-1); size1 <= size2+1; size1++ {
+				oldProof, oldErr := CalcConsistencyProofOld(size1, size2, bigSize)
+				proof, err := CalcConsistencyProofNodeAddresses(size1, size2, bigSize)
+				if !reflect.DeepEqual(oldErr, err) {
+					t.Fatalf("got error: %v; want: %v", err, oldErr)
+				}
+				comparePaths(t, fmt.Sprintf("%d:%d:%d", size1, size2, bigSize), proof, oldProof)
 			}
 		}
 	}
