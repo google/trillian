@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"strings"
@@ -244,20 +245,18 @@ func initAddSequencedLeavesTest(ctx context.Context, t *testing.T, s storage.Log
 }
 
 func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
-	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		// Time we will queue all leaves at.
-		var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+	ctx := context.TODO()
+	// Time we will queue all leaves at.
+	var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
 
-		queued, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime)
-		if err != nil {
-			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
-		}
-		if got, want := len(queued), len(leaves); got != want {
-			t.t.Errorf("AddSequencedLeaves(): %v queued leaves, want %v", got, want)
-		}
-		// TODO(pavelkalinnikov): Verify returned status for each leaf.
-		return nil
-	})
+	queued, err := t.s.AddSequencedLeaves(ctx, t.tree, leaves, fakeQueueTime)
+	if err != nil {
+		t.t.Fatalf("Failed to add sequenced leaves: %v", err)
+	}
+	if got, want := len(queued), len(leaves); got != want {
+		t.t.Errorf("AddSequencedLeaves(): %v queued leaves, want %v", got, want)
+	}
+	// TODO(pavelkalinnikov): Verify returned status for each leaf.
 }
 
 func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp []*trillian.LogLeaf) {
@@ -299,4 +298,29 @@ func (*logTests) TestAddSequencedLeavesUnordered(ctx context.Context, t *testing
 	aslt.verifySequencedLeaves(chunk*4, chunk+extraCount, leaves[chunk*4:count])
 	aslt.addSequencedLeaves(leaves[chunk*3 : chunk*4])
 	aslt.verifySequencedLeaves(0, count+extraCount, leaves)
+}
+
+func (*logTests) TestAddSequencedLeavesWithDuplicates(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	leaves := createTestLeaves(6, 0)
+
+	aslt := initAddSequencedLeavesTest(ctx, t, s, as)
+	aslt.addSequencedLeaves(leaves[:3])
+	aslt.verifySequencedLeaves(0, 3, leaves[:3])
+	aslt.addSequencedLeaves(leaves[2:]) // Full dup.
+	aslt.verifySequencedLeaves(0, 6, leaves)
+
+	dupLeaves := createTestLeaves(4, 6)
+	dupLeaves[0].LeafIdentityHash = leaves[0].LeafIdentityHash // Hash dup.
+	dupLeaves[2].LeafIndex = 2                                 // Index dup.
+	leafHash := sha256.Sum256([]byte("foobar"))
+	dupLeaves[2].LeafIdentityHash = leafHash[:] // TODO: Remove when spannertest has transaction support.
+	aslt.addSequencedLeaves(dupLeaves)
+	aslt.verifySequencedLeaves(6, 4, nil)
+	aslt.verifySequencedLeaves(7, 4, dupLeaves[1:2])
+	aslt.verifySequencedLeaves(8, 4, nil)
+	aslt.verifySequencedLeaves(9, 4, dupLeaves[3:4])
+
+	dupLeaves = createTestLeaves(4, 6)
+	aslt.addSequencedLeaves(dupLeaves)
+	aslt.verifySequencedLeaves(6, 4, dupLeaves)
 }
