@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
@@ -452,4 +453,67 @@ func createFakeLeaf(ctx context.Context, s storage.LogStorage, tree *trillian.Tr
 	}
 
 	return q[0].Leaf
+}
+
+func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	const leavesToInsert = 5
+	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
+
+	leaves := createTestLeaves(leavesToInsert, 20)
+	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeDequeueCutoffTime); err != nil {
+		t.Fatalf("Failed to queue leaves: %v", err)
+	}
+
+	{
+		// Now try to dequeue them
+		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+			leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
+			if err != nil {
+				t.Fatalf("Failed to dequeue leaves: %v", err)
+			}
+			if len(leaves2) != leavesToInsert {
+				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+			}
+			ensureAllLeavesDistinct(leaves2, t)
+			iTimestamp := ptypes.TimestampNow()
+			for i, l := range leaves2 {
+				l.IntegrateTimestamp = iTimestamp
+				l.LeafIndex = int64(i)
+			}
+			if err := tx2.UpdateSequencedLeaves(ctx, leaves2); err != nil {
+				t.Fatalf("UpdateSequencedLeaves(): %v", err)
+			}
+			return nil
+		})
+	}
+
+	{
+		// If we dequeue again then we should now get nothing
+		runLogTX(s, tree, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
+			leaves3, err := tx3.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
+			if err != nil {
+				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
+			}
+			if len(leaves3) != 0 {
+				t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves3))
+			}
+			return nil
+		})
+	}
+}
+
+func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
+	t.Helper()
+	// All the leaf value hashes should be distinct because the leaves were created with distinct
+	// leaf data. If only we had maps with slices as keys or sets or pretty much any kind of usable
+	// data structures we could do this properly.
+	for i := range leaves {
+		for j := range leaves {
+			if i != j && bytes.Equal(leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash) {
+				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
+					leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash)
+			}
+		}
+	}
 }

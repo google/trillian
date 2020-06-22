@@ -270,57 +270,6 @@ func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 
 // -----------------------------------------------------------------------------
 
-func TestDequeueLeaves(t *testing.T) {
-	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
-	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
-
-	leaves := createTestLeaves(leavesToInsert, 20)
-	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeDequeueCutoffTime); err != nil {
-		t.Fatalf("Failed to queue leaves: %v", err)
-	}
-
-	{
-		// Now try to dequeue them
-		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
-			leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
-			if err != nil {
-				t.Fatalf("Failed to dequeue leaves: %v", err)
-			}
-			if len(leaves2) != leavesToInsert {
-				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
-			}
-			ensureAllLeavesDistinct(leaves2, t)
-			iTimestamp := ptypes.TimestampNow()
-			for i, l := range leaves2 {
-				l.IntegrateTimestamp = iTimestamp
-				l.LeafIndex = int64(i)
-			}
-			if err := tx2.UpdateSequencedLeaves(ctx, leaves2); err != nil {
-				t.Fatalf("UpdateSequencedLeaves(): %v", err)
-			}
-			return nil
-		})
-	}
-
-	{
-		// If we dequeue again then we should now get nothing
-		runLogTX(s, tree, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
-			leaves3, err := tx3.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
-			if err != nil {
-				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
-			}
-			if len(leaves3) != 0 {
-				t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves3))
-			}
-			return nil
-		})
-	}
-}
-
 func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
