@@ -57,7 +57,6 @@ var (
 const (
 	subtreeTbl   = "SubtreeData"
 	treeHeadTbl  = "TreeHeads"
-	colBucket    = "Bucket"
 	colSubtree   = "Subtree"
 	colSubtreeID = "SubtreeID"
 	colTreeID    = "TreeID"
