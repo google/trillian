@@ -965,6 +965,9 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 	for i := start; i < (start + count); i++ {
 		l, ok := leaves[i]
 		if !ok {
+			if i < int64(currentSTH.TreeSize) {
+				return nil, fmt.Errorf("missing expected index %d", i)
+			}
 			break
 		}
 		ret = append(ret, l)
