@@ -61,6 +61,8 @@ func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64) ([]NodeFet
 	if index < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
 	}
+	// Note: If snapshot < treeSize, the storage might not contain the
+	// "ephemeral" node of this proof, so rehashing is needed.
 	return proofNodes(uint64(index), 0, uint64(snapshot), snapshot < treeSize), nil
 }
 
