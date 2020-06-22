@@ -278,56 +278,6 @@ func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 	}
 }
 
-// AddSequencedLeaves tests. ---------------------------------------------------
-
-type addSequencedLeavesTest struct {
-	t    *testing.T
-	s    storage.LogStorage
-	tree *trillian.Tree
-}
-
-func initAddSequencedLeavesTest(ctx context.Context, t *testing.T) addSequencedLeavesTest {
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	tree := mustCreateTree(ctx, t, as, testonly.PreorderedLogTree)
-	s := NewLogStorage(DB, nil)
-	return addSequencedLeavesTest{t, s, tree}
-}
-
-func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
-	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if _, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime); err != nil {
-			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
-		}
-		// TODO(pavelkalinnikov): Verify returned status for each leaf.
-		return nil
-	})
-}
-
-func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp []*trillian.LogLeaf) {
-	var stored []*trillian.LogLeaf
-	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		var err error
-		stored, err = tx.GetLeavesByRange(ctx, start, count)
-		if err != nil {
-			t.t.Fatalf("Failed to read sequenced leaves: %v", err)
-		}
-		return nil
-	})
-	if got, want := len(stored), len(exp); got != want {
-		t.t.Fatalf("Unexpected number of leaves: got %d, want %d", got, want)
-	}
-
-	for i, leaf := range stored {
-		if got, want := leaf.LeafIndex, exp[i].LeafIndex; got != want {
-			t.t.Fatalf("Leaf #%d: LeafIndex=%v, want %v", i, got, want)
-		}
-		if got, want := leaf.LeafIdentityHash, exp[i].LeafIdentityHash; !bytes.Equal(got, want) {
-			t.t.Fatalf("Leaf #%d: LeafIdentityHash=%v, want %v", i, got, want)
-		}
-	}
-}
-
 // -----------------------------------------------------------------------------
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {
