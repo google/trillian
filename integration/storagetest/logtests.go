@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
@@ -341,4 +342,127 @@ func (*logTests) TestDequeueLeavesNoneQueued(ctx context.Context, t *testing.T, 
 		}
 		return nil
 	})
+}
+
+// GetLeavesByRange tests. -----------------------------------------------------
+
+type getLeavesByRangeTest struct {
+	start, count int64
+	want         []int64
+	wantErr      bool
+}
+
+func testGetLeavesByRangeImpl(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage, create *trillian.Tree, tests []getLeavesByRangeTest) {
+	tree := mustCreateTree(ctx, t, as, create)
+
+	// Note: GetLeavesByRange loads the root internally to get the tree size.
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 14)
+
+	// Create leaves [0]..[19] but drop leaf [5] and set the tree size to 14.
+	for i := int64(0); i < 20; i++ {
+		if i == 5 {
+			continue
+		}
+		data := []byte{byte(i)}
+		someExtraData := []byte("Some extra data")
+		identityHash := sha256.Sum256(data)
+		createFakeLeaf(ctx, s, tree.TreeId, identityHash[:], identityHash[:], data, someExtraData, i, t)
+	}
+
+	for _, test := range tests {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			leaves, err := tx.GetLeavesByRange(ctx, test.start, test.count)
+			if err != nil {
+				if !test.wantErr {
+					t.Errorf("GetLeavesByRange(%d, +%d)=_,%v; want _,nil", test.start, test.count, err)
+				}
+				return nil
+			}
+			if test.wantErr {
+				t.Errorf("GetLeavesByRange(%d, +%d)=_,nil; want _,non-nil", test.start, test.count)
+			}
+			got := make([]int64, len(leaves))
+			for i, leaf := range leaves {
+				got[i] = leaf.LeafIndex
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("GetLeavesByRange(%d, +%d)=%+v; want %+v", test.start, test.count, got, test.want)
+			}
+			return nil
+		})
+	}
+}
+
+func (*logTests) TestGetLeavesByRangeFromLog(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	var tests = []getLeavesByRangeTest{
+		{start: 0, count: 1, want: []int64{0}},
+		{start: 0, count: 2, want: []int64{0, 1}},
+		{start: 1, count: 3, want: []int64{1, 2, 3}},
+		{start: 10, count: 7, want: []int64{10, 11, 12, 13}},
+		{start: 13, count: 1, want: []int64{13}},
+		{start: 14, count: 4, wantErr: true},   // Starts right after tree size.
+		{start: 19, count: 2, wantErr: true},   // Starts further away.
+		{start: 3, count: 5, wantErr: true},    // Hits non-contiguous leaves.
+		{start: 5, count: 5, wantErr: true},    // Starts from a missing leaf.
+		{start: 1, count: 0, wantErr: true},    // Empty range.
+		{start: -1, count: 1, wantErr: true},   // Negative start.
+		{start: 1, count: -1, wantErr: true},   // Negative count.
+		{start: 100, count: 30, wantErr: true}, // Starts after all stored leaves.
+	}
+	testGetLeavesByRangeImpl(ctx, t, s, as, storageto.LogTree, tests)
+}
+
+func (*logTests) TestGetLeavesByRangeFromPreorderedLog(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	var tests = []getLeavesByRangeTest{
+		{start: 0, count: 1, want: []int64{0}},
+		{start: 0, count: 2, want: []int64{0, 1}},
+		{start: 1, count: 3, want: []int64{1, 2, 3}},
+		{start: 10, count: 7, want: []int64{10, 11, 12, 13, 14, 15, 16}},
+		{start: 13, count: 1, want: []int64{13}},
+		// Starts right after tree size.
+		{start: 14, count: 4, want: []int64{14, 15, 16, 17}},
+		{start: 19, count: 2, want: []int64{19}}, // Starts further away.
+		{start: 3, count: 5, wantErr: true},      // Hits non-contiguous leaves.
+		{start: 5, count: 5, wantErr: true},      // Starts from a missing leaf.
+		{start: 1, count: 0, wantErr: true},      // Empty range.
+		{start: -1, count: 1, wantErr: true},     // Negative start.
+		{start: 1, count: -1, wantErr: true},     // Negative count.
+		{start: 100, count: 30, want: []int64{}}, // Starts after all stored leaves.
+	}
+	testGetLeavesByRangeImpl(ctx, t, s, as, storageto.PreorderedLogTree, tests)
+}
+
+// Time we will queue all leaves at
+var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+
+// Time we will integrate all leaves at
+var fakeIntegrateTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
+
+func createFakeLeaf(ctx context.Context, s storage.LogStorage, tree *trillian.Tree, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
+	t.Helper()
+	queuedAtNanos := fakeQueueTime.UnixNano()
+	integratedAtNanos := fakeIntegrateTime.UnixNano()
+	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES(?,?,?,?,?)", logID, rawHash, data, extraData, queuedAtNanos)
+	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES(?,?,?,?,?)", logID, seq, rawHash, hash, integratedAtNanos)
+
+	if err != nil || err2 != nil {
+		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
+	}
+	queueTimestamp, err := ptypes.TimestampProto(fakeQueueTime)
+	if err != nil {
+		panic(err)
+	}
+	integrateTimestamp, err := ptypes.TimestampProto(fakeIntegrateTime)
+	if err != nil {
+		panic(err)
+	}
+	return &trillian.LogLeaf{
+		MerkleLeafHash:     hash,
+		LeafValue:          data,
+		ExtraData:          extraData,
+		LeafIndex:          seq,
+		LeafIdentityHash:   rawHash,
+		QueueTimestamp:     queueTimestamp,
+		IntegrateTimestamp: integrateTimestamp,
+	}
 }
