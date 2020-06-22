@@ -280,25 +280,6 @@ func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 
 // -----------------------------------------------------------------------------
 
-func TestDequeueLeavesNoneQueued(t *testing.T) {
-	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
-
-	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		leaves, err := tx.DequeueLeaves(ctx, 999, fakeDequeueCutoffTime)
-		if err != nil {
-			t.Fatalf("Didn't expect an error on dequeue with no work to be done: %v", err)
-		}
-		if len(leaves) > 0 {
-			t.Fatalf("Expected nothing to be dequeued but we got %d leaves", len(leaves))
-		}
-		return nil
-	})
-}
-
 func TestDequeueLeaves(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)

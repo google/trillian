@@ -324,3 +324,21 @@ func (*logTests) TestAddSequencedLeavesWithDuplicates(ctx context.Context, t *te
 	aslt.addSequencedLeaves(dupLeaves)
 	aslt.verifySequencedLeaves(6, 4, dupLeaves)
 }
+
+// Time we'll request for guard cutoff in tests that don't test this (should include all above)
+var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
+
+func (*logTests) TestDequeueLeavesNoneQueued(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
+
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		leaves, err := tx.DequeueLeaves(ctx, 999, fakeDequeueCutoffTime)
+		if err != nil {
+			t.Fatalf("Didn't expect an error on dequeue with no work to be done: %v", err)
+		}
+		if len(leaves) > 0 {
+			t.Fatalf("Expected nothing to be dequeued but we got %d leaves", len(leaves))
+		}
+		return nil
+	})
+}
