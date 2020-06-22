@@ -579,13 +579,19 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	limitBucket := timeBucket | merkleLimit
 
 	stmt := spanner.NewStatement(`
-			SELECT Bucket, QueueTimestampNanos, MerkleLeafHash, LeafIdentityHash
-			FROM Unsequenced u
-			WHERE u.TreeID = @tree_id
-			AND u.Bucket >= @start_bucket
-			AND u.Bucket <= @limit_bucket
-			LIMIT @max_num
-			`)
+			SELECT 
+			  Bucket, 
+			  QueueTimestampNanos, 
+			  MerkleLeafHash, 
+			  LeafIdentityHash
+			FROM 
+			  Unsequenced
+			WHERE 
+			  TreeID = @tree_id AND 
+			  Bucket >= @start_bucket AND 
+			  Bucket <= @limit_bucket
+			LIMIT 
+			  @max_num`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["start_bucket"] = startBucket
 	stmt.Params["limit_bucket"] = limitBucket
