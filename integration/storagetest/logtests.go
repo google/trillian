@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
@@ -366,7 +365,7 @@ func testGetLeavesByRangeImpl(ctx context.Context, t *testing.T, s storage.LogSt
 		data := []byte{byte(i)}
 		someExtraData := []byte("Some extra data")
 		identityHash := sha256.Sum256(data)
-		createFakeLeaf(ctx, s, tree.TreeId, identityHash[:], identityHash[:], data, someExtraData, i, t)
+		createFakeLeaf(ctx, s, tree, identityHash[:], identityHash[:], data, someExtraData, i, t)
 	}
 
 	for _, test := range tests {
@@ -440,29 +439,17 @@ var fakeIntegrateTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
 func createFakeLeaf(ctx context.Context, s storage.LogStorage, tree *trillian.Tree, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
 	t.Helper()
-	queuedAtNanos := fakeQueueTime.UnixNano()
-	integratedAtNanos := fakeIntegrateTime.UnixNano()
-	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES(?,?,?,?,?)", logID, rawHash, data, extraData, queuedAtNanos)
-	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES(?,?,?,?,?)", logID, seq, rawHash, hash, integratedAtNanos)
+	leaf := &trillian.LogLeaf{
+		MerkleLeafHash:   hash,
+		LeafValue:        data,
+		ExtraData:        extraData,
+		LeafIndex:        seq,
+		LeafIdentityHash: rawHash,
+	}
+	q, err := s.AddSequencedLeaves(ctx, tree, []*trillian.LogLeaf{leaf}, fakeQueueTime)
+	if err != nil {
+		t.Fatalf("Failed to create test leaves: %v", err)
+	}
 
-	if err != nil || err2 != nil {
-		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
-	}
-	queueTimestamp, err := ptypes.TimestampProto(fakeQueueTime)
-	if err != nil {
-		panic(err)
-	}
-	integrateTimestamp, err := ptypes.TimestampProto(fakeIntegrateTime)
-	if err != nil {
-		panic(err)
-	}
-	return &trillian.LogLeaf{
-		MerkleLeafHash:     hash,
-		LeafValue:          data,
-		ExtraData:          extraData,
-		LeafIndex:          seq,
-		LeafIdentityHash:   rawHash,
-		QueueTimestamp:     queueTimestamp,
-		IntegrateTimestamp: integrateTimestamp,
-	}
+	return q[0].Leaf
 }
