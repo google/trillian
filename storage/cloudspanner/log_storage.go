@@ -532,10 +532,6 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 	})
 }
 
-func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.LogLeaf, error) {
-	return nil, ErrNotImplemented
-}
-
 func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
 }

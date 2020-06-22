@@ -574,21 +574,6 @@ func (mr *MockLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestSignedLogRoot", reflect.TypeOf((*MockLogTreeTX)(nil).LatestSignedLogRoot), arg0)
 }
 
-// QueueLeaves mocks base method
-func (m *MockLogTreeTX) QueueLeaves(arg0 context.Context, arg1 []*trillian.LogLeaf, arg2 time.Time) ([]*trillian.LogLeaf, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]*trillian.LogLeaf)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// QueueLeaves indicates an expected call of QueueLeaves
-func (mr *MockLogTreeTXMockRecorder) QueueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).QueueLeaves), arg0, arg1, arg2)
-}
-
 // ReadRevision mocks base method
 func (m *MockLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
