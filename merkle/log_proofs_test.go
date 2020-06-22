@@ -331,8 +331,8 @@ func TestLastNodeWritten(t *testing.T) {
 		{15, "11101"},
 	} {
 		str := ""
-		for d := int64(len(testCase.result) - 1); d >= 0; d-- {
-			if lastNodePresent(d, testCase.ts) {
+		for d := len(testCase.result) - 1; d >= 0; d-- {
+			if lastNodePresent(uint(d), testCase.ts) {
 				str += "1"
 			} else {
 				str += "0"
