@@ -337,10 +337,8 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 	}
 
 	ls := mysql.NewLogStorage(db, nil)
-	return ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		_, err := tx.QueueLeaves(ctx, leaves, time.Now())
-		return err
-	})
+	_, err = ls.QueueLeaves(ctx, tree, leaves, time.Now())
+	return err
 }
 
 func setUnsequencedRows(ctx context.Context, db *sql.DB, tree *trillian.Tree, wantRows int) error {
