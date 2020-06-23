@@ -101,7 +101,7 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, err
 		return proof, nil
 	}
 
-	level := 0
+	level := uint(0)
 	node := snapshot1 - 1
 
 	// Compute the (compressed) path to the root of snapshot2.
@@ -127,7 +127,7 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, err
 	return append(proof, p...), nil
 }
 
-func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int64) ([]NodeFetch, error) {
+func pathFromNodeToRootAtSnapshot(node int64, level uint, snapshot, treeSize int64) ([]NodeFetch, error) {
 	glog.V(vLevel).Infof("pathFromNodeToRootAtSnapshot(%d, %d, %d, %d)", node, level, snapshot, treeSize)
 	proof := make([]NodeFetch, 0, bits.Len64(uint64(snapshot))+1)
 
@@ -136,7 +136,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 	}
 
 	// Index of the last node (if the level is fully populated).
-	lastNode := (snapshot - 1) >> uint(level)
+	lastNode := (snapshot - 1) >> level
 
 	// Move up, recording the sibling of the current node at each level.
 	for lastNode != 0 {
@@ -146,7 +146,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 			if glog.V(vvLevel) {
 				glog.Infof("Not last: S:%d L:%d", sibling, level)
 			}
-			n := compact.NewNodeID(uint(level), uint64(sibling))
+			n := compact.NewNodeID(level, uint64(sibling))
 			proof = append(proof, NodeFetch{ID: n})
 		} else if sibling == lastNode {
 			// The sibling is the last node of the level in the snapshot tree.
@@ -199,7 +199,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 // the output of this should always be exactly one node after resolving any rehashing.
 // Either a copy of one of the nodes in the tree or a rehashing of multiple nodes to a single
 // result node with the value it would have had if the prior snapshot had been stored.
-func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int) ([]NodeFetch, error) {
+func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel uint) ([]NodeFetch, error) {
 	glog.V(vLevel).Infof("recompute s:%d ts:%d level:%d", snapshot, treeSize, nodeLevel)
 
 	fetches := []NodeFetch{}
@@ -212,7 +212,7 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int) ([]NodeFetch
 	}
 
 	// We're recomputing the right hand path, the one to the last leaf
-	level := 0
+	level := uint(0)
 	// This is the index of the last node in the snapshot
 	lastNode := snapshot - 1
 	// This is the index of the last node that actually exists in the underlying tree
@@ -370,7 +370,7 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int) ([]NodeFetch
 // Reading down the RHS: present, not present, not present, present = 1001. So when
 // attempting to fetch the sibling of k (level 2, index 1) the tree should be descended twice to
 // fetch 'e' (level 0, index 4) as (level 1, index 2) is also not present in storage.
-func lastNodePresent(level, ts int64) bool {
+func lastNodePresent(level uint, ts int64) bool {
 	if level == 0 {
 		// Leaves always exist
 		return true
@@ -379,28 +379,28 @@ func lastNodePresent(level, ts int64) bool {
 	// Last index in the level is the tree size - 1
 	b := uint64(ts - 1)
 	// Test the bit in the path for the requested level
-	mask := uint64(1) << uint64(level-1)
+	mask := uint64(1) << (level - 1)
 
 	return b&mask != 0
 }
 
 // siblingIDSkipLevels returns the ID of the sibling to the passed-in node,
 // taking into account the skipping of levels in a non-perfect tree.
-func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64) compact.NodeID {
+func siblingIDSkipLevels(snapshot, lastNode int64, level uint, node int64) compact.NodeID {
 	sibling := node ^ 1
 	// Move level towards the leaves until the node exists. This terminates
 	// successfully as the leaves (level 0) are always written. Missing nodes are
 	// intermediate nodes with one child, hence their value is the same as the
 	// node lower down the tree as there is nothing to hash it with.
-	for level > 0 && sibling == lastNode && !lastNodePresent(int64(level), snapshot) {
+	for level > 0 && sibling == lastNode && !lastNodePresent(level, snapshot) {
 		level--
 		sibling *= 2
-		lastNode = (snapshot - 1) >> uint(level)
+		lastNode = (snapshot - 1) >> level
 		if glog.V(vvLevel) {
 			glog.Infof("Move down: S:%d L:%d LN:%d", sibling, level, lastNode)
 		}
 	}
-	return compact.NewNodeID(uint(level), uint64(sibling))
+	return compact.NewNodeID(level, uint64(sibling))
 }
 
 // checkRecomputation carries out an additional check that the results of recomputePastSnapshot
