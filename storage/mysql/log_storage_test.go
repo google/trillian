@@ -189,7 +189,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 			for i, want := range test.want {
 				got := existing[i]
 				if want == nil {
-					if got, want := status.FromProto(got.GetStatus()).Code(), codes.OK; got != want {
+					if got.Status != nil {
 						t.Errorf("QueueLeaves()[%d].Code: %v; want %v", i, got, want)
 					}
 					return

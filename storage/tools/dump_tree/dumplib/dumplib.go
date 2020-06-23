@@ -389,7 +389,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 
 		leafData := []byte(fmt.Sprintf(leafDataFormat, l))
 		hash := sha256.Sum256(leafData)
-		lh := []byte(hash[:])
+		lh := hash[:]
 		leaf := trillian.LogLeaf{LeafValue: leafData, LeafIdentityHash: lh, MerkleLeafHash: lh}
 		leaves := []*trillian.LogLeaf{&leaf}
 
