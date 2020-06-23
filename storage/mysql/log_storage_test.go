@@ -1054,30 +1054,6 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	})
 }
 
-func TestSortByLeafIdentityHash(t *testing.T) {
-	l := make([]*trillian.LogLeaf, 30)
-	for i := range l {
-		hash := sha256.Sum256([]byte{byte(i)})
-		leaf := trillian.LogLeaf{
-			LeafIdentityHash: hash[:],
-			LeafValue:        []byte(fmt.Sprintf("Value %d", i)),
-			ExtraData:        []byte(fmt.Sprintf("Extra %d", i)),
-			LeafIndex:        int64(i),
-		}
-		l[i] = &leaf
-	}
-	sort.Sort(byLeafIdentityHash(l))
-	for i := range l {
-		if i == 0 {
-			continue
-		}
-		if bytes.Compare(l[i-1].LeafIdentityHash, l[i].LeafIdentityHash) != -1 {
-			t.Errorf("sorted leaves not in order, [%d] = %x, [%d] = %x", i-1, l[i-1].LeafIdentityHash, i, l[i].LeafIdentityHash)
-		}
-	}
-
-}
-
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 	t.Helper()
 	// All the leaf value hashes should be distinct because the leaves were created with distinct
@@ -1154,14 +1130,4 @@ func leafInBatch(leaf *trillian.LogLeaf, batch []*trillian.LogLeaf) bool {
 	}
 
 	return false
-}
-
-// byLeafIdentityHash allows sorting of leaves by their identity hash, so DB
-// operations always happen in a consistent order.
-type byLeafIdentityHash []*trillian.LogLeaf
-
-func (l byLeafIdentityHash) Len() int      { return len(l) }
-func (l byLeafIdentityHash) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
-func (l byLeafIdentityHash) Less(i, j int) bool {
-	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
 }
