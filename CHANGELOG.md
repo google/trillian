@@ -8,6 +8,7 @@ Not yet released; provisionally v1.4.0 (may change).
 - `QueueLeaves` has been removed from the `LogTreeTX` interface because
   `QueueLeaves` is not transactionaal.  All callers use the
   `QueueLeaves` function in the `LogStorage` interface.
+- `AddSequencedLeaves` has been removed from the `LogTreeTX`.
 
 ### HTTP APIs
 

@@ -412,21 +412,6 @@ func (m *MockLogTreeTX) EXPECT() *MockLogTreeTXMockRecorder {
 	return m.recorder
 }
 
-// AddSequencedLeaves mocks base method
-func (m *MockLogTreeTX) AddSequencedLeaves(arg0 context.Context, arg1 []*trillian.LogLeaf, arg2 time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddSequencedLeaves indicates an expected call of AddSequencedLeaves
-func (mr *MockLogTreeTXMockRecorder) AddSequencedLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).AddSequencedLeaves), arg0, arg1, arg2)
-}
-
 // Close mocks base method
 func (m *MockLogTreeTX) Close() error {
 	m.ctrl.T.Helper()
