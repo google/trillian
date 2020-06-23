@@ -70,13 +70,12 @@ type LogStorageOptions struct {
 
 var (
 	// Spanner DB columns:
-	colLeafIdentityHash        = "LeafIdentityHash"
-	colLeafValue               = "LeafValue"
-	colExtraData               = "ExtraData"
-	colMerkleLeafHash          = "MerkleLeafHash"
-	colSequenceNumber          = "SequenceNumber"
-	colQueueTimestampNanos     = "QueueTimestampNanos"
-	colIntegrateTimestampNanos = "IntegrateTimestampNanos"
+	colLeafIdentityHash    = "LeafIdentityHash"
+	colLeafValue           = "LeafValue"
+	colExtraData           = "ExtraData"
+	colMerkleLeafHash      = "MerkleLeafHash"
+	colSequenceNumber      = "SequenceNumber"
+	colQueueTimestampNanos = "QueueTimestampNanos"
 )
 
 type leafDataCols struct {
@@ -93,6 +92,14 @@ type sequencedLeafDataCols struct {
 	LeafIdentityHash        []byte
 	MerkleLeafHash          []byte
 	IntegrateTimestampNanos int64
+}
+
+type unsequencedCols struct {
+	TreeID              int64
+	Bucket              int64
+	QueueTimestampNanos int64
+	MerkleLeafHash      []byte
+	LeafIdentityHash    []byte
 }
 
 // NewLogStorage initialises and returns a new LogStorage.
@@ -228,25 +235,37 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 		go func() {
 			defer wg.Done()
 
-			// The insert of the leafdata and the unsequenced work item must happen
-			// atomically.
-			m1 := spanner.Insert(
-				leafDataTbl,
-				[]string{colTreeID, colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos},
-				[]interface{}{tree.TreeId, l.LeafIdentityHash, l.LeafValue, l.ExtraData, qTS})
+			// The insert of the leafdata and the unsequenced work item must happen atomically.
+			m1, err := spanner.InsertStruct(leafDataTbl, leafDataCols{
+				TreeID:              tree.TreeId,
+				LeafIdentityHash:    l.LeafIdentityHash,
+				LeafValue:           l.LeafValue,
+				ExtraData:           l.ExtraData,
+				QueueTimestampNanos: qTS,
+			})
+			if err != nil {
+				results[i] = &trillian.QueuedLogLeaf{Status: status.Convert(err).Proto()}
+				return
+			}
 			b := bucketPrefix | int64(l.MerkleLeafHash[0])
-			m2 := spanner.Insert(
-				unseqTable,
-				[]string{colTreeID, colBucket, colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash},
-				[]interface{}{tree.TreeId, b, qTS, l.MerkleLeafHash, l.LeafIdentityHash})
+			m2, err := spanner.InsertStruct(unseqTable, unsequencedCols{
+				TreeID:              tree.TreeId,
+				Bucket:              b,
+				QueueTimestampNanos: qTS,
+				MerkleLeafHash:      l.MerkleLeafHash,
+				LeafIdentityHash:    l.LeafIdentityHash,
+			})
+			if err != nil {
+				results[i] = &trillian.QueuedLogLeaf{Status: status.Convert(err).Proto()}
+				return
+			}
 
 			_, err = ls.ts.client.Apply(ctx, []*spanner.Mutation{m1, m2})
 			if spanner.ErrCode(err) == codes.AlreadyExists {
 				k := string(l.LeafIdentityHash)
 				writeDupes[k] = append(writeDupes[k], i)
 			} else if err != nil {
-				s, _ := status.FromError(err)
-				results[i] = &trillian.QueuedLogLeaf{Status: s.Proto()}
+				results[i] = &trillian.QueuedLogLeaf{Status: status.Convert(err).Proto()}
 			} else {
 				results[i] = &trillian.QueuedLogLeaf{Leaf: l} // implicit OK status
 			}
@@ -653,9 +672,16 @@ func (tx *logTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		}
 
 		// Add the sequence mapping...
-		m1 := spanner.Insert(seqDataTbl,
-			[]string{colTreeID, colSequenceNumber, colLeafIdentityHash, colMerkleLeafHash, colIntegrateTimestampNanos},
-			[]interface{}{tx.treeID, l.LeafIndex, l.LeafIdentityHash, l.MerkleLeafHash, iTimestamp.UnixNano()})
+		m1, err := spanner.InsertStruct(seqDataTbl, sequencedLeafDataCols{
+			TreeID:                  tx.treeID,
+			SequenceNumber:          l.LeafIndex,
+			LeafIdentityHash:        l.LeafIdentityHash,
+			MerkleLeafHash:          l.MerkleLeafHash,
+			IntegrateTimestampNanos: iTimestamp.UnixNano(),
+		})
+		if err != nil {
+			return err
+		}
 
 		m2 := spanner.Delete(unseqTable, spanner.Key{tx.treeID, qe.bucket, qe.timestamp, l.MerkleLeafHash})
 
