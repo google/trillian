@@ -91,6 +91,10 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 		if err != nil {
 			return fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
+		qTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
+		if err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		}
 		_, err = t.tx.ExecContext(
 			ctx,
 			insertSequencedLeafSQL+valuesPlaceholder5,
@@ -103,6 +107,13 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
 			return err
 		}
+
+		if err := t.removeSequencedLeaves(ctx, []dequeuedLeaf{{
+			queueTimestampNanos: qTimestamp.UnixNano(),
+			leafIdentityHash:    leaf.LeafIdentityHash,
+		}}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -111,6 +122,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
 func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeuedLeaf) error {
+	start := time.Now()
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here. See comment in
 	// QueueLeaves.
@@ -128,5 +140,6 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeued
 		}
 	}
 
+	observe(dequeueRemoveLatency, time.Since(start), labelForTX(t))
 	return nil
 }

@@ -416,23 +416,12 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		return nil, rows.Err()
 	}
 	label := labelForTX(t)
-	selectDuration := time.Since(start)
-	observe(dequeueSelectLatency, selectDuration, label)
-
-	// The convention is that if leaf processing succeeds (by committing this tx)
-	// then the unsequenced entries for them are removed
-	if len(leaves) > 0 {
-		err = t.removeSequencedLeaves(ctx, dq)
-	}
+	observe(dequeueSelectLatency, time.Since(start), label)
 
 	if err != nil {
 		return nil, err
 	}
-
-	totalDuration := time.Since(start)
-	removeDuration := totalDuration - selectDuration
-	observe(dequeueRemoveLatency, removeDuration, label)
-	observe(dequeueLatency, totalDuration, label)
+	observe(dequeueLatency, time.Since(start), label)
 	dequeuedCounter.Add(float64(len(leaves)), label)
 
 	return leaves, nil
