@@ -319,32 +319,6 @@ func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
 	}
 }
 
-func TestLastNodeWritten(t *testing.T) {
-	for _, testCase := range []struct {
-		ts     int64
-		result string
-	}{
-		{3, "101"},
-		{5, "1001"},
-		{11, "10101"},
-		{14, "11011"},
-		{15, "11101"},
-	} {
-		str := ""
-		for d := len(testCase.result) - 1; d >= 0; d-- {
-			if lastNodePresent(uint(d), testCase.ts) {
-				str += "1"
-			} else {
-				str += "0"
-			}
-		}
-
-		if got, want := str, testCase.result; got != want {
-			t.Errorf("lastNodeWritten(%d) got: %s, want: %s", testCase.ts, got, want)
-		}
-	}
-}
-
 func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 	const maxSize = 555
 	for ts := 1; ts <= maxSize; ts++ {
