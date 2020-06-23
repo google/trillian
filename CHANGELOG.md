@@ -4,6 +4,11 @@
 
 Not yet released; provisionally v1.4.0 (may change).
 
+### Storage TX Interfaces
+- `QueueLeaves` has been removed from the `LogTreeTX` interface because
+  `QueueLeaves` is not transactionaal.  All callers use the
+  `QueueLeaves` function in the `LogStorage` interface.
+
 ### HTTP APIs
 
 The HTTP/JSON APIs have been removed in favor of a pure gRPC intereface.

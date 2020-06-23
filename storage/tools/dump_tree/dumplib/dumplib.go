@@ -388,19 +388,13 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 		glog.V(1).Infof("Queuing leaf %d", l)
 
 		leafData := []byte(fmt.Sprintf(leafDataFormat, l))
-		err := ls.ReadWriteTransaction(context.TODO(), tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-			hash := sha256.Sum256(leafData)
-			lh := []byte(hash[:])
-			leaf := trillian.LogLeaf{LeafValue: leafData, LeafIdentityHash: lh, MerkleLeafHash: lh}
-			leaves := []*trillian.LogLeaf{&leaf}
+		hash := sha256.Sum256(leafData)
+		lh := hash[:]
+		leaf := trillian.LogLeaf{LeafValue: leafData, LeafIdentityHash: lh, MerkleLeafHash: lh}
+		leaves := []*trillian.LogLeaf{&leaf}
 
-			if _, err := tx.QueueLeaves(context.TODO(), leaves, time.Now()); err != nil {
-				glog.Fatalf("QueueLeaves got: %v, want: no err", err)
-			}
-			return nil
-		})
-		if err != nil {
-			glog.Fatalf("ReadWriteTransaction: %v", err)
+		if _, err := ls.QueueLeaves(context.TODO(), tree, leaves, time.Now()); err != nil {
+			glog.Fatalf("QueueLeaves got: %v, want: no err", err)
 		}
 
 		if l > 0 && l%batchSize == 0 {

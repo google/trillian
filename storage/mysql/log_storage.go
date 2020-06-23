@@ -234,7 +234,7 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (storage.LogTreeTX, error) {
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (*logTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})

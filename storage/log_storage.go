@@ -76,16 +76,6 @@ type LogTreeTX interface {
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
 	StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error
 
-	// QueueLeaves enqueues leaves for later integration into the tree.
-	// If error is nil, the returned slice of leaves will be the same size as the
-	// input, and each entry will hold:
-	//  - the existing leaf data (the LogLeaf fields not marked output-only) if
-	//    a duplicate has been submitted
-	//  - nil otherwise.
-	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
-	// considered duplicate if their leaf.LeafIdentityHash matches.
-	QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error)
-
 	// DequeueLeaves returns between [0, limit] leaves to be integrated to the
 	// tree.
 	//
@@ -159,9 +149,6 @@ type LogStorage interface {
 	//
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
-	//
-	// Note that in contrast to LogTX.QueueLeaves, implementations of this func must not return
-	// slices with nil values.
 	QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
 
 	// AddSequencedLeaves stores the `leaves` and associates them with the log

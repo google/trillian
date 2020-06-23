@@ -264,9 +264,11 @@ func TestReadWriteTransaction(t *testing.T) {
 }
 
 func TestQueueDuplicateLeaf(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(db, t)
 	tree := createTreeOrPanic(db, testonly.LogTree)
 	s := NewLogStorage(db, nil)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
 	leaves2 := createTestLeaves(int64(count), 12)
@@ -297,32 +299,28 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-				existing, err := tx.QueueLeaves(ctx, test.leaves, fakeQueueTime)
-				if err != nil {
-					t.Errorf("Failed to queue leaves: %v", err)
-					return err
-				}
+			existing, err := s.QueueLeaves(ctx, tree, test.leaves, fakeQueueTime)
+			if err != nil {
+				t.Fatalf("Failed to queue leaves: %v", err)
+			}
 
-				if len(existing) != len(test.want) {
-					t.Fatalf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
-				}
-				for i, want := range test.want {
-					got := existing[i]
-					if want == nil {
-						if got != nil {
-							t.Fatalf("QueueLeaves()[%d]=%v; want nil", i, got)
-						}
-						return nil
+			if len(existing) != len(test.want) {
+				t.Fatalf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
+			}
+			for i, want := range test.want {
+				got := existing[i]
+				if want == nil {
+					if got.Status != nil {
+						t.Fatalf("QueueLeaves()[%d].Status=%v; want nil", i, got)
 					}
-					if got == nil {
-						t.Fatalf("QueueLeaves()[%d]=nil; want non-nil", i)
-					} else if !bytes.Equal(got.LeafIdentityHash, want.LeafIdentityHash) {
-						t.Fatalf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
-					}
+					return
 				}
-				return nil
-			})
+				if got == nil {
+					t.Fatalf("QueueLeaves()[%d]=nil; want non-nil", i)
+				} else if !bytes.Equal(got.Leaf.LeafIdentityHash, want.LeafIdentityHash) {
+					t.Fatalf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.Leaf.LeafIdentityHash, want.LeafIdentityHash)
+				}
+			}
 		})
 	}
 }
@@ -333,14 +331,12 @@ func TestQueueLeaves(t *testing.T) {
 	cleanTestDB(db, t)
 	tree := createTreeOrPanic(db, testonly.LogTree)
 	s := NewLogStorage(db, nil)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
-	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		leaves := createTestLeaves(leavesToInsert, 20)
-		if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
-			t.Fatalf("Failed to queue leaves: %v", err)
-		}
-		return nil
-	})
+	leaves := createTestLeaves(leavesToInsert, 20)
+	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeQueueTime); err != nil {
+		t.Fatalf("Failed to queue leaves: %v", err)
+	}
 
 	// Should see the leaves in the database. There is no API to read from the unsequenced data.
 	var count int
@@ -467,18 +463,15 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 }
 
 func TestDequeueLeaves(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(db, t)
 	tree := createTreeOrPanic(db, testonly.LogTree)
 	s := NewLogStorage(db, nil)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			leaves := createTestLeaves(leavesToInsert, 20)
-			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
-				t.Fatalf("Failed to queue leaves: %v", err)
-			}
-			return nil
-		})
+	leaves := createTestLeaves(leavesToInsert, 20)
+	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeDequeueCutoffTime); err != nil {
+		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 
 	{
@@ -512,18 +505,15 @@ func TestDequeueLeaves(t *testing.T) {
 }
 
 func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(db, t)
 	tree := createTreeOrPanic(db, testonly.LogTree)
 	s := NewLogStorage(db, nil)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			leaves := createTestLeaves(leavesToInsert, 20)
-			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
-				t.Fatalf("Failed to queue leaves: %v", err)
-			}
-			return nil
-		})
+	leaves := createTestLeaves(leavesToInsert, 20)
+	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeDequeueCutoffTime); err != nil {
+		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 
 	{
@@ -543,21 +533,18 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 }
 
 func TestDequeueLeavesTwoBatches(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(db, t)
 	tree := createTreeOrPanic(db, testonly.LogTree)
 	s := NewLogStorage(db, nil)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			leaves := createTestLeaves(leavesToInsert, 20)
-			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
-				t.Fatalf("Failed to queue leaves: %v", err)
-			}
-			return nil
-		})
+	leaves := createTestLeaves(leavesToInsert, 20)
+	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeDequeueCutoffTime); err != nil {
+		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 
 	var err error
@@ -615,18 +602,15 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 // return nothing. Then retry with an inclusive guard cutoff and ensure the leaves
 // are returned.
 func TestDequeueLeavesGuardInterval(t *testing.T) {
+	ctx := context.Background()
 	cleanTestDB(db, t)
 	tree := createTreeOrPanic(db, testonly.LogTree)
 	s := NewLogStorage(db, nil)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			leaves := createTestLeaves(leavesToInsert, 20)
-			if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
-				t.Fatalf("Failed to queue leaves: %v", err)
-			}
-			return nil
-		})
+	leaves := createTestLeaves(leavesToInsert, 20)
+	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeQueueTime); err != nil {
+		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 
 	{
@@ -655,28 +639,25 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 }
 
 func TestDequeueLeavesTimeOrdering(t *testing.T) {
+	ctx := context.Background()
 	// Queue two small batches of leaves at different timestamps. Do two separate dequeue
 	// transactions and make sure the returned leaves are respecting the time ordering of the
 	// queue.
 	cleanTestDB(db, t)
 	tree := createTreeOrPanic(db, testonly.LogTree)
 	s := NewLogStorage(db, nil)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	batchSize := 2
 	leaves := createTestLeaves(int64(batchSize), 0)
 	leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
-				t.Fatalf("QueueLeaves(1st batch) = %v", err)
-			}
-			// These are one second earlier so should be dequeued first
-			if _, err := tx.QueueLeaves(ctx, leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
-				t.Fatalf("QueueLeaves(2nd batch) = %v", err)
-			}
-			return nil
-		})
+	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeQueueTime); err != nil {
+		t.Fatalf("QueueLeaves(1st batch) = %v", err)
+	}
+	// These are one second earlier so should be dequeued first
+	if _, err := s.QueueLeaves(ctx, tree, leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
+		t.Fatalf("QueueLeaves(2nd batch) = %v", err)
 	}
 
 	{
@@ -1360,5 +1341,24 @@ func logTree(logID int64) *trillian.Tree {
 		TreeId:       logID,
 		TreeType:     trillian.TreeType_LOG,
 		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
+	}
+}
+
+func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
+	t.Helper()
+	signer := tcrypto.NewSigner(0, ttestonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
+
+	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
+		if err != nil {
+			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
+		}
+		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
+			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}
 }
