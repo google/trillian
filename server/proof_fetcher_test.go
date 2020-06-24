@@ -77,6 +77,8 @@ func TestRehasher(t *testing.T) {
 			want:   [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
 		},
 		{
+			// TODO(pavelkalinnikov): This will never happen in our use-case. Design
+			// the type to not allow multi-rehash by design.
 			desc:   "multiple rehash",
 			index:  45,
 			hashes: h[:5],
