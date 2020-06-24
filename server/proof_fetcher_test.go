@@ -33,20 +33,20 @@ const testTreeRevision int64 = 3
 
 func TestRehasher(t *testing.T) {
 	th := rfc6962.DefaultHasher
-	var (
-		// Raw hashes for dummy storage nodes.
-		h1 = th.HashLeaf([]byte("Hash 1"))
-		h2 = th.HashLeaf([]byte("Hash 2"))
-		h3 = th.HashLeaf([]byte("Hash 3"))
-		h4 = th.HashLeaf([]byte("Hash 4"))
-		h5 = th.HashLeaf([]byte("Hash 5"))
-		// And the dummy nodes themselves.
-		sn1 = tree.Node{NodeID: tree.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
-		sn2 = tree.Node{NodeID: tree.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
-		sn3 = tree.Node{NodeID: tree.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
-		sn4 = tree.Node{NodeID: tree.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
-		sn5 = tree.Node{NodeID: tree.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
-	)
+	h := [][]byte{
+		th.HashLeaf([]byte("Hash 1")),
+		th.HashLeaf([]byte("Hash 2")),
+		th.HashLeaf([]byte("Hash 3")),
+		th.HashLeaf([]byte("Hash 4")),
+		th.HashLeaf([]byte("Hash 5")),
+	}
+	nodes := []tree.Node{
+		{NodeID: tree.NewNodeIDFromHash(h[0]), Hash: h[0], NodeRevision: 11},
+		{NodeID: tree.NewNodeIDFromHash(h[1]), Hash: h[1], NodeRevision: 22},
+		{NodeID: tree.NewNodeIDFromHash(h[2]), Hash: h[2], NodeRevision: 33},
+		{NodeID: tree.NewNodeIDFromHash(h[3]), Hash: h[3], NodeRevision: 44},
+		{NodeID: tree.NewNodeIDFromHash(h[4]), Hash: h[4], NodeRevision: 55},
+	}
 
 	// For each test, input data like the storage hashes and revisions can be
 	// arbitrary but the nodes should have distinct values.
@@ -60,51 +60,51 @@ func TestRehasher(t *testing.T) {
 		{
 			desc:    "no rehash",
 			index:   126,
-			nodes:   []tree.Node{sn1, sn2, sn3},
+			nodes:   nodes[:3],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
 			output: &trillian.Proof{
 				LeafIndex: 126,
-				Hashes:    [][]byte{h1, h2, h3},
+				Hashes:    h[:3],
 			},
 		},
 		{
 			desc:    "single rehash",
 			index:   999,
-			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   nodes[:5],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
 			output: &trillian.Proof{
 				LeafIndex: 999,
-				Hashes:    [][]byte{h1, th.HashChildren(h3, h2), h4, h5},
+				Hashes:    [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
 			},
 		},
 		{
 			desc:    "single rehash at end",
 			index:   11,
-			nodes:   []tree.Node{sn1, sn2, sn3},
+			nodes:   nodes[:3],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
 			output: &trillian.Proof{
 				LeafIndex: 11,
-				Hashes:    [][]byte{h1, th.HashChildren(h3, h2)},
+				Hashes:    [][]byte{h[0], th.HashChildren(h[2], h[1])},
 			},
 		},
 		{
 			desc:    "single rehash multiple nodes",
 			index:   23,
-			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   nodes[:5],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
 			output: &trillian.Proof{
 				LeafIndex: 23,
-				Hashes:    [][]byte{h1, th.HashChildren(h4, th.HashChildren(h3, h2)), h5},
+				Hashes:    [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
 			},
 		},
 		{
 			desc:    "multiple rehash",
 			index:   45,
-			nodes:   []tree.Node{sn1, sn2, sn3, sn4, sn5},
+			nodes:   nodes[:5],
 			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
 			output: &trillian.Proof{
 				LeafIndex: 45,
-				Hashes:    [][]byte{th.HashChildren(h2, h1), h3, th.HashChildren(h5, h4)},
+				Hashes:    [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
 			},
 		},
 	} {
