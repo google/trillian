@@ -90,37 +90,29 @@ func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64) ([]
 	return snapshotConsistency(snapshot1, snapshot2, treeSize)
 }
 
-// snapshotConsistency does the calculation of consistency proof node addresses between
-// two snapshots. Based on the C++ code used by CT but adjusted to fit our situation.
+// snapshotConsistency does the calculation of consistency proof node addresses
+// between two snapshots in a bigger tree of the given size.
 func snapshotConsistency(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
+	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
+	if snapshot1 == snapshot2 {
+		return []NodeFetch{}, nil
+	}
+
+	// TODO(pavelkalinnikov): Make the capacity estimate accurate.
 	proof := make([]NodeFetch, 0, bits.Len64(uint64(snapshot2))+1)
 
-	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
-
-	if snapshot1 == snapshot2 {
-		return proof, nil
-	}
-
-	level := uint(0)
-	node := snapshot1 - 1
-
-	// Compute the (compressed) path to the root of snapshot2.
-	// Everything left of 'node' is equal in both trees; no need to record.
-	for (node & 1) != 0 {
-		glog.V(vvLevel).Infof("Move up: l:%d n:%d", level, node)
-		node >>= 1
-		level++
-	}
-
-	if node != 0 {
-		glog.V(vvLevel).Infof("Not root snapshot1: %d", node)
-		// Not at the root of snapshot 1, record the node
-		n := compact.NewNodeID(level, uint64(node))
+	// Find the biggest perfect subtree that ends at snapshot1.
+	level := uint(bits.TrailingZeros64(uint64(snapshot1)))
+	index := uint64((snapshot1 - 1)) >> level
+	// If it does not cover the whole snapshot1 tree, add this node to the proof.
+	if index != 0 {
+		glog.V(vvLevel).Infof("Not root snapshot1: %d", index)
+		n := compact.NewNodeID(level, index)
 		proof = append(proof, NodeFetch{ID: n})
 	}
 
 	// Now append the path from this node to the root of snapshot2.
-	p := proofNodes(uint64(node), level, uint64(snapshot2), snapshot2 < treeSize)
+	p := proofNodes(index, level, uint64(snapshot2), snapshot2 < treeSize)
 	return append(proof, p...), nil
 }
 
