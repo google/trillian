@@ -28,16 +28,6 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
-// rehashTest encapsulates one test case for the rehasher in isolation. Input data like the storage
-// hashes and revisions can be arbitrary but the nodes should have distinct values
-type rehashTest struct {
-	desc    string
-	index   int64
-	nodes   []tree.Node
-	fetches []merkle.NodeFetch
-	output  *trillian.Proof
-}
-
 // An arbitrary tree revision to be used in tests.
 const testTreeRevision int64 = 3
 
@@ -58,7 +48,15 @@ func TestRehasher(t *testing.T) {
 		sn5 = tree.Node{NodeID: tree.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 	)
 
-	rehashTests := []rehashTest{
+	// For each test, input data like the storage hashes and revisions can be
+	// arbitrary but the nodes should have distinct values.
+	for _, rehashTest := range []struct {
+		desc    string
+		index   int64
+		nodes   []tree.Node
+		fetches []merkle.NodeFetch
+		output  *trillian.Proof
+	}{
 		{
 			desc:    "no rehash",
 			index:   126,
@@ -109,9 +107,7 @@ func TestRehasher(t *testing.T) {
 				Hashes:    [][]byte{th.HashChildren(h2, h1), h3, th.HashChildren(h5, h4)},
 			},
 		},
-	}
-
-	for _, rehashTest := range rehashTests {
+	} {
 		r := &rehasher{th: th}
 		for i, node := range rehashTest.nodes {
 			r.process(node, rehashTest.fetches[i])
