@@ -85,22 +85,19 @@ func TestRehasher(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			r := &rehasher{th: th}
+			r := rehasher{th: th}
 			for i, hash := range tc.hashes {
-				// TODO(pavelkalinnikov): Pass hash directly.
+				// TODO(pavelkalinnikov): Pass the hash and rehash directly.
 				r.process(tree.Node{Hash: hash}, merkle.NodeFetch{Rehash: tc.rehash[i]})
 			}
-
+			got, err := r.rehashedProof(tc.index)
+			if err != nil {
+				t.Fatalf("rehashedProof: %v", err)
+			}
 			want := &trillian.Proof{
 				LeafIndex: tc.index,
 				Hashes:    tc.want,
 			}
-			got, err := r.rehashedProof(tc.index)
-
-			if err != nil {
-				t.Fatalf("rehashedProof: %v", err)
-			}
-
 			if !proto.Equal(got, want) {
 				t.Errorf("proofs mismatch:\ngot: %v\nwant: %v", got, want)
 			}
