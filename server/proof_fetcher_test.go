@@ -44,7 +44,7 @@ func TestRehasher(t *testing.T) {
 	nodes := []tree.Node{
 		{Hash: h[0]}, {Hash: h[1]}, {Hash: h[2]}, {Hash: h[3]}, {Hash: h[4]}}
 
-	for _, rehashTest := range []struct {
+	for _, tc := range []struct {
 		desc    string
 		index   int64
 		nodes   []tree.Node
@@ -88,22 +88,22 @@ func TestRehasher(t *testing.T) {
 		},
 	} {
 		r := &rehasher{th: th}
-		for i, node := range rehashTest.nodes {
-			r.process(node, rehashTest.fetches[i])
+		for i, node := range tc.nodes {
+			r.process(node, tc.fetches[i])
 		}
 
 		want := &trillian.Proof{
-			LeafIndex: rehashTest.index,
-			Hashes:    rehashTest.want,
+			LeafIndex: tc.index,
+			Hashes:    tc.want,
 		}
-		got, err := r.rehashedProof(rehashTest.index)
+		got, err := r.rehashedProof(tc.index)
 
 		if err != nil {
-			t.Fatalf("rehash test %s unexpected error: %v", rehashTest.desc, err)
+			t.Fatalf("rehash test %s unexpected error: %v", tc.desc, err)
 		}
 
 		if !proto.Equal(got, want) {
-			t.Errorf("rehash test %s:\ngot: %v\nwant: %v", rehashTest.desc, got, want)
+			t.Errorf("rehash test %s:\ngot: %v\nwant: %v", tc.desc, got, want)
 		}
 	}
 }
