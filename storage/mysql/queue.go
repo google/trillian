@@ -81,6 +81,7 @@ func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []interface{} {
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
+	dequeuedLeaves := make([]dequeuedLeaf, 0, len(leaves))
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -88,10 +89,6 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 		}
 
 		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
-		}
-		qTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
 		if err != nil {
 			return fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
@@ -108,15 +105,14 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			return err
 		}
 
-		if err := t.removeSequencedLeaves(ctx, []dequeuedLeaf{{
-			queueTimestampNanos: qTimestamp.UnixNano(),
-			leafIdentityHash:    leaf.LeafIdentityHash,
-		}}); err != nil {
-			return err
+		qe, ok := t.dequeued[string(leaf.LeafIdentityHash)]
+		if !ok {
+			return fmt.Errorf("attempting to assign unknown merkleleafhash %x", leaf.MerkleLeafHash)
 		}
+		dequeuedLeaves = append(dequeuedLeaves, qe)
 	}
 
-	return nil
+	return t.removeSequencedLeaves(ctx, dequeuedLeaves)
 }
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
