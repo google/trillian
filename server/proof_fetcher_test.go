@@ -42,53 +42,53 @@ func TestRehasher(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc    string
-		index   int64
-		hashes  [][]byte
-		fetches []merkle.NodeFetch
-		want    [][]byte
+		desc   string
+		index  int64
+		hashes [][]byte
+		rehash []bool
+		want   [][]byte
 	}{
 		{
-			desc:    "no rehash",
-			index:   126,
-			hashes:  h[:3],
-			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
-			want:    h[:3],
+			desc:   "no rehash",
+			index:  126,
+			hashes: h[:3],
+			rehash: []bool{false, false, false},
+			want:   h[:3],
 		},
 		{
-			desc:    "single rehash",
-			index:   999,
-			hashes:  h[:5],
-			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
-			want:    [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
+			desc:   "single rehash",
+			index:  999,
+			hashes: h[:5],
+			rehash: []bool{false, true, true, false, false},
+			want:   [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
 		},
 		{
-			desc:    "single rehash at end",
-			index:   11,
-			hashes:  h[:3],
-			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
-			want:    [][]byte{h[0], th.HashChildren(h[2], h[1])},
+			desc:   "single rehash at end",
+			index:  11,
+			hashes: h[:3],
+			rehash: []bool{false, true, true},
+			want:   [][]byte{h[0], th.HashChildren(h[2], h[1])},
 		},
 		{
-			desc:    "single rehash multiple nodes",
-			index:   23,
-			hashes:  h[:5],
-			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
-			want:    [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
+			desc:   "single rehash multiple nodes",
+			index:  23,
+			hashes: h[:5],
+			rehash: []bool{false, true, true, true, false},
+			want:   [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
 		},
 		{
-			desc:    "multiple rehash",
-			index:   45,
-			hashes:  h[:5],
-			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
-			want:    [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
+			desc:   "multiple rehash",
+			index:  45,
+			hashes: h[:5],
+			rehash: []bool{true, true, false, true, true},
+			want:   [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			r := &rehasher{th: th}
 			for i, hash := range tc.hashes {
 				// TODO(pavelkalinnikov): Pass hash directly.
-				r.process(tree.Node{Hash: hash}, tc.fetches[i])
+				r.process(tree.Node{Hash: hash}, merkle.NodeFetch{Rehash: tc.rehash[i]})
 			}
 
 			want := &trillian.Proof{
