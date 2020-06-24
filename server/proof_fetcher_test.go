@@ -40,57 +40,55 @@ func TestRehasher(t *testing.T) {
 		th.HashLeaf([]byte("Hash 4")),
 		th.HashLeaf([]byte("Hash 5")),
 	}
-	// Note: Node IDs and revisions are ignored by the algorithm.
-	nodes := []tree.Node{
-		{Hash: h[0]}, {Hash: h[1]}, {Hash: h[2]}, {Hash: h[3]}, {Hash: h[4]}}
 
 	for _, tc := range []struct {
 		desc    string
 		index   int64
-		nodes   []tree.Node
+		hashes  [][]byte
 		fetches []merkle.NodeFetch
 		want    [][]byte
 	}{
 		{
 			desc:    "no rehash",
 			index:   126,
-			nodes:   nodes[:3],
+			hashes:  h[:3],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
 			want:    h[:3],
 		},
 		{
 			desc:    "single rehash",
 			index:   999,
-			nodes:   nodes[:5],
+			hashes:  h[:5],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
 			want:    [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
 		},
 		{
 			desc:    "single rehash at end",
 			index:   11,
-			nodes:   nodes[:3],
+			hashes:  h[:3],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
 			want:    [][]byte{h[0], th.HashChildren(h[2], h[1])},
 		},
 		{
 			desc:    "single rehash multiple nodes",
 			index:   23,
-			nodes:   nodes[:5],
+			hashes:  h[:5],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
 			want:    [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
 		},
 		{
 			desc:    "multiple rehash",
 			index:   45,
-			nodes:   nodes[:5],
+			hashes:  h[:5],
 			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
 			want:    [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			r := &rehasher{th: th}
-			for i, node := range tc.nodes {
-				r.process(node, tc.fetches[i])
+			for i, hash := range tc.hashes {
+				// TODO(pavelkalinnikov): Pass hash directly.
+				r.process(tree.Node{Hash: hash}, tc.fetches[i])
 			}
 
 			want := &trillian.Proof{
