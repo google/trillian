@@ -52,6 +52,8 @@ const (
 WHERE (t.TreeType = 1 OR t.TreeType = 3)
 AND (t.TreeState = 1 OR t.TreeState = 5)
 AND t.Deleted=false`
+
+	suffixBuckets = 256
 )
 
 // LogStorageOptions are tuning, experiments and workarounds that can be used.
@@ -104,13 +106,16 @@ type unsequencedCols struct {
 
 // NewLogStorage initialises and returns a new LogStorage.
 func NewLogStorage(client *spanner.Client) storage.LogStorage {
-	return NewLogStorageWithOpts(client, LogStorageOptions{})
+	return NewLogStorageWithOpts(client, LogStorageOptions{
+		DequeueAcrossMerkleBuckets:              true,
+		DequeueAcrossMerkleBucketsRangeFraction: 1.0,
+	})
 }
 
 // NewLogStorageWithOpts initialises and returns a new LogStorage.
 // The opts parameter can be used to enable custom workarounds.
 func NewLogStorageWithOpts(client *spanner.Client, opts LogStorageOptions) storage.LogStorage {
-	if opts.DequeueAcrossMerkleBucketsRangeFraction <= 0 || opts.DequeueAcrossMerkleBucketsRangeFraction > 1.0 {
+	if got := opts.DequeueAcrossMerkleBucketsRangeFraction; got <= 0 || got > 1.0 {
 		opts.DequeueAcrossMerkleBucketsRangeFraction = 1.0
 	}
 	return &logStorage{
@@ -575,46 +580,46 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	// moment, FEs queueing entries will be adding them to different buckets
 	// than we're dequeuing from here - the low 8 bits are the first byte of the
 	// merkle hash of the entry.
-	now := time.Now().UTC()
 	cfg := tx.getLogStorageConfig()
-	timeBucket := int64(((now.Unix() + cfg.NumUnseqBuckets/2) % cfg.NumUnseqBuckets) << 8)
-
-	// Choose a starting point in the merkle prefix range, and calculate the
-	// start/limit of the merkle range we'll dequeue from.
-	// It seems to be much better to tune for keeping this range small, and allow
-	// the signer to run multiple times per second than try to dequeue a large batch
-	// which spans a large number of merkle prefixes.
-	merklePrefix := rand.Int63n(256)
-	startBucket := timeBucket | merklePrefix
-	numMerkleBuckets := int64(256 * tx.ls.opts.DequeueAcrossMerkleBucketsRangeFraction)
-	merkleLimit := merklePrefix + numMerkleBuckets
-	if merkleLimit > 0xff {
-		merkleLimit = 0xff
+	now := time.Now().UTC().Unix()
+	// Select a prefix that is likley to be on a different span server to spread load.
+	prefix := int32((((now + cfg.NumUnseqBuckets/2) % cfg.NumUnseqBuckets) << 8))
+	suffixStart := rand.Int31n(suffixBuckets)
+	suffixFraction := float64(cfg.NumMerkleBuckets) / float64(suffixBuckets)
+	if tx.ls.opts.DequeueAcrossMerkleBuckets {
+		suffixFraction = tx.ls.opts.DequeueAcrossMerkleBucketsRangeFraction
 	}
-	limitBucket := timeBucket | merkleLimit
+	suffixEnd := suffixStart + int32(suffixBuckets*suffixFraction)
 
-	stmt := spanner.NewStatement(`
-			SELECT 
-			  Bucket, 
-			  QueueTimestampNanos, 
-			  MerkleLeafHash, 
-			  LeafIdentityHash
-			FROM 
-			  Unsequenced
-			WHERE 
-			  TreeID = @tree_id AND 
-			  Bucket >= @start_bucket AND 
-			  Bucket <= @limit_bucket
-			LIMIT 
-			  @max_num`)
-	stmt.Params["tree_id"] = tx.treeID
-	stmt.Params["start_bucket"] = startBucket
-	stmt.Params["limit_bucket"] = limitBucket
-	stmt.Params["max_num"] = limit
+	keysets := []spanner.KeySet{}
+	if suffixEnd <= 0xff {
+		keysets = append(keysets,
+			spanner.KeyRange{
+				Start: spanner.Key{tx.treeID, prefix | suffixStart},
+				End:   spanner.Key{tx.treeID, prefix | suffixEnd},
+				Kind:  spanner.ClosedClosed,
+			})
+	} else {
+		// The range is too big and wraps around, overflowing a byte value, so we'll
+		// start the second range at 0x00 and end at the upper limit modulo 256:
+		suffixEnd %= 0x100
+		keysets = append(keysets,
+			spanner.KeyRange{
+				Start: spanner.Key{tx.treeID, prefix | suffixStart},
+				End:   spanner.Key{tx.treeID, prefix | 0xff},
+				Kind:  spanner.ClosedClosed,
+			},
+			spanner.KeyRange{
+				Start: spanner.Key{tx.treeID, prefix | 0x00},
+				End:   spanner.Key{tx.treeID, prefix | suffixEnd},
+				Kind:  spanner.ClosedClosed,
+			})
+	}
 
 	ret := make([]*trillian.LogLeaf, 0, limit)
-	rows := tx.stx.Query(ctx, stmt)
-	if err := rows.Do(func(r *spanner.Row) error {
+	if err := tx.stx.Read(ctx, unseqTable, spanner.KeySets(keysets...),
+		[]string{"Bucket", colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash},
+	).Do(func(r *spanner.Row) error {
 		var l trillian.LogLeaf
 		var qe QueuedEntry
 		if err := r.Columns(&qe.bucket, &qe.timestamp, &l.MerkleLeafHash, &l.LeafIdentityHash); err != nil {
@@ -639,7 +644,6 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	}); err != nil {
 		return nil, err
 	}
-
 	return ret, nil
 }
 
