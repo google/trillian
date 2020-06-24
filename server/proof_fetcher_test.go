@@ -49,57 +49,42 @@ func TestRehasher(t *testing.T) {
 		index   int64
 		nodes   []tree.Node
 		fetches []merkle.NodeFetch
-		output  *trillian.Proof
+		want    [][]byte
 	}{
 		{
 			desc:    "no rehash",
 			index:   126,
 			nodes:   nodes[:3],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
-			output: &trillian.Proof{
-				LeafIndex: 126,
-				Hashes:    h[:3],
-			},
+			want:    h[:3],
 		},
 		{
 			desc:    "single rehash",
 			index:   999,
 			nodes:   nodes[:5],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
-			output: &trillian.Proof{
-				LeafIndex: 999,
-				Hashes:    [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
-			},
+			want:    [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
 		},
 		{
 			desc:    "single rehash at end",
 			index:   11,
 			nodes:   nodes[:3],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
-			output: &trillian.Proof{
-				LeafIndex: 11,
-				Hashes:    [][]byte{h[0], th.HashChildren(h[2], h[1])},
-			},
+			want:    [][]byte{h[0], th.HashChildren(h[2], h[1])},
 		},
 		{
 			desc:    "single rehash multiple nodes",
 			index:   23,
 			nodes:   nodes[:5],
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
-			output: &trillian.Proof{
-				LeafIndex: 23,
-				Hashes:    [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
-			},
+			want:    [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
 		},
 		{
 			desc:    "multiple rehash",
 			index:   45,
 			nodes:   nodes[:5],
 			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
-			output: &trillian.Proof{
-				LeafIndex: 45,
-				Hashes:    [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
-			},
+			want:    [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
 		},
 	} {
 		r := &rehasher{th: th}
@@ -107,7 +92,10 @@ func TestRehasher(t *testing.T) {
 			r.process(node, rehashTest.fetches[i])
 		}
 
-		want := rehashTest.output
+		want := &trillian.Proof{
+			LeafIndex: rehashTest.index,
+			Hashes:    rehashTest.want,
+		}
 		got, err := r.rehashedProof(rehashTest.index)
 
 		if err != nil {
