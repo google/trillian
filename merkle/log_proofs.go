@@ -18,15 +18,10 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/compact"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-// Verbosity levels for logging of debug related items
-const vLevel = 2
-const vvLevel = 4
 
 // NodeFetch bundles a nodeID with additional information on how to use the node to construct the
 // correct proof.
@@ -93,7 +88,6 @@ func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64) ([]
 // snapshotConsistency does the calculation of consistency proof node addresses
 // between two snapshots in a bigger tree of the given size.
 func snapshotConsistency(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
-	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
 	if snapshot1 == snapshot2 {
 		return []NodeFetch{}, nil
 	}
@@ -106,7 +100,6 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, err
 	index := uint64((snapshot1 - 1)) >> level
 	// If it does not cover the whole snapshot1 tree, add this node to the proof.
 	if index != 0 {
-		glog.V(vvLevel).Infof("Not root snapshot1: %d", index)
 		n := compact.NewNodeID(level, index)
 		proof = append(proof, NodeFetch{ID: n})
 	}
