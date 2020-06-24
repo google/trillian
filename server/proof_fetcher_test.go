@@ -87,24 +87,26 @@ func TestRehasher(t *testing.T) {
 			want:    [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
 		},
 	} {
-		r := &rehasher{th: th}
-		for i, node := range tc.nodes {
-			r.process(node, tc.fetches[i])
-		}
+		t.Run(tc.desc, func(t *testing.T) {
+			r := &rehasher{th: th}
+			for i, node := range tc.nodes {
+				r.process(node, tc.fetches[i])
+			}
 
-		want := &trillian.Proof{
-			LeafIndex: tc.index,
-			Hashes:    tc.want,
-		}
-		got, err := r.rehashedProof(tc.index)
+			want := &trillian.Proof{
+				LeafIndex: tc.index,
+				Hashes:    tc.want,
+			}
+			got, err := r.rehashedProof(tc.index)
 
-		if err != nil {
-			t.Fatalf("rehash test %s unexpected error: %v", tc.desc, err)
-		}
+			if err != nil {
+				t.Fatalf("rehashedProof: %v", err)
+			}
 
-		if !proto.Equal(got, want) {
-			t.Errorf("rehash test %s:\ngot: %v\nwant: %v", tc.desc, got, want)
-		}
+			if !proto.Equal(got, want) {
+				t.Errorf("proofs mismatch:\ngot: %v\nwant: %v", got, want)
+			}
+		})
 	}
 }
 
