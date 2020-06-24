@@ -42,6 +42,7 @@ type rehashTest struct {
 const testTreeRevision int64 = 3
 
 func TestRehasher(t *testing.T) {
+	th := rfc6962.DefaultHasher
 	var (
 		// Raw hashes for dummy storage nodes.
 		h1 = th.HashLeaf([]byte("Hash 1"))
@@ -57,7 +58,6 @@ func TestRehasher(t *testing.T) {
 		sn5 = tree.Node{NodeID: tree.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 	)
 
-	hasher := rfc6962.DefaultHasher
 	rehashTests := []rehashTest{
 		{
 			desc:    "no rehash",
@@ -112,7 +112,7 @@ func TestRehasher(t *testing.T) {
 	}
 
 	for _, rehashTest := range rehashTests {
-		r := &rehasher{th: hasher}
+		r := &rehasher{th: th}
 		for i, node := range rehashTest.nodes {
 			r.process(node, rehashTest.fetches[i])
 		}
