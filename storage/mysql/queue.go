@@ -107,7 +107,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 
 		qe, ok := t.dequeued[string(leaf.LeafIdentityHash)]
 		if !ok {
-			return fmt.Errorf("attempting to assign unknown merkleleafhash %x", leaf.MerkleLeafHash)
+			return fmt.Errorf("attempting to update leaf that wasn't dequeued. IdentityHash: %x", leaf.LeafIdentityHash)
 		}
 		dequeuedLeaves = append(dequeuedLeaves, qe)
 	}
