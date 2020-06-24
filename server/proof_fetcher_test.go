@@ -41,21 +41,22 @@ type rehashTest struct {
 // An arbitrary tree revision to be used in tests.
 const testTreeRevision int64 = 3
 
-// Raw hashes for dummy storage nodes
-var h1 = th.HashLeaf([]byte("Hash 1"))
-var h2 = th.HashLeaf([]byte("Hash 2"))
-var h3 = th.HashLeaf([]byte("Hash 3"))
-var h4 = th.HashLeaf([]byte("Hash 4"))
-var h5 = th.HashLeaf([]byte("Hash 5"))
-
-// And the dummy nodes themselves.
-var sn1 = tree.Node{NodeID: tree.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
-var sn2 = tree.Node{NodeID: tree.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
-var sn3 = tree.Node{NodeID: tree.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
-var sn4 = tree.Node{NodeID: tree.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
-var sn5 = tree.Node{NodeID: tree.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
-
 func TestRehasher(t *testing.T) {
+	var (
+		// Raw hashes for dummy storage nodes.
+		h1 = th.HashLeaf([]byte("Hash 1"))
+		h2 = th.HashLeaf([]byte("Hash 2"))
+		h3 = th.HashLeaf([]byte("Hash 3"))
+		h4 = th.HashLeaf([]byte("Hash 4"))
+		h5 = th.HashLeaf([]byte("Hash 5"))
+		// And the dummy nodes themselves.
+		sn1 = tree.Node{NodeID: tree.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
+		sn2 = tree.Node{NodeID: tree.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
+		sn3 = tree.Node{NodeID: tree.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
+		sn4 = tree.Node{NodeID: tree.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
+		sn5 = tree.Node{NodeID: tree.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
+	)
+
 	hasher := rfc6962.DefaultHasher
 	rehashTests := []rehashTest{
 		{
