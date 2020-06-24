@@ -40,16 +40,10 @@ func TestRehasher(t *testing.T) {
 		th.HashLeaf([]byte("Hash 4")),
 		th.HashLeaf([]byte("Hash 5")),
 	}
+	// Note: Node IDs and revisions are ignored by the algorithm.
 	nodes := []tree.Node{
-		{NodeID: tree.NewNodeIDFromHash(h[0]), Hash: h[0], NodeRevision: 11},
-		{NodeID: tree.NewNodeIDFromHash(h[1]), Hash: h[1], NodeRevision: 22},
-		{NodeID: tree.NewNodeIDFromHash(h[2]), Hash: h[2], NodeRevision: 33},
-		{NodeID: tree.NewNodeIDFromHash(h[3]), Hash: h[3], NodeRevision: 44},
-		{NodeID: tree.NewNodeIDFromHash(h[4]), Hash: h[4], NodeRevision: 55},
-	}
+		{Hash: h[0]}, {Hash: h[1]}, {Hash: h[2]}, {Hash: h[3]}, {Hash: h[4]}}
 
-	// For each test, input data like the storage hashes and revisions can be
-	// arbitrary but the nodes should have distinct values.
 	for _, rehashTest := range []struct {
 		desc    string
 		index   int64
