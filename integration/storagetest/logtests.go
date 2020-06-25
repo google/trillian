@@ -474,7 +474,8 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 				t.Fatalf("Failed to dequeue leaves: %v", err)
 			}
 			if len(leaves2) != leavesToInsert {
-				return status.Errorf(codes.Aborted, "Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+				t.Logf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+				return status.Errorf(codes.Aborted, "retry")
 			}
 			ensureAllLeavesDistinct(leaves2, t)
 			iTimestamp := ptypes.TimestampNow()
@@ -498,7 +499,8 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
 			}
 			if len(leaves3) != 0 {
-				return status.Errorf(codes.Aborted, "Dequeued %d leaves but expected to get none", len(leaves3))
+				t.Logf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToInsert)
+				return status.Errorf(codes.Aborted, "retry")
 			}
 			return nil
 		}); err != nil {
