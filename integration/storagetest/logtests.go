@@ -508,15 +508,12 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 	t.Helper()
-	// All the leaf value hashes should be distinct because the leaves were created with distinct
-	// leaf data. If only we had maps with slices as keys or sets or pretty much any kind of usable
-	// data structures we could do this properly.
-	for i := range leaves {
-		for j := range leaves {
-			if i != j && bytes.Equal(leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash) {
-				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
-					leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash)
-			}
+	set := make(map[string]bool)
+	for _, l := range leaves {
+		k := string(l.LeafIdentityHash)
+		if _, ok := set[k]; ok {
+			t.Fatalf("Unexpectedly got a duplicate leaf hash: %x", l.LeafIdentityHash)
 		}
+		set[k] = true
 	}
 }
