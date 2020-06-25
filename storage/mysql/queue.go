@@ -81,6 +81,7 @@ func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []interface{} {
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
+	dequeuedLeaves := make([]dequeuedLeaf, 0, len(leaves))
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -103,14 +104,21 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
 			return err
 		}
+
+		qe, ok := t.dequeued[string(leaf.LeafIdentityHash)]
+		if !ok {
+			return fmt.Errorf("attempting to update leaf that wasn't dequeued. IdentityHash: %x", leaf.LeafIdentityHash)
+		}
+		dequeuedLeaves = append(dequeuedLeaves, qe)
 	}
 
-	return nil
+	return t.removeSequencedLeaves(ctx, dequeuedLeaves)
 }
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
 func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeuedLeaf) error {
+	start := time.Now()
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here. See comment in
 	// QueueLeaves.
@@ -128,5 +136,6 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeued
 		}
 	}
 
+	observe(dequeueRemoveLatency, time.Since(start), labelForTX(t))
 	return nil
 }

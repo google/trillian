@@ -294,6 +294,14 @@ func TestDequeueLeaves(t *testing.T) {
 				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 			}
 			ensureAllLeavesDistinct(leaves2, t)
+			iTimestamp := ptypes.TimestampNow()
+			for i, l := range leaves2 {
+				l.IntegrateTimestamp = iTimestamp
+				l.LeafIndex = int64(i)
+			}
+			if err := tx2.UpdateSequencedLeaves(ctx, leaves2); err != nil {
+				t.Fatalf("UpdateSequencedLeaves(): %v", err)
+			}
 			return nil
 		})
 	}
@@ -372,6 +380,14 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			}
 			ensureAllLeavesDistinct(leaves2, t)
 			ensureLeavesHaveQueueTimestamp(t, leaves2, fakeDequeueCutoffTime)
+			iTimestamp := ptypes.TimestampNow()
+			for i, l := range leaves2 {
+				l.IntegrateTimestamp = iTimestamp
+				l.LeafIndex = int64(i)
+			}
+			if err := tx2.UpdateSequencedLeaves(ctx, leaves2); err != nil {
+				t.Fatalf("UpdateSequencedLeaves(): %v", err)
+			}
 			return nil
 		})
 
@@ -390,6 +406,14 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			// Plus the union of the leaf batches should all have distinct hashes
 			leaves4 = append(leaves2, leaves3...)
 			ensureAllLeavesDistinct(leaves4, t)
+			iTimestamp := ptypes.TimestampNow()
+			for i, l := range leaves3 {
+				l.IntegrateTimestamp = iTimestamp
+				l.LeafIndex = int64(i + leavesToDequeue1)
+			}
+			if err := tx3.UpdateSequencedLeaves(ctx, leaves3); err != nil {
+				t.Fatalf("UpdateSequencedLeaves(): %v", err)
+			}
 			return nil
 		})
 	}
@@ -490,6 +514,15 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 			if !leafInBatch(dequeue1[0], leaves2) || !leafInBatch(dequeue1[1], leaves2) {
 				t.Fatalf("Got leaf from wrong batch (1st dequeue): %v", dequeue1)
 			}
+			iTimestamp := ptypes.TimestampNow()
+			for i, l := range dequeue1 {
+				l.IntegrateTimestamp = iTimestamp
+				l.LeafIndex = int64(i)
+			}
+			if err := tx2.UpdateSequencedLeaves(ctx, dequeue1); err != nil {
+				t.Fatalf("UpdateSequencedLeaves(): %v", err)
+			}
+
 			return nil
 		})
 

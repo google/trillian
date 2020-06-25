@@ -95,6 +95,7 @@ func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []in
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	querySuffix := []string{}
 	args := []interface{}{}
+	dequeuedLeaves := make([]dequeuedLeaf, 0, len(leaves))
 	for _, leaf := range leaves {
 		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
 		if err != nil {
@@ -102,12 +103,21 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 		}
 		querySuffix = append(querySuffix, valuesPlaceholder5)
 		args = append(args, t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, iTimestamp.UnixNano())
+		qe, ok := t.dequeued[string(leaf.LeafIdentityHash)]
+		if !ok {
+			return fmt.Errorf("attempting to update leaf that wasn't dequeued. IdentityHash: %x", leaf.LeafIdentityHash)
+		}
+		dequeuedLeaves = append(dequeuedLeaves, qe)
 	}
 	result, err := t.tx.ExecContext(ctx, insertSequencedLeafSQL+strings.Join(querySuffix, ","), args...)
 	if err != nil {
 		glog.Warningf("Failed to update sequenced leaves: %s", err)
 	}
-	return checkResultOkAndRowCountIs(result, err, int64(len(leaves)))
+	if err := checkResultOkAndRowCountIs(result, err, int64(len(leaves))); err != nil {
+		return err
+	}
+
+	return t.removeSequencedLeaves(ctx, dequeuedLeaves)
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {

@@ -250,8 +250,9 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	}
 
 	ltx := &logTreeTX{
-		treeTX: ttx,
-		ls:     m,
+		treeTX:   ttx,
+		ls:       m,
+		dequeued: make(map[string]dequeuedLeaf),
 	}
 	ltx.slr, err = ltx.fetchLatestRoot(ctx)
 	if err == storage.ErrTreeNeedsInit {
@@ -348,9 +349,10 @@ func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, 
 
 type logTreeTX struct {
 	treeTX
-	ls   *mySQLLogStorage
-	root types.LogRootV1
-	slr  *trillian.SignedLogRoot
+	ls       *mySQLLogStorage
+	root     types.LogRootV1
+	slr      *trillian.SignedLogRoot
+	dequeued map[string]dequeuedLeaf
 }
 
 func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
@@ -389,7 +391,6 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	defer stx.Close()
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
-	dq := make([]dequeuedLeaf, 0, limit)
 	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
@@ -408,31 +409,25 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 			return nil, errors.New("dequeued a leaf with incorrect hash size")
 		}
 
+		k := string(leaf.LeafIdentityHash)
+		if _, ok := t.dequeued[k]; ok {
+			// dupe, user probably called DequeueLeaves more than once.
+			continue
+		}
+		t.dequeued[k] = dqInfo
 		leaves = append(leaves, leaf)
-		dq = append(dq, dqInfo)
 	}
 
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
 	label := labelForTX(t)
-	selectDuration := time.Since(start)
-	observe(dequeueSelectLatency, selectDuration, label)
-
-	// The convention is that if leaf processing succeeds (by committing this tx)
-	// then the unsequenced entries for them are removed
-	if len(leaves) > 0 {
-		err = t.removeSequencedLeaves(ctx, dq)
-	}
+	observe(dequeueSelectLatency, time.Since(start), label)
 
 	if err != nil {
 		return nil, err
 	}
-
-	totalDuration := time.Since(start)
-	removeDuration := totalDuration - selectDuration
-	observe(dequeueRemoveLatency, removeDuration, label)
-	observe(dequeueLatency, totalDuration, label)
+	observe(dequeueLatency, time.Since(start), label)
 	dequeuedCounter.Add(float64(len(leaves)), label)
 
 	return leaves, nil
