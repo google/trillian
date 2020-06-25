@@ -437,9 +437,6 @@ func (*logTests) TestGetLeavesByRangeFromPreorderedLog(ctx context.Context, t *t
 // Time we will queue all leaves at
 var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
 
-// Time we will integrate all leaves at
-var fakeIntegrateTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
-
 func createFakeLeaf(ctx context.Context, s storage.LogStorage, tree *trillian.Tree, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
 	t.Helper()
 	leaf := &trillian.LogLeaf{
