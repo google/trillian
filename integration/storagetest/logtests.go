@@ -30,6 +30,8 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
@@ -465,15 +467,17 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 
-	{
-		// Now try to dequeue them
-		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+	// Now try to dequeue them
+	cctx, cancel := context.WithTimeout(ctx, 3*time.Second) // Retry until timeout
+	defer cancel()
+	if err := s.ReadWriteTransaction(cctx, tree,
+		func(ctx context.Context, tx2 storage.LogTreeTX) error {
 			leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves: %v", err)
 			}
 			if len(leaves2) != leavesToInsert {
-				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+				return status.Errorf(codes.Aborted, "Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 			}
 			ensureAllLeavesDistinct(leaves2, t)
 			iTimestamp := ptypes.TimestampNow()
@@ -485,21 +489,23 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 				t.Fatalf("UpdateSequencedLeaves(): %v", err)
 			}
 			return nil
-		})
+		}); err != nil {
+		t.Fatalf("Could not dequeue the expected number of leaves: %v", err)
 	}
 
-	{
-		// If we dequeue again then we should now get nothing
-		runLogTX(s, tree, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
+	// If we dequeue again then we should now get nothing
+	if err := s.ReadWriteTransaction(cctx, tree,
+		func(ctx context.Context, tx3 storage.LogTreeTX) error {
 			leaves3, err := tx3.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
 			}
 			if len(leaves3) != 0 {
-				t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves3))
+				return status.Errorf(codes.Aborted, "Dequeued %d leaves but expected to get none", len(leaves3))
 			}
 			return nil
-		})
+		}); err != nil {
+		t.Fatalf("Could not dequeue the expected number of leaves: %v", err)
 	}
 }
 
