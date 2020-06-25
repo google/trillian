@@ -30,8 +30,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
@@ -465,47 +463,59 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 	}
 
 	// Now try to dequeue them
-	cctx, cancel := context.WithTimeout(ctx, 3*time.Second) // Retry until timeout
-	defer cancel()
-	if err := s.ReadWriteTransaction(cctx, tree,
-		func(ctx context.Context, tx2 storage.LogTreeTX) error {
-			leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
-			if err != nil {
-				t.Fatalf("Failed to dequeue leaves: %v", err)
-			}
-			if len(leaves2) != leavesToInsert {
-				t.Logf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
-				return status.Errorf(codes.Aborted, "retry")
-			}
-			ensureAllLeavesDistinct(leaves2, t)
-			iTimestamp := ptypes.TimestampNow()
-			for i, l := range leaves2 {
-				l.IntegrateTimestamp = iTimestamp
-				l.LeafIndex = int64(i)
-			}
-			if err := tx2.UpdateSequencedLeaves(ctx, leaves2); err != nil {
-				t.Fatalf("UpdateSequencedLeaves(): %v", err)
-			}
-			return nil
-		}); err != nil {
-		t.Fatalf("Could not dequeue the expected number of leaves: %v", err)
+	// Some dequeue implementations probabalistically dequeue and require retrying until timeout.
+	leaves2 := dequeueLeaves(ctx, t, s, tree, fakeDequeueCutoffTime, 5, 0)
+	if len(leaves2) != leavesToInsert {
+		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 	}
 
 	// If we dequeue again then we should now get nothing
-	if err := s.ReadWriteTransaction(cctx, tree,
+	if err := s.ReadWriteTransaction(ctx, tree,
 		func(ctx context.Context, tx3 storage.LogTreeTX) error {
 			leaves3, err := tx3.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
 			}
 			if len(leaves3) != 0 {
-				t.Logf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToInsert)
-				return status.Errorf(codes.Aborted, "retry")
+				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToInsert)
 			}
 			return nil
 		}); err != nil {
 		t.Fatalf("Could not dequeue the expected number of leaves: %v", err)
 	}
+}
+
+// dequeueLeaves starts a transaction and uses it to dequeue leaves.
+func dequeueLeaves(ctx context.Context, t *testing.T, ls storage.LogStorage, tree *trillian.Tree, ts time.Time, limit int, startIndex int64) []*trillian.LogLeaf {
+	// We'll retry a few times if we get nothing back since we're now dependent
+	// on the underlying queue delivering unsequenced entries.
+	var ret []*trillian.LogLeaf
+	cctx, cancel := context.WithTimeout(ctx, 5*time.Second) // Retry until timeout
+	defer cancel()
+	err := ls.ReadWriteTransaction(cctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		ret = make([]*trillian.LogLeaf, 0, limit)
+		for len(ret) < limit {
+			got, err := tx.DequeueLeaves(ctx, limit, ts)
+			if err != nil {
+				return err
+			}
+			ret = append(ret, got...)
+		}
+		ensureAllLeavesDistinct(ret, t)
+		iTimestamp := ptypes.TimestampNow()
+		for i, l := range ret {
+			l.IntegrateTimestamp = iTimestamp
+			l.LeafIndex = int64(i) + startIndex
+		}
+		if err := tx.UpdateSequencedLeaves(ctx, ret); err != nil {
+			return fmt.Errorf("UpdateSequencedLeaves(): %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("dequeueLeaves(limit: %v): %v", limit, err)
+	}
+	return ret
 }
 
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
