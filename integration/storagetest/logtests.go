@@ -464,7 +464,9 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 
 	// Now try to dequeue them
 	// Some dequeue implementations probabalistically dequeue and require retrying until timeout.
-	leaves2 := dequeueAndSequence(ctx, t, s, tree, fakeDequeueCutoffTime, leavesToInsert, 0)
+	cctx, cancel := context.WithTimeout(ctx, 5*time.Second) // Retry until timeout
+	defer cancel()
+	leaves2 := dequeueAndSequence(cctx, t, s, tree, fakeDequeueCutoffTime, leavesToInsert, 0)
 	if len(leaves2) != leavesToInsert {
 		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 	}
@@ -486,15 +488,13 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 	}
 }
 
-// dequeueAndSequence repeatedly dequques in a single transaction until limit is reached or a timeout occurs.
+// dequeueAndSequence repeatedly dequeues in a single transaction until limit is reached or a timeout occurs.
 // Then, it sequences the leaves with UpdateSequencedLeaves.
 func dequeueAndSequence(ctx context.Context, t *testing.T, ls storage.LogStorage, tree *trillian.Tree, ts time.Time, limit int, startIndex int64) []*trillian.LogLeaf {
 	// We'll retry a few times if we get nothing back since we're now dependent
 	// on the underlying queue delivering unsequenced entries.
 	var ret []*trillian.LogLeaf
-	cctx, cancel := context.WithTimeout(ctx, 5*time.Second) // Retry until timeout
-	defer cancel()
-	err := ls.ReadWriteTransaction(cctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+	err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		ret = make([]*trillian.LogLeaf, 0, limit)
 		i := make(map[int64]int)
 		start := time.Now()
