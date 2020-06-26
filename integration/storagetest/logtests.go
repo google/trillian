@@ -464,29 +464,31 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 
 	// Now try to dequeue them
 	// Some dequeue implementations probabalistically dequeue and require retrying until timeout.
-	leaves2 := dequeueLeaves(ctx, t, s, tree, fakeDequeueCutoffTime, 5, 0)
+	leaves2 := dequeueAndSequence(ctx, t, s, tree, fakeDequeueCutoffTime, leavesToInsert, 0)
 	if len(leaves2) != leavesToInsert {
 		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 	}
 
 	// If we dequeue again then we should now get nothing
 	if err := s.ReadWriteTransaction(ctx, tree,
-		func(ctx context.Context, tx3 storage.LogTreeTX) error {
-			leaves3, err := tx3.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
+		func(ctx context.Context, tx storage.LogTreeTX) error {
+			leaves, err := tx.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
 			}
-			if len(leaves3) != 0 {
-				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToInsert)
+			if len(leaves) != 0 {
+				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves), leavesToInsert)
 			}
 			return nil
-		}); err != nil {
+		},
+	); err != nil {
 		t.Fatalf("Could not dequeue the expected number of leaves: %v", err)
 	}
 }
 
-// dequeueLeaves starts a transaction and uses it to dequeue leaves.
-func dequeueLeaves(ctx context.Context, t *testing.T, ls storage.LogStorage, tree *trillian.Tree, ts time.Time, limit int, startIndex int64) []*trillian.LogLeaf {
+// dequeueAndSequence repeatedly dequques in a single transaction until limit is reached or a timeout occurs.
+// Then, it sequences the leaves with UpdateSequencedLeaves.
+func dequeueAndSequence(ctx context.Context, t *testing.T, ls storage.LogStorage, tree *trillian.Tree, ts time.Time, limit int, startIndex int64) []*trillian.LogLeaf {
 	// We'll retry a few times if we get nothing back since we're now dependent
 	// on the underlying queue delivering unsequenced entries.
 	var ret []*trillian.LogLeaf
@@ -505,7 +507,7 @@ func dequeueLeaves(ctx context.Context, t *testing.T, ls storage.LogStorage, tre
 			ret = append(ret, got...)
 		}
 		t.Logf("DequeueLeaves took %v tries and %v to dequeue %d leaves", i, time.Since(start), len(ret))
-		ensureAllLeavesDistinct(ret, t)
+		ensureAllLeavesDistinct(t, ret)
 		iTimestamp := ptypes.TimestampNow()
 		for i, l := range ret {
 			l.IntegrateTimestamp = iTimestamp
@@ -522,7 +524,7 @@ func dequeueLeaves(ctx context.Context, t *testing.T, ls storage.LogStorage, tre
 	return ret
 }
 
-func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
+func ensureAllLeavesDistinct(t *testing.T, leaves []*trillian.LogLeaf) {
 	t.Helper()
 	set := make(map[string]bool)
 	for _, l := range leaves {
