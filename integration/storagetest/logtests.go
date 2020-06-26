@@ -494,13 +494,17 @@ func dequeueLeaves(ctx context.Context, t *testing.T, ls storage.LogStorage, tre
 	defer cancel()
 	err := ls.ReadWriteTransaction(cctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		ret = make([]*trillian.LogLeaf, 0, limit)
+		i := make(map[int64]int)
+		start := time.Now()
 		for len(ret) < limit {
+			i[time.Now().Unix()]++
 			got, err := tx.DequeueLeaves(ctx, limit, ts)
 			if err != nil {
 				return err
 			}
 			ret = append(ret, got...)
 		}
+		t.Logf("DequeueLeaves took %v tries and %v to dequeue %d leaves", i, time.Since(start), len(ret))
 		ensureAllLeavesDistinct(ret, t)
 		iTimestamp := ptypes.TimestampNow()
 		for i, l := range ret {
