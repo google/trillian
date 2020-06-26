@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 	"sync"
@@ -592,7 +593,7 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	if tx.ls.opts.DequeueAcrossMerkleBuckets {
 		suffixFraction = tx.ls.opts.DequeueAcrossMerkleBucketsRangeFraction
 	}
-	suffixEnd := suffixStart + int64(suffixBuckets*suffixFraction)
+	suffixEnd := suffixStart + int64(math.Ceil(suffixBuckets*suffixFraction))
 
 	keysets := []spanner.KeySet{}
 	if suffixEnd < suffixBuckets {
@@ -614,8 +615,9 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 			},
 			spanner.KeyRange{
 				Start: spanner.Key{tx.treeID, prefix},
-				End:   spanner.Key{tx.treeID, prefix | suffixEnd},
-				Kind:  spanner.ClosedClosed,
+				// XXX: When suffixFraction = 1, this produces an overlapping range at suffixStart
+				End:  spanner.Key{tx.treeID, prefix | suffixEnd},
+				Kind: spanner.ClosedClosed,
 			})
 	}
 
