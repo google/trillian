@@ -378,6 +378,9 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return fmt.Errorf("%v: Sequencer failed to load sequenced batch: %v", tree.TreeId, err)
 		}
 		numLeaves = len(sequencedLeaves)
+		if numLeaves > 0 {
+			glog.Infof("LogID: %v, fetched %d leaves", tree.TreeId, numLeaves)
+		}
 
 		// We need to create a signed root if entries were added or the latest root
 		// is too old.
