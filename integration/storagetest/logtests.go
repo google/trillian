@@ -513,6 +513,7 @@ func dequeueAndSequence(ctx context.Context, t *testing.T, ls storage.LogStorage
 		}
 		t.Logf("DequeueLeaves took %v tries and %v to dequeue %d leaves", i, time.Since(start), len(ret))
 		ensureAllLeavesDistinct(t, ret)
+		ensureLeavesHaveQueueTimestamp(t, ret, ts)
 		iTimestamp := ptypes.TimestampNow()
 		for i, l := range ret {
 			l.IntegrateTimestamp = iTimestamp
@@ -538,6 +539,19 @@ func ensureAllLeavesDistinct(t *testing.T, leaves []*trillian.LogLeaf) {
 			t.Fatalf("Unexpectedly got a duplicate leaf hash: %x", l.LeafIdentityHash)
 		}
 		set[k] = true
+	}
+}
+
+func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, want time.Time) {
+	t.Helper()
+	for _, leaf := range leaves {
+		gotQTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
+		if err != nil {
+			t.Fatalf("Got invalid queue timestamp: %v", err)
+		}
+		if got, want := gotQTimestamp.UnixNano(), want.UnixNano(); got != want {
+			t.Errorf("Got leaf with QueueTimestampNanos = %v, want %v: %v", got, want, leaf)
+		}
 	}
 }
 
@@ -582,17 +596,4 @@ func (*logTests) TestDequeueLeavesTwoBatches(ctx context.Context, t *testing.T, 
 		}
 		return nil
 	})
-}
-
-func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, want time.Time) {
-	t.Helper()
-	for _, leaf := range leaves {
-		gotQTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
-		if err != nil {
-			t.Fatalf("Got invalid queue timestamp: %v", err)
-		}
-		if got, want := gotQTimestamp.UnixNano(), want.UnixNano(); got != want {
-			t.Errorf("Got leaf with QueueTimestampNanos = %v, want %v: %v", got, want, leaf)
-		}
-	}
 }
