@@ -53,8 +53,6 @@ const (
 WHERE (t.TreeType = 1 OR t.TreeType = 3)
 AND (t.TreeState = 1 OR t.TreeState = 5)
 AND t.Deleted=false`
-
-	suffixBuckets = 256
 )
 
 // LogStorageOptions are tuning, experiments and workarounds that can be used.
@@ -558,6 +556,8 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 	return nil, ErrNotImplemented
 }
 
+const suffixBuckets = 0x100
+
 // DequeueLeaves removes [0, limit) leaves from the to-be-sequenced queue.
 // The leaves returned are not guaranteed to be in any particular order.
 // The caller should assign sequence numbers and pass the updated leaves as
@@ -596,7 +596,7 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	suffixEnd := suffixStart + int64(suffixBuckets*suffixFraction)
 
 	keysets := []spanner.KeySet{}
-	if suffixEnd <= 0xff {
+	if suffixEnd < suffixBuckets {
 		keysets = append(keysets,
 			spanner.KeyRange{
 				Start: spanner.Key{tx.treeID, prefix | suffixStart},
@@ -605,16 +605,16 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 			})
 	} else {
 		// The range is too big and wraps around, overflowing a byte value, so we'll
-		// start the second range at 0x00 and end at the upper limit modulo 256:
-		suffixEnd %= 0x100
+		// start the second range at 0 and end at the upper limit modulo suffixBuckets:
+		suffixEnd %= suffixBuckets
 		keysets = append(keysets,
 			spanner.KeyRange{
 				Start: spanner.Key{tx.treeID, prefix | suffixStart},
-				End:   spanner.Key{tx.treeID, prefix | 0xff},
+				End:   spanner.Key{tx.treeID, prefix | suffixBuckets - 1},
 				Kind:  spanner.ClosedClosed,
 			},
 			spanner.KeyRange{
-				Start: spanner.Key{tx.treeID, prefix | 0x00},
+				Start: spanner.Key{tx.treeID, prefix},
 				End:   spanner.Key{tx.treeID, prefix | suffixEnd},
 				Kind:  spanner.ClosedClosed,
 			})
