@@ -556,8 +556,6 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 	return nil, ErrNotImplemented
 }
 
-const suffixBuckets = 0x100
-
 // DequeueLeaves removes [0, limit) leaves from the to-be-sequenced queue.
 // The leaves returned are not guaranteed to be in any particular order.
 // The caller should assign sequence numbers and pass the updated leaves as
@@ -588,6 +586,7 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	// It seems to be much better to tune for keeping this range small, and allow
 	// the signer to run multiple times per second than try to dequeue a large batch
 	// which spans a large number of merkle prefixes.
+	const suffixBuckets = 0x100
 	suffixStart := rand.Int63n(suffixBuckets)
 	suffixFraction := float64(cfg.NumMerkleBuckets) / float64(suffixBuckets)
 	if tx.ls.opts.DequeueAcrossMerkleBuckets {
