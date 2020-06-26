@@ -107,10 +107,7 @@ type unsequencedCols struct {
 
 // NewLogStorage initialises and returns a new LogStorage.
 func NewLogStorage(client *spanner.Client) storage.LogStorage {
-	return NewLogStorageWithOpts(client, LogStorageOptions{
-		DequeueAcrossMerkleBuckets:              true,
-		DequeueAcrossMerkleBucketsRangeFraction: 1.0,
-	})
+	return NewLogStorageWithOpts(client, LogStorageOptions{})
 }
 
 // NewLogStorageWithOpts initialises and returns a new LogStorage.
@@ -581,16 +578,22 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	// moment, FEs queueing entries will be adding them to different buckets
 	// than we're dequeuing from here - the low 8 bits are the first byte of the
 	// merkle hash of the entry.
+	now := time.Now().UTC()
 	cfg := tx.getLogStorageConfig()
-	now := time.Now().UTC().Unix()
 	// Select a prefix that is likley to be on a different span server to spread load.
-	prefix := int32((((now + cfg.NumUnseqBuckets/2) % cfg.NumUnseqBuckets) << 8))
-	suffixStart := rand.Int31n(suffixBuckets)
+	prefix := int64((((now.Unix() + cfg.NumUnseqBuckets/2) % cfg.NumUnseqBuckets) << 8))
+
+	// Choose a starting point in the merkle prefix range, and calculate the
+	// start/limit of the merkle range we'll dequeue from.
+	// It seems to be much better to tune for keeping this range small, and allow
+	// the signer to run multiple times per second than try to dequeue a large batch
+	// which spans a large number of merkle prefixes.
+	suffixStart := rand.Int63n(suffixBuckets)
 	suffixFraction := float64(cfg.NumMerkleBuckets) / float64(suffixBuckets)
 	if tx.ls.opts.DequeueAcrossMerkleBuckets {
 		suffixFraction = tx.ls.opts.DequeueAcrossMerkleBucketsRangeFraction
 	}
-	suffixEnd := suffixStart + int32(suffixBuckets*suffixFraction)
+	suffixEnd := suffixStart + int64(suffixBuckets*suffixFraction)
 
 	keysets := []spanner.KeySet{}
 	if suffixEnd <= 0xff {
