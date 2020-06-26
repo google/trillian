@@ -17,6 +17,7 @@ package cloudspanner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -616,6 +617,7 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 			})
 	}
 
+	errBreak := errors.New("break")
 	ret := make([]*trillian.LogLeaf, 0, limit)
 	if err := tx.stx.Read(ctx, unseqTable, spanner.KeySets(keysets...),
 		[]string{"Bucket", colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash},
@@ -640,8 +642,13 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 		ret = append(ret, &l)
 		qe.leaf = &l
 		tx.dequeued[k] = &qe
+
+		// If we've already got enough leaves, don't wrap around for any further reads.
+		if len(ret) >= limit {
+			return errBreak
+		}
 		return nil
-	}); err != nil {
+	}); err != nil && err != errBreak {
 		return nil, err
 	}
 	return ret, nil
