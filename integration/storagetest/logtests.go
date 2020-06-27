@@ -24,10 +24,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/types"
+	"google.golang.org/grpc/codes"
 
 	storageto "github.com/google/trillian/storage/testonly"
 )
