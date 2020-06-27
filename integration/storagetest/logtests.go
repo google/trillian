@@ -24,13 +24,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	storageto "github.com/google/trillian/storage/testonly"
 )
@@ -577,4 +578,69 @@ func (*logTests) TestDequeueLeavesTwoBatches(ctx context.Context, t *testing.T, 
 		}
 		return nil
 	})
+}
+
+func (*logTests) TestAddSequencedLeavesAndDequeueLeaves(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
+	tree := mustCreateTree(ctx, t, as, storageto.PreorderedLogTree)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{})
+
+	leaves := createTestLeaves(3, 0)
+	leaves[0].ExtraData = nil
+
+	now := time.Now()
+	res, err := s.AddSequencedLeaves(ctx, tree, leaves, now)
+	if err != nil {
+		t.Errorf("AddSequencedLeaves(_, %v, %+v, %v): %v", tree.TreeId, leaves, now, err)
+	}
+
+	if got, want := len(res), len(leaves); got != want {
+		t.Fatalf("AddSequencedLeaves returned %v results, want %v", got, want)
+	}
+	for i, r := range res {
+		if got, want := status.FromProto(r.Status).Code(), codes.OK; got != want {
+			t.Errorf("res[%d]=%v, want %v", i, got, want)
+		}
+	}
+
+	qts, _ := ptypes.TimestampProto(now)
+	its, _ := ptypes.TimestampProto(time.Unix(0, 0))
+
+	partial := make([]*trillian.LogLeaf, 0, len(leaves))
+	for _, leaf := range leaves {
+		partial = append(partial, &trillian.LogLeaf{
+			LeafIdentityHash:   leaf.LeafIdentityHash,
+			MerkleLeafHash:     leaf.MerkleLeafHash,
+			LeafValue:          leaf.LeafValue,
+			ExtraData:          leaf.ExtraData,
+			LeafIndex:          leaf.LeafIndex,
+			QueueTimestamp:     qts,
+			IntegrateTimestamp: its,
+		})
+	}
+
+	// Check that the first sequenced entry is returned.
+	dequeued, err := dequeueLeavesInTx(ctx, s, tree, now, 1)
+	if err != nil {
+		t.Fatalf("dequeueLeaves(): %v", err)
+	}
+	if diff := cmp.Diff(dequeued, partial[:1], protocmp.Transform()); diff != "" {
+		t.Errorf("dequeueLeaves() diff: %v", diff)
+	}
+
+	// Fake a signing run that signs 1 entry.
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{
+		TimestampNanos: uint64(time.Now().UnixNano()),
+		TreeSize:       1,
+		RootHash:       []byte("roothash"),
+		Revision:       1,
+	})
+
+	// Check that the 2nd and 3rd sequenced entries are returned.
+	dequeued, err = dequeueLeavesInTx(ctx, s, tree, now, 10)
+	if err != nil {
+		t.Fatalf("dequeueLeaves(): %v", err)
+	}
+	if diff := cmp.Diff(dequeued, partial[1:3], protocmp.Transform()); diff != "" {
+		t.Errorf("dequeueLeaves() diff: %v", diff)
+	}
 }

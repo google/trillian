@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
@@ -69,4 +70,16 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 	}); err != nil {
 		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}
+}
+
+func dequeueLeavesInTx(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, t time.Time, limit int) ([]*trillian.LogLeaf, error) {
+	var ret []*trillian.LogLeaf
+	if err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		var err error
+		ret, err = tx.DequeueLeaves(ctx, limit, t)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
