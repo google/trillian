@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
@@ -34,6 +33,7 @@ import (
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"go.opencensus.io/trace"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -315,44 +315,30 @@ func (t *treeTX) parallelGetMerkleNodes(ctx context.Context, rev int64) func([]s
 		ctx, span := trace.StartSpan(ctx, "TreeTX.parallelGetMerkleNodes")
 		defer span.End()
 		// Request the various subtrees in parallel.
-		// TODO(alcutter): consider limiting the number of active requests with
-		//                 some sort of worker pool type arrangement.
+		// Creates one goroutine per tile.
 
 		// c will carry any retrieved subtrees
 		c := make(chan *storagepb.SubtreeProto, len(ids))
-		// err will carry any errors encountered while reading from spanner,
-		// although we'll only return to the caller the first one (if indeed
-		// there are any).
-		errc := make(chan error, len(ids))
-
-		// Spawn goroutines for each request
-		var wg sync.WaitGroup
+		g, gctx := errgroup.WithContext(ctx)
 		for _, id := range ids {
 			id := id
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				st, err := t.getSubtree(ctx, rev, id)
+			g.Go(func() error {
+				st, err := t.getSubtree(gctx, rev, id)
 				if err != nil {
-					errc <- fmt.Errorf("failed to treeTX.getSubtree(rev=%d, id=%x): %v", rev, id, err)
-					return
+					return fmt.Errorf("failed to treeTX.getSubtree(rev=%d, id=%x): %v", rev, id, err)
 				}
 				c <- st
-			}()
+				return nil
+			})
 		}
-
-		// Now wait for the goroutines to signal their completion, and collect
-		// the results.
-		wg.Wait()
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
+		close(c)
 		ret := make([]*storagepb.SubtreeProto, 0, len(ids))
-		for range ids {
-			select {
-			case err := <-errc:
-				return nil, err
-			case st := <-c:
-				if st != nil {
-					ret = append(ret, st)
-				}
+		for st := range c {
+			if st != nil {
+				ret = append(ret, st)
 			}
 		}
 		return ret, nil
