@@ -79,12 +79,15 @@ func (*mapTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, 
 
 // TestMapSnapshot fails the test if MapStorage.SnapshotForTree() does not behave correctly.
 func (*mapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
-	frozenMap := createInitializedMapForTests(ctx, t, s, as)
+	frozenMap := mustCreateTree(ctx, t, as, storageto.MapTree)
+	mustSignAndStoreMapRoot(ctx, t, s, frozenMap, &types.MapRootV1{Revision: uint64(0)})
+
 	storage.UpdateTree(ctx, as, frozenMap.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	})
 
-	activeMap := createInitializedMapForTests(ctx, t, s, as)
+	activeMap := mustCreateTree(ctx, t, as, storageto.MapTree)
+	mustSignAndStoreMapRoot(ctx, t, s, activeMap, &types.MapRootV1{Revision: uint64(0)})
 	logID := mustCreateTree(ctx, t, as, storageto.LogTree).TreeId
 
 	tests := []struct {
@@ -129,9 +132,10 @@ func (*mapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.Ma
 	}
 }
 
-func (*mapTests) TestMapLayout(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
-	tree := createInitializedMapForTests(ctx, t, s, as)
-	if _, err := s.Layout(tree); err != nil {
+func (*mapTests) TestMapLayout(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
+	tree := mustCreateTree(ctx, t, as, storageto.MapTree)
+	mustSignAndStoreMapRoot(ctx, t, ms, tree, &types.MapRootV1{Revision: uint64(0)})
+	if _, err := ms.Layout(tree); err != nil {
 		t.Errorf("Layout(): %v", err)
 	}
 }
@@ -141,7 +145,8 @@ func (*mapTests) TestMapLayout(ctx context.Context, t *testing.T, s storage.MapS
 // TODO: Playing with multiple revisions; at the moment the tests will pass if the revision parameter is ignored and only the latest revision of the tiles is returned
 
 func (*mapTests) TestTileRoundTrip(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
-	maptree := createInitializedMapForTests(ctx, t, ms, as)
+	maptree := mustCreateTree(ctx, t, as, storageto.MapTree)
+	mustSignAndStoreMapRoot(ctx, t, ms, maptree, &types.MapRootV1{Revision: uint64(0)})
 
 	numTiles := 10
 	tiles := []smt.Tile{}
@@ -187,5 +192,4 @@ func (*mapTests) TestTileRoundTrip(ctx context.Context, t *testing.T, ms storage
 	}); err != nil {
 		t.Fatalf("ReadWriteTransaction(): %v", err)
 	}
-
 }

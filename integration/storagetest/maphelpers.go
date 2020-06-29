@@ -25,31 +25,7 @@ import (
 	"github.com/google/trillian/types"
 
 	tcrypto "github.com/google/trillian/crypto"
-	storageto "github.com/google/trillian/storage/testonly"
 )
-
-func createInitializedMapForTests(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) *trillian.Tree {
-	t.Helper()
-	tree := mustCreateTree(ctx, t, as, storageto.MapTree)
-
-	signer := tcrypto.NewSigner(tree.TreeId, testonly.NewSignerWithFixedSig(nil, []byte("sig")), crypto.SHA256)
-	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
-		initialRoot, _ := signer.SignMapRoot(&types.MapRootV1{
-			RootHash: []byte("rootHash"),
-			Revision: 0,
-		})
-
-		if err := tx.StoreSignedMapRoot(ctx, initialRoot); err != nil {
-			t.Fatalf("Failed to StoreSignedMapRoot: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("ReadWriteTransaction() = %v", err)
-	}
-
-	return tree
-}
 
 func mustSignAndStoreMapRoot(ctx context.Context, t *testing.T, ms storage.MapStorage, tree *trillian.Tree, root *types.MapRootV1) {
 	t.Helper()
