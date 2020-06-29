@@ -17,14 +17,20 @@ package storagetest
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/types"
 
 	storageto "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
 )
 
 // MapStorageFactory creates MapStorage and AdminStorage for a test to use.
@@ -128,4 +134,54 @@ func (*mapTests) TestMapLayout(ctx context.Context, t *testing.T, s storage.MapS
 	if _, err := s.Layout(tree); err != nil {
 		t.Errorf("Layout(): %v", err)
 	}
+}
+
+func (*mapTests) TestGetTile(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
+	maptree := createInitializedMapForTests(ctx, t, ms, as)
+
+	numTiles := 10
+	tiles := []smt.Tile{}
+	for i := 0; i < numTiles; i++ {
+		nodes, err := smt.NewNodesRow([]smt.Node{{
+			ID:   tree.NewNodeID2(fmt.Sprintf("%d1", i), 16),
+			Hash: []byte{1},
+		}})
+		if err != nil {
+			t.Fatalf("NewNodesRow(): %v", err)
+		}
+		tiles = append(tiles, smt.Tile{ID: tree.NewNodeID2(fmt.Sprintf("%d", i), 8), Leaves: nodes})
+	}
+
+	if err := ms.ReadWriteTransaction(ctx, maptree, func(ctx context.Context, tx storage.MapTreeTX) error {
+		if err := tx.SetTiles(ctx, tiles); err != nil {
+			t.Fatalf("SetTiles(): %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("ReadWriteTransaction(): %v", err)
+	}
+	mustSignAndStoreMapRoot(ctx, t, ms, maptree, &types.MapRootV1{Revision: 1, TimestampNanos: 1})
+
+	ids := []tree.NodeID2{}
+	for _, tile := range tiles {
+		ids = append(ids, tile.ID)
+	}
+
+	if err := ms.ReadWriteTransaction(ctx, maptree, func(ctx context.Context, tx storage.MapTreeTX) error {
+		got, err := tx.GetTiles(ctx, 1, ids)
+		if err != nil {
+			t.Fatalf("GetTiles(): %v", err)
+		}
+		opts := []cmp.Option{
+			cmp.Comparer(func(x, y tree.NodeID2) bool { return x.String() == y.String() }),
+			cmpopts.SortSlices(func(x, y smt.Tile) bool { return strings.Compare(x.ID.String(), y.ID.String()) < 0 }),
+		}
+		if !cmp.Equal(got, tiles, opts...) {
+			t.Fatalf("GetTiles(): diff: %v", cmp.Diff(got, tiles, opts...))
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("ReadWriteTransaction(): %v", err)
+	}
+
 }
