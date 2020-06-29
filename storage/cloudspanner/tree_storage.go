@@ -356,11 +356,11 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *
 
 	var ret *storagepb.SubtreeProto
 	stmt := spanner.NewStatement(
-		"SELECT Revision, Subtree FROM SubtreeData d" +
-			"  WHERE d.TreeID = @tree_id" +
-			"  AND   d.SubtreeID = @subtree_id" +
-			"  AND   d.Revision <= @revision" +
-			"  ORDER BY d.Revision DESC" +
+		"SELECT Revision, Subtree FROM SubtreeData" +
+			"  WHERE TreeID = @tree_id" +
+			"  AND   SubtreeID = @subtree_id" +
+			"  AND   Revision <= @revision" +
+			"  ORDER BY Revision DESC" +
 			"  LIMIT 1")
 	stmt.Params["tree_id"] = t.treeID
 	stmt.Params["subtree_id"] = stID

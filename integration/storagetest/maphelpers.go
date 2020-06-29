@@ -51,6 +51,20 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, s storage.M
 	return tree
 }
 
+func mustSignAndStoreMapRoot(ctx context.Context, t *testing.T, ms storage.MapStorage, tree *trillian.Tree, root *types.MapRootV1) {
+	t.Helper()
+	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
+	r, err := signer.SignMapRoot(root)
+	if err != nil {
+		t.Fatalf("error creating new SignedMapRoot: %v", err)
+	}
+	if err := ms.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
+		return tx.StoreSignedMapRoot(ctx, r)
+	}); err != nil {
+		t.Fatalf("ReadWriteTransaction() = %v", err)
+	}
+}
+
 func mapTree(mapID int64) *trillian.Tree {
 	return &trillian.Tree{
 		TreeId:       mapID,
