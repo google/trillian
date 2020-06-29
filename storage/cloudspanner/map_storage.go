@@ -112,9 +112,9 @@ func (ms *mapStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) 
 	return ms.begin(ctx, tree, true, ms.ts.client.ReadOnlyTransaction())
 }
 
-// Layout is not implemented.
+// Layout returns the layout of the given tree.
 func (ms *mapStorage) Layout(tree *trillian.Tree) (*tree.Layout, error) {
-	return nil, errors.New("not implemented")
+	return defaultMapLayout, nil
 }
 
 func (ms *mapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {

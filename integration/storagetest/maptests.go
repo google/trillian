@@ -36,7 +36,7 @@ type MapStorageTest = func(ctx context.Context, t *testing.T, s storage.MapStora
 // RunMapStorageTests runs all the map storage tests against the provided map storage implementation.
 func RunMapStorageTests(t *testing.T, storageFactory MapStorageFactory) {
 	ctx := context.Background()
-	for name, f := range mapTestFunctions(t, &MapTests{}) {
+	for name, f := range mapTestFunctions(t, &mapTests{}) {
 		ms, as := storageFactory(ctx, t)
 		t.Run(name, func(t *testing.T) { f(ctx, t, ms, as) })
 	}
@@ -62,17 +62,17 @@ func mapTestFunctions(t *testing.T, x interface{}) map[string]MapStorageTest {
 }
 
 // MapTests is a suite of tests to run against the storage.MapTest interface.
-type MapTests struct{}
+type mapTests struct{}
 
 // TestCheckDatabaseAccessible fails the test if the map storage is not accessible.
-func (*MapTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.MapStorage, _ storage.AdminStorage) {
+func (*mapTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, s storage.MapStorage, _ storage.AdminStorage) {
 	if err := s.CheckDatabaseAccessible(ctx); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
 }
 
 // TestMapSnapshot fails the test if MapStorage.SnapshotForTree() does not behave correctly.
-func (*MapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
+func (*mapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
 	frozenMap := createInitializedMapForTests(ctx, t, s, as)
 	storage.UpdateTree(ctx, as, frozenMap.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
@@ -120,5 +120,12 @@ func (*MapTests) TestMapSnapshot(ctx context.Context, t *testing.T, s storage.Ma
 				t.Errorf("Commit()=_,%v; want _,nil", err)
 			}
 		})
+	}
+}
+
+func (*mapTests) TestMapLayout(ctx context.Context, t *testing.T, s storage.MapStorage, as storage.AdminStorage) {
+	tree := createInitializedMapForTests(ctx, t, s, as)
+	if _, err := s.Layout(tree); err != nil {
+		t.Errorf("Layout(): %v", err)
 	}
 }
