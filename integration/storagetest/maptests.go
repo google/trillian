@@ -27,10 +27,10 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 
 	storageto "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/storage/tree"
 )
 
 // MapStorageFactory creates MapStorage and AdminStorage for a test to use.
