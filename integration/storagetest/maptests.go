@@ -136,7 +136,11 @@ func (*mapTests) TestMapLayout(ctx context.Context, t *testing.T, s storage.MapS
 	}
 }
 
-func (*mapTests) TestGetTile(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
+// TODO: Requesting a Tile ID which does not exist
+// TODO: Requesting a Tile by using an invalid ID (e.g. the ID is not aligned at the byte boundary)
+// TODO: Playing with multiple revisions; at the moment the tests will pass if the revision parameter is ignored and only the latest revision of the tiles is returned
+
+func (*mapTests) TestTileRoundTrip(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
 	maptree := createInitializedMapForTests(ctx, t, ms, as)
 
 	numTiles := 10

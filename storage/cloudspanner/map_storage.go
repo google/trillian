@@ -281,18 +281,18 @@ func (tx *mapTX) GetTiles(ctx context.Context, rev int64, ids []tree.NodeID2) ([
 		rootIDs = append(rootIDs, tree.NewNodeIDFromID2(id))
 	}
 
-	f, err := tx.treeTX.getTilesFunc(ctx, rev)
+	getTilesFn, err := tx.treeTX.getTilesFunc(ctx, rev)
 	if err != nil {
 		return nil, err
 	}
-	subs, err := f(rootIDs)
+	subtrees, err := getTilesFn(rootIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	tiles := make([]smt.Tile, 0, len(subs))
-	for _, sub := range subs {
-		tile, err := convert.Unmarshal(sub)
+	tiles := make([]smt.Tile, 0, len(subtrees))
+	for _, subtree := range subtrees {
+		tile, err := convert.Unmarshal(subtree)
 		if err != nil {
 			return nil, err
 		}
