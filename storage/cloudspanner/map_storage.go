@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
@@ -28,8 +29,11 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
+	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/storagepb/convert"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
+	"go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -269,14 +273,104 @@ func (tx *mapTX) Set(ctx context.Context, index []byte, value *trillian.MapLeaf)
 	return stx.BufferWrite([]*spanner.Mutation{m})
 }
 
-// GetTiles is not implemented.
+// GetTiles reads the Merkle tree tiles with the given root IDs at the given
+// revision. A tile is empty if it is missing from the returned slice.
 func (tx *mapTX) GetTiles(ctx context.Context, rev int64, ids []tree.NodeID2) ([]smt.Tile, error) {
-	return nil, errors.New("not implemented")
+	rootIDs := make([]tree.NodeID, 0, len(ids))
+	for _, id := range ids {
+		rootIDs = append(rootIDs, tree.NewNodeIDFromID2(id))
+	}
+
+	f, err := tx.treeTX.getTilesFunc(ctx, rev)
+	if err != nil {
+		return nil, err
+	}
+	subs, err := f(rootIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	tiles := make([]smt.Tile, 0, len(subs))
+	for _, sub := range subs {
+		tile, err := convert.Unmarshal(sub)
+		if err != nil {
+			return nil, err
+		}
+		tiles = append(tiles, tile)
+	}
+	return tiles, nil
 }
 
-// SetTiles is not implemented.
+func (t *treeTX) getTilesFunc(ctx context.Context, rev int64) (func([]storage.NodeID) ([]*storagepb.SubtreeProto, error), error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if t.stx == nil {
+		return nil, ErrTransactionClosed
+	}
+	return t.parallelGetMerkleNodes(ctx, rev), nil
+}
+
+func (t *treeTX) parallelGetMerkleNodes(ctx context.Context, rev int64) func([]storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		ctx, span := trace.StartSpan(ctx, "TreeTX.parallelGetMerkleNodes")
+		defer span.End()
+		// Request the various subtrees in parallel.
+		// TODO(alcutter): consider limiting the number of active requests with
+		//                 some sort of worker pool type arrangement.
+
+		// c will carry any retrieved subtrees
+		c := make(chan *storagepb.SubtreeProto, len(ids))
+		// err will carry any errors encountered while reading from spanner,
+		// although we'll only return to the caller the first one (if indeed
+		// there are any).
+		errc := make(chan error, len(ids))
+
+		// Spawn goroutines for each request
+		var wg sync.WaitGroup
+		for _, id := range ids {
+			id := id
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				st, err := t.getSubtree(ctx, rev, id)
+				if err != nil {
+					errc <- fmt.Errorf("failed to treeTX.getSubtree(rev=%d, id=%x): %v", rev, id, err)
+					return
+				}
+				c <- st
+			}()
+		}
+
+		// Now wait for the goroutines to signal their completion, and collect
+		// the results.
+		wg.Wait()
+		ret := make([]*storagepb.SubtreeProto, 0, len(ids))
+		for range ids {
+			select {
+			case err := <-errc:
+				return nil, err
+			case st := <-c:
+				if st != nil {
+					ret = append(ret, st)
+				}
+			}
+		}
+		return ret, nil
+	}
+}
+
+// SetTiles stores the given tiles at the current write revision.
 func (tx *mapTX) SetTiles(ctx context.Context, tiles []smt.Tile) error {
-	return errors.New("not implemented")
+	subs := make([]*storagepb.SubtreeProto, 0, len(tiles))
+	for _, tile := range tiles {
+		height := defaultMapLayout.TileHeight(int(tile.ID.BitLen()))
+		pb, err := convert.Marshal(tile, uint(height))
+		if err != nil {
+			return err
+		}
+		subs = append(subs, pb)
+	}
+	return tx.storeSubtrees(ctx, subs)
 }
 
 // getMapLeaf fetches and returns the MapLeaf stored at the specified index and
