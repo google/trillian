@@ -17,7 +17,6 @@ package storagetest
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"crypto/sha256"
 	"fmt"
 	"reflect"
@@ -28,10 +27,8 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 
-	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
@@ -81,7 +78,7 @@ func (*logTests) TestCheckDatabaseAccessible(ctx context.Context, t *testing.T, 
 
 func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
 	frozenLog := mustCreateTree(ctx, t, as, storageto.LogTree)
-	mustSignAndStoreLogRoot(ctx, t, s, frozenLog, 0, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, frozenLog, &types.LogRootV1{})
 	if _, err := storage.UpdateTree(ctx, as, frozenLog.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	}); err != nil {
@@ -89,7 +86,7 @@ func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 	}
 
 	activeLog := mustCreateTree(ctx, t, as, storageto.LogTree)
-	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, activeLog, &types.LogRootV1{})
 	mapTreeID := mustCreateTree(ctx, t, as, storageto.MapTree).TreeId
 
 	tests := []struct {
@@ -145,7 +142,7 @@ func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 
 func (*logTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
 	activeLog := mustCreateTree(ctx, t, as, storageto.LogTree)
-	mustSignAndStoreLogRoot(ctx, t, s, activeLog, 0, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, activeLog, &types.LogRootV1{RootHash: []byte{0}})
 
 	tests := []struct {
 		desc          string
@@ -212,29 +209,6 @@ func logTree(logID int64) *trillian.Tree {
 	}
 }
 
-func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, rev, treeSize uint64) {
-	t.Helper()
-	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
-
-	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		root, err := signer.SignLogRoot(&types.LogRootV1{
-			Revision: rev,
-			TreeSize: treeSize,
-			RootHash: []byte{0},
-		})
-		if err != nil {
-			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
-		}
-		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
-			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("ReadWriteTransaction() = %v", err)
-	}
-}
-
 // AddSequencedLeaves tests. ---------------------------------------------------
 
 type addSequencedLeavesTest struct {
@@ -245,7 +219,7 @@ type addSequencedLeavesTest struct {
 
 func initAddSequencedLeavesTest(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) addSequencedLeavesTest {
 	tree := mustCreateTree(ctx, t, as, storageto.PreorderedLogTree)
-	mustSignAndStoreLogRoot(ctx, t, s, tree, 0, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{})
 	return addSequencedLeavesTest{t, s, tree}
 }
 
@@ -360,7 +334,7 @@ func testGetLeavesByRangeImpl(ctx context.Context, t *testing.T, s storage.LogSt
 	tree := mustCreateTree(ctx, t, as, create)
 
 	// Note: GetLeavesByRange loads the root internally to get the tree size.
-	mustSignAndStoreLogRoot(ctx, t, s, tree, 0, 14)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{TreeSize: 14})
 
 	// Create leaves [0]..[19] but drop leaf [5] and set the tree size to 14.
 	for i := int64(0); i < 20; i++ {
@@ -459,7 +433,7 @@ func createFakeLeaf(ctx context.Context, s storage.LogStorage, tree *trillian.Tr
 func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
 	const leavesToInsert = 5
 	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
-	mustSignAndStoreLogRoot(ctx, t, s, tree, 0, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{})
 
 	leaves := createTestLeaves(leavesToInsert, 20)
 	if _, err := s.QueueLeaves(ctx, tree, leaves, fakeDequeueCutoffTime); err != nil {
@@ -559,7 +533,7 @@ func (*logTests) TestDequeueLeavesTwoBatches(ctx context.Context, t *testing.T, 
 	var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 	const leavesToInsert = 5
 	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
-	mustSignAndStoreLogRoot(ctx, t, s, tree, 0, 0)
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{})
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
@@ -576,7 +550,7 @@ func (*logTests) TestDequeueLeavesTwoBatches(ctx context.Context, t *testing.T, 
 		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToDequeue1)
 	}
 
-	mustSignAndStoreLogRoot(ctx, t, s, tree, 1, uint64(leavesToDequeue1))
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{Revision: 1, TreeSize: uint64(leavesToDequeue1)})
 	leaves3 := dequeueAndSequence(cctx, t, s, tree, fakeDequeueCutoffTime, leavesToDequeue2, int64(leavesToDequeue1))
 	if len(leaves3) != leavesToDequeue2 {
 		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToDequeue2)
