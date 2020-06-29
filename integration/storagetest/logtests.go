@@ -550,7 +550,11 @@ func (*logTests) TestDequeueLeavesTwoBatches(ctx context.Context, t *testing.T, 
 		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToDequeue1)
 	}
 
-	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{Revision: 1, TreeSize: uint64(leavesToDequeue1)})
+	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{
+		Revision:       1,
+		TreeSize:       uint64(leavesToDequeue1),
+		TimestampNanos: 1,
+	})
 	leaves3 := dequeueAndSequence(cctx, t, s, tree, fakeDequeueCutoffTime, leavesToDequeue2, int64(leavesToDequeue1))
 	if len(leaves3) != leavesToDequeue2 {
 		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToDequeue2)
