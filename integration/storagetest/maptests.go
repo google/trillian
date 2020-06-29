@@ -197,15 +197,14 @@ func (*mapTests) TestTileRoundTrip(ctx context.Context, t *testing.T, ms storage
 	}
 }
 
-func (*mapTests) TestGetSetRoundTrip(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
+func (*mapTests) TestSetGetRoundTrip(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
 	tree := mustCreateTree(ctx, t, as, storageto.MapTree)
 	mustSignAndStoreMapRoot(ctx, t, ms, tree, &types.MapRootV1{Revision: uint64(0)})
 
-	num := int64(10)
 	leafRevs := make(map[int64]*trillian.MapLeaf)
 
 	// First create several revisions of a given map leaf and store them:
-	for rev := int64(1); rev <= num; rev++ {
+	for rev := int64(1); rev <= 10; rev++ {
 		index := sha256.Sum256([]byte("Key"))
 		value := []byte{byte(rev)}
 		leafHash := sha256.Sum256(value)
