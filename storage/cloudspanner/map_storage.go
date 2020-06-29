@@ -208,6 +208,9 @@ func (tx *mapTX) StoreSignedMapRoot(ctx context.Context, root *trillian.SignedMa
 	if err := r.UnmarshalBinary(root.MapRoot); err != nil {
 		return err
 	}
+	if got, want := int64(r.Revision), writeRev; got != want {
+		return status.Errorf(codes.Internal, "root.Revision: %v, want %v", got, want)
+	}
 	sth := spannerpb.TreeHead{
 		TsNanos:      int64(r.TimestampNanos),
 		RootHash:     r.RootHash,

@@ -220,42 +220,6 @@ var mapLeaf = &trillian.MapLeaf{
 	ExtraData: []byte("Some Extra Data"),
 }
 
-func TestMapSetGetRoundTrip(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
-
-	cleanTestDB(DB)
-	ctx := context.Background()
-	as := NewAdminStorage(DB)
-	s := NewMapStorage(DB)
-	tree := createInitializedMapForTests(ctx, t, s, as)
-
-	readRev := int64(1)
-	{
-		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-			if err := tx.Set(ctx, keyHash, mapLeaf); err != nil {
-				t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
-			}
-			return nil
-		})
-	}
-
-	{
-		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-			readValues, err := tx.Get(ctx, readRev, [][]byte{keyHash})
-			if err != nil {
-				t.Fatalf("Failed to get %v:  %v", keyHash, err)
-			}
-			if got, want := len(readValues), 1; got != want {
-				t.Fatalf("Got %d values, expected %d", got, want)
-			}
-			if got, want := readValues[0], mapLeaf; !proto.Equal(got, want) {
-				t.Fatalf("Read back %v, but expected %v", got, want)
-			}
-			return nil
-		})
-	}
-}
-
 func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 

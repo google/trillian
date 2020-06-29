@@ -17,10 +17,12 @@ package storagetest
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -29,6 +31,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	storageto "github.com/google/trillian/storage/testonly"
 )
@@ -191,5 +194,66 @@ func (*mapTests) TestTileRoundTrip(ctx context.Context, t *testing.T, ms storage
 		return nil
 	}); err != nil {
 		t.Fatalf("ReadWriteTransaction(): %v", err)
+	}
+}
+
+func (*mapTests) TestGetSetRoundTrip(ctx context.Context, t *testing.T, ms storage.MapStorage, as storage.AdminStorage) {
+	tree := mustCreateTree(ctx, t, as, storageto.MapTree)
+	mustSignAndStoreMapRoot(ctx, t, ms, tree, &types.MapRootV1{Revision: uint64(0)})
+
+	num := int64(10)
+	leafRevs := make(map[int64]*trillian.MapLeaf)
+
+	// First create several revisions of a given map leaf and store them:
+	for rev := int64(1); rev <= num; rev++ {
+		index := sha256.Sum256([]byte("Key"))
+		value := []byte{byte(rev)}
+		leafHash := sha256.Sum256(value)
+		leaf := &trillian.MapLeaf{
+			Index:     index[:],
+			LeafValue: value,
+			LeafHash:  leafHash[:],
+			ExtraData: []byte{byte(rev)},
+		}
+		leafRevs[rev] = leaf
+
+		if err := ms.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
+			if err := tx.Set(ctx, index[:], leaf); err != nil {
+				t.Errorf("%d: Set() = %v, want no error", rev, err)
+				return err
+			}
+			return nil
+		}); err != nil {
+			t.Errorf("%d: ReadWriteTransaction() = %v, want no error", rev, err)
+			continue
+		}
+		mustSignAndStoreMapRoot(ctx, t, ms, tree, &types.MapRootV1{
+			Revision:       uint64(rev),
+			TimestampNanos: uint64(time.Now().UnixNano()),
+		})
+	}
+
+	// Now we try to read the different revisions out in a random order:
+	for rev, want := range leafRevs {
+		t.Logf("reading @ revision %d", rev)
+		tx, err := ms.SnapshotForTree(ctx, tree)
+		if err != nil {
+			t.Fatalf("SnapshotForTree(): %v", err)
+		}
+		leaves, err := tx.Get(ctx, rev, [][]byte{want.Index})
+		if err != nil {
+			t.Fatalf("Get(): %v", err)
+		}
+		if got, want := len(leaves), 1; got != want {
+			t.Errorf("Get(rev: %d): %d leaves, want %d", rev, got, want)
+			continue
+		}
+		if got := leaves[0]; !cmp.Equal(got, want, protocmp.Transform()) {
+			t.Errorf("Get(rev: %d) = diff:\n%v", rev, cmp.Diff(got, want, protocmp.Transform()))
+			continue
+		}
+		if err := tx.Commit(ctx); err != nil {
+			t.Fatalf("Commit(): %v", err)
+		}
 	}
 }
