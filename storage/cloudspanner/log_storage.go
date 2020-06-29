@@ -571,6 +571,14 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	if limit <= 0 {
 		return nil, fmt.Errorf("limit should be > 0, got %d", limit)
 	}
+	// Special case pre-ordered logs.
+	if tx.treeType == trillian.TreeType_PREORDERED_LOG {
+		sth, err := tx.currentSTH(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return tx.GetLeavesByRange(ctx, sth.TreeSize, int64(limit))
+	}
 
 	// Decide which bucket(s) to dequeue from.
 	// The high 8 bits of the bucket key is a time based ring - at any given
