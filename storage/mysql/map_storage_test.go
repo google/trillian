@@ -571,41 +571,6 @@ func TestGetSignedMapRoot(t *testing.T) {
 	}
 }
 
-func TestLatestSignedMapRoot(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
-
-	cleanTestDB(DB)
-	ctx := context.Background()
-	as := NewAdminStorage(DB)
-	s := NewMapStorage(DB)
-	tree := createInitializedMapForTests(ctx, t, s, as)
-
-	root := MustSignMapRoot(t, &types.MapRootV1{
-		TimestampNanos: 98765,
-		Revision:       5,
-		RootHash:       []byte(dummyHash),
-	})
-	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
-			t.Fatalf("Failed to store signed root: %v", err)
-		}
-		return nil
-	})
-
-	{
-		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx2 storage.MapTreeTX) error {
-			root2, err := tx2.LatestSignedMapRoot(ctx)
-			if err != nil {
-				t.Fatalf("Failed to read back new map root: %v", err)
-			}
-			if !proto.Equal(root, root2) {
-				t.Fatalf("Root round trip failed: <%#v> and: <%#v>", root, root2)
-			}
-			return nil
-		})
-	}
-}
-
 func TestDuplicateSignedMapRoot(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 
