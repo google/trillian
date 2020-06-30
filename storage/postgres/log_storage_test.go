@@ -377,7 +377,6 @@ func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) 
 	if _, err := t.s.AddSequencedLeaves(ctx, t.tree, leaves, fakeQueueTime); err != nil {
 		t.t.Fatalf("Failed to add sequenced leaves: %v", err)
 	}
-
 	// TODO(pavelkalinnikov): Verify returned status for each leaf.
 }
 
