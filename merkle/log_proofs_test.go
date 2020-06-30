@@ -147,29 +147,28 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 	}
 }
 
+// Expected consistency proofs built from the examples in RFC 6962. Again, in
+// our implementation node layers are filled from the bottom upwards.
+//
+//                hash5                         hash7
+//               /    \                        /    \
+//              /      \                      /      \
+//             /        \                    /        \
+//            /          \                  /          \
+//           /            \                /            \
+//          k             [ ]   =>        k              l
+//         / \            /              / \            / \
+//        /   \          /              /   \          /   \
+//       /     \        /              /     \        /     \
+//      g       h     [ ]             g       h      i      [ ]
+//     / \     / \    /              / \     / \    / \    /
+//     a b     c d    e              a b     c d    e f    j
+//     | |     | |    |              | |     | |    | |    |
+//     d0 d1   d2 d3  d4             d0 d1   d2 d3  d4 d5  d6
+//
+// For example, the consistency proof between tree size 5 and 7 consists of
+// nodes e, f, j, and k. The node j is taken instead of its missing parent.
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
-	// Expected consistency proofs built from the examples in RFC 6962. Again, in
-	// our implementation node layers are filled from the bottom upwards.
-	//
-	//                hash5                         hash7
-	//               /    \                        /    \
-	//              /      \                      /      \
-	//             /        \                    /        \
-	//            /          \                  /          \
-	//           /            \                /            \
-	//          k             [ ]   =>        k              l
-	//         / \            /              / \            / \
-	//        /   \          /              /   \          /   \
-	//       /     \        /              /     \        /     \
-	//      g       h     [ ]             g       h      i      [ ]
-	//     / \     / \    /              / \     / \    / \    /
-	//     a b     c d    e              a b     c d    e f    j
-	//     | |     | |    |              | |     | |    | |    |
-	//     d0 d1   d2 d3  d4             d0 d1   d2 d3  d4 d5  d6
-	//
-	// For example, the consistency proof between tree size 5 and 7 consists of
-	// nodes e, f, j, and k. The node j is taken instead of its missing parent.
-
 	// These should compute the expected consistency proofs.
 	for _, tc := range []struct {
 		size1 int64
