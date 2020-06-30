@@ -18,117 +18,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
-)
-
-// Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
-// node layers are filled from the bottom upwards.
-var (
-	//                     hash1=g
-	//                          / \
-	//  hash0=a      =>         a b
-	//        |                 | |
-	//        d0               d0 d1
-	expectedConsistencyProofFromSize1To2 = []NodeFetch{
-		newNodeFetch(0, 1, false), // b
-	}
-
-	//  hash0=a      =>           hash1=k
-	//        |                  /   \
-	//        d0                /     \
-	//                         /      \
-	//                         /       \
-	//                         g       h
-	//                        / \     / \
-	//                        a b     c d
-	//                        | |     | |
-	//                       d0 d1   d2 d3
-	expectedConsistencyProofFromSize1To4 = []NodeFetch{
-		newNodeFetch(0, 1, false), // b
-		newNodeFetch(1, 1, false), // h
-	}
-
-	//                                             hash
-	//                                            /    \
-	//                                           /      \
-	//                                          /        \
-	//                                         /          \
-	//                            =>          /            \
-	//       hash0                           k              l
-	//       / \                            / \            / \
-	//      /   \                          /   \          /   \
-	//     /     \                        /     \        /     \
-	//     g     [ ]                     g       h      i      [ ]
-	//    / \    /                      / \     / \    / \    /
-	//    a b    c                      a b     c d    e f    j
-	//    | |    |                      | |     | |    | |    |
-	//   d0 d1   d2                     d0 d1   d2 d3  d4 d5  d6
-	expectedConsistencyProofFromSize3To7 = []NodeFetch{
-		newNodeFetch(0, 2, false), // c
-		newNodeFetch(0, 3, false), // d
-		newNodeFetch(1, 0, false), // g
-		newNodeFetch(2, 1, false), // l
-	}
-
-	//                                             hash
-	//                                            /    \
-	//                                           /      \
-	//                                          /        \
-	//                                         /          \
-	//                            =>          /            \
-	//     hash1=k                           k              l
-	//       /  \                           / \            / \
-	//      /    \                         /   \          /   \
-	//     /      \                       /     \        /     \
-	//     g       h                     g       h      i      [ ]
-	//    / \     / \                   / \     / \    / \    /
-	//    a b     c d                   a b     c d    e f    j
-	//    | |     | |                   | |     | |    | |    |
-	//   d0 d1   d2 d3                  d0 d1   d2 d3  d4 d5  d6
-	expectedConsistencyProofFromSize4To7 = []NodeFetch{
-		newNodeFetch(2, 1, false), // l
-	}
-
-	//             hash2                           hash
-	//             /  \                           /    \
-	//            /    \                         /      \
-	//           /      \                       /        \
-	//          /        \                     /          \
-	//         /          \       =>          /            \
-	//        k            [ ]               k              l
-	//       / \           /                / \            / \
-	//      /   \         /                /   \          /   \
-	//     /     \        |               /     \        /     \
-	//    g       h       i              g       h      i      [ ]
-	//   / \     / \     / \            / \     / \    / \    /
-	//   a b     c d     e f            a b     c d    e f    j
-	//   | |     | |     | |            | |     | |    | |    |
-	//   d0 d1   d2 d3  d4 d5           d0 d1   d2 d3  d4 d5  d6
-	expectedConsistencyProofFromSize6To7 = []NodeFetch{
-		newNodeFetch(1, 2, false), // i
-		newNodeFetch(0, 6, false), // j
-		newNodeFetch(2, 0, false), // k
-	}
-
-	//                               hash8
-	//                              /    \
-	//                             /      \
-	//                            /        \
-	//                           /          \
-	//              =>          /            \
-	//                         k              l
-	//                        / \            / \
-	//                       /   \          /   \
-	//  hash2=              /     \        /     \
-	//     g               g       h      i      n
-	//    / \             / \     / \    / \    / \
-	//    a b             a b     c d    e f    j m
-	//    | |             | |     | |    | |    | |
-	//   d0 d1            d0 d1   d2 d3  d4 d5 d6 d7
-	expectedConsistencyProofFromSize2To8 = []NodeFetch{
-		newNodeFetch(1, 1, false), // h
-		newNodeFetch(2, 1, false), // l
-	}
 )
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
@@ -168,7 +59,7 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		want    []NodeFetch
 	}{
 		// Small trees.
-		{size: 1, index: 0, want: nil},
+		{size: 1, index: 0, want: []NodeFetch{}},
 		{size: 2, index: 0, want: []NodeFetch{node(0, 1)}},             // b
 		{size: 2, index: 1, want: []NodeFetch{node(0, 0)}},             // a
 		{size: 3, index: 1, want: []NodeFetch{node(0, 0), node(0, 2)}}, // a c
@@ -224,7 +115,9 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			if err != nil {
 				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
 			}
-			comparePaths(t, "", proof, tc.want)
+			if diff := cmp.Diff(tc.want, proof); diff != "" {
+				t.Errorf("paths mismatch:\n%v", diff)
+			}
 		})
 	}
 }
@@ -254,68 +147,117 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 	}
 }
 
+// TestCalcConsistencyProofNodeAddresses contains consistency proof tests. For
+// reference, consider the following example:
+//
+//                hash5                         hash7
+//               /    \                        /    \
+//              /      \                      /      \
+//             /        \                    /        \
+//            /          \                  /          \
+//           /            \                /            \
+//          k             [ ]    -->      k              l
+//         / \            /              / \            / \
+//        /   \          /              /   \          /   \
+//       /     \        /              /     \        /     \
+//      g       h     [ ]             g       h      i      [ ]
+//     / \     / \    /              / \     / \    / \    /
+//     a b     c d    e              a b     c d    e f    j
+//     | |     | |    |              | |     | |    | |    |
+//     d0 d1   d2 d3  d4             d0 d1   d2 d3  d4 d5  d6
+//
+// The consistency proof between tree size 5 and 7 consists of nodes e, f, j,
+// and k. The node j is taken instead of its missing parent.
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	// These should compute the expected consistency proofs.
-	for _, testCase := range []struct {
-		priorTreeSize int64
-		treeSize      int64
-		expectedProof []NodeFetch
+	for _, tc := range []struct {
+		size1 int64
+		size2 int64
+		want  []NodeFetch
 	}{
-		{1, 2, expectedConsistencyProofFromSize1To2},
-		{1, 4, expectedConsistencyProofFromSize1To4},
-		{6, 7, expectedConsistencyProofFromSize6To7},
-		{3, 7, expectedConsistencyProofFromSize3To7},
-		{4, 7, expectedConsistencyProofFromSize4To7},
-		{2, 8, expectedConsistencyProofFromSize2To8},
-		{1, 1, []NodeFetch{}},
-		{2, 2, []NodeFetch{}},
-		{3, 3, []NodeFetch{}},
-		{4, 4, []NodeFetch{}},
-		{5, 5, []NodeFetch{}},
-		{7, 7, []NodeFetch{}},
-		{8, 8, []NodeFetch{}},
+		{size1: 1, size2: 2, want: []NodeFetch{
+			newNodeFetch(0, 1, false), // b
+		}},
+		{size1: 1, size2: 4, want: []NodeFetch{
+			newNodeFetch(0, 1, false), // b
+			newNodeFetch(1, 1, false), // h
+		}},
+		{size1: 1, size2: 6, want: []NodeFetch{
+			newNodeFetch(0, 1, false), // b
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(1, 2, false), // i
+		}},
+		{size1: 2, size2: 3, want: []NodeFetch{
+			newNodeFetch(0, 2, false), // c
+		}},
+		{size1: 2, size2: 8, want: []NodeFetch{
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(2, 1, false), // l
+		}},
+		{size1: 3, size2: 7, want: []NodeFetch{
+			newNodeFetch(0, 2, false), // c
+			newNodeFetch(0, 3, false), // d
+			newNodeFetch(1, 0, false), // g
+			newNodeFetch(2, 1, false), // l
+		}},
+		{size1: 4, size2: 7, want: []NodeFetch{
+			newNodeFetch(2, 1, false), // l
+		}},
+		{size1: 5, size2: 7, want: []NodeFetch{
+			newNodeFetch(0, 4, false), // e
+			newNodeFetch(0, 5, false), // f
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
+		}},
+		{size1: 6, size2: 7, want: []NodeFetch{
+			newNodeFetch(1, 2, false), // i
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
+		}},
+		{size1: 7, size2: 8, want: []NodeFetch{
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(0, 7, false), // leaf #7
+			newNodeFetch(1, 2, false), // i
+			newNodeFetch(2, 0, false), // k
+		}},
+		{size1: 1, size2: 1, want: []NodeFetch{}},
+		{size1: 2, size2: 2, want: []NodeFetch{}},
+		{size1: 3, size2: 3, want: []NodeFetch{}},
+		{size1: 4, size2: 4, want: []NodeFetch{}},
+		{size1: 5, size2: 5, want: []NodeFetch{}},
+		{size1: 7, size2: 7, want: []NodeFetch{}},
+		{size1: 8, size2: 8, want: []NodeFetch{}},
 	} {
-		proof, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
-
-		if err != nil {
-			t.Fatalf("failed to calculate consistency proof from %d to %d: %v", testCase.priorTreeSize, testCase.treeSize, err)
-		}
-
-		comparePaths(t, fmt.Sprintf("c(%d, %d)", testCase.priorTreeSize, testCase.treeSize), proof, testCase.expectedProof)
+		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
+			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
+			if err != nil {
+				t.Fatalf("CalcConsistencyProofNodeAddresses: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, proof); diff != "" {
+				t.Errorf("paths mismatch:\n%v", diff)
+			}
+		})
 	}
 }
 
 func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 	// These should all fail to provide proofs.
-	for _, testCase := range []struct {
-		priorTreeSize int64
-		treeSize      int64
+	for _, tc := range []struct {
+		size1 int64
+		size2 int64
 	}{
-		{0, -1},
-		{-10, 0},
-		{-1, -1},
-		{0, 0},
-		{9, 8},
+		{size1: 0, size2: -1},
+		{size1: -10, size2: 0},
+		{size1: -1, size2: -1},
+		{size1: 0, size2: 0},
+		{size1: 9, size2: 8},
 	} {
-		_, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
-
-		if err == nil {
-			t.Fatalf("consistency path calculation accepted bad input: %v", testCase)
-		}
-	}
-}
-
-// TODO(pkalinnikov): Remove desc when all the tests use t.Run.
-func comparePaths(t *testing.T, desc string, got, expected []NodeFetch) {
-	t.Helper()
-	if len(expected) != len(got) {
-		t.Fatalf("%s: expected %d nodes in path but got %d: %v", desc, len(expected), len(got), got)
-	}
-
-	for i := 0; i < len(expected); i++ {
-		if expected[i] != got[i] {
-			t.Fatalf("%s: expected node %+v at position %d but got %+v", desc, expected[i], i, got[i])
-		}
+		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
+			_, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
+			if err == nil {
+				t.Fatal("accepted bad params")
+			}
+		})
 	}
 }
 
