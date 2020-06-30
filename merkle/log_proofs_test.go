@@ -50,13 +50,24 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	rehash := func(level uint, index uint64) NodeFetch {
 		return newNodeFetch(level, index, true)
 	}
-	// These should all successfully compute the expected proof.
 	for _, tc := range []struct {
 		size    int64 // The requested past tree size.
 		index   int64 // Leaf index in the requested tree.
 		bigSize int64 // The current tree size.
 		want    []NodeFetch
+		wantErr bool
 	}{
+		// Errors.
+		{size: 0, index: 0, bigSize: 0, wantErr: true},
+		{size: 0, index: 1, bigSize: 0, wantErr: true},
+		{size: 1, index: 0, bigSize: 0, wantErr: true},
+		{size: 1, index: 2, bigSize: 1, wantErr: true},
+		{size: 0, index: 3, bigSize: 0, wantErr: true},
+		{size: -1, index: 3, bigSize: -1, wantErr: true},
+		{size: 7, index: -1, bigSize: 7, wantErr: true},
+		{size: 7, index: 8, bigSize: 7, wantErr: true},
+		{size: 7, index: 3, bigSize: -7, wantErr: true},
+
 		// Small trees.
 		{size: 1, index: 0, want: []NodeFetch{}},
 		{size: 2, index: 0, want: []NodeFetch{node(0, 1)}},             // b
@@ -105,42 +116,23 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			rehash(0, 94), rehash(1, 46), rehash(2, 22),
 			node(4, 4), node(6, 0)}},
 	} {
-		bigSize := tc.size // Use the same tree size by default.
-		if s := tc.bigSize; s != 0 {
-			bigSize = s
+		bigSize := tc.bigSize
+		// Use the same tree size by default.
+		if bigSize == 0 && !tc.wantErr {
+			bigSize = tc.size
 		}
 		t.Run(fmt.Sprintf("%d:%d:%d", tc.size, tc.index, bigSize), func(t *testing.T) {
 			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, bigSize)
-			if err != nil {
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("accepted bad params")
+				}
+				return
+			} else if err != nil {
 				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
-			}
-		})
-	}
-}
-
-func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
-	for _, tc := range []struct {
-		size    int64 // The requested past tree size.
-		index   int64 // Leaf index in the requested tree.
-		bigSize int64 // The current tree size.
-	}{
-		{size: 0, index: 0, bigSize: 0},
-		{size: 0, index: 1, bigSize: 0},
-		{size: 1, index: 0, bigSize: 0},
-		{size: 1, index: 2, bigSize: 1},
-		{size: 0, index: 3, bigSize: 0},
-		{size: -1, index: 3, bigSize: -1},
-		{size: 7, index: -1, bigSize: 7},
-		{size: 7, index: 8, bigSize: 7},
-		{size: 7, index: 3, bigSize: -7},
-	} {
-		t.Run(fmt.Sprintf("%d:%d:%d", tc.size, tc.index, tc.bigSize), func(t *testing.T) {
-			_, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.bigSize)
-			if err == nil {
-				t.Fatal("accepted bad params")
 			}
 		})
 	}
