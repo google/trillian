@@ -182,50 +182,38 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: 9, size2: 8, wantErr: true},
 		{size1: 9, size2: 8, bigSize: 20, wantErr: true},
 
-		{size1: 1, size2: 2, want: []NodeFetch{
-			newNodeFetch(0, 1, false), // b
-		}},
-		{size1: 1, size2: 4, want: []NodeFetch{
-			newNodeFetch(0, 1, false), // b
-			newNodeFetch(1, 1, false), // h
-		}},
+		{size1: 1, size2: 2, want: []NodeFetch{node(0, 1)}},             // b
+		{size1: 1, size2: 4, want: []NodeFetch{node(0, 1), node(1, 1)}}, // b h
 		{size1: 1, size2: 6, want: []NodeFetch{
-			newNodeFetch(0, 1, false), // b
-			newNodeFetch(1, 1, false), // h
-			newNodeFetch(1, 2, false), // i
+			node(0, 1), // b
+			node(1, 1), // h
+			node(1, 2), // i
 		}},
-		{size1: 2, size2: 3, want: []NodeFetch{
-			newNodeFetch(0, 2, false), // c
-		}},
-		{size1: 2, size2: 8, want: []NodeFetch{
-			newNodeFetch(1, 1, false), // h
-			newNodeFetch(2, 1, false), // l
-		}},
+		{size1: 2, size2: 3, want: []NodeFetch{node(0, 2)}},             // c
+		{size1: 2, size2: 8, want: []NodeFetch{node(1, 1), node(2, 1)}}, // h l
 		{size1: 3, size2: 7, want: []NodeFetch{
-			newNodeFetch(0, 2, false), // c
-			newNodeFetch(0, 3, false), // d
-			newNodeFetch(1, 0, false), // g
-			newNodeFetch(2, 1, false), // l
+			node(0, 2), // c
+			node(0, 3), // d
+			node(1, 0), // g
+			node(2, 1), // l
 		}},
-		{size1: 4, size2: 7, want: []NodeFetch{
-			newNodeFetch(2, 1, false), // l
-		}},
+		{size1: 4, size2: 7, want: []NodeFetch{node(2, 1)}}, // l
 		{size1: 5, size2: 7, want: []NodeFetch{
-			newNodeFetch(0, 4, false), // e
-			newNodeFetch(0, 5, false), // f
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(2, 0, false), // k
+			node(0, 4), // e
+			node(0, 5), // f
+			node(0, 6), // j
+			node(2, 0), // k
 		}},
 		{size1: 6, size2: 7, want: []NodeFetch{
-			newNodeFetch(1, 2, false), // i
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(2, 0, false), // k
+			node(1, 2), // i
+			node(0, 6), // j
+			node(2, 0), // k
 		}},
 		{size1: 7, size2: 8, want: []NodeFetch{
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(0, 7, false), // leaf #7
-			newNodeFetch(1, 2, false), // i
-			newNodeFetch(2, 0, false), // k
+			node(0, 6), // j
+			node(0, 7), // leaf #7
+			node(1, 2), // i
+			node(2, 0), // k
 		}},
 
 		// Same tree size.
