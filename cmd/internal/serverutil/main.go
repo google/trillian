@@ -19,8 +19,10 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
@@ -29,6 +31,7 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/kit"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.etcd.io/etcd/clientv3"
 	"google.golang.org/grpc"
@@ -184,9 +187,11 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	stats := monitoring.NewRPCStatsInterceptor(clock.System, m.StatsPrefix, m.Registry.MetricFactory)
 	ti := interceptor.New(m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
 
+	logger := log.NewLogfmtLogger(os.Stdout)
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			stats.Interceptor(),
+			kit.UnaryServerInterceptor(logger),
 			interceptor.ErrorWrapper,
 			ti.UnaryInterceptor,
 		)),
