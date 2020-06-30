@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
 )
 
@@ -168,7 +169,7 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		want    []NodeFetch
 	}{
 		// Small trees.
-		{size: 1, index: 0, want: nil},
+		{size: 1, index: 0, want: []NodeFetch{}},
 		{size: 2, index: 0, want: []NodeFetch{node(0, 1)}},             // b
 		{size: 2, index: 1, want: []NodeFetch{node(0, 0)}},             // a
 		{size: 3, index: 1, want: []NodeFetch{node(0, 0), node(0, 2)}}, // a c
@@ -308,14 +309,8 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 
 func comparePaths(t *testing.T, got, expected []NodeFetch) {
 	t.Helper()
-	if len(expected) != len(got) {
-		t.Fatalf("expected %d nodes in path but got %d: %v", len(expected), len(got), got)
-	}
-
-	for i := 0; i < len(expected); i++ {
-		if expected[i] != got[i] {
-			t.Fatalf("expected node %+v at position %d but got %+v", expected[i], i, got[i])
-		}
+	if diff := cmp.Diff(expected, got); diff != "" {
+		t.Fatalf("paths mismatch:\n%v", diff)
 	}
 }
 
