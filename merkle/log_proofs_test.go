@@ -147,8 +147,8 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 	}
 }
 
-// Expected consistency proofs built from the examples in RFC 6962. Again, in
-// our implementation node layers are filled from the bottom upwards.
+// TestCalcConsistencyProofNodeAddresses contains consistency proof tests. For
+// reference, consider the following example:
 //
 //                hash5                         hash7
 //               /    \                        /    \
@@ -156,7 +156,7 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 //             /        \                    /        \
 //            /          \                  /          \
 //           /            \                /            \
-//          k             [ ]   =>        k              l
+//          k             [ ]    -->      k              l
 //         / \            /              / \            / \
 //        /   \          /              /   \          /   \
 //       /     \        /              /     \        /     \
@@ -166,8 +166,8 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 //     | |     | |    |              | |     | |    | |    |
 //     d0 d1   d2 d3  d4             d0 d1   d2 d3  d4 d5  d6
 //
-// For example, the consistency proof between tree size 5 and 7 consists of
-// nodes e, f, j, and k. The node j is taken instead of its missing parent.
+// The consistency proof between tree size 5 and 7 consists of nodes e, f, j,
+// and k. The node j is taken instead of its missing parent.
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	// These should compute the expected consistency proofs.
 	for _, tc := range []struct {
