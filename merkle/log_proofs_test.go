@@ -160,12 +160,19 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 // The consistency proof between tree size 5 and 7 consists of nodes e, f, j,
 // and k. The node j is taken instead of its missing parent.
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
-	// These should compute the expected consistency proofs.
 	for _, tc := range []struct {
-		size1 int64
-		size2 int64
-		want  []NodeFetch
+		size1   int64
+		size2   int64
+		want    []NodeFetch
+		wantErr bool
 	}{
+		// Errors.
+		{size1: 0, size2: -1, wantErr: true},
+		{size1: -10, size2: 0, wantErr: true},
+		{size1: -1, size2: -1, wantErr: true},
+		{size1: 0, size2: 0, wantErr: true},
+		{size1: 9, size2: 8, wantErr: true},
+
 		{size1: 1, size2: 2, want: []NodeFetch{
 			newNodeFetch(0, 1, false), // b
 		}},
@@ -221,32 +228,16 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
 			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
-			if err != nil {
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("accepted bad params")
+				}
+				return
+			} else if err != nil {
 				t.Fatalf("CalcConsistencyProofNodeAddresses: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
-			}
-		})
-	}
-}
-
-func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
-	// These should all fail to provide proofs.
-	for _, tc := range []struct {
-		size1 int64
-		size2 int64
-	}{
-		{size1: 0, size2: -1},
-		{size1: -10, size2: 0},
-		{size1: -1, size2: -1},
-		{size1: 0, size2: 0},
-		{size1: 9, size2: 8},
-	} {
-		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
-			_, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
-			if err == nil {
-				t.Fatal("accepted bad params")
 			}
 		})
 	}
