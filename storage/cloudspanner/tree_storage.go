@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -417,35 +418,31 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []tree.NodeI
 			// Request the various subtrees in parallel.
 			// c will carry any retrieved subtrees
 			c := make(chan *storagepb.SubtreeProto, len(ids))
-			// err will carry any errors encountered while reading from spanner,
-			// although we'll only return to the caller the first one (if indeed
-			// there are any).
-			errc := make(chan error, len(ids))
 
 			// Spawn goroutines for each request
+			g, gctx := errgroup.WithContext(ctx)
 			for _, id := range ids {
 				id := id
-				go func() {
-					st, err := t.getSubtree(ctx, rev, id)
+				g.Go(func() error {
+					st, err := t.getSubtree(gctx, rev, id)
 					if err != nil {
-						errc <- err
-						return
+						return err
 					}
 					c <- st
-				}()
+					return nil
+				})
 			}
+			if err := g.Wait(); err != nil {
+				return nil, err
+			}
+			close(c)
 
 			// Now wait for the goroutines to signal their completion, and collect
 			// the results.
 			ret := make([]*storagepb.SubtreeProto, 0, len(ids))
-			for range ids {
-				select {
-				case err := <-errc:
-					return nil, err
-				case st := <-c:
-					if st != nil {
-						ret = append(ret, st)
-					}
+			for st := range c {
+				if st != nil {
+					ret = append(ret, st)
 				}
 			}
 			return ret, nil
