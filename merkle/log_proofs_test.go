@@ -161,8 +161,9 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 // and k. The node j is taken instead of its missing parent.
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	for _, tc := range []struct {
-		size1   int64
-		size2   int64
+		size1   int64 // The smaller of the two tree sizes.
+		size2   int64 // The bigger of the two tree sizes.
+		bigSize int64 // The current tree size.
 		want    []NodeFetch
 		wantErr bool
 	}{
@@ -171,7 +172,9 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: -10, size2: 0, wantErr: true},
 		{size1: -1, size2: -1, wantErr: true},
 		{size1: 0, size2: 0, wantErr: true},
+		{size1: 5, size2: 9, bigSize: 7, wantErr: true},
 		{size1: 9, size2: 8, wantErr: true},
+		{size1: 9, size2: 8, bigSize: 20, wantErr: true},
 
 		{size1: 1, size2: 2, want: []NodeFetch{
 			newNodeFetch(0, 1, false), // b
@@ -226,8 +229,13 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: 7, size2: 7, want: []NodeFetch{}},
 		{size1: 8, size2: 8, want: []NodeFetch{}},
 	} {
-		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
-			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
+		bigSize := tc.bigSize
+		// Use the same tree size by default.
+		if bigSize == 0 && !tc.wantErr {
+			bigSize = tc.size2
+		}
+		t.Run(fmt.Sprintf("%d:%d:%d", tc.size1, tc.size2, bigSize), func(t *testing.T) {
+			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, bigSize)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("accepted bad params")
