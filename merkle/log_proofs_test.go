@@ -151,7 +151,7 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	// Expected consistency proofs built from the examples in RFC 6962. Again, in
 	// our implementation node layers are filled from the bottom upwards.
 	//
-	//                hash6                         hash7
+	//                hash5                         hash7
 	//               /    \                        /    \
 	//              /      \                      /      \
 	//             /        \                    /        \
@@ -161,14 +161,14 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	//         / \            /              / \            / \
 	//        /   \          /              /   \          /   \
 	//       /     \        /              /     \        /     \
-	//      g       h      i              g       h      i      [ ]
-	//     / \     / \    / \            / \     / \    / \    /
-	//     a b     c d    e f            a b     c d    e f    j
-	//     | |     | |    | |            | |     | |    | |    |
-	//     d0 d1   d2 d3  d4 d5          d0 d1   d2 d3  d4 d5  d6
+	//      g       h     [ ]             g       h      i      [ ]
+	//     / \     / \    /              / \     / \    / \    /
+	//     a b     c d    e              a b     c d    e f    j
+	//     | |     | |    |              | |     | |    | |    |
+	//     d0 d1   d2 d3  d4             d0 d1   d2 d3  d4 d5  d6
 	//
-	// For example, the consistency proof between tree size 6 and 7 consists of
-	// nodes i, j and k. The node j is taken instead of its missing parent.
+	// For example, the consistency proof between tree size 5 and 7 consists of
+	// nodes e, f, j, and k. The node j is taken instead of its missing parent.
 
 	// These should compute the expected consistency proofs.
 	for _, tc := range []struct {
@@ -195,6 +195,12 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		}},
 		{size1: 4, size2: 7, want: []NodeFetch{
 			newNodeFetch(2, 1, false), // l
+		}},
+		{size1: 5, size2: 7, want: []NodeFetch{
+			newNodeFetch(0, 4, false), // e
+			newNodeFetch(0, 5, false), // f
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
 		}},
 		{size1: 6, size2: 7, want: []NodeFetch{
 			newNodeFetch(1, 2, false), // i
