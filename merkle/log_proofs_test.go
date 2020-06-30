@@ -22,42 +22,52 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
+// TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For
+// reference, consider the following example of a tree from RFC 6962:
+//
+//                hash              <== Level 3
+//               /    \
+//              /      \
+//             /        \
+//            /          \
+//           /            \
+//          k              l        <== Level 2
+//         / \            / \
+//        /   \          /   \
+//       /     \        /     \
+//      g       h      i      [ ]   <== Level 1
+//     / \     / \    / \    /
+//     a b     c d    e f    j      <== Level 0
+//     | |     | |    | |    |
+//     d0 d1   d2 d3  d4 d5  d6
+//
+// Our storage node layers are always populated from the bottom up, hence the
+// gap at level 1, index 3 in the above picture.
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
-	// Expected inclusion proofs built by examination of the example 7 leaf tree
-	// in RFC 6962:
-	//
-	//                hash              <== Level 3
-	//               /    \
-	//              /      \
-	//             /        \
-	//            /          \
-	//           /            \
-	//          k              l        <== Level 2
-	//         / \            / \
-	//        /   \          /   \
-	//       /     \        /     \
-	//      g       h      i      [ ]   <== Level 1
-	//     / \     / \    / \    /
-	//     a b     c d    e f    j      <== Level 0
-	//     | |     | |    | |    |
-	//     d0 d1   d2 d3  d4 d5  d6
-	//
-	// Remember that our storage node layers are always populated from the bottom
-	// up, hence the gap at level 1, index 3 in the above picture.
-
 	node := func(level uint, index uint64) NodeFetch {
 		return newNodeFetch(level, index, false)
 	}
 	rehash := func(level uint, index uint64) NodeFetch {
 		return newNodeFetch(level, index, true)
 	}
-	// These should all successfully compute the expected proof.
 	for _, tc := range []struct {
 		size    int64 // The requested past tree size.
 		index   int64 // Leaf index in the requested tree.
 		bigSize int64 // The current tree size.
 		want    []NodeFetch
+		wantErr bool
 	}{
+		// Errors.
+		{size: 0, index: 0, bigSize: 0, wantErr: true},
+		{size: 0, index: 1, bigSize: 0, wantErr: true},
+		{size: 1, index: 0, bigSize: 0, wantErr: true},
+		{size: 1, index: 2, bigSize: 1, wantErr: true},
+		{size: 0, index: 3, bigSize: 0, wantErr: true},
+		{size: -1, index: 3, bigSize: -1, wantErr: true},
+		{size: 7, index: -1, bigSize: 7, wantErr: true},
+		{size: 7, index: 8, bigSize: 7, wantErr: true},
+		{size: 7, index: 3, bigSize: -7, wantErr: true},
+
 		// Small trees.
 		{size: 1, index: 0, want: []NodeFetch{}},
 		{size: 2, index: 0, want: []NodeFetch{node(0, 1)}},             // b
@@ -106,42 +116,23 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			rehash(0, 94), rehash(1, 46), rehash(2, 22),
 			node(4, 4), node(6, 0)}},
 	} {
-		bigSize := tc.size // Use the same tree size by default.
-		if s := tc.bigSize; s != 0 {
-			bigSize = s
+		bigSize := tc.bigSize
+		// Use the same tree size by default.
+		if bigSize == 0 && !tc.wantErr {
+			bigSize = tc.size
 		}
 		t.Run(fmt.Sprintf("%d:%d:%d", tc.size, tc.index, bigSize), func(t *testing.T) {
 			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, bigSize)
-			if err != nil {
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("accepted bad params")
+				}
+				return
+			} else if err != nil {
 				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
-			}
-		})
-	}
-}
-
-func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
-	for _, tc := range []struct {
-		size    int64 // The requested past tree size.
-		index   int64 // Leaf index in the requested tree.
-		bigSize int64 // The current tree size.
-	}{
-		{size: 0, index: 0, bigSize: 0},
-		{size: 0, index: 1, bigSize: 0},
-		{size: 1, index: 0, bigSize: 0},
-		{size: 1, index: 2, bigSize: 1},
-		{size: 0, index: 3, bigSize: 0},
-		{size: -1, index: 3, bigSize: -1},
-		{size: 7, index: -1, bigSize: 7},
-		{size: 7, index: 8, bigSize: 7},
-		{size: 7, index: 3, bigSize: -7},
-	} {
-		t.Run(fmt.Sprintf("%d:%d:%d", tc.size, tc.index, tc.bigSize), func(t *testing.T) {
-			_, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, tc.bigSize)
-			if err == nil {
-				t.Fatal("accepted bad params")
 			}
 		})
 	}
@@ -169,12 +160,19 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 // The consistency proof between tree size 5 and 7 consists of nodes e, f, j,
 // and k. The node j is taken instead of its missing parent.
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
-	// These should compute the expected consistency proofs.
 	for _, tc := range []struct {
-		size1 int64
-		size2 int64
-		want  []NodeFetch
+		size1   int64
+		size2   int64
+		want    []NodeFetch
+		wantErr bool
 	}{
+		// Errors.
+		{size1: 0, size2: -1, wantErr: true},
+		{size1: -10, size2: 0, wantErr: true},
+		{size1: -1, size2: -1, wantErr: true},
+		{size1: 0, size2: 0, wantErr: true},
+		{size1: 9, size2: 8, wantErr: true},
+
 		{size1: 1, size2: 2, want: []NodeFetch{
 			newNodeFetch(0, 1, false), // b
 		}},
@@ -230,32 +228,16 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
 			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
-			if err != nil {
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("accepted bad params")
+				}
+				return
+			} else if err != nil {
 				t.Fatalf("CalcConsistencyProofNodeAddresses: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
-			}
-		})
-	}
-}
-
-func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
-	// These should all fail to provide proofs.
-	for _, tc := range []struct {
-		size1 int64
-		size2 int64
-	}{
-		{size1: 0, size2: -1},
-		{size1: -10, size2: 0},
-		{size1: -1, size2: -1},
-		{size1: 0, size2: 0},
-		{size1: 9, size2: 8},
-	} {
-		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
-			_, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
-			if err == nil {
-				t.Fatal("accepted bad params")
 			}
 		})
 	}
