@@ -183,10 +183,9 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 			newNodeFetch(0, 1, false), // b
 			newNodeFetch(1, 1, false), // h
 		}},
-		{size1: 6, size2: 7, want: []NodeFetch{
-			newNodeFetch(1, 2, false), // i
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(2, 0, false), // k
+		{size1: 2, size2: 8, want: []NodeFetch{
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(2, 1, false), // l
 		}},
 		{size1: 3, size2: 7, want: []NodeFetch{
 			newNodeFetch(0, 2, false), // c
@@ -197,9 +196,10 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: 4, size2: 7, want: []NodeFetch{
 			newNodeFetch(2, 1, false), // l
 		}},
-		{size1: 2, size2: 8, want: []NodeFetch{
-			newNodeFetch(1, 1, false), // h
-			newNodeFetch(2, 1, false), // l
+		{size1: 6, size2: 7, want: []NodeFetch{
+			newNodeFetch(1, 2, false), // i
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
 		}},
 		{size1: 1, size2: 1, want: []NodeFetch{}},
 		{size1: 2, size2: 2, want: []NodeFetch{}},
