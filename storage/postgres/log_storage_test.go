@@ -373,13 +373,11 @@ func initAddSequencedLeavesTest(t *testing.T) addSequencedLeavesTest {
 }
 
 func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
-	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if _, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime); err != nil {
-			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
-		}
-		// TODO(pavelkalinnikov): Verify returned status for each leaf.
-		return nil
-	})
+	ctx := context.Background()
+	if _, err := t.s.AddSequencedLeaves(ctx, t.tree, leaves, fakeQueueTime); err != nil {
+		t.t.Fatalf("Failed to add sequenced leaves: %v", err)
+	}
+	// TODO(pavelkalinnikov): Verify returned status for each leaf.
 }
 
 func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp []*trillian.LogLeaf) {
@@ -407,12 +405,14 @@ func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp [
 }
 
 func TestAddSequencedLeavesUnordered(t *testing.T) {
+	ctx := context.Background()
 	const chunk = leavesToInsert
 	const count = chunk * 5
 	const extraCount = 16
 	leaves := createTestLeaves(count, 0)
 
 	aslt := initAddSequencedLeavesTest(t)
+	mustSignAndStoreLogRoot(ctx, aslt.t, aslt.s, aslt.tree, 0)
 	for _, idx := range []int{1, 0, 4, 2} {
 		aslt.addSequencedLeaves(leaves[chunk*idx : chunk*(idx+1)])
 	}
@@ -423,9 +423,11 @@ func TestAddSequencedLeavesUnordered(t *testing.T) {
 }
 
 func TestAddSequencedLeavesWithDuplicates(t *testing.T) {
+	ctx := context.Background()
 	leaves := createTestLeaves(6, 0)
 
 	aslt := initAddSequencedLeavesTest(t)
+	mustSignAndStoreLogRoot(ctx, aslt.t, aslt.s, aslt.tree, 0)
 	aslt.addSequencedLeaves(leaves[:3])
 	aslt.verifySequencedLeaves(0, 3, leaves[:3])
 	aslt.addSequencedLeaves(leaves[2:]) // Full dup.

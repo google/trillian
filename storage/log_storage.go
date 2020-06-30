@@ -100,12 +100,6 @@ type LogTreeTX interface {
 	// employing this property. Consult the call sites of this method to be sure.
 	DequeueLeaves(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error)
 
-	// AddSequencedLeaves stores the passed in leaves at the log positions
-	// specified in the `LeafIndex` field. The indices must be contiguous.
-	//
-	// See LogStorage.AddSequencedLeaves comment for more details.
-	AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
-
 	// UpdateSequencedLeaves associates the leaves with the sequence numbers
 	// assigned to them.
 	UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error

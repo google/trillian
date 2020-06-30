@@ -553,10 +553,6 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 	})
 }
 
-func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	return nil, ErrNotImplemented
-}
-
 // DequeueLeaves removes [0, limit) leaves from the to-be-sequenced queue.
 // The leaves returned are not guaranteed to be in any particular order.
 // The caller should assign sequence numbers and pass the updated leaves as
