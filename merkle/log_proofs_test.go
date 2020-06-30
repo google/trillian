@@ -22,116 +22,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-// Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
-// node layers are filled from the bottom upwards.
-var (
-	//                     hash1=g
-	//                          / \
-	//  hash0=a      =>         a b
-	//        |                 | |
-	//        d0               d0 d1
-	expectedConsistencyProofFromSize1To2 = []NodeFetch{
-		newNodeFetch(0, 1, false), // b
-	}
-
-	//  hash0=a      =>           hash1=k
-	//        |                  /   \
-	//        d0                /     \
-	//                         /      \
-	//                         /       \
-	//                         g       h
-	//                        / \     / \
-	//                        a b     c d
-	//                        | |     | |
-	//                       d0 d1   d2 d3
-	expectedConsistencyProofFromSize1To4 = []NodeFetch{
-		newNodeFetch(0, 1, false), // b
-		newNodeFetch(1, 1, false), // h
-	}
-
-	//                                             hash
-	//                                            /    \
-	//                                           /      \
-	//                                          /        \
-	//                                         /          \
-	//                            =>          /            \
-	//       hash0                           k              l
-	//       / \                            / \            / \
-	//      /   \                          /   \          /   \
-	//     /     \                        /     \        /     \
-	//     g     [ ]                     g       h      i      [ ]
-	//    / \    /                      / \     / \    / \    /
-	//    a b    c                      a b     c d    e f    j
-	//    | |    |                      | |     | |    | |    |
-	//   d0 d1   d2                     d0 d1   d2 d3  d4 d5  d6
-	expectedConsistencyProofFromSize3To7 = []NodeFetch{
-		newNodeFetch(0, 2, false), // c
-		newNodeFetch(0, 3, false), // d
-		newNodeFetch(1, 0, false), // g
-		newNodeFetch(2, 1, false), // l
-	}
-
-	//                                             hash
-	//                                            /    \
-	//                                           /      \
-	//                                          /        \
-	//                                         /          \
-	//                            =>          /            \
-	//     hash1=k                           k              l
-	//       /  \                           / \            / \
-	//      /    \                         /   \          /   \
-	//     /      \                       /     \        /     \
-	//     g       h                     g       h      i      [ ]
-	//    / \     / \                   / \     / \    / \    /
-	//    a b     c d                   a b     c d    e f    j
-	//    | |     | |                   | |     | |    | |    |
-	//   d0 d1   d2 d3                  d0 d1   d2 d3  d4 d5  d6
-	expectedConsistencyProofFromSize4To7 = []NodeFetch{
-		newNodeFetch(2, 1, false), // l
-	}
-
-	//             hash2                           hash
-	//             /  \                           /    \
-	//            /    \                         /      \
-	//           /      \                       /        \
-	//          /        \                     /          \
-	//         /          \       =>          /            \
-	//        k            [ ]               k              l
-	//       / \           /                / \            / \
-	//      /   \         /                /   \          /   \
-	//     /     \        |               /     \        /     \
-	//    g       h       i              g       h      i      [ ]
-	//   / \     / \     / \            / \     / \    / \    /
-	//   a b     c d     e f            a b     c d    e f    j
-	//   | |     | |     | |            | |     | |    | |    |
-	//   d0 d1   d2 d3  d4 d5           d0 d1   d2 d3  d4 d5  d6
-	expectedConsistencyProofFromSize6To7 = []NodeFetch{
-		newNodeFetch(1, 2, false), // i
-		newNodeFetch(0, 6, false), // j
-		newNodeFetch(2, 0, false), // k
-	}
-
-	//                               hash8
-	//                              /    \
-	//                             /      \
-	//                            /        \
-	//                           /          \
-	//              =>          /            \
-	//                         k              l
-	//                        / \            / \
-	//                       /   \          /   \
-	//  hash2=              /     \        /     \
-	//     g               g       h      i      n
-	//    / \             / \     / \    / \    / \
-	//    a b             a b     c d    e f    j m
-	//    | |             | |     | |    | |    | |
-	//   d0 d1            d0 d1   d2 d3  d4 d5 d6 d7
-	expectedConsistencyProofFromSize2To8 = []NodeFetch{
-		newNodeFetch(1, 1, false), // h
-		newNodeFetch(2, 1, false), // l
-	}
-)
-
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	// Expected inclusion proofs built by examination of the example 7 leaf tree
 	// in RFC 6962:
@@ -258,6 +148,116 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 }
 
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
+	// Expected consistency proofs built from the examples in RFC 6962. Again, in
+	// our implementation node layers are filled from the bottom upwards.
+	var (
+		//                     hash1=g
+		//                          / \
+		//  hash0=a      =>         a b
+		//        |                 | |
+		//        d0               d0 d1
+		expectedConsistencyProofFromSize1To2 = []NodeFetch{
+			newNodeFetch(0, 1, false), // b
+		}
+
+		//  hash0=a      =>           hash1=k
+		//        |                  /   \
+		//        d0                /     \
+		//                         /      \
+		//                         /       \
+		//                         g       h
+		//                        / \     / \
+		//                        a b     c d
+		//                        | |     | |
+		//                       d0 d1   d2 d3
+		expectedConsistencyProofFromSize1To4 = []NodeFetch{
+			newNodeFetch(0, 1, false), // b
+			newNodeFetch(1, 1, false), // h
+		}
+
+		//                                             hash
+		//                                            /    \
+		//                                           /      \
+		//                                          /        \
+		//                                         /          \
+		//                            =>          /            \
+		//       hash0                           k              l
+		//       / \                            / \            / \
+		//      /   \                          /   \          /   \
+		//     /     \                        /     \        /     \
+		//     g     [ ]                     g       h      i      [ ]
+		//    / \    /                      / \     / \    / \    /
+		//    a b    c                      a b     c d    e f    j
+		//    | |    |                      | |     | |    | |    |
+		//   d0 d1   d2                     d0 d1   d2 d3  d4 d5  d6
+		expectedConsistencyProofFromSize3To7 = []NodeFetch{
+			newNodeFetch(0, 2, false), // c
+			newNodeFetch(0, 3, false), // d
+			newNodeFetch(1, 0, false), // g
+			newNodeFetch(2, 1, false), // l
+		}
+
+		//                                             hash
+		//                                            /    \
+		//                                           /      \
+		//                                          /        \
+		//                                         /          \
+		//                            =>          /            \
+		//     hash1=k                           k              l
+		//       /  \                           / \            / \
+		//      /    \                         /   \          /   \
+		//     /      \                       /     \        /     \
+		//     g       h                     g       h      i      [ ]
+		//    / \     / \                   / \     / \    / \    /
+		//    a b     c d                   a b     c d    e f    j
+		//    | |     | |                   | |     | |    | |    |
+		//   d0 d1   d2 d3                  d0 d1   d2 d3  d4 d5  d6
+		expectedConsistencyProofFromSize4To7 = []NodeFetch{
+			newNodeFetch(2, 1, false), // l
+		}
+
+		//             hash2                           hash
+		//             /  \                           /    \
+		//            /    \                         /      \
+		//           /      \                       /        \
+		//          /        \                     /          \
+		//         /          \       =>          /            \
+		//        k            [ ]               k              l
+		//       / \           /                / \            / \
+		//      /   \         /                /   \          /   \
+		//     /     \        |               /     \        /     \
+		//    g       h       i              g       h      i      [ ]
+		//   / \     / \     / \            / \     / \    / \    /
+		//   a b     c d     e f            a b     c d    e f    j
+		//   | |     | |     | |            | |     | |    | |    |
+		//   d0 d1   d2 d3  d4 d5           d0 d1   d2 d3  d4 d5  d6
+		expectedConsistencyProofFromSize6To7 = []NodeFetch{
+			newNodeFetch(1, 2, false), // i
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
+		}
+
+		//                               hash8
+		//                              /    \
+		//                             /      \
+		//                            /        \
+		//                           /          \
+		//              =>          /            \
+		//                         k              l
+		//                        / \            / \
+		//                       /   \          /   \
+		//  hash2=              /     \        /     \
+		//     g               g       h      i      n
+		//    / \             / \     / \    / \    / \
+		//    a b             a b     c d    e f    j m
+		//    | |             | |     | |    | |    | |
+		//   d0 d1            d0 d1   d2 d3  d4 d5 d6 d7
+		expectedConsistencyProofFromSize2To8 = []NodeFetch{
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(2, 1, false), // l
+		}
+	)
+
 	// These should compute the expected consistency proofs.
 	for _, tc := range []struct {
 		size1 int64
