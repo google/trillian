@@ -225,7 +225,9 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			if err != nil {
 				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
 			}
-			comparePaths(t, proof, tc.want)
+			if diff := cmp.Diff(tc.want, proof); diff != "" {
+				t.Errorf("paths mismatch:\n%v", diff)
+			}
 		})
 	}
 }
@@ -281,7 +283,9 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 			if err != nil {
 				t.Fatalf("CalcConsistencyProofNodeAddresses: %v", err)
 			}
-			comparePaths(t, proof, tc.want)
+			if diff := cmp.Diff(tc.want, proof); diff != "" {
+				t.Errorf("paths mismatch:\n%v", diff)
+			}
 		})
 	}
 }
@@ -304,13 +308,6 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 				t.Fatal("accepted bad params")
 			}
 		})
-	}
-}
-
-func comparePaths(t *testing.T, got, expected []NodeFetch) {
-	t.Helper()
-	if diff := cmp.Diff(expected, got); diff != "" {
-		t.Fatalf("paths mismatch:\n%v", diff)
 	}
 }
 
