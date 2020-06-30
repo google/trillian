@@ -22,29 +22,28 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
+// TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For
+// reference, consider the following example of a tree from RFC 6962:
+//
+//                hash              <== Level 3
+//               /    \
+//              /      \
+//             /        \
+//            /          \
+//           /            \
+//          k              l        <== Level 2
+//         / \            / \
+//        /   \          /   \
+//       /     \        /     \
+//      g       h      i      [ ]   <== Level 1
+//     / \     / \    / \    /
+//     a b     c d    e f    j      <== Level 0
+//     | |     | |    | |    |
+//     d0 d1   d2 d3  d4 d5  d6
+//
+// Our storage node layers are always populated from the bottom up, hence the
+// gap at level 1, index 3 in the above picture.
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
-	// Expected inclusion proofs built by examination of the example 7 leaf tree
-	// in RFC 6962:
-	//
-	//                hash              <== Level 3
-	//               /    \
-	//              /      \
-	//             /        \
-	//            /          \
-	//           /            \
-	//          k              l        <== Level 2
-	//         / \            / \
-	//        /   \          /   \
-	//       /     \        /     \
-	//      g       h      i      [ ]   <== Level 1
-	//     / \     / \    / \    /
-	//     a b     c d    e f    j      <== Level 0
-	//     | |     | |    | |    |
-	//     d0 d1   d2 d3  d4 d5  d6
-	//
-	// Remember that our storage node layers are always populated from the bottom
-	// up, hence the gap at level 1, index 3 in the above picture.
-
 	node := func(level uint, index uint64) NodeFetch {
 		return newNodeFetch(level, index, false)
 	}
