@@ -256,10 +256,10 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	// These should compute the expected consistency proofs.
-	for _, testCase := range []struct {
-		priorTreeSize int64
-		treeSize      int64
-		expectedProof []NodeFetch
+	for _, tc := range []struct {
+		size1 int64
+		size2 int64
+		want  []NodeFetch
 	}{
 		{1, 2, expectedConsistencyProofFromSize1To2},
 		{1, 4, expectedConsistencyProofFromSize1To4},
@@ -275,21 +275,21 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{7, 7, []NodeFetch{}},
 		{8, 8, []NodeFetch{}},
 	} {
-		proof, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
+		proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
 
 		if err != nil {
-			t.Fatalf("failed to calculate consistency proof from %d to %d: %v", testCase.priorTreeSize, testCase.treeSize, err)
+			t.Fatalf("failed to calculate consistency proof from %d to %d: %v", tc.size1, tc.size2, err)
 		}
 
-		comparePaths(t, fmt.Sprintf("c(%d, %d)", testCase.priorTreeSize, testCase.treeSize), proof, testCase.expectedProof)
+		comparePaths(t, fmt.Sprintf("c(%d, %d)", tc.size1, tc.size2), proof, tc.want)
 	}
 }
 
 func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 	// These should all fail to provide proofs.
-	for _, testCase := range []struct {
-		priorTreeSize int64
-		treeSize      int64
+	for _, tc := range []struct {
+		size1 int64
+		size2 int64
 	}{
 		{0, -1},
 		{-10, 0},
@@ -297,10 +297,10 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 		{0, 0},
 		{9, 8},
 	} {
-		_, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize)
+		_, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
 
 		if err == nil {
-			t.Fatalf("consistency path calculation accepted bad input: %v", testCase)
+			t.Fatalf("consistency path calculation accepted bad input: %v", tc)
 		}
 	}
 }
