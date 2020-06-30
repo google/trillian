@@ -261,19 +261,19 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		size2 int64
 		want  []NodeFetch
 	}{
-		{1, 2, expectedConsistencyProofFromSize1To2},
-		{1, 4, expectedConsistencyProofFromSize1To4},
-		{6, 7, expectedConsistencyProofFromSize6To7},
-		{3, 7, expectedConsistencyProofFromSize3To7},
-		{4, 7, expectedConsistencyProofFromSize4To7},
-		{2, 8, expectedConsistencyProofFromSize2To8},
-		{1, 1, []NodeFetch{}},
-		{2, 2, []NodeFetch{}},
-		{3, 3, []NodeFetch{}},
-		{4, 4, []NodeFetch{}},
-		{5, 5, []NodeFetch{}},
-		{7, 7, []NodeFetch{}},
-		{8, 8, []NodeFetch{}},
+		{size1: 1, size2: 2, want: expectedConsistencyProofFromSize1To2},
+		{size1: 1, size2: 4, want: expectedConsistencyProofFromSize1To4},
+		{size1: 6, size2: 7, want: expectedConsistencyProofFromSize6To7},
+		{size1: 3, size2: 7, want: expectedConsistencyProofFromSize3To7},
+		{size1: 4, size2: 7, want: expectedConsistencyProofFromSize4To7},
+		{size1: 2, size2: 8, want: expectedConsistencyProofFromSize2To8},
+		{size1: 1, size2: 1, want: []NodeFetch{}},
+		{size1: 2, size2: 2, want: []NodeFetch{}},
+		{size1: 3, size2: 3, want: []NodeFetch{}},
+		{size1: 4, size2: 4, want: []NodeFetch{}},
+		{size1: 5, size2: 5, want: []NodeFetch{}},
+		{size1: 7, size2: 7, want: []NodeFetch{}},
+		{size1: 8, size2: 8, want: []NodeFetch{}},
 	} {
 		proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
 
@@ -291,11 +291,11 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 		size1 int64
 		size2 int64
 	}{
-		{0, -1},
-		{-10, 0},
-		{-1, -1},
-		{0, 0},
-		{9, 8},
+		{size1: 0, size2: -1},
+		{size1: -10, size2: 0},
+		{size1: -1, size2: -1},
+		{size1: 0, size2: 0},
+		{size1: 9, size2: 8},
 	} {
 		_, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
 
