@@ -169,33 +169,6 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	//
 	// For example, the consistency proof between tree size 6 and 7 consists of
 	// nodes i, j and k. The node j is taken instead of its missing parent.
-	var (
-		expectedConsistencyProofFromSize1To2 = []NodeFetch{
-			newNodeFetch(0, 1, false), // b
-		}
-		expectedConsistencyProofFromSize1To4 = []NodeFetch{
-			newNodeFetch(0, 1, false), // b
-			newNodeFetch(1, 1, false), // h
-		}
-		expectedConsistencyProofFromSize3To7 = []NodeFetch{
-			newNodeFetch(0, 2, false), // c
-			newNodeFetch(0, 3, false), // d
-			newNodeFetch(1, 0, false), // g
-			newNodeFetch(2, 1, false), // l
-		}
-		expectedConsistencyProofFromSize4To7 = []NodeFetch{
-			newNodeFetch(2, 1, false), // l
-		}
-		expectedConsistencyProofFromSize6To7 = []NodeFetch{
-			newNodeFetch(1, 2, false), // i
-			newNodeFetch(0, 6, false), // j
-			newNodeFetch(2, 0, false), // k
-		}
-		expectedConsistencyProofFromSize2To8 = []NodeFetch{
-			newNodeFetch(1, 1, false), // h
-			newNodeFetch(2, 1, false), // l
-		}
-	)
 
 	// These should compute the expected consistency proofs.
 	for _, tc := range []struct {
@@ -203,12 +176,31 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		size2 int64
 		want  []NodeFetch
 	}{
-		{size1: 1, size2: 2, want: expectedConsistencyProofFromSize1To2},
-		{size1: 1, size2: 4, want: expectedConsistencyProofFromSize1To4},
-		{size1: 6, size2: 7, want: expectedConsistencyProofFromSize6To7},
-		{size1: 3, size2: 7, want: expectedConsistencyProofFromSize3To7},
-		{size1: 4, size2: 7, want: expectedConsistencyProofFromSize4To7},
-		{size1: 2, size2: 8, want: expectedConsistencyProofFromSize2To8},
+		{size1: 1, size2: 2, want: []NodeFetch{
+			newNodeFetch(0, 1, false), // b
+		}},
+		{size1: 1, size2: 4, want: []NodeFetch{
+			newNodeFetch(0, 1, false), // b
+			newNodeFetch(1, 1, false), // h
+		}},
+		{size1: 6, size2: 7, want: []NodeFetch{
+			newNodeFetch(1, 2, false), // i
+			newNodeFetch(0, 6, false), // j
+			newNodeFetch(2, 0, false), // k
+		}},
+		{size1: 3, size2: 7, want: []NodeFetch{
+			newNodeFetch(0, 2, false), // c
+			newNodeFetch(0, 3, false), // d
+			newNodeFetch(1, 0, false), // g
+			newNodeFetch(2, 1, false), // l
+		}},
+		{size1: 4, size2: 7, want: []NodeFetch{
+			newNodeFetch(2, 1, false), // l
+		}},
+		{size1: 2, size2: 8, want: []NodeFetch{
+			newNodeFetch(1, 1, false), // h
+			newNodeFetch(2, 1, false), // l
+		}},
 		{size1: 1, size2: 1, want: []NodeFetch{}},
 		{size1: 2, size2: 2, want: []NodeFetch{}},
 		{size1: 3, size2: 3, want: []NodeFetch{}},
