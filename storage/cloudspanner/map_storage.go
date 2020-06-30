@@ -340,9 +340,7 @@ func (t *treeTX) parallelGetMerkleNodes(ctx context.Context, rev int64) func([]s
 		close(c)
 		ret := make([]*storagepb.SubtreeProto, 0, len(ids))
 		for st := range c {
-			if st != nil {
-				ret = append(ret, st)
-			}
+			ret = append(ret, st)
 		}
 		return ret, nil
 	}
@@ -400,34 +398,27 @@ func (tx *mapTX) getMapLeaf(ctx context.Context, revision int64, index []byte) (
 func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*trillian.MapLeaf, error) {
 	// c will carry any retrieved MapLeaves.
 	c := make(chan *trillian.MapLeaf, len(indexes))
-	// errc will carry any errors while reading from spanner, although we'll only
-	// return to the caller the first, if any.
-	errc := make(chan error, len(indexes))
-
+	g, gctx := errgroup.WithContext(ctx)
 	for _, idx := range indexes {
 		idx := idx
-		go func() {
-			l, err := tx.getMapLeaf(ctx, revision, idx)
+		g.Go(func() error {
+			l, err := tx.getMapLeaf(gctx, revision, idx)
 			if err != nil {
 				glog.Errorf("failed to getMapLeafData(rev=%d, index=%x): %v", revision, idx, err)
-				errc <- err
-				return
+				return err
 			}
 			c <- l
-		}()
+			return nil
+		})
 	}
 
-	// Now wait for the goroutines to do their thing.
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	close(c)
 	ret := make([]*trillian.MapLeaf, 0, len(indexes))
-	for range indexes {
-		select {
-		case err := <-errc:
-			return nil, err
-		case l := <-c:
-			if l != nil {
-				ret = append(ret, l)
-			}
-		}
+	for l := range c {
+		ret = append(ret, l)
 	}
 	return ret, nil
 }
