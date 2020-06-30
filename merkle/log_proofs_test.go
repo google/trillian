@@ -275,13 +275,13 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: 7, size2: 7, want: []NodeFetch{}},
 		{size1: 8, size2: 8, want: []NodeFetch{}},
 	} {
-		proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
-
-		if err != nil {
-			t.Fatalf("failed to calculate consistency proof from %d to %d: %v", tc.size1, tc.size2, err)
-		}
-
-		comparePaths(t, fmt.Sprintf("c(%d, %d)", tc.size1, tc.size2), proof, tc.want)
+		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
+			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
+			if err != nil {
+				t.Fatalf("CalcConsistencyProofNodeAddresses: %v", err)
+			}
+			comparePaths(t, "", proof, tc.want)
+		})
 	}
 }
 
@@ -297,11 +297,12 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 		{size1: 0, size2: 0},
 		{size1: 9, size2: 8},
 	} {
-		_, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
-
-		if err == nil {
-			t.Fatalf("consistency path calculation accepted bad input: %v", tc)
-		}
+		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
+			_, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, tc.size2)
+			if err == nil {
+				t.Fatal("accepted bad params")
+			}
+		})
 	}
 }
 
