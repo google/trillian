@@ -340,7 +340,9 @@ func (t *treeTX) parallelGetMerkleNodes(ctx context.Context, rev int64) func([]s
 		close(c)
 		ret := make([]*storagepb.SubtreeProto, 0, len(ids))
 		for st := range c {
-			ret = append(ret, st)
+			if st != nil {
+				ret = append(ret, st)
+			}
 		}
 		return ret, nil
 	}
@@ -418,7 +420,9 @@ func (tx *mapTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]*
 	close(c)
 	ret := make([]*trillian.MapLeaf, 0, len(indexes))
 	for l := range c {
-		ret = append(ret, l)
+		if l != nil {
+			ret = append(ret, l)
+		}
 	}
 	return ret, nil
 }
