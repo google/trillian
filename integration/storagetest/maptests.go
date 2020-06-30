@@ -267,13 +267,13 @@ func (*mapTests) TestLatestSignedMapRoot(ctx context.Context, t *testing.T, ms s
 		t.Logf("Starting iteration %d", i)
 		meta := []byte{byte(i)}
 
-		sth := &types.MapRootV1{
+		mr := &types.MapRootV1{
 			TimestampNanos: uint64(timestamp.Add(time.Duration(i) * time.Second).UnixNano()),
 			RootHash:       []byte(fmt.Sprintf("roothash %d", i)),
 			Revision:       uint64(treeRev + i),
 			Metadata:       meta,
 		}
-		mustSignAndStoreMapRoot(ctx, t, ms, tree, sth)
+		mustSignAndStoreMapRoot(ctx, t, ms, tree, mr)
 
 		tx, err := ms.SnapshotForTree(ctx, tree)
 		if err != nil {
@@ -284,17 +284,17 @@ func (*mapTests) TestLatestSignedMapRoot(ctx context.Context, t *testing.T, ms s
 		if err != nil {
 			t.Fatalf("%d: LatestSignedMapRoot() = %v, want no error", i, err)
 		}
+		if err := tx.Commit(ctx); err != nil {
+			t.Errorf("%d: Commit() = %v, want no error", i, err)
+		}
 
-		var gotSTH types.MapRootV1
-		if err := gotSTH.UnmarshalBinary(got.MapRoot); err != nil {
+		var gotMR types.MapRootV1
+		if err := gotMR.UnmarshalBinary(got.MapRoot); err != nil {
 			t.Fatalf("UnmarshalMapRootV1(): %v", err)
 		}
 
-		if !reflect.DeepEqual(&gotSTH, sth) {
-			t.Errorf("%d: LatestSignedMapRoot() \ngot: %#v \nwant:%#v", i, gotSTH, sth)
-		}
-		if err := tx.Commit(ctx); err != nil {
-			t.Errorf("%d: Commit() = %v, want no error", i, err)
+		if !reflect.DeepEqual(&gotMR, mr) {
+			t.Errorf("%d: LatestSignedMapRoot() \ngot: %#v \nwant:%#v", i, gotMR, mr)
 		}
 	}
 }
