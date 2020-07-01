@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
@@ -223,12 +222,9 @@ func (r *Rehasher) endRehashing() {
 	}
 }
 
-func (r *Rehasher) RehashedProof(leafIndex int64) (*trillian.Proof, error) {
+func (r *Rehasher) RehashedProof() ([][]byte, error) {
 	r.endRehashing()
-	return &trillian.Proof{
-		LeafIndex: leafIndex,
-		Hashes:    r.proof,
-	}, r.proofError
+	return r.proof, r.proofError
 }
 
 func reverse(ids []compact.NodeID) []compact.NodeID {

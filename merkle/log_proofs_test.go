@@ -18,10 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	//nolint:staticcheck
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/tree"
@@ -310,35 +307,30 @@ func TestRehasher(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc   string
-		index  int64
 		hashes [][]byte
 		rehash []bool
 		want   [][]byte
 	}{
 		{
 			desc:   "no rehash",
-			index:  126,
 			hashes: h[:3],
 			rehash: []bool{false, false, false},
 			want:   h[:3],
 		},
 		{
 			desc:   "single rehash",
-			index:  999,
 			hashes: h[:5],
 			rehash: []bool{false, true, true, false, false},
 			want:   [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
 		},
 		{
 			desc:   "single rehash at end",
-			index:  11,
 			hashes: h[:3],
 			rehash: []bool{false, true, true},
 			want:   [][]byte{h[0], th.HashChildren(h[2], h[1])},
 		},
 		{
 			desc:   "single rehash multiple nodes",
-			index:  23,
 			hashes: h[:5],
 			rehash: []bool{false, true, true, true, false},
 			want:   [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
@@ -347,7 +339,6 @@ func TestRehasher(t *testing.T) {
 			// TODO(pavelkalinnikov): This will never happen in our use-case. Design
 			// the type to not allow multi-rehash by design.
 			desc:   "multiple rehash",
-			index:  45,
 			hashes: h[:5],
 			rehash: []bool{true, true, false, true, true},
 			want:   [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
@@ -359,16 +350,12 @@ func TestRehasher(t *testing.T) {
 				// TODO(pavelkalinnikov): Pass the hash and rehash directly.
 				r.Process(tree.Node{Hash: hash}, NodeFetch{Rehash: tc.rehash[i]})
 			}
-			got, err := r.RehashedProof(tc.index)
+			got, err := r.RehashedProof()
 			if err != nil {
 				t.Fatalf("rehashedProof: %v", err)
 			}
-			want := &trillian.Proof{
-				LeafIndex: tc.index,
-				Hashes:    tc.want,
-			}
-			if !proto.Equal(got, want) {
-				t.Errorf("proofs mismatch:\ngot: %v\nwant: %v", got, want)
+			if want := tc.want; !cmp.Equal(got, want) {
+				t.Errorf("proofs mismatch:\ngot: %x\nwant: %x", got, want)
 			}
 		})
 	}

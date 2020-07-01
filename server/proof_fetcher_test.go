@@ -49,6 +49,9 @@ func TestTree813FetchAll(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if got, want := proof.LeafIndex, int64(l); got != want {
+			t.Errorf("leaf index mismatch: got %d, want %d", got, want)
+		}
 
 		// We use +1 here because of the 1 based leaf indexing of this implementation
 		refProof := mt.PathToRootAtSnapshot(l+1, ts)
@@ -87,6 +90,9 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, testTreeRevision, int64(l), fetches)
 				if err != nil {
 					t.Fatal(err)
+				}
+				if got, want := proof.LeafIndex, int64(l); got != want {
+					t.Errorf("leaf index mismatch: got %d, want %d", got, want)
 				}
 
 				// We use +1 here because of the 1 based leaf indexing of this implementation
