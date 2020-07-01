@@ -348,11 +348,7 @@ func TestRehasher(t *testing.T) {
 			for i, hash := range tc.hashes {
 				r.Process(hash, tc.rehash[i])
 			}
-			got, err := r.RehashedProof()
-			if err != nil {
-				t.Fatalf("rehashedProof: %v", err)
-			}
-			if want := tc.want; !cmp.Equal(got, want) {
+			if got, want := r.RehashedProof(), tc.want; !cmp.Equal(got, want) {
 				t.Errorf("proofs mismatch:\ngot: %x\nwant: %x", got, want)
 			}
 		})

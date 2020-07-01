@@ -46,11 +46,10 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 		r.Process(node.Hash, proofNodeFetches[i].Rehash)
 	}
 
-	proof, err := r.RehashedProof()
 	return &trillian.Proof{
 		LeafIndex: leafIndex,
-		Hashes:    proof,
-	}, err
+		Hashes:    r.RehashedProof(),
+	}, nil
 }
 
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them

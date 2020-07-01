@@ -179,7 +179,6 @@ type Rehasher struct {
 	rehashing  bool
 	rehashHash []byte
 	proof      [][]byte
-	proofError error
 }
 
 func (r *Rehasher) Process(hash []byte, rehash bool) {
@@ -220,9 +219,9 @@ func (r *Rehasher) endRehashing() {
 	}
 }
 
-func (r *Rehasher) RehashedProof() ([][]byte, error) {
+func (r *Rehasher) RehashedProof() [][]byte {
 	r.endRehashing()
-	return r.proof, r.proofError
+	return r.proof
 }
 
 func reverse(ids []compact.NodeID) []compact.NodeID {
