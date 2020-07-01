@@ -41,6 +41,7 @@ var (
 	csSessionWriteSessions               = flag.Float64("cloudspanner_write_sessions", 0, "Fraction of write capable sessions to maintain.")
 	csSessionHCWorkers                   = flag.Int("cloudspanner_num_healthcheckers", 0, "Number of health check workers for Spanner session pool.")
 	csSessionHCInterval                  = flag.Duration("cloudspanner_healthcheck_interval", 0, "Interval betweek pinging sessions.")
+	csSessionTrackHandles                = flag.Bool("cloudspanner_track_session_handles", false, "determines whether the session pool will keep track of the stacktrace of the goroutines that take sessions from the pool.")
 	csDequeueAcrossMerkleBucketsFraction = flag.Float64("cloudspanner_dequeue_bucket_fraction", 0.75, "Fraction of merkle keyspace to dequeue from, set to zero to disable.")
 	csReadOnlyStaleness                  = flag.Duration("cloudspanner_readonly_staleness", time.Minute, "How far in the past to perform readonly operations. Within limits, raising this should help to increase performance/reduce latency.")
 
@@ -83,6 +84,7 @@ func configFromFlags() spanner.ClientConfig {
 	setUint64IfNotDefault(&r.SessionPoolConfig.MaxBurst, *csSessionMaxBurst)
 	setFloat64IfNotDefault(&r.SessionPoolConfig.WriteSessions, *csSessionWriteSessions)
 	setIntIfNotDefault(&r.SessionPoolConfig.HealthCheckWorkers, *csSessionHCWorkers)
+	r.SessionPoolConfig.TrackSessionHandles = *csSessionTrackHandles
 	r.SessionPoolConfig.HealthCheckInterval = *csSessionHCInterval
 	return r
 }
