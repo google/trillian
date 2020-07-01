@@ -41,7 +41,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 		return nil, err
 	}
 
-	r := merkle.Rehasher{Hasher: th}
+	r := merkle.Rehasher{Hash: th.HashChildren}
 	for i, node := range proofNodes {
 		r.Process(node.Hash, proofNodeFetches[i].Rehash)
 	}

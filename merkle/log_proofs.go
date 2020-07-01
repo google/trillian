@@ -19,7 +19,6 @@ import (
 	"math/bits"
 
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -177,7 +176,7 @@ func proofNodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch 
 
 // Rehasher bundles the rehashing logic into a simple state machine
 type Rehasher struct {
-	Hasher     hashers.LogHasher
+	Hash       func(left, right []byte) []byte
 	rehashing  bool
 	rehashNode tree.Node
 	proof      [][]byte
@@ -198,7 +197,7 @@ func (r *Rehasher) Process(hash []byte, rehash bool) {
 
 	case r.rehashing && rehash:
 		// Continue with rehashing, update the node we're recomputing
-		r.rehashNode.Hash = r.Hasher.HashChildren(hash, r.rehashNode.Hash)
+		r.rehashNode.Hash = r.Hash(hash, r.rehashNode.Hash)
 
 	default:
 		// Not rehashing, just pass the node through

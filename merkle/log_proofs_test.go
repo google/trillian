@@ -344,7 +344,7 @@ func TestRehasher(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			r := Rehasher{Hasher: th}
+			r := Rehasher{Hash: th.HashChildren}
 			for i, hash := range tc.hashes {
 				r.Process(hash, tc.rehash[i])
 			}
