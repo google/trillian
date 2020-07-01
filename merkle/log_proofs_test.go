@@ -344,11 +344,16 @@ func TestRehasher(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			r := Rehasher{Hash: th.HashChildren}
-			for i, hash := range tc.hashes {
-				r.Process(hash, tc.rehash[i])
+			nf := make([]NodeFetch, len(tc.rehash))
+			for i, r := range tc.rehash {
+				nf[i].Rehash = r
 			}
-			if got, want := r.RehashedProof(), tc.want; !cmp.Equal(got, want) {
+			h := append([][]byte{}, tc.hashes...)
+			got, err := Rehash(h, nf, th.HashChildren)
+			if err != nil {
+				t.Errorf("Rehash: %v", err)
+			}
+			if want := tc.want; !cmp.Equal(got, want) {
 				t.Errorf("proofs mismatch:\ngot: %x\nwant: %x", got, want)
 			}
 		})

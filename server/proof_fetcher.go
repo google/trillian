@@ -41,14 +41,18 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 		return nil, err
 	}
 
-	r := merkle.Rehasher{Hash: th.HashChildren}
+	h := make([][]byte, len(proofNodes))
 	for i, node := range proofNodes {
-		r.Process(node.Hash, proofNodeFetches[i].Rehash)
+		h[i] = node.Hash
+	}
+	proof, err := merkle.Rehash(h, proofNodeFetches, th.HashChildren)
+	if err != nil {
+		return nil, err
 	}
 
 	return &trillian.Proof{
 		LeafIndex: leafIndex,
-		Hashes:    r.RehashedProof(),
+		Hashes:    proof,
 	}, nil
 }
 

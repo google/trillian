@@ -15,6 +15,7 @@
 package merkle
 
 import (
+	"errors"
 	"fmt"
 	"math/bits"
 
@@ -173,55 +174,27 @@ func proofNodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch 
 	return proof
 }
 
-// Rehasher bundles the rehashing logic into a simple state machine
-type Rehasher struct {
-	Hash       func(left, right []byte) []byte
-	rehashing  bool
-	rehashHash []byte
-	proof      [][]byte
-}
-
-func (r *Rehasher) Process(hash []byte, rehash bool) {
-	switch {
-	case !r.rehashing && rehash:
-		// Start of a rehashing chain
-		r.startRehashing(hash)
-
-	case r.rehashing && !rehash:
-		// End of a rehash chain, resulting in a rehashed proof node
-		r.endRehashing()
-		// And the current node needs to be added to the proof
-		r.emitNode(hash)
-
-	case r.rehashing && rehash:
-		// Continue with rehashing, update the node we're recomputing
-		r.rehashHash = r.Hash(hash, r.rehashHash)
-
-	default:
-		// Not rehashing, just pass the node through
-		r.emitNode(hash)
+// Rehash computes the proof based on the slice of NodeFetch structs, and the
+// corresponding hashes of these nodes. The slices must be of the same length.
+// The hc parameter computes node's hash based on hashes of its children.
+//
+// Warning: The passed-in slice of hashes can be modified in-place.
+func Rehash(h [][]byte, nf []NodeFetch, hc func(left, right []byte) []byte) ([][]byte, error) {
+	if len(h) != len(nf) {
+		return nil, errors.New("slice lengths mismatch")
 	}
-}
-
-func (r *Rehasher) emitNode(hash []byte) {
-	r.proof = append(r.proof, hash)
-}
-
-func (r *Rehasher) startRehashing(hash []byte) {
-	r.rehashHash = hash
-	r.rehashing = true
-}
-
-func (r *Rehasher) endRehashing() {
-	if r.rehashing {
-		r.proof = append(r.proof, r.rehashHash)
-		r.rehashing = false
+	cursor := 0
+	for i, ln := 0, len(h); i < ln; i, cursor = i+1, cursor+1 {
+		hash := h[i]
+		if nf[i].Rehash {
+			for i++; i < len(nf) && nf[i].Rehash; i++ {
+				hash = hc(h[i], hash)
+			}
+			i--
+		}
+		h[cursor] = hash
 	}
-}
-
-func (r *Rehasher) RehashedProof() [][]byte {
-	r.endRehashing()
-	return r.proof
+	return h[:cursor], nil
 }
 
 func reverse(ids []compact.NodeID) []compact.NodeID {
