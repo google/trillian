@@ -47,6 +47,8 @@ func checkSnapshot(ssDesc string, ss, treeSize int64) error {
 // inclusion proof for a specified leaf and tree size. The snapshot parameter
 // is the tree size being queried for, treeSize is the actual size of the tree
 // at the revision we are using to fetch nodes (this can be > snapshot).
+//
+// Use Rehash function to compose the proof after the node hashes are fetched.
 func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot", snapshot, treeSize); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
@@ -72,6 +74,8 @@ func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64) ([]NodeFet
 // to valid tree heads. All returned NodeIDs are tree coordinates within the
 // new tree. It is assumed that they will be fetched from storage at a revision
 // corresponding to the STH associated with the treeSize parameter.
+//
+// Use Rehash function to compose the proof after the node hashes are fetched.
 func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot1", snapshot1, treeSize); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
