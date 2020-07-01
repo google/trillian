@@ -19,7 +19,6 @@ import (
 	"math/bits"
 
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -178,7 +177,7 @@ func proofNodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch 
 type Rehasher struct {
 	Hash       func(left, right []byte) []byte
 	rehashing  bool
-	rehashNode tree.Node
+	rehashHash []byte
 	proof      [][]byte
 	proofError error
 }
@@ -197,7 +196,7 @@ func (r *Rehasher) Process(hash []byte, rehash bool) {
 
 	case r.rehashing && rehash:
 		// Continue with rehashing, update the node we're recomputing
-		r.rehashNode.Hash = r.Hash(hash, r.rehashNode.Hash)
+		r.rehashHash = r.Hash(hash, r.rehashHash)
 
 	default:
 		// Not rehashing, just pass the node through
@@ -210,13 +209,13 @@ func (r *Rehasher) emitNode(hash []byte) {
 }
 
 func (r *Rehasher) startRehashing(hash []byte) {
-	r.rehashNode = tree.Node{Hash: hash}
+	r.rehashHash = hash
 	r.rehashing = true
 }
 
 func (r *Rehasher) endRehashing() {
 	if r.rehashing {
-		r.proof = append(r.proof, r.rehashNode.Hash)
+		r.proof = append(r.proof, r.rehashHash)
 		r.rehashing = false
 	}
 }
