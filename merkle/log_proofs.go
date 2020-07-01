@@ -18,7 +18,10 @@ import (
 	"fmt"
 	"math/bits"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
+	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -171,6 +174,61 @@ func proofNodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch 
 	}
 
 	return proof
+}
+
+// Rehasher bundles the rehashing logic into a simple state machine
+type Rehasher struct {
+	Hasher     hashers.LogHasher
+	rehashing  bool
+	rehashNode tree.Node
+	proof      [][]byte
+	proofError error
+}
+
+func (r *Rehasher) Process(node tree.Node, fetch NodeFetch) {
+	switch {
+	case !r.rehashing && fetch.Rehash:
+		// Start of a rehashing chain
+		r.startRehashing(node)
+
+	case r.rehashing && !fetch.Rehash:
+		// End of a rehash chain, resulting in a rehashed proof node
+		r.endRehashing()
+		// And the current node needs to be added to the proof
+		r.emitNode(node)
+
+	case r.rehashing && fetch.Rehash:
+		// Continue with rehashing, update the node we're recomputing
+		r.rehashNode.Hash = r.Hasher.HashChildren(node.Hash, r.rehashNode.Hash)
+
+	default:
+		// Not rehashing, just pass the node through
+		r.emitNode(node)
+	}
+}
+
+func (r *Rehasher) emitNode(node tree.Node) {
+	r.proof = append(r.proof, node.Hash)
+}
+
+func (r *Rehasher) startRehashing(node tree.Node) {
+	r.rehashNode = tree.Node{Hash: node.Hash}
+	r.rehashing = true
+}
+
+func (r *Rehasher) endRehashing() {
+	if r.rehashing {
+		r.proof = append(r.proof, r.rehashNode.Hash)
+		r.rehashing = false
+	}
+}
+
+func (r *Rehasher) RehashedProof(leafIndex int64) (*trillian.Proof, error) {
+	r.endRehashing()
+	return &trillian.Proof{
+		LeafIndex: leafIndex,
+		Hashes:    r.proof,
+	}, r.proofError
 }
 
 func reverse(ids []compact.NodeID) []compact.NodeID {

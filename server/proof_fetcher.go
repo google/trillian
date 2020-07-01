@@ -41,67 +41,12 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 		return nil, err
 	}
 
-	r := &rehasher{th: th}
+	r := merkle.Rehasher{Hasher: th}
 	for i, node := range proofNodes {
-		r.process(node, proofNodeFetches[i])
+		r.Process(node, proofNodeFetches[i])
 	}
 
-	return r.rehashedProof(leafIndex)
-}
-
-// rehasher bundles the rehashing logic into a simple state machine
-type rehasher struct {
-	th         hashers.LogHasher
-	rehashing  bool
-	rehashNode tree.Node
-	proof      [][]byte
-	proofError error
-}
-
-func (r *rehasher) process(node tree.Node, fetch merkle.NodeFetch) {
-	switch {
-	case !r.rehashing && fetch.Rehash:
-		// Start of a rehashing chain
-		r.startRehashing(node)
-
-	case r.rehashing && !fetch.Rehash:
-		// End of a rehash chain, resulting in a rehashed proof node
-		r.endRehashing()
-		// And the current node needs to be added to the proof
-		r.emitNode(node)
-
-	case r.rehashing && fetch.Rehash:
-		// Continue with rehashing, update the node we're recomputing
-		r.rehashNode.Hash = r.th.HashChildren(node.Hash, r.rehashNode.Hash)
-
-	default:
-		// Not rehashing, just pass the node through
-		r.emitNode(node)
-	}
-}
-
-func (r *rehasher) emitNode(node tree.Node) {
-	r.proof = append(r.proof, node.Hash)
-}
-
-func (r *rehasher) startRehashing(node tree.Node) {
-	r.rehashNode = tree.Node{Hash: node.Hash}
-	r.rehashing = true
-}
-
-func (r *rehasher) endRehashing() {
-	if r.rehashing {
-		r.proof = append(r.proof, r.rehashNode.Hash)
-		r.rehashing = false
-	}
-}
-
-func (r *rehasher) rehashedProof(leafIndex int64) (*trillian.Proof, error) {
-	r.endRehashing()
-	return &trillian.Proof{
-		LeafIndex: leafIndex,
-		Hashes:    r.proof,
-	}, r.proofError
+	return r.RehashedProof(leafIndex)
 }
 
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
