@@ -21,7 +21,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/storage/tree"
 )
 
 // TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For
@@ -347,8 +346,7 @@ func TestRehasher(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			r := Rehasher{Hasher: th}
 			for i, hash := range tc.hashes {
-				// TODO(pavelkalinnikov): Pass the hash and rehash directly.
-				r.Process(tree.Node{Hash: hash}, NodeFetch{Rehash: tc.rehash[i]})
+				r.Process(hash, tc.rehash[i])
 			}
 			got, err := r.RehashedProof()
 			if err != nil {

@@ -184,34 +184,34 @@ type Rehasher struct {
 	proofError error
 }
 
-func (r *Rehasher) Process(node tree.Node, fetch NodeFetch) {
+func (r *Rehasher) Process(hash []byte, rehash bool) {
 	switch {
-	case !r.rehashing && fetch.Rehash:
+	case !r.rehashing && rehash:
 		// Start of a rehashing chain
-		r.startRehashing(node)
+		r.startRehashing(hash)
 
-	case r.rehashing && !fetch.Rehash:
+	case r.rehashing && !rehash:
 		// End of a rehash chain, resulting in a rehashed proof node
 		r.endRehashing()
 		// And the current node needs to be added to the proof
-		r.emitNode(node)
+		r.emitNode(hash)
 
-	case r.rehashing && fetch.Rehash:
+	case r.rehashing && rehash:
 		// Continue with rehashing, update the node we're recomputing
-		r.rehashNode.Hash = r.Hasher.HashChildren(node.Hash, r.rehashNode.Hash)
+		r.rehashNode.Hash = r.Hasher.HashChildren(hash, r.rehashNode.Hash)
 
 	default:
 		// Not rehashing, just pass the node through
-		r.emitNode(node)
+		r.emitNode(hash)
 	}
 }
 
-func (r *Rehasher) emitNode(node tree.Node) {
-	r.proof = append(r.proof, node.Hash)
+func (r *Rehasher) emitNode(hash []byte) {
+	r.proof = append(r.proof, hash)
 }
 
-func (r *Rehasher) startRehashing(node tree.Node) {
-	r.rehashNode = tree.Node{Hash: node.Hash}
+func (r *Rehasher) startRehashing(hash []byte) {
+	r.rehashNode = tree.Node{Hash: hash}
 	r.rehashing = true
 }
 
