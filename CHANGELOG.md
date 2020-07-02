@@ -27,7 +27,7 @@ preventing correct usage of that algorithm have been fixed.
 
 #### Storage TX Interfaces
 - `QueueLeaves` has been removed from the `LogTreeTX` interface because
-  `QueueLeaves` is not transactionaal.  All callers use the
+  `QueueLeaves` is not transactional.  All callers use the
   `QueueLeaves` function in the `LogStorage` interface.
 - `AddSequencedLeaves` has been removed from the `LogTreeTX`.
 
