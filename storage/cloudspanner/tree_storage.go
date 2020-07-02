@@ -289,6 +289,12 @@ func (t *treeTX) Rollback() error {
 	if t.stx == nil {
 		return ErrTransactionClosed
 	}
+
+	if stx, ok := t.stx.(*spanner.ReadOnlyTransaction); ok {
+		glog.V(1).Infof("Closed snapshot %p", stx)
+		stx.Close()
+	}
+
 	return nil
 }
 
