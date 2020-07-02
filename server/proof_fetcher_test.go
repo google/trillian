@@ -20,92 +20,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/storage/tree"
 )
 
 // An arbitrary tree revision to be used in tests.
 const testTreeRevision int64 = 3
-
-func TestRehasher(t *testing.T) {
-	th := rfc6962.DefaultHasher
-	h := [][]byte{
-		th.HashLeaf([]byte("Hash 1")),
-		th.HashLeaf([]byte("Hash 2")),
-		th.HashLeaf([]byte("Hash 3")),
-		th.HashLeaf([]byte("Hash 4")),
-		th.HashLeaf([]byte("Hash 5")),
-	}
-
-	for _, tc := range []struct {
-		desc   string
-		index  int64
-		hashes [][]byte
-		rehash []bool
-		want   [][]byte
-	}{
-		{
-			desc:   "no rehash",
-			index:  126,
-			hashes: h[:3],
-			rehash: []bool{false, false, false},
-			want:   h[:3],
-		},
-		{
-			desc:   "single rehash",
-			index:  999,
-			hashes: h[:5],
-			rehash: []bool{false, true, true, false, false},
-			want:   [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
-		},
-		{
-			desc:   "single rehash at end",
-			index:  11,
-			hashes: h[:3],
-			rehash: []bool{false, true, true},
-			want:   [][]byte{h[0], th.HashChildren(h[2], h[1])},
-		},
-		{
-			desc:   "single rehash multiple nodes",
-			index:  23,
-			hashes: h[:5],
-			rehash: []bool{false, true, true, true, false},
-			want:   [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
-		},
-		{
-			// TODO(pavelkalinnikov): This will never happen in our use-case. Design
-			// the type to not allow multi-rehash by design.
-			desc:   "multiple rehash",
-			index:  45,
-			hashes: h[:5],
-			rehash: []bool{true, true, false, true, true},
-			want:   [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			r := rehasher{th: th}
-			for i, hash := range tc.hashes {
-				// TODO(pavelkalinnikov): Pass the hash and rehash directly.
-				r.process(tree.Node{Hash: hash}, merkle.NodeFetch{Rehash: tc.rehash[i]})
-			}
-			got, err := r.rehashedProof(tc.index)
-			if err != nil {
-				t.Fatalf("rehashedProof: %v", err)
-			}
-			want := &trillian.Proof{
-				LeafIndex: tc.index,
-				Hashes:    tc.want,
-			}
-			if !proto.Equal(got, want) {
-				t.Errorf("proofs mismatch:\ngot: %v\nwant: %v", got, want)
-			}
-		})
-	}
-}
 
 func TestTree813FetchAll(t *testing.T) {
 	ctx := context.Background()
@@ -127,6 +48,9 @@ func TestTree813FetchAll(t *testing.T) {
 		proof, err := fetchNodesAndBuildProof(ctx, r, hasher, testTreeRevision, int64(l), fetches)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if got, want := proof.LeafIndex, int64(l); got != want {
+			t.Errorf("leaf index mismatch: got %d, want %d", got, want)
 		}
 
 		// We use +1 here because of the 1 based leaf indexing of this implementation
@@ -166,6 +90,9 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, testTreeRevision, int64(l), fetches)
 				if err != nil {
 					t.Fatal(err)
+				}
+				if got, want := proof.LeafIndex, int64(l); got != want {
+					t.Errorf("leaf index mismatch: got %d, want %d", got, want)
 				}
 
 				// We use +1 here because of the 1 based leaf indexing of this implementation
