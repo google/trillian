@@ -2,75 +2,10 @@
 
 ## HEAD
 
-Not yet released; provisionally v1.4.0 (may change).
 
-### Storage TX Interfaces
-- `QueueLeaves` has been removed from the `LogTreeTX` interface because
-  `QueueLeaves` is not transactionaal.  All callers use the
-  `QueueLeaves` function in the `LogStorage` interface.
-- `AddSequencedLeaves` has been removed from the `LogTreeTX`.
 
-### HTTP APIs
-
-The HTTP/JSON APIs have been removed in favor of a pure gRPC intereface.
-[grpcurl](https://github.com/fullstorydev/grpcurl) is the recommended way
-of interacting with the gRPC API from the commandline.
-
-### Server Binaries
-
-The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
-binaries have moved from `github.com/google/trillian/server/` to
-`github.com/google/trillian/cmd`. A subset of the `server` package has also
-moved and has been split into `cmd/internal/serverutil`, `quota/etcd` and
-`quota/mysqlqm` packages.
-
-### Bazel Changes
-
-Python support is disabled unless we hear that the community cares about this
-being re-enabled. This was broken by a downstream change and without a signal
-from the Trillian community to say this is needed, the pragmatic action is to
-not spend time investigating this issue.
-
-### Deployments
-
-The Kubernetes configs will now provision 5 nodes for Trillian's Etcd cluster,
-instead of 3 nodes.
-[This makes the Etcd cluster more resilient](https://etcd.io/docs/v3.2.17/faq/#what-is-failure-tolerance)
-to nodes becoming temporarily unavailable, such as during updates (it can now
-tolerate 2 nodes being unavailable, instead of just 1).
-
-The etcd-operator deployment has been updated from v0.9.1 to v0.9.4.
-
-### Log Changes
-
-#### Potential sequencer hang fixed
-A potential deadlock condition in the log sequencer when the process is
-attempting to exit has been addressed.
-
-#### Monitoring & Metrics
-A count of the total number of individual leaves the logserver attempts to
-fetch via the GetEntries.\* API methods has been added.
-
-The `queued_leaves` metric is removed, and replaced by `added_leaves` which
-covers both `QueueLeaves` and `AddSequencedLeaves`, and is labeled by log ID.
-
-### Map Changes
-
-The verifiable map is still experimental. APIs, such as SetLeaves, have been
-deprecated and will be deleted in the near future. The semantics of WriteLeaves
-have become stricter: now it always requires the caller to specify the write
-revision. These changes will not affect the Trillian module semantic version due
-to the experimental status of the Map.
-
-Map API has been extended with Layout, GetTiles and SetTiles calls which allow
-for more direct processing of sparse Merkle tree tiles in the application layer.
-Map storage implementations are simpler, and no longer use the SubtreeCache.
-
-The map client has been updated so that GetAndVerifyMapLeaves and
-GetAndVerifyMapLeavesByRevision return the MapRoot for the revision at which the
-leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
-were unable to reason about which map revision they were seeing. The
-SetAndVerifyMapLeaves method was deleted.
+## v1.3.10 (provisional)
+*Not yet published*
 
 ### Storage
 
@@ -87,8 +22,109 @@ is being polished and decoupled from the log storage API. We may return the
 support when the new API is tested.
 
 Support for storage of Ed25519 signatures has been added to the mysql and
-postgres storage drivers (only applicable in new installations) and bugs 
+postgres storage drivers (only applicable in new installations) and bugs
 preventing correct usage of that algorithm have been fixed.
+
+#### Storage TX Interfaces
+- `QueueLeaves` has been removed from the `LogTreeTX` interface because
+  `QueueLeaves` is not transactionaal.  All callers use the
+  `QueueLeaves` function in the `LogStorage` interface.
+- `AddSequencedLeaves` has been removed from the `LogTreeTX`.
+
+
+### Log Changes
+
+#### Monitoring & Metrics
+
+The `queued_leaves` metric is removed, and replaced by `added_leaves` which
+covers both `QueueLeaves` and `AddSequencedLeaves`, and is labeled by log ID.
+
+#### MySQL Dequeueing Change #2159
+mysql will now remove leaves from the queue inside of `UpdateLeaves` rather
+than directly inside of `Dequeue`.
+This change brings the behavior of the mysql storage implementation into line
+with the spanner implementation and makes consistent testing possible.
+
+
+### Map Changes
+
+**The verifiable map is still experimental.**
+APIs, such as SetLeaves, have been deprecated and will be deleted in the near
+future. The semantics of WriteLeaves have become stricter: now it always
+requires the caller to specify the write revision. These changes will not
+affect the Trillian module semantic version due to the experimental status of
+the Map.
+
+Map API has been extended with Layout, GetTiles and SetTiles calls which allow
+for more direct processing of sparse Merkle tree tiles in the application layer.
+Map storage implementations are simpler, and no longer use the SubtreeCache.
+
+The map client has been updated so that GetAndVerifyMapLeaves and
+GetAndVerifyMapLeavesByRevision return the MapRoot for the revision at which the
+leaves were fetched. Without this callers of GetAndVerifyMapLeaves in particular
+were unable to reason about which map revision they were seeing. The
+SetAndVerifyMapLeaves method was deleted.
+
+
+
+## v1.3.9
+[Published 2020-06-22](https://github.com/google/trillian/releases/tag/v1.3.9)
+
+### Selected Dependency Updates
+* etcd from v3.3.18 to 3.4.7 (#2090)
+* etcd-operator from v0.9.1 to v0.9.4
+* upgraded protoc version to latest (#2088)
+* github.com/golang/protobuf to v1.4.1 (#2111)
+* google.golang.org/grpc from v1.26 to 1.29.1 (#2108)
+
+
+## v1.3.8
+[Published 2020-05-12](https://github.com/google/trillian/releases/tag/v1.3.8)
+
+### HTTP APIs
+
+The HTTP/JSON APIs have been removed in favor of a pure gRPC intereface.
+[grpcurl](https://github.com/fullstorydev/grpcurl) is the recommended way
+of interacting with the gRPC API from the commandline.
+
+
+## v1.3.7
+[Published 2020-05-12](https://github.com/google/trillian/releases/tag/v1.3.7)
+
+### Server Binaries
+
+The `trillian_log_server`, `trillian_log_signer` and `trillian_map_server`
+binaries have moved from `github.com/google/trillian/server/` to
+`github.com/google/trillian/cmd`. A subset of the `server` package has also
+moved and has been split into `cmd/internal/serverutil`, `quota/etcd` and
+`quota/mysqlqm` packages.
+
+
+## v1.3.6
+[Published 2020-05-12](https://github.com/google/trillian/releases/tag/v1.3.6)
+
+### Deployments
+
+The Kubernetes configs will now provision 5 nodes for Trillian's Etcd cluster,
+instead of 3 nodes.
+[This makes the Etcd cluster more resilient](https://etcd.io/docs/v3.2.17/faq/#what-is-failure-tolerance)
+to nodes becoming temporarily unavailable, such as during updates (it can now
+tolerate 2 nodes being unavailable, instead of just 1).
+
+### Monitoring & Metrics
+
+A count of the total number of individual leaves the logserver attempts to
+fetch via the GetEntries.* API methods has been added.
+
+
+## v1.3.5
+[Published 2020-05-12](https://github.com/google/trillian/releases/tag/v1.3.5)
+
+### Log Changes
+
+#### Potential sequencer hang fixed
+A potential deadlock condition in the log sequencer when the process is
+attempting to exit has been addressed.
 
 ### Quota
 
@@ -108,6 +144,18 @@ duplicate leaves are queued.
 
 The `licenses` tool has been moved from "scripts/licenses" to [a dedicated
 repository](https://github.com/google/go-licenses).
+
+### Bazel Changes
+
+Python support is disabled unless we hear that the community cares about this
+being re-enabled. This was broken by a downstream change and without a signal
+from the Trillian community to say this is needed, the pragmatic action is to
+not spend time investigating this issue.
+
+
+## v1.3.4 - Invalid release, do not use.
+[Published 2020-05-12](https://github.com/google/trillian/releases/tag/v1.3.4)
+
 
 ## v1.3.3 - Module fixes
 
