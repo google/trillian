@@ -188,9 +188,13 @@ func Rehash(h [][]byte, nf []NodeFetch, hc func(left, right []byte) []byte) ([][
 		return nil, errors.New("slice lengths mismatch")
 	}
 	cursor := 0
+	// Scan the list of node hashes, and store the rehashed list in-place.
+	// Invariant: cursor <= i, and h[:cursor] contains all the hashes of the
+	// rehashed list after scanning h up to index i-1.
 	for i, ln := 0, len(h); i < ln; i, cursor = i+1, cursor+1 {
 		hash := h[i]
 		if nf[i].Rehash {
+			// Scan the block of node hashes that need rehashing.
 			for i++; i < len(nf) && nf[i].Rehash; i++ {
 				hash = hc(h[i], hash)
 			}
