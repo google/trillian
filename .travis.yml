@@ -13,6 +13,11 @@ cache:
 jobs:
   fast_finish: true
   include:
+    - name: "gomod"
+      before_install: skip
+      install: skip
+      before_script: go mod tidy -v
+      script: git diff --exit-code -- go.mod go.sum
     - name: "build"
       before_install: skip
       install: skip
@@ -54,11 +59,6 @@ jobs:
         # that would be trimmed by 'go mod tidy'
         echo "Checking that generated files are the same as checked-in versions."
         git diff --exit-code -- ':!*.pb.go' ':!*_string.go' ':!go.*'
-    - name: "gomod"
-      before_install: skip
-      install: skip
-      before_script: go mod tidy -v
-      script: git diff --exit-code -- go.mod go.sum
     - name: "lint"
       before_install: skip
       install:
@@ -134,6 +134,8 @@ jobs:
         - mysql -u root -e 'SHOW VARIABLES LIKE "%version%";'
         - go test ./storage/mysql/...
         - ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
+  - allow_failures:
+    - name "gomod"
 
 services:
   - docker
