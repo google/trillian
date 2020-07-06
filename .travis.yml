@@ -13,7 +13,7 @@ cache:
 jobs:
   fast_finish: true
   include:
-    - name: "gomod"
+    - name: "gomodtidy"
       before_install: skip
       install: skip
       before_script: go mod tidy -v
@@ -135,7 +135,7 @@ jobs:
         - go test ./storage/mysql/...
         - ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
   - allow_failures:
-    - name "gomod"
+    - name: "gomodtidy"
 
 services:
   - docker
