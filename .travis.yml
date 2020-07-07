@@ -1,4 +1,3 @@
-version: ~> 1.0
 os: linux
 dist: xenial
 language: go
@@ -134,7 +133,7 @@ jobs:
         - mysql -u root -e 'SHOW VARIABLES LIKE "%version%";'
         - go test ./storage/mysql/...
         - ./integration/integration_test.sh && HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
-  - allow_failures:
+  allow_failures:
     - name: "go mod tidy"
 
 services:
