@@ -62,7 +62,7 @@ require (
 	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
 	golang.org/x/tools v0.0.0-20200630154851-b2d8b0336632
-	google.golang.org/api v0.28.0
+	google.golang.org/api v0.29.0
 	google.golang.org/genproto v0.0.0-20200626011028-ee7919e894b5
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.25.0
