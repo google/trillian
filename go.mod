@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	bitbucket.org/creachadair/shell v0.0.6
-	cloud.google.com/go/pubsub v1.4.0
+	cloud.google.com/go/pubsub v1.5.0
 	cloud.google.com/go/spanner v1.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.2
 	github.com/Masterminds/goutils v1.1.0 // indirect
@@ -57,13 +57,13 @@ require (
 	go.opencensus.io v0.22.4
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
-	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
-	golang.org/x/tools v0.0.0-20200630154851-b2d8b0336632
+	golang.org/x/tools v0.0.0-20200706234117-b22de6825cf7
 	google.golang.org/api v0.29.0
-	google.golang.org/genproto v0.0.0-20200626011028-ee7919e894b5
+	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
