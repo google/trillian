@@ -6,3 +6,6 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 
 run_test "Map integration test" "${INTEGRATION_DIR}/map_integration_test.sh" "$@"
 run_test "Log integration test" "${INTEGRATION_DIR}/log_integration_test.sh" "$@"
+
+# See if this helps debug the deadlocks we keep seeing.
+mysql -u root -e 'SHOW ENGINE INNODB STATUS'
