@@ -75,7 +75,7 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource clock.TimeS
 		),
 		fetchedLeaves: mf.NewCounter(
 			"fetched_leaves",
-			"Count of individual leaves fetched through get-entries calls",
+			"Count of individual leaves fetched through GetLeaves* calls",
 		),
 	}
 }
