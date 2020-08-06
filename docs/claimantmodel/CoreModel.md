@@ -9,12 +9,20 @@ This paper introduces an intuitive, standalone model for a common scenario where
 There is a **Claimant** that makes a **Claim** that is relied upon by a **Believer** as a precondition to take an action they would not have taken if the claim was false. Claims are represented by signed **Statements**. The veracity of a Claim can be verified by a **Claim Verifier**, who will notify a **Claim Arbiter** of any false Claims.
 
 ## Example: Certification Claims
-* Claim<sup>CERT</sup>: (I, ${CA}, am authorized to certify $pubKey for $domain)
-* Statement<sup>CERT</sup>: X.509 Certificate
-* Claimant<sup>CERT</sup>: Certificate Authority
-* Believer<sup>CERT</sup>: User Agent (Browser)
-* Verifier<sup>CERT</sup>: Domain Owner
-* Arbiter<sup>CERT</sup>: User Agent Vendor
+<dl>
+<dt>Claim<sup>CERT</sup></dt>
+<dd>*"I, ${CA}, am authorized to certify $pubKey for $domain"*</dd>
+<dt>Statement<sup>CERT</sup></dt>
+<dd>X.509 Certificate</dd>
+<dt>Claimant<sup>CERT</sup></dt>
+<dd>Certificate Authority</dd>
+<dt>Believer<sup>CERT</sup></dt>
+<dd>User Agent (Browser)</dd>
+<dt>Verifier<sup>CERT</sup></dt>
+<dd>Domain Owner</dd>
+<dt>Arbiter<sup>CERT</sup></dt>
+<dd>User Agent Vendor</dd>
+</dl>
 
 The CA creates and signs a Certificate. The UA receives this cert when attempting to establish a secure connection to a domain, and proceeds with the connection only if it was signed by a CA that the Browser Vendor has blessed. In the event of a CA issuing bad certificates, the Browser Vendor can protect their users by removing the CA from the blessed set. The only party which can verify that a certificate was issued under authorization is the Domain Owner.
 
@@ -29,7 +37,9 @@ The Browser has sufficient trust in the CA to employ a strategy of [Trust But Ve
 * Claims must be falsifiable.
   
 ## Compound Claims
-When the Claim is composed of multiple subclaims, the Verifier role must be covered by actors that can verify all components of the Claim. For example, imagine a Claimant<sup>PRIME</sup> that provides Believer<sup>PRIME</sup> with an integer covered by Claim<sup>PRIME</sup>: "This is prime, and is uniquely issued to $believerID". This is a compound Claim: verification would need to confirm 1) the primality of the integer, and 2) that no other Believer had been issued the same value.
+When the Claim is composed of multiple subclaims, the Verifier role must be covered by actors that can verify all components of the Claim.
+
+For example, imagine a Claimant<sup>PRIME</sup> that provides Believer<sup>PRIME</sup> with an integer covered by Claim<sup>PRIME</sup>: *"This is prime, and is uniquely issued to $believerID"*. This is a compound Claim: verification would need to confirm 1) the primality of the integer, and 2) that no other Believer had been issued the same value.
 
 # Believer Strategies
 ## Trust But Verify
