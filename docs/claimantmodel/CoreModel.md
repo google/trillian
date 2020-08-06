@@ -11,7 +11,7 @@ There is a **Claimant** that makes a **Claim** that is relied upon by a **Believ
 ## Example: Certification Claims
 <dl>
 <dt>Claim<sup>CERT</sup></dt>
-<dd>*"I, ${CA}, am authorized to certify $pubKey for $domain"*</dd>
+<dd><i>"I, ${CA}, am authorized to certify $pubKey for $domain"</i></dd>
 <dt>Statement<sup>CERT</sup></dt>
 <dd>X.509 Certificate</dd>
 <dt>Claimant<sup>CERT</sup></dt>
