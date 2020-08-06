@@ -9,16 +9,16 @@ This paper introduces an intuitive, standalone model for a common scenario where
 There is a **Claimant** that makes a **Claim** that is relied upon by a **Believer** as a precondition to take an action they would not have taken if the claim was false. Claims are represented by signed **Statements**. The veracity of a Claim can be verified by a **Claim Verifier**, who will notify a **Claim Arbiter** of any false Claims.
 
 ## Example: Certification Claims
-* Claim<sup>Cert</sup>: (I, ${CA}, am authorized to certify $pubKey for $domain)
-* Statement<sup>Cert</sup>: X.509 Certificate
-* Claimant<sup>Cert</sup>: Certificate Authority
-* Believer<sup>Cert</sup>: User Agent (Browser)
-* Verifier<sup>Cert</sup>: Domain Owner
-* Arbiter<sup>Cert</sup>: User Agent Vendor
+* Claim<sup>CERT</sup>: (I, ${CA}, am authorized to certify $pubKey for $domain)
+* Statement<sup>CERT</sup>: X.509 Certificate
+* Claimant<sup>CERT</sup>: Certificate Authority
+* Believer<sup>CERT</sup>: User Agent (Browser)
+* Verifier<sup>CERT</sup>: Domain Owner
+* Arbiter<sup>CERT</sup>: User Agent Vendor
 
 The CA creates and signs a Certificate. The UA receives this cert when attempting to establish a secure connection to a domain, and proceeds with the connection only if it was signed by a CA that the Browser Vendor has blessed. In the event of a CA issuing bad certificates, the Browser Vendor can protect their users by removing the CA from the blessed set. The only party which can verify that a certificate was issued under authorization is the Domain Owner.
 
-The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any StatementCert relied on by BelieverCert can be discovered by VerifierCert. This is why Certificate Transparency was created.
+The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any Statement<sup>CERT</sup> relied on by Believer<sup>CERT</sup> can be discovered by Verifier<sup>CERT</sup>. This is why Certificate Transparency was created.
 
 <!-- TODO(mhutchinson): Using Logs to provide this discoverability is described in [Claimant Model: Logs](Logs.md). -->
 <!-- TODO(mhutchinson): Discuss Closed Loop Systems below and link to this. -->
