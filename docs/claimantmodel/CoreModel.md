@@ -4,7 +4,7 @@ This paper introduces an intuitive, standalone model for a common scenario where
 
 ## Model
 
-This model describes roles, not actors. In a concrete deployment of this model, the same actor may play multiple roles, or multiple actors may need to work together to cover a role.
+*This model describes roles, not actors. In a concrete deployment of this model, the same actor may play multiple roles, or multiple actors may need to work together to cover a role.*
 
 There is a **Claimant** that makes a **Claim** that is relied upon by a **Believer** as a precondition to take an action they would not have taken if the claim was false. Claims are represented by signed **Statements**. The veracity of a Claim can be verified by a **Claim Verifier**, who will notify a **Claim Arbiter** of any false Claims.
 
