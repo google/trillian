@@ -24,8 +24,10 @@ The Browser has sufficient trust in the CA to employ a strategy of [Trust But Ve
 <!-- TODO(mhutchinson): Discuss Closed Loop Systems below and link to this. -->
 
 # Claim Requirements
-Claims must be falsifiable. The Statement for any claim must be signed by the Claimant in order to ensure that it is immutable and non-repudiable. It must be possible to generate the Claim from the Statement without any additional context.
-
+* The Statement for any claim must be signed by the Claimant to ensure that it is immutable and non-repudiable.
+* It must be possible to generate the Claim from the Statement without any additional context.
+* Claims must be falsifiable.
+  
 ## Compound Claims
 When the Claim is composed of multiple subclaims, the Verifier role must be covered by actors that can verify all components of the Claim. For example, imagine a Claimant<sup>PRIME</sup> that provides Believer<sup>PRIME</sup> with an integer covered by Claim<sup>PRIME</sup>: "This is prime, and is uniquely issued to $believerID". This is a compound Claim: verification would need to confirm 1) the primality of the integer, and 2) that no other Believer had been issued the same value.
 
