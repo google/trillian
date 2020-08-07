@@ -5,7 +5,9 @@ This doc presents a model for transparent ecosystems built around logs. This doc
 Log Transparency as described here should be applied to situations where the Claimant Model has already been established for the domain claims. It does not cover situations where you “just want to write to a log”.
 
 ## Purpose of Log Transparency
-**The main purpose of transparency built around logs is *discoverability of Claims***. A Claim is discoverable if it can be found by the Verifier without information being passed to them by the Believer. This property is essential when Believers are employing Trust But Verify and the identity of all Verifiers does not form part of the Believer’s [TCB](https://en.wikipedia.org/wiki/Trusted_computing_base).
+**The main purpose of transparency built around logs is *discoverability of Claims***.
+
+A Claim is discoverable if it can be found by the Verifier without information being passed to them by the Believer. This property is essential when Believers are employing Trust But Verify and the identity of all Verifiers does not form part of the Believer’s [TCB](https://en.wikipedia.org/wiki/Trusted_computing_base).
 
 Another way to conceptualize this is that Logs provide a verifiable transport mechanism to ensure that any Claim that a Believer relies on will be eventually discovered by the Verifier.
 
