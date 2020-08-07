@@ -26,15 +26,14 @@ There is a **Claimant** that makes a **Claim** that is relied upon by a **Believ
 
 The CA creates and signs a Certificate. The UA receives this cert when attempting to establish a secure connection to a domain, and proceeds with the connection only if it was signed by a CA that the Browser Vendor has blessed. In the event of a CA issuing bad certificates, the Browser Vendor can protect their users by removing the CA from the blessed set. The only party which can verify that a certificate was issued under authorization is the Domain Owner.
 
-The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any Statement<sup>CERT</sup> relied on by Believer<sup>CERT</sup> can be discovered by Verifier<sup>CERT</sup>. This is why Certificate Transparency was created.
+The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any Statement<sup>CERT</sup> relied on by Believer<sup>CERT</sup> can be discovered by Verifier<sup>CERT</sup>. This is why Certificate Transparency was created. Using Logs to provide this discoverability is described in [Claimant Model: Logs](Logs.md).
 
-<!-- TODO(mhutchinson): Using Logs to provide this discoverability is described in [Claimant Model: Logs](Logs.md). -->
 <!-- TODO(mhutchinson): Discuss Closed Loop Systems below and link to this. -->
 
 # Claim Requirements
 * The Statement for any claim must be signed by the Claimant to ensure that it is immutable and non-repudiable.
 * It must be possible to generate the Claim from the Statement without any additional context.
-* Claims must be falsifiable.
+* Claims must be [falsifiable](https://en.wikipedia.org/wiki/Falsifiability).
   
 ## Compound Claims
 When the Claim is composed of multiple subclaims, the Verifier role must be covered by actors that can verify all components of the Claim.
