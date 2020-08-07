@@ -33,7 +33,7 @@ The Browser has sufficient trust in the CA to employ a strategy of [Trust But Ve
 # Claim Requirements
 * The Statement for any claim must be signed by the Claimant to ensure that it is immutable and non-repudiable.
 * It must be possible to generate the Claim from the Statement without any additional context.
-* Claims must be falsifiable.
+* Claims must be [falsifiable](https://en.wikipedia.org/wiki/Falsifiability).
   
 ## Compound Claims
 When the Claim is composed of multiple subclaims, the Verifier role must be covered by actors that can verify all components of the Claim.
