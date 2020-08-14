@@ -180,7 +180,7 @@ func BenchmarkNodeID2Siblings(b *testing.B) {
 	const batch = 512
 	ids := make([]NodeID2, batch)
 	for i := range ids {
-		bytes := "0123456789012345678901234567" + string(i&255) + string((i>>8)&255)
+		bytes := fmt.Sprintf("0123456789012345678901234567%02x%02x", i&255, (i>>8)&255)
 		ids[i] = NewNodeID2(bytes, uint(len(bytes))*8)
 	}
 	for i, n := 0, b.N; i < n; i++ {
