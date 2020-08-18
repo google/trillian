@@ -333,7 +333,7 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 	m := t.tx.Get(hashToSeqKey(t.treeID)).(*kv).v.(map[string][]int64)
 
 	ret := make([]*trillian.LogLeaf, 0, len(leafHashes))
-	for hash := range leafHashes {
+	for _, hash := range leafHashes {
 		seq, ok := m[string(hash)]
 		if !ok {
 			continue
