@@ -2,10 +2,29 @@
 
 ## HEAD
 
+## v1.3.11
+[Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
+
+### Documentation
+
+Added docs which describe the Claimant Model of transparency, a useful
+framework for reasoning about the design and architecture of transparent
+systems.
+
+### Misc improvements
+
+ * Fixed int to string conversion warnings for golang 1.15
+ * Metric improvements for fetched leaf counts
+ * Move tools.go into its own directory to help with dependencies
+
+### Dependency updates
+ * go-grpc-middleware from 1.2.0 to 1.2.2 (#2219, #2229)
+ * stackdriver from 0.13.2 to 0.13.4 (#2220, #2223)
+ * Google api from 0.28.0 to 0.29.0 (#2193)
 
 
-## v1.3.10 (provisional)
-*Not yet published*
+## v1.3.10
+[Published 2020-07-02](https://github.com/google/trillian/releases/tag/v1.3.10)
 
 ### Storage
 
