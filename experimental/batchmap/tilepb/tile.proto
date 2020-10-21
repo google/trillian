@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package tilepb;
+
+option go_package = "tilepb";
+
+// Tile represents a perfect subtree covering the whole height of a stratum
+// within a sparse map.
+message Tile {
+  // The path from the root of the map to the root of this tile.
+  bytes path = 1;
+  // The computed hash of this subtree.
+  // TODO(mhutchinson): Consider removing this.
+  bytes root_hash = 2;
+  // All non-empty leaves in this tile, sorted left-to-right.
+  repeated TileLeaf leaves = 3;
+}
+
+// TileLeaf is a leaf value of a Tile.
+// If it belongs to a leaf tile then this represents one of the values that the
+// map commits to. Otherwise, this leaf represents the root of the subtree in
+// the stratum below.
+message TileLeaf {
+  // The path from the root of the container Tile to this leaf.
+  bytes path = 1;
+  // The hash value being committed to.
+  bytes hash = 2;
+}
+
+// Entry is a single key/value to be committed to by the map.
+message Entry {
+  // The key that uniquely identifies this key/value.
+  // These keys must be distributed uniformly and randomly across the key space.
+  bytes hash_key = 1;
+  // Hash of the value to be committed to. This will literally be set as a hash
+  // of a TileLeaf in a leaf Tile.
+  // It is the job of the code constructing this Entry to ensure that this has
+  // appropriate preimage protection and domain separation. This means this will
+  // likely be set to something like H(salt || data).
+  //
+  // TODO(mhutchinson): Revisit this. My preference is that this is set to
+  // H(data), and the map synthesis will set the hash to H(salt||H(data)).
+  // This allows the map to always be constructed with good security.
+  bytes hash_value = 2;
+}
