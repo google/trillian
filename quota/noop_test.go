@@ -92,11 +92,6 @@ func TestNoop_ValidatesSpecs(t *testing.T) {
 			t.Errorf("%v: GetTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
 		}
 
-		_, err = qm.PeekTokens(ctx, test.specs)
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: PeekTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
-		}
-
 		err = qm.PutTokens(ctx, 1 /* numTokens */, test.specs)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("%v: PutTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
@@ -105,30 +100,6 @@ func TestNoop_ValidatesSpecs(t *testing.T) {
 		err = qm.ResetQuota(ctx, test.specs)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("%v: ResetQuota() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
-		}
-	}
-}
-
-func TestNoopManager_PeekTokens(t *testing.T) {
-	ctx := context.Background()
-	qm := Noop()
-
-	specs := []Spec{
-		{Group: User, Kind: Read, User: "ermintrude"},
-		{Group: Tree, Kind: Read, TreeID: 12345},
-		{Group: Global, Kind: Read},
-	}
-	tokens, err := qm.PeekTokens(ctx, specs)
-	if err != nil {
-		t.Fatalf("PeekTokens() returned err = %v", err)
-	}
-	if got, want := len(tokens), len(specs); got != want {
-		t.Fatalf("len(tokens) = %v, want = %v", got, want)
-	}
-	want := MaxTokens
-	for _, spec := range specs {
-		if got := tokens[spec]; got != want {
-			t.Errorf("tokens[%#v] = %v, want = %v", spec, got, want)
 		}
 	}
 }

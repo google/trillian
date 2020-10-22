@@ -47,21 +47,6 @@ func (mr *MockManagerMockRecorder) GetTokens(arg0, arg1, arg2 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokens", reflect.TypeOf((*MockManager)(nil).GetTokens), arg0, arg1, arg2)
 }
 
-// PeekTokens mocks base method
-func (m *MockManager) PeekTokens(arg0 context.Context, arg1 []Spec) (map[Spec]int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PeekTokens", arg0, arg1)
-	ret0, _ := ret[0].(map[Spec]int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PeekTokens indicates an expected call of PeekTokens
-func (mr *MockManagerMockRecorder) PeekTokens(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeekTokens", reflect.TypeOf((*MockManager)(nil).PeekTokens), arg0, arg1)
-}
-
 // PutTokens mocks base method
 func (m *MockManager) PutTokens(arg0 context.Context, arg1 int, arg2 []Spec) error {
 	m.ctrl.T.Helper()

@@ -100,41 +100,6 @@ func (m *Manager) getTokensSingle(ctx context.Context, numTokens int, spec quota
 	return nil
 }
 
-// PeekTokens implements the quota.Manager API.
-func (m *Manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota.Spec]int, error) {
-	tokens := make(map[quota.Spec]int)
-	for _, spec := range specs {
-		// Calling the limiter with 0 tokens requested is equivalent to
-		// "peeking", but it will also shrink the token bucket if it
-		// has too many tokens.
-		capacity, rate := m.opts.Parameters(spec)
-
-		// If we get back `MaxTokens` from our parameters call, this
-		// indicates that there's no actual limit. We don't need to do
-		// anything to "get" them; just set that value in the returned
-		// map as well.
-		if capacity == quota.MaxTokens {
-			tokens[spec] = quota.MaxTokens
-			continue
-		}
-
-		_, remaining, err := m.tb.Call(
-			ctx,
-			specName(m.opts.Prefix, spec),
-			int64(capacity),
-			rate,
-			0,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		tokens[spec] = int(remaining)
-	}
-
-	return tokens, nil
-}
-
 // PutTokens implements the quota.Manager API.
 func (m *Manager) PutTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
 	// Putting tokens into a time-based quota doesn't mean anything (since
