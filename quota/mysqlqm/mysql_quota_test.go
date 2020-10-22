@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
