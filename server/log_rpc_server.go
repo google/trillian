@@ -580,53 +580,6 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	return r, nil
 }
 
-// GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
-// to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
-// entries so this may return more results than the number of hashes in the request.
-func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetLeavesByHash")
-	defer spanEnd()
-
-	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogRead)
-	if err != nil {
-		return nil, err
-	}
-	ctx = trees.NewContext(ctx, tree)
-
-	if err := validateGetLeavesByHashRequest(req, hasher); err != nil {
-		return nil, err
-	}
-	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByHash")
-	if err != nil {
-		return nil, err
-	}
-	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByHash")
-
-	leaves, err := tx.GetLeavesByHash(ctx, req.LeafHash, req.OrderBySequence)
-	if err != nil {
-		return nil, err
-	}
-	t.fetchedLeaves.Add(float64(len(leaves)))
-
-	slr, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var root types.LogRootV1
-	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
-	}
-
-	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByHash"); err != nil {
-		return nil, err
-	}
-
-	return &trillian.GetLeavesByHashResponse{
-		Leaves:        leaves,
-		SignedLogRoot: slr,
-	}, nil
-}
-
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
 // and tree size.
 func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {

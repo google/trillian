@@ -140,21 +140,6 @@ func (mr *MockTrillianLogServerMockRecorder) GetLatestSignedLogRoot(arg0, arg1 i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestSignedLogRoot", reflect.TypeOf((*MockTrillianLogServer)(nil).GetLatestSignedLogRoot), arg0, arg1)
 }
 
-// GetLeavesByHash mocks base method.
-func (m *MockTrillianLogServer) GetLeavesByHash(arg0 context.Context, arg1 *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLeavesByHash", arg0, arg1)
-	ret0, _ := ret[0].(*trillian.GetLeavesByHashResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetLeavesByHash indicates an expected call of GetLeavesByHash.
-func (mr *MockTrillianLogServerMockRecorder) GetLeavesByHash(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByHash", reflect.TypeOf((*MockTrillianLogServer)(nil).GetLeavesByHash), arg0, arg1)
-}
-
 // GetLeavesByIndex mocks base method.
 func (m *MockTrillianLogServer) GetLeavesByIndex(arg0 context.Context, arg1 *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
 	m.ctrl.T.Helper()
