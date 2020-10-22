@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/testonly/matchers"
 )
@@ -51,48 +50,6 @@ func TestNewCachedManagerErrors(t *testing.T) {
 	for _, test := range tests {
 		if _, err := NewCachedManager(qm, test.minBatchSize, test.maxEntries); err == nil {
 			t.Errorf("NewCachedManager(_, %v, %v) returned err = nil, want non-nil", test.minBatchSize, test.maxEntries)
-		}
-	}
-}
-
-func TestCachedManager_PeekTokens(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	tests := []struct {
-		desc       string
-		wantTokens map[quota.Spec]int
-		wantErr    error
-	}{
-		{
-			desc: "success",
-			wantTokens: map[quota.Spec]int{
-				{Group: quota.Global, Kind: quota.Read}: 10,
-				{Group: quota.Global, Kind: quota.Read}: 11,
-			},
-		},
-		{
-			desc:    "error",
-			wantErr: errors.New("llama ate all tokens"),
-		},
-	}
-
-	ctx := context.Background()
-	for _, test := range tests {
-		mock := quota.NewMockManager(ctrl)
-		mock.EXPECT().PeekTokens(ctx, specs).Return(test.wantTokens, test.wantErr)
-
-		qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
-		if err != nil {
-			t.Fatalf("NewCachedManager() returned err = %v", err)
-		}
-
-		tokens, err := qm.PeekTokens(ctx, specs)
-		if diff := cmp.Diff(tokens, test.wantTokens); diff != "" {
-			t.Errorf("%v: post-PeekTokens() diff (-got +want):\n%v", test.desc, diff)
-		}
-		if err != test.wantErr {
-			t.Errorf("%v: PeekTokens() returned err = %#v, want = %#v", test.desc, err, test.wantErr)
 		}
 	}
 }

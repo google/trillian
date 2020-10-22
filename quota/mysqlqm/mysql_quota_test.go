@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
@@ -179,48 +178,6 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestQuotaManager_PeekTokens(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
-	ctx := context.Background()
-
-	db, done, err := testdb.NewTrillianDB(ctx)
-	if err != nil {
-		t.Fatalf("GetTestDB() returned err = %v", err)
-	}
-	defer done(ctx)
-
-	tree, err := createTree(ctx, db)
-	if err != nil {
-		t.Fatalf("createTree() returned err = %v", err)
-	}
-
-	unsequencedRows := 10
-	maxUnsequencedRows := 1000
-	wantRows := maxUnsequencedRows - unsequencedRows
-	if err := setUnsequencedRows(ctx, db, tree, unsequencedRows); err != nil {
-		t.Fatalf("setUnsequencedRows() returned err = %v", err)
-	}
-
-	// Test using select count(*) to allow for precise assertions without flakiness.
-	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequencedRows, UseSelectCount: true}
-	specs := allSpecs(ctx, qm, tree.TreeId)
-	tokens, err := qm.PeekTokens(ctx, specs)
-	if err != nil {
-		t.Fatalf("PeekTokens() returned err = %v", err)
-	}
-
-	// All specs but Global/Write are infinite
-	wantTokens := make(map[quota.Spec]int)
-	for _, spec := range specs {
-		wantTokens[spec] = quota.MaxTokens
-	}
-	wantTokens[quota.Spec{Group: quota.Global, Kind: quota.Write}] = wantRows
-
-	if diff := cmp.Diff(tokens, wantTokens); diff != "" {
-		t.Errorf("post-PeekTokens() diff:\n%v", diff)
 	}
 }
 

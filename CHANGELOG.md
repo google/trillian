@@ -2,6 +2,10 @@
 
 ## HEAD
 
+### Misc improvements
+
+ * Removed unused `PeekTokens` method from the `quota.Manager` interface.
+
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
 

@@ -77,11 +77,6 @@ func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) (quota.Man
 	}, nil
 }
 
-// PeekTokens implements Manager.PeekTokens.
-func (m *manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota.Spec]int, error) {
-	return m.qm.PeekTokens(ctx, specs)
-}
-
 // PutTokens implements Manager.PutTokens.
 func (m *manager) PutTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
 	return m.qm.PutTokens(ctx, numTokens, specs)

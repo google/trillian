@@ -29,7 +29,7 @@ type manager struct {
 }
 
 // New returns a new etcd-based quota.Manager.
-func New(client *clientv3.Client) quota.Manager {
+func New(client *clientv3.Client) *manager {
 	return &manager{qs: &storage.QuotaStorage{Client: client}}
 }
 
@@ -38,8 +38,7 @@ func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Sp
 	return m.qs.Get(ctx, configNames(specs), int64(numTokens))
 }
 
-// PeekTokens implements the quota.Manager API.
-func (m *manager) PeekTokens(ctx context.Context, specs []quota.Spec) (map[quota.Spec]int, error) {
+func (m *manager) peekTokens(ctx context.Context, specs []quota.Spec) (map[quota.Spec]int, error) {
 	names := configNames(specs)
 	nameToSpec := make(map[string]quota.Spec)
 	for i, name := range names {

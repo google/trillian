@@ -53,7 +53,8 @@ func newEtcdQuotaManager() (quota.Manager, error) {
 		return nil, fmt.Errorf("failed to connect to etcd at %v: %v", *Servers, err)
 	}
 
-	qm := etcdqm.New(client)
+	var qm quota.Manager
+	qm = etcdqm.New(client)
 	if *quotaMinBatchSize > 0 && *quotaMaxCacheEntries > 0 {
 		cachedQM, err := cacheqm.NewCachedManager(qm, *quotaMinBatchSize, *quotaMaxCacheEntries)
 		if err != nil {

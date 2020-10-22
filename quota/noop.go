@@ -46,17 +46,6 @@ func (n noopManager) GetTokens(ctx context.Context, numTokens int, specs []Spec)
 	return validateSpecs(specs)
 }
 
-func (n noopManager) PeekTokens(ctx context.Context, specs []Spec) (map[Spec]int, error) {
-	if err := validateSpecs(specs); err != nil {
-		return nil, err
-	}
-	tokens := make(map[Spec]int)
-	for _, spec := range specs {
-		tokens[spec] = MaxTokens
-	}
-	return tokens, nil
-}
-
 func (n noopManager) PutTokens(ctx context.Context, numTokens int, specs []Spec) error {
 	if err := validateNumTokens(numTokens); err != nil {
 		return err

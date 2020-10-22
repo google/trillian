@@ -108,10 +108,6 @@ type Manager interface {
 	// Returns error if numTokens could not be acquired for all specs.
 	GetTokens(ctx context.Context, numTokens int, specs []Spec) error
 
-	// PeekTokens returns how many tokens are available for each spec, without acquiring any.
-	// Infinite quotas should return MaxTokens.
-	PeekTokens(ctx context.Context, specs []Spec) (map[Spec]int, error)
-
 	// PutTokens adds numTokens for all specs.
 	PutTokens(ctx context.Context, numTokens int, specs []Spec) error
 
