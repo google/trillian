@@ -680,7 +680,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		}
 
 		// We also need the leaf entry
-		leaves, err := tx.GetLeavesByIndex(ctx, []int64{req.LeafIndex})
+		leaves, err := tx.GetLeavesByRange(ctx, req.LeafIndex, 1)
 		if err != nil {
 			return nil, err
 		}

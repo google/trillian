@@ -1322,7 +1322,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
-				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{2}).Return(nil, errors.New("STORAGE"))
+				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return(nil, errors.New("STORAGE"))
 				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &getEntryAndProofRequest7,
@@ -1339,7 +1339,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
-				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{2}).Return([]*trillian.LogLeaf{leaf1}, nil)
+				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1}, nil)
 				tx.EXPECT().Commit(gomock.Any()).Return(errors.New("COMMIT"))
 				tx.EXPECT().Close().Return(nil)
 			},
@@ -1382,7 +1382,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 				// Code passed one leaf index so expects one result, but we return more
-				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{2}).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
+				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
 				tx.EXPECT().Close().Return(nil)
 			},
 			req:    &getEntryAndProofRequest7,
@@ -1399,7 +1399,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
-				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{2}).Return([]*trillian.LogLeaf{leaf1}, nil)
+				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1}, nil)
 				tx.EXPECT().Commit(gomock.Any()).Return(nil)
 				tx.EXPECT().Close().Return(nil)
 			},
@@ -1442,7 +1442,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
-				tx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{2}).Return([]*trillian.LogLeaf{leaf1}, nil)
+				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1}, nil)
 				tx.EXPECT().Commit(gomock.Any()).Return(nil)
 				tx.EXPECT().Close().Return(nil)
 			},
