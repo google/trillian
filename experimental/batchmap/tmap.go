@@ -190,7 +190,7 @@ func convertNodes(leaves func(*nodeHash) bool) ([]smt.Node, error) {
 }
 
 // tileUpdateFn merges the base tile from the original map with the deltas that
-// represent the changes to the map. Note this only support additions or
+// represent the changes to the map. Note this only supports additions or
 // overwrites. There is no ability to delete a leaf.
 type tileUpdateFn struct {
 	TreeID int64

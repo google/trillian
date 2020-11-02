@@ -21,7 +21,8 @@ message Tile {
 // map commits to. Otherwise, this leaf represents the root of the subtree in
 // the stratum below.
 message TileLeaf {
-  // The path from the root of the container Tile to this leaf.
+  // The path from the root of the container Tile to this leaf (i.e. the index
+  // of this leaf within the tile).
   bytes path = 1;
   // The hash value being committed to.
   bytes hash = 2;
@@ -30,7 +31,8 @@ message TileLeaf {
 // Entry is a single key/value to be committed to by the map.
 message Entry {
   // The key that uniquely identifies this key/value.
-  // These keys must be distributed uniformly and randomly across the key space.
+  // These keys must be distributed uniformly and randomly across the key space,
+  // which should be obtained using a cryptographic hash.
   bytes hash_key = 1;
   // Hash of the value to be committed to. This will literally be set as a hash
   // of a TileLeaf in a leaf Tile.
