@@ -13,5 +13,25 @@ root in a configurable number of prefix strata.
 Each strata contains a single byte of the 256-bit path.
 Tiles are only output if they are non-empty.
 
-* TODO(mhutchinson): Include demo for generating map and performing
-  inclusion proofs.
+## Running the demo
+
+The following instructions show how to run this code locally using the Python
+portable runner. Setting up a Python environment is beyond the scope of this
+demo, but instructions can be found at [Beam Python Tips](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips).
+
+Ensure that the Python runner is running:
+1. Check out `github.com/apache/beam` (tested at branch `release-2.24.0`)
+2. `cd sdks/python` within that repository
+3. `python -m apache_beam.runners.portability.local_job_service_main --port=8099`
+
+In another terminal:
+1. Check out this repository and `cd` to the folder containing this README
+2. `go run ./cmd/mapdemo.go --output=/tmp/tiles.txt --runner=universal --endpoint=localhost:8099 --environment_type=LOOPBACK`
+
+The pipeline should run and generate an output file at `/tmp/tiles.txt` which summarizes the tiles in the verifiable map.
+
+The demo intends only to show the usage of the API and provide a simple way to test locally running the pipeline.
+It is not intended to demonstrate where data would be sourced from, or how the output Tiles should be used.
+See the comments in the demo script for more details.
+
+* TODO(mhutchinson): Upgrade demo to store tiles and provide code to generate and confirm inclusion proofs.
