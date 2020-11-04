@@ -5,6 +5,8 @@ substitutions:
   _MYSQL_TAG: "5.7"
   _MYSQL_ROOT_PASSWORD: ""
   _MYSQL_PASSWORD: ""
+options:
+  machineType: N1_HIGHCPU_8
 steps:
 - id: pull_mysql
   name : gcr.io/cloud-builders/docker
