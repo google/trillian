@@ -1,6 +1,8 @@
 timeout: 1800s
 substitutions:
   _MYSQL_TAG: "5.7"
+options:
+  machineType: N1_HIGHCPU_8
 steps:
 - id: pull_mysql
   name : gcr.io/cloud-builders/docker
