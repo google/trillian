@@ -16,6 +16,7 @@ package rfc6962
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -26,6 +27,7 @@ func TestRFC6962Hasher(t *testing.T) {
 	hasher := DefaultHasher
 
 	leafHash := hasher.HashLeaf([]byte("L123456"))
+	leafHashStream, _ := hasher.HashLeafStream(bytes.NewReader([]byte("L123456")))
 	emptyLeafHash := hasher.HashLeaf([]byte{})
 
 	for _, tc := range []struct {
@@ -51,6 +53,12 @@ func TestRFC6962Hasher(t *testing.T) {
 			desc: "RFC6962 Leaf",
 			want: "395aa064aa4c29f7010acfe3f25db9485bbd4b91897b6ad7ad547639252b4d56",
 			got:  leafHash,
+		},
+		// echo -n 004C313233343536 | xxd -r -p | sha256sum
+		{
+			desc: "RFC6962 Leaf Stream",
+			want: "395aa064aa4c29f7010acfe3f25db9485bbd4b91897b6ad7ad547639252b4d56",
+			got:  leafHashStream,
 		},
 		// echo -n 014E3132334E343536 | xxd -r -p | sha256sum
 		{
@@ -128,4 +136,19 @@ func TestHashChildrenEquivToOld(t *testing.T) {
 		}
 	}
 
+}
+
+type BadReader struct {
+}
+
+func (br BadReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("test error")
+}
+
+func TestHashLeafStreamReaderError(t *testing.T) {
+	h := DefaultHasher
+	br := new(BadReader)
+	if _, err := h.HashLeafStream(br); err == nil {
+		t.Errorf("no error raised when reader errored")
+	}
 }

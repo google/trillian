@@ -18,6 +18,9 @@ package rfc6962
 import (
 	"crypto"
 	_ "crypto/sha256" // SHA256 is the default algorithm.
+	"fmt"
+
+	"io"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -58,6 +61,17 @@ func (t *Hasher) HashLeaf(leaf []byte) []byte {
 	h.Write([]byte{RFC6962LeafHashPrefix})
 	h.Write(leaf)
 	return h.Sum(nil)
+}
+
+// HashLeafStream returns the Merkle tree leaf hash of the Reader passed in through leaf.
+// The data in leaf is prefixed by the LeafHashPrefix.
+func (t *Hasher) HashLeafStream(reader io.Reader) ([]byte, error) {
+	h := t.New()
+	h.Write([]byte{RFC6962LeafHashPrefix})
+	if _, err := io.Copy(h, reader); err != nil {
+		return nil, fmt.Errorf("error while reading: %v", err)
+	}
+	return h.Sum(nil), nil
 }
 
 // hashChildrenOld returns the inner Merkle tree node hash of the two child nodes l and r.
