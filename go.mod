@@ -59,10 +59,10 @@ require (
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
-	golang.org/x/tools v0.0.0-20200706234117-b22de6825cf7
-	google.golang.org/api v0.29.0
-	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df
-	google.golang.org/grpc v1.29.1
+	golang.org/x/tools v0.0.0-20200904185747-39188db58858
+	google.golang.org/api v0.35.0
+	google.golang.org/genproto v0.0.0-20200904004341-0bd0a958aa1d
+	google.golang.org/grpc v1.31.1
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 )
