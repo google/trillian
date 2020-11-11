@@ -36,7 +36,7 @@ var (
 	mapDir       = flag.String("map_dir", "", "Directory containing map tiles.")
 	treeID       = flag.Int64("tree_id", 12345, "The ID of the tree. Used as a salt in hashing.")
 	valueSalt    = flag.String("value_salt", "v1", "Some string that will be smooshed in with the generated value before hashing. Allows generated values to be deterministic but variable.")
-	key          = flag.Int64("start_key", 0, "Keys will be generated starting with this index.")
+	key          = flag.Int64("key", 0, "This is the seed for the key that will be looked up.")
 	prefixStrata = flag.Int("prefix_strata", 1, "The number of strata of 8-bit strata before the final strata.")
 )
 

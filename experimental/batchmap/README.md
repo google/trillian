@@ -15,6 +15,8 @@ Tiles are only output if they are non-empty.
 
 ## Running the demo
 
+### Building the map
+
 The following instructions show how to run this code locally using the Python
 portable runner. Setting up a Python environment is beyond the scope of this
 demo, but instructions can be found at [Beam Python Tips](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips).
@@ -30,9 +32,28 @@ In another terminal:
 2. `go run ./cmd/build/mapdemo.go --output=/tmp/mapv1 --runner=universal --endpoint=localhost:8099 --environment_type=LOOPBACK`
 
 The pipeline should run and generate files under the ouput directory, each of which contains a tile from the map.
+Note that a new file will be constructed for each tile output, which can get very large
+if the `key_count` or `prefix_strata` parameters are changed from their default values!
 
 The demo intends only to show the usage of the API and provide a simple way to test locally running the pipeline.
 It is not intended to demonstrate where data would be sourced from, or how the output Tiles should be used.
 See the comments in the demo script for more details.
 
-* TODO(mhutchinson): Upgrade demo to store tiles and provide code to generate and confirm inclusion proofs.
+### Verifying the map
+
+This requires a map to have been constructed using the previous instructions.
+Verifying the tiles can be done with a single command:
+* `go run cmd/verify/verify.go --logtostderr --map_dir=/tmp/mapv1 --key=5`
+
+The `map_dir` must match the directory provided as `output` in the previous stage.
+The parameters for `value_salt` and `tree_id` must also match those used in the map
+construction as they are used during the value construction/hashing.
+
+If this verifies successfully then you will see an output line similar to: 
+
+```
+key 5 found at path 11cd1b2203ad4a3a11ff479d1ee75a59c9f33a73c5f5cf45bda87b656237e9ed, with value '[v1]5' (1e27e661ca57f2231fb41b7ef861ab702ce7412921e4df9eb106db0d8b442227)
+```
+
+> :warning: TODO(mhutchinson): Upgrade demo to to generate and confirm inclusion proofs.
+> The verifier at the moment only checks the leaf but does not verify the root hash commits to it.
