@@ -22,11 +22,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+
+	"github.com/golang/protobuf/proto"
 
 	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/experimental/batchmap/tilepb"
@@ -36,25 +40,33 @@ import (
 const hash = crypto.SHA512_256
 
 var (
-	output       = flag.String("output", "./tilehashes.txt", "Output file in which the summaries of the tiles will be written.")
+	output       = flag.String("output", "", "Output directory in which the tiles will be written.")
 	valueSalt    = flag.String("value_salt", "v1", "Some string that will be smooshed in with the generated value before hashing. Allows generated values to be deterministic but variable.")
 	startKey     = flag.Int64("start_key", 0, "Keys will be generated starting with this index.")
-	keyCount     = flag.Int64("key_count", 1<<10, "The number of keys that will be placed in the map.")
+	keyCount     = flag.Int64("key_count", 1<<5, "The number of keys that will be placed in the map.")
 	treeID       = flag.Int64("tree_id", 12345, "The ID of the tree. Used as a salt in hashing.")
-	prefixStrata = flag.Int("prefix_strata", 3, "The number of strata of 8-bit strata before the final strata. 3 is optimal for trees up to 2^30. 10 is required to import into Trillian.")
+	prefixStrata = flag.Int("prefix_strata", 1, "The number of strata of 8-bit strata before the final strata. 3 is optimal for trees up to 2^30. 10 is required to import into Trillian.")
 )
 
 func init() {
-	beam.RegisterFunction(tileToTextFn)
 	beam.RegisterType(reflect.TypeOf((*mapEntryFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*writeTileFn)(nil)).Elem())
 }
 
 func main() {
 	flag.Parse()
 	beam.Init()
 
-	if *output == "" {
+	output := filepath.Clean(*output)
+	if output == "" {
 		log.Fatal("No output provided")
+	}
+
+	// Create the directory if it doesn't exist
+	if _, err := os.Stat(output); os.IsNotExist(err) {
+		if err = os.Mkdir(output, 0700); err != nil {
+			log.Fatalf("couldn't find or create directory %s, %v", output, err)
+		}
 	}
 
 	p, s := beam.NewPipelineWithRoot()
@@ -71,10 +83,8 @@ func main() {
 		log.Fatalf("Failed to create pipeline: %v", err)
 	}
 
-	// For the purpose of a simple demo, summarize each tile into a single-line string.
-	summaries := beam.ParDo(s, tileToTextFn, allTiles)
-	// Write this collection of summaries to the output file.
-	textio.Write(s, *output, summaries)
+	// Write this collection of tiles to the output directory.
+	beam.ParDo0(s, &writeTileFn{output}, allTiles)
 
 	// All of the above constructs the pipeline but doesn't run it. Now we run it.
 	if err := beamx.Run(context.Background(), p); err != nil {
@@ -104,11 +114,26 @@ func (fn *mapEntryFn) ProcessElement(i int64) *tilepb.Entry {
 	}
 }
 
-// tileToTextFn is a Beam ParDo function that generates a summary from a tile.
-// This is purely to have a simple output format for the demo and a real application
-// would need to store the generated Tile in some way in order to generate proofs.
-func tileToTextFn(t *tilepb.Tile) string {
-	return fmt.Sprintf("%x: %x (%d)", t.Path, t.RootHash, len(t.Leaves))
+// writeTileFn serializes the tile into the given directory, using the tile
+// path to determine the file name.
+type writeTileFn struct {
+	Directory string
+}
+
+func (fn *writeTileFn) ProcessElement(ctx context.Context, t *tilepb.Tile) error {
+	fs := local.New(ctx)
+	w, err := fs.OpenWrite(ctx, fmt.Sprintf("%s/path_%x", fn.Directory, t.Path))
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	bs, err := proto.Marshal(t)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(bs)
+	return err
 }
 
 // createRange simply generates a PCollection of int64 which is used to seed the demo
