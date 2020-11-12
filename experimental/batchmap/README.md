@@ -54,11 +54,8 @@ construction as they are used during the value construction/hashing.
 If the expected value is committed to correctly by the tiles, then you will see an output line similar to:
 
 ```
-key 5 found at path 11cd1b2203ad4a3a11ff479d1ee75a59c9f33a73c5f5cf45bda87b656237e9ed, with value '[v1]5' (1e27e661ca57f2231fb41b7ef861ab702ce7412921e4df9eb106db0d8b442227)
+key 5 found at path 11cd1b2203ad4a3a11ff479d1ee75a59c9f33a73c5f5cf45bda87b656237e9ed, with value '[v1]5' (1e27e661ca57f2231fb41b7ef861ab702ce7412921e4df9eb106db0d8b442227) committed to by map root 4365e3c65742fdfeb60079b677ccf4a264405c0d18fc7db1706690a1b06db73c
 ```
 
 Setting the `key` parameter to a key outside the range generated in the map will show non-inclusion, as will
 changing the `tree_id` or `value_salt` parameters.
-
-> :warning: TODO(mhutchinson): Upgrade demo to to generate and confirm inclusion proofs.
-> The verifier at the moment only checks the leaf but does not verify the root hash commits to it.
