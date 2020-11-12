@@ -21,7 +21,6 @@ import (
 	"crypto"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -30,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/google/trillian/experimental/batchmap"
@@ -59,13 +59,13 @@ func main() {
 
 	output := filepath.Clean(*output)
 	if output == "" {
-		log.Fatal("No output provided")
+		glog.Exitf("No output provided")
 	}
 
 	// Create the directory if it doesn't exist
 	if _, err := os.Stat(output); os.IsNotExist(err) {
 		if err = os.Mkdir(output, 0700); err != nil {
-			log.Fatalf("couldn't find or create directory %s, %v", output, err)
+			glog.Fatalf("couldn't find or create directory %s, %v", output, err)
 		}
 	}
 
@@ -80,7 +80,7 @@ func main() {
 	allTiles, err := batchmap.Create(s, entries, *treeID, hash, *prefixStrata)
 
 	if err != nil {
-		log.Fatalf("Failed to create pipeline: %v", err)
+		glog.Fatalf("Failed to create pipeline: %v", err)
 	}
 
 	// Write this collection of tiles to the output directory.
@@ -88,7 +88,7 @@ func main() {
 
 	// All of the above constructs the pipeline but doesn't run it. Now we run it.
 	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+		glog.Fatalf("Failed to execute job: %v", err)
 	}
 }
 

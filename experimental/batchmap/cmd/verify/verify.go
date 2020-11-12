@@ -64,7 +64,7 @@ func main() {
 	// Read the tiles required for this check from disk.
 	tiles, err := getTilesForKey(mapDir, keyPath)
 	if err != nil {
-		glog.Fatalf("couldn't load tiles: %v", err)
+		glog.Exitf("couldn't load tiles: %v", err)
 	}
 
 	// Perform the verification.
