@@ -116,6 +116,10 @@ func (fn *mapEntryFn) ProcessElement(i int64) *tilepb.Entry {
 
 // writeTileFn serializes the tile into the given directory, using the tile
 // path to determine the file name.
+// This is reasonable for a demo with a small number of tiles, but with large
+// maps with multiple revisions, it is conceivable that one could run out of
+// inodes on the filesystem, and thus using a database locally or storing the
+// tile data in cloud storage are more likely to scale.
 type writeTileFn struct {
 	Directory string
 }
