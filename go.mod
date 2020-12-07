@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	bitbucket.org/creachadair/shell v0.0.6
-	cloud.google.com/go/pubsub v1.5.0
+	cloud.google.com/go/pubsub v1.9.0
 	cloud.google.com/go/spanner v1.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4
 	github.com/Masterminds/goutils v1.1.0 // indirect
@@ -26,7 +26,6 @@ require (
 	github.com/google/btree v1.0.0
 	github.com/google/certificate-transparency-go v1.0.21
 	github.com/google/go-cmp v0.5.4
-	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/grpc-ecosystem/grpc-gateway v1.12.1 // indirect
@@ -53,17 +52,17 @@ require (
 	github.com/urfave/cli v1.22.1 // indirect
 	go.etcd.io/bbolt v1.3.4 // indirect
 	go.etcd.io/etcd v0.0.0-20200513171258-e048e166ab9c
-	go.opencensus.io v0.22.4
+	go.opencensus.io v0.22.5
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211
-	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
-	golang.org/x/tools v0.0.0-20200706234117-b22de6825cf7
-	google.golang.org/api v0.29.0
-	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df
-	google.golang.org/grpc v1.29.1
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/sys v0.0.0-20201201145000-ef89a241ccb3
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
+	golang.org/x/tools v0.0.0-20201202200335-bef1c476418a
+	google.golang.org/api v0.36.0
+	google.golang.org/genproto v0.0.0-20201203001206-6486ece9c497
+	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 )
