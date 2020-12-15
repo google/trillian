@@ -19,6 +19,7 @@ package main
 import (
 	"bytes"
 	"crypto"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -26,8 +27,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
-	"github.com/google/trillian/experimental/batchmap/tilepb"
+	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/coniks"
 )
@@ -87,7 +87,7 @@ func main() {
 		needLeafPath := needPath[len(tile.Path):]
 
 		// Identify the leaf we need, and convert all leaves to the format needed for hashing.
-		var leaf *tilepb.TileLeaf
+		var leaf *batchmap.TileLeaf
 		hs2Leaves := make([]*merkle.HStar2LeafHash, len(tile.Leaves))
 		for j, l := range tile.Leaves {
 			if bytes.Equal(l.Path, needLeafPath) {
@@ -126,8 +126,8 @@ func main() {
 }
 
 // getTilesForKey loads the tiles on the path from the root to the given leaf.
-func getTilesForKey(mapDir string, key []byte) ([]*tilepb.Tile, error) {
-	tiles := make([]*tilepb.Tile, *prefixStrata+1)
+func getTilesForKey(mapDir string, key []byte) ([]*batchmap.Tile, error) {
+	tiles := make([]*batchmap.Tile, *prefixStrata+1)
 	for i := 0; i <= *prefixStrata; i++ {
 		tilePath := key[0:i]
 		tileFile := fmt.Sprintf("%s/path_%x", mapDir, tilePath)
@@ -135,8 +135,8 @@ func getTilesForKey(mapDir string, key []byte) ([]*tilepb.Tile, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read file %s: %v", tileFile, err)
 		}
-		tile := &tilepb.Tile{}
-		if err := proto.Unmarshal(in, tile); err != nil {
+		tile := &batchmap.Tile{}
+		if err := json.Unmarshal(in, tile); err != nil {
 			return nil, fmt.Errorf("failed to parse tile in %s: %v", tileFile, err)
 		}
 		tiles[i] = tile
@@ -145,7 +145,7 @@ func getTilesForKey(mapDir string, key []byte) ([]*tilepb.Tile, error) {
 }
 
 // toHStar2 converts a TileLeaf into the equivalent structure for HStar2.
-func toHStar2(prefix []byte, l *tilepb.TileLeaf) *merkle.HStar2LeafHash {
+func toHStar2(prefix []byte, l *batchmap.TileLeaf) *merkle.HStar2LeafHash {
 	// In hstar2 all paths need to be 256 bit (32 bytes)
 	leafIndexBs := make([]byte, 32)
 	copy(leafIndexBs, prefix)
