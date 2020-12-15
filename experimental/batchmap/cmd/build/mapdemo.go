@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"crypto"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -30,10 +31,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 
 	"github.com/google/trillian/experimental/batchmap"
-	"github.com/google/trillian/experimental/batchmap/tilepb"
 	"github.com/google/trillian/merkle/coniks"
 )
 
@@ -101,14 +100,14 @@ type mapEntryFn struct {
 	TreeID int64
 }
 
-func (fn *mapEntryFn) ProcessElement(i int64) *tilepb.Entry {
+func (fn *mapEntryFn) ProcessElement(i int64) *batchmap.Entry {
 	h := hash.New()
 	h.Write([]byte(fmt.Sprintf("%d", i)))
 	kbs := h.Sum(nil)
 
 	data := []byte(fmt.Sprintf("[%s]%d", fn.Salt, i))
 
-	return &tilepb.Entry{
+	return &batchmap.Entry{
 		HashKey:   kbs,
 		HashValue: coniks.Default.HashLeaf(fn.TreeID, kbs, data),
 	}
@@ -124,7 +123,7 @@ type writeTileFn struct {
 	Directory string
 }
 
-func (fn *writeTileFn) ProcessElement(ctx context.Context, t *tilepb.Tile) error {
+func (fn *writeTileFn) ProcessElement(ctx context.Context, t *batchmap.Tile) error {
 	fs := local.New(ctx)
 	w, err := fs.OpenWrite(ctx, fmt.Sprintf("%s/path_%x", fn.Directory, t.Path))
 	if err != nil {
@@ -132,7 +131,7 @@ func (fn *writeTileFn) ProcessElement(ctx context.Context, t *tilepb.Tile) error
 	}
 	defer w.Close()
 
-	bs, err := proto.Marshal(t)
+	bs, err := json.Marshal(t)
 	if err != nil {
 		return err
 	}

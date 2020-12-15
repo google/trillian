@@ -26,8 +26,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 
-	"github.com/google/trillian/experimental/batchmap/tilepb"
-
 	"github.com/google/trillian/storage/tree"
 
 	"github.com/google/trillian/merkle/coniks"
@@ -42,8 +40,8 @@ var (
 	cntTilesUpdated = beam.NewCounter("batchmap", "tiles-updated")
 )
 
-// Create builds a new map from the given PCollection of *tilepb.Entry. Outputs
-// the resulting Merkle tree tiles as a PCollection of *tilepb.Tile.
+// Create builds a new map from the given PCollection of *Entry. Outputs
+// the resulting Merkle tree tiles as a PCollection of *Tile.
 //
 // The keys in the input PCollection must be 256-bit, uniformly distributed,
 // and unique within the input.
@@ -77,9 +75,9 @@ func Create(s beam.Scope, entries beam.PCollection, treeID int64, hash crypto.Ha
 	return beam.Flatten(s, allTiles...), nil
 }
 
-// Update takes an existing base map (PCollection of *tilepb.Tile), applies the
-// delta (PCollection of *tilepb.Entry) and returns the resulting map as a
-// PCollection of *tilepb.Tile.
+// Update takes an existing base map (PCollection of *Tile), applies the
+// delta (PCollection of *Entry) and returns the resulting map as a
+// PCollection of *Tile.
 // The deltas can add new keys to the map or overwrite existing keys. Keys
 // cannot be deleted (though their value can be set to a sentinel value).
 //
@@ -112,7 +110,7 @@ func Update(s beam.Scope, base, delta beam.PCollection, treeID int64, hash crypt
 
 // createStratum creates the tiles for the stratum at the given rootDepth bytes.
 // leaves is a PCollection of nodeHash that are the leaves of this layer.
-// output is a PCollection of *tilepb.Tile.
+// output is a PCollection of *Tile.
 func createStratum(s beam.Scope, leaves beam.PCollection, treeID int64, hash crypto.Hash, rootDepth int) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("createStratum-%d", rootDepth))
 	shardedLeaves := beam.ParDo(s, &leafShardFn{RootDepthBytes: rootDepth}, leaves)
@@ -120,13 +118,13 @@ func createStratum(s beam.Scope, leaves beam.PCollection, treeID int64, hash cry
 }
 
 // updateStratum updates the tiles for the stratum at the given bytes depth.
-// base is a PCollection of *tilepb.Tile which is the tiles in the stratum
+// base is a PCollection of *Tile which is the tiles in the stratum
 // to be updated.
 // deltas is a PCollection of nodeHash that are the updated leaves of this layer.
-// output is a PCollection of *tilepb.Tile.
+// output is a PCollection of *Tile.
 func updateStratum(s beam.Scope, base, deltas beam.PCollection, treeID int64, hash crypto.Hash, rootDepth int) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("updateStratum-%d", rootDepth))
-	shardedBase := beam.ParDo(s, func(t *tilepb.Tile) ([]byte, *tilepb.Tile) { return t.GetPath(), t }, base)
+	shardedBase := beam.ParDo(s, func(t *Tile) ([]byte, *Tile) { return t.Path, t }, base)
 	shardedDelta := beam.ParDo(s, &leafShardFn{RootDepthBytes: rootDepth}, deltas)
 	return beam.ParDo(s, &tileUpdateFn{TreeID: treeID, Hash: hash}, beam.CoGroupByKey(s, shardedBase, shardedDelta))
 }
@@ -143,16 +141,16 @@ type nodeHash struct {
 	Hash []byte
 }
 
-func partitionByPrefixLenFn(t *tilepb.Tile) int {
-	return len(t.GetPath())
+func partitionByPrefixLenFn(t *Tile) int {
+	return len(t.Path)
 }
 
-func tileToNodeHashFn(t *tilepb.Tile) nodeHash {
-	return nodeHash{Path: t.GetPath(), Hash: t.GetRootHash()}
+func tileToNodeHashFn(t *Tile) nodeHash {
+	return nodeHash{Path: t.Path, Hash: t.RootHash}
 }
 
-func entryToNodeHashFn(e *tilepb.Entry) nodeHash {
-	return nodeHash{Path: e.GetHashKey(), Hash: e.GetHashValue()}
+func entryToNodeHashFn(e *Entry) nodeHash {
+	return nodeHash{Path: e.HashKey, Hash: e.HashValue}
 }
 
 // leafShardFn groups nodeHashs together based on the first RootDepthBytes
@@ -175,7 +173,7 @@ func (fn *tileHashFn) Setup() {
 	fn.th = &tileHasher{fn.TreeID, coniks.New(fn.Hash)}
 }
 
-func (fn *tileHashFn) ProcessElement(ctx context.Context, rootPath []byte, leaves func(*nodeHash) bool) (*tilepb.Tile, error) {
+func (fn *tileHashFn) ProcessElement(ctx context.Context, rootPath []byte, leaves func(*nodeHash) bool) (*Tile, error) {
 	nodes, err := convertNodes(leaves)
 	if err != nil {
 		return nil, err
@@ -216,7 +214,7 @@ func (fn *tileUpdateFn) Setup() {
 	fn.th = &tileHasher{fn.TreeID, coniks.New(fn.Hash)}
 }
 
-func (fn *tileUpdateFn) ProcessElement(ctx context.Context, rootPath []byte, bases func(**tilepb.Tile) bool, deltas func(*nodeHash) bool) (*tilepb.Tile, error) {
+func (fn *tileUpdateFn) ProcessElement(ctx context.Context, rootPath []byte, bases func(**Tile) bool, deltas func(*nodeHash) bool) (*Tile, error) {
 	base, err := getOptionalTile(bases)
 	if err != nil {
 		return nil, fmt.Errorf("failed precondition getOptionalTile at %x: %v", rootPath, err)
@@ -241,7 +239,7 @@ func (fn *tileUpdateFn) ProcessElement(ctx context.Context, rootPath []byte, bas
 	return fn.updateTile(rootPath, base, nodes)
 }
 
-func (fn *tileUpdateFn) updateTile(rootPath []byte, base *tilepb.Tile, deltas []smt.Node) (*tilepb.Tile, error) {
+func (fn *tileUpdateFn) updateTile(rootPath []byte, base *Tile, deltas []smt.Node) (*Tile, error) {
 	baseNodes := make([]smt.Node, 0, len(base.Leaves))
 	for _, l := range base.Leaves {
 		leafPath := append(rootPath, l.Path...)
@@ -249,7 +247,7 @@ func (fn *tileUpdateFn) updateTile(rootPath []byte, base *tilepb.Tile, deltas []
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode leaf ID: %v", err)
 		}
-		baseNodes = append(baseNodes, smt.Node{ID: lidx, Hash: l.GetHash()})
+		baseNodes = append(baseNodes, smt.Node{ID: lidx, Hash: l.Hash})
 	}
 
 	return fn.th.update(rootPath, baseNodes, deltas)
@@ -262,7 +260,7 @@ type tileHasher struct {
 	h      hashers.MapHasher
 }
 
-func (th *tileHasher) construct(rootPath []byte, nodes []smt.Node) (*tilepb.Tile, error) {
+func (th *tileHasher) construct(rootPath []byte, nodes []smt.Node) (*Tile, error) {
 	rootDepthBytes := len(rootPath)
 	if err := smt.Prepare(nodes, nodes[0].ID.BitLen()); err != nil {
 		return nil, fmt.Errorf("smt.Prepare: %v", err)
@@ -270,13 +268,13 @@ func (th *tileHasher) construct(rootPath []byte, nodes []smt.Node) (*tilepb.Tile
 
 	// N.B. This needs to be done after Prepare but BEFORE HStar3 because it
 	// fiddles around with the nodes and makes their IDs invalid afterwards.
-	tls := make([]*tilepb.TileLeaf, len(nodes))
+	tls := make([]*TileLeaf, len(nodes))
 	for i, n := range nodes {
 		nPath, err := nodeID2Encode(n.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode leaf ID: %v", err)
 		}
-		tls[i] = &tilepb.TileLeaf{
+		tls[i] = &TileLeaf{
 			Path: nPath[rootDepthBytes:],
 			Hash: n.Hash,
 		}
@@ -287,14 +285,14 @@ func (th *tileHasher) construct(rootPath []byte, nodes []smt.Node) (*tilepb.Tile
 		return nil, fmt.Errorf("failed to hash tile: %v", err)
 	}
 
-	return &tilepb.Tile{
+	return &Tile{
 		Path:     rootPath,
 		Leaves:   tls,
 		RootHash: rootHash,
 	}, nil
 }
 
-func (th *tileHasher) update(rootPath []byte, baseNodes, deltaNodes []smt.Node) (*tilepb.Tile, error) {
+func (th *tileHasher) update(rootPath []byte, baseNodes, deltaNodes []smt.Node) (*Tile, error) {
 	// We add new values first and then update with base to easily check for duplicates in deltas.
 	m := make(map[tree.NodeID2]smt.Node)
 	for _, leaf := range deltaNodes {
@@ -363,10 +361,10 @@ func nodeID2Decode(bs []byte) (tree.NodeID2, error) {
 // - nil if there were no entries
 // - the single tile if there was only one entry
 // - an error if there were multiple entries
-func getOptionalTile(iter func(**tilepb.Tile) bool) (*tilepb.Tile, error) {
-	var t1, t2 *tilepb.Tile
+func getOptionalTile(iter func(**Tile) bool) (*Tile, error) {
+	var t1, t2 *Tile
 	if !iter(&t1) || !iter(&t2) { // Only at most one entry is found.
 		return t1, nil // Note: Returns nil if found nothing.
 	}
-	return nil, fmt.Errorf("unexpectedly found multiple tiles at %x", t1.GetPath())
+	return nil, fmt.Errorf("unexpectedly found multiple tiles at %x", t1.Path)
 }
