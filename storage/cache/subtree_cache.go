@@ -138,7 +138,7 @@ func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) e
 		return err
 	}
 
-	ch := make(chan *storagepb.SubtreeProto, len(want))
+	ch := make(chan *storagepb.SubtreeProto, len(subtrees))
 	workTokens := make(chan bool, s.populateConcurrency)
 	for i := 0; i < s.populateConcurrency; i++ {
 		workTokens <- true
@@ -156,7 +156,7 @@ func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) e
 			defer func() { workTokens <- true }()
 
 			s.populate(t)
-			ch <- t
+			ch <- t // Note: This never blocks because len(ch) == len(subtrees).
 		}()
 	}
 
