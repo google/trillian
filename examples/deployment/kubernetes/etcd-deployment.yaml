@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: trillian-etcd-operator
@@ -6,6 +6,9 @@ metadata:
   namespace: default
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      name: trillian-etcd-operator
   template:
     metadata:
       labels:
