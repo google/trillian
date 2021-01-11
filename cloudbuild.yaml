@@ -1,185 +1,358 @@
+#############################################################################
+## The top section of this file is identical in the 3 cloudbuild.*yaml files.
+## Make sure any edits you make here are copied over to the other files too
+## if appropriate.
+##
+## TODO(al): consider if it's possible to merge these 3 files and control via
+## substitutions.
+#############################################################################
+
 timeout: 1800s
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
   _MYSQL_TAG: "5.7"
   _MYSQL_ROOT_PASSWORD: ""
-  _MYSQL_PASSWORD: ""
+  _MYSQL_HOST: "cloudbuild_db_1"
+  _MYSQL_PORT: "3306"
+  _MYSQL_USER: "test"
+  _MYSQL_PASSWORD: "zaphod"
+  _MYSQL_ROOT_PASSWORD: "bananas"
+  _MYSQL_USER_HOST: '%'
 options:
-  machineType: N1_HIGHCPU_8
+  machineType: N1_HIGHCPU_32
+  env:
+    - GO111MODULE=on
+    - GOPROXY=https://proxy.golang.org
+    - PROJECT_ROOT=github.com/google/trillian
+    - GOPATH=/go
+    - MYSQL_HOST=${_MYSQL_HOST}
+    - MYSQL_PORT=${_MYSQL_PORT}
+    - MYSQL_USER=${_MYSQL_USER}
+    - MYSQL_PASSWORD=${_MYSQL_PASSWORD}
+    - MYSQL_ROOT_PASSWORD=${_MYSQL_ROOT_PASSWORD}
+    - MYSQL_USER_HOST=${_MYSQL_USER_HOST}
+
 steps:
-- id: pull_mysql
-  name : gcr.io/cloud-builders/docker
+# First build a "trillian_testbase" docker image which contains most of the tools we need for the later steps:
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args: ['-c', 'docker pull gcr.io/$PROJECT_ID/trillian_testbase:latest || exit 0']
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-t', 'gcr.io/$PROJECT_ID/trillian_testbase:latest',
+    '--cache-from', 'gcr.io/$PROJECT_ID/trillian_testbase:latest',
+    '-f', './integration/cloudbuild/testbase/Dockerfile',
+    '.'
+  ]
+
+# Set up tools and any other common steps which should not be part of Docker image.
+- id: prepare
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/prepare.sh
+
+# # Run lint and porcelain checks
+# - id: lint
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: bash
+#   args:
+#     - -exc
+#     - |
+#       curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.21.0
+#       golangci-lint run --deadline=8m
+#       ./scripts/check_license.sh $(find . -name '*.go' | grep -v mock_ | grep -v .pb.go | grep -v .pb.gw.go | grep -v _string.go | tr '\n' ' ')
+#   waitFor:
+#     - prepare
+
+# # Run Bazel check
+# - id: bazel
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: bash
+#   args:
+#     - -exc
+#     - |
+#       bazel build //:*
+#   waitFor:
+#     - prepare
+
+
+# # Run Docker check
+# - id: docker
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/docker_compose_integration_test.sh
+#   waitFor:
+#     - prepare
+
+# Presubmit
+- id: presubmit
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
   args:
-  - pull
-  - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
-- id: tag_mysql
-  name: gcr.io/cloud-builders/docker
-  args:
-  - tag
-  - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
-  - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
-  waitFor:
-  - pull_mysql
-- id: push_mysql
-  name: gcr.io/cloud-builders/docker
-  args:
-  - push
-  - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
-  waitFor:
-  - tag_mysql
-- id: build_db_server
-  name: gcr.io/kaniko-project/executor
-  args:
-  - --dockerfile=examples/deployment/docker/db_server/Dockerfile
-  - --destination=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
-  - --cache=true
-  - --cache-dir= # Cache is in Google Container Registry
-  waitFor:
-  - push_mysql
-- id: build_log_server
-  name: gcr.io/kaniko-project/executor
-  args:
-  - --dockerfile=examples/deployment/docker/log_server/Dockerfile
-  - --destination=gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
-  - --cache=true
-  - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ["-"]
-- id: build_log_signer
-  name: gcr.io/kaniko-project/executor
-  args:
-  - --dockerfile=examples/deployment/docker/log_signer/Dockerfile
-  - --destination=gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
-  - --cache=true
-  - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ["-"]
-- id: build_map_server
-  name: gcr.io/kaniko-project/executor
-  args:
-  - --dockerfile=examples/deployment/docker/map_server/Dockerfile
-  - --destination=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
-  - --cache=true
-  - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ["-"]
-- id: build_envsubst
-  name: gcr.io/cloud-builders/docker
-  args:
-  - build
-  - examples/deployment/docker/envsubst
-  - -t
-  - envsubst
-  waitFor: ["-"]
-- id: apply_k8s_cfgs_for_clusterwide_etcd_operator_dryrun
-  name: gcr.io/cloud-builders/kubectl
-  args:
-  - apply
-  - --server-dry-run
-  - -f=examples/deployment/kubernetes/etcd-deployment.yaml
+    - --no-linters
+    - --no-generate
   env:
-  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
-  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
-  waitFor: ["-"]
-- id: copy_k8s_cfgs_for_spanner
-  name: busybox
-  entrypoint: cp
-  args:
-  - -r
-  - examples/deployment/kubernetes/
-  - envsubst-spanner/
-  waitFor: ['-']
-- id: envsubst_k8s_cfgs_for_spanner
-  name: envsubst
-  args:
-  - envsubst-spanner/etcd-cluster.yaml
-  - envsubst-spanner/trillian-ci-spanner.yaml
-  - envsubst-spanner/trillian-log-deployment.yaml
-  - envsubst-spanner/trillian-log-service.yaml
-  - envsubst-spanner/trillian-log-signer-deployment.yaml
-  - envsubst-spanner/trillian-log-signer-service.yaml
-  - envsubst-spanner/trillian-map-deployment.yaml
-  - envsubst-spanner/trillian-map-service.yaml
-  env:
-  - PROJECT_ID=${PROJECT_ID}
-  - IMAGE_TAG=${COMMIT_SHA}
+    - GOFLAGS=-race
+    - GO_TEST_TIMEOUT=20m
   waitFor:
-  - build_envsubst
-  - copy_k8s_cfgs_for_spanner
-- id: apply_k8s_cfgs_for_spanner_dryrun
-  name: gcr.io/cloud-builders/kubectl
-  args:
-  - apply
-  - --server-dry-run
-  - -f=envsubst-spanner/etcd-cluster.yaml
-  - -f=envsubst-spanner/trillian-ci-spanner.yaml
-  - -f=envsubst-spanner/trillian-log-deployment.yaml
-  - -f=envsubst-spanner/trillian-log-service.yaml
-  - -f=envsubst-spanner/trillian-log-signer-deployment.yaml
-  - -f=envsubst-spanner/trillian-log-signer-service.yaml
-  - -f=envsubst-spanner/trillian-map-deployment.yaml
-  - -f=envsubst-spanner/trillian-map-service.yaml
-  - --prune
-  - --all
-  - --prune-whitelist=core/v1/ConfigMap
-  env:
-  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
-  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
-  waitFor:
-  - envsubst_k8s_cfgs_for_spanner
-  - build_log_server
-  - build_log_signer
-  - build_map_server
-- id: copy_k8s_cfgs_for_mysql
-  name: busybox
-  entrypoint: cp
-  args:
-  - -r
-  - examples/deployment/kubernetes/
-  - envsubst-mysql/
-  waitFor: ['-']
-- id: envsubst_k8s_cfgs_for_mysql
-  name: envsubst
-  args:
-  - envsubst-mysql/etcd-cluster.yaml
-  - envsubst-mysql/trillian-ci-mysql.yaml
-  - envsubst-mysql/trillian-mysql.yaml
-  - envsubst-mysql/trillian-log-deployment.yaml
-  - envsubst-mysql/trillian-log-service.yaml
-  - envsubst-mysql/trillian-log-signer-deployment.yaml
-  - envsubst-mysql/trillian-log-signer-service.yaml
-  - envsubst-mysql/trillian-map-deployment.yaml
-  - envsubst-mysql/trillian-map-service.yaml
-  env:
-  - PROJECT_ID=${PROJECT_ID}
-  - IMAGE_TAG=${COMMIT_SHA}
-  - MYSQL_ROOT_PASSWORD=${_MYSQL_ROOT_PASSWORD}
-  - MYSQL_PASSWORD=${_MYSQL_PASSWORD}
-  waitFor:
-  - build_envsubst
-  - copy_k8s_cfgs_for_mysql
-- id: apply_k8s_cfgs_for_mysql_dryrun
-  name: gcr.io/cloud-builders/kubectl
-  args:
-  - apply
-  - --server-dry-run
-  - --namespace=mysql
-  - -f=envsubst-mysql/etcd-cluster.yaml
-  - -f=envsubst-mysql/trillian-ci-mysql.yaml
-  - -f=envsubst-mysql/trillian-mysql.yaml
-  - -f=envsubst-mysql/trillian-log-deployment.yaml
-  - -f=envsubst-mysql/trillian-log-service.yaml
-  - -f=envsubst-mysql/trillian-log-signer-deployment.yaml
-  - -f=envsubst-mysql/trillian-log-signer-service.yaml
-  - -f=envsubst-mysql/trillian-map-deployment.yaml
-  - -f=envsubst-mysql/trillian-map-service.yaml
-  - --prune
-  - --all
-  - --prune-whitelist=core/v1/ConfigMap
-  env:
-  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
-  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
-  waitFor:
-  - envsubst_k8s_cfgs_for_mysql
-  - build_db_server
-  - build_log_server
-  - build_log_signer
-  - build_map_server
+    - prepare
+
+# # Presubmit (Batched queue)
+# - id: presubmit_batched
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/cloudbuild/run_presubmit.sh
+#   args:
+#     - --no-linters
+#     - --no-generate
+#   env:
+#     - GOFLAGS=-race --tags=batched_queue
+#     - GO_TEST_TIMEOUT=20m
+#   waitFor:
+#     - prepare
+
+# # Presubmit (PKCS11)
+# - id: presubmit_pkcs11
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/cloudbuild/run_presubmit.sh
+#   args:
+#     - --no-linters
+#     - --no-generate
+#   env:
+#     - GOFLAGS=-race --tags=pkcs11
+#     - GO_TEST_TIMEOUT=20m
+#   waitFor:
+#     - prepare
+
+# # Integration
+# - id: integration
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/cloudbuild/run_integration.sh
+#   env:
+#     - HAMMER_OPTS=--operations=150
+#     - GO_TEST_TIMEOUT=20m
+#     - MYSQL_DATABASE=integration
+#   waitFor:
+#     - prepare
+
+# # Integration (etcd)
+# - id: integration_etcd
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/cloudbuild/run_integration.sh
+#   env:
+#     - ETCD_DIR=/go/bin
+#     - GOFLAGS=-race
+#     - HAMMER_OPTS=--operations=50
+#     - GO_TEST_TIMEOUT=20m
+#     - MYSQL_DATABASE=integration_etcd
+#   waitFor:
+#     - prepare
+
+# # Integration (Batched queue)
+# - id: integration_batched
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/cloudbuild/run_integration.sh
+#   env:
+#     - GOFLAGS=-race
+#     - HAMMER_OPTS=--operations=50
+#     - GO_TEST_TIMEOUT=20m
+#     - MYSQL_DATABASE=integration_batched
+#   waitFor:
+#     - prepare
+
+# # Integration (PKCS11)
+# - id: integration_pkcs11
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/cloudbuild/run_integration.sh
+#   env:
+#     - GOFLAGS=-tags=pkcs11
+#     - HAMMER_OPTS=--operations=50
+#     - GO_TEST_TIMEOUT=20m
+#     - MYSQL_DATABASE=integration_pkcs11
+#   waitFor:
+#     - prepare
+
+# ############################################################################
+# ## End of replicated section.
+# ## Below are deployment/dry-run specific steps for the CD env.
+# ############################################################################
+# - id: pull_mysql
+#   name : gcr.io/cloud-builders/docker
+#   args:
+#   - pull
+#   - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
+# - id: tag_mysql
+#   name: gcr.io/cloud-builders/docker
+#   args:
+#   - tag
+#   - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
+#   - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
+#   waitFor:
+#   - pull_mysql
+# - id: push_mysql
+#   name: gcr.io/cloud-builders/docker
+#   args:
+#   - push
+#   - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
+#   waitFor:
+#   - tag_mysql
+# - id: build_db_server
+#   name: gcr.io/kaniko-project/executor
+#   args:
+#   - --dockerfile=examples/deployment/docker/db_server/Dockerfile
+#   - --destination=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
+#   - --cache=true
+#   - --cache-dir= # Cache is in Google Container Registry
+#   waitFor:
+#   - push_mysql
+# - id: build_log_server
+#   name: gcr.io/kaniko-project/executor
+#   args:
+#   - --dockerfile=examples/deployment/docker/log_server/Dockerfile
+#   - --destination=gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
+#   - --cache=true
+#   - --cache-dir= # Cache is in Google Container Registry
+#   waitFor:
+#     - prepare
+# - id: build_log_signer
+#   name: gcr.io/kaniko-project/executor
+#   args:
+#   - --dockerfile=examples/deployment/docker/log_signer/Dockerfile
+#   - --destination=gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
+#   - --cache=true
+#   - --cache-dir= # Cache is in Google Container Registry
+#   waitFor:
+#     - prepare
+# - id: build_map_server
+#   name: gcr.io/kaniko-project/executor
+#   args:
+#   - --dockerfile=examples/deployment/docker/map_server/Dockerfile
+#   - --destination=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
+#   - --cache=true
+#   - --cache-dir= # Cache is in Google Container Registry
+#   waitFor:
+#     - prepare
+# - id: build_envsubst
+#   name: gcr.io/cloud-builders/docker
+#   args:
+#   - build
+#   - examples/deployment/docker/envsubst
+#   - -t
+#   - envsubst
+#   waitFor: ["-"]
+# - id: apply_k8s_cfgs_for_clusterwide_etcd_operator_dryrun
+#   name: gcr.io/cloud-builders/kubectl
+#   args:
+#   - apply
+#   - --server-dry-run
+#   - -f=examples/deployment/kubernetes/etcd-deployment.yaml
+#   env:
+#   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+#   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+#   waitFor:
+#     - prepare
+# - id: copy_k8s_cfgs_for_spanner
+#   name: busybox
+#   entrypoint: cp
+#   args:
+#   - -r
+#   - examples/deployment/kubernetes/
+#   - envsubst-spanner/
+#   waitFor:
+#     - prepare
+# - id: envsubst_k8s_cfgs_for_spanner
+#   name: envsubst
+#   args:
+#   - envsubst-spanner/etcd-cluster.yaml
+#   - envsubst-spanner/trillian-ci-spanner.yaml
+#   - envsubst-spanner/trillian-log-deployment.yaml
+#   - envsubst-spanner/trillian-log-service.yaml
+#   - envsubst-spanner/trillian-log-signer-deployment.yaml
+#   - envsubst-spanner/trillian-log-signer-service.yaml
+#   - envsubst-spanner/trillian-map-deployment.yaml
+#   - envsubst-spanner/trillian-map-service.yaml
+#   env:
+#   - PROJECT_ID=${PROJECT_ID}
+#   - IMAGE_TAG=${COMMIT_SHA}
+#   waitFor:
+#   - build_envsubst
+#   - copy_k8s_cfgs_for_spanner
+# - id: apply_k8s_cfgs_for_spanner_dryrun
+#   name: gcr.io/cloud-builders/kubectl
+#   args:
+#   - apply
+#   - --server-dry-run
+#   - -f=envsubst-spanner/etcd-cluster.yaml
+#   - -f=envsubst-spanner/trillian-ci-spanner.yaml
+#   - -f=envsubst-spanner/trillian-log-deployment.yaml
+#   - -f=envsubst-spanner/trillian-log-service.yaml
+#   - -f=envsubst-spanner/trillian-log-signer-deployment.yaml
+#   - -f=envsubst-spanner/trillian-log-signer-service.yaml
+#   - -f=envsubst-spanner/trillian-map-deployment.yaml
+#   - -f=envsubst-spanner/trillian-map-service.yaml
+#   - --prune
+#   - --all
+#   - --prune-whitelist=core/v1/ConfigMap
+#   env:
+#   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+#   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+#   waitFor:
+#   - envsubst_k8s_cfgs_for_spanner
+#   - build_log_server
+#   - build_log_signer
+#   - build_map_server
+# - id: copy_k8s_cfgs_for_mysql
+#   name: busybox
+#   entrypoint: cp
+#   args:
+#   - -r
+#   - examples/deployment/kubernetes/
+#   - envsubst-mysql/
+#   waitFor:
+#     - prepare
+# - id: envsubst_k8s_cfgs_for_mysql
+#   name: envsubst
+#   args:
+#   - envsubst-mysql/etcd-cluster.yaml
+#   - envsubst-mysql/trillian-ci-mysql.yaml
+#   - envsubst-mysql/trillian-mysql.yaml
+#   - envsubst-mysql/trillian-log-deployment.yaml
+#   - envsubst-mysql/trillian-log-service.yaml
+#   - envsubst-mysql/trillian-log-signer-deployment.yaml
+#   - envsubst-mysql/trillian-log-signer-service.yaml
+#   - envsubst-mysql/trillian-map-deployment.yaml
+#   - envsubst-mysql/trillian-map-service.yaml
+#   env:
+#   - PROJECT_ID=${PROJECT_ID}
+#   - IMAGE_TAG=${COMMIT_SHA}
+#   - MYSQL_ROOT_PASSWORD=${_MYSQL_ROOT_PASSWORD}
+#   - MYSQL_PASSWORD=${_MYSQL_PASSWORD}
+#   waitFor:
+#   - build_envsubst
+#   - copy_k8s_cfgs_for_mysql
+# - id: apply_k8s_cfgs_for_mysql_dryrun
+#   name: gcr.io/cloud-builders/kubectl
+#   args:
+#   - apply
+#   - --server-dry-run
+#   - --namespace=mysql
+#   - -f=envsubst-mysql/etcd-cluster.yaml
+#   - -f=envsubst-mysql/trillian-ci-mysql.yaml
+#   - -f=envsubst-mysql/trillian-mysql.yaml
+#   - -f=envsubst-mysql/trillian-log-deployment.yaml
+#   - -f=envsubst-mysql/trillian-log-service.yaml
+#   - -f=envsubst-mysql/trillian-log-signer-deployment.yaml
+#   - -f=envsubst-mysql/trillian-log-signer-service.yaml
+#   - -f=envsubst-mysql/trillian-map-deployment.yaml
+#   - -f=envsubst-mysql/trillian-map-service.yaml
+#   - --prune
+#   - --all
+#   - --prune-whitelist=core/v1/ConfigMap
+#   env:
+#   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+#   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+#   waitFor:
+#   - envsubst_k8s_cfgs_for_mysql
+#   - build_db_server
+#   - build_log_server
+#   - build_log_signer
+#   - build_map_server
