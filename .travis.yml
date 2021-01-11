@@ -98,7 +98,7 @@ jobs:
           cd "$GOPATH/src/github.com/google/certificate-transparency-go"
           # echo "replace github.com/google/trillian => $TRILLIAN_DIR" >> go.mod
           chmod +x ./trillian/integration/integration_test.sh
-         ./trillian/integration/integration_test.sh
+         ${TRILLIAN_DIR}/integration/run_integration_test.sh "CT Integration" "./trillian/integration/integration_test.sh"
         )
     - name: "presubmit"
       env: GOFLAGS='-race' GO_TEST_TIMEOUT=20m
