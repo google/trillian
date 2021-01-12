@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
+	_ "github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/rfc6962"
 )
