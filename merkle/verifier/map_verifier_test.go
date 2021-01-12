@@ -73,6 +73,8 @@ func TestConiksHasherTestVectors(t *testing.T) {
 }
 
 func TestMapHasherTestVectors(t *testing.T) {
+	const treeID = 0
+
 	// Test vectors were copied from a python implementation.
 	h := maphasher.Default
 	tv := struct {
