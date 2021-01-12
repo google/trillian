@@ -20,11 +20,11 @@ import (
 	_ "crypto/sha256" // SHA256 is the default algorithm.
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 )
 
 func init() {
-	hashers.RegisterLogHasher(trillian.HashStrategy_RFC6962_SHA256, New(crypto.SHA256))
+	registry.RegisterLogHasher(trillian.HashStrategy_RFC6962_SHA256, New(crypto.SHA256))
 }
 
 // Domain separation prefixes

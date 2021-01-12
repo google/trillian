@@ -23,12 +23,12 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 )
 
 func init() {
-	hashers.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA512_256, Default)
-	hashers.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA256, New(crypto.SHA256))
+	registry.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA512_256, Default)
+	registry.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA256, New(crypto.SHA256))
 }
 
 // Domain separation prefixes
@@ -41,25 +41,25 @@ var (
 	zeroes = make([]byte, 32)
 )
 
-// hasher implements the sparse merkle tree hashing algorithm specified in the CONIKS paper.
-type hasher struct {
+// Hasher implements the sparse merkle tree hashing algorithm specified in the CONIKS paper.
+type Hasher struct {
 	crypto.Hash
 }
 
 // New creates a new hashers.TreeHasher using the passed in hash function.
-func New(h crypto.Hash) hashers.MapHasher {
+func New(h crypto.Hash) *Hasher {
 	return &hasher{Hash: h}
 }
 
 // EmptyRoot returns the root of an empty tree.
-func (m *hasher) EmptyRoot() []byte {
+func (m *Hasher) EmptyRoot() []byte {
 	panic("EmptyRoot() not defined for coniks.Hasher")
 }
 
 // HashEmpty returns the hash of an empty subtree of the given height at the
 // position defined by the BitLen()-height most significant bits of the given
 // index. Note that a height of 0 indicates a leaf.
-func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
+func (m *Hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	depth := m.BitLen() - height
 
 	buf := bytes.NewBuffer(make([]byte, 0, 32))
@@ -78,7 +78,7 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 
 // HashLeaf calculate the merkle tree leaf value:
 // H(Identifier || treeID || depth || index || dataHash)
-func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
+func (m *Hasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
 	depth := m.BitLen()
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
@@ -97,7 +97,7 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is  H(l || r).
-func (m *hasher) HashChildren(l, r []byte) []byte {
+func (m *Hasher) HashChildren(l, r []byte) []byte {
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(l)+len(r)))
 	h := m.New()
 	buf.Write(l)
@@ -111,7 +111,7 @@ func (m *hasher) HashChildren(l, r []byte) []byte {
 }
 
 // BitLen returns the number of bits in the hash function.
-func (m *hasher) BitLen() int {
+func (m *Hasher) BitLen() int {
 	return m.Size() * 8
 }
 
@@ -128,7 +128,7 @@ var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 // The tree height and hash size could be different.
 // TODO(pavelkalinnikov): Padding with zeroes doesn't buy us anything, as the
 // depth is also written to the Buffer.
-func (m *hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
+func (m *Hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
 	if got, min := len(index)*8, depth; got < min {
 		panic(fmt.Sprintf("index bits: %d, want >= %d", got, min))
 	}
