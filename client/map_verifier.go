@@ -21,7 +21,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/maps"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/verifier"
+	"github.com/google/trillian/merkle/mapverifier"
 	"github.com/google/trillian/types"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
@@ -81,7 +81,7 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 
 // VerifyMapLeafInclusionHash verifies a MapLeafInclusion object against a root hash.
 func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *trillian.MapLeafInclusion) error {
-	return verifier.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
+	return mapverifier.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
 }
 
 // VerifyMapLeavesResponse verifies the responses of GetMapLeaves and GetMapLeavesByRevision.

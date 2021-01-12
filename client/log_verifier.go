@@ -22,7 +22,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/verifier"
+	"github.com/google/trillian/merkle/logverifier"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 
@@ -39,7 +39,7 @@ type LogVerifier struct {
 	PubKey crypto.PublicKey
 	// SigHash computes the digest of LogRoot for signing.
 	SigHash crypto.Hash
-	v       verifier.LogVerifier
+	v       logverifier.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
@@ -48,7 +48,7 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash c
 		Hasher:  hasher,
 		PubKey:  pubKey,
 		SigHash: sigHash,
-		v:       verifier.NewLogVerifier(hasher),
+		v:       logverifier.NewLogVerifier(hasher),
 	}
 }
 

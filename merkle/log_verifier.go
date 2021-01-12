@@ -16,22 +16,22 @@ package merkle
 
 import (
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/verifier"
+	"github.com/google/trillian/merkle/logverifier"
 )
 
 // RootMismatchError occurs when an inclusion proof fails.
 //
-// Deprecated: moved to github.com/google/trillian/merkle/verifier package
-type RootMismatchError = verifier.RootMismatchError
+// Deprecated: moved to github.com/google/trillian/merkle/logverifier package
+type RootMismatchError = logverifier.RootMismatchError
 
 // LogVerifier verifies inclusion and consistency proofs for append only logs.
 //
-// Deprecated: moved to github.com/google/trillian/merkle/verifier package
-type LogVerifier = verifier.LogVerifier
+// Deprecated: moved to github.com/google/trillian/merkle/logverifier package
+type LogVerifier = logverifier.LogVerifier
 
 // NewLogVerifier returns a new LogVerifier for a tree.
 //
-// Deprecated: moved to github.com/google/trillian/merkle/verifier package
+// Deprecated: moved to github.com/google/trillian/merkle/logverifier package
 func NewLogVerifier(hasher hashers.LogHasher) LogVerifier {
-	return verifier.NewLogVerifier(hasher)
+	return logverifier.NewLogVerifier(hasher)
 }
