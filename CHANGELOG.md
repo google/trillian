@@ -5,6 +5,8 @@
 ### Misc improvements
 
  * Removed unused `PeekTokens` method from the `quota.Manager` interface.
+ * Moved verifiers from `merkle` into `merkle/verifier`sub-pacakge, reducing
+   the amount of extra baggage inadvertently pulled in by clients.
 
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
