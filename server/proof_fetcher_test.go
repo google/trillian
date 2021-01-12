@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/memory"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/testonly"
 )
@@ -201,13 +202,13 @@ func expandLeaves(n, m int) []string {
 
 // expectedRootAtSize uses the in memory tree, the tree built with Compact Merkle Tree should
 // have the same root.
-func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) []byte {
+func expectedRootAtSize(mt *memory.InMemoryMerkleTree) []byte {
 	return mt.CurrentRoot().Hash()
 }
 
-func treeAtSize(n int) *merkle.InMemoryMerkleTree {
+func treeAtSize(n int) *memory.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
-	mt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	mt := memory.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	for _, leaf := range leaves {
 		mt.AddLeaf([]byte(leaf))
 	}

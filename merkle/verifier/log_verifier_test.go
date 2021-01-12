@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/memory"
 	"github.com/google/trillian/merkle/rfc6962"
 )
 
@@ -510,27 +510,27 @@ func shortHash(hash []byte) string {
 	return fmt.Sprintf("%x...", hash[:4])
 }
 
-func createTree(size int64) (*merkle.InMemoryMerkleTree, LogVerifier) {
-	tree := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+func createTree(size int64) (*memory.InMemoryMerkleTree, LogVerifier) {
+	tree := memory.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	growTree(tree, size)
 	return tree, NewLogVerifier(rfc6962.DefaultHasher)
 }
 
-func growTree(tree *merkle.InMemoryMerkleTree, upTo int64) {
+func growTree(tree *memory.InMemoryMerkleTree, upTo int64) {
 	for i := tree.LeafCount(); i < upTo; i++ {
 		data := []byte(fmt.Sprintf("data:%d", i))
 		tree.AddLeaf(data)
 	}
 }
 
-func getLeafAndProof(tree *merkle.InMemoryMerkleTree, index int64) ([]byte, [][]byte) {
+func getLeafAndProof(tree *memory.InMemoryMerkleTree, index int64) ([]byte, [][]byte) {
 	// Note: InMemoryMerkleTree counts leaves from 1.
 	proof := rawProof(tree.PathToCurrentRoot(index + 1))
 	leafHash := tree.LeafHash(index + 1)
 	return leafHash, proof
 }
 
-func rawProof(desc []merkle.TreeEntryDescriptor) [][]byte {
+func rawProof(desc []memory.TreeEntryDescriptor) [][]byte {
 	proof := make([][]byte, len(desc))
 	for i, d := range desc {
 		proof[i] = d.Value.Hash()

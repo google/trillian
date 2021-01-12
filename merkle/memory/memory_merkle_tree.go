@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package merkle
-
-// This is a fairly direct port of the C++ Merkle Tree. It has the same API and should have
-// similar performance. It keeps all its data in RAM and is not part of the Trillian API.
+// Package memory provides a fairly direct port of the C++ Merkle Tree from the CT repo.
+//  It has the same API and should have similar performance. It keeps all its data in
+// RAM and is not part of the Trillian API.
 //
 // Note: this implementation evaluates the root lazily in the same way as the C++ code so
 // some methods that appear to be accessors can cause mutations to update the structure
@@ -28,6 +27,7 @@ package merkle
 // cross checks of the new implementation and it is advantageous to be able to compare it
 // directly with the C++ code.
 // -------------------------------------------------------------------------------------------
+package memory
 
 import (
 	"errors"
