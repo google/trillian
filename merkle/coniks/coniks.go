@@ -48,7 +48,7 @@ type Hasher struct {
 
 // New creates a new hashers.TreeHasher using the passed in hash function.
 func New(h crypto.Hash) *Hasher {
-	return &hasher{Hash: h}
+	return &Hasher{Hash: h}
 }
 
 // EmptyRoot returns the root of an empty tree.

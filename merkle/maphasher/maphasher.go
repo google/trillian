@@ -22,10 +22,11 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 )
 
 func init() {
-	hashers.RegisterMapHasher(trillian.HashStrategy_TEST_MAP_HASHER, Default)
+	registry.RegisterMapHasher(trillian.HashStrategy_TEST_MAP_HASHER, Default)
 }
 
 // Domain separation prefixes

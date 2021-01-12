@@ -29,7 +29,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
@@ -160,7 +160,7 @@ func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, erro
 }
 
 func newLogCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
-	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	hasher, err := registry.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}
@@ -839,16 +839,16 @@ func (tx *logTX) GetLeavesByIndex(ctx context.Context, indices []int64) ([]*tril
 	// TODO: replace with INNER JOIN when spannertest supports JOINs
 	// https://github.com/googleapis/google-cloud-go/tree/master/spanner/spannertest
 	stmt := spanner.NewStatement(
-		`SELECT 
+		`SELECT
 		   TreeID,
 		   SequenceNumber,
 		   LeafIdentityHash,
-		   MerkleLeafHash, 
+		   MerkleLeafHash,
 		   IntegrateTimestampNanos
-		FROM 
+		FROM
 		   SequencedLeafData
-		WHERE 
-		   TreeID = @tree_id AND 
+		WHERE
+		   TreeID = @tree_id AND
 		   SequenceNumber IN UNNEST(@seq_nums)`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["seq_nums"] = indices
@@ -870,16 +870,16 @@ func (tx *logTX) GetLeavesByIndex(ctx context.Context, indices []int64) ([]*tril
 	}
 
 	stmt = spanner.NewStatement(
-		`SELECT 
+		`SELECT
 		   TreeID,
-		   LeafIdentityHash, 
-		   LeafValue, 
-		   ExtraData, 
+		   LeafIdentityHash,
+		   LeafValue,
+		   ExtraData,
 		   QueueTimestampNanos
-		 FROM 
+		 FROM
 		   SequencedLeafData
-		 WHERE 
-		   TreeID = @tree_id AND 
+		 WHERE
+		   TreeID = @tree_id AND
 		   LeafIdentityHash IN UNNEST(@id_hashes)`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["id_hashes"] = idHashes
@@ -943,17 +943,17 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 	// TODO: replace with INNER JOIN when spannertest supports JOINs
 	// https://github.com/googleapis/google-cloud-go/tree/master/spanner/spannertest
 	stmt := spanner.NewStatement(
-		`SELECT 
+		`SELECT
 		   TreeID,
 		   SequenceNumber,
 		   LeafIdentityHash,
-		   MerkleLeafHash, 
+		   MerkleLeafHash,
 		   IntegrateTimestampNanos
-		 FROM 
+		 FROM
 		   SequencedLeafData
-		 WHERE 
-		   TreeID = @tree_id AND 
-		   SequenceNumber >= @start AND 
+		 WHERE
+		   TreeID = @tree_id AND
+		   SequenceNumber >= @start AND
 		   SequenceNumber < @xend`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["start"] = start
@@ -976,16 +976,16 @@ func (tx *logTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*t
 	}
 
 	stmt = spanner.NewStatement(
-		`SELECT 
+		`SELECT
 		   TreeID,
-		   LeafIdentityHash, 
-		   LeafValue, 
-		   ExtraData, 
+		   LeafIdentityHash,
+		   LeafValue,
+		   ExtraData,
 		   QueueTimestampNanos
-		 FROM 
+		 FROM
 		   LeafData
-		 WHERE 
-		   TreeID = @tree_id AND 
+		 WHERE
+		   TreeID = @tree_id AND
 		   LeafIdentityHash IN UNNEST(@id_hashes)`)
 	stmt.Params["tree_id"] = tx.treeID
 	stmt.Params["id_hashes"] = idHashes

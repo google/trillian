@@ -26,7 +26,7 @@ import (
 
 	"github.com/google/btree"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -151,7 +151,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	hasher, err := registry.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

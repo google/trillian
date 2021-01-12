@@ -39,7 +39,7 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
@@ -196,7 +196,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		glog.Fatalf("Create tree: %v", err)
 	}
 
-	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	hasher, err := registry.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		glog.Fatalf("NewLogHasher: %v", err)
 	}
@@ -301,7 +301,7 @@ func Main(args Options) string {
 		formatter = fullProto
 	}
 
-	hasher, err := hashers.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)
+	hasher, err := registry.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)
 	if err != nil {
 		glog.Fatalf("Failed to create a log hasher: %v", err)
 	}

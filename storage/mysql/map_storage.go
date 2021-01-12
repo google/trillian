@@ -24,6 +24,7 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -77,7 +78,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree, readon
 	if got, want := tree.TreeType, trillian.TreeType_MAP; got != want {
 		return nil, fmt.Errorf("begin(tree.TreeType: %v), want %v", got, want)
 	}
-	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
+	hasher, err := registry.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}
