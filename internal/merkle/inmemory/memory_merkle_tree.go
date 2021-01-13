@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package memory provides a fairly direct port of the C++ Merkle Tree from the CT repo.
+// Package inmemory provides a fairly direct port of the C++ Merkle Tree from the CT repo.
 //  It has the same API and should have similar performance. It keeps all its data in
 // RAM and is not part of the Trillian API.
 //
@@ -27,7 +27,7 @@
 // cross checks of the new implementation and it is advantageous to be able to compare it
 // directly with the C++ code.
 // -------------------------------------------------------------------------------------------
-package memory
+package inmemory
 
 import (
 	"errors"
@@ -65,8 +65,8 @@ type TreeEntryDescriptor struct {
 	YCoord int64 // The vertical node coordinate
 }
 
-// InMemoryMerkleTree holds a Merkle Tree in memory as a 2D node array
-type InMemoryMerkleTree struct {
+// MerkleTree holds a Merkle Tree in memory as a 2D node array
+type MerkleTree struct {
 	// A container for nodes, organized according to levels and sorted
 	// left-to-right in each level. tree_[0] is the leaf level, etc.
 	// The hash of nodes tree_[i][j] and tree_[i][j+1] (j even) is stored
@@ -126,13 +126,13 @@ func sibling(leaf int64) int64 {
 	return leaf + 1
 }
 
-// NewInMemoryMerkleTree creates a new empty Merkle Tree using the specified Hasher.
-func NewInMemoryMerkleTree(hasher hashers.LogHasher) *InMemoryMerkleTree {
-	return &InMemoryMerkleTree{hasher: hasher}
+// NewMerkleTree creates a new empty Merkle Tree using the specified Hasher.
+func NewMerkleTree(hasher hashers.LogHasher) *MerkleTree {
+	return &MerkleTree{hasher: hasher}
 }
 
 // LeafHash returns the hash of the requested leaf, or nil if it doesn't exist.
-func (mt *InMemoryMerkleTree) LeafHash(leaf int64) []byte {
+func (mt *MerkleTree) LeafHash(leaf int64) []byte {
 	if leaf == 0 || leaf > mt.LeafCount() {
 		return nil
 	}
@@ -142,7 +142,7 @@ func (mt *InMemoryMerkleTree) LeafHash(leaf int64) []byte {
 // NodeCount gets the current node count (of the lazily evaluated tree).
 // Caller is responsible for keeping track of the lazy evaluation status. This will not
 // update the tree.
-func (mt *InMemoryMerkleTree) NodeCount(level int64) int64 {
+func (mt *MerkleTree) NodeCount(level int64) int64 {
 	if mt.lazyLevelCount() <= level {
 		panic(fmt.Errorf("lazyLevelCount <= level in nodeCount: %d", mt.lazyLevelCount()))
 	}
@@ -151,17 +151,17 @@ func (mt *InMemoryMerkleTree) NodeCount(level int64) int64 {
 }
 
 // LevelCount returns the number of levels in the Merkle tree.
-func (mt *InMemoryMerkleTree) LevelCount() int64 {
+func (mt *MerkleTree) LevelCount() int64 {
 	return mt.levelCount
 }
 
 // lazyLevelCount is the current level count of the lazily evaluated tree.
-func (mt *InMemoryMerkleTree) lazyLevelCount() int64 {
+func (mt *MerkleTree) lazyLevelCount() int64 {
 	return int64(len(mt.tree))
 }
 
 // LeafCount returns the number of leaves in the tree.
-func (mt *InMemoryMerkleTree) LeafCount() int64 {
+func (mt *MerkleTree) LeafCount() int64 {
 	if len(mt.tree) == 0 {
 		return 0
 	}
@@ -170,7 +170,7 @@ func (mt *InMemoryMerkleTree) LeafCount() int64 {
 
 // root gets the current root (of the lazily evaluated tree).
 // Caller is responsible for keeping track of the lazy evaluation status.
-func (mt *InMemoryMerkleTree) root() TreeEntry {
+func (mt *MerkleTree) root() TreeEntry {
 	lastLevel := len(mt.tree) - 1
 
 	if len(mt.tree[lastLevel]) > 1 {
@@ -181,7 +181,7 @@ func (mt *InMemoryMerkleTree) root() TreeEntry {
 }
 
 // lastNode returns the last node of the given level in the tree.
-func (mt *InMemoryMerkleTree) lastNode(level int64) TreeEntry {
+func (mt *MerkleTree) lastNode(level int64) TreeEntry {
 	levelNodes := mt.NodeCount(level)
 
 	if levelNodes < 1 {
@@ -192,12 +192,12 @@ func (mt *InMemoryMerkleTree) lastNode(level int64) TreeEntry {
 }
 
 // addLevel start a new tree level.
-func (mt *InMemoryMerkleTree) addLevel() {
+func (mt *MerkleTree) addLevel() {
 	mt.tree = append(mt.tree, []TreeEntry{})
 }
 
 // pushBack appends a node to the level.
-func (mt *InMemoryMerkleTree) pushBack(level int64, treeEntry TreeEntry) {
+func (mt *MerkleTree) pushBack(level int64, treeEntry TreeEntry) {
 	if mt.lazyLevelCount() <= level {
 		panic(fmt.Errorf("lazyLevelCount <= level in pushBack: %d", mt.lazyLevelCount()))
 	}
@@ -206,7 +206,7 @@ func (mt *InMemoryMerkleTree) pushBack(level int64, treeEntry TreeEntry) {
 }
 
 // popBack pops (removes and returns) the last node of the level.
-func (mt *InMemoryMerkleTree) popBack(level int64) {
+func (mt *MerkleTree) popBack(level int64) {
 	if len(mt.tree[level]) < 1 {
 		panic(errors.New("no nodes to pop in popBack"))
 	}
@@ -221,13 +221,13 @@ func (mt *InMemoryMerkleTree) popBack(level int64) {
 //
 // Returns the position of the leaf in the tree. Indexing starts at 1,
 // so position = number of leaves in the tree after this update.
-func (mt *InMemoryMerkleTree) AddLeaf(leafData []byte) (int64, TreeEntry) {
+func (mt *MerkleTree) AddLeaf(leafData []byte) (int64, TreeEntry) {
 	leafHash := mt.hasher.HashLeaf(leafData)
 	leafCount, treeEntry := mt.addLeafHash(leafHash)
 	return leafCount, treeEntry
 }
 
-func (mt *InMemoryMerkleTree) addLeafHash(leafData []byte) (int64, TreeEntry) {
+func (mt *MerkleTree) addLeafHash(leafData []byte) (int64, TreeEntry) {
 	treeEntry := TreeEntry{}
 	treeEntry.hash = leafData
 
@@ -255,7 +255,7 @@ func (mt *InMemoryMerkleTree) addLeafHash(leafData []byte) (int64, TreeEntry) {
 //
 // Returns the hash of an empty string if the tree has no leaves
 // (and hence, no root).
-func (mt *InMemoryMerkleTree) CurrentRoot() TreeEntry {
+func (mt *MerkleTree) CurrentRoot() TreeEntry {
 	return mt.RootAtSnapshot(mt.LeafCount())
 }
 
@@ -265,7 +265,7 @@ func (mt *InMemoryMerkleTree) CurrentRoot() TreeEntry {
 //
 // Returns an empty string if the snapshot requested is in the future
 // (i.e., the tree is not large enough).
-func (mt *InMemoryMerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
+func (mt *MerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
 	if snapshot == 0 {
 		return TreeEntry{mt.hasher.EmptyRoot()}
 	}
@@ -284,7 +284,7 @@ func (mt *InMemoryMerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
 }
 
 // updateToSnapshot updates the tree to a given snapshot (if necessary), returns the root.
-func (mt *InMemoryMerkleTree) updateToSnapshot(snapshot int64) TreeEntry {
+func (mt *MerkleTree) updateToSnapshot(snapshot int64) TreeEntry {
 	if snapshot == 0 {
 		return TreeEntry{mt.hasher.EmptyRoot()}
 	}
@@ -347,7 +347,7 @@ func (mt *InMemoryMerkleTree) updateToSnapshot(snapshot int64) TreeEntry {
 
 // recomputePastSnapshot returns the root of the tree as it was for a past snapshot.
 // If node is not nil, additionally records the rightmost node for the given snapshot and node_level.
-func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel int64, node *TreeEntry) TreeEntry {
+func (mt *MerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel int64, node *TreeEntry) TreeEntry {
 	level := int64(0)
 	// Index of the rightmost node at the current level for this snapshot.
 	lastNode := snapshot - 1
@@ -414,7 +414,7 @@ func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel in
 // is one below the root.
 // Returns an empty slice if the tree is not large enough
 // or the leaf index is 0.
-func (mt *InMemoryMerkleTree) PathToCurrentRoot(leaf int64) []TreeEntryDescriptor {
+func (mt *MerkleTree) PathToCurrentRoot(leaf int64) []TreeEntryDescriptor {
 	return mt.PathToRootAtSnapshot(leaf, mt.LeafCount())
 }
 
@@ -425,7 +425,7 @@ func (mt *InMemoryMerkleTree) PathToCurrentRoot(leaf int64) []TreeEntryDescripto
 // last element is one below the root.  Returns an empty slice if
 // the leaf index is 0, the snapshot requested is in the future or
 // the snapshot tree is not large enough.
-func (mt *InMemoryMerkleTree) PathToRootAtSnapshot(leaf int64, snapshot int64) []TreeEntryDescriptor {
+func (mt *MerkleTree) PathToRootAtSnapshot(leaf int64, snapshot int64) []TreeEntryDescriptor {
 	if leaf > snapshot || snapshot > mt.LeafCount() || leaf == 0 {
 		return []TreeEntryDescriptor{}
 	}
@@ -435,7 +435,7 @@ func (mt *InMemoryMerkleTree) PathToRootAtSnapshot(leaf int64, snapshot int64) [
 
 // pathFromNodeToRootAtSnapshot returns the path from a node at a given level
 // (both indexed starting with 0) to the root at a given snapshot.
-func (mt *InMemoryMerkleTree) pathFromNodeToRootAtSnapshot(node int64, level int64, snapshot int64) []TreeEntryDescriptor {
+func (mt *MerkleTree) pathFromNodeToRootAtSnapshot(node int64, level int64, snapshot int64) []TreeEntryDescriptor {
 	var path []TreeEntryDescriptor
 
 	if snapshot == 0 {
@@ -484,7 +484,7 @@ func (mt *InMemoryMerkleTree) pathFromNodeToRootAtSnapshot(node int64, level int
 // Returns a slice of node hashes, ordered according to levels.
 // Returns an empty slice if snapshot1 is 0, snapshot1 >= snapshot2,
 // or one of the snapshots requested is in the future.
-func (mt *InMemoryMerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int64) []TreeEntryDescriptor {
+func (mt *MerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int64) []TreeEntryDescriptor {
 	var proof []TreeEntryDescriptor
 
 	if snapshot1 == 0 || snapshot1 >= snapshot2 || snapshot2 > mt.LeafCount() {

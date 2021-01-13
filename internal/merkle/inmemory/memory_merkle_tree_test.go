@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package memory
+package inmemory
 
 import (
 	"bytes"
@@ -121,8 +121,8 @@ func decodeHexStringOrPanic(hs string) []byte {
 	return data
 }
 
-func makeEmptyTree() *InMemoryMerkleTree {
-	return NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+func makeEmptyTree() *MerkleTree {
+	return NewMerkleTree(rfc6962.DefaultHasher)
 }
 
 func makeFuzzTestData() [][]byte {
@@ -136,7 +136,7 @@ func makeFuzzTestData() [][]byte {
 	return data
 }
 
-func getRootAsString(mt InMemoryMerkleTree, leaf int64) string {
+func getRootAsString(mt MerkleTree, leaf int64) string {
 	node := mt.RootAtSnapshot(leaf)
 
 	if node.hash == nil {
@@ -324,7 +324,7 @@ func TestEmptyTreeHash(t *testing.T) {
 	}
 }
 
-func validateTree(mt *InMemoryMerkleTree, l int64, t *testing.T) {
+func validateTree(mt *MerkleTree, l int64, t *testing.T) {
 	if mt.LeafCount() != l+1 {
 		t.Errorf("Incorrect leaf count %d, expecting %d", mt.LeafCount(), l+1)
 	}
