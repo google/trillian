@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package inmemory provides a fairly direct port of the C++ Merkle Tree from the CT repo.
-//  It has the same API and should have similar performance. It keeps all its data in
-// RAM and is not part of the Trillian API.
+// Package inmemory provides an in-memory MerkleTree implementation.
+// It's a fairly direct port of the C++ Merkle Tree from the CT repo; it has the same API
+// and should have similar performance.
+// It is not part of the Trillian API.
 //
 // Note: this implementation evaluates the root lazily in the same way as the C++ code so
 // some methods that appear to be accessors can cause mutations to update the structure
