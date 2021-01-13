@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/golang/glog"
 	"github.com/google/trillian/internal/merkle/memory"
 	"github.com/google/trillian/merkle/rfc6962"
 )
