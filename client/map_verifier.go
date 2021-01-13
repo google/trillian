@@ -81,7 +81,7 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 
 // VerifyMapLeafInclusionHash verifies a MapLeafInclusion object against a root hash.
 func (m *MapVerifier) VerifyMapLeafInclusionHash(rootHash []byte, leafProof *trillian.MapLeafInclusion) error {
-	return mapverifier.VerifyMapInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
+	return mapverifier.VerifyInclusionProof(m.MapID, leafProof.GetLeaf(), rootHash, leafProof.GetInclusion(), m.Hasher)
 }
 
 // VerifyMapLeavesResponse verifies the responses of GetMapLeaves and GetMapLeavesByRevision.

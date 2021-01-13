@@ -23,14 +23,14 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
-// VerifyMapInclusionProof verifies that the passed in expectedRoot can be
+// VerifyInclusionProof verifies that the passed in expectedRoot can be
 // reconstructed correctly given the other parameters.
 //
 // The process is essentially the same as the inclusion proof checking for
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot []byte, proof [][]byte, h hashers.MapHasher) error {
+func VerifyInclusionProof(treeID int64, leaf *trillian.MapLeaf, expectedRoot []byte, proof [][]byte, h hashers.MapHasher) error {
 	if got, want := len(leaf.Index)*8, h.BitLen(); got != want {
 		return fmt.Errorf("index len: %d, want %d", got, want)
 	}
