@@ -1,4 +1,4 @@
-# MySQL / MariaDB version of the tree schema
+O# MySQL / MariaDB version of the tree schema
 
 -- ---------------------------------------------
 -- Tree stuff here
