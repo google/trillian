@@ -1,6 +1,6 @@
 name: PR actions
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
@@ -30,6 +30,10 @@ jobs:
         with:
           path: "new"
           fetch-depth: 0
+      - name: Where Am I
+        shell: bash
+        run: git fetch --all
+        working-directory: "new"
       - name: APIDiff
-        run: go-apidiff ${{ github.base_ref }}
+        run: go-apidiff origin/master
         working-directory: "new"
