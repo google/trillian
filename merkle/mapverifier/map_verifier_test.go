@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package merkle
+package mapverifier
 
 import (
 	"testing"
@@ -65,14 +65,16 @@ func TestConiksHasherTestVectors(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			leaf := trillian.MapLeaf{Index: tc.index, LeafValue: tc.value, LeafHash: nil}
-			if err := VerifyMapInclusionProof(tc.treeID, &leaf, tc.root, tc.proof, h); err != nil {
-				t.Errorf("VerifyMapInclusionProof failed: %v", err)
+			if err := VerifyInclusionProof(tc.treeID, &leaf, tc.root, tc.proof, h); err != nil {
+				t.Errorf("VerifyInclusionProof failed: %v", err)
 			}
 		})
 	}
 }
 
 func TestMapHasherTestVectors(t *testing.T) {
+	const treeID = 0
+
 	// Test vectors were copied from a python implementation.
 	h := maphasher.Default
 	tv := struct {
@@ -146,9 +148,9 @@ func TestMapHasherTestVectors(t *testing.T) {
 		{"excess proof", tv.Index, tv.Value, tv.ExpectedRoot, make([][]byte, h.Size()*8+1), false},
 	} {
 		leaf := trillian.MapLeaf{Index: tc.index, LeafValue: tc.leaf}
-		err := VerifyMapInclusionProof(treeID, &leaf, tc.root, tc.proof, h)
+		err := VerifyInclusionProof(treeID, &leaf, tc.root, tc.proof, h)
 		if got := err == nil; got != tc.want {
-			t.Errorf("%v: VerifyMapInclusionProof(): %v, want %v", tc.desc, err, tc.want)
+			t.Errorf("%v: VerifyInclusionProof(): %v, want %v", tc.desc, err, tc.want)
 		}
 	}
 }

@@ -5,6 +5,11 @@
 ### Misc improvements
 
  * Removed unused `PeekTokens` method from the `quota.Manager` interface.
+ * Breaking unnecessary dependencies for Trillian clients:
+   * Moved verifiers from `merkle` into `merkle/{log,map}verifier`sub-pacakges,
+     reducing the amount of extra baggage inadvertently pulled in by clients.
+ * Moved some packages intended for internal-only use into `internal` packages:
+   * InMemoryMerkleTree (indended to only be used by Trillian tests)
 
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)

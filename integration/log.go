@@ -27,8 +27,9 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
-	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/internal/merkle/inmemory"
 	"github.com/google/trillian/merkle/compact"
+	"github.com/google/trillian/merkle/logverifier"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/types"
 )
@@ -363,7 +364,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 	return leafMap, nil
 }
 
-func checkLogRootHashMatches(tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
+func checkLogRootHashMatches(tree *inmemory.MerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
 	// Check the STH against the hash we got from our tree
 	resp, err := getLatestSignedLogRoot(client, params)
 	if err != nil {
@@ -438,7 +439,7 @@ func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.Trillian
 // at least as big as the index where STHs where the index is a multiple of the sequencer batch size. All
 // proofs returned should match ones computed by the alternate Merkle Tree implementation, which differs
 // from what the log uses.
-func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
+func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.MerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
 	for treeSize := int64(0); treeSize < min(params.LeafCount, int64(2*params.SequencerBatchSize)); treeSize++ {
 		ctx, cancel := getRPCDeadlineContext(params)
 		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
@@ -459,7 +460,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 
 		// Verify inclusion proof.
 		root := tree.RootAtSnapshot(treeSize).Hash()
-		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
+		verifier := logverifier.New(rfc6962.DefaultHasher)
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
 		if err := verifier.VerifyInclusionProof(index, treeSize, resp.Proof.Hashes, root, merkleLeafHash); err != nil {
@@ -470,7 +471,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 	return nil
 }
 
-func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters, batchSize int64) error {
+func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *inmemory.MerkleTree, client trillian.TrillianLogClient, params TestParameters, batchSize int64) error {
 	// We expect the proof request to succeed
 	ctx, cancel := getRPCDeadlineContext(params)
 	req := &trillian.GetConsistencyProofRequest{
@@ -496,14 +497,14 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		return fmt.Errorf("requested tree size %d > available tree size %d", req.SecondTreeSize, root.TreeSize)
 	}
 
-	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
+	verifier := logverifier.New(rfc6962.DefaultHasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
 	return verifier.VerifyConsistencyProof(req.FirstTreeSize, req.SecondTreeSize,
 		root1, root2, resp.Proof.Hashes)
 }
 
-func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*merkle.InMemoryMerkleTree, error) {
+func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*inmemory.MerkleTree, error) {
 	// Build the same tree with two different Merkle tree implementations as an
 	// additional check. We don't just rely on the compact range as the server
 	// uses the same code so bugs could be masked.
@@ -511,7 +512,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 	fact := compact.RangeFactory{Hash: hasher.HashChildren}
 	cr := fact.NewEmptyRange(0)
 
-	merkleTree := merkle.NewInMemoryMerkleTree(hasher)
+	merkleTree := inmemory.NewMerkleTree(hasher)
 
 	// We don't simply iterate the map, as we need to preserve the leaves order.
 	for l := params.StartLeaf; l < params.LeafCount; l++ {
