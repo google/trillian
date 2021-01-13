@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/trillian/merkle/memory"
+	"github.com/google/trillian/internal/merkle/memory"
 	"github.com/google/trillian/merkle/rfc6962"
 )
 

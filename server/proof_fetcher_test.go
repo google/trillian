@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/trillian/internal/merkle/memory"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/memory"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/testonly"
 )
