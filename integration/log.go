@@ -460,7 +460,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *memory.InMemory
 
 		// Verify inclusion proof.
 		root := tree.RootAtSnapshot(treeSize).Hash()
-		verifier := logverifier.NewLogVerifier(rfc6962.DefaultHasher)
+		verifier := logverifier.New(rfc6962.DefaultHasher)
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
 		if err := verifier.VerifyInclusionProof(index, treeSize, resp.Proof.Hashes, root, merkleLeafHash); err != nil {
@@ -497,7 +497,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		return fmt.Errorf("requested tree size %d > available tree size %d", req.SecondTreeSize, root.TreeSize)
 	}
 
-	verifier := logverifier.NewLogVerifier(rfc6962.DefaultHasher)
+	verifier := logverifier.New(rfc6962.DefaultHasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
 	return verifier.VerifyConsistencyProof(req.FirstTreeSize, req.SecondTreeSize,

@@ -48,7 +48,7 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash c
 		Hasher:  hasher,
 		PubKey:  pubKey,
 		SigHash: sigHash,
-		v:       logverifier.NewLogVerifier(hasher),
+		v:       logverifier.New(hasher),
 	}
 }
 

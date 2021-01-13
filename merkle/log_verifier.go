@@ -33,5 +33,5 @@ type LogVerifier = logverifier.LogVerifier
 //
 // Deprecated: moved to github.com/google/trillian/merkle/logverifier package
 func NewLogVerifier(hasher hashers.LogHasher) LogVerifier {
-	return logverifier.NewLogVerifier(hasher)
+	return logverifier.New(hasher)
 }
