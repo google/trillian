@@ -8,6 +8,9 @@
  * Breaking unnecessary dependencies for Trillian clients:
    * Moved verifiers from `merkle` into `merkle/{log,map}verifier`sub-pacakges,
      reducing the amount of extra baggage inadvertently pulled in by clients.
+  * Concrete hashers have been moved into subpackages, separating them from their
+    registration code, allowing clients to direcly pull just the hasher they're
+    interested in and avoid the Trillian hasher registry+protobuf deps.
  * Moved some packages intended for internal-only use into `internal` packages:
    * InMemoryMerkleTree (indended to only be used by Trillian tests)
 
