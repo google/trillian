@@ -23,7 +23,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -82,7 +82,7 @@ func (ms *mapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 func newMapCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
-	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
+	hasher, err := registry.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

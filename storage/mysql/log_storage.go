@@ -29,7 +29,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -238,7 +238,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	hasher, err := registry.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

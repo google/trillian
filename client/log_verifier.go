@@ -22,6 +22,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/merkle/logverifier"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
@@ -63,7 +64,7 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v or %v", got, log, pLog)
 	}
 
-	logHasher, err := hashers.NewLogHasher(config.HashStrategy)
+	logHasher, err := registry.NewLogHasher(config.HashStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %v", err)
 	}

@@ -25,6 +25,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	_ "github.com/google/trillian/merkle/rfc6962" // Load hashers
 )
 
@@ -39,7 +40,7 @@ func createHasher() hashers.LogHasher {
 		glog.Fatalf("Unknown hash strategy: %s", *hashStrategyFlag)
 	}
 
-	hasher, err := hashers.NewLogHasher(trillian.HashStrategy(strategy))
+	hasher, err := registry.NewLogHasher(trillian.HashStrategy(strategy))
 	if err != nil {
 		glog.Fatalf("Failed to create a log hasher for strategy %s: %v", *hashStrategyFlag, err)
 	}

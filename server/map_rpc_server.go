@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
@@ -500,7 +501,7 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 	if err != nil {
 		return nil, nil, err
 	}
-	th, err := hashers.NewMapHasher(tree.HashStrategy)
+	th, err := registry.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, nil, err
 	}

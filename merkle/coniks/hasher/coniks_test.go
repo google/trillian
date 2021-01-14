@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package coniks
+package hasher
 
 import (
 	"bytes"
@@ -98,7 +98,7 @@ func TestHashLeaf(t *testing.T) {
 }
 
 func TestWriteMaskedIndex(t *testing.T) {
-	h := &hasher{crypto.SHA1} // Use a shorter hash for shorter test vectors.
+	h := &Hasher{crypto.SHA1} // Use a shorter hash for shorter test vectors.
 	for _, tc := range []struct {
 		index []byte
 		depth int
@@ -131,7 +131,7 @@ func TestWriteMaskedIndex(t *testing.T) {
 }
 
 func TestWriteMaskedIndex512Bits(t *testing.T) {
-	h := &hasher{crypto.SHA512} // Use a hasher with > 32 byte length.
+	h := &Hasher{crypto.SHA512} // Use a hasher with > 32 byte length.
 	for _, tc := range []struct {
 		index []byte
 		depth int
@@ -237,7 +237,7 @@ func TestWriteMaskedIndex512Bits(t *testing.T) {
 
 func TestWriteMaskedIndexBits(t *testing.T) {
 	allFF := h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
-	h := &hasher{crypto.SHA512} // Use a hasher with > 32 byte length.
+	h := &Hasher{crypto.SHA512} // Use a hasher with > 32 byte length.
 	ref := new(big.Int)
 	// Go through all the bits, set them one at a time in the big.Int and compare
 	// the results against writeMaskedIndex with a depth of that many set bits.

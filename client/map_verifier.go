@@ -21,6 +21,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/maps"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/merkle/mapverifier"
 	"github.com/google/trillian/types"
 	"golang.org/x/sync/errgroup"
@@ -58,7 +59,7 @@ func NewMapVerifier(config *trillian.Tree, rootVerifier *maps.RootVerifier) (*Ma
 		return nil, fmt.Errorf("client: NewMapVerifierFromTree(): TreeType: %v, want %v", got, want)
 	}
 
-	mapHasher, err := hashers.NewMapHasher(config.HashStrategy)
+	mapHasher, err := registry.NewMapHasher(config.HashStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating MapHasher: %v", err)
 	}

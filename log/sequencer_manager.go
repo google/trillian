@@ -24,7 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/trees"
 
 	tcrypto "github.com/google/trillian/crypto"
@@ -61,7 +61,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	hasher, err := registry.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
 	}
