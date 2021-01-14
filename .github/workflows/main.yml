@@ -1,4 +1,7 @@
 name: PR actions
+branding:
+  icon: 'scissors'
+  color: 'orange'
 
 # Controls when the action will run.
 on:
