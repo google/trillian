@@ -24,16 +24,16 @@ jobs:
       - name: Add GOBIN to PATH
         run: echo "PATH=$(go env GOPATH)/bin:$PATH" >>$GITHUB_ENV
       - name: Install dependencies
-        run: GO111MODULE=off go get github.com/joelanford/go-apidiff
+        run: GO111MODULE=off go get golang.org/x/exp/cmd/apidiff
+      - name: Checkout old code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.base_ref }}
+          path: "old"
       - name: Checkout new code
         uses: actions/checkout@v2
         with:
           path: "new"
-          fetch-depth: 0
-      - name: Where Am I
-        shell: bash
-        run: git fetch --all
-        working-directory: "new"
       - name: APIDiff
-        run: go-apidiff origin/master
+        run: ./scripts/apidiff.sh -d ../old
         working-directory: "new"
