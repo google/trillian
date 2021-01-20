@@ -13,12 +13,7 @@ substitutions:
   _MASTER_ZONE: us-central1-a
   _MYSQL_TAG: "5.7"
   _MYSQL_ROOT_PASSWORD: ""
-  _MYSQL_HOST: "cloudbuild_db_1"
-  _MYSQL_PORT: "3306"
-  _MYSQL_USER: "test"
-  _MYSQL_PASSWORD: "zaphod"
-  _MYSQL_ROOT_PASSWORD: "bananas"
-  _MYSQL_USER_HOST: '%'
+  _MYSQL_PASSWORD: ""
 options:
   machineType: N1_HIGHCPU_32
   env:
@@ -26,12 +21,8 @@ options:
     - GOPROXY=https://proxy.golang.org
     - PROJECT_ROOT=github.com/google/trillian
     - GOPATH=/go
-    - MYSQL_HOST=${_MYSQL_HOST}
-    - MYSQL_PORT=${_MYSQL_PORT}
-    - MYSQL_USER=${_MYSQL_USER}
-    - MYSQL_PASSWORD=${_MYSQL_PASSWORD}
-    - MYSQL_ROOT_PASSWORD=${_MYSQL_ROOT_PASSWORD}
-    - MYSQL_USER_HOST=${_MYSQL_USER_HOST}
+    - DOCKER_CLIENT_TIMEOUT=120
+    - COMPOSE_HTTP_TIMEOUT=120
 
 steps:
 # First build a "trillian_testbase" docker image which contains most of the tools we need for the later steps:
@@ -93,83 +84,85 @@ steps:
     - --no-generate
   env:
     - GOFLAGS=-race
+    - GOPATH=/throwaway
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - prepare
 
-# # Presubmit (Batched queue)
-# - id: presubmit_batched
-#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-#   entrypoint: ./integration/cloudbuild/run_presubmit.sh
-#   args:
-#     - --no-linters
-#     - --no-generate
-#   env:
-#     - GOFLAGS=-race --tags=batched_queue
-#     - GO_TEST_TIMEOUT=20m
-#   waitFor:
-#     - prepare
+# Presubmit (Batched queue)
+- id: presubmit_batched
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
+  args:
+    - --no-linters
+    - --no-generate
+  env:
+    - GOFLAGS=-race --tags=batched_queue
+    - GOPATH=/throwaway
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
 
-# # Presubmit (PKCS11)
-# - id: presubmit_pkcs11
-#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-#   entrypoint: ./integration/cloudbuild/run_presubmit.sh
-#   args:
-#     - --no-linters
-#     - --no-generate
-#   env:
-#     - GOFLAGS=-race --tags=pkcs11
-#     - GO_TEST_TIMEOUT=20m
-#   waitFor:
-#     - prepare
+# Presubmit (PKCS11)
+- id: presubmit_pkcs11
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
+  args:
+    - --no-linters
+    - --no-generate
+  env:
+    - GOFLAGS=-race --tags=pkcs11
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
 
-# # Integration
-# - id: integration
-#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-#   entrypoint: ./integration/cloudbuild/run_integration.sh
-#   env:
-#     - HAMMER_OPTS=--operations=150
-#     - GO_TEST_TIMEOUT=20m
-#     - MYSQL_DATABASE=integration
-#   waitFor:
-#     - prepare
+# Integration
+- id: integration
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - GOPATH=/throwaway
+    - HAMMER_OPTS=--operations=150
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
 
-# # Integration (etcd)
-# - id: integration_etcd
-#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-#   entrypoint: ./integration/cloudbuild/run_integration.sh
-#   env:
-#     - ETCD_DIR=/go/bin
-#     - GOFLAGS=-race
-#     - HAMMER_OPTS=--operations=50
-#     - GO_TEST_TIMEOUT=20m
-#     - MYSQL_DATABASE=integration_etcd
-#   waitFor:
-#     - prepare
+# Integration (etcd)
+- id: integration_etcd
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - ETCD_DIR=/go/bin
+    - GOPATH=/throwaway
+    - GOFLAGS=-race
+    - HAMMER_OPTS=--operations=50
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
 
-# # Integration (Batched queue)
-# - id: integration_batched
-#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-#   entrypoint: ./integration/cloudbuild/run_integration.sh
-#   env:
-#     - GOFLAGS=-race
-#     - HAMMER_OPTS=--operations=50
-#     - GO_TEST_TIMEOUT=20m
-#     - MYSQL_DATABASE=integration_batched
-#   waitFor:
-#     - prepare
+# Integration (Batched queue)
+- id: integration_batched
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - GOFLAGS=-race
+    - GOPATH=/throwaway
+    - HAMMER_OPTS=--operations=50
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
 
-# # Integration (PKCS11)
-# - id: integration_pkcs11
-#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-#   entrypoint: ./integration/cloudbuild/run_integration.sh
-#   env:
-#     - GOFLAGS=-tags=pkcs11
-#     - HAMMER_OPTS=--operations=50
-#     - GO_TEST_TIMEOUT=20m
-#     - MYSQL_DATABASE=integration_pkcs11
-#   waitFor:
-#     - prepare
+# Integration (PKCS11)
+- id: integration_pkcs11
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - GOFLAGS=-tags=pkcs11
+    - GOPATH=/throwaway
+    - HAMMER_OPTS=--operations=50
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
 
 # ############################################################################
 # ## End of replicated section.

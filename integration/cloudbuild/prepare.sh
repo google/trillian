@@ -10,12 +10,6 @@ go install \
     github.com/golang/protobuf/protoc-gen-go \
     github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway \
     github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-go mod download
 
-# finally, spin up an ephemeral mysql instance for tests
+# Cache mysql image for later steps.
 docker-compose -f ./integration/cloudbuild/docker-compose-mysql.yaml pull
-docker-compose -f ./integration/cloudbuild/docker-compose-mysql.yaml up -d
-# Wait for mysql instance to be ready
-while ! mysql --protocol=TCP --host=${MYSQL_HOST} --user=${MYSQL_USER} -p${MYSQL_PASSWORD} -e quit ; do
- sleep 1
-done
