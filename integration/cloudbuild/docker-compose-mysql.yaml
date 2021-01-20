@@ -8,10 +8,9 @@ services:
       MYSQL_ROOT_PASSWORD: 'bananas'
       MYSQL_USER: 'test'
       MYSQL_PASSWORD: 'zaphod'
+      MYSQL_TCP_PORT: ${MYSQL_PORT:-3306}
     ports:
-      - '3306:3306'
-    expose:
-      - '3306'
+      - '${MYSQL_PORT:-3306}:${MYSQL_PORT:-3306}'
 
 networks:
   default:
