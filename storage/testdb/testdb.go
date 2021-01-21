@@ -39,21 +39,22 @@ const (
 	// instance URI to use.
 	MySQLURIEnv = "TEST_MYSQL_URI"
 
-	defaultTestMySQLURI = "root@tcp(127.0.0.1)"
+	// Note: sql.Open requires the URI to end with a slash.
+	defaultTestMySQLURI = "root@tcp(127.0.0.1)/"
 )
 
 var (
 	trillianSQL = testonly.RelativeToPackage("../mysql/schema/storage.sql")
 )
 
-// mysqlURI returns the connection URI to use for tests.
-// It will prefer the value in the MYSQL_URI env var, and if empty/unset, it'll
-// return the defaultTestMySQLURI value.
+// mysqlURI returns the MySQL connection URI to use for tests. It returns the
+// value in the TEST_MYSQL_URI env var, if not empty, otherwise falls back to
+// defaultTestMySQLURI.
 //
-// Only a subset of the suite of tests in this repo require a database it's
-// not possible to blanket apply the test_mysql_uri flag, and maintaining a separate
-// list of tests which needs DB connectivity is brittle, so this fallback approach
-// means we can provide the connection info in a more ambient fashion.
+// We use an env variable, rather than a flag, for flexibility. Only a subset
+// of the tests in this repo require a database and import this package. With a
+// flag, it would be necessary to distinguish "go test" invocations that need a
+// database, and those that don't. Env allows to "blanket apply" this setting.
 func mysqlURI() string {
 	if e := os.Getenv(MySQLURIEnv); len(e) > 0 {
 		return e
@@ -114,7 +115,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	}
 
 	db.Close()
-	db, err = sql.Open("mysql", mysqlURI()+"/"+name)
+	db, err = sql.Open("mysql", mysqlURI()+name)
 	if err != nil {
 		return nil, nil, err
 	}
