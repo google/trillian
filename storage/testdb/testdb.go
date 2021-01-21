@@ -114,7 +114,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	}
 
 	db.Close()
-	db, err = sql.Open("mysql", mysqlURI()+"/"+name)
+	db, err = sql.Open("mysql", mysqlURI()+name)
 	if err != nil {
 		return nil, nil, err
 	}
