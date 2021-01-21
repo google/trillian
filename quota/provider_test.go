@@ -68,7 +68,7 @@ func TestQuotaSystems(t *testing.T) {
 	if err := RegisterProvider("b", func() (Manager, error) { return nil, nil }); err != nil {
 		t.Fatalf("RegisterProvider(b)=%v", err)
 	}
-	qs := Systems()
+	qs := Providers()
 
 	if got, want := len(qs), 2; got < want {
 		t.Fatalf("Got %d names, want at least %d", got, want)
@@ -85,9 +85,9 @@ func TestQuotaSystems(t *testing.T) {
 		}
 	}
 	if a != 1 {
-		t.Errorf("Systems() returned %d 'a', want 1", a)
+		t.Errorf("Providers() returned %d 'a', want 1", a)
 	}
 	if b != 1 {
-		t.Errorf("Systems() returned %d 'b', want 1", b)
+		t.Errorf("Providers() returned %d 'b', want 1", b)
 	}
 }

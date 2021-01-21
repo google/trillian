@@ -45,8 +45,8 @@ func RegisterProvider(name string, qp NewManagerFunc) error {
 	return nil
 }
 
-// Systems returns a slice of registered quota system names.
-func Systems() []string {
+// Providers returns a slice of registered quota provider names.
+func Providers() []string {
 	qpMu.RLock()
 	defer qpMu.RUnlock()
 
