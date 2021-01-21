@@ -15,7 +15,7 @@ substitutions:
   _MYSQL_ROOT_PASSWORD: ""
   _MYSQL_PASSWORD: ""
 options:
-  machineType: N1_HIGHCPU_32
+  machineType: E2_HIGHCPU_32
   env:
     - GO111MODULE=on
     - GOPROXY=https://proxy.golang.org
@@ -101,7 +101,7 @@ steps:
     - GOPATH=/throwaway
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - prepare
+    - presubmit
 
 # Presubmit (PKCS11)
 - id: presubmit_pkcs11
@@ -114,7 +114,19 @@ steps:
     - GOFLAGS=-race --tags=pkcs11
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - prepare
+    - presubmit
+
+# Try to spread the load a bit, we'll wait for all the presubmit.* steps
+# to finish before starting the integration.* ones.
+# Having too many "big" things running concurrently leads to problems
+# with timeouts and mysql issues.
+- id: presubmits_done
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: /bin/true
+  waitFor:
+    - presubmit
+    - presubmit_batched
+    - presubmit_pkcs11
 
 # Integration
 - id: integration
@@ -125,7 +137,7 @@ steps:
     - HAMMER_OPTS=--operations=150
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - prepare
+    - presubmits_done
 
 # Integration (etcd)
 - id: integration_etcd
@@ -138,7 +150,7 @@ steps:
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - prepare
+    - presubmits_done
 
 # Integration (Batched queue)
 - id: integration_batched
@@ -150,7 +162,7 @@ steps:
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - prepare
+    - presubmits_done
 
 # Integration (PKCS11)
 - id: integration_pkcs11
@@ -162,7 +174,7 @@ steps:
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - prepare
+    - presubmits_done
 
 ############################################################################
 ## End of replicated section.
