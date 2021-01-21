@@ -15,17 +15,11 @@
 package quota
 
 import (
-	"flag"
 	"fmt"
 	"sync"
 )
 
 var (
-	// System is a flag specifying which quota system is in use.
-	// TODO(RJPercival): Only the "noop" quota system is guaranteed to be
-	// present, so should default to that.
-	System = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quotaSystems()))
-
 	qpMu     sync.RWMutex
 	qpByName map[string]NewManagerFunc
 )
@@ -51,8 +45,8 @@ func RegisterProvider(name string, qp NewManagerFunc) error {
 	return nil
 }
 
-// quotaSystems returns a slice of registered quota system names.
-func quotaSystems() []string {
+// Systems returns a slice of registered quota system names.
+func Systems() []string {
 	qpMu.RLock()
 	defer qpMu.RUnlock()
 
@@ -62,11 +56,6 @@ func quotaSystems() []string {
 	}
 
 	return r
-}
-
-// NewManagerFromFlags returns a Manager implementation as speficied by flag.
-func NewManagerFromFlags() (Manager, error) {
-	return NewManager(*System)
 }
 
 // NewManager returns a Manager implementation.
