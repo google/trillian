@@ -17,12 +17,14 @@ package etcd
 import (
 	"flag"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/etcdqm"
-	"github.com/google/trillian/util/etcd"
+	"go.etcd.io/etcd/clientv3"
 )
 
 // QuotaManagerName identifies the etcd quota implementation.
@@ -48,7 +50,10 @@ func newEtcdQuotaManager() (quota.Manager, error) {
 	if *Servers == "" {
 		return nil, fmt.Errorf("can't create etcd quotamanager - etcd_servers flag is unset")
 	}
-	client, err := etcd.NewClientFromString(*Servers)
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints:   strings.Split(*Servers, ","),
+		DialTimeout: 5 * time.Second,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to etcd at %v: %v", *Servers, err)
 	}
