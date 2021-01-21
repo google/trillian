@@ -10,11 +10,11 @@ trap "docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-m
 
 # Wait for mysql instance to be ready
 while ! mysql --protocol=TCP --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=root -pbananas -e quit ; do
- sleep 1
+ sleep 5
 done
 
 # Presumbits need a user with CREATE DATABASE grants since they create temporary databases.
 # For the same reason, this is a URI prefix - tests will add DB names to the end.
-export MYSQL_URI="root:bananas@tcp(${MYSQL_HOST}:${MYSQL_PORT})/"
+export TEST_MYSQL_URI="root:bananas@tcp(${MYSQL_HOST}:${MYSQL_PORT})/"
 
 ./scripts/presubmit.sh $*
