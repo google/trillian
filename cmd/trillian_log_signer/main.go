@@ -81,6 +81,8 @@ var (
 		"Increase factor for tokens replenished by sequencing-based quotas (1 means a 1:1 relationship between sequenced leaves and replenished tokens)."+
 			"Only effective for --quota_system=etcd.")
 
+	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", storage.Providers()))
+
 	preElectionPause   = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterHoldInterval = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
 	masterHoldJitter   = flag.Duration("master_hold_jitter", 120*time.Second, "Maximal random addition to --master_hold_interval")
@@ -108,7 +110,7 @@ func main() {
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)
 
-	sp, err := storage.NewProviderFromFlags(mf)
+	sp, err := storage.NewProvider(*storageSystem, mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
