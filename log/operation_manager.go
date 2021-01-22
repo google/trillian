@@ -93,7 +93,7 @@ type OperationInfo struct {
 	// The following parameters govern the overall scheduling of Operations
 	// by a OperationManager.
 
-	// Election-related configuration.
+	// Election-related configuration. Copied for each log.
 	ElectionConfig election.RunnerConfig
 
 	// RunInterval is the time between starting batches of processing.  If a
