@@ -258,18 +258,18 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 
 func (o *OperationManager) runElection(ctx context.Context, logID string) (context.CancelFunc, error) {
 	glog.Infof("create master election goroutine for %v", logID)
-	innerCtx, cancel := context.WithCancel(ctx)
-	el, err := o.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
+	cctx, cancel := context.WithCancel(ctx)
+	e, err := o.info.Registry.ElectionFactory.NewElection(cctx, logID)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
 	}
 	// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
-	r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, el)
+	r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, e)
 	o.runnerWG.Add(1)
 	go func(r *election.Runner) {
 		defer o.runnerWG.Done()
-		r.Run(innerCtx, o.pendingResignations)
+		r.Run(cctx, o.pendingResignations)
 	}(r)
 	return cancel, nil
 }
