@@ -254,6 +254,9 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 // runElectionWithRestarts runs the election/resignation loop for the given log
 // indefinitely, until the returned CancelFunc is invoked. Any failure during
 // the loop leads to a restart of the loop with a few seconds delay.
+//
+// TODO(pavelkalinnikov): Restart the whole log operation rather than just the
+// election, and have a metric for restarts.
 func (o *OperationManager) runElectionWithRestarts(ctx context.Context, logID string) context.CancelFunc {
 	glog.Infof("create master election goroutine for %v", logID)
 	cctx, cancel := context.WithCancel(ctx)
