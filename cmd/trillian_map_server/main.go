@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	_ "net/http/pprof" // Register pprof HTTP handlers.
 	"os"
 	"runtime/pprof"
@@ -67,6 +68,7 @@ var (
 	tlsCertFile    = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile     = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
 
+	quotaSystem = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quota.Providers()))
 	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
 	treeGCEnabled            = flag.Bool("tree_gc", true, "If true, tree garbage collection (hard-deletion) is periodically performed")
@@ -126,7 +128,7 @@ func main() {
 		defer client.Close()
 	}
 
-	qm, err := quota.NewManagerFromFlags()
+	qm, err := quota.NewManager(*quotaSystem)
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}
@@ -180,7 +182,7 @@ func main() {
 			}
 			trillian.RegisterTrillianMapWriteServer(s, writeServer)
 
-			if *quota.System == etcd.QuotaManagerName {
+			if *quotaSystem == etcd.QuotaManagerName {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
 			return nil

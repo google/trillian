@@ -13,6 +13,9 @@
     interested in and avoid the Trillian hasher registry+protobuf deps.
  * Moved some packages intended for internal-only use into `internal` packages:
    * InMemoryMerkleTree (indended to only be used by Trillian tests)
+ * Move `--quota_system` flag to `main.go` so that it is initialised properly.
+   It might break depending builds relying on this flag, but the fix is easy:
+   put it to your `main.go`.
 
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
