@@ -20,6 +20,7 @@ import (
 	_ "net/http/pprof" // Register pprof HTTP handlers.
 	"os"
 	"runtime/pprof"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -39,7 +40,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
-	etcdutil "github.com/google/trillian/util/etcd"
+	"go.etcd.io/etcd/clientv3"
 	"google.golang.org/grpc"
 
 	// Register key ProtoHandlers
@@ -114,9 +115,15 @@ func main() {
 	}
 	defer sp.Close()
 
-	client, err := etcdutil.NewClientFromString(*etcd.Servers)
-	if err != nil {
-		glog.Exitf("Failed to connect to etcd at %v: %v", etcd.Servers, err)
+	var client *clientv3.Client
+	if servers := *etcd.Servers; servers != "" {
+		if client, err = clientv3.New(clientv3.Config{
+			Endpoints:   strings.Split(servers, ","),
+			DialTimeout: 5 * time.Second,
+		}); err != nil {
+			glog.Exitf("Failed to connect to etcd at %v: %v", servers, err)
+		}
+		defer client.Close()
 	}
 
 	qm, err := quota.NewManagerFromFlags()
