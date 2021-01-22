@@ -273,17 +273,15 @@ func (o *OperationManager) runElectionWithRestarts(ctx context.Context, logID st
 	o.runnerWG.Add(1)
 	go func(ctx context.Context) {
 		defer o.runnerWG.Done()
-		run(ctx)
-		// Note: run(ctx) terminates because of an error, or ctx cancelation.
 		// Continue only while the context is active.
 		for ctx.Err() == nil {
+			run(ctx)
 			// Sleep before restarts, to not spam the log with errors.
 			// TODO(pavelkalinnikov): Make the interval configurable.
 			const pause = time.Duration(5 * time.Second)
 			if err := clock.SleepSource(ctx, pause, o.info.TimeSource); err != nil {
 				break // The context has been canceled during the sleep.
 			}
-			run(ctx)
 		}
 	}(cctx)
 	return cancel
