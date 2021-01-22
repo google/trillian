@@ -23,7 +23,6 @@ import (
 	"sort"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/golang/glog"
@@ -451,8 +450,6 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 	glog.V(1).Infof("Running executor with %d worker(s)", numWorkers)
 
 	var wg sync.WaitGroup
-	var successCount, failCount, itemCount int64
-
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
@@ -469,7 +466,6 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 				if err != nil {
 					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
 					failedSigningRuns.Inc(label)
-					atomic.AddInt64(&failCount, 1)
 					continue
 				}
 
@@ -483,9 +479,6 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 				} else {
 					glog.V(1).Infof("%v: no items to process", logID)
 				}
-
-				atomic.AddInt64(&successCount, 1)
-				atomic.AddInt64(&itemCount, int64(count))
 			}
 		}()
 	}
@@ -493,9 +486,5 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 	// Wait for the workers to consume all of the logIDs.
 	wg.Wait()
 	d := clock.SecondsSince(e.info.TimeSource, startBatch)
-	if itemCount > 0 {
-		glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, failCount, itemCount)
-	} else {
-		glog.V(1).Infof("Group run completed in %.2f seconds: no items to process", d)
-	}
+	glog.V(1).Infof("Group run completed in %.2f seconds", d)
 }
