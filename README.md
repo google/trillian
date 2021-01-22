@@ -155,7 +155,11 @@ This runs two multi-process tests:
    integrated correctly.
  - A [test](integration/map_integration_test.go) that starts a Trillian server
    in Map mode, sets various key:value pairs and checks they can be retrieved.
+   
+### Deployment
 
+You can find instructions on how to deploy Trillian in [deployment](/deployment)
+and [examples/deployment](/examples/deployment) directories.
 
 ## Working on the Code
 
