@@ -325,15 +325,7 @@ func (o *OperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	}
 	o.updateHeldIDs(ctx, logIDs, activeIDs)
 
-	// TODO(pavelkalinnikov): Run executor once instead of doing it on each pass.
-	// This will be also needed when factoring out per-log operation loop.
-	ex := newExecutor(o.logOperation, &o.info, len(logIDs))
-	// Put logIDs that need to be processed to the executor's channel.
-	for _, logID := range logIDs {
-		ex.jobs <- logID
-	}
-	close(ex.jobs) // Cause executor's run to terminate when it has drained the jobs.
-	ex.run(runCtx)
+	executePassForAll(runCtx, &o.info, o.logOperation, logIDs)
 	return nil
 }
 
@@ -417,47 +409,33 @@ loop:
 	glog.Infof("wait for termination of election runners...done")
 }
 
-// logOperationExecutor runs the specified Operation on the submitted logs
-// in a set of parallel workers.
-type logOperationExecutor struct {
-	op   Operation
-	info *OperationInfo
+// executePassForAll runs ExecutePass of the given operation for each of the
+// passed-in logs, allowing up to a configurable number of parallel operations.
+func executePassForAll(ctx context.Context, info *OperationInfo, op Operation, logIDs []int64) {
+	startBatch := info.TimeSource.Now()
 
-	// jobs holds logIDs to run log operation on.
-	// TODO(pavelkalinnikov): Use mastership context for each job to make them
-	// auto-cancelable when mastership is lost.
-	// TODO(pavelkalinnikov): Report job completion status back.
-	jobs chan int64
-}
-
-func newExecutor(op Operation, info *OperationInfo, jobs int) *logOperationExecutor {
-	if jobs < 0 {
-		jobs = 0
-	}
-	return &logOperationExecutor{op: op, info: info, jobs: make(chan int64, jobs)}
-}
-
-// run sets off a collection of transient worker goroutines which process the
-// pending log operation jobs until the jobs channel is closed.
-func (e *logOperationExecutor) run(ctx context.Context) {
-	startBatch := e.info.TimeSource.Now()
-
-	numWorkers := e.info.NumWorkers
+	numWorkers := info.NumWorkers
 	if numWorkers <= 0 {
 		glog.Warning("Running executor with NumWorkers <= 0, assuming 1")
 		numWorkers = 1
 	}
 	glog.V(1).Infof("Running executor with %d worker(s)", numWorkers)
 
+	ids := make(chan int64, len(logIDs))
+	for _, id := range logIDs {
+		ids <- id
+	}
+	close(ids)
+
 	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for logID := range e.jobs {
+			for logID := range ids {
 				label := strconv.FormatInt(logID, 10)
-				start := e.info.TimeSource.Now()
-				count, err := e.op.ExecutePass(ctx, logID, e.info)
+				start := info.TimeSource.Now()
+				count, err := op.ExecutePass(ctx, logID, info)
 				if err != nil {
 					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
 					failedSigningRuns.Inc(label)
@@ -467,7 +445,7 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 				// This indicates signing activity is proceeding on the logID.
 				signingRuns.Inc(label)
 				if count > 0 {
-					d := clock.SecondsSince(e.info.TimeSource, start)
+					d := clock.SecondsSince(info.TimeSource, start)
 					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
 					entriesAdded.Add(float64(count), label)
 					batchesAdded.Inc(label)
@@ -480,6 +458,6 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 
 	// Wait for the workers to consume all of the logIDs.
 	wg.Wait()
-	d := clock.SecondsSince(e.info.TimeSource, startBatch)
+	d := clock.SecondsSince(info.TimeSource, startBatch)
 	glog.V(1).Infof("Group run completed in %.2f seconds", d)
 }
