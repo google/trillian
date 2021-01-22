@@ -16,6 +16,7 @@
  * Moved `--quota_system` and `--storage_system` flags to `main.go` so that they
    are initialised properly. It might break depending builds relying on these
    flags. Suggested fix: add the flags to `main.go`.
+ * Made signer tolerate mastership election failues [#1150].
 
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)

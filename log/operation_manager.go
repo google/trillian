@@ -228,14 +228,9 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 	// Synchronize the set of log IDs with those we are tracking mastership for.
 	for _, logID := range allStringIDs {
 		knownLogs.Set(1, logID)
-		if o.runnerCancels[logID] != nil {
-			continue
+		if o.runnerCancels[logID] == nil {
+			o.runnerCancels[logID] = o.runElectionWithRestarts(ctx, logID)
 		}
-		cancel, err := o.runElection(ctx, logID)
-		if err != nil {
-			return nil, err
-		}
-		o.runnerCancels[logID] = cancel
 	}
 
 	held := o.tracker.Held()
@@ -256,25 +251,43 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 	return heldIDs, nil
 }
 
-func (o *OperationManager) runElection(ctx context.Context, logID string) (context.CancelFunc, error) {
+// runElectionWithRestarts runs the election/resignation loop for the given log
+// indefinitely, until the returned CancelFunc is invoked. Any failure during
+// the loop leads to a restart of the loop with a few seconds delay.
+//
+// TODO(pavelkalinnikov): Restart the whole log operation rather than just the
+// election, and have a metric for restarts.
+func (o *OperationManager) runElectionWithRestarts(ctx context.Context, logID string) context.CancelFunc {
 	glog.Infof("create master election goroutine for %v", logID)
 	cctx, cancel := context.WithCancel(ctx)
-	e, err := o.info.Registry.ElectionFactory.NewElection(cctx, logID)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
-	}
-	o.runnerWG.Add(1)
-	go func() {
-		defer o.runnerWG.Done()
+	run := func(ctx context.Context) {
+		e, err := o.info.Registry.ElectionFactory.NewElection(ctx, logID)
+		if err != nil {
+			glog.Errorf("failed to create election for %v: %v", logID, err)
+			return
+		}
 		// Warning: NewRunner can attempt to modify the config. Make a separate
 		// copy of the config for each log, to avoid data races.
 		config := o.info.ElectionConfig
 		// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
 		r := election.NewRunner(logID, &config, o.tracker, cancel, e)
-		r.Run(cctx, o.pendingResignations)
-	}()
-	return cancel, nil
+		r.Run(ctx, o.pendingResignations)
+	}
+	o.runnerWG.Add(1)
+	go func(ctx context.Context) {
+		defer o.runnerWG.Done()
+		// Continue only while the context is active.
+		for ctx.Err() == nil {
+			run(ctx)
+			// Sleep before restarts, to not spam the log with errors.
+			// TODO(pavelkalinnikov): Make the interval configurable.
+			const pause = time.Duration(5 * time.Second)
+			if err := clock.SleepSource(ctx, pause, o.info.TimeSource); err != nil {
+				break // The context has been canceled during the sleep.
+			}
+		}
+	}(cctx)
+	return cancel
 }
 
 // updateHeldIDs updates the process status with the number/list of logs that
