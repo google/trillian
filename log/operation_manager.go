@@ -264,13 +264,13 @@ func (o *OperationManager) runElection(ctx context.Context, logID string) (conte
 		cancel()
 		return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
 	}
-	// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
-	r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, e)
 	o.runnerWG.Add(1)
-	go func(r *election.Runner) {
+	go func() {
 		defer o.runnerWG.Done()
+		// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
+		r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, e)
 		r.Run(cctx, o.pendingResignations)
-	}(r)
+	}()
 	return cancel, nil
 }
 
