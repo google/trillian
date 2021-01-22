@@ -114,12 +114,15 @@ type OperationManager struct {
 	// logOperation is the task that gets run across active logs in the scheduling loop
 	logOperation Operation
 
+	// runnerWG groups all goroutines with election Runners.
+	runnerWG sync.WaitGroup
 	// runnerCancels contains cancel function for each logID election Runner.
-	runnerCancels       map[string]context.CancelFunc
+	runnerCancels map[string]context.CancelFunc
+	// pendingResignations delivers resignation requests from election Runners.
 	pendingResignations chan election.Resignation
-	runnerWG            sync.WaitGroup
-	tracker             *election.MasterTracker
-	lastHeld            []int64
+
+	tracker  *election.MasterTracker
+	lastHeld []int64
 	// Cache of logID => name; assumed not to change during runtime
 	logNamesMutex sync.Mutex
 	logNames      map[int64]string
