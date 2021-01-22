@@ -442,7 +442,7 @@ func TestMasterFor(t *testing.T) {
 		{desc: "no-factory", factory: nil, want1: firstIDs, want2: allIDs},
 		{desc: "noop-factory", factory: election2.NoopFactory{}, want1: firstIDs, want2: allIDs},
 		{desc: "master-for-even", factory: masterForEvenFactory{}, want1: []int64{2, 4}, want2: []int64{2, 4, 6}},
-		{desc: "failure-factory", factory: failureFactory{}, want1: nil, want2: nil},
+		{desc: "failure-factory", factory: failureFactory{}, want1: []int64{}, want2: []int64{}},
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
