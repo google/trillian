@@ -31,8 +31,8 @@ type MasterTracker struct {
 	notify      func(id string, isMaster bool)
 }
 
-// NewMasterTracker creates a new MasterTracker instance to track the mastership
-// status for the given set of ids.
+// NewMasterTracker creates a new MasterTracker instance to track the
+// mastership status for the given set of IDs.
 func NewMasterTracker(ids []string, notify func(id string, isMaster bool)) *MasterTracker {
 	mf := make(map[string]bool)
 	for _, id := range ids {
@@ -41,23 +41,23 @@ func NewMasterTracker(ids []string, notify func(id string, isMaster bool)) *Mast
 	return &MasterTracker{masterFor: mf, notify: notify}
 }
 
-// Set changes the tracked mastership status for the given id.  This method should
-// be called exactly once for each state transition.
-func (mt *MasterTracker) Set(id string, val bool) {
+// Set changes the tracked mastership status for the given ID. This method
+// should be called exactly once for each state transition.
+func (mt *MasterTracker) Set(id string, isMaster bool) {
 	mt.mu.Lock()
 	defer mt.mu.Unlock()
-	existing, ok := mt.masterFor[id]
-	if ok && val == existing {
-		glog.Warningf("toggle masterFor[%s] from %v to %v!", id, existing, val)
+	wasMaster, ok := mt.masterFor[id]
+	if ok && isMaster == wasMaster {
+		glog.Warningf("toggle masterFor[%s] from %v to %v!", id, wasMaster, isMaster)
 	}
-	mt.masterFor[id] = val
-	if val && !existing {
+	mt.masterFor[id] = isMaster
+	if isMaster && !wasMaster {
 		mt.masterCount++
-	} else if !val && existing {
+	} else if !isMaster && wasMaster {
 		mt.masterCount--
 	}
 	if mt.notify != nil {
-		mt.notify(id, val)
+		mt.notify(id, isMaster)
 	}
 }
 
@@ -99,8 +99,8 @@ func (mt *MasterTracker) String() string {
 	return HeldInfo(mt.Held(), mt.IDs())
 }
 
-// HeldInfo produces a textual description of the set of held IDs, compared
-// to a complete set of IDs.
+// HeldInfo produces a textual description of the set of held IDs, compared to
+// a complete set of IDs.
 func HeldInfo(held []string, ids []string) string {
 	result := ""
 	prefix := ""

@@ -82,9 +82,9 @@ type Runner struct {
 	election election2.Election
 }
 
-// NewRunner builds a new election Runner instance with the given configuration.  On calling
-// Run(), the provided election will be continuously monitored and mastership changes will
-// be notified to the provided MasterTracker instance.
+// NewRunner builds a new election Runner instance with the given config. On
+// calling Run(), the provided Election will be continuously monitored, and
+// mastership changes will be notified to the provided MasterTracker instance.
 func NewRunner(id string, cfg *RunnerConfig, tracker *MasterTracker, cancel context.CancelFunc, el election2.Election) *Runner {
 	fixupRunnerConfig(cfg)
 	return &Runner{
@@ -158,8 +158,8 @@ func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) erro
 	return nil
 }
 
-// Resignation indicates that a master should explicitly resign mastership, by invoking
-// the Execute() method at a point where no master-related activity is ongoing.
+// Resignation indicates that a master should explicitly resign mastership, and
+// call the Execute() method as soon as no master-related activity is ongoing.
 type Resignation struct {
 	ID   string
 	er   *Runner
