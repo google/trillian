@@ -267,8 +267,11 @@ func (o *OperationManager) runElection(ctx context.Context, logID string) (conte
 	o.runnerWG.Add(1)
 	go func() {
 		defer o.runnerWG.Done()
+		// Warning: NewRunner can attempt to modify the config. Make a separate
+		// copy of the config for each log, to avoid data races.
+		config := o.info.ElectionConfig
 		// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
-		r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, e)
+		r := election.NewRunner(logID, &config, o.tracker, cancel, e)
 		r.Run(cctx, o.pendingResignations)
 	}()
 	return cancel, nil
