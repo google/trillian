@@ -93,7 +93,7 @@ type OperationInfo struct {
 	// The following parameters govern the overall scheduling of Operations
 	// by a OperationManager.
 
-	// Election-related configuration.
+	// Election-related configuration. Copied for each log.
 	ElectionConfig election.RunnerConfig
 
 	// RunInterval is the time between starting batches of processing.  If a
@@ -114,12 +114,15 @@ type OperationManager struct {
 	// logOperation is the task that gets run across active logs in the scheduling loop
 	logOperation Operation
 
-	// electionRunner tracks the goroutines that run per-log mastership elections
-	electionRunner      map[string]*election.Runner
+	// runnerWG groups all goroutines with election Runners.
+	runnerWG sync.WaitGroup
+	// runnerCancels contains cancel function for each logID election Runner.
+	runnerCancels map[string]context.CancelFunc
+	// pendingResignations delivers resignation requests from election Runners.
 	pendingResignations chan election.Resignation
-	runnerWG            sync.WaitGroup
-	tracker             *election.MasterTracker
-	lastHeld            []int64
+
+	tracker  *election.MasterTracker
+	lastHeld []int64
 	// Cache of logID => name; assumed not to change during runtime
 	logNamesMutex sync.Mutex
 	logNames      map[int64]string
@@ -136,7 +139,7 @@ func NewOperationManager(info OperationInfo, logOperation Operation) *OperationM
 	return &OperationManager{
 		info:                info,
 		logOperation:        logOperation,
-		electionRunner:      make(map[string]*election.Runner),
+		runnerCancels:       make(map[string]context.CancelFunc),
 		pendingResignations: make(chan election.Resignation, 100),
 		logNames:            make(map[int64]string),
 	}
@@ -225,22 +228,14 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 	// Synchronize the set of log IDs with those we are tracking mastership for.
 	for _, logID := range allStringIDs {
 		knownLogs.Set(1, logID)
-		if o.electionRunner[logID] != nil {
+		if o.runnerCancels[logID] != nil {
 			continue
 		}
-		glog.Infof("create master election goroutine for %v", logID)
-		innerCtx, cancel := context.WithCancel(ctx)
-		el, err := o.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
+		cancel, err := o.runElection(ctx, logID)
 		if err != nil {
-			cancel()
-			return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
+			return nil, err
 		}
-		o.electionRunner[logID] = election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, el)
-		o.runnerWG.Add(1)
-		go func(r *election.Runner) {
-			defer o.runnerWG.Done()
-			r.Run(innerCtx, o.pendingResignations)
-		}(o.electionRunner[logID])
+		o.runnerCancels[logID] = cancel
 	}
 
 	held := o.tracker.Held()
@@ -259,6 +254,27 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 	}
 
 	return heldIDs, nil
+}
+
+func (o *OperationManager) runElection(ctx context.Context, logID string) (context.CancelFunc, error) {
+	glog.Infof("create master election goroutine for %v", logID)
+	cctx, cancel := context.WithCancel(ctx)
+	e, err := o.info.Registry.ElectionFactory.NewElection(cctx, logID)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
+	}
+	o.runnerWG.Add(1)
+	go func() {
+		defer o.runnerWG.Done()
+		// Warning: NewRunner can attempt to modify the config. Make a separate
+		// copy of the config for each log, to avoid data races.
+		config := o.info.ElectionConfig
+		// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
+		r := election.NewRunner(logID, &config, o.tracker, cancel, e)
+		r.Run(cctx, o.pendingResignations)
+	}()
+	return cancel, nil
 }
 
 // updateHeldIDs updates the process status with the number/list of logs that
@@ -367,13 +383,12 @@ loop:
 
 	}
 
-	// Terminate all the election runners
-	for logID, runner := range o.electionRunner {
-		if runner == nil {
-			continue
+	// Terminate all the election Runners.
+	for logID, cancel := range o.runnerCancels {
+		if cancel != nil {
+			glog.V(1).Infof("cancel election runner for %s", logID)
+			cancel()
 		}
-		glog.V(1).Infof("cancel election runner for %s", logID)
-		runner.Cancel()
 	}
 
 	// Drain any remaining resignations which might have triggered.
