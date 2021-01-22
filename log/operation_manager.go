@@ -380,13 +380,12 @@ loop:
 
 	}
 
-	// Terminate all the election runners
+	// Terminate all the election Runners.
 	for logID, cancel := range o.runnerCancels {
-		if cancel == nil {
-			continue
+		if cancel != nil {
+			glog.V(1).Infof("cancel election runner for %s", logID)
+			cancel()
 		}
-		glog.V(1).Infof("cancel election runner for %s", logID)
-		cancel()
 	}
 
 	// Drain any remaining resignations which might have triggered.
