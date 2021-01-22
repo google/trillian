@@ -454,12 +454,7 @@ func (e *logOperationExecutor) run(ctx context.Context) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for {
-				logID, ok := <-e.jobs
-				if !ok {
-					return
-				}
-
+			for logID := range e.jobs {
 				label := strconv.FormatInt(logID, 10)
 				start := e.info.TimeSource.Now()
 				count, err := e.op.ExecutePass(ctx, logID, e.info)
