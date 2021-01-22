@@ -7,7 +7,7 @@ this includes:
   Spanner](#kubernetes-on-gcp-using-cloud-spanner)
 
 Further deployment types (community-supported) can be found in the
-examples/deployment directory.
+[examples/deployment](/examples/deployment) directory.
 
 # Kubernetes on GCP using Cloud Spanner
 
