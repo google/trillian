@@ -36,12 +36,6 @@ type StorageProvider = storage.Provider
 // Deprecated: storage.RegisterProvider should be used directly.
 var RegisterStorageProvider = storage.RegisterProvider
 
-// NewStorageProviderFromFlags returns a new StorageProvider instance of the
-// type specified by flag.
-//
-// Deprecated: storage.NewProviderFromFlags should be used directly.
-var NewStorageProviderFromFlags = storage.NewProviderFromFlags
-
 // NewStorageProvider returns a new StorageProvider instance of the type
 // specified by name.
 //

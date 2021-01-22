@@ -15,7 +15,6 @@
 package storage
 
 import (
-	"flag"
 	"fmt"
 	"sync"
 
@@ -27,9 +26,6 @@ import (
 type NewProviderFunc func(monitoring.MetricFactory) (Provider, error)
 
 var (
-	// TODO(pavelkalinnikov): Move this flag to main file.
-	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", providers()))
-
 	spMu     sync.RWMutex
 	spByName = make(map[string]NewProviderFunc)
 )
@@ -47,12 +43,6 @@ func RegisterProvider(name string, sp NewProviderFunc) error {
 	return nil
 }
 
-// NewProviderFromFlags returns a new Provider instance of the type
-// specified by flag.
-func NewProviderFromFlags(mf monitoring.MetricFactory) (Provider, error) {
-	return NewProvider(*storageSystem, mf)
-}
-
 // NewProvider returns a new Provider instance of the type specified by name.
 func NewProvider(name string, mf monitoring.MetricFactory) (Provider, error) {
 	spMu.RLock()
@@ -66,8 +56,8 @@ func NewProvider(name string, mf monitoring.MetricFactory) (Provider, error) {
 	return sp(mf)
 }
 
-// providers returns a slice of all registered storage provider names.
-func providers() []string {
+// Providers returns a slice of all registered storage provider names.
+func Providers() []string {
 	spMu.RLock()
 	defer spMu.RUnlock()
 
