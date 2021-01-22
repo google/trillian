@@ -32,8 +32,6 @@ type Registry struct {
 	storage.AdminStorage
 	// LogStorage is the storage implementation to use for persisting logs.
 	storage.LogStorage
-	// MapStorage is the storage implementation to use for persisting maps.
-	storage.MapStorage
 	// ElectionFactory provides Election instances for each tree.
 	ElectionFactory election2.Factory
 	// QuotaManager provides rate limiting capabilities for Trillian.

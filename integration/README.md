@@ -7,12 +7,6 @@ providing a simple example of how to run and use the various servers.
 
 ## Running the tests
 
-### Map integration test
-To run the Map integration test, ensure that you have a mysql database
-configured and running, with the Trillian schema loaded (see the
-[main README](../README.md) for details), and then run
-`map_integration_test.sh`.
-
 ### Log integration test
 To run the Log integration test, ensure that you have a mysql database
 configured and running, with the Trillian schema loaded (see the

@@ -35,7 +35,6 @@ func NewRegistryForTests(ctx context.Context) (extension.Registry, func(context.
 	return extension.Registry{
 		AdminStorage: mysql.NewAdminStorage(db),
 		LogStorage:   mysql.NewLogStorage(db, nil),
-		MapStorage:   mysql.NewMapStorage(db),
 		QuotaManager: &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: mysqlqm.DefaultMaxUnsequenced},
 	}, done, nil
 }

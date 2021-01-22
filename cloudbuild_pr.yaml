@@ -60,14 +60,6 @@ steps:
   - --cache=true
   - --cache-dir= # Cache is in Google Container Registry
   waitFor: ['-']
-- id: build_map_server
-  name: gcr.io/kaniko-project/executor
-  args:
-  - --dockerfile=examples/deployment/docker/map_server/Dockerfile
-  - --destination=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
-  - --cache=true
-  - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ['-']
 
 - id: build_envsubst
   name: gcr.io/cloud-builders/docker
@@ -104,8 +96,6 @@ steps:
   - envsubst-spanner/trillian-log-service.yaml
   - envsubst-spanner/trillian-log-signer-deployment.yaml
   - envsubst-spanner/trillian-log-signer-service.yaml
-  - envsubst-spanner/trillian-map-deployment.yaml
-  - envsubst-spanner/trillian-map-service.yaml
   env:
   - PROJECT_ID=${PROJECT_ID}
   - IMAGE_TAG=${COMMIT_SHA}
@@ -123,8 +113,6 @@ steps:
   - -f=envsubst-spanner/trillian-log-service.yaml
   - -f=envsubst-spanner/trillian-log-signer-deployment.yaml
   - -f=envsubst-spanner/trillian-log-signer-service.yaml
-  - -f=envsubst-spanner/trillian-map-deployment.yaml
-  - -f=envsubst-spanner/trillian-map-service.yaml
   - --prune
   - --all
   - --prune-whitelist=core/v1/ConfigMap
@@ -135,7 +123,6 @@ steps:
   - envsubst_k8s_cfgs_for_spanner
   - build_log_server
   - build_log_signer
-  - build_map_server
 - id: copy_k8s_cfgs_for_mysql
   name: busybox
   entrypoint: cp
@@ -154,8 +141,6 @@ steps:
   - envsubst-mysql/trillian-log-service.yaml
   - envsubst-mysql/trillian-log-signer-deployment.yaml
   - envsubst-mysql/trillian-log-signer-service.yaml
-  - envsubst-mysql/trillian-map-deployment.yaml
-  - envsubst-mysql/trillian-map-service.yaml
   env:
   - PROJECT_ID=${PROJECT_ID}
   - IMAGE_TAG=${COMMIT_SHA}
@@ -177,8 +162,6 @@ steps:
   - -f=envsubst-mysql/trillian-log-service.yaml
   - -f=envsubst-mysql/trillian-log-signer-deployment.yaml
   - -f=envsubst-mysql/trillian-log-signer-service.yaml
-  - -f=envsubst-mysql/trillian-map-deployment.yaml
-  - -f=envsubst-mysql/trillian-map-service.yaml
   - --prune
   - --all
   - --prune-whitelist=core/v1/ConfigMap
@@ -190,4 +173,3 @@ steps:
   - build_db_server
   - build_log_server
   - build_log_signer
-  - build_map_server

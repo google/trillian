@@ -112,28 +112,3 @@ func TestSignLogRoot(t *testing.T) {
 		}
 	}
 }
-
-func TestSignMapRoot(t *testing.T) {
-	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to open test key, err=%v", err)
-	}
-	signer := NewSigner(0, key, crypto.SHA256)
-
-	for _, root := range []types.MapRootV1{
-		{TimestampNanos: 2267709, RootHash: []byte("Islington"), Revision: 3},
-	} {
-		smr, err := signer.SignMapRoot(&root)
-		if err != nil {
-			t.Errorf("Failed to sign map root: %v", err)
-			continue
-		}
-		if got := len(smr.Signature); got == 0 {
-			t.Errorf("len(sig): %v, want > 0", got)
-		}
-
-		if _, err := VerifySignedMapRoot(key.Public(), crypto.SHA256, smr); err != nil {
-			t.Errorf("Verify(%v) failed: %v", root, err)
-		}
-	}
-}

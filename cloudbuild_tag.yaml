@@ -49,11 +49,3 @@ steps:
   - --cache=true
   - --cache-dir= # Cache is in Google Container Registry
   waitFor: ["-"]
-- id: build_map_server
-  name: gcr.io/kaniko-project/executor
-  args:
-  - --dockerfile=examples/deployment/docker/map_server/Dockerfile
-  - --destination=gcr.io/${PROJECT_ID}/map_server:${TAG_NAME}
-  - --cache=true
-  - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ["-"]

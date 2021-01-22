@@ -148,13 +148,11 @@ functionality, which can be run with:
 ./integration/integration_test.sh
 ```
 
-This runs two multi-process tests:
+This runs a multi-process test:
 
  - A [test](integration/log_integration_test.go) that starts a Trillian server
    in Log mode, together with a signer, logs many leaves, and checks they are
    integrated correctly.
- - A [test](integration/map_integration_test.go) that starts a Trillian server
-   in Map mode, sets various key:value pairs and checks they can be retrieved.
    
 ### Deployment
 

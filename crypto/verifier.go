@@ -43,23 +43,6 @@ func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.Sig
 	return &logRoot, nil
 }
 
-// VerifySignedMapRoot verifies the signature on the SignedMapRoot.
-// VerifySignedMapRoot returns MapRootV1 to encourage safe API use.
-// It should be the only function available to clients that returns MapRootV1.
-func VerifySignedMapRoot(pub crypto.PublicKey, hash crypto.Hash, smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
-	if smr == nil {
-		return nil, errors.New("SignedMapRoot is nil")
-	}
-	if err := Verify(pub, hash, smr.MapRoot, smr.Signature); err != nil {
-		return nil, err
-	}
-	var root types.MapRootV1
-	if err := root.UnmarshalBinary(smr.MapRoot); err != nil {
-		return nil, err
-	}
-	return &root, nil
-}
-
 // Verify cryptographically verifies the output of Signer.
 func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {
 	if sig == nil {

@@ -15,4 +15,4 @@
 // Package storage provides general interfaces to Trillian storage layers.
 package storage
 
-//go:generate mockgen -self_package github.com/google/trillian/storage -package storage -destination mock_storage.go -imports=trillian=github.com/google/trillian,storagepb=github.com/google/trillian/storage/storagepb github.com/google/trillian/storage AdminStorage,AdminTX,LogStorage,LogTreeTX,MapStorage,MapTreeTX,ReadOnlyAdminTX,ReadOnlyLogTX,ReadOnlyLogTreeTX,ReadOnlyMapTreeTX
+//go:generate mockgen -self_package github.com/google/trillian/storage -package storage -destination mock_storage.go -imports=trillian=github.com/google/trillian,storagepb=github.com/google/trillian/storage/storagepb github.com/google/trillian/storage AdminStorage,AdminTX,LogStorage,LogTreeTX,ReadOnlyAdminTX,ReadOnlyLogTX,ReadOnlyLogTreeTX

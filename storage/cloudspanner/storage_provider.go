@@ -133,16 +133,6 @@ func (s *cloudSpannerProvider) LogStorage() storage.LogStorage {
 	return NewLogStorageWithOpts(s.client, opts)
 }
 
-// MapStorage builds and returns a new storage.MapStorage using CloudSpanner.
-func (s *cloudSpannerProvider) MapStorage() storage.MapStorage {
-	warn()
-	opts := MapStorageOptions{}
-	if *csReadOnlyStaleness > 0 {
-		opts.ReadOnlyStaleness = *csReadOnlyStaleness
-	}
-	return NewMapStorageWithOpts(s.client, opts)
-}
-
 // AdminStorage builds and returns a new storage.AdminStorage using CloudSpanner.
 func (s *cloudSpannerProvider) AdminStorage() storage.AdminStorage {
 	warn()

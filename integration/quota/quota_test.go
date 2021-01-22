@@ -110,7 +110,6 @@ func TestMySQLRateLimiting(t *testing.T) {
 	registry := extension.Registry{
 		AdminStorage: mysql.NewAdminStorage(db),
 		LogStorage:   mysql.NewLogStorage(db, nil),
-		MapStorage:   mysql.NewMapStorage(db),
 		QuotaManager: qm,
 	}
 

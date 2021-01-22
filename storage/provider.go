@@ -74,8 +74,6 @@ func Providers() []string {
 type Provider interface {
 	// LogStorage creates and returns a LogStorage implementation.
 	LogStorage() LogStorage
-	// MapStorage creates and returns a MapStorage implementation.
-	MapStorage() MapStorage
 	// AdminStorage creates and returns a AdminStorage implementation.
 	AdminStorage() AdminStorage
 

@@ -13,4 +13,3 @@ export NAMESPACE=default
 export POOLSIZE=2
 export MACHINE_TYPE="n1-standard-2"
 
-export RUN_MAP=false
