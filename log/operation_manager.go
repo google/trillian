@@ -231,21 +231,11 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 		if o.runnerCancels[logID] != nil {
 			continue
 		}
-		glog.Infof("create master election goroutine for %v", logID)
-		innerCtx, cancel := context.WithCancel(ctx)
-		el, err := o.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
+		cancel, err := o.runElection(ctx, logID)
 		if err != nil {
-			cancel()
-			return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
+			return nil, err
 		}
-		// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
-		r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, el)
 		o.runnerCancels[logID] = cancel
-		o.runnerWG.Add(1)
-		go func(r *election.Runner) {
-			defer o.runnerWG.Done()
-			r.Run(innerCtx, o.pendingResignations)
-		}(r)
 	}
 
 	held := o.tracker.Held()
@@ -264,6 +254,24 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 	}
 
 	return heldIDs, nil
+}
+
+func (o *OperationManager) runElection(ctx context.Context, logID string) (context.CancelFunc, error) {
+	glog.Infof("create master election goroutine for %v", logID)
+	innerCtx, cancel := context.WithCancel(ctx)
+	el, err := o.info.Registry.ElectionFactory.NewElection(innerCtx, logID)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
+	}
+	// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
+	r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, el)
+	o.runnerWG.Add(1)
+	go func(r *election.Runner) {
+		defer o.runnerWG.Done()
+		r.Run(innerCtx, o.pendingResignations)
+	}(r)
+	return cancel, nil
 }
 
 // updateHeldIDs updates the process status with the number/list of logs that
