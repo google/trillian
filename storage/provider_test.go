@@ -77,7 +77,7 @@ func TestProviders(t *testing.T) {
 	RegisterProvider("b", func(_ monitoring.MetricFactory) (Provider, error) {
 		return &provider{}, nil
 	})
-	sp := providers()
+	sp := Providers()
 
 	if got, want := len(sp), 2; got < want {
 		t.Fatalf("Got %d names, want at least %d", got, want)
