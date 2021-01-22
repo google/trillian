@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -421,39 +422,37 @@ func executePassForAll(ctx context.Context, info *OperationInfo, op Operation, l
 	}
 	glog.V(1).Infof("Running executor with %d worker(s)", numWorkers)
 
-	ids := make(chan int64, len(logIDs))
-	for _, id := range logIDs {
-		ids <- id
-	}
-	close(ids)
-
+	sem := semaphore.NewWeighted(int64(numWorkers))
 	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
+	for _, logID := range logIDs {
+		if err := sem.Acquire(ctx, 1); err != nil {
+			break // Terminate because the context is canceled.
+		}
 		wg.Add(1)
-		go func() {
+		go func(logID int64) {
 			defer wg.Done()
-			for logID := range ids {
-				label := strconv.FormatInt(logID, 10)
-				start := info.TimeSource.Now()
-				count, err := op.ExecutePass(ctx, logID, info)
-				if err != nil {
-					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
-					failedSigningRuns.Inc(label)
-					continue
-				}
+			defer sem.Release(1)
 
-				// This indicates signing activity is proceeding on the logID.
-				signingRuns.Inc(label)
-				if count > 0 {
-					d := clock.SecondsSince(info.TimeSource, start)
-					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
-					entriesAdded.Add(float64(count), label)
-					batchesAdded.Inc(label)
-				} else {
-					glog.V(1).Infof("%v: no items to process", logID)
-				}
+			label := strconv.FormatInt(logID, 10)
+			start := info.TimeSource.Now()
+			count, err := op.ExecutePass(ctx, logID, info)
+			if err != nil {
+				glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
+				failedSigningRuns.Inc(label)
+				return
 			}
-		}()
+
+			// This indicates signing activity is proceeding on the logID.
+			signingRuns.Inc(label)
+			if count > 0 {
+				d := clock.SecondsSince(info.TimeSource, start)
+				glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
+				entriesAdded.Add(float64(count), label)
+				batchesAdded.Inc(label)
+			} else {
+				glog.V(1).Infof("%v: no items to process", logID)
+			}
+		}(logID)
 	}
 
 	// Wait for the workers to consume all of the logIDs.
