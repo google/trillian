@@ -114,8 +114,8 @@ type OperationManager struct {
 	// logOperation is the task that gets run across active logs in the scheduling loop
 	logOperation Operation
 
-	// electionRunner tracks the goroutines that run per-log mastership elections
-	electionRunner      map[string]*election.Runner
+	// runnerCancels contains cancel function for each logID election Runner.
+	runnerCancels       map[string]context.CancelFunc
 	pendingResignations chan election.Resignation
 	runnerWG            sync.WaitGroup
 	tracker             *election.MasterTracker
@@ -136,7 +136,7 @@ func NewOperationManager(info OperationInfo, logOperation Operation) *OperationM
 	return &OperationManager{
 		info:                info,
 		logOperation:        logOperation,
-		electionRunner:      make(map[string]*election.Runner),
+		runnerCancels:       make(map[string]context.CancelFunc),
 		pendingResignations: make(chan election.Resignation, 100),
 		logNames:            make(map[int64]string),
 	}
@@ -225,7 +225,7 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 	// Synchronize the set of log IDs with those we are tracking mastership for.
 	for _, logID := range allStringIDs {
 		knownLogs.Set(1, logID)
-		if o.electionRunner[logID] != nil {
+		if o.runnerCancels[logID] != nil {
 			continue
 		}
 		glog.Infof("create master election goroutine for %v", logID)
@@ -235,12 +235,14 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 			cancel()
 			return nil, fmt.Errorf("failed to create election for %v: %v", logID, err)
 		}
-		o.electionRunner[logID] = election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, el)
+		// TODO(pavelkalinnikov): Passing the cancel function is not needed here.
+		r := election.NewRunner(logID, &o.info.ElectionConfig, o.tracker, cancel, el)
+		o.runnerCancels[logID] = cancel
 		o.runnerWG.Add(1)
 		go func(r *election.Runner) {
 			defer o.runnerWG.Done()
 			r.Run(innerCtx, o.pendingResignations)
-		}(o.electionRunner[logID])
+		}(r)
 	}
 
 	held := o.tracker.Held()
@@ -368,12 +370,12 @@ loop:
 	}
 
 	// Terminate all the election runners
-	for logID, runner := range o.electionRunner {
-		if runner == nil {
+	for logID, cancel := range o.runnerCancels {
+		if cancel == nil {
 			continue
 		}
 		glog.V(1).Infof("cancel election runner for %s", logID)
-		runner.Cancel()
+		cancel()
 	}
 
 	// Drain any remaining resignations which might have triggered.
