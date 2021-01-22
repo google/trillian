@@ -148,20 +148,17 @@ func NewOperationManager(info OperationInfo, logOperation Operation) *OperationM
 	}
 }
 
-// getActiveLogIDs returns IDs of all currently active logs, regardless of
-// mastership status.
+// getActiveLogIDs returns IDs of logs eligible for sequencing.
 func (o *OperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error) {
 	tx, err := o.info.Registry.LogStorage.Snapshot(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %v", err)
 	}
 	defer tx.Close()
-
 	logIDs, err := tx.GetActiveLogIDs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active logIDs: %v", err)
 	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit: %v", err)
 	}
