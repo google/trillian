@@ -139,11 +139,19 @@ func NewOperationManager(info OperationInfo, logOperation Operation) *OperationM
 	if info.Timeout == 0 {
 		info.Timeout = DefaultTimeout
 	}
+	tracker := election.NewMasterTracker(nil, func(id string, v bool) {
+		val := 0.0
+		if v {
+			val = 1.0
+		}
+		isMaster.Set(val, id)
+	})
 	return &OperationManager{
 		info:                info,
 		logOperation:        logOperation,
 		runnerCancels:       make(map[string]context.CancelFunc),
 		pendingResignations: make(chan election.Resignation, 100),
+		tracker:             tracker,
 		logNames:            make(map[int64]string),
 	}
 }
@@ -214,21 +222,12 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 		s := strconv.FormatInt(id, 10)
 		allStringIDs = append(allStringIDs, s)
 	}
-	if o.tracker == nil {
-		glog.Infof("creating mastership tracker for %v", allIDs)
-		o.tracker = election.NewMasterTracker(allStringIDs, func(id string, v bool) {
-			val := 0.0
-			if v {
-				val = 1.0
-			}
-			isMaster.Set(val, id)
-		})
-	}
 
 	// Synchronize the set of log IDs with those we are tracking mastership for.
 	for _, logID := range allStringIDs {
 		knownLogs.Set(1, logID)
 		if o.runnerCancels[logID] == nil {
+			o.tracker.Set(logID, false) // Initialise tracking for this ID.
 			o.runnerCancels[logID] = o.runElectionWithRestarts(ctx, logID)
 		}
 	}
