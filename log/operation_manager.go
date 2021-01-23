@@ -432,25 +432,8 @@ func executePassForAll(ctx context.Context, info *OperationInfo, op Operation, l
 		go func(logID int64) {
 			defer wg.Done()
 			defer sem.Release(1)
-
-			label := strconv.FormatInt(logID, 10)
-			start := info.TimeSource.Now()
-			count, err := op.ExecutePass(ctx, logID, info)
-			if err != nil {
+			if err := executePass(ctx, info, op, logID); err != nil {
 				glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
-				failedSigningRuns.Inc(label)
-				return
-			}
-
-			// This indicates signing activity is proceeding on the logID.
-			signingRuns.Inc(label)
-			if count > 0 {
-				d := clock.SecondsSince(info.TimeSource, start)
-				glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
-				entriesAdded.Add(float64(count), label)
-				batchesAdded.Inc(label)
-			} else {
-				glog.V(1).Infof("%v: no items to process", logID)
 			}
 		}(logID)
 	}
@@ -459,4 +442,27 @@ func executePassForAll(ctx context.Context, info *OperationInfo, op Operation, l
 	wg.Wait()
 	d := clock.SecondsSince(info.TimeSource, startBatch)
 	glog.V(1).Infof("Group run completed in %.2f seconds", d)
+}
+
+// executePass runs ExecutePass of the given operation for the passed-in log.
+func executePass(ctx context.Context, info *OperationInfo, op Operation, logID int64) error {
+	label := strconv.FormatInt(logID, 10)
+	start := info.TimeSource.Now()
+	count, err := op.ExecutePass(ctx, logID, info)
+	if err != nil {
+		failedSigningRuns.Inc(label)
+		return err
+	}
+
+	// This indicates signing activity is proceeding on the logID.
+	signingRuns.Inc(label)
+	if count > 0 {
+		d := clock.SecondsSince(info.TimeSource, start)
+		glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
+		entriesAdded.Add(float64(count), label)
+		batchesAdded.Inc(label)
+	} else {
+		glog.V(1).Infof("%v: no items to process", logID)
+	}
+	return nil
 }
