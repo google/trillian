@@ -174,4 +174,5 @@ func SkipIfNoMySQL(t *testing.T) {
 	if !MySQLAvailable() {
 		t.Skip("Skipping test as MySQL not available")
 	}
+	t.Logf("Test MySQL available at %q", mysqlURI())
 }
