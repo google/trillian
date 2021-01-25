@@ -19,10 +19,10 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -34,14 +34,35 @@ import (
 	_ "github.com/go-sql-driver/mysql" // mysql driver
 )
 
-var (
-	trillianSQL   = testonly.RelativeToPackage("../mysql/schema/storage.sql")
-	dataSourceURI = flag.String("test_mysql_uri", "root@tcp(127.0.0.1)/", "The MySQL uri to use when running tests")
+const (
+	// MySQLURIEnv is the name of the ENV var checked for the test mysql instance URI to use.
+	MySQLURIEnv = "MYSQL_URI"
+
+	defaultMySQLURI = "root@tcp(127.0.0.1)/"
 )
+
+var (
+	trillianSQL = testonly.RelativeToPackage("../mysql/schema/storage.sql")
+)
+
+// mysqlURI returns the connection URI to use for tests.
+// It will prefer the value in the MYSQL_URI env var, and if empty/unset, it'll
+// return the DefaultMySQLURI value.
+//
+// Only a subset of the suite of tests in this repo require a database it's
+// not possible to blanket apply the test_mysql_uri flag, and maintaining a separate
+// list of tests which needs DB connectivity is brittle, so this fallback approach
+// means we can provide the connection info in a more ambient fashion.
+func mysqlURI() string {
+	if e := os.Getenv(MySQLURIEnv); len(e) > 0 {
+		return e
+	}
+	return defaultMySQLURI
+}
 
 // MySQLAvailable indicates whether a default MySQL database is available.
 func MySQLAvailable() bool {
-	db, err := sql.Open("mysql", *dataSourceURI)
+	db, err := sql.Open("mysql", mysqlURI())
 	if err != nil {
 		log.Printf("sql.Open(): %v", err)
 		return false
@@ -78,7 +99,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	if err := SetFDLimit(2048); err != nil {
 		return nil, nil, err
 	}
-	db, err := sql.Open("mysql", *dataSourceURI)
+	db, err := sql.Open("mysql", mysqlURI())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -92,7 +113,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	}
 
 	db.Close()
-	db, err = sql.Open("mysql", *dataSourceURI+name)
+	db, err = sql.Open("mysql", mysqlURI()+name)
 	if err != nil {
 		return nil, nil, err
 	}
