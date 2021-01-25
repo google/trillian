@@ -85,7 +85,7 @@ type OperationInfo struct {
 
 	// The following parameters are passed to individual Operations.
 
-	// BatchSize is the processing batch size to be passed to tasks run by this manager
+	// BatchSize is the batch size to be passed to tasks run by this manager.
 	BatchSize int
 	// TimeSource should be used by the Operation to allow mocking for tests.
 	TimeSource clock.TimeSource
@@ -111,7 +111,7 @@ type OperationInfo struct {
 type OperationManager struct {
 	info OperationInfo
 
-	// logOperation is the task that gets run across active logs in the scheduling loop
+	// logOperation is the task that gets run for active logs.
 	logOperation Operation
 
 	// runnerWG groups all goroutines with election Runners.
@@ -341,7 +341,7 @@ func (o *OperationManager) OperationSingle(ctx context.Context) {
 func (o *OperationManager) OperationLoop(ctx context.Context) {
 	glog.Infof("Log operation manager starting")
 
-	// Outer loop, runs until terminated
+	// Outer loop, runs until terminated.
 loop:
 	for {
 		// TODO(alcutter): want a child context with deadline here?
@@ -366,7 +366,7 @@ loop:
 			}
 		}
 
-		// See if it's time to quit
+		// See if it's time to quit.
 		select {
 		case <-ctx.Done():
 			glog.Infof("Log operation manager shutting down")
@@ -374,7 +374,7 @@ loop:
 		default:
 		}
 
-		// Wait for the configured time before going for another pass
+		// Wait for the configured time before going for another pass.
 		duration := o.info.TimeSource.Now().Sub(start)
 		wait := o.info.RunInterval - duration
 		if wait > 0 {
