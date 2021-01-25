@@ -35,10 +35,11 @@ import (
 )
 
 const (
-	// MySQLURIEnv is the name of the ENV var checked for the test mysql instance URI to use.
-	MySQLURIEnv = "MYSQL_URI"
+	// MySQLURIEnv is the name of the ENV var checked for the test MySQL
+	// instance URI to use.
+	MySQLURIEnv = "TEST_MYSQL_URI"
 
-	defaultMySQLURI = "root@tcp(127.0.0.1)/"
+	defaultTestMySQLURI = "root@tcp(127.0.0.1)"
 )
 
 var (
@@ -47,7 +48,7 @@ var (
 
 // mysqlURI returns the connection URI to use for tests.
 // It will prefer the value in the MYSQL_URI env var, and if empty/unset, it'll
-// return the DefaultMySQLURI value.
+// return the defaultTestMySQLURI value.
 //
 // Only a subset of the suite of tests in this repo require a database it's
 // not possible to blanket apply the test_mysql_uri flag, and maintaining a separate
@@ -57,10 +58,10 @@ func mysqlURI() string {
 	if e := os.Getenv(MySQLURIEnv); len(e) > 0 {
 		return e
 	}
-	return defaultMySQLURI
+	return defaultTestMySQLURI
 }
 
-// MySQLAvailable indicates whether a default MySQL database is available.
+// MySQLAvailable indicates whether the configured MySQL database is available.
 func MySQLAvailable() bool {
 	db, err := sql.Open("mysql", mysqlURI())
 	if err != nil {
@@ -113,7 +114,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	}
 
 	db.Close()
-	db, err = sql.Open("mysql", mysqlURI()+name)
+	db, err = sql.Open("mysql", mysqlURI()+"/"+name)
 	if err != nil {
 		return nil, nil, err
 	}

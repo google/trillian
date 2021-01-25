@@ -17,7 +17,7 @@
    are initialised properly. It might break depending builds relying on these
    flags. Suggested fix: add the flags to `main.go`.
  * Made signer tolerate mastership election failues [#1150].
- * `testdb` no longer accepts the `--test_mysq_uri` flag, and instead honours the
+ * `testdb` no longer accepts the `--test_mysql_uri` flag, and instead honours the
    `MYSQL_URI` ENV var. This makes it easier to blanket configure tests to use a
    specific test DB instance.
 
