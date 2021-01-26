@@ -33,7 +33,6 @@ The status of features is listed as one of:
 |                     |  Status            | Deployed in production    | Notes                                                   |
 |:---                  |   :---:           | :---:                      |:---                                                     |
 | Log V1               |   GA              | ✓                         |                                                         |
-| Log V2 (Skylog)     |   In development  |                           | [#1674](https://github.com/google/trillian/issues/1674) |
 | Map                 |   Alpha            |                           |                                                         |
 | Log-Backed-Map      |   In development  |                           |                                                         |
 
@@ -44,7 +43,7 @@ This is feature complete, and is actively used in production by multiple CT log 
 ### Trillian Log V2 (Skylog)
 
 Skylog is an append-only log with considerably higher throughput and lower integration latency than the v1 log.
-It currently exists only in prototype form, but is being developed.
+It currently exists as internal prototype.
 
 ### Trillian Map
 
@@ -105,19 +104,6 @@ Write throughput of 4-500 entries/s has been observed.
 
 ##### Postgres
 The postgres implementation is currently under development, and is not ready for use.
-
-
-
-#### V2 log storage
-
-New _Skylog_ capable storage implementations.
-
-| Storage          | Status  | Deployed in prod    | Notes                                                                       |
-|:---              | :---:   | :---:               |:---                                                                         |
-| Spanner          | NI      |                     |                                                                             |
-| CloudSpanner     | In dev. |                     | [#1674](https://github.com/google/trillian/issues/1674)                     |
-| MySQL            | NI      |                     |                                                                             |
-| Postgres         | NI      |                     |                                                                             |
 
 
 #### Map storage
