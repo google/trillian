@@ -23,6 +23,7 @@
 
 ### Upgrades
  * Dockerfiles are now based on Go 1.13 image.
+ * The etcd is now pinned to v3.4.12.
 
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
