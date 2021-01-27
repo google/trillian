@@ -22,9 +22,9 @@ export TEST_MYSQL_URI="${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL
 
 # If the test will use etcd, then install etcd + tools.
 if [ "${ETCD_DIR}" != "" ]; then
-  go get -v go.etcd.io/etcd/v3@v3.0.0-20210107172604-c632042bb96c
-  go get -v go.etcd.io/etcd/etcdctl/v3@v3.0.0-20210107172604-c632042bb96c
-  go install github.com/fullstorydev/grpcurl/cmd/grpcurl
+  # go get -v go.etcd.io/etcd/v3@v3.0.0-20210107172604-c632042bb96c
+  # go get -v go.etcd.io/etcd/etcdctl/v3@v3.0.0-20210107172604-c632042bb96c
+  go install go.etcd.io/etcd go.etcd.io/etcd/etcdctl github.com/fullstorydev/grpcurl/cmd/grpcurl
 fi
 
 ./integration/integration_test.sh
