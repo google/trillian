@@ -21,6 +21,9 @@
    `TEST_MYSQL_URI` ENV var. This makes it easier to blanket configure tests to use a
    specific test DB instance.
 
+### Upgrades
+ * Dockerfiles are now based on Go 1.13 image.
+
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
 
