@@ -16,6 +16,10 @@ substitutions:
   _MYSQL_PASSWORD: ""
 options:
   machineType: E2_HIGHCPU_32
+  volumes:
+  # A shared volume for caching Go modules between steps.
+  - name: go-modules
+    path: /go
   env:
     - GO111MODULE=on
     - GOPROXY=https://proxy.golang.org
@@ -84,7 +88,6 @@ steps:
     - --no-generate
   env:
     - GOFLAGS=-race
-    - GOPATH=/throwaway
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - prepare
@@ -98,7 +101,6 @@ steps:
     - --no-generate
   env:
     - GOFLAGS=-race --tags=batched_queue
-    - GOPATH=/throwaway
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - presubmit
@@ -133,7 +135,6 @@ steps:
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
-    - GOPATH=/throwaway
     - HAMMER_OPTS=--operations=150
     - GO_TEST_TIMEOUT=20m
   waitFor:
@@ -145,7 +146,6 @@ steps:
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
     - ETCD_DIR=/go/bin
-    - GOPATH=/throwaway
     - GOFLAGS=-race
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
@@ -158,7 +158,6 @@ steps:
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
     - GOFLAGS=-race
-    - GOPATH=/throwaway
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
@@ -170,7 +169,6 @@ steps:
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
     - GOFLAGS=-tags=pkcs11
-    - GOPATH=/throwaway
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
