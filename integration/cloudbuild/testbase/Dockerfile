@@ -1,5 +1,5 @@
 # This Dockerfile builds a base image for the Trillan CloudBuild integration testing.
-FROM ubuntu as trillian_testbase
+FROM ubuntu
 
 WORKDIR /testbase
 
