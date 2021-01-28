@@ -121,11 +121,14 @@ type OperationManager struct {
 	// pendingResignations delivers resignation requests from election Runners.
 	pendingResignations chan election.Resignation
 
-	tracker  *election.MasterTracker
+	tracker *election.MasterTracker
+
+	// Cache of logID => name. Names are assumed not to change during runtime.
+	logNames map[int64]string
+	// A recent list of active logs that this instance is master for.
 	lastHeld []int64
-	// Cache of logID => name; assumed not to change during runtime
-	logNamesMutex sync.Mutex
-	logNames      map[int64]string
+	// idsMutex guards logNames and lastHeld fields.
+	idsMutex sync.Mutex
 }
 
 // NewOperationManager creates a new OperationManager instance.
@@ -168,8 +171,8 @@ func (o *OperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error)
 // logName maps a logID to a human-readable name, caching results along the way.
 // The human-readable name may non-unique so should only be used for diagnostics.
 func (o *OperationManager) logName(ctx context.Context, logID int64) string {
-	o.logNamesMutex.Lock()
-	defer o.logNamesMutex.Unlock()
+	o.idsMutex.Lock()
+	defer o.idsMutex.Unlock()
 	if name, ok := o.logNames[logID]; ok {
 		return name
 	}
@@ -295,6 +298,8 @@ func (o *OperationManager) runElectionWithRestarts(ctx context.Context, logID st
 func (o *OperationManager) updateHeldIDs(ctx context.Context, logIDs, activeIDs []int64) {
 	heldInfo := o.heldInfo(ctx, logIDs)
 	msg := fmt.Sprintf("Acting as master for %d / %d active logs: %s", len(logIDs), len(activeIDs), heldInfo)
+	o.idsMutex.Lock()
+	defer o.idsMutex.Unlock()
 	if !reflect.DeepEqual(logIDs, o.lastHeld) {
 		o.lastHeld = make([]int64, len(logIDs))
 		copy(o.lastHeld, logIDs)
