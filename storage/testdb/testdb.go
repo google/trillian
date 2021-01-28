@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	// MySQLURIEnv is the name of the ENV var checked for the test MySQL
-	// instance URI to use.
+	// MySQLURIEnv is the name of the ENV variable checked for the test MySQL
+	// instance URI to use. The value must have a trailing slash.
 	MySQLURIEnv = "TEST_MYSQL_URI"
 
 	// Note: sql.Open requires the URI to end with a slash.
@@ -48,13 +48,13 @@ var (
 )
 
 // mysqlURI returns the MySQL connection URI to use for tests. It returns the
-// value in the TEST_MYSQL_URI env var, if not empty, otherwise falls back to
-// defaultTestMySQLURI.
+// value in the ENV variable defined by MySQLURIEnv. If the value is empty,
+// returns defaultTestMySQLURI.
 //
-// We use an env variable, rather than a flag, for flexibility. Only a subset
+// We use an ENV variable, rather than a flag, for flexibility. Only a subset
 // of the tests in this repo require a database and import this package. With a
 // flag, it would be necessary to distinguish "go test" invocations that need a
-// database, and those that don't. Env allows to "blanket apply" this setting.
+// database, and those that don't. ENV allows to "blanket apply" this setting.
 func mysqlURI() string {
 	if e := os.Getenv(MySQLURIEnv); len(e) > 0 {
 		return e
