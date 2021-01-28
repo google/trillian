@@ -1,0 +1,18 @@
+version: '3.1'
+
+services:
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 'bananas'
+      MYSQL_USER: 'test'
+      MYSQL_PASSWORD: 'zaphod'
+      MYSQL_TCP_PORT: ${MYSQL_PORT:-3306}
+    ports:
+      - '${MYSQL_PORT:-3306}:${MYSQL_PORT:-3306}'
+
+networks:
+  default:
+    external:
+      name: cloudbuild

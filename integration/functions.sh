@@ -100,6 +100,8 @@ kill_pid() {
 # Parameters:
 #   - number of log servers to run
 #   - number of log signers to run
+# Env:
+#   - If TEST_MYSQL_URI is set, uses that for the server --mysql_uri flag.
 # Populates:
 #  - HTTP_SERVER_1   : first HTTP server
 #  - RPC_SERVER_1    : first RPC server
@@ -112,6 +114,7 @@ kill_pid() {
 #  - ETCD_DB_DIR     : location of etcd database
 # If WITH_PKCS11 is set, also populates:
 #  - SOFTHSM_CONF    : location of the SoftHSM configuration file
+#
 log_prep_test() {
   # Default to one of each.
   local rpc_server_count=${1:-1}
@@ -127,6 +130,11 @@ log_prep_test() {
   local logserver_opts=''
   local logsigner_opts=''
   local has_etcd=0
+
+  if [[ "${TEST_MYSQL_URI}" != "" ]]; then
+    logserver_opts+=" --mysql_uri=${TEST_MYSQL_URI}"
+    logsigner_opts+=" --mysql_uri=${TEST_MYSQL_URI}"
+  fi
 
   # Start a local etcd instance (if configured).
   if [[ -x "${ETCD_DIR}/etcd" ]]; then
@@ -267,6 +275,8 @@ EOF
 # map_prep_test prepares a set of running processes for a Trillian map test.
 # Parameters:
 #   - number of map servers to run
+# Env:
+#   - If TEST_MYSQL_URI is set, uses that for the server --mysql_uri flag.
 # Populates:
 #  - RPC_SERVER_1    : first RPC server
 #  - RPC_SERVERS     : RPC target, either comma-separated list of RPC addresses or etcd service
@@ -281,6 +291,11 @@ map_prep_test() {
   # Wipe the test database
   yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
+  local mapserver_opts=''
+  if [[ "${TEST_MYSQL_URI}" != "" ]]; then
+    mapserver_opts+=" --mysql_uri=${TEST_MYSQL_URI}"
+  fi
+
   # Start a set of Map RPC servers.
   for ((i=0; i < rpc_server_count; i++)); do
     port=$(pick_unused_port)
@@ -289,6 +304,7 @@ map_prep_test() {
 
     echo "Starting Map RPC server on localhost:${port}, HTTP on localhost:${http}"
     ./trillian_map_server \
+      ${mapserver_opts} \
       --rpc_endpoint="localhost:${port}" \
       --http_endpoint="localhost:${http}" \
       --single_transaction=true \

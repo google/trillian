@@ -1,3 +1,12 @@
+#############################################################################
+## The top section of this file is identical in the 3 cloudbuild.*yaml files.
+## Make sure any edits you make here are copied over to the other files too
+## if appropriate.
+##
+## TODO(al): consider if it's possible to merge these 3 files and control via
+## substitutions.
+#############################################################################
+
 timeout: 1800s
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
@@ -6,8 +15,171 @@ substitutions:
   _MYSQL_ROOT_PASSWORD: ""
   _MYSQL_PASSWORD: ""
 options:
-  machineType: N1_HIGHCPU_8
+  machineType: E2_HIGHCPU_32
+  env:
+    - GO111MODULE=on
+    - GOPROXY=https://proxy.golang.org
+    - PROJECT_ROOT=github.com/google/trillian
+    - GOPATH=/go
+    - DOCKER_CLIENT_TIMEOUT=120
+    - COMPOSE_HTTP_TIMEOUT=120
+
 steps:
+# First build a "trillian_testbase" docker image which contains most of the tools we need for the later steps:
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args: ['-c', 'docker pull gcr.io/$PROJECT_ID/trillian_testbase:latest || exit 0']
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-t', 'gcr.io/$PROJECT_ID/trillian_testbase:latest',
+    '--cache-from', 'gcr.io/$PROJECT_ID/trillian_testbase:latest',
+    '-f', './integration/cloudbuild/testbase/Dockerfile',
+    '.'
+  ]
+
+# Set up tools and any other common steps which should not be part of Docker image.
+- id: prepare
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/prepare.sh
+
+# Run lint and porcelain checks
+- id: lint
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: bash
+  args:
+    - -exc
+    - |
+      curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.21.0
+      golangci-lint run --deadline=8m
+      ./scripts/check_license.sh $(find . -name '*.go' | grep -v mock_ | grep -v .pb.go | grep -v .pb.gw.go | grep -v _string.go | tr '\n' ' ')
+  waitFor:
+    - prepare
+
+# Run Bazel check
+- id: bazel
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: bash
+  args:
+    - -exc
+    - |
+      bazel build //:*
+  waitFor:
+    - prepare
+
+# TODO(al): This needs fixing
+# # Run Docker check
+# - id: docker
+#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+#   entrypoint: ./integration/docker_compose_integration_test.sh
+#   waitFor:
+#     - prepare
+
+# Presubmit
+- id: presubmit
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
+  args:
+    - --no-linters
+    - --no-generate
+  env:
+    - GOFLAGS=-race
+    - GOPATH=/throwaway
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
+
+# Presubmit (Batched queue)
+- id: presubmit_batched
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
+  args:
+    - --no-linters
+    - --no-generate
+  env:
+    - GOFLAGS=-race --tags=batched_queue
+    - GOPATH=/throwaway
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - presubmit
+
+# Presubmit (PKCS11)
+- id: presubmit_pkcs11
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
+  args:
+    - --no-linters
+    - --no-generate
+  env:
+    - GOFLAGS=-race --tags=pkcs11
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - presubmit
+
+# Try to spread the load a bit, we'll wait for all the presubmit.* steps
+# to finish before starting the integration.* ones.
+# Having too many "big" things running concurrently leads to problems
+# with timeouts and mysql issues.
+- id: presubmits_done
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: /bin/true
+  waitFor:
+    - presubmit
+    - presubmit_batched
+    - presubmit_pkcs11
+
+# Integration
+- id: integration
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - GOPATH=/throwaway
+    - HAMMER_OPTS=--operations=150
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - presubmits_done
+
+# Integration (etcd)
+- id: integration_etcd
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - ETCD_DIR=/go/bin
+    - GOPATH=/throwaway
+    - GOFLAGS=-race
+    - HAMMER_OPTS=--operations=50
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - presubmits_done
+
+# Integration (Batched queue)
+- id: integration_batched
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - GOFLAGS=-race
+    - GOPATH=/throwaway
+    - HAMMER_OPTS=--operations=50
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - presubmits_done
+
+# Integration (PKCS11)
+- id: integration_pkcs11
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - GOFLAGS=-tags=pkcs11
+    - GOPATH=/throwaway
+    - HAMMER_OPTS=--operations=50
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - presubmits_done
+
+############################################################################
+## End of replicated section.
+## Below are deployment/dry-run specific steps for the CD env.
+############################################################################
 - id: pull_mysql
   name : gcr.io/cloud-builders/docker
   args:
@@ -44,7 +216,8 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/log_server:${COMMIT_SHA}
   - --cache=true
   - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ["-"]
+  waitFor:
+    - prepare
 - id: build_log_signer
   name: gcr.io/kaniko-project/executor
   args:
@@ -52,7 +225,8 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/log_signer:${COMMIT_SHA}
   - --cache=true
   - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ["-"]
+  waitFor:
+    - prepare
 - id: build_map_server
   name: gcr.io/kaniko-project/executor
   args:
@@ -60,7 +234,8 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/map_server:${COMMIT_SHA}
   - --cache=true
   - --cache-dir= # Cache is in Google Container Registry
-  waitFor: ["-"]
+  waitFor:
+    - prepare
 - id: build_envsubst
   name: gcr.io/cloud-builders/docker
   args:
@@ -78,7 +253,8 @@ steps:
   env:
   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
-  waitFor: ["-"]
+  waitFor:
+    - prepare
 - id: copy_k8s_cfgs_for_spanner
   name: busybox
   entrypoint: cp
@@ -86,7 +262,8 @@ steps:
   - -r
   - examples/deployment/kubernetes/
   - envsubst-spanner/
-  waitFor: ['-']
+  waitFor:
+    - prepare
 - id: envsubst_k8s_cfgs_for_spanner
   name: envsubst
   args:
@@ -135,7 +312,8 @@ steps:
   - -r
   - examples/deployment/kubernetes/
   - envsubst-mysql/
-  waitFor: ['-']
+  waitFor:
+    - prepare
 - id: envsubst_k8s_cfgs_for_mysql
   name: envsubst
   args:
