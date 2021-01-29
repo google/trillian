@@ -134,7 +134,7 @@ func updateStratum(s beam.Scope, base, deltas beam.PCollection, treeID int64, ha
 // serializable by the default Beam coder. Also, it allows changes to be made
 // to smt.Node without affecting this, which improves decoupling.
 type nodeHash struct {
-	// Path from root of the map to this node. Equivalant to NodeID2, but with the
+	// Path from root of the map to this node. Equivalent to NodeID2, but with the
 	// significant benefit that it will be serialized properly without writing a
 	// custom coder for nodeHash.
 	Path []byte
