@@ -23,9 +23,5 @@ RUN mkdir protoc && \
     unzip -o ${PROTOC_ZIP} -d /usr/local 'include/*' \
     )
 ENV PATH /usr/local/bin:$PATH
-RUN BAZEL_VERSION="1.1.0" && \
-    wget --quiet -O install.sh "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh" && \
-    chmod +x install.sh && \
-    ./install.sh
 
 ENV PATH $GOPATH/bin:/testbase/protoc/bin:$PATH

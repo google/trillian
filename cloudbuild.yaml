@@ -71,9 +71,8 @@ steps:
     - prepare
 
 # Run Bazel check.
-# TODO(pavelkalinnikov): Use the bazel builder directly.
 - id: bazel
-  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  name: 'gcr.io/cloud-marketplace-containers/google/bazel:1.1.0'
   entrypoint: bazel
   args: ['build', '//:*']
   waitFor:
