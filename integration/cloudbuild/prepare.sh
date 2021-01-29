@@ -22,7 +22,3 @@ go install \
     github.com/golang/protobuf/protoc-gen-go \
     github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc \
     golang.org/x/tools/cmd/stringer
-
-# Cache MySQL image for later steps.
-# TODO(pavelkalinnikov): Specific to MySQL tests. Move to a better place.
-docker-compose -f ./integration/cloudbuild/docker-compose-mysql.yaml pull
