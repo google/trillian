@@ -70,14 +70,12 @@ steps:
   waitFor:
     - prepare
 
-# Run Bazel check
+# Run Bazel check.
+# TODO(pavelkalinnikov): Use the bazel builder directly.
 - id: bazel
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-  entrypoint: bash
-  args:
-    - -exc
-    - |
-      bazel build //:*
+  entrypoint: bazel
+  args: ['build', '//:*']
   waitFor:
     - prepare
 
