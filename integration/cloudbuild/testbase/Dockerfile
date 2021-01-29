@@ -1,4 +1,4 @@
-# This Dockerfile builds a base image for the Trillan CloudBuild integration testing.
+# This Dockerfile builds a base image for Trillan integration tests.
 FROM ubuntu
 
 WORKDIR /testbase
