@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/merkle/rfc6962"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 

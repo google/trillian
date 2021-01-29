@@ -27,18 +27,17 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
+	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle/rfc6962"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
-
-	tcrypto "github.com/google/trillian/crypto"
-	stestonly "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/storage/tree"
 )
 
 // Arbitrary time for use in tests

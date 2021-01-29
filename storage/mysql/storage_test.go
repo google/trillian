@@ -28,16 +28,15 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/rfc6962"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-
-	tcrypto "github.com/google/trillian/crypto"
-	storageto "github.com/google/trillian/storage/testonly"
 )
 
 func TestNodeRoundTrip(t *testing.T) {

@@ -29,7 +29,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/coniks"
+	coniks "github.com/google/trillian/merkle/coniks/hasher"
 )
 
 const hash = crypto.SHA512_256

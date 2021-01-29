@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/trillian/merkle/coniks"
+	coniks "github.com/google/trillian/merkle/coniks/hasher"
 	"github.com/google/trillian/storage/tree"
 )
 
