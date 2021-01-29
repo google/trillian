@@ -24,7 +24,7 @@ RUN curl -sfL https://golang.org/dl/go1.15.7.linux-amd64.tar.gz | tar -xzf - -C 
 ENV PATH /usr/local/go/bin:$PATH
 
 # https://golangci-lint.run/usage/install/
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.21.0
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.36.0
 
 RUN mkdir protoc && \
     (cd protoc && \
