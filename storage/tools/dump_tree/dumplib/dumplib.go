@@ -41,6 +41,7 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers/registry"
+	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"

@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
+	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"

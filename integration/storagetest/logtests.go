@@ -27,6 +27,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
+	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"

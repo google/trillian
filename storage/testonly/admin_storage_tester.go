@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
+	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
