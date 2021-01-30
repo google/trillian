@@ -101,6 +101,20 @@ steps:
   waitFor:
     - prepare
 
+# Codecov
+- id: codecov
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
+  args:
+    - --coverage
+    - --no-linters
+    - --no-generate
+  env:
+    - GOFLAGS=-race
+    - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
+
 # Presubmit (Batched queue)
 - id: presubmit_batched
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
