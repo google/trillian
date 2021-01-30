@@ -1,7 +1,7 @@
 # Trillian: General Transparency
 
-[![Build Status](https://travis-ci.org/google/trillian.svg?branch=master)](https://travis-ci.org/google/trillian)
 [![Go Report Card](https://goreportcard.com/badge/github.com/google/trillian)](https://goreportcard.com/report/github.com/google/trillian)
+[![codecov](https://codecov.io/gh/google/trillian/branch/master/graph/badge.svg?token=QwofUwmvAs)](https://codecov.io/gh/google/trillian)
 [![GoDoc](https://godoc.org/github.com/google/trillian?status.svg)](https://godoc.org/github.com/google/trillian)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://gtrillian.slack.com/)
 
