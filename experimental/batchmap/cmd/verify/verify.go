@@ -100,7 +100,7 @@ func main() {
 		if leaf == nil {
 			glog.Fatalf("couldn't find expected leaf %x in tile %x", needLeafPath, tile.Path)
 		}
-		if !bytes.Equal(leaf.Hash, needValue) {
+		if !bytes.Equal(leaf.Hash, needValue) { // nolint: staticcheck
 			glog.Fatalf("wrong leaf value in tile %x, leaf %x: got %x, want %x", tile.Path, leaf.Path, leaf.Hash, needValue)
 		}
 
