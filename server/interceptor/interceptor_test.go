@@ -192,7 +192,6 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 }
 
 func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
-
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
 

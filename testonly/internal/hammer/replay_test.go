@@ -28,7 +28,7 @@ import (
 var dehex = testonly.MustHexDecode
 
 func TestWriteReadMessage(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		in   proto.Message
 		want string
@@ -72,7 +72,7 @@ func TestWriteReadMessage(t *testing.T) {
 }
 
 func TestReadMessage(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		desc    string
 		in      []byte
 		want    string
@@ -124,7 +124,7 @@ func TestReadMessage(t *testing.T) {
 
 func TestConvertMsg(t *testing.T) {
 	mapmap := map[int64]int64{999: 123}
-	var tests = []struct {
+	tests := []struct {
 		desc string
 		in   proto.Message
 		want proto.Message

@@ -30,7 +30,8 @@ import (
 // This is the same set of views that used to be the default before that
 // was deprecated. Possibly some of these are not useful but for the moment
 // we don't really know that.
-var serverViews = []*view.View{ochttp.ServerRequestCountView,
+var serverViews = []*view.View{
+	ochttp.ServerRequestCountView,
 	ochttp.ServerRequestBytesView,
 	ochttp.ServerResponseBytesView,
 	ochttp.ServerLatencyView,

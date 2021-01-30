@@ -106,7 +106,8 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	fmt.Printf("%d: Write map[key0]=%q\n", mi.id, value0)
 	leaves := []*trillian.MapLeaf{{Index: key0, LeafValue: value0}}
 	writeRsp, err := mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
-		MapId: mi.id, Leaves: leaves, ExpectRevision: 1})
+		MapId: mi.id, Leaves: leaves, ExpectRevision: 1,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to write-leaves: %v", err)
 	}
@@ -129,7 +130,8 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 	fmt.Printf("%d: Write map[key0]=''\n", mi.id)
 	emptyLeaves := []*trillian.MapLeaf{{Index: key0, LeafValue: []byte{}}}
 	writeRsp, err = mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
-		MapId: mi.id, Leaves: emptyLeaves, Metadata: []byte("metadata-2"), ExpectRevision: 2})
+		MapId: mi.id, Leaves: emptyLeaves, Metadata: []byte("metadata-2"), ExpectRevision: 2,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to write-leaves: %v", err)
 	}
@@ -169,7 +171,8 @@ func (mi *MapInfo) RunIntegration(ctx context.Context) error {
 		{Index: key1, LeafValue: value2},
 	}
 	writeRsp, err = mi.wcl.WriteLeaves(ctx, &trillian.WriteMapLeavesRequest{
-		MapId: mi.id, Leaves: newLeaves, Metadata: []byte("metadata-3"), ExpectRevision: 3})
+		MapId: mi.id, Leaves: newLeaves, Metadata: []byte("metadata-3"), ExpectRevision: 3,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to write-leaves: %v", err)
 	}

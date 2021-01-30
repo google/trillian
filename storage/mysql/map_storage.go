@@ -398,7 +398,6 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root *trillian.Signe
 
 	// TODO(al): store transactionLogHead too
 	res, err := stmt.ExecContext(ctx, m.treeID, r.TimestampNanos, r.RootHash, r.Revision, root.Signature, r.Metadata)
-
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)
 	}

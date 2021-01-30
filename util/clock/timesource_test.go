@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	date1 = time.Date(1970, 9, 19, 12, 00, 00, 00, time.UTC)
-	date2 = time.Date(2007, 7, 7, 11, 35, 00, 00, time.UTC)
+	date1 = time.Date(1970, 9, 19, 12, 0, 0, 0, time.UTC)
+	date2 = time.Date(2007, 7, 7, 11, 35, 0, 0, time.UTC)
 )
 
 func TestFakeTimeSource(t *testing.T) {

@@ -55,9 +55,7 @@ import (
 	tcrypto "github.com/google/trillian/crypto"
 )
 
-var (
-	leafHashesFlag bool
-)
+var leafHashesFlag bool
 
 // A 32 bit magic number that is written at the start of record io files to identify the format.
 const recordIOMagic int32 = 0x3ed7230a
@@ -137,7 +135,6 @@ Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 func sequence(tree *trillian.Tree, seq *log.Sequencer, count, batchSize int) {
 	glog.Infof("Sequencing batch of size %d", count)
 	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour)
-
 	if err != nil {
 		glog.Fatalf("IntegrateBatch got: %v, want: no err", err)
 	}

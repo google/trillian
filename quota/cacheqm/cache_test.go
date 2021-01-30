@@ -30,12 +30,10 @@ const (
 	maxEntries   = 10
 )
 
-var (
-	specs = []quota.Spec{
-		{Group: quota.Global, Kind: quota.Read},
-		{Group: quota.Global, Kind: quota.Write},
-	}
-)
+var specs = []quota.Spec{
+	{Group: quota.Global, Kind: quota.Read},
+	{Group: quota.Global, Kind: quota.Write},
+}
 
 func TestNewCachedManagerErrors(t *testing.T) {
 	tests := []struct {

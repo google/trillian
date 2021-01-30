@@ -131,8 +131,10 @@ func TestNewNodeIDFromBigInt(t *testing.T) {
 	}{
 		{256, new(big.Int).SetBytes(h2b("00")), 256, h2b("0000000000000000000000000000000000000000000000000000000000000000"), 256},
 		{256, new(big.Int).SetBytes(h2b("01")), 256, h2b("0000000000000000000000000000000000000000000000000000000000000001"), 256},
-		{8, new(big.Int).SetBytes(h2b("4100000000000000000000000000000000000000000000000000000000000000")), 256,
-			h2b("4100000000000000000000000000000000000000000000000000000000000000"), 8},
+		{
+			8, new(big.Int).SetBytes(h2b("4100000000000000000000000000000000000000000000000000000000000000")), 256,
+			h2b("4100000000000000000000000000000000000000000000000000000000000000"), 8,
+		},
 	} {
 		n := NewNodeIDFromBigInt(tc.depth, tc.index, tc.totalDepth)
 		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
@@ -662,7 +664,8 @@ func TestSiblings(t *testing.T) {
 			index:    0,
 			inputLen: 16,
 			maxLen:   16,
-			want: []string{"1010101111100101",
+			want: []string{
+				"1010101111100101",
 				"101010111110011",
 				"10101011111000",
 				"1010101111101",
@@ -677,7 +680,8 @@ func TestSiblings(t *testing.T) {
 				"1011",
 				"100",
 				"11",
-				"0"},
+				"0",
+			},
 		},
 	} {
 		n := NewNodeIDFromPrefix(tc.prefix, 0, tc.index, tc.inputLen, tc.maxLen)

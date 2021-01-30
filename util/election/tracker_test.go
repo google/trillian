@@ -25,7 +25,7 @@ type testOperation struct {
 }
 
 func TestMasterTracker(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		ids   []string
 		ops   []testOperation
 		count int

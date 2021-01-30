@@ -40,8 +40,10 @@ func (c commitLog) String() string {
 	return result
 }
 
-var mu sync.RWMutex
-var topics = make(map[string]commitLog)
+var (
+	mu     sync.RWMutex
+	topics = make(map[string]commitLog)
+)
 
 // Status reports the current status of the simulated Kafka instance
 func Status() string {

@@ -132,7 +132,6 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
 	glog.Infof("Reading back leaves from log ...")
 	leafMap, err := readbackLogEntries(params.TreeID, client, params, leafCounts)
-
 	if err != nil {
 		return fmt.Errorf("could not read back log entries: %v", err)
 	}

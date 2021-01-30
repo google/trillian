@@ -41,7 +41,6 @@ func CreateAndInitTree(
 	adminClient trillian.TrillianAdminClient,
 	mapClient trillian.TrillianMapClient,
 	logClient trillian.TrillianLogClient) (*trillian.Tree, error) {
-
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,

@@ -26,8 +26,10 @@ import (
 	"github.com/google/trillian/docs/storage/commit_log/simkafka"
 )
 
-var batchSize = flag.Int("batch_size", 5, "Maximum leaves to sign in one run")
-var pessimizeInterval = flag.Duration("signer_pessimize", 10*time.Millisecond, "Pause interval in signing to induce inter-signer problems")
+var (
+	batchSize         = flag.Int("batch_size", 5, "Maximum leaves to sign in one run")
+	pessimizeInterval = flag.Duration("signer_pessimize", 10*time.Millisecond, "Pause interval in signing to induce inter-signer problems")
+)
 
 // Signer is a simulated signer instance.
 type Signer struct {

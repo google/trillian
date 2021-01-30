@@ -65,6 +65,7 @@ var (
 	emitInterval    = flag.Duration("emit_interval", 0, "How often to output the Hammer state")
 	keepFailedTree  = flag.Bool("keep_failed_tree", false, "Whether to preserve ephemeral trees on failed run")
 )
+
 var (
 	getLeavesBias    = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
 	getLeavesRevBias = flag.Int("get_leaves_rev", 2, "Bias for get-leaves-revision operations")

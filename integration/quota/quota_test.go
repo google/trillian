@@ -194,7 +194,8 @@ func (w *leafWriter) queueLeaf(ctx context.Context) error {
 		Leaf: &trillian.LogLeaf{
 			MerkleLeafHash: h,
 			LeafValue:      value,
-		}})
+		},
+	})
 	return err
 }
 

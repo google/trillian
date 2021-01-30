@@ -257,8 +257,8 @@ func (t *adminTX) getTreeInfo(ctx context.Context, treeID int64) (*spannerpb.Tre
 	var delMillis spanner.NullInt64
 	if err := row.Columns(
 		&tID,
-		&tState, //info.TreeState,
-		&tType,  //info.TreeType,
+		&tState, // info.TreeState,
+		&tType,  // info.TreeType,
 		&infoBytes,
 		&deleted,
 		&delMillis,

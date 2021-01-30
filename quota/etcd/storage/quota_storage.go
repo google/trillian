@@ -217,7 +217,6 @@ func (qs *QuotaStorage) Configs(ctx context.Context) (*storagepb.Configs, error)
 		var err error
 		cfgs, err = getConfigs(s)
 		return err
-
 	})
 	return cfgs, err
 }

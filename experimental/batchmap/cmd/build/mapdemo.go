@@ -63,7 +63,7 @@ func main() {
 
 	// Create the directory if it doesn't exist
 	if _, err := os.Stat(output); os.IsNotExist(err) {
-		if err = os.Mkdir(output, 0700); err != nil {
+		if err = os.Mkdir(output, 0o700); err != nil {
 			glog.Fatalf("couldn't find or create directory %s, %v", output, err)
 		}
 	}
@@ -77,7 +77,6 @@ func main() {
 
 	// Create the map, which will be returned as a collection of Tiles.
 	allTiles, err := batchmap.Create(s, entries, *treeID, hash, *prefixStrata)
-
 	if err != nil {
 		glog.Fatalf("Failed to create pipeline: %v", err)
 	}

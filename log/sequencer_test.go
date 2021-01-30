@@ -367,7 +367,7 @@ func TestIntegrateBatch(t *testing.T) {
 		{Group: quota.Global, Kind: quota.Write},
 	}
 
-	var tests = []struct {
+	tests := []struct {
 		desc            string
 		params          testParameters
 		guardWindow     time.Duration

@@ -212,13 +212,15 @@ func TestMapRootUpdate(t *testing.T) {
 	}
 }
 
-var keyHash = []byte([]byte("A Key Hash"))
-var mapLeaf = &trillian.MapLeaf{
-	Index:     keyHash,
-	LeafHash:  []byte("A Hash"),
-	LeafValue: []byte("A Value"),
-	ExtraData: []byte("Some Extra Data"),
-}
+var (
+	keyHash = []byte([]byte("A Key Hash"))
+	mapLeaf = &trillian.MapLeaf{
+		Index:     keyHash,
+		LeafHash:  []byte("A Hash"),
+		LeafValue: []byte("A Value"),
+		ExtraData: []byte("Some Extra Data"),
+	}
+)
 
 func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
@@ -260,7 +262,7 @@ func TestMapGet0Results(t *testing.T) {
 	for _, tc := range []struct {
 		index [][]byte
 	}{
-		{index: nil}, //empty list.
+		{index: nil}, // empty list.
 		{index: [][]byte{[]byte("This doesn't exist.")}},
 	} {
 		t.Run(fmt.Sprintf("tx.Get(%s)", tc.index), func(t *testing.T) {

@@ -966,9 +966,11 @@ type byLeafIdentityHashWithPosition []leafAndPosition
 func (l byLeafIdentityHashWithPosition) Len() int {
 	return len(l)
 }
+
 func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
+
 func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
 }

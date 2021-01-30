@@ -37,11 +37,9 @@ const (
 	countFromUnsequencedQuery = "SELECT COUNT(*) FROM Unsequenced"
 )
 
-var (
-	// ErrTooManyUnsequencedRows is returned when tokens are requested but Unsequenced has grown
-	// beyond the configured limit.
-	ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
-)
+// ErrTooManyUnsequencedRows is returned when tokens are requested but Unsequenced has grown
+// beyond the configured limit.
+var ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
 
 // QuotaManager is a MySQL-based quota.Manager implementation.
 //
