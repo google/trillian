@@ -43,9 +43,7 @@ const (
 	defaultTestMySQLURI = "root@tcp(127.0.0.1)/"
 )
 
-var (
-	trillianSQL = testonly.RelativeToPackage("../mysql/schema/storage.sql")
-)
+var trillianSQL = testonly.RelativeToPackage("../mysql/schema/storage.sql")
 
 // mysqlURI returns the MySQL connection URI to use for tests. It returns the
 // value in the ENV variable defined by MySQLURIEnv. If the value is empty,

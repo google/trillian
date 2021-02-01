@@ -22,10 +22,8 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-var (
-	// tlsCertFile is the flag-assigned value for the path to the Trillian server's TLS certificate.
-	tlsCertFile = flag.String("tls_cert_file", "", "Path to the file containing the Trillian server's PEM-encoded public TLS certificate. If unset, unsecured connections will be used")
-)
+// tlsCertFile is the flag-assigned value for the path to the Trillian server's TLS certificate.
+var tlsCertFile = flag.String("tls_cert_file", "", "Path to the file containing the Trillian server's PEM-encoded public TLS certificate. If unset, unsecured connections will be used")
 
 // NewClientDialOptionsFromFlags returns a list of grpc.DialOption values to be
 // passed as DialOption arguments to grpc.Dial

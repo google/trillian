@@ -45,14 +45,16 @@ import (
 var fakeTimeSource = clock.NewFake(fakeTime)
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
-var testLogID1 = int64(1)
-var leaf0Hash = rfc6962.DefaultHasher.HashLeaf([]byte{})
-var testLeaf0 = &trillian.LogLeaf{
-	MerkleLeafHash: leaf0Hash,
-	LeafValue:      nil,
-	ExtraData:      nil,
-	LeafIndex:      0,
-}
+var (
+	testLogID1 = int64(1)
+	leaf0Hash  = rfc6962.DefaultHasher.HashLeaf([]byte{})
+	testLeaf0  = &trillian.LogLeaf{
+		MerkleLeafHash: leaf0Hash,
+		LeafValue:      nil,
+		ExtraData:      nil,
+		LeafIndex:      0,
+	}
+)
 
 var testLeaf0Updated = &trillian.LogLeaf{
 	MerkleLeafHash:     testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="),
@@ -61,6 +63,7 @@ var testLeaf0Updated = &trillian.LogLeaf{
 	LeafIndex:          0,
 	IntegrateTimestamp: testonly.MustToTimestampProto(fakeTime),
 }
+
 var (
 	fixedLog1Signer = tcrypto.NewSigner(testLogID1, fixedGoSigner, crypto.SHA256)
 	testRoot0       = &types.LogRootV1{
@@ -266,6 +269,7 @@ type cmpMatcher struct{ want interface{} }
 func (m cmpMatcher) Matches(got interface{}) bool {
 	return cmp.Equal(got, m.want, cmp.Comparer(proto.Equal))
 }
+
 func (m cmpMatcher) String() string {
 	return fmt.Sprintf("equals %v", m.want)
 }

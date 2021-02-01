@@ -38,6 +38,7 @@ func TestReadEmpty(t *testing.T) {
 		t.Errorf("ReadLast(%q, %d)=%q,%d; want '',-1", topic, offset, got, gotOffset)
 	}
 }
+
 func TestRead(t *testing.T) {
 	topic := "test2"
 	want := "abc"

@@ -53,7 +53,8 @@ func (t *TrillianMapWriteServer) WriteLeaves(ctx context.Context, req *trillian.
 		MapId:    req.MapId,
 		Leaves:   req.Leaves,
 		Metadata: req.Metadata,
-		Revision: req.ExpectRevision}
+		Revision: req.ExpectRevision,
+	}
 
 	resp, err := t.mapServer.SetLeaves(ctx, &setLeavesReq)
 	if err != nil {

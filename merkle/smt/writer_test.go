@@ -62,14 +62,22 @@ func TestWriterSplit(t *testing.T) {
 	}{
 		{desc: "dup", nodes: all, err: true},
 		{desc: "wrong-len", nodes: []Node{{ID: tree.NewNodeID2("ab", 10)}}, err: true},
-		{desc: "ok-24", split: 24, nodes: all[:5],
-			want: [][]Node{{all[1]}, {all[0]}, {all[2]}, {all[4]}, {all[3]}}},
-		{desc: "ok-21", split: 21, nodes: all[:5],
-			want: [][]Node{{all[1]}, {all[0]}, {all[2], all[4]}, {all[3]}}},
-		{desc: "ok-16", split: 16, nodes: all[:5],
-			want: [][]Node{{all[1]}, {all[0]}, {all[2], all[4]}, {all[3]}}},
-		{desc: "ok-0", split: 0, nodes: all[:5],
-			want: [][]Node{{all[1], all[0], all[2], all[4], all[3]}}},
+		{
+			desc: "ok-24", split: 24, nodes: all[:5],
+			want: [][]Node{{all[1]}, {all[0]}, {all[2]}, {all[4]}, {all[3]}},
+		},
+		{
+			desc: "ok-21", split: 21, nodes: all[:5],
+			want: [][]Node{{all[1]}, {all[0]}, {all[2], all[4]}, {all[3]}},
+		},
+		{
+			desc: "ok-16", split: 16, nodes: all[:5],
+			want: [][]Node{{all[1]}, {all[0]}, {all[2], all[4]}, {all[3]}},
+		},
+		{
+			desc: "ok-0", split: 0, nodes: all[:5],
+			want: [][]Node{{all[1], all[0], all[2], all[4], all[3]}},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			nodes := make([]Node, len(tc.nodes))

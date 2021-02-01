@@ -86,7 +86,6 @@ func TestSharedState_advertiseSMR(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestSharedState_keepsReadableRevisions(t *testing.T) {

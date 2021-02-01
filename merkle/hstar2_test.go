@@ -33,9 +33,7 @@ import (
 
 const treeID = int64(0)
 
-var (
-	deB64 = testonly.MustDecodeBase64
-)
+var deB64 = testonly.MustDecodeBase64
 
 // Some known answers for incrementally adding index/value pairs to a sparse tree.
 // rootB64 is the incremental root after adding the corresponding i/v pair, and

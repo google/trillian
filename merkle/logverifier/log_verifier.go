@@ -191,6 +191,7 @@ func decompInclProof(index, size int64) (int, int) {
 	border := bits.OnesCount64(uint64(index) >> uint(inner))
 	return inner, border
 }
+
 func innerProofSize(index, size int64) int {
 	return bits.Len64(uint64(index ^ (size - 1)))
 }

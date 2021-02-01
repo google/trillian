@@ -48,11 +48,9 @@ type TXRunner interface {
 	RunTX(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error
 }
 
-var (
-	// ErrNoSuchRevision is returned when a request is made for information about
-	// a tree revision which does not exist.
-	ErrNoSuchRevision = errors.New("no such revision")
-)
+// ErrNoSuchRevision is returned when a request is made for information about
+// a tree revision which does not exist.
+var ErrNoSuchRevision = errors.New("no such revision")
 
 // NewSparseMerkleTreeReader returns a new SparseMerkleTreeReader, reading at
 // the specified tree revision, using the passed in MapHasher for calculating

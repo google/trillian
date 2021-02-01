@@ -60,7 +60,6 @@ func main() {
 	dialCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	conn, err := grpc.DialContext(dialCtx, fmt.Sprintf("localhost:%d", port), grpc.WithInsecure())
-
 	if err != nil {
 		panic(err)
 	}

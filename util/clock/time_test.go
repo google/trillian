@@ -21,20 +21,18 @@ import (
 	"time"
 )
 
-var (
-	cases = []struct {
-		dur     time.Duration
-		timeout time.Duration
-		cancel  bool
-		wantErr error
-	}{
-		{dur: 0 * time.Second, timeout: time.Second},
-		{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond},
-		{dur: 20 * time.Millisecond, timeout: 10 * time.Millisecond, wantErr: context.DeadlineExceeded},
-		{dur: 1 * time.Millisecond, timeout: 0 * time.Second, wantErr: context.DeadlineExceeded},
-		{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond, cancel: true, wantErr: context.Canceled},
-	}
-)
+var cases = []struct {
+	dur     time.Duration
+	timeout time.Duration
+	cancel  bool
+	wantErr error
+}{
+	{dur: 0 * time.Second, timeout: time.Second},
+	{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond},
+	{dur: 20 * time.Millisecond, timeout: 10 * time.Millisecond, wantErr: context.DeadlineExceeded},
+	{dur: 1 * time.Millisecond, timeout: 0 * time.Second, wantErr: context.DeadlineExceeded},
+	{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond, cancel: true, wantErr: context.Canceled},
+}
 
 func TestSleepContext(t *testing.T) {
 	t.Parallel()

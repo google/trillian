@@ -36,8 +36,10 @@ var fuzzTestSize = int64(256)
 var emptyTreeHashValue = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 // Inputs to the reference tree, which has eight leaves.
-var leafInputs = []string{"", "00", "10", "2021", "3031", "40414243",
-	"5051525354555657", "606162636465666768696a6b6c6d6e6f"}
+var leafInputs = []string{
+	"", "00", "10", "2021", "3031", "40414243",
+	"5051525354555657", "606162636465666768696a6b6c6d6e6f",
+}
 
 // Level counts for number of leaves in trees from [1, 8]
 var levelCounts = []int64{1, 2, 3, 3, 4, 4, 4, 4}
@@ -52,7 +54,8 @@ var rootsAtSize = []string{
 	"4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
 	"76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
 	"ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
-	"5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"}
+	"5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+}
 
 // Some paths for the reference tree.
 type pathTestVector struct {
@@ -67,28 +70,43 @@ type pathTestVector struct {
 var testPaths = []pathTestVector{
 	{0, 0, 0, []string{""}},
 	{1, 1, 0, []string{""}},
-	{1,
+	{
+		1,
 		8,
 		3,
-		[]string{"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+		[]string{
+			"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
 			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-			"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"}},
-	{6,
+			"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
+		},
+	},
+	{
+		6,
 		8,
 		3,
-		[]string{"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+		[]string{
+			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
 			"ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
-			"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"}},
-	{3,
+			"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+		},
+	},
+	{
+		3,
 		3,
 		1,
-		[]string{"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"}},
-	{2,
+		[]string{"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"},
+	},
+	{
+		2,
 		5,
 		3,
-		[]string{"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+		[]string{
+			"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
 			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"}}}
+			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+		},
+	},
+}
 
 type proofTestVector struct {
 	snapshot1   int64
@@ -103,14 +121,18 @@ var testProofs = []proofTestVector{
 	{1, 8, 3, []string{
 		"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
 		"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-		"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"}},
+		"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
+	}},
 	{6, 8, 3, []string{
 		"0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
 		"ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
-		"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"}},
+		"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+	}},
 	{2, 5, 2, []string{
 		"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-		"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"}}}
+		"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
+	}},
+}
 
 func decodeHexStringOrPanic(hs string) []byte {
 	data, err := hex.DecodeString(hs)
@@ -241,7 +263,6 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher hashers.LogHash
 // Call with haveRoot1 = true.
 func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
 	snapshot1 int64, treehasher hashers.LogHasher, haveRoot1 bool) ([][]byte, error) {
-
 	var proof [][]byte
 
 	if snapshot1 == 0 || snapshot1 > snapshot2 {
@@ -473,7 +494,7 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 	data := makeFuzzTestData()
 
 	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
-		//mt := makeLoggingEmptyTree(t)
+		// mt := makeLoggingEmptyTree(t)
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {

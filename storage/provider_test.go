@@ -20,8 +20,7 @@ import (
 	"github.com/google/trillian/monitoring"
 )
 
-type provider struct {
-}
+type provider struct{}
 
 func (p *provider) LogStorage() LogStorage     { return nil }
 func (p *provider) MapStorage() MapStorage     { return nil }

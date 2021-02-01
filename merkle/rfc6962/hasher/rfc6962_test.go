@@ -127,5 +127,4 @@ func TestHashChildrenEquivToOld(t *testing.T) {
 			t.Errorf("%d different hashes: %x vs %x", i, oldHash, newHash)
 		}
 	}
-
 }

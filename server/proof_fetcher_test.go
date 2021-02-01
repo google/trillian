@@ -41,7 +41,6 @@ func TestTree813FetchAll(t *testing.T) {
 
 	for l := int64(271); l < ts; l++ {
 		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l, ts)
-
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -290,8 +290,10 @@ func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
 	return leaf == nil || leaf.Status == nil || leaf.Status.Code == int32(codes.OK)
 }
 
-var fullyQualifiedRE = regexp.MustCompile(`^/([\w.]+)/(\w+)$`)
-var unqualifiedRE = regexp.MustCompile(`^/(\w+)\.(\w+)$`)
+var (
+	fullyQualifiedRE = regexp.MustCompile(`^/([\w.]+)/(\w+)$`)
+	unqualifiedRE    = regexp.MustCompile(`^/(\w+)\.(\w+)$`)
+)
 
 // serviceName returns the fully qualified service name
 // "some.package.service" for "/some.package.service/method".

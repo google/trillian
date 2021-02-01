@@ -22,7 +22,7 @@ import (
 
 // TestCounter runs a test on a Counter produced from the provided MetricFactory.
 func TestCounter(t *testing.T, factory monitoring.MetricFactory) {
-	var tests = []struct {
+	tests := []struct {
 		name       string
 		labelNames []string
 		labelVals  []string
@@ -91,7 +91,7 @@ func TestCounter(t *testing.T, factory monitoring.MetricFactory) {
 
 // TestGauge runs a test on a Gauge produced from the provided MetricFactory.
 func TestGauge(t *testing.T, factory monitoring.MetricFactory) {
-	var tests = []struct {
+	tests := []struct {
 		name       string
 		labelNames []string
 		labelVals  []string
@@ -171,7 +171,7 @@ func TestGauge(t *testing.T, factory monitoring.MetricFactory) {
 
 // TestHistogram runs a test on a Histogram produced from the provided MetricFactory.
 func TestHistogram(t *testing.T, factory monitoring.MetricFactory) {
-	var tests = []struct {
+	tests := []struct {
 		name       string
 		labelNames []string
 		labelVals  []string

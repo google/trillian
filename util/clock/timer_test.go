@@ -30,7 +30,7 @@ func checkNotFiring(t *testing.T, timer Timer) {
 }
 
 func TestFakeTimerFiresOnce(t *testing.T) {
-	base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
+	base := time.Date(2018, 12, 12, 18, 0, 0, 0, time.UTC)
 	ts := NewFake(base)
 	timer := ts.NewTimer(10 * time.Millisecond)
 
@@ -50,7 +50,7 @@ func TestFakeTimerFiresOnce(t *testing.T) {
 }
 
 func TestFakeTimerStopBeforeFire(t *testing.T) {
-	base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
+	base := time.Date(2018, 12, 12, 18, 0, 0, 0, time.UTC)
 	ts := NewFake(base)
 	timer := ts.NewTimer(10 * time.Millisecond)
 
@@ -67,7 +67,7 @@ func TestFakeTimerStopBeforeFire(t *testing.T) {
 func TestFakeTimerStopAfterFire(t *testing.T) {
 	for _, drain := range []bool{false, true} {
 		t.Run(fmt.Sprintf("drain:%v", drain), func(t *testing.T) {
-			base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
+			base := time.Date(2018, 12, 12, 18, 0, 0, 0, time.UTC)
 			ts := NewFake(base)
 			timer := ts.NewTimer(10 * time.Millisecond)
 			ts.Set(base.Add(20 * time.Millisecond)) // Triggers the event.
@@ -82,7 +82,7 @@ func TestFakeTimerStopAfterFire(t *testing.T) {
 }
 
 func TestManyFakeTimers(t *testing.T) {
-	base := time.Date(2018, 12, 12, 18, 00, 00, 00, time.UTC)
+	base := time.Date(2018, 12, 12, 18, 0, 0, 0, time.UTC)
 	ts := NewFake(base)
 	var timers []Timer
 	var times []time.Time

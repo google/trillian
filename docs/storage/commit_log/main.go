@@ -80,6 +80,7 @@ func (ab *lockedBool) Get() bool {
 	defer ab.mu.RUnlock()
 	return ab.val
 }
+
 func (ab *lockedBool) Set(v bool) {
 	ab.mu.Lock()
 	defer ab.mu.Unlock()

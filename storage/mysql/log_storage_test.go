@@ -45,11 +45,13 @@ import (
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
 
 // Must be 32 bytes to match sha256 length if it was a real hash
-var dummyHash = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
-var dummyRawHash = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
-var dummyRawHash2 = []byte("yyyyhashyyyyhashyyyyhashyyyyhash")
-var dummyHash2 = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
-var dummyHash3 = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
+var (
+	dummyHash     = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
+	dummyRawHash  = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
+	dummyRawHash2 = []byte("yyyyhashyyyyhashyyyyhashyyyyhash")
+	dummyHash2    = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
+	dummyHash3    = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
+)
 
 // Time we will queue all leaves at
 var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
@@ -61,11 +63,15 @@ var fakeIntegrateTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
 // Used for tests involving extra data
-var someExtraData = []byte("Some extra data")
-var someExtraData2 = []byte("Some even more extra data")
+var (
+	someExtraData  = []byte("Some extra data")
+	someExtraData2 = []byte("Some even more extra data")
+)
 
-const leavesToInsert = 5
-const sequenceNumber int64 = 237
+const (
+	leavesToInsert       = 5
+	sequenceNumber int64 = 237
+)
 
 // Tests that access the db should each use a distinct log ID to prevent lock contention when
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold
@@ -154,7 +160,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 	leaves3 := createTestLeaves(3, 100)
 
 	// Note that tests accumulate queued leaves on top of each other.
-	var tests = []struct {
+	tests := []struct {
 		desc   string
 		leaves []*trillian.LogLeaf
 		want   []*trillian.LogLeaf
@@ -505,7 +511,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	leaf2.LeafIndex = -1
 	leaf2.MerkleLeafHash = []byte(dummyMerkleLeafHash)
 
-	var tests = []struct {
+	tests := []struct {
 		hashes [][]byte
 		want   []*trillian.LogLeaf
 	}{
@@ -579,7 +585,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash2, dummyHash2, data2, someExtraData2, sequenceNumber-1, t)
 
-	var tests = []struct {
+	tests := []struct {
 		desc     string
 		indices  []int64
 		wantErr  bool
@@ -616,7 +622,8 @@ func TestGetLeavesByIndex(t *testing.T) {
 				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 				checkLeafContents(leaves[1], sequenceNumber, dummyRawHash2, dummyHash2, data2, someExtraData2, t)
 			},
-		}, {
+		},
+		{
 			desc:     "OutsideTree",
 			indices:  []int64{sequenceNumber + 1},
 			wantErr:  true,

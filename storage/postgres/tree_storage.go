@@ -156,7 +156,6 @@ func (p *pgTreeStorage) getStmt(ctx context.Context, skeleton *statementSkeleton
 		return nil, err
 	}
 	s, err := p.db.PrepareContext(ctx, statement)
-
 	if err != nil {
 		glog.Warningf("Failed to prepare statement %d: %s", skeleton.num, err)
 		return nil, err

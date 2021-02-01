@@ -230,7 +230,7 @@ func initAddSequencedLeavesTest(ctx context.Context, t *testing.T, s storage.Log
 func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
 	ctx := context.TODO()
 	// Time we will queue all leaves at.
-	var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+	fakeQueueTime := time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
 
 	queued, err := t.s.AddSequencedLeaves(ctx, t.tree, leaves, fakeQueueTime)
 	if err != nil {
@@ -376,7 +376,7 @@ func testGetLeavesByRangeImpl(ctx context.Context, t *testing.T, s storage.LogSt
 }
 
 func (*logTests) TestGetLeavesByRangeFromLog(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
-	var tests = []getLeavesByRangeTest{
+	tests := []getLeavesByRangeTest{
 		{start: 0, count: 1, want: []int64{0}},
 		{start: 0, count: 2, want: []int64{0, 1}},
 		{start: 1, count: 3, want: []int64{1, 2, 3}},
@@ -395,7 +395,7 @@ func (*logTests) TestGetLeavesByRangeFromLog(ctx context.Context, t *testing.T, 
 }
 
 func (*logTests) TestGetLeavesByRangeFromPreorderedLog(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
-	var tests = []getLeavesByRangeTest{
+	tests := []getLeavesByRangeTest{
 		{start: 0, count: 1, want: []int64{0}},
 		{start: 0, count: 2, want: []int64{0, 1}},
 		{start: 1, count: 3, want: []int64{1, 2, 3}},
@@ -534,7 +534,7 @@ func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, wa
 }
 
 func (*logTests) TestDequeueLeavesTwoBatches(ctx context.Context, t *testing.T, s storage.LogStorage, as storage.AdminStorage) {
-	var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
+	fakeDequeueCutoffTime := time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 	const leavesToInsert = 5
 	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
 	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{})

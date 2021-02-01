@@ -51,6 +51,7 @@ type cmpMatcher struct{ want interface{} }
 func (m cmpMatcher) Matches(got interface{}) bool {
 	return cmp.Equal(got, m.want, cmp.Comparer(proto.Equal))
 }
+
 func (m cmpMatcher) String() string {
 	return fmt.Sprintf("equals %v", m.want)
 }
@@ -119,7 +120,8 @@ var (
 	nodeIdsInclusionSize7Index2 = []tree.NodeID{
 		stestonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
 		stestonly.MustCreateNodeIDForTreeCoords(1, 0, 64),
-		stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+		stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64),
+	}
 
 	nodeIdsConsistencySize4ToSize7 = []tree.NodeID{stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 	corruptLogRoot                 = &trillian.SignedLogRoot{LogRoot: []byte("this is not tls encoded data")}
@@ -288,7 +290,7 @@ func TestGetLeavesByRange(t *testing.T) {
 	fakeAdmin := storage.NewMockAdminStorage(ctrl)
 	tree := &trillian.Tree{TreeId: 6962, TreeType: trillian.TreeType_LOG, TreeState: trillian.TreeState_ACTIVE}
 
-	var tests = []struct {
+	tests := []struct {
 		start, count int64
 		skipTX       bool
 		adminErr     error
@@ -467,6 +469,7 @@ func okQueuedLeaf(l *trillian.LogLeaf) *trillian.QueuedLogLeaf {
 		Status: status.New(codes.OK, "OK").Proto(),
 	}
 }
+
 func dupeQueuedLeaf(l *trillian.LogLeaf) *trillian.QueuedLogLeaf {
 	return &trillian.QueuedLogLeaf{
 		Leaf:   l,
@@ -1032,7 +1035,8 @@ func TestGetProofByHash(t *testing.T) {
 			mockTX.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]tree.Node{
 				{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 				{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-				{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil).AnyTimes()
+				{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")},
+			}, nil).AnyTimes()
 			mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 			mockTX.EXPECT().Close().Return(nil)
 
@@ -1211,7 +1215,8 @@ func TestGetProofByIndex(t *testing.T) {
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]tree.Node{
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")},
+				}, nil)
 				tx.EXPECT().Commit(gomock.Any()).Return(nil)
 				tx.EXPECT().Close().Return(nil)
 			},
@@ -1321,7 +1326,8 @@ func TestGetEntryAndProof(t *testing.T) {
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]tree.Node{
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")},
+				}, nil)
 				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return(nil, errors.New("STORAGE"))
 				tx.EXPECT().Close().Return(nil)
 			},
@@ -1338,7 +1344,8 @@ func TestGetEntryAndProof(t *testing.T) {
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]tree.Node{
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")},
+				}, nil)
 				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1}, nil)
 				tx.EXPECT().Commit(gomock.Any()).Return(errors.New("COMMIT"))
 				tx.EXPECT().Close().Return(nil)
@@ -1380,7 +1387,8 @@ func TestGetEntryAndProof(t *testing.T) {
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]tree.Node{
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")},
+				}, nil)
 				// Code passed one leaf index so expects one result, but we return more
 				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
 				tx.EXPECT().Close().Return(nil)
@@ -1398,7 +1406,8 @@ func TestGetEntryAndProof(t *testing.T) {
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]tree.Node{
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")},
+				}, nil)
 				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1}, nil)
 				tx.EXPECT().Commit(gomock.Any()).Return(nil)
 				tx.EXPECT().Close().Return(nil)
@@ -1441,7 +1450,8 @@ func TestGetEntryAndProof(t *testing.T) {
 				tx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]tree.Node{
 					{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 					{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
-					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+					{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")},
+				}, nil)
 				tx.EXPECT().GetLeavesByRange(gomock.Any(), int64(2), int64(1)).Return([]*trillian.LogLeaf{leaf1}, nil)
 				tx.EXPECT().Commit(gomock.Any()).Return(nil)
 				tx.EXPECT().Close().Return(nil)
@@ -2150,9 +2160,11 @@ func TestInitLog(t *testing.T) {
 	}
 }
 
-type prepareFakeStorageFunc func(*stestonly.FakeLogStorage)
-type prepareMockTXFunc func(*storage.MockLogTreeTX)
-type makeRPCFunc func(*TrillianLogRPCServer) error
+type (
+	prepareFakeStorageFunc func(*stestonly.FakeLogStorage)
+	prepareMockTXFunc      func(*storage.MockLogTreeTX)
+	makeRPCFunc            func(*TrillianLogRPCServer) error
+)
 
 type txMode int
 

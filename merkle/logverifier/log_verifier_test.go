@@ -48,17 +48,21 @@ var (
 		{1, 8, [][]byte{
 			dh("96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7", 32),
 			dh("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e", 32),
-			dh("6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4", 32)}},
+			dh("6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4", 32),
+		}},
 		{6, 8, [][]byte{
 			dh("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b", 32),
 			dh("ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0", 32),
-			dh("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7", 32)}},
+			dh("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7", 32),
+		}},
 		{3, 3, [][]byte{
-			dh("fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125", 32)}},
+			dh("fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125", 32),
+		}},
 		{2, 5, [][]byte{
 			dh("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d", 32),
 			dh("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e", 32),
-			dh("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b", 32)}},
+			dh("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b", 32),
+		}},
 	}
 
 	consistencyProofs = []consistencyTestVector{
@@ -66,14 +70,17 @@ var (
 		{1, 8, [][]byte{
 			dh("96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7", 32),
 			dh("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e", 32),
-			dh("6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4", 32)}},
+			dh("6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4", 32),
+		}},
 		{6, 8, [][]byte{
 			dh("0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a", 32),
 			dh("ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0", 32),
-			dh("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7", 32)}},
+			dh("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7", 32),
+		}},
 		{2, 5, [][]byte{
 			dh("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e", 32),
-			dh("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b", 32)}},
+			dh("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b", 32),
+		}},
 	}
 
 	roots = [][]byte{
@@ -457,10 +464,21 @@ func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 		index int64
 		size  int64
 	}{
-		{-1, -1}, {-10, -1}, {-1, -10},
-		{10, -1}, {10, 0}, {10, 9}, {0, 10},
-		{0, -1}, {0, 0}, {-1, 0},
-		{-1, size}, {0, size}, {size, size}, {size + 1, size}, {size + 100, size},
+		{-1, -1},
+		{-10, -1},
+		{-1, -10},
+		{10, -1},
+		{10, 0},
+		{10, 9},
+		{0, 10},
+		{0, -1},
+		{0, 0},
+		{-1, 0},
+		{-1, size},
+		{0, size},
+		{size, size},
+		{size + 1, size},
+		{size + 100, size},
 	}
 	for _, it := range idxTests {
 		if _, err := v.VerifiedPrefixHashFromInclusionProof(it.index, it.size, proof2, root, leaf2); err == nil {

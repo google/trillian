@@ -48,7 +48,7 @@ const (
 
 	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM sequenced_leaf_data WHERE tree_id=$1"
 	selectUnsequencedLeafCountSQL = "SELECT tree_id, COUNT(1) FROM unsequenced GROUP BY tree_id"
-	//selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
+	// selectLatestSignedLogRootSQL  = `SELECT tree_head_timestamp,tree_size,root_hash,tree_revision,root_signature
 	//              FROM tree_head WHERE tree_id=$1
 	//              ORDER BY tree_head_timestamp DESC LIMIT 1`
 
@@ -824,7 +824,7 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoo
 		ctx,
 		"select current_tree_data,root_signature from trees where tree_id = $1",
 		t.treeID).Scan(&jsonObj, &rootSignatureBytes)
-	if jsonObj == nil { //this fixes the createtree workflow
+	if jsonObj == nil { // this fixes the createtree workflow
 		return nil, storage.ErrTreeNeedsInit
 	}
 	var logRoot types.LogRootV1
@@ -845,9 +845,8 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 	}
 	if len(logRoot.Metadata) != 0 {
 		return fmt.Errorf("unimplemented: postgres storage does not support log root metadata")
-
 	}
-	//get a json copy of the tree_head
+	// get a json copy of the tree_head
 	data, _ := json.Marshal(logRoot)
 	t.tx.ExecContext(
 		ctx,
@@ -963,9 +962,11 @@ type byLeafIdentityHashWithPosition []leafAndPosition
 func (l byLeafIdentityHashWithPosition) Len() int {
 	return len(l)
 }
+
 func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
+
 func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
 }

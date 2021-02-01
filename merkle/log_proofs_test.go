@@ -77,45 +77,61 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 
 		// Tree of size 7.
 		{size: 7, index: 0, want: []NodeFetch{
-			node(0, 1), node(1, 1), node(2, 1)}}, // b h l
+			node(0, 1), node(1, 1), node(2, 1),
+		}}, // b h l
 		{size: 7, index: 1, want: []NodeFetch{
-			node(0, 0), node(1, 1), node(2, 1)}}, // a h l
+			node(0, 0), node(1, 1), node(2, 1),
+		}}, // a h l
 		{size: 7, index: 2, want: []NodeFetch{
-			node(0, 3), node(1, 0), node(2, 1)}}, // d g l
+			node(0, 3), node(1, 0), node(2, 1),
+		}}, // d g l
 		{size: 7, index: 3, want: []NodeFetch{
-			node(0, 2), node(1, 0), node(2, 1)}}, // c g l
+			node(0, 2), node(1, 0), node(2, 1),
+		}}, // c g l
 		{size: 7, index: 4, want: []NodeFetch{
-			node(0, 5), node(0, 6), node(2, 0)}}, // f j k
+			node(0, 5), node(0, 6), node(2, 0),
+		}}, // f j k
 		{size: 7, index: 5, want: []NodeFetch{
-			node(0, 4), node(0, 6), node(2, 0)}}, // e j k
+			node(0, 4), node(0, 6), node(2, 0),
+		}}, // e j k
 		{size: 7, index: 6, want: []NodeFetch{
-			node(1, 2), node(2, 0)}}, // i k
+			node(1, 2), node(2, 0),
+		}}, // i k
 
 		// Smaller trees within a bigger stored tree.
 		{size: 4, index: 2, bigSize: 7, want: []NodeFetch{
-			node(0, 3), node(1, 0)}}, // d g
+			node(0, 3), node(1, 0),
+		}}, // d g
 		{size: 5, index: 3, bigSize: 7, want: []NodeFetch{
-			node(0, 2), node(1, 0), node(0, 4)}}, // c g e
+			node(0, 2), node(1, 0), node(0, 4),
+		}}, // c g e
 		{size: 6, index: 3, bigSize: 7, want: []NodeFetch{
-			node(0, 2), node(1, 0), node(1, 2)}}, // c g i
+			node(0, 2), node(1, 0), node(1, 2),
+		}}, // c g i
 		{size: 6, index: 4, bigSize: 8, want: []NodeFetch{
-			node(0, 5), node(2, 0)}}, // f k
+			node(0, 5), node(2, 0),
+		}}, // f k
 		{size: 7, index: 1, bigSize: 8, want: []NodeFetch{
-			node(0, 0), node(1, 1), rehash(0, 6), rehash(1, 2)}}, // a h l=hash(i,j)
+			node(0, 0), node(1, 1), rehash(0, 6), rehash(1, 2),
+		}}, // a h l=hash(i,j)
 		{size: 7, index: 3, bigSize: 8, want: []NodeFetch{
-			node(0, 2), node(1, 0), rehash(0, 6), rehash(1, 2)}}, // c g l=hash(i,j)
+			node(0, 2), node(1, 0), rehash(0, 6), rehash(1, 2),
+		}}, // c g l=hash(i,j)
 
 		// Some rehashes in the middle of the returned list.
 		{size: 15, index: 10, bigSize: 21, want: []NodeFetch{
-			node(0, 11), node(1, 4), rehash(0, 14), rehash(1, 6), node(3, 0)}},
+			node(0, 11), node(1, 4), rehash(0, 14), rehash(1, 6), node(3, 0),
+		}},
 		{size: 31, index: 24, bigSize: 41, want: []NodeFetch{
 			node(0, 25), node(1, 13),
 			rehash(0, 30), rehash(1, 14),
-			node(3, 2), node(4, 0)}},
+			node(3, 2), node(4, 0),
+		}},
 		{size: 95, index: 81, bigSize: 111, want: []NodeFetch{
 			node(0, 80), node(1, 41), node(2, 21),
 			rehash(0, 94), rehash(1, 46), rehash(2, 22),
-			node(4, 4), node(6, 0)}},
+			node(4, 4), node(6, 0),
+		}},
 	} {
 		bigSize := tc.bigSize
 		// Use the same tree size by default.
@@ -229,26 +245,33 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		// Smaller trees within a bigger stored tree.
 		{size1: 2, size2: 4, bigSize: 7, want: []NodeFetch{node(1, 1)}}, // h
 		{size1: 3, size2: 5, bigSize: 7, want: []NodeFetch{
-			node(0, 2), node(0, 3), node(1, 0), node(0, 4)}}, // c d g e
+			node(0, 2), node(0, 3), node(1, 0), node(0, 4),
+		}}, // c d g e
 		{size1: 3, size2: 6, bigSize: 7, want: []NodeFetch{
-			node(0, 2), node(0, 3), node(1, 0), node(1, 2)}}, // c d g i
+			node(0, 2), node(0, 3), node(1, 0), node(1, 2),
+		}}, // c d g i
 		{size1: 4, size2: 6, bigSize: 8, want: []NodeFetch{node(1, 2)}}, // i
 		{size1: 1, size2: 7, bigSize: 8, want: []NodeFetch{
-			node(0, 1), node(1, 1), rehash(0, 6), rehash(1, 2)}}, // b h l=hash(i,j)
+			node(0, 1), node(1, 1), rehash(0, 6), rehash(1, 2),
+		}}, // b h l=hash(i,j)
 		{size1: 3, size2: 7, bigSize: 8, want: []NodeFetch{
-			node(0, 2), node(0, 3), node(1, 0), rehash(0, 6), rehash(1, 2)}}, // c d g l=hash(i,j)
+			node(0, 2), node(0, 3), node(1, 0), rehash(0, 6), rehash(1, 2),
+		}}, // c d g l=hash(i,j)
 
 		// Some rehashes in the middle of the returned list.
 		{size1: 10, size2: 15, bigSize: 21, want: []NodeFetch{
-			node(1, 4), node(1, 5), rehash(0, 14), rehash(1, 6), node(3, 0)}},
+			node(1, 4), node(1, 5), rehash(0, 14), rehash(1, 6), node(3, 0),
+		}},
 		{size1: 24, size2: 31, bigSize: 41, want: []NodeFetch{
 			node(3, 2),
 			rehash(0, 30), rehash(1, 14), rehash(2, 6),
-			node(4, 0)}},
+			node(4, 0),
+		}},
 		{size1: 81, size2: 95, bigSize: 111, want: []NodeFetch{
 			node(0, 80), node(0, 81), node(1, 41), node(2, 21),
 			rehash(0, 94), rehash(1, 46), rehash(2, 22),
-			node(4, 4), node(6, 0)}},
+			node(4, 4), node(6, 0),
+		}},
 	} {
 		bigSize := tc.bigSize
 		// Use the same tree size by default.

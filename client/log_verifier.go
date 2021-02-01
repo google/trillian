@@ -85,7 +85,6 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 // VerifyRoot verifies that newRoot is a valid append-only operation from
 // trusted. If trusted.TreeSize is zero, a consistency proof is not needed.
 func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.SignedLogRoot, consistency [][]byte) (*types.LogRootV1, error) {
-
 	if trusted == nil {
 		return nil, fmt.Errorf("VerifyRoot() error: trusted == nil")
 	}

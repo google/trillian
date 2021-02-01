@@ -409,7 +409,7 @@ func TestHeldInfo(t *testing.T) {
 	info := defaultOperationInfo(registry)
 	lom := NewOperationManager(info, mockLogOp)
 
-	var tests = []struct {
+	tests := []struct {
 		in   []int64
 		want string
 	}{
@@ -433,7 +433,7 @@ func TestMasterFor(t *testing.T) {
 	firstIDs := []int64{1, 2, 3, 4}
 	allIDs := []int64{1, 2, 3, 4, 5, 6}
 
-	var tests = []struct {
+	tests := []struct {
 		desc    string
 		factory election2.Factory
 		want1   []int64

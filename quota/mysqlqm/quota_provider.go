@@ -25,10 +25,8 @@ import (
 // QuotaManagerName identifies the MySQL quota implementation.
 const QuotaManagerName = "mysql"
 
-var (
-	maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
-		"Only effective for quota_system=mysql.")
-)
+var maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
+	"Only effective for quota_system=mysql.")
 
 func init() {
 	if err := quota.RegisterProvider(QuotaManagerName, newMySQLQuotaManager); err != nil {

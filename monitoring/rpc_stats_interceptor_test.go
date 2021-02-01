@@ -47,7 +47,7 @@ func (r recordingUnaryHandler) handler() grpc.UnaryHandler {
 }
 
 func TestSingleRequests(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name       string
 		method     string
 		handler    recordingUnaryHandler
