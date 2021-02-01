@@ -31,6 +31,8 @@ options:
 # Cache the testbase image in Container Regisrty, to be reused by subsequent
 # builds. The technique is described here:
 # https://cloud.google.com/cloud-build/docs/speeding-up-builds#using_a_cached_docker_image
+#
+# TODO(pavelkalinnikov): Consider pushing this image only on commits to master.
 images: ['gcr.io/$PROJECT_ID/trillian_testbase:latest']
 
 steps:
