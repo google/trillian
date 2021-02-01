@@ -14,6 +14,7 @@ substitutions:
   _MYSQL_TAG: "5.7"
   _MYSQL_ROOT_PASSWORD: ""
   _MYSQL_PASSWORD: ""
+  _CODECOV_TOKEN: "" # The auth token for uploading coverage to Codecov.
 options:
   machineType: E2_HIGHCPU_32
   volumes:
@@ -98,6 +99,21 @@ steps:
   env:
     - GOFLAGS=-race
     - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - prepare
+
+# Codecov
+- id: codecov
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_presubmit.sh
+  args:
+    - --coverage
+    - --no-linters
+    - --no-generate
+  env:
+    - GOFLAGS=-race
+    - GO_TEST_TIMEOUT=20m
+    - CODECOV_TOKEN=${_CODECOV_TOKEN}
   waitFor:
     - prepare
 

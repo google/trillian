@@ -18,3 +18,8 @@ done
 export TEST_MYSQL_URI="root:bananas@tcp(${MYSQL_HOST}:${MYSQL_PORT})/"
 
 ./scripts/presubmit.sh $*
+
+# TODO(pavelkalinnikov): Make the check more robust.
+if [ $1 = "--coverage" ]; then
+  bash <(curl -s https://codecov.io/bash)
+fi
