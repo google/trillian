@@ -8,7 +8,6 @@ go install \
     github.com/golang/mock/mockgen \
     golang.org/x/tools/cmd/stringer \
     github.com/golang/protobuf/protoc-gen-go \
-    github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway \
     github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 # Cache mysql image for later steps.
