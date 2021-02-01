@@ -28,11 +28,20 @@ options:
     - DOCKER_CLIENT_TIMEOUT=120
     - COMPOSE_HTTP_TIMEOUT=120
 
+# Cache the testbase image in Container Regisrty, to be reused by subsequent
+# builds. The technique is described here:
+# https://cloud.google.com/cloud-build/docs/speeding-up-builds#using_a_cached_docker_image
+#
+# TODO(pavelkalinnikov): Consider pushing this image only on commits to master.
+images: ['gcr.io/$PROJECT_ID/trillian_testbase:latest']
+
 steps:
-# First build a "trillian_testbase" docker image which contains most of the tools we need for the later steps:
+
+# Try to pull the testbase image from Container Registry.
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
   args: ['-c', 'docker pull gcr.io/$PROJECT_ID/trillian_testbase:latest || exit 0']
+# Build the testbase image reusing as much of the cached image as possible.
 - name: 'gcr.io/cloud-builders/docker'
   args: [
     'build',
