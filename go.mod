@@ -25,7 +25,6 @@ require (
 	github.com/google/btree v1.0.0
 	github.com/google/certificate-transparency-go v1.0.21
 	github.com/google/go-cmp v0.5.4
-	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/grpc-ecosystem/grpc-gateway v1.12.1 // indirect
@@ -51,7 +50,7 @@ require (
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	go.etcd.io/bbolt v1.3.4 // indirect
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200819165624-17cef6e3e9d5
-	go.opencensus.io v0.22.4
+	go.opencensus.io v0.22.6
 	go.uber.org/multierr v1.4.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
@@ -60,7 +59,7 @@ require (
 	golang.org/x/tools v0.0.0-20200706234117-b22de6825cf7
 	google.golang.org/api v0.29.0
 	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df
-	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 )
