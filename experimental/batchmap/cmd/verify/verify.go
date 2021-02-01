@@ -100,6 +100,8 @@ func main() {
 		if leaf == nil {
 			glog.Fatalf("couldn't find expected leaf %x in tile %x", needLeafPath, tile.Path)
 		}
+		// TODO(pavelkalinnikov): Remove nolint after fixing
+		// https://github.com/dominikh/go-tools/issues/921.
 		if !bytes.Equal(leaf.Hash, needValue) { // nolint: staticcheck
 			glog.Fatalf("wrong leaf value in tile %x, leaf %x: got %x, want %x", tile.Path, leaf.Path, leaf.Hash, needValue)
 		}
