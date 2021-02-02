@@ -70,14 +70,11 @@ steps:
   waitFor:
     - prepare
 
-# Run Bazel check
+# Run Bazel check.
 - id: bazel
-  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-  entrypoint: bash
-  args:
-    - -exc
-    - |
-      bazel build //:*
+  name: 'gcr.io/cloud-marketplace-containers/google/bazel:1.1.0'
+  entrypoint: bazel
+  args: ['build', '//:*']
   waitFor:
     - prepare
 

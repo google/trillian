@@ -191,11 +191,11 @@ the original files; if you do, you'll need to install the prerequisites:
 
     ```
     cd $(go list -f '{{ .Dir }}' github.com/google/trillian); \
-    go install github.com/golang/protobuf/proto; \
     go install github.com/golang/mock/mockgen; \
-    go install golang.org/x/tools/cmd/stringer; \
+    go install github.com/golang/protobuf/proto; \
     go install github.com/golang/protobuf/protoc-gen-go; \
-    go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+    go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc; \
+    go install golang.org/x/tools/cmd/stringer
     ```
   - protocol buffer definitions for standard Google APIs:
 

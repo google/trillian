@@ -1,6 +1,6 @@
 #!/bin/bash
-set -e
-set -x
+
+set -ex
 
 export MYSQL_HOST="${HOSTNAME}_db_1"
 export MYSQL_PORT=$(( 10000 + $RANDOM % 30000))
@@ -13,7 +13,7 @@ export MYSQL_USER_HOST="%"
 docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.yaml up -d
 trap "docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.yaml down" EXIT
 
-# Wait for mysql instance to be ready
+# Wait for MySQL instance to be ready.
 while ! mysql --protocol=TCP --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=root -pbananas -e quit ; do
  sleep 5
 done
