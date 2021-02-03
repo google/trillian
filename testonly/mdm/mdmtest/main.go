@@ -114,7 +114,7 @@ func innerMain(ctx context.Context) error {
 				},
 			},
 		}
-		tree, err := client.CreateAndInitTree(ctx, &req, adminCl, nil, cl)
+		tree, err := client.CreateAndInitTree(ctx, &req, adminCl, cl)
 		if err != nil {
 			glog.Exitf("failed to create ephemeral tree: %v", err)
 		}

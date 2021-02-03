@@ -188,12 +188,6 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID tree
 	}
 }
 
-func (t *treeTX) getSubtreesWithLock(ctx context.Context, rev int64, ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	return t.getSubtrees(ctx, rev, ids)
-}
-
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
 	glog.V(2).Infof("getSubtrees(len(nodeIDs)=%d)", len(nodeIDs))
 	glog.V(4).Infof("getSubtrees(")
@@ -273,12 +267,6 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
 	return ret, nil
-}
-
-func (t *treeTX) addSubtrees(subtrees []*storagepb.SubtreeProto) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.dirty = append(t.dirty, subtrees...)
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {

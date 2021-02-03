@@ -543,29 +543,8 @@ func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 		wantMsg   string
 	}{
 		{
-			desc:      "mapOnLogServer",
-			treeTypes: []trillian.TreeType{trillian.TreeType_LOG},
-			req:       &trillian.CreateTreeRequest{Tree: testonly.MapTree},
-			wantCode:  codes.InvalidArgument,
-			wantMsg:   "tree type MAP not allowed",
-		},
-		{
-			desc:      "logOnMapServer",
-			treeTypes: []trillian.TreeType{trillian.TreeType_MAP},
-			req:       &trillian.CreateTreeRequest{Tree: testonly.LogTree},
-			wantCode:  codes.InvalidArgument,
-			wantMsg:   "tree type LOG not allowed",
-		},
-		{
 			desc:      "preorderedLogOnLogServer",
 			treeTypes: []trillian.TreeType{trillian.TreeType_LOG},
-			req:       &trillian.CreateTreeRequest{Tree: testonly.PreorderedLogTree},
-			wantCode:  codes.InvalidArgument,
-			wantMsg:   "tree type PREORDERED_LOG not allowed",
-		},
-		{
-			desc:      "preorderedLogOnMapServer",
-			treeTypes: []trillian.TreeType{trillian.TreeType_MAP},
 			req:       &trillian.CreateTreeRequest{Tree: testonly.PreorderedLogTree},
 			wantCode:  codes.InvalidArgument,
 			wantMsg:   "tree type PREORDERED_LOG not allowed",
@@ -580,12 +559,6 @@ func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 			desc:      "preorderedLogAllowed",
 			treeTypes: []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG},
 			req:       &trillian.CreateTreeRequest{Tree: testonly.PreorderedLogTree},
-			wantCode:  codes.OK,
-		},
-		{
-			desc:      "mapOnMapServer",
-			treeTypes: []trillian.TreeType{trillian.TreeType_MAP},
-			req:       &trillian.CreateTreeRequest{Tree: testonly.MapTree},
 			wantCode:  codes.OK,
 		},
 		// treeTypes = nil is exercised by all other tests.

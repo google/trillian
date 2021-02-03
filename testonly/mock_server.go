@@ -23,15 +23,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-// MockServer implements the TrillianAdminServer, the TrillianMapServer, and
-// TrillianLogServer.
+// MockServer implements the TrillianAdminServer, and TrillianLogServer.
 type MockServer struct {
 	Admin       *tmock.MockTrillianAdminServer
 	Log         *tmock.MockTrillianLogServer
-	Map         *tmock.MockTrillianMapServer
 	AdminClient trillian.TrillianAdminClient
 	LogClient   trillian.TrillianLogClient
-	MapClient   trillian.TrillianMapClient
 	Addr        string
 }
 
@@ -41,10 +38,8 @@ type MockServer struct {
 // stop.
 func NewMockServer(ctrl *gomock.Controller) (*MockServer, func(), error) {
 	grpcServer := grpc.NewServer()
-	mapServer := tmock.NewMockTrillianMapServer(ctrl)
 	logServer := tmock.NewMockTrillianLogServer(ctrl)
 	adminServer := tmock.NewMockTrillianAdminServer(ctrl)
-	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 	trillian.RegisterTrillianAdminServer(grpcServer, adminServer)
 
@@ -68,10 +63,8 @@ func NewMockServer(ctrl *gomock.Controller) (*MockServer, func(), error) {
 	}
 
 	return &MockServer{
-		Map:         mapServer,
 		Log:         logServer,
 		Admin:       adminServer,
-		MapClient:   trillian.NewTrillianMapClient(cc),
 		LogClient:   trillian.NewTrillianLogClient(cc),
 		AdminClient: trillian.NewTrillianAdminClient(cc),
 		Addr:        lis.Addr().String(),

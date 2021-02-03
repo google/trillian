@@ -59,7 +59,7 @@ func clientEnvForTest(ctx context.Context, t *testing.T, template *trillian.Tree
 	if err != nil {
 		t.Fatal(err)
 	}
-	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{Tree: template}, env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{Tree: template}, env.Admin, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}

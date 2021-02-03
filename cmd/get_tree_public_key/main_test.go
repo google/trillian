@@ -48,7 +48,7 @@ func TestGetTreePublicKey(t *testing.T) {
 	// Create a new Trillian log
 	log, err := client.CreateAndInitTree(context.Background(), &trillian.CreateTreeRequest{
 		Tree: stestonly.LogTree,
-	}, logEnv.Admin, nil, logEnv.Log)
+	}, logEnv.Admin, logEnv.Log)
 	if err != nil {
 		t.Errorf("Failed to create test tree: %v", err)
 	}

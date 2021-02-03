@@ -103,12 +103,6 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 			wantTree: logTree,
 		},
 		{
-			desc:     "mapRPC",
-			method:   "/trillian.TrillianMap/GetSignedMapRoot",
-			req:      &trillian.GetSignedMapRootRequest{MapId: mapTree.TreeId},
-			wantTree: mapTree,
-		},
-		{
 			desc:    "unknownRequest",
 			req:     "not-a-request",
 			wantErr: false,
@@ -299,16 +293,6 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 1,
 		},
 		{
-			desc:   "mapRead",
-			method: "/trillian.TrillianMap/GetLeaves",
-			req:    &trillian.GetMapLeavesRequest{MapId: mapTree.TreeId, Index: [][]byte{{0x01}, {0x02}}},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Read, TreeID: mapTree.TreeId},
-				{Group: quota.Global, Kind: quota.Read, Refundable: true},
-			},
-			wantTokens: 2,
-		},
-		{
 			desc:   "emptyBatchRequest",
 			method: "/trillian.TrillianLog/QueueLeaves",
 			req: &trillian.QueueLeavesRequest{
@@ -357,32 +341,6 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 				{Group: quota.Global, Kind: quota.Write, Refundable: true},
 			},
 			wantTokens: 3,
-		},
-		{
-			desc:   "batchMapLeavesRequest",
-			method: "/trillian.TrillianMap/SetLeaves",
-			req: &trillian.SetMapLeavesRequest{
-				MapId:  mapTree.TreeId,
-				Leaves: []*trillian.MapLeaf{{}, {}, {}, {}, {}},
-			},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Write, TreeID: mapTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write, Refundable: true},
-			},
-			wantTokens: 5,
-		},
-		{
-			desc:   "batchWriteMapLeavesRequest",
-			method: "/trillian.TrillianMapWrite/WriteLeaves",
-			req: &trillian.WriteMapLeavesRequest{
-				MapId:  mapTree.TreeId,
-				Leaves: []*trillian.MapLeaf{{}, {}, {}, {}, {}},
-			},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Write, TreeID: mapTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write, Refundable: true},
-			},
-			wantTokens: 5,
 		},
 		{
 			desc:   "quotaError",
