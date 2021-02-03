@@ -12,7 +12,6 @@ options:
     path: /go
   env:
     - GO111MODULE=on
-    - GOPROXY=https://proxy.golang.org
     - PROJECT_ROOT=github.com/google/trillian
     - GOPATH=/go
     - DOCKER_CLIENT_TIMEOUT=120
