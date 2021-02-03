@@ -23,7 +23,9 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sfL https://golang.org/dl/go1.15.7.linux-amd64.tar.gz | tar -xzf - -C /usr/local
 ENV PATH /usr/local/go/bin:$PATH
 
-RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.18.0
+# https://golangci-lint.run/usage/install/
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.21.0
+
 RUN mkdir protoc && \
     (cd protoc && \
     PROTOC_VERSION="3.11.4" && \
