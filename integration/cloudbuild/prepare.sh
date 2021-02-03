@@ -21,4 +21,5 @@ go install \
     github.com/golang/protobuf/proto \
     github.com/golang/protobuf/protoc-gen-go \
     github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc \
+    golang.org/x/tools/cmd/goimports \
     golang.org/x/tools/cmd/stringer
