@@ -52,13 +52,16 @@ steps:
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: ./integration/cloudbuild/prepare.sh
 
-# Run lint and porcelain checks.
+# Run lint and porcelain checks, make sure the diff is empty and no files need
+# to be updated. This includes gofmt, golangci-linter, go mod tidy, go mod
+# generate and a few more.
 - id: lint
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: ./scripts/presubmit.sh
   args:
     - --no-build
-    - --no-generate
+    - --fix
+    - --empty-diff
   waitFor:
     - prepare
 
