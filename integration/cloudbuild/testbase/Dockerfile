@@ -26,7 +26,7 @@ ENV PATH /usr/local/go/bin:$PATH
 RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.18.0
 RUN mkdir protoc && \
     (cd protoc && \
-    PROTOC_VERSION="3.11.4" && \
+    PROTOC_VERSION="3.12.4" && \
     PROTOC_ZIP="protoc-${PROTOC_VERSION}-linux-x86_64.zip" && \
     wget "https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local bin/protoc && \
