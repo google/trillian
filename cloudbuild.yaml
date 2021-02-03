@@ -1,11 +1,5 @@
-#############################################################################
-## The top section of this file is identical in the 3 cloudbuild.*yaml files.
-## Make sure any edits you make here are copied over to the other files too
-## if appropriate.
-##
-## TODO(al): consider if it's possible to merge these 3 files and control via
-## substitutions.
-#############################################################################
+# This file contains Google Cloud Build configuration for presubmit checks, unit
+# and integration tests, triggered by pull requests and commits to branches.
 
 timeout: 1800s
 substitutions:
