@@ -655,7 +655,7 @@ func mapTree(mapID int64) *trillian.Tree {
 	}
 }
 
-func createMapNodes(count int) []stree.Node {
+func createMapNodes(count int) []stree.Node { // nolint: unused
 	r := make([]stree.Node, count)
 	bs := make([]byte, 32) // Default value of 0 index in 2^256 keyspace.
 
