@@ -1,6 +1,7 @@
 # Claimant Model: Maps
 
-This doc presents a model for transparent ecosystems built around maps. This doc requires understanding the core [Claimant Model](CoreModel.md), and it is recommended that [Claimant Model: Logs](Logs.md) is also read first.
+This doc presents a model for transparent ecosystems built around key value maps.
+This doc requires understanding the core [Claimant Model](CoreModel.md), and it is recommended that [Claimant Model: Logs](Logs.md) is also read first.
 
 ## Groundwork: Discoverability
 
@@ -17,7 +18,7 @@ Tree size is the only input required to generate all keys for a log, and it is t
 Thus providing the Verifier is getting recent Checkpoints and is seeing Checkpoints consistent with the Believer, each and every Claim will be discovered in time.
 While simple, this is not efficient, especially for Verifiers interested in a tiny subset of Claims.
 
-Map keys cannot be generated/discovered from a Map Checkpoint, thus Maps do not allow for efficient discoverability through key enumeration.
+Map keys cannot be generated/discovered from a Map Checkpoint, consequently Maps do not allow for efficient discoverability through key enumeration.
 However, if the expected location for Claims in a Map is precisely understood ahead of time by the Believer and Verifier, Maps can provide Claim discoverability.
 
 ## Claim Subject Maps (CSMs)
@@ -46,8 +47,8 @@ This risk can be eliminated with careful design of Claim Subjects and how they a
 
 To use a CSM for discoverability, these properties must hold:
  1. Claim Subjects can be derived from only the Claim. Examples (Claim Subjects in bold):
-    * CT: the Claim (cert) contains the **domain(s)** the certificate is for
-    * GoLang: the Claim contains the **module name**
+    * Certificate Transparency: the Claim (cert) contains the **domain(s)** the certificate is for
+    * Go SumDB: the Claim contains the **module name**
  2. Claim Subjects must be keyed only under their canonical form
  3. Claim Verifiers must have a complete set of all Claim Subjects they will verify
 
@@ -87,7 +88,7 @@ If the map is constructed from a Claim Log then we have the following:
 
 <dl>
 <dt>Claim<sup>CSM</sup></dt>
-<dd><i>"Applying $mapFn to the logged data in $LogCheckpoint results in the map with $rootHash"</i></dd>
+<dd><i>"Applying $mapFn to the logged data committed to by $LogCheckpoint results in the map with $rootHash"</i></dd>
 <dt>Statement<sup>CSM</sup></dt>
 <dd>Map Checkpoint (sometimes SMR, or Signed Map Root)</dd>
 <dt>Claimant<sup>CSM</sup></dt>
@@ -99,17 +100,3 @@ If the map is constructed from a Claim Log then we have the following:
 <dt>Arbiter<sup>CSM</sup></dt>
 <dd>CSM Arbiter, possibly the same as Arbiter<sup>LOG</sup></dd>
 </dl>
-
-#### General Maps & Mogs
-If the map is not constructed from a Claim Log, then the Claim is a lot more nuanced.
-The Map Checkpoint needs to explicitly include a Revision identifier that has a total ordering.
-
-General Map Claim:
- * Given revisions N and M (N <= M):
-   * Every key/value in N is contained in M
-
-General Mog Claim:
- * Every value in this map is a valid log
- * Given revisions N and M (N <= M):
-   * Keyset(N) is a subset of Keyset(M)
-   * Every log in N is the prefix of the log under the same key in M
