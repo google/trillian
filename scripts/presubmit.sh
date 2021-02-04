@@ -71,6 +71,7 @@ main() {
     grep -v mock_ | \
     grep -v .pb.go | \
     grep -v _string.go | \
+    grep -v .shims.go | \
     tr '\n' ' ')"
 
   # Prevent the creation of proto files with .txt extensions.
