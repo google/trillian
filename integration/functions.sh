@@ -120,10 +120,6 @@ log_prep_test() {
   local rpc_server_count=${1:-1}
   local log_signer_count=${2:-1}
 
-  echo "Building Trillian log code"
-  go build ${GOFLAGS} github.com/google/trillian/cmd/trillian_log_server/
-  go build ${GOFLAGS} github.com/google/trillian/cmd/trillian_log_signer/
-
   # Wipe the test database
   yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
@@ -168,7 +164,8 @@ log_prep_test() {
     http=$(pick_unused_port ${port})
 
     echo "Starting Log RPC server on localhost:${port}, HTTP on localhost:${http}"
-    ./trillian_log_server ${ETCD_OPTS} ${pkcs11_opts} ${logserver_opts} \
+    go run ${GOFLAGS} github.com/google/trillian/cmd/trillian_log_server \
+      ${ETCD_OPTS} ${pkcs11_opts} ${logserver_opts} \
       --rpc_endpoint="localhost:${port}" \
       --http_endpoint="localhost:${http}" \
       ${LOGGING_OPTS} \
@@ -195,7 +192,8 @@ log_prep_test() {
     port=$(pick_unused_port)
     http=$(pick_unused_port ${port})
     echo "Starting Log signer, HTTP on localhost:${http}"
-    ./trillian_log_signer ${ETCD_OPTS} ${pkcs11_opts} ${logsigner_opts} \
+    go run ${GOFLAGS} github.com/google/trillian/cmd/trillian_log_signer \
+      ${ETCD_OPTS} ${pkcs11_opts} ${logsigner_opts} \
       --sequencer_interval="1s" \
       --batch_size=500 \
       --rpc_endpoint="localhost:${port}" \
@@ -285,9 +283,6 @@ map_prep_test() {
   # Default to one map server.
   local rpc_server_count=${1:-1}
 
-  echo "Building Trillian map code"
-  go build ${GOFLAGS} github.com/google/trillian/cmd/trillian_map_server/
-
   # Wipe the test database
   yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
@@ -303,7 +298,7 @@ map_prep_test() {
     http=$(pick_unused_port ${port})
 
     echo "Starting Map RPC server on localhost:${port}, HTTP on localhost:${http}"
-    ./trillian_map_server \
+    go run ${GOFLAGS} github.com/google/trillian/cmd/trillian_map_server \
       ${mapserver_opts} \
       --rpc_endpoint="localhost:${port}" \
       --http_endpoint="localhost:${http}" \
@@ -340,11 +335,9 @@ map_provision() {
   local admin_server="$1"
   local count=${2:-1}
 
-  echo 'Building createtree'
-  go build ${GOFLAGS} github.com/google/trillian/cmd/createtree/
-
+  echo 'Running createtree'
   for ((i=0; i < count; i++)); do
-    local map_id=$(./createtree \
+    local map_id=$(go run ${GOFLAGS} github.com/google/trillian/cmd/createtree \
       --logtostderr \
       --admin_server="${admin_server}" \
       --tree_type=MAP \

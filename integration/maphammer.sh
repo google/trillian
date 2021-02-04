@@ -6,7 +6,6 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 # Default to one map
 MAP_COUNT=${1:-1}
 
-go build ${GOFLAGS} github.com/google/trillian/testonly/internal/hammer/maphammer
 map_prep_test 1
 TO_KILL+=(${RPC_SERVER_PIDS[@]})
 
@@ -16,7 +15,8 @@ map_provision "${RPC_SERVER_1}" ${MAP_COUNT}
 metrics_port=$(pick_unused_port)
 echo "Running test(s) with metrics at localhost:${metrics_port}"
 set +e
-./maphammer --map_ids=${MAP_IDS} --admin_server=${RPC_SERVER_1} --rpc_server=${RPC_SERVER_1} --metrics_endpoint="localhost:${metrics_port}" --logtostderr ${HAMMER_OPTS}
+go run ${GOFLAGS} github.com/google/trillian/testonly/internal/hammer/maphammer \
+  --map_ids=${MAP_IDS} --admin_server=${RPC_SERVER_1} --rpc_server=${RPC_SERVER_1} --metrics_endpoint="localhost:${metrics_port}" --logtostderr ${HAMMER_OPTS}
 RESULT=$?
 set -e
 

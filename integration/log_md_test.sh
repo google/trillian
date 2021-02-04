@@ -14,12 +14,12 @@ TRILLIAN_SERVER="${RPC_SERVER_1}"
 
 metrics_port=$(pick_unused_port ${port})
 echo "Running test against ephemeral tree, metrics on http://localhost:${metrics_port}/metrics"
-go build ${GOFLAGS} github.com/google/trillian/testonly/mdm/mdmtest
-./mdmtest --rpc_server="${TRILLIAN_SERVER}" \
-          --metrics_endpoint="localhost:${metrics_port}" \
-          --checkers=10 \
-          --new_leaf_chance=90 \
-          --logtostderr
+go run ${GOFLAGS} github.com/google/trillian/testonly/mdm/mdmtest \
+  --rpc_server="${TRILLIAN_SERVER}" \
+  --metrics_endpoint="localhost:${metrics_port}" \
+  --checkers=10 \
+  --new_leaf_chance=90 \
+  --logtostderr
 RESULT=$?
 set -e
 

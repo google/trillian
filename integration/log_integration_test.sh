@@ -30,8 +30,7 @@ else
 fi
 
 echo "Provision log"
-go build github.com/google/trillian/cmd/createtree/
-TEST_TREE_ID=$(./createtree \
+TEST_TREE_ID=$(go run github.com/google/trillian/cmd/createtree \
   --admin_server="${TRILLIAN_SERVER}" \
   ${KEY_ARGS})
 echo "Created tree ${TEST_TREE_ID}"
