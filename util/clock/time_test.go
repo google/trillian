@@ -30,18 +30,14 @@ var cases = []struct {
 	{dur: 0 * time.Second, timeout: time.Second},
 	{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond},
 	{dur: 20 * time.Millisecond, timeout: 10 * time.Millisecond, wantErr: context.DeadlineExceeded},
-	{dur: 1 * time.Millisecond, timeout: 0 * time.Second, wantErr: context.DeadlineExceeded},
+	{dur: 1 * time.Millisecond, timeout: 0, wantErr: context.DeadlineExceeded},
 	{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond, cancel: true, wantErr: context.Canceled},
 }
 
 func TestSleepContext(t *testing.T) {
-	t.Parallel()
-
 	for _, tc := range cases {
 		tc := tc
 		t.Run(fmt.Sprintf("%v:%v", tc.dur, tc.timeout), func(t *testing.T) {
-			t.Parallel()
-
 			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
 			if tc.cancel {
 				cancel()
@@ -56,13 +52,9 @@ func TestSleepContext(t *testing.T) {
 }
 
 func TestSleepSource(t *testing.T) {
-	t.Parallel()
-
 	for _, tc := range cases {
 		tc := tc
 		t.Run(fmt.Sprintf("%v:%v", tc.dur, tc.timeout), func(t *testing.T) {
-			t.Parallel()
-
 			base := time.Now()
 			ts := NewFake(base)
 			ctx, cancel := context.WithCancel(context.Background())
