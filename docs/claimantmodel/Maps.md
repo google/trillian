@@ -15,7 +15,7 @@ The key difference (pun intended) is that in Maps the writer gets to choose any 
 
 A Log Checkpoint commits to a range of keys by stating the tree size.
 Tree size is the only input required to generate all keys for a log, and it is this property of key enumerability that makes Claim discoverability simple; given a Log Checkpoint, a Verifier can discover all Claims by requesting all entries from [0..treeSize).
-Thus providing the Verifier is getting recent Checkpoints and is seeing Checkpoints consistent with the Believer, each and every Claim will be discovered in time.
+Thus, providing the Verifier is getting recent Checkpoints and is seeing Checkpoints consistent with the Believer, each and every Claim will be discovered in time.
 While simple, this is not efficient, especially for Verifiers interested in a tiny subset of Claims.
 
 Map keys cannot be generated/discovered from a Map Checkpoint, consequently Maps do not allow for efficient discoverability through key enumeration.
