@@ -9,11 +9,9 @@ if [[ ! -f "${MAP_JOURNAL}" ]]; then
   exit 1
 fi
 
-echo "Building mapreplay"
-go build github.com/google/trillian/testonly/internal/hammer/mapreplay
-
 declare -a OLD_MAP_ARRAY
-OLD_MAP_IDS=$(./mapreplay --logtostderr -v 2 --replay_from ${MAP_JOURNAL} 2>&1 >/dev/null | grep "map_id:" | sed 's/.*map_id:\([0-9]\+\).*/\1/' | sort | uniq)
+OLD_MAP_IDS=$(go run github.com/google/trillian/testonly/internal/hammer/mapreplay \
+  --logtostderr -v 2 --replay_from ${MAP_JOURNAL} 2>&1 >/dev/null | grep "map_id:" | sed 's/.*map_id:\([0-9]\+\).*/\1/' | sort | uniq)
 for mapid in "${OLD_MAP_IDS}"; do
   OLD_MAP_ARRAY+=(${mapid})
 done
@@ -45,7 +43,8 @@ echo "Mapping map/tree IDs ${MAPMAP}"
 
 echo "Replaying requests from ${MAP_JOURNAL}"
 set +e
-./mapreplay --map_ids=${MAPMAP} --rpc_server=${RPC_SERVER_1} --logtostderr -v 1 --replay_from "${MAP_JOURNAL}"
+go run github.com/google/trillian/testonly/internal/hammer/mapreplay \
+  --map_ids=${MAPMAP} --rpc_server=${RPC_SERVER_1} --logtostderr -v 1 --replay_from "${MAP_JOURNAL}"
 RESULT=$?
 set -e
 
