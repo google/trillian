@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/rfc6962"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 )
 
 // TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For

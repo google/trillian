@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/coniks"
+	coniks "github.com/google/trillian/merkle/coniks/hasher"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/testonly"
 )

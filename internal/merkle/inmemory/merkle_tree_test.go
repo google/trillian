@@ -24,7 +24,7 @@ import (
 
 	_ "github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/rfc6962"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 )
 
 // Note test inputs came from the values used by the C++ code. The original

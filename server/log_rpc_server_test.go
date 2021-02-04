@@ -27,21 +27,21 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
+	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle/rfc6962"
+	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage"
+	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	tcrypto "github.com/google/trillian/crypto"
-	stestonly "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/storage/tree"
 )
 
 // cmpMatcher is a custom gomock.Matcher that uses cmp.Equal combined with a

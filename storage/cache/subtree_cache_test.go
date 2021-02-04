@@ -24,13 +24,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/maphasher"
-	"github.com/google/trillian/merkle/rfc6962"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage/storagepb"
+	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/storage/tree"
 
 	"github.com/golang/mock/gomock"
-
-	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 var (

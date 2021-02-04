@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/google/trillian/merkle/coniks"
+	coniks "github.com/google/trillian/merkle/coniks/hasher"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage/tree"

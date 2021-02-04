@@ -30,7 +30,7 @@ import (
 	"github.com/google/trillian/internal/merkle/inmemory"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/logverifier"
-	"github.com/google/trillian/merkle/rfc6962"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/types"
 )
 
