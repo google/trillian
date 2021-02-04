@@ -89,7 +89,7 @@ steps:
     - GOFLAGS=-race
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - prepare
+    - lint
 
 # Codecov
 - id: codecov
@@ -104,7 +104,7 @@ steps:
     - GO_TEST_TIMEOUT=20m
     - CODECOV_TOKEN=${_CODECOV_TOKEN}
   waitFor:
-    - prepare
+    - lint
 
 # Presubmit (Batched queue)
 - id: presubmit_batched
@@ -117,7 +117,7 @@ steps:
     - GOFLAGS=-race --tags=batched_queue
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - presubmit
+    - lint
 
 # Presubmit (PKCS11)
 - id: presubmit_pkcs11
@@ -130,7 +130,7 @@ steps:
     - GOFLAGS=-race --tags=pkcs11
     - GO_TEST_TIMEOUT=20m
   waitFor:
-    - presubmit
+    - lint
 
 # Try to spread the load a bit, we'll wait for all the presubmit.* steps
 # to finish before starting the integration.* ones.
@@ -140,6 +140,7 @@ steps:
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: /bin/true
   waitFor:
+    - codecov
     - presubmit
     - presubmit_batched
     - presubmit_pkcs11
