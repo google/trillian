@@ -27,6 +27,9 @@
  * The golangci-lint suite is now at v1.36.0.
  * CI/CD has migrated from Travis to Google Cloud Build.
 
+### Process
+ * Recognise that we do not follow strict semantic versioning practices.
+
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
 
