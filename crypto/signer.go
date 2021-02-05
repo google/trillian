@@ -49,17 +49,6 @@ func NewSigner(keyID int64, signer crypto.Signer, hash crypto.Hash) *Signer {
 	}
 }
 
-// NewSHA256Signer creates a new SHA256 based Signer and a KeyID of 0.
-//
-// Deprecated: NewSHA256Signer was only meant for use in tests. It can be
-// replaced by NewSigner(0, key, crypto.SHA256).
-func NewSHA256Signer(signer crypto.Signer) *Signer {
-	return &Signer{
-		Hash:   crypto.SHA256,
-		Signer: signer,
-	}
-}
-
 // Public returns the public key that can verify signatures produced by s.
 func (s *Signer) Public() crypto.PublicKey {
 	return s.Signer.Public()
