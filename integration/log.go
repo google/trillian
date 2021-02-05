@@ -256,7 +256,6 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) (map[
 			}
 
 			leaves = leaves[:0] // starting new batch
-
 		}
 	}
 
