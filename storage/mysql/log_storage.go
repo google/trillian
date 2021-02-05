@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
@@ -81,9 +80,6 @@ const (
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
 	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
-
-	// Error code returned by driver when inserting a duplicate row
-	errNumDuplicate = 1062
 
 	logIDLabel = "logid"
 )
@@ -973,13 +969,4 @@ func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
 
 func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
-}
-
-func isDuplicateErr(err error) bool {
-	switch err := err.(type) {
-	case *mysql.MySQLError:
-		return err.Number == errNumDuplicate
-	default:
-		return false
-	}
 }
