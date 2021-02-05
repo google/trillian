@@ -12,5 +12,4 @@ If you're unsure about any of these, don't hesitate to ask. We're here to help!
 -->
 
 - [ ] I have updated the [CHANGELOG](CHANGELOG.md).
-  - Adjust the draft version number according to [semantic versioning](https://semver.org/) rules.
 - [ ] I have updated [documentation](docs/) accordingly (including the [feature implementation matrix](docs/Feature_Implementation_Matrix.md)).
