@@ -23,24 +23,7 @@ import (
 	"github.com/google/trillian/merkle/hashers/registry"
 )
 
-// Default is the standard CONIKS hasher.
-//
-// Deprecated: moved to hasher subpackage.
-var Default = hasher.Default
-
 func init() {
-	registry.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA512_256, Default)
+	registry.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA512_256, hasher.Default)
 	registry.RegisterMapHasher(trillian.HashStrategy_CONIKS_SHA256, hasher.New(crypto.SHA256))
-}
-
-// Hasher implements the sparse merkle tree hashing algorithm specified in the CONIKS paper.
-//
-// Deprecated: moved to hasher subpackage.
-type Hasher = hasher.Hasher
-
-// New creates a new hashers.TreeHasher using the passed in hash function.
-//
-// Deprecated: moved to hasher subpackage.
-func New(h crypto.Hash) *Hasher {
-	return hasher.New(h)
 }

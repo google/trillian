@@ -24,30 +24,5 @@ import (
 )
 
 func init() {
-	registry.RegisterLogHasher(trillian.HashStrategy_RFC6962_SHA256, New(crypto.SHA256))
-}
-
-// Domain separation prefixes
-//
-// Deprecated: moved to hasher subpackage.
-const (
-	RFC6962LeafHashPrefix = hasher.RFC6962LeafHashPrefix
-	RFC6962NodeHashPrefix = hasher.RFC6962NodeHashPrefix
-)
-
-// DefaultHasher is a SHA256 based LogHasher.
-//
-// Deprecated: moved to hasher subpackage.
-var DefaultHasher = hasher.DefaultHasher
-
-// Hasher implements the RFC6962 tree hashing algorithm.
-//
-// Deprecated: moved to hasher subpackage.
-type Hasher = hasher.Hasher
-
-// New creates a new Hashers.LogHasher on the passed in hash function.
-//
-// Deprecated: moved to hasher subpackage.
-func New(h crypto.Hash) *Hasher {
-	return hasher.New(h)
+	registry.RegisterLogHasher(trillian.HashStrategy_RFC6962_SHA256, hasher.New(crypto.SHA256))
 }
