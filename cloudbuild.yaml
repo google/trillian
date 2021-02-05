@@ -73,14 +73,6 @@ steps:
   waitFor:
     - prepare
 
-# TODO(al): This needs fixing
-# # Run Docker check
-# - id: docker
-#   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-#   entrypoint: ./integration/docker_compose_integration_test.sh
-#   waitFor:
-#     - prepare
-
 # Presubmit
 - id: presubmit
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
@@ -155,6 +147,13 @@ steps:
   env:
     - HAMMER_OPTS=--operations=150
     - GO_TEST_TIMEOUT=20m
+  waitFor:
+    - presubmits_done
+
+# Integration (Docker)
+- id: integration_docker
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/docker_compose_integration_test.sh
   waitFor:
     - presubmits_done
 

@@ -27,9 +27,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   # Change to the root Trillian directory.
   cd "$DIR/.."
 
-  if docker_compose_up "127.0.0.1:8091" && \
-     integration/log_integration_test.sh "127.0.0.1:8090" && \
-     integration/map_integration_test.sh "127.0.0.1:8093"; then
+  if docker_compose_up "deployment_trillian-log-server_1:8091" && \
+     integration/log_integration_test.sh "deployment_trillian-log-server_1:8090" && \
+     integration/map_integration_test.sh "deployment_trillian-map-server_1:8090"; then
     docker-compose -f examples/deployment/docker-compose.yml down
   else
     echo "Docker logs:"

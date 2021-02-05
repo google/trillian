@@ -68,3 +68,7 @@ services:
     depends_on:
       - mysql
 
+networks:
+  default:
+    external:
+      name: cloudbuild
