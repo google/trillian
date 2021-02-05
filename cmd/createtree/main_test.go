@@ -149,6 +149,10 @@ func TestCreateTree(t *testing.T) {
 func runTest(t *testing.T, tests []*testCase) {
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
+			// Note: Restore() must be called after the flag-reading bits are
+			// stopped, otherwise there might be a data race.
+			defer flagsaver.Save().MustRestore()
+
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
@@ -157,7 +161,6 @@ func runTest(t *testing.T, tests []*testCase) {
 				t.Fatalf("Error starting fake server: %v", err)
 			}
 			defer stopFakeServer()
-			defer flagsaver.Save().MustRestore()
 			*adminServerAddr = s.Addr
 			if tc.setFlags != nil {
 				tc.setFlags()

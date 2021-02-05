@@ -31,6 +31,10 @@ import (
 )
 
 func TestGetTreePublicKey(t *testing.T) {
+	// Note: Restore() must be called after the flag-reading bits are stopped,
+	// otherwise there is a data race. Here, the logEnv must be Closed first.
+	defer flagsaver.Save().MustRestore()
+
 	// Set up Trillian servers
 	const numSequencers = 0 // we don't actually need any sequencers.
 	serverOpts := []grpc.ServerOption{}
@@ -50,7 +54,6 @@ func TestGetTreePublicKey(t *testing.T) {
 	}
 
 	// Set the flags.
-	defer flagsaver.Save().MustRestore()
 	setup.SetFlag(t, "admin_server", logEnv.Address)
 	setup.SetFlag(t, "log_id", fmt.Sprint(log.TreeId))
 
