@@ -338,14 +338,14 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	// The Exec() might have just failed
 	if err != nil {
-		return err
+		return mysqlToGRPC(err)
 	}
 
 	// Otherwise we have to look at the result of the operation
 	rowsAffected, rowsError := res.RowsAffected()
 
 	if rowsError != nil {
-		return rowsError
+		return mysqlToGRPC(rowsError)
 	}
 
 	if rowsAffected != count {

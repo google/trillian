@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
@@ -81,9 +80,6 @@ const (
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
 	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
-
-	// Error code returned by driver when inserting a duplicate row
-	errNumDuplicate = 1062
 
 	logIDLabel = "logid"
 )
@@ -488,7 +484,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 		if err != nil {
 			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
-			return nil, err
+			return nil, mysqlToGRPC(err)
 		}
 
 		// Create the work queue entry
@@ -509,7 +505,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		)
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
-			return nil, err
+			return nil, mysqlToGRPC(err)
 		}
 		leafDuration := time.Since(leafStart)
 		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)
@@ -574,7 +570,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	const savepoint = "SAVEPOINT AddSequencedLeaves"
 	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
 		glog.Errorf("Error adding savepoint: %s", err)
-		return nil, err
+		return nil, mysqlToGRPC(err)
 	}
 	// TODO(pavelkalinnikov): Consider performance implication of executing this
 	// extra SAVEPOINT, especially for 1-entry batches. Optimize if necessary.
@@ -595,7 +591,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 		if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
 			glog.Errorf("Error updating savepoint: %s", err)
-			return nil, err
+			return nil, mysqlToGRPC(err)
 		}
 
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
@@ -612,7 +608,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			continue
 		} else if err != nil {
 			glog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
-			return nil, err
+			return nil, mysqlToGRPC(err)
 		}
 
 		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
@@ -623,11 +619,11 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
 			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
 				glog.Errorf("Error rolling back to savepoint: %s", err)
-				return nil, err
+				return nil, mysqlToGRPC(err)
 			}
 		} else if err != nil {
 			glog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
-			return nil, err
+			return nil, mysqlToGRPC(err)
 		}
 
 		// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
@@ -635,7 +631,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 	if _, err := t.tx.ExecContext(ctx, "RELEASE "+savepoint); err != nil {
 		glog.Errorf("Error releasing savepoint: %s", err)
-		return nil, err
+		return nil, mysqlToGRPC(err)
 	}
 
 	return res, nil
@@ -973,13 +969,4 @@ func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
 
 func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
-}
-
-func isDuplicateErr(err error) bool {
-	switch err := err.(type) {
-	case *mysql.MySQLError:
-		return err.Number == errNumDuplicate
-	default:
-		return false
-	}
 }
