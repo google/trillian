@@ -232,27 +232,31 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) (map[
 		if len(leaves) >= params.QueueBatchSize || (l+1) == params.LeafCount {
 			glog.Infof("Queueing %d leaves...", len(leaves))
 
-			ctx, cancel := getRPCDeadlineContext(params)
-			b := &backoff.Backoff{
-				Min:    100 * time.Millisecond,
-				Max:    10 * time.Second,
-				Factor: 2,
-				Jitter: true,
-			}
+			for _, leaf := range leaves {
+				ctx, cancel := getRPCDeadlineContext(params)
+				b := &backoff.Backoff{
+					Min:    100 * time.Millisecond,
+					Max:    10 * time.Second,
+					Factor: 2,
+					Jitter: true,
+				}
 
-			err := b.Retry(ctx, func() error {
-				_, err := client.QueueLeaves(ctx, &trillian.QueueLeavesRequest{
-					LogId:  params.TreeID,
-					Leaves: leaves,
+				err := b.Retry(ctx, func() error {
+					_, err := client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
+						LogId: params.TreeID,
+						Leaf:  leaf,
+					})
+					return err
 				})
-				return err
-			})
-			cancel()
+				cancel()
 
-			if err != nil {
-				return nil, err
+				if err != nil {
+					return nil, err
+				}
 			}
+
 			leaves = leaves[:0] // starting new batch
+
 		}
 	}
 
