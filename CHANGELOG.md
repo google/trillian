@@ -6,6 +6,11 @@
 ### Cleanup
  * Removed the experimental map API.
 
+## HEAD
+
+### Improvements.
+ * Removed the deprecated crypto.NewSHA256Signer function.
+
 ## v1.3.12
 [Published 2021-02-16](https://github.com/google/trillian/releases/tag/v1.3.12)
 
