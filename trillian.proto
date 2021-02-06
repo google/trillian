@@ -203,12 +203,6 @@ message Tree {
   google.protobuf.Timestamp delete_time = 20;
 }
 
-message SignedEntryTimestamp {
-  int64 timestamp_nanos = 1;
-  int64 log_id = 2;
-  sigpb.DigitallySigned signature = 3;
-}
-
 // SignedLogRoot represents a commitment by a Log to a particular tree.
 message SignedLogRoot {
   // Deleted: TimestampNanos moved to LogRoot.

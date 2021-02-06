@@ -51,7 +51,6 @@
   
 - [trillian.proto](#trillian.proto)
     - [Proof](#trillian.Proof)
-    - [SignedEntryTimestamp](#trillian.SignedEntryTimestamp)
     - [SignedLogRoot](#trillian.SignedLogRoot)
     - [SignedMapRoot](#trillian.SignedMapRoot)
     - [Tree](#trillian.Tree)
@@ -843,23 +842,6 @@ by the API.
 | ----- | ---- | ----- | ----------- |
 | leaf_index | [int64](#int64) |  | leaf_index indicates the requested leaf index when this message is used for a leaf inclusion proof. This field is set to zero when this message is used for a consistency proof. |
 | hashes | [bytes](#bytes) | repeated |  |
-
-
-
-
-
-
-<a name="trillian.SignedEntryTimestamp"></a>
-
-### SignedEntryTimestamp
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| timestamp_nanos | [int64](#int64) |  |  |
-| log_id | [int64](#int64) |  |  |
-| signature | [sigpb.DigitallySigned](#sigpb.DigitallySigned) |  |  |
 
 
 
