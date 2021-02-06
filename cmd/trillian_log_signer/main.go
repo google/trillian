@@ -44,8 +44,6 @@ import (
 	"go.etcd.io/etcd/clientv3"
 	"google.golang.org/grpc"
 
-	tpb "github.com/google/trillian"
-
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
@@ -193,19 +191,16 @@ func main() {
 	}
 
 	m := serverutil.Main{
-		RPCEndpoint:  *rpcEndpoint,
-		HTTPEndpoint: *httpEndpoint,
-		TLSCertFile:  *tlsCertFile,
-		TLSKeyFile:   *tlsKeyFile,
-		StatsPrefix:  "logsigner",
-		DBClose:      sp.Close,
-		Registry:     registry,
-		RegisterServerFn: func(s *grpc.Server, _ extension.Registry) error {
-			tpb.RegisterTrillianLogSequencerServer(s, &struct{}{})
-			return nil
-		},
-		IsHealthy:       sp.AdminStorage().CheckDatabaseAccessible,
-		HealthyDeadline: *healthzTimeout,
+		RPCEndpoint:      *rpcEndpoint,
+		HTTPEndpoint:     *httpEndpoint,
+		TLSCertFile:      *tlsCertFile,
+		TLSKeyFile:       *tlsKeyFile,
+		StatsPrefix:      "logsigner",
+		DBClose:          sp.Close,
+		Registry:         registry,
+		RegisterServerFn: func(s *grpc.Server, _ extension.Registry) error { return nil },
+		IsHealthy:        sp.AdminStorage().CheckDatabaseAccessible,
+		HealthyDeadline:  *healthzTimeout,
 	}
 
 	if err := m.Run(ctx); err != nil {

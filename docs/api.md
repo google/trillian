@@ -38,9 +38,6 @@
   
     - [TrillianLog](#trillian.TrillianLog)
   
-- [trillian_log_sequencer_api.proto](#trillian_log_sequencer_api.proto)
-    - [TrillianLogSequencer](#trillian.TrillianLogSequencer)
-  
 - [trillian_admin_api.proto](#trillian_admin_api.proto)
     - [CreateTreeRequest](#trillian.CreateTreeRequest)
     - [DeleteTreeRequest](#trillian.DeleteTreeRequest)
@@ -681,31 +678,6 @@ If the requested tree size is unavailable but the leaf is in scope for the curre
 | GetLeavesByIndex | [GetLeavesByIndexRequest](#trillian.GetLeavesByIndexRequest) | [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse) | GetLeavesByIndex returns a batch of leaves whose leaf indices are provided in the request. |
 | GetLeavesByRange | [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse) | GetLeavesByRange returns a batch of leaves whose leaf indices are in a sequential range. |
 | GetLeavesByHash | [GetLeavesByHashRequest](#trillian.GetLeavesByHashRequest) | [GetLeavesByHashResponse](#trillian.GetLeavesByHashResponse) | GetLeavesByHash returns a batch of leaves which are identified by their Merkle leaf hash values. |
-
- 
-
-
-
-<a name="trillian_log_sequencer_api.proto"></a>
-<p align="right"><a href="#top">Top</a></p>
-
-## trillian_log_sequencer_api.proto
-
-
- 
-
- 
-
- 
-
-
-<a name="trillian.TrillianLogSequencer"></a>
-
-### TrillianLogSequencer
-The API supports sequencing in the Trillian Log Sequencer.
-
-| Method Name | Request Type | Response Type | Description |
-| ----------- | ------------ | ------------- | ------------|
 
  
 
