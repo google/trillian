@@ -268,22 +268,27 @@ func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params T
 	glog.Infof("Waiting for sequencing until: %v", endTime)
 
 	for endTime.After(time.Now()) {
-		req := trillian.GetSequencedLeafCountRequest{LogId: treeID}
+		req := trillian.GetLatestSignedLogRootRequest{LogId: treeID}
 		ctx, cancel := getRPCDeadlineContext(params)
-		sequencedLeaves, err := client.GetSequencedLeafCount(ctx, &req)
+		resp, err := client.GetLatestSignedLogRoot(ctx, &req)
 		cancel()
 
 		if err != nil {
 			return err
 		}
 
-		glog.Infof("Leaf count: %d", sequencedLeaves.LeafCount)
+		var root types.LogRootV1
+		if err := root.UnmarshalBinary(resp.SignedLogRoot.GetLogRoot()); err != nil {
+			return err
+		}
 
-		if sequencedLeaves.LeafCount >= params.LeafCount+params.StartLeaf {
+		glog.Infof("Leaf count: %d", root.TreeSize)
+
+		if root.TreeSize >= uint64(params.LeafCount+params.StartLeaf) {
 			return nil
 		}
 
-		glog.Infof("Leaves sequenced: %d. Still waiting ...", sequencedLeaves.LeafCount)
+		glog.Infof("Leaves sequenced: %d. Still waiting ...", root.TreeSize)
 
 		time.Sleep(params.SequencingPollWait)
 	}
