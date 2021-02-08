@@ -268,6 +268,10 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	return ltx, nil
 }
 
+// TODO(pavelkalinnikov): This and many other methods of this storage
+// implementation can leak a specific sql.ErrTxDone all the way to the client,
+// if the transaction is rolled back as a result of a canceled context. It must
+// return "generic" errors, and only log the specific ones for debugging.
 func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil && err != storage.ErrTreeNeedsInit {
