@@ -18,18 +18,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/google/trillian/storage/testdb"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -211,8 +207,8 @@ func TestWaitForInclusion(t *testing.T) {
 
 			if !test.skipPreCheck {
 				cctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
-				if err := client.WaitForInclusion(cctx, test.leaf); !isDeadlineExceeded(err) {
-					t.Errorf("WaitForInclusion before sequencing: %v, want: not-nil", err)
+				if err := client.WaitForInclusion(cctx, test.leaf); err == nil {
+					t.Error("WaitForInclusion before sequencing succeeded, want error")
 				}
 				cancel()
 			}
@@ -227,23 +223,6 @@ func TestWaitForInclusion(t *testing.T) {
 			}
 		})
 	}
-}
-
-func isDeadlineExceeded(err error) bool {
-	if err == nil {
-		return false
-	}
-	if status.Code(err) == codes.DeadlineExceeded {
-		return true
-	}
-	// TODO(pavelkalinnikov): Sometimes Trillian gRPC returns codes.Unknown for a
-	// canceled context, because there are paths in the handlers which don't
-	// convert the returned errors to status properly.
-	if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
-		glog.Warningf("Some gRPC call returned codes.Unknown instead of codes.DeadlineExceeded: %v", err)
-		return true
-	}
-	return false
 }
 
 func TestUpdateRoot(t *testing.T) {
