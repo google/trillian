@@ -394,6 +394,9 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	return r, nil
 }
 
+// CancelInTheMiddleOfTx controls reproduction of issue 2341.
+var CancelInTheMiddleOfTx = false
+
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
 // underlies the log.
 func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
@@ -404,11 +407,23 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
+
+	var cancel context.CancelFunc
+	if CancelInTheMiddleOfTx {
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+	}
+
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
 	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLatestSignedLogRoot")
+
+	if CancelInTheMiddleOfTx {
+		glog.Warning("Canceling the context after the transaction has been started. See issue #2341")
+		cancel()
+	}
 
 	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
