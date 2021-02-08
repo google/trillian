@@ -68,6 +68,9 @@ services:
     depends_on:
       - mysql
 
+# TODO(pavelkalinnikov): Find a way to remove this network declaration. It is
+# needed for Cloud Build integration tests, but makes local deployment less
+# convenient.
 networks:
   default:
     external:
