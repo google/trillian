@@ -8,10 +8,18 @@ docker_compose_up() {
 
   docker-compose -f examples/deployment/docker-compose.yml up --build -d
 
-  # Wait until /healthz returns HTTP 200 and the text "ok", or fail after 60
-  # seconds. That should be long enough for the server to start.
-  health=$(wget --retry-connrefused --timeout 60 --output-document - \
-    "http://${http_addr}/healthz")
+  # Wait until /healthz returns HTTP 200 and the text "ok", or fail after 30
+  # seconds. That should be long enough for the server to start. Since wget
+  # doesn't retry DNS failures, wrap this in a loop, so that Docker containers
+  # have time to join the network and update the DNS.
+  for i in {1..10} ; do
+    health=$(wget --retry-connrefused --timeout 30 --output-document - \
+      "http://${http_addr}/healthz")
+    if [[ $? = 0 ]]; then
+      break
+    fi
+    sleep 5
+  done
   health_exitcode=$?
   if [[ ${health_exitcode} = 0 ]]; then
     echo "Health: ${health}"
