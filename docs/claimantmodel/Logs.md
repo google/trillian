@@ -39,6 +39,7 @@ Log Transparency is another application of the Claimant Model to solve a transpo
 <li>All Claims committed to by this Checkpoint are immutable and discoverable</li>
 </ul>
 </dd>
+</dl>
 
 ## New Roles
 <dl>
@@ -60,6 +61,7 @@ This mechanism doesn’t always require proof, e.g. you can’t prove that a log
 </dd>
 <dt>Claim Writer</dt>
 <dd>writes Claims to the Log. This role doesn’t map to a role in the Claimant Model, but someone has to do it. In many systems this will be the Claimant, but it could also be the Believer, or another third party.</dd>
+</dl>
 
 ## Relationship Graph
 This shows which roles must know about the actors playing the other roles before any of the machinery starts moving. For example, the Believer must know about the Claimant ahead of time because they need to have some basis on which to trust a Claim and verify its authenticity.
