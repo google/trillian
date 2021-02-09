@@ -28,8 +28,8 @@ var cases = []struct {
 	wantErr error
 }{
 	{dur: 0 * time.Second, timeout: time.Second},
-	{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond},
-	{dur: 20 * time.Millisecond, timeout: 10 * time.Millisecond, wantErr: context.DeadlineExceeded},
+	{dur: 10 * time.Millisecond, timeout: 200 * time.Millisecond},
+	{dur: 200 * time.Millisecond, timeout: 10 * time.Millisecond, wantErr: context.DeadlineExceeded},
 	{dur: 1 * time.Millisecond, timeout: 0, wantErr: context.DeadlineExceeded},
 	{dur: 10 * time.Millisecond, timeout: 20 * time.Millisecond, cancel: true, wantErr: context.Canceled},
 }
