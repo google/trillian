@@ -1,11 +1,5 @@
-#############################################################################
-## The top section of this file is identical in the 3 cloudbuild.*yaml files.
-## Make sure any edits you make here are copied over to the other files too
-## if appropriate.
-##
-## TODO(al): consider if it's possible to merge these 3 files and control via
-## substitutions.
-#############################################################################
+# This file contains Google Cloud Build configuration for presubmit checks, unit
+# and integration tests, triggered by pull requests and commits to branches.
 
 timeout: 1800s
 substitutions:
@@ -18,8 +12,6 @@ options:
     path: /go
   env:
     - GO111MODULE=on
-    - GOPROXY=https://proxy.golang.org
-    - PROJECT_ROOT=github.com/google/trillian
     - GOPATH=/go
     - DOCKER_CLIENT_TIMEOUT=120
     - COMPOSE_HTTP_TIMEOUT=120
@@ -175,7 +167,7 @@ steps:
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
-    - GOFLAGS=-race
+    - GOFLAGS=-race -tags=batched_queue
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
@@ -186,7 +178,7 @@ steps:
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
-    - GOFLAGS=-tags=pkcs11
+    - GOFLAGS=-race -tags=pkcs11
     - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
