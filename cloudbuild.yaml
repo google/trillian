@@ -183,3 +183,14 @@ steps:
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - presubmits_done
+
+# Integration (MariaDB)
+- id: integration_mariadb
+  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
+  entrypoint: ./integration/cloudbuild/run_integration.sh
+  env:
+    - HAMMER_OPTS=--operations=50
+    - GO_TEST_TIMEOUT=20m
+    - MYSQLD_IMAGE=mariadb:10.3
+  waitFor:
+    - presubmits_done
