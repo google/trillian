@@ -8,6 +8,7 @@ set -ex
 MYSQL_PORT=3306
 export MYSQL_HOST="${HOSTNAME}_db_1"
 
+# See: https://docs.docker.com/compose/extends/#multiple-compose-files.
 COMPOSE_CONFIG="-p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose.mysql.yml -f ./integration/cloudbuild/docker-compose.network.yml"
 docker-compose $COMPOSE_CONFIG up -d
 trap "docker-compose $COMPOSE_CONFIG down" EXIT
