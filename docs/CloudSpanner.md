@@ -43,11 +43,11 @@ and running on Google Cloud.
    1. run: `./scripts/deploy_gce.sh`
 
 
-Setting up continuous integration with Travis
+Setting up continuous integration
 =============================================
 
-Now that you have a working Trillian-on-cloud instance, you can integrate it with Travis
-so that pushes to master update your Trillian instance.
+Now that you have a working Trillian-on-cloud instance, you can integrate it
+with CI/CD so that pushes to master update your Trillian instance.
 
  1. Create service account credentials
    1. In your Cloud Platform Console project, open the Credentials page.
@@ -57,7 +57,8 @@ so that pushes to master update your Trillian instance.
    5. Under Role, select Project > Editor.
    6. Under Key type, select JSON.
    7. Click Create. The Cloud Platform Console downloads a new JSON file to your computer. The name of this file starts with your project ID.
-   8. In your project's Travis settings page, add a new Environment Variable called `GCLOUD_SERVICE_KEY_CI`, and set it to the output from the following command:
-         `base64 service-key.json | tr -d '\040\011\012\015'`
-      *Ensure that _Display value in build log_ switch is set to OFF!*
+   8. Provide the service key to the deploy script that CI runs. You might need
+   the output of the following command: `base64 service-key.json | tr -d '\040\011\012\015'`
+      - Ensure that the key is hidden from build logs (example:
+      [Cloud Build](https://cloud.google.com/cloud-build/docs/securing-builds/use-secrets)).
 

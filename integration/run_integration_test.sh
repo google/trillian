@@ -1,8 +1,10 @@
 #!/bin/bash
 #
-# run_integration_test.sh is a wrapper around the log_prep and run_test functions.
-# It's intended to be used by the Travis CT/Trillian integration test only,
-# and will go away when we migrate off of Travis.
+# run_integration_test.sh is a wrapper around the log_prep and run_test
+# functions. It's intended to be used by the Travis CT/Trillian integration test
+# only, and will go away when we migrate off of Travis.
+#
+# TODO(al): Make the script go away.
 set -e
 
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"

@@ -39,7 +39,7 @@ func MustMarshalAnyNoT(in proto.Message) []byte {
 // protobuf.ptypes.any.Any used in the Trillian API and in storage.
 // Failure to marshal will fail the test but the suite will continue.
 func MustMarshalAny(t *testing.T, in proto.Message) *any.Any {
-	// TODO(phad): call t.Helper() here when Travis set to use go 1.9.
+	t.Helper()
 	anything, err := ptypes.MarshalAny(in)
 	if err != nil {
 		t.Fatalf("failed to marshal %v as 'any': err %v", in, err)
