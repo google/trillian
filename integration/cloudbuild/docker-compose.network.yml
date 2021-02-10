@@ -1,0 +1,6 @@
+version: '3.1'
+
+networks:
+  default:
+    external:
+      name: cloudbuild
