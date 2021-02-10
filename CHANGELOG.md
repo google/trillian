@@ -20,6 +20,7 @@
  * `testdb` no longer accepts the `--test_mysql_uri` flag, and instead honours the
    `TEST_MYSQL_URI` ENV var. This makes it easier to blanket configure tests to use a
    specific test DB instance.
+ * Set GCS bucket to send build logs to in cloudbuild.yaml
 
 ### Upgrades
  * Dockerfiles are now based on Go 1.13 image.
