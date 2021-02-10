@@ -2,14 +2,19 @@
 
 set -ex
 
-export MYSQL_PORT=$((10000 + $RANDOM % 30000))
+# Use the default MySQL port. There is no need to override it because the
+# docker-compose config has only one MySQL instance, and ${MYSQL_HOST} uniquely
+# identifies it.
+MYSQL_PORT=3306
 export MYSQL_HOST="${HOSTNAME}_db_1"
 
 docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.yaml up -d
 trap "docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.yaml down" EXIT
 
 # Wait for MySQL instance to be ready.
-while ! mysql --protocol=TCP --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=root -pbananas -e quit ; do
+while ! mysql --protocol=TCP --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=root -pbananas \
+  -e 'SHOW VARIABLES LIKE "%version%";' ;
+do
  sleep 5
 done
 

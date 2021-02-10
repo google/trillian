@@ -2,8 +2,11 @@
 
 set -ex
 
+# Use the default MySQL port. There is no need to override it because the
+# docker-compose config has only one MySQL instance, and ${MYSQL_HOST} uniquely
+# identifies it.
+MYSQL_PORT=3306
 export MYSQL_HOST="${HOSTNAME}_db_1"
-export MYSQL_PORT=$(( 10000 + $RANDOM % 30000))
 export MYSQL_DATABASE="test"
 export MYSQL_USER="test"
 export MYSQL_PASSWORD="zaphod"
@@ -14,7 +17,9 @@ docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.y
 trap "docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.yaml down" EXIT
 
 # Wait for MySQL instance to be ready.
-while ! mysql --protocol=TCP --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=root -pbananas -e quit ; do
+while ! mysql --protocol=TCP --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=root -pbananas \
+  -e 'SHOW VARIABLES LIKE "%version%";' ;
+do
  sleep 5
 done
 
@@ -24,6 +29,8 @@ export TEST_MYSQL_URI="${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL
 if [ "${ETCD_DIR}" != "" ]; then
   go install go.etcd.io/etcd go.etcd.io/etcd/etcdctl github.com/fullstorydev/grpcurl/cmd/grpcurl
 fi
+
+go test -alsologtostderr ./storage/mysql/...
 
 ./integration/integration_test.sh
 ./integration/maphammer.sh 3
