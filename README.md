@@ -164,10 +164,10 @@ and [examples/deployment](/examples/deployment) directories.
 ## Working on the Code
 
 Developers who want to make changes to the Trillian codebase need some
-additional dependencies and tools, described in the following sections.  The
-[Travis configuration](.travis.yml) for the codebase is also a useful reference
-for the required tools and scripts, as it may be more up-to-date than this
-document.
+additional dependencies and tools, described in the following sections. The
+[Cloud Build configuration](cloudbuild.yaml) and the scripts it depends on are
+also a useful reference for the required tools and scripts, as it may be more
+up-to-date than this document.
 
 ### Rebuilding Generated Code
 
