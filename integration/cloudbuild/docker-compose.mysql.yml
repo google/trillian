@@ -8,8 +8,3 @@ services:
       MYSQL_ROOT_PASSWORD: 'bananas'
       MYSQL_USER: 'test'
       MYSQL_PASSWORD: 'zaphod'
-
-networks:
-  default:
-    external:
-      name: cloudbuild

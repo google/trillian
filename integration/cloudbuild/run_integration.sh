@@ -13,8 +13,10 @@ export MYSQL_PASSWORD="zaphod"
 export MYSQL_ROOT_PASSWORD="bananas"
 export MYSQL_USER_HOST="%"
 
-docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.yaml up -d
-trap "docker-compose -p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose-mysql.yaml down" EXIT
+
+COMPOSE_CONFIG="-p ${HOSTNAME} -f ./integration/cloudbuild/docker-compose.mysql.yml -f ./integration/cloudbuild/docker-compose.network.yml"
+docker-compose $COMPOSE_CONFIG up -d
+trap "docker-compose $COMPOSE_CONFIG down" EXIT
 
 # Wait for MySQL instance to be ready.
 while ! mysql --protocol=TCP --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=root -pbananas \
