@@ -6,7 +6,9 @@ readonly DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 docker_compose_up() {
   local http_addr="$1"
 
-  docker-compose -f examples/deployment/docker-compose.yml up --build -d
+  # See: https://docs.docker.com/compose/extends/#multiple-compose-files.
+  docker-compose -f examples/deployment/docker-compose.yml \
+    -f integration/cloudbuild/docker-compose.network.yml up --build -d
 
   # Wait until /healthz returns HTTP 200 and the text "ok", or fail after 30
   # seconds. That should be long enough for the server to start. Since wget
