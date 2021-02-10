@@ -46,6 +46,8 @@ and running on Google Cloud.
 Setting up continuous integration with Travis
 =============================================
 
+(Note: We no longer use Travis)
+
 Now that you have a working Trillian-on-cloud instance, you can integrate it with Travis
 so that pushes to master update your Trillian instance.
 
