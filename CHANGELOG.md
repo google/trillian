@@ -25,6 +25,7 @@
  * Dockerfiles are now based on Go 1.13 image.
  * The etcd is now pinned to v3.4.12.
  * The golangci-lint suite is now at v1.36.0.
+ * CI/CD has migrated from Travis to Google Cloud Build.
 
 ## v1.3.11
 [Published 2020-10-06](https://github.com/google/trillian/releases/tag/v1.3.11)
