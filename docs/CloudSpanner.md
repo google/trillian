@@ -59,5 +59,6 @@ with CI/CD so that pushes to master update your Trillian instance.
    7. Click Create. The Cloud Platform Console downloads a new JSON file to your computer. The name of this file starts with your project ID.
    8. Provide the service key to the deploy script that CI runs. You might need
    the output of the following command: `base64 service-key.json | tr -d '\040\011\012\015'`
-      - Ensure that _Display value in build log_ switch is set to OFF!*
+      - Ensure that the key is hidden from build logs (example:
+      [Cloud Build](https://cloud.google.com/cloud-build/docs/securing-builds/use-secrets)).
 
