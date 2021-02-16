@@ -23,6 +23,9 @@ options:
 # TODO(pavelkalinnikov): Consider pushing this image only on commits to master.
 images: ['gcr.io/$PROJECT_ID/trillian_testbase:latest']
 
+# Cloud Build logs sent to GCS bucket
+logsBucket: 'gs://trillian-cloudbuild-logs'
+
 steps:
 
 # Try to pull the testbase image from Container Registry.
