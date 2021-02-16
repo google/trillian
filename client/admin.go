@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// CreateAndInitTree uses the adminClient and logClient/mapClient to create the tree
+// CreateAndInitTree uses the adminClient and logClient to create the tree
 // described by req.
 // If req describes a LOG tree, then this function will also call the InitLog
 // function using logClient.

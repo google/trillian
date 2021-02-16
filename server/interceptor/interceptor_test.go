@@ -62,8 +62,6 @@ func TestServiceName(t *testing.T) {
 func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
-	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	mapTree.TreeId = 11
 	deletedTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	deletedTree.TreeId = 12
 	deletedTree.Deleted = true
@@ -137,7 +135,6 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 			adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 			admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
 			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(mapTree, nil)
 			adminTX.EXPECT().GetTree(gomock.Any(), deletedTree.TreeId).AnyTimes().Return(deletedTree, nil)
 			adminTX.EXPECT().GetTree(gomock.Any(), unknownTreeID).AnyTimes().Return(nil, errors.New("not found"))
 			adminTX.EXPECT().Close().AnyTimes().Return(nil)
@@ -188,9 +185,6 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
-
-	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	mapTree.TreeId = 11
 
 	preorderedTree := proto.Clone(testonly.PreorderedLogTree).(*trillian.Tree)
 	preorderedTree.TreeId = 12
@@ -377,7 +371,6 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 			admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
 			adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
-			adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(mapTree, nil)
 			adminTX.EXPECT().GetTree(gomock.Any(), preorderedTree.TreeId).AnyTimes().Return(preorderedTree, nil)
 			adminTX.EXPECT().Close().AnyTimes().Return(nil)
 			adminTX.EXPECT().Commit().AnyTimes().Return(nil)
