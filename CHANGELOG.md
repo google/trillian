@@ -1,5 +1,11 @@
 # TRILLIAN Changelog
 
+## v1.3.13
+[Published 2021-02-16](https://github.com/google/trillian/releases/tag/v1.3.13)
+
+### Cleanup
+ * Removed the experimental map API.
+
 ## v1.3.12
 [Published 2021-02-16](https://github.com/google/trillian/releases/tag/v1.3.12)
 
