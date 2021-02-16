@@ -1,31 +1,46 @@
 # TRILLIAN Changelog
+### Dependency updates
 
-## HEAD
+## v1.3.12
+[Published 2021-02-16](https://github.com/google/trillian/releases/tag/v1.3.12)
 
 ### Misc improvements
 
  * Removed unused `PeekTokens` method from the `quota.Manager` interface.
+ * Ensure goroutines never block in the subtree cache (#2272).
  * Breaking unnecessary dependencies for Trillian clients:
    * Moved verifiers from `merkle` into `merkle/{log,map}verifier`sub-pacakges,
      reducing the amount of extra baggage inadvertently pulled in by clients.
   * Concrete hashers have been moved into subpackages, separating them from their
     registration code, allowing clients to directly pull just the hasher they're
-    interested in and avoid the Trillian hasher registry+protobuf deps.
+    interested in and avoid the Trillian/hasher registry+protobuf deps.
  * Moved some packages intended for internal-only use into `internal` packages:
    * InMemoryMerkleTree (indended to only be used by Trillian tests)
+ * Removed wrapper for etcd client (#2288).
  * Moved `--quota_system` and `--storage_system` flags to `main.go` so that they
    are initialised properly. It might break depending builds relying on these
    flags. Suggested fix: add the flags to `main.go`.
- * Made signer tolerate mastership election failues [#1150].
+ * Made signer tolerate mastership election failures [#1150].
  * `testdb` no longer accepts the `--test_mysql_uri` flag, and instead honours the
    `TEST_MYSQL_URI` ENV var. This makes it easier to blanket configure tests to use a
    specific test DB instance.
+ * Removed experimental Skylog folder (#2297).
+ * Fixed a race condition in the operation manager that should only affect tests
+   (#2302).
+ * Run gofumpt formatter on the whole repository (#2315).
+ * Refactor signer operation loop (#2294).
 
 ### Upgrades
  * Dockerfiles are now based on Go 1.13 image.
  * The etcd is now pinned to v3.4.12.
  * The golangci-lint suite is now at v1.36.0.
  * CI/CD has migrated from Travis to Google Cloud Build.
+ * prometheus from 1.7.1 to 1.9.0 (#2239, #2270).
+ * go-cmp from 0.5.2 to 0.5.4 (#2262).
+ * apache/beam from 2.26.0+incompatible to 2.27.0+incompatible (#2273).
+ * lib/pq from 1.8.0 to 1.9.0 (#2264).
+ * go-redis from 6.15.8+incompatible to 6.15.9+incompatible (#2215).
+
 
 ### Process
  * Recognise that we do not follow strict semantic versioning practices.
