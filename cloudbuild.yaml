@@ -140,7 +140,6 @@ steps:
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
-    - HAMMER_OPTS=--operations=150
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - presubmits_done
@@ -159,7 +158,6 @@ steps:
   env:
     - ETCD_DIR=/go/bin
     - GOFLAGS=-race
-    - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - presubmits_done
@@ -170,7 +168,6 @@ steps:
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
     - GOFLAGS=-race -tags=batched_queue
-    - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - presubmits_done
@@ -181,7 +178,6 @@ steps:
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
     - GOFLAGS=-race -tags=pkcs11
-    - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
   waitFor:
     - presubmits_done
@@ -191,7 +187,6 @@ steps:
   name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
-    - HAMMER_OPTS=--operations=50
     - GO_TEST_TIMEOUT=20m
     - MYSQLD_IMAGE=mariadb:10.3
   waitFor:
