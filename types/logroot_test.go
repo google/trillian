@@ -19,6 +19,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	_ "github.com/golang/glog" // Don't crash when --logtostderr is supplied
 )
 
 func TestLogRoot(t *testing.T) {

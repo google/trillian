@@ -100,10 +100,6 @@ func (s *mysqlProvider) LogStorage() storage.LogStorage {
 	return NewLogStorage(s.db, s.mf)
 }
 
-func (s *mysqlProvider) MapStorage() storage.MapStorage {
-	return NewMapStorage(s.db)
-}
-
 func (s *mysqlProvider) AdminStorage() storage.AdminStorage {
 	return NewAdminStorage(s.db)
 }

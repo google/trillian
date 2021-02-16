@@ -43,9 +43,6 @@ go get github.com/google/trillian/...
 cd $GOPATH/src/github.com/google/trillian
 
 images="log_server log_signer"
-if ${RUN_MAP}; then
-  images+=" map_server"
-fi
 echo "Building and pushing docker images: ${images}"
 for thing in ${images}; do
   echo "  - ${thing}"
@@ -68,9 +65,6 @@ envsubst < ${CONFIGMAP} | kubectl create --namespace="${NAMESPACE}" -f -
 
 # Launch with kubernetes
 kubeconfigs="trillian-log-deployment.yaml trillian-log-service.yaml trillian-log-signer-deployment.yaml trillian-log-signer-service.yaml"
-if ${RUN_MAP}; then
-  kubeconfigs+=" trillian-map-deployment.yaml trillian-map-service.yaml"
-fi
 for thing in ${kubeconfigs}; do
   echo ${thing}
   envsubst < ${DIR}/${thing} | kubectl apply --namespace="${NAMESPACE}" -f -

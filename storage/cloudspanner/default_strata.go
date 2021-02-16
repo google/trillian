@@ -14,20 +14,10 @@
 
 package cloudspanner
 
-import "github.com/google/trillian/storage/tree"
-
 // Default strata sizes for the different tree types.
 var (
 	// defLogStrata is a suitable set of stratum sizes for Log trees.
 	// Log trees are dense and so each individual stratum cannot over-commit on
 	// storage.
 	defLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
-
-	// defMapStrata describes the default set of subtree depths for use by
-	// Maps.
-	defMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
-
-	// defaultMapLayout is the tree layout that this implementation uses. It is
-	// based on the defaultMapStrata.
-	defaultMapLayout = tree.NewLayout(defMapStrata)
 )

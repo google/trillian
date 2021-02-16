@@ -36,4 +36,3 @@ fi
 go test -alsologtostderr ./storage/mysql/...
 
 ./integration/integration_test.sh
-./integration/maphammer.sh 3

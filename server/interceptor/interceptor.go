@@ -55,14 +55,10 @@ var (
 	contextErrCounter    monitoring.Counter
 	metricsOnce          sync.Once
 	enabledServices      = map[string]bool{
-		"trillian.TrillianLog":      true,
-		"trillian.TrillianMap":      true,
-		"trillian.TrillianMapWrite": true,
-		"trillian.TrillianAdmin":    true,
-		"TrillianLog":               true,
-		"TrillianMap":               true,
-		"TrillianMapWrite":          true,
-		"TrillianAdmin":             true,
+		"trillian.TrillianLog":   true,
+		"trillian.TrillianAdmin": true,
+		"TrillianLog":            true,
+		"TrillianAdmin":          true,
 	}
 )
 
@@ -433,38 +429,6 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
 		info.tokens = 1
 
-	// Map / readonly
-	case *trillian.GetMapLeafByRevisionRequest:
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = len(req.GetIndex())
-	case *trillian.GetMapLeafRequest:
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = len(req.GetIndex())
-	case *trillian.GetMapLeavesByRevisionRequest:
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = len(req.GetIndex())
-	case *trillian.GetMapLeavesRequest:
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = len(req.GetIndex())
-	case *trillian.GetSignedMapRootByRevisionRequest,
-		*trillian.GetSignedMapRootRequest:
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = 1
-
-	// Map / readwrite
-	case *trillian.SetMapLeavesRequest:
-		info.readonly = false
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = len(req.GetLeaves())
-	case *trillian.WriteMapLeavesRequest:
-		info.readonly = false
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = len(req.GetLeaves())
-	case *trillian.InitMapRequest:
-		info.readonly = false
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
-		info.tokens = 1
-
 	default:
 		return nil, status.Errorf(codes.Internal, "newRPCInfo: unmapped request type: %T", req)
 	}
@@ -482,8 +446,6 @@ func newRPCInfo(req interface{}) (*rpcInfo, error) {
 		switch req := req.(type) {
 		case logIDRequest:
 			info.treeID = req.GetLogId()
-		case mapIDRequest:
-			info.treeID = req.GetMapId()
 		case treeIDRequest:
 			info.treeID = req.GetTreeId()
 		case treeRequest:
@@ -517,10 +479,6 @@ func newRPCInfo(req interface{}) (*rpcInfo, error) {
 
 type logIDRequest interface {
 	GetLogId() int64
-}
-
-type mapIDRequest interface {
-	GetMapId() int64
 }
 
 type treeIDRequest interface {

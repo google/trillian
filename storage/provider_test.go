@@ -23,7 +23,6 @@ import (
 type provider struct{}
 
 func (p *provider) LogStorage() LogStorage     { return nil }
-func (p *provider) MapStorage() MapStorage     { return nil }
 func (p *provider) AdminStorage() AdminStorage { return nil }
 func (p *provider) Close() error               { return nil }
 

@@ -10,5 +10,3 @@ export CONFIGMAP=${DIR}/trillian-cloudspanner.yaml
 
 export POOLSIZE=10
 export MACHINE_TYPE="n1-standard-4"
-
-export RUN_MAP=false

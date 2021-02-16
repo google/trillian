@@ -69,10 +69,6 @@ func (s *pgProvider) LogStorage() storage.LogStorage {
 	return NewLogStorage(s.db, s.mf)
 }
 
-func (s *pgProvider) MapStorage() storage.MapStorage {
-	panic("Not Implemented")
-}
-
 func (s *pgProvider) AdminStorage() storage.AdminStorage {
 	return NewAdminStorage(s.db)
 }

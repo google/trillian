@@ -65,9 +65,9 @@ func mustMarshalAny(p proto.Message) *any.Any {
 
 func TestCreateTree(t *testing.T) {
 	nonDefaultTree := proto.Clone(defaultTree).(*trillian.Tree)
-	nonDefaultTree.TreeType = trillian.TreeType_MAP
+	nonDefaultTree.TreeType = trillian.TreeType_LOG
 	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
-	nonDefaultTree.DisplayName = "Llamas Map"
+	nonDefaultTree.DisplayName = "Llamas Log"
 	nonDefaultTree.Description = "For all your digital llama needs!"
 
 	runTest(t, []*testCase{
@@ -126,16 +126,6 @@ func TestCreateTree(t *testing.T) {
 			initErr:  status.Errorf(codes.Unavailable, "log init failed"),
 			wantErr:  true,
 		},
-		{
-			desc: "mapInitErr",
-			setFlags: func() {
-				nonDefaultTree.TreeType = trillian.TreeType_MAP
-				*treeType = nonDefaultTree.TreeType.String()
-			},
-			wantTree: nonDefaultTree,
-			initErr:  status.Errorf(codes.Unavailable, "map init failed"),
-			wantErr:  true,
-		},
 	})
 }
 
@@ -173,11 +163,6 @@ func runTest(t *testing.T, tests []*testCase) {
 				call := s.Log.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, tc.initErr)
 				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
 				call = s.Log.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil)
-				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
-			case "MAP":
-				call := s.Map.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, tc.initErr)
-				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
-				call = s.Map.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil)
 				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
 			}
 

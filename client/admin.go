@@ -28,8 +28,6 @@ import (
 
 // CreateAndInitTree uses the adminClient and logClient/mapClient to create the tree
 // described by req.
-// If req describes a MAP tree, then this function will also call the InitMap
-// function using mapClient.
 // If req describes a LOG tree, then this function will also call the InitLog
 // function using logClient.
 // Internally, the function will continue to retry failed requests until either
@@ -39,7 +37,6 @@ func CreateAndInitTree(
 	ctx context.Context,
 	req *trillian.CreateTreeRequest,
 	adminClient trillian.TrillianAdminClient,
-	mapClient trillian.TrillianMapClient,
 	logClient trillian.TrillianLogClient) (*trillian.Tree, error) {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
@@ -69,10 +66,6 @@ func CreateAndInitTree(
 	}
 
 	switch tree.TreeType {
-	case trillian.TreeType_MAP:
-		if err := InitMap(ctx, tree, mapClient); err != nil {
-			return nil, err
-		}
 	case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
 		if err := InitLog(ctx, tree, logClient); err != nil {
 			return nil, err
@@ -82,54 +75,6 @@ func CreateAndInitTree(
 	}
 
 	return tree, nil
-}
-
-// InitMap initialises a freshly created Map tree.
-func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.TrillianMapClient) error {
-	if tree.TreeType != trillian.TreeType_MAP {
-		return fmt.Errorf("InitMap called with tree of type %v", tree.TreeType)
-	}
-
-	b := &backoff.Backoff{
-		Min:    100 * time.Millisecond,
-		Max:    10 * time.Second,
-		Factor: 2,
-		Jitter: true,
-	}
-
-	err := b.Retry(ctx, func() error {
-		glog.Infof("Initialising Map %v...", tree.TreeId)
-		req := &trillian.InitMapRequest{MapId: tree.TreeId}
-		resp, err := mapClient.InitMap(ctx, req)
-		switch code := status.Code(err); code {
-		case codes.Unavailable:
-			glog.Errorf("Map server unavailable: %v", err)
-			return err
-		case codes.AlreadyExists:
-			glog.Warningf("Bizarrely, the just-created Map (%v) is already initialised!: %v", tree.TreeId, err)
-			return err
-		case codes.OK:
-			glog.Infof("Initialised Map (%v) with new SignedMapRoot:\n%+v", tree.TreeId, resp.Created)
-
-			return nil
-		default:
-			glog.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
-			return err
-		}
-	})
-	if err != nil {
-		return err
-	}
-
-	// Wait for map root to become available.
-	return b.Retry(ctx, func() error {
-		_, err := mapClient.GetSignedMapRootByRevision(ctx,
-			&trillian.GetSignedMapRootByRevisionRequest{
-				MapId:    tree.TreeId,
-				Revision: 0,
-			})
-		return err
-	}, codes.FailedPrecondition)
 }
 
 // InitLog initialises a freshly created Log tree.

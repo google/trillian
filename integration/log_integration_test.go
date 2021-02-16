@@ -105,7 +105,7 @@ func TestInProcessLogIntegration(t *testing.T) {
 
 	tree, err := client.CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
 		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	}, env.Admin, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 
 	tree, err := client.CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
 		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	}, env.Admin, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}

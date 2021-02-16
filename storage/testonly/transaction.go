@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -29,17 +28,6 @@ import (
 // RunOnLogTX is a helper for mocking out the LogStorage.ReadWriteTransaction method.
 func RunOnLogTX(tx storage.LogTreeTX) func(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
 	return func(ctx context.Context, _ int64, f storage.LogTXFunc) error {
-		defer tx.Close()
-		if err := f(ctx, tx); err != nil {
-			return err
-		}
-		return tx.Commit(ctx)
-	}
-}
-
-// RunOnMapTX is a helper for mocking out the MapStorage.ReadWriteTransaction method.
-func RunOnMapTX(tx storage.MapTreeTX) func(ctx context.Context, treeID int64, f storage.MapTXFunc) error {
-	return func(ctx context.Context, _ int64, f storage.MapTXFunc) error {
 		defer tx.Close()
 		if err := f(ctx, tx); err != nil {
 			return err
@@ -112,38 +100,6 @@ func (f *FakeLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.
 
 // CheckDatabaseAccessible implements LogStorage.CheckDatabaseAccessible
 func (f *FakeLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return nil
-}
-
-// FakeMapStorage is a MapStorage implementation which is used for testing.
-type FakeMapStorage struct {
-	TX          storage.MapTreeTX
-	ReadOnlyTX  storage.ReadOnlyMapTreeTX
-	SnapshotErr error
-}
-
-// Snapshot implements MapStorage.Snapshot
-func (f *FakeMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	return nil, ErrNotImplemented
-}
-
-// SnapshotForTree implements MapStorage.SnapshotForTree
-func (f *FakeMapStorage) SnapshotForTree(ctx context.Context, _ *trillian.Tree) (storage.ReadOnlyMapTreeTX, error) {
-	return f.ReadOnlyTX, f.SnapshotErr
-}
-
-// Layout is not implemented.
-func (f *FakeMapStorage) Layout(*trillian.Tree) (*tree.Layout, error) {
-	return nil, errors.New("not implemented")
-}
-
-// ReadWriteTransaction implements MapStorage.ReadWriteTransaction
-func (f *FakeMapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, fn storage.MapTXFunc) error {
-	return RunOnMapTX(f.TX)(ctx, tree.TreeId, fn)
-}
-
-// CheckDatabaseAccessible implements MapStorage.CheckDatabaseAccessible
-func (f *FakeMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return nil
 }
 

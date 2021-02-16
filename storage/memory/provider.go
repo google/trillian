@@ -42,10 +42,6 @@ func (s *memProvider) LogStorage() storage.LogStorage {
 	return NewLogStorage(s.ts, s.mf)
 }
 
-func (s *memProvider) MapStorage() storage.MapStorage {
-	return nil
-}
-
 func (s *memProvider) AdminStorage() storage.AdminStorage {
 	return NewAdminStorage(s.ts)
 }

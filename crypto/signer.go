@@ -96,22 +96,3 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 		LogRootSignature: signature,
 	}, nil
 }
-
-// SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a signature.
-func (s *Signer) SignMapRoot(r *types.MapRootV1) (*trillian.SignedMapRoot, error) {
-	rootBytes, err := r.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	signature, err := s.Sign(rootBytes)
-	if err != nil {
-		glog.Warningf("%v: signer failed to sign map root: %v", s.KeyHint, err)
-		return nil, err
-	}
-
-	return &trillian.SignedMapRoot{
-		MapRoot:   rootBytes,
-		Signature: signature,
-	}, nil
-}

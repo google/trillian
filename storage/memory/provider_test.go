@@ -42,18 +42,6 @@ func TestMemoryStorageProviderLogStorage(t *testing.T) {
 	}
 }
 
-func TestMemoryStorageProviderMapStorage(t *testing.T) {
-	sp, err := storage.NewProvider("memory", nil)
-	if err != nil {
-		t.Fatalf("Got an unexpected error: %v", err)
-	}
-
-	as := sp.MapStorage()
-	if as == nil {
-		t.Skip("Memory map storage is not implemented yet.")
-	}
-}
-
 func TestMemoryStorageProviderAdminStorage(t *testing.T) {
 	sp, err := storage.NewProvider("memory", nil)
 	if err != nil {
