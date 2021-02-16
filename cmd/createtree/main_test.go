@@ -67,7 +67,7 @@ func TestCreateTree(t *testing.T) {
 	nonDefaultTree := proto.Clone(defaultTree).(*trillian.Tree)
 	nonDefaultTree.TreeType = trillian.TreeType_LOG
 	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
-	nonDefaultTree.DisplayName = "Llamas Map"
+	nonDefaultTree.DisplayName = "Llamas Log"
 	nonDefaultTree.Description = "For all your digital llama needs!"
 
 	runTest(t, []*testCase{
