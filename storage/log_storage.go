@@ -170,9 +170,6 @@ type LogStorage interface {
 	AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
 }
 
-// CountByLogID is a map of total number of items keyed by log ID.
-type CountByLogID map[int64]int64
-
 // LogMetadata provides access to information about the logs in storage
 type LogMetadata interface {
 	// GetActiveLogIDs returns a list of the IDs of all the logs that are

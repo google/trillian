@@ -46,8 +46,6 @@ const (
 	seqDataTbl             = "SequencedLeafData"
 	unseqTable             = "Unsequenced"
 
-	unsequencedCountSQL = "SELECT Unsequenced.TreeID, COUNT(1) FROM Unsequenced GROUP BY TreeID"
-
 	// t.TreeType: 1 = Log, 3 = PreorderedLog.
 	// t.TreeState: 1 = Active, 5 = Draining.
 	getActiveLogIDsSQL = `SELECT t.TreeID FROM TreeRoots t
@@ -1123,23 +1121,6 @@ func (tx *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
 	}
 	return ids, nil
-}
-
-func (tx *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.CountByLogID, error) {
-	stmt := spanner.NewStatement(unsequencedCountSQL)
-	ret := make(storage.CountByLogID)
-	rows := tx.stx.Query(ctx, stmt)
-	if err := rows.Do(func(r *spanner.Row) error {
-		var id, c int64
-		if err := r.Columns(&id, &c); err != nil {
-			return err
-		}
-		ret[id] = c
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("problem executing unsequencedCountSQL: %v", err)
-	}
-	return ret, nil
 }
 
 // LogLeaf sorting boilerplate below.
