@@ -450,8 +450,8 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second) // Retry until timeout
 	defer cancel()
 	leaves2 := dequeueAndSequence(cctx, t, s, tree, fakeDequeueCutoffTime, leavesToInsert, 0)
-	if len(leaves2) != leavesToInsert {
-		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+	if got, want := len(leaves2), leavesToInsert; got != want {
+		t.Fatalf("Got %d leaves want %d", got, want)
 	}
 
 	// If we dequeue again then we should now get nothing
@@ -461,8 +461,8 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
 			}
-			if len(leaves) != 0 {
-				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves), leavesToInsert)
+			if got, want := len(leaves), 0; got != want {
+				t.Fatalf("Got %d leaves want %d", got, want)
 			}
 			return nil
 		},
@@ -480,15 +480,16 @@ func dequeueAndSequence(ctx context.Context, t *testing.T, ls storage.LogStorage
 	var ret []*trillian.LogLeaf
 	err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		ret = make([]*trillian.LogLeaf, 0, limit)
-		i := make(map[int64]int)
+		i := 0
 		start := time.Now()
-		for len(ret) < limit {
-			i[time.Now().Unix()]++
-			got, err := tx.DequeueLeaves(ctx, limit, ts)
+		for rem := limit; rem > 0; {
+			i++
+			got, err := tx.DequeueLeaves(ctx, rem, ts)
 			if err != nil {
 				return err
 			}
 			ret = append(ret, got...)
+			rem -= len(got)
 		}
 		t.Logf("DequeueLeaves took %v tries and %v to dequeue %d leaves", i, time.Since(start), len(ret))
 		ensureAllLeavesDistinct(t, ret)
