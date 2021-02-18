@@ -42,7 +42,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
+var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees"}
 
 // Must be 32 bytes to match sha256 length if it was a real hash
 var (

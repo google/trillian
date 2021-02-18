@@ -626,7 +626,6 @@ func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 		spanner.Delete("LeafData", spanner.Key{info.TreeId}.AsPrefix()),
 		spanner.Delete("SequencedLeafData", spanner.Key{info.TreeId}.AsPrefix()),
 		spanner.Delete("Unsequenced", spanner.Key{info.TreeId}.AsPrefix()),
-		spanner.Delete("MapLeafData", spanner.Key{info.TreeId}.AsPrefix()),
 	})
 }
 

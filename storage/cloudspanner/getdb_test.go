@@ -135,7 +135,6 @@ func cleanTestDB(ctx context.Context, t *testing.T, db *spanner.Client) {
 			"LeafData",
 			"SequencedLeafData",
 			"Unsequenced",
-			"MapLeafData",
 		} {
 			mutations = append(mutations, spanner.Delete(table, spanner.AllKeys()))
 		}
