@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	bitbucket.org/creachadair/shell v0.0.6
-	cloud.google.com/go/spanner v1.15.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.5
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
@@ -41,7 +40,7 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
 	golang.org/x/tools v0.1.0
-	google.golang.org/api v0.41.0
+	google.golang.org/api v0.41.0 // indirect
 	google.golang.org/genproto v0.0.0-20210303154014-9728d6b83eeb
 	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
