@@ -450,8 +450,8 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second) // Retry until timeout
 	defer cancel()
 	leaves2 := dequeueAndSequence(cctx, t, s, tree, fakeDequeueCutoffTime, leavesToInsert, 0)
-	if len(leaves2) != leavesToInsert {
-		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+	if got, want := len(leaves2), leavesToInsert; got != want {
+		t.Fatalf("Got %d leaves want %d", got, want)
 	}
 
 	// If we dequeue again then we should now get nothing
@@ -461,8 +461,8 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
 			}
-			if want := 0; len(leaves) != want {
-				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves), want)
+			if got, want := len(leaves), 0; got != want {
+				t.Fatalf("Got %d leaves want %d", got, want)
 			}
 			return nil
 		},
