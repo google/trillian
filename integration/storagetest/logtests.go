@@ -461,8 +461,8 @@ func (*logTests) TestDequeueLeaves(ctx context.Context, t *testing.T, s storage.
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
 			}
-			if len(leaves) != 0 {
-				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves), leavesToInsert)
+			if want := 0; len(leaves) != want {
+				t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves), want)
 			}
 			return nil
 		},
@@ -480,15 +480,16 @@ func dequeueAndSequence(ctx context.Context, t *testing.T, ls storage.LogStorage
 	var ret []*trillian.LogLeaf
 	err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		ret = make([]*trillian.LogLeaf, 0, limit)
-		i := make(map[int64]int)
+		i := 0
 		start := time.Now()
-		for len(ret) < limit {
-			i[time.Now().Unix()]++
-			got, err := tx.DequeueLeaves(ctx, limit, ts)
+		for rem := limit; rem > 0; {
+			i++
+			got, err := tx.DequeueLeaves(ctx, rem, ts)
 			if err != nil {
 				return err
 			}
 			ret = append(ret, got...)
+			rem -= len(got)
 		}
 		t.Logf("DequeueLeaves took %v tries and %v to dequeue %d leaves", i, time.Since(start), len(ret))
 		ensureAllLeavesDistinct(t, ret)
