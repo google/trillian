@@ -113,7 +113,6 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE
 );
 
-
 CREATE INDEX SequencedLeafMerkleIdx
   ON SequencedLeafData(TreeId, MerkleLeafHash);
 
@@ -136,34 +135,3 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   QueueID VARBINARY(32) DEFAULT NULL UNIQUE,
   PRIMARY KEY (TreeId, Bucket, QueueTimestampNanos, LeafIdentityHash)
 );
-
-
--- ---------------------------------------------
--- Map specific stuff here
--- ---------------------------------------------
-
-CREATE TABLE IF NOT EXISTS MapLeaf(
-  TreeId                BIGINT NOT NULL,
-  KeyHash               VARBINARY(255) NOT NULL,
-  -- MapRevision is stored negated to invert ordering in the primary key index
-  -- st. more recent revisions come first.
-  MapRevision           BIGINT NOT NULL,
-  LeafValue             LONGBLOB NOT NULL,
-  PRIMARY KEY(TreeId, KeyHash, MapRevision),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
-);
-
-
-CREATE TABLE IF NOT EXISTS MapHead(
-  TreeId               BIGINT NOT NULL,
-  MapHeadTimestamp     BIGINT,
-  RootHash             VARBINARY(255) NOT NULL,
-  MapRevision          BIGINT,
-  RootSignature        VARBINARY(1024) NOT NULL,
-  MapperData           MEDIUMBLOB,
-  PRIMARY KEY(TreeId, MapHeadTimestamp),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
-);
-
-CREATE UNIQUE INDEX MapHeadRevisionIdx
-  ON MapHead(TreeId, MapRevision);
