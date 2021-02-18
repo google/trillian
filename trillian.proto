@@ -260,37 +260,6 @@ message SignedLogRoot {
   bytes log_root_signature = 9;
 }
 
-// SignedMapRoot represents a commitment by a Map to a particular tree.
-message SignedMapRoot {
-  reserved 1;  // Deprecated: Was timestamp_nanos. Use map_root.
-  reserved 2;  // Deprecated: Was root_hash. Use map_root.
-  reserved 3;  // Deprecated: Was MapperMetadata. Use map_root.
-  reserved 5;  // Deprecated: Was map_id. Use signature.
-  reserved 6;  // Deprecated: Was map_revision. Use map_root.
-  reserved 7;  // Deprecated: Was metadata Any. Use map_root.
-  reserved 8;  // Deprecated: Was metadata bytes. Use map_root.
-
-  // map_root holds the TLS-serialization of the following structure (described
-  // in RFC5246 notation): Clients should validate signature with
-  // VerifySignedMapRoot before deserializing map_root.
-  // enum { v1(1), (65535)} Version;
-  // struct {
-  //   opaque root_hash<0..128>;
-  //   uint64 timestamp_nanos;
-  //   uint64 revision;
-  //   opaque metadata<0..65535>;
-  // } MapRootV1;
-  // struct {
-  //   Version version;
-  //   select(version) {
-  //     case v1: MapRootV1;
-  //   }
-  // } MapRoot;
-  bytes map_root = 9;
-  // Signature is the raw signature over MapRoot.
-  bytes signature = 4;
-}
-
 // Proof holds a consistency or inclusion proof for a Merkle tree, as returned
 // by the API.
 message Proof {

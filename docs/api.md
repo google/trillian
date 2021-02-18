@@ -50,7 +50,6 @@
 - [trillian.proto](#trillian.proto)
     - [Proof](#trillian.Proof)
     - [SignedLogRoot](#trillian.SignedLogRoot)
-    - [SignedMapRoot](#trillian.SignedMapRoot)
     - [Tree](#trillian.Tree)
   
     - [HashStrategy](#trillian.HashStrategy)
@@ -831,22 +830,6 @@ A serialized v1 log root will therefore be laid out as:
 
 (with all integers encoded big-endian). |
 | log_root_signature | [bytes](#bytes) |  | log_root_signature is the raw signature over log_root. |
-
-
-
-
-
-
-<a name="trillian.SignedMapRoot"></a>
-
-### SignedMapRoot
-SignedMapRoot represents a commitment by a Map to a particular tree.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| map_root | [bytes](#bytes) |  | map_root holds the TLS-serialization of the following structure (described in RFC5246 notation): Clients should validate signature with VerifySignedMapRoot before deserializing map_root. enum { v1(1), (65535)} Version; struct { opaque root_hash&lt;0..128&gt;; uint64 timestamp_nanos; uint64 revision; opaque metadata&lt;0..65535&gt;; } MapRootV1; struct { Version version; select(version) { case v1: MapRootV1; } } MapRoot; |
-| signature | [bytes](#bytes) |  | Signature is the raw signature over MapRoot. |
 
 
 

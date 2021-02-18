@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package types defines serialization and parsing functions for SignedLogRoot
-// and SignedMapRoot fields.
+// fields.
 package types
 
 import (
