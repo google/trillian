@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	bitbucket.org/creachadair/shell v0.0.6
-	cloud.google.com/go/spanner v1.7.0
+	cloud.google.com/go/spanner v1.14.1
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
@@ -25,7 +25,6 @@ require (
 	github.com/google/btree v1.0.0
 	github.com/google/certificate-transparency-go v1.0.21
 	github.com/google/go-cmp v0.5.4
-	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/huandu/xstrings v1.2.0 // indirect
@@ -50,16 +49,16 @@ require (
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5 // indirect
 	go.etcd.io/bbolt v1.3.4 // indirect
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200819165624-17cef6e3e9d5
-	go.opencensus.io v0.22.4
+	go.opencensus.io v0.22.5
 	go.uber.org/multierr v1.4.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20201214210602-f9fddec55a1e
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
-	golang.org/x/tools v0.0.0-20200706234117-b22de6825cf7
-	google.golang.org/api v0.29.0
-	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df
-	google.golang.org/grpc v1.29.1
+	golang.org/x/tools v0.1.0
+	google.golang.org/api v0.39.0
+	google.golang.org/genproto v0.0.0-20210207032614-bba0dbe2a9ea
+	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 )
