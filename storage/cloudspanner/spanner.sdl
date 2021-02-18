@@ -65,12 +65,3 @@ CREATE TABLE Unsequenced(
   MerkleLeafHash         BYTES(256) NOT NULL,
   LeafIdentityHash       BYTES(256) NOT NULL,
 ) PRIMARY KEY (TreeID, Bucket, QueueTimestampNanos, MerkleLeafHash);
-
-CREATE TABLE MapLeafData(
-  TreeID                INT64 NOT NULL,
-  LeafIndex             BYTES(256) NOT NULL,
-  MapRevision           INT64 NOT NULL,
-  LeafHash              BYTES(256),
-  LeafValue             BYTES(MAX) NOT NULL,
-  ExtraData             BYTES(MAX),
-) PRIMARY KEY(TreeID, LeafIndex, MapRevision DESC);

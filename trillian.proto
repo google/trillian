@@ -34,13 +34,6 @@ enum LogRootFormat {
   LOG_ROOT_FORMAT_V1 = 1;
 }
 
-// MapRootFormat specifies the fields that are covered by the
-// SignedMapRoot signature, as well as their ordering and formats.
-enum MapRootFormat {
-  MAP_ROOT_FORMAT_UNKNOWN = 0;
-  MAP_ROOT_FORMAT_V1 = 1;
-}
-
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
 
