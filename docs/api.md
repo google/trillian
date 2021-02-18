@@ -57,7 +57,6 @@
   
     - [HashStrategy](#trillian.HashStrategy)
     - [LogRootFormat](#trillian.LogRootFormat)
-    - [MapRootFormat](#trillian.MapRootFormat)
     - [TreeState](#trillian.TreeState)
     - [TreeType](#trillian.TreeType)
   
@@ -956,19 +955,6 @@ SignedLogRoot signature, as well as their ordering and formats.
 | ---- | ------ | ----------- |
 | LOG_ROOT_FORMAT_UNKNOWN | 0 |  |
 | LOG_ROOT_FORMAT_V1 | 1 |  |
-
-
-
-<a name="trillian.MapRootFormat"></a>
-
-### MapRootFormat
-MapRootFormat specifies the fields that are covered by the
-SignedMapRoot signature, as well as their ordering and formats.
-
-| Name | Number | Description |
-| ---- | ------ | ----------- |
-| MAP_ROOT_FORMAT_UNKNOWN | 0 |  |
-| MAP_ROOT_FORMAT_V1 | 1 |  |
 
 
 
