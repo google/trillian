@@ -6,36 +6,37 @@ package cache
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	storagepb "github.com/google/trillian/storage/storagepb"
 	tree "github.com/google/trillian/storage/tree"
-	reflect "reflect"
 )
 
-// MockNodeStorage is a mock of NodeStorage interface
+// MockNodeStorage is a mock of NodeStorage interface.
 type MockNodeStorage struct {
 	ctrl     *gomock.Controller
 	recorder *MockNodeStorageMockRecorder
 }
 
-// MockNodeStorageMockRecorder is the mock recorder for MockNodeStorage
+// MockNodeStorageMockRecorder is the mock recorder for MockNodeStorage.
 type MockNodeStorageMockRecorder struct {
 	mock *MockNodeStorage
 }
 
-// NewMockNodeStorage creates a new mock instance
+// NewMockNodeStorage creates a new mock instance.
 func NewMockNodeStorage(ctrl *gomock.Controller) *MockNodeStorage {
 	mock := &MockNodeStorage{ctrl: ctrl}
 	mock.recorder = &MockNodeStorageMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockNodeStorage) EXPECT() *MockNodeStorageMockRecorder {
 	return m.recorder
 }
 
-// GetSubtree mocks base method
+// GetSubtree mocks base method.
 func (m *MockNodeStorage) GetSubtree(arg0 tree.NodeID) (*storagepb.SubtreeProto, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSubtree", arg0)
@@ -44,13 +45,13 @@ func (m *MockNodeStorage) GetSubtree(arg0 tree.NodeID) (*storagepb.SubtreeProto,
 	return ret0, ret1
 }
 
-// GetSubtree indicates an expected call of GetSubtree
+// GetSubtree indicates an expected call of GetSubtree.
 func (mr *MockNodeStorageMockRecorder) GetSubtree(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubtree", reflect.TypeOf((*MockNodeStorage)(nil).GetSubtree), arg0)
 }
 
-// SetSubtrees mocks base method
+// SetSubtrees mocks base method.
 func (m *MockNodeStorage) SetSubtrees(arg0 context.Context, arg1 []*storagepb.SubtreeProto) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetSubtrees", arg0, arg1)
@@ -58,7 +59,7 @@ func (m *MockNodeStorage) SetSubtrees(arg0 context.Context, arg1 []*storagepb.Su
 	return ret0
 }
 
-// SetSubtrees indicates an expected call of SetSubtrees
+// SetSubtrees indicates an expected call of SetSubtrees.
 func (mr *MockNodeStorageMockRecorder) SetSubtrees(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSubtrees", reflect.TypeOf((*MockNodeStorage)(nil).SetSubtrees), arg0, arg1)

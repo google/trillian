@@ -6,37 +6,38 @@ package storage
 
 import (
 	context "context"
+	reflect "reflect"
+	time "time"
+
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
 	tree "github.com/google/trillian/storage/tree"
-	reflect "reflect"
-	time "time"
 )
 
-// MockAdminStorage is a mock of AdminStorage interface
+// MockAdminStorage is a mock of AdminStorage interface.
 type MockAdminStorage struct {
 	ctrl     *gomock.Controller
 	recorder *MockAdminStorageMockRecorder
 }
 
-// MockAdminStorageMockRecorder is the mock recorder for MockAdminStorage
+// MockAdminStorageMockRecorder is the mock recorder for MockAdminStorage.
 type MockAdminStorageMockRecorder struct {
 	mock *MockAdminStorage
 }
 
-// NewMockAdminStorage creates a new mock instance
+// NewMockAdminStorage creates a new mock instance.
 func NewMockAdminStorage(ctrl *gomock.Controller) *MockAdminStorage {
 	mock := &MockAdminStorage{ctrl: ctrl}
 	mock.recorder = &MockAdminStorageMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAdminStorage) EXPECT() *MockAdminStorageMockRecorder {
 	return m.recorder
 }
 
-// CheckDatabaseAccessible mocks base method
+// CheckDatabaseAccessible mocks base method.
 func (m *MockAdminStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckDatabaseAccessible", arg0)
@@ -44,13 +45,13 @@ func (m *MockAdminStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 	return ret0
 }
 
-// CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible
+// CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible.
 func (mr *MockAdminStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDatabaseAccessible", reflect.TypeOf((*MockAdminStorage)(nil).CheckDatabaseAccessible), arg0)
 }
 
-// ReadWriteTransaction mocks base method
+// ReadWriteTransaction mocks base method.
 func (m *MockAdminStorage) ReadWriteTransaction(arg0 context.Context, arg1 AdminTXFunc) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1)
@@ -58,13 +59,13 @@ func (m *MockAdminStorage) ReadWriteTransaction(arg0 context.Context, arg1 Admin
 	return ret0
 }
 
-// ReadWriteTransaction indicates an expected call of ReadWriteTransaction
+// ReadWriteTransaction indicates an expected call of ReadWriteTransaction.
 func (mr *MockAdminStorageMockRecorder) ReadWriteTransaction(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockAdminStorage)(nil).ReadWriteTransaction), arg0, arg1)
 }
 
-// Snapshot mocks base method
+// Snapshot mocks base method.
 func (m *MockAdminStorage) Snapshot(arg0 context.Context) (ReadOnlyAdminTX, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Snapshot", arg0)
@@ -73,36 +74,36 @@ func (m *MockAdminStorage) Snapshot(arg0 context.Context) (ReadOnlyAdminTX, erro
 	return ret0, ret1
 }
 
-// Snapshot indicates an expected call of Snapshot
+// Snapshot indicates an expected call of Snapshot.
 func (mr *MockAdminStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockAdminStorage)(nil).Snapshot), arg0)
 }
 
-// MockAdminTX is a mock of AdminTX interface
+// MockAdminTX is a mock of AdminTX interface.
 type MockAdminTX struct {
 	ctrl     *gomock.Controller
 	recorder *MockAdminTXMockRecorder
 }
 
-// MockAdminTXMockRecorder is the mock recorder for MockAdminTX
+// MockAdminTXMockRecorder is the mock recorder for MockAdminTX.
 type MockAdminTXMockRecorder struct {
 	mock *MockAdminTX
 }
 
-// NewMockAdminTX creates a new mock instance
+// NewMockAdminTX creates a new mock instance.
 func NewMockAdminTX(ctrl *gomock.Controller) *MockAdminTX {
 	mock := &MockAdminTX{ctrl: ctrl}
 	mock.recorder = &MockAdminTXMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAdminTX) EXPECT() *MockAdminTXMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method
+// Close mocks base method.
 func (m *MockAdminTX) Close() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
@@ -110,13 +111,13 @@ func (m *MockAdminTX) Close() error {
 	return ret0
 }
 
-// Close indicates an expected call of Close
+// Close indicates an expected call of Close.
 func (mr *MockAdminTXMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockAdminTX)(nil).Close))
 }
 
-// Commit mocks base method
+// Commit mocks base method.
 func (m *MockAdminTX) Commit() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Commit")
@@ -124,13 +125,13 @@ func (m *MockAdminTX) Commit() error {
 	return ret0
 }
 
-// Commit indicates an expected call of Commit
+// Commit indicates an expected call of Commit.
 func (mr *MockAdminTXMockRecorder) Commit() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockAdminTX)(nil).Commit))
 }
 
-// CreateTree mocks base method
+// CreateTree mocks base method.
 func (m *MockAdminTX) CreateTree(arg0 context.Context, arg1 *trillian.Tree) (*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTree", arg0, arg1)
@@ -139,13 +140,13 @@ func (m *MockAdminTX) CreateTree(arg0 context.Context, arg1 *trillian.Tree) (*tr
 	return ret0, ret1
 }
 
-// CreateTree indicates an expected call of CreateTree
+// CreateTree indicates an expected call of CreateTree.
 func (mr *MockAdminTXMockRecorder) CreateTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTree", reflect.TypeOf((*MockAdminTX)(nil).CreateTree), arg0, arg1)
 }
 
-// GetTree mocks base method
+// GetTree mocks base method.
 func (m *MockAdminTX) GetTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTree", arg0, arg1)
@@ -154,13 +155,13 @@ func (m *MockAdminTX) GetTree(arg0 context.Context, arg1 int64) (*trillian.Tree,
 	return ret0, ret1
 }
 
-// GetTree indicates an expected call of GetTree
+// GetTree indicates an expected call of GetTree.
 func (mr *MockAdminTXMockRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTree", reflect.TypeOf((*MockAdminTX)(nil).GetTree), arg0, arg1)
 }
 
-// HardDeleteTree mocks base method
+// HardDeleteTree mocks base method.
 func (m *MockAdminTX) HardDeleteTree(arg0 context.Context, arg1 int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HardDeleteTree", arg0, arg1)
@@ -168,13 +169,13 @@ func (m *MockAdminTX) HardDeleteTree(arg0 context.Context, arg1 int64) error {
 	return ret0
 }
 
-// HardDeleteTree indicates an expected call of HardDeleteTree
+// HardDeleteTree indicates an expected call of HardDeleteTree.
 func (mr *MockAdminTXMockRecorder) HardDeleteTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HardDeleteTree", reflect.TypeOf((*MockAdminTX)(nil).HardDeleteTree), arg0, arg1)
 }
 
-// IsClosed mocks base method
+// IsClosed mocks base method.
 func (m *MockAdminTX) IsClosed() bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsClosed")
@@ -182,13 +183,13 @@ func (m *MockAdminTX) IsClosed() bool {
 	return ret0
 }
 
-// IsClosed indicates an expected call of IsClosed
+// IsClosed indicates an expected call of IsClosed.
 func (mr *MockAdminTXMockRecorder) IsClosed() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsClosed", reflect.TypeOf((*MockAdminTX)(nil).IsClosed))
 }
 
-// ListTreeIDs mocks base method
+// ListTreeIDs mocks base method.
 func (m *MockAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListTreeIDs", arg0, arg1)
@@ -197,13 +198,13 @@ func (m *MockAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]int64, err
 	return ret0, ret1
 }
 
-// ListTreeIDs indicates an expected call of ListTreeIDs
+// ListTreeIDs indicates an expected call of ListTreeIDs.
 func (mr *MockAdminTXMockRecorder) ListTreeIDs(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockAdminTX)(nil).ListTreeIDs), arg0, arg1)
 }
 
-// ListTrees mocks base method
+// ListTrees mocks base method.
 func (m *MockAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListTrees", arg0, arg1)
@@ -212,13 +213,13 @@ func (m *MockAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*trillian.Tr
 	return ret0, ret1
 }
 
-// ListTrees indicates an expected call of ListTrees
+// ListTrees indicates an expected call of ListTrees.
 func (mr *MockAdminTXMockRecorder) ListTrees(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockAdminTX)(nil).ListTrees), arg0, arg1)
 }
 
-// Rollback mocks base method
+// Rollback mocks base method.
 func (m *MockAdminTX) Rollback() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Rollback")
@@ -226,13 +227,13 @@ func (m *MockAdminTX) Rollback() error {
 	return ret0
 }
 
-// Rollback indicates an expected call of Rollback
+// Rollback indicates an expected call of Rollback.
 func (mr *MockAdminTXMockRecorder) Rollback() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockAdminTX)(nil).Rollback))
 }
 
-// SoftDeleteTree mocks base method
+// SoftDeleteTree mocks base method.
 func (m *MockAdminTX) SoftDeleteTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SoftDeleteTree", arg0, arg1)
@@ -241,13 +242,13 @@ func (m *MockAdminTX) SoftDeleteTree(arg0 context.Context, arg1 int64) (*trillia
 	return ret0, ret1
 }
 
-// SoftDeleteTree indicates an expected call of SoftDeleteTree
+// SoftDeleteTree indicates an expected call of SoftDeleteTree.
 func (mr *MockAdminTXMockRecorder) SoftDeleteTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SoftDeleteTree", reflect.TypeOf((*MockAdminTX)(nil).SoftDeleteTree), arg0, arg1)
 }
 
-// UndeleteTree mocks base method
+// UndeleteTree mocks base method.
 func (m *MockAdminTX) UndeleteTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UndeleteTree", arg0, arg1)
@@ -256,13 +257,13 @@ func (m *MockAdminTX) UndeleteTree(arg0 context.Context, arg1 int64) (*trillian.
 	return ret0, ret1
 }
 
-// UndeleteTree indicates an expected call of UndeleteTree
+// UndeleteTree indicates an expected call of UndeleteTree.
 func (mr *MockAdminTXMockRecorder) UndeleteTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UndeleteTree", reflect.TypeOf((*MockAdminTX)(nil).UndeleteTree), arg0, arg1)
 }
 
-// UpdateTree mocks base method
+// UpdateTree mocks base method.
 func (m *MockAdminTX) UpdateTree(arg0 context.Context, arg1 int64, arg2 func(*trillian.Tree)) (*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateTree", arg0, arg1, arg2)
@@ -271,36 +272,36 @@ func (m *MockAdminTX) UpdateTree(arg0 context.Context, arg1 int64, arg2 func(*tr
 	return ret0, ret1
 }
 
-// UpdateTree indicates an expected call of UpdateTree
+// UpdateTree indicates an expected call of UpdateTree.
 func (mr *MockAdminTXMockRecorder) UpdateTree(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTree", reflect.TypeOf((*MockAdminTX)(nil).UpdateTree), arg0, arg1, arg2)
 }
 
-// MockLogStorage is a mock of LogStorage interface
+// MockLogStorage is a mock of LogStorage interface.
 type MockLogStorage struct {
 	ctrl     *gomock.Controller
 	recorder *MockLogStorageMockRecorder
 }
 
-// MockLogStorageMockRecorder is the mock recorder for MockLogStorage
+// MockLogStorageMockRecorder is the mock recorder for MockLogStorage.
 type MockLogStorageMockRecorder struct {
 	mock *MockLogStorage
 }
 
-// NewMockLogStorage creates a new mock instance
+// NewMockLogStorage creates a new mock instance.
 func NewMockLogStorage(ctrl *gomock.Controller) *MockLogStorage {
 	mock := &MockLogStorage{ctrl: ctrl}
 	mock.recorder = &MockLogStorageMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 	return m.recorder
 }
 
-// AddSequencedLeaves mocks base method
+// AddSequencedLeaves mocks base method.
 func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2, arg3)
@@ -309,13 +310,13 @@ func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 *trillian
 	return ret0, ret1
 }
 
-// AddSequencedLeaves indicates an expected call of AddSequencedLeaves
+// AddSequencedLeaves indicates an expected call of AddSequencedLeaves.
 func (mr *MockLogStorageMockRecorder) AddSequencedLeaves(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockLogStorage)(nil).AddSequencedLeaves), arg0, arg1, arg2, arg3)
 }
 
-// CheckDatabaseAccessible mocks base method
+// CheckDatabaseAccessible mocks base method.
 func (m *MockLogStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckDatabaseAccessible", arg0)
@@ -323,13 +324,13 @@ func (m *MockLogStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 	return ret0
 }
 
-// CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible
+// CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible.
 func (mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDatabaseAccessible", reflect.TypeOf((*MockLogStorage)(nil).CheckDatabaseAccessible), arg0)
 }
 
-// QueueLeaves mocks base method
+// QueueLeaves mocks base method.
 func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2, arg3)
@@ -338,13 +339,13 @@ func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 *trillian.Tree, 
 	return ret0, ret1
 }
 
-// QueueLeaves indicates an expected call of QueueLeaves
+// QueueLeaves indicates an expected call of QueueLeaves.
 func (mr *MockLogStorageMockRecorder) QueueLeaves(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogStorage)(nil).QueueLeaves), arg0, arg1, arg2, arg3)
 }
 
-// ReadWriteTransaction mocks base method
+// ReadWriteTransaction mocks base method.
 func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 *trillian.Tree, arg2 LogTXFunc) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
@@ -352,13 +353,13 @@ func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 *trilli
 	return ret0
 }
 
-// ReadWriteTransaction indicates an expected call of ReadWriteTransaction
+// ReadWriteTransaction indicates an expected call of ReadWriteTransaction.
 func (mr *MockLogStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockLogStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2)
 }
 
-// Snapshot mocks base method
+// Snapshot mocks base method.
 func (m *MockLogStorage) Snapshot(arg0 context.Context) (ReadOnlyLogTX, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Snapshot", arg0)
@@ -367,13 +368,13 @@ func (m *MockLogStorage) Snapshot(arg0 context.Context) (ReadOnlyLogTX, error) {
 	return ret0, ret1
 }
 
-// Snapshot indicates an expected call of Snapshot
+// Snapshot indicates an expected call of Snapshot.
 func (mr *MockLogStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockLogStorage)(nil).Snapshot), arg0)
 }
 
-// SnapshotForTree mocks base method
+// SnapshotForTree mocks base method.
 func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 *trillian.Tree) (ReadOnlyLogTreeTX, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1)
@@ -382,36 +383,36 @@ func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 *trillian.Tr
 	return ret0, ret1
 }
 
-// SnapshotForTree indicates an expected call of SnapshotForTree
+// SnapshotForTree indicates an expected call of SnapshotForTree.
 func (mr *MockLogStorageMockRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotForTree", reflect.TypeOf((*MockLogStorage)(nil).SnapshotForTree), arg0, arg1)
 }
 
-// MockLogTreeTX is a mock of LogTreeTX interface
+// MockLogTreeTX is a mock of LogTreeTX interface.
 type MockLogTreeTX struct {
 	ctrl     *gomock.Controller
 	recorder *MockLogTreeTXMockRecorder
 }
 
-// MockLogTreeTXMockRecorder is the mock recorder for MockLogTreeTX
+// MockLogTreeTXMockRecorder is the mock recorder for MockLogTreeTX.
 type MockLogTreeTXMockRecorder struct {
 	mock *MockLogTreeTX
 }
 
-// NewMockLogTreeTX creates a new mock instance
+// NewMockLogTreeTX creates a new mock instance.
 func NewMockLogTreeTX(ctrl *gomock.Controller) *MockLogTreeTX {
 	mock := &MockLogTreeTX{ctrl: ctrl}
 	mock.recorder = &MockLogTreeTXMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockLogTreeTX) EXPECT() *MockLogTreeTXMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method
+// Close mocks base method.
 func (m *MockLogTreeTX) Close() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
@@ -419,13 +420,13 @@ func (m *MockLogTreeTX) Close() error {
 	return ret0
 }
 
-// Close indicates an expected call of Close
+// Close indicates an expected call of Close.
 func (mr *MockLogTreeTXMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockLogTreeTX)(nil).Close))
 }
 
-// Commit mocks base method
+// Commit mocks base method.
 func (m *MockLogTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Commit", arg0)
@@ -433,13 +434,13 @@ func (m *MockLogTreeTX) Commit(arg0 context.Context) error {
 	return ret0
 }
 
-// Commit indicates an expected call of Commit
+// Commit indicates an expected call of Commit.
 func (mr *MockLogTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockLogTreeTX)(nil).Commit), arg0)
 }
 
-// DequeueLeaves mocks base method
+// DequeueLeaves mocks base method.
 func (m *MockLogTreeTX) DequeueLeaves(arg0 context.Context, arg1 int, arg2 time.Time) ([]*trillian.LogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DequeueLeaves", arg0, arg1, arg2)
@@ -448,13 +449,13 @@ func (m *MockLogTreeTX) DequeueLeaves(arg0 context.Context, arg1 int, arg2 time.
 	return ret0, ret1
 }
 
-// DequeueLeaves indicates an expected call of DequeueLeaves
+// DequeueLeaves indicates an expected call of DequeueLeaves.
 func (mr *MockLogTreeTXMockRecorder) DequeueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DequeueLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).DequeueLeaves), arg0, arg1, arg2)
 }
 
-// GetLeavesByHash mocks base method
+// GetLeavesByHash mocks base method.
 func (m *MockLogTreeTX) GetLeavesByHash(arg0 context.Context, arg1 [][]byte, arg2 bool) ([]*trillian.LogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLeavesByHash", arg0, arg1, arg2)
@@ -463,13 +464,13 @@ func (m *MockLogTreeTX) GetLeavesByHash(arg0 context.Context, arg1 [][]byte, arg
 	return ret0, ret1
 }
 
-// GetLeavesByHash indicates an expected call of GetLeavesByHash
+// GetLeavesByHash indicates an expected call of GetLeavesByHash.
 func (mr *MockLogTreeTXMockRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByHash", reflect.TypeOf((*MockLogTreeTX)(nil).GetLeavesByHash), arg0, arg1, arg2)
 }
 
-// GetLeavesByIndex mocks base method
+// GetLeavesByIndex mocks base method.
 func (m *MockLogTreeTX) GetLeavesByIndex(arg0 context.Context, arg1 []int64) ([]*trillian.LogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLeavesByIndex", arg0, arg1)
@@ -478,13 +479,13 @@ func (m *MockLogTreeTX) GetLeavesByIndex(arg0 context.Context, arg1 []int64) ([]
 	return ret0, ret1
 }
 
-// GetLeavesByIndex indicates an expected call of GetLeavesByIndex
+// GetLeavesByIndex indicates an expected call of GetLeavesByIndex.
 func (mr *MockLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByIndex", reflect.TypeOf((*MockLogTreeTX)(nil).GetLeavesByIndex), arg0, arg1)
 }
 
-// GetLeavesByRange mocks base method
+// GetLeavesByRange mocks base method.
 func (m *MockLogTreeTX) GetLeavesByRange(arg0 context.Context, arg1, arg2 int64) ([]*trillian.LogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLeavesByRange", arg0, arg1, arg2)
@@ -493,13 +494,13 @@ func (m *MockLogTreeTX) GetLeavesByRange(arg0 context.Context, arg1, arg2 int64)
 	return ret0, ret1
 }
 
-// GetLeavesByRange indicates an expected call of GetLeavesByRange
+// GetLeavesByRange indicates an expected call of GetLeavesByRange.
 func (mr *MockLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByRange", reflect.TypeOf((*MockLogTreeTX)(nil).GetLeavesByRange), arg0, arg1, arg2)
 }
 
-// GetMerkleNodes mocks base method
+// GetMerkleNodes mocks base method.
 func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
@@ -508,13 +509,13 @@ func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []
 	return ret0, ret1
 }
 
-// GetMerkleNodes indicates an expected call of GetMerkleNodes
+// GetMerkleNodes indicates an expected call of GetMerkleNodes.
 func (mr *MockLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMerkleNodes", reflect.TypeOf((*MockLogTreeTX)(nil).GetMerkleNodes), arg0, arg1, arg2)
 }
 
-// GetSequencedLeafCount mocks base method
+// GetSequencedLeafCount mocks base method.
 func (m *MockLogTreeTX) GetSequencedLeafCount(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSequencedLeafCount", arg0)
@@ -523,13 +524,13 @@ func (m *MockLogTreeTX) GetSequencedLeafCount(arg0 context.Context) (int64, erro
 	return ret0, ret1
 }
 
-// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount
+// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount.
 func (mr *MockLogTreeTXMockRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSequencedLeafCount", reflect.TypeOf((*MockLogTreeTX)(nil).GetSequencedLeafCount), arg0)
 }
 
-// IsOpen mocks base method
+// IsOpen mocks base method.
 func (m *MockLogTreeTX) IsOpen() bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsOpen")
@@ -537,13 +538,13 @@ func (m *MockLogTreeTX) IsOpen() bool {
 	return ret0
 }
 
-// IsOpen indicates an expected call of IsOpen
+// IsOpen indicates an expected call of IsOpen.
 func (mr *MockLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOpen", reflect.TypeOf((*MockLogTreeTX)(nil).IsOpen))
 }
 
-// LatestSignedLogRoot mocks base method
+// LatestSignedLogRoot mocks base method.
 func (m *MockLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.SignedLogRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedLogRoot", arg0)
@@ -552,13 +553,13 @@ func (m *MockLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.Sig
 	return ret0, ret1
 }
 
-// LatestSignedLogRoot indicates an expected call of LatestSignedLogRoot
+// LatestSignedLogRoot indicates an expected call of LatestSignedLogRoot.
 func (mr *MockLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestSignedLogRoot", reflect.TypeOf((*MockLogTreeTX)(nil).LatestSignedLogRoot), arg0)
 }
 
-// ReadRevision mocks base method
+// ReadRevision mocks base method.
 func (m *MockLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadRevision", arg0)
@@ -567,13 +568,13 @@ func (m *MockLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
 	return ret0, ret1
 }
 
-// ReadRevision indicates an expected call of ReadRevision
+// ReadRevision indicates an expected call of ReadRevision.
 func (mr *MockLogTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockLogTreeTX)(nil).ReadRevision), arg0)
 }
 
-// Rollback mocks base method
+// Rollback mocks base method.
 func (m *MockLogTreeTX) Rollback() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Rollback")
@@ -581,13 +582,13 @@ func (m *MockLogTreeTX) Rollback() error {
 	return ret0
 }
 
-// Rollback indicates an expected call of Rollback
+// Rollback indicates an expected call of Rollback.
 func (mr *MockLogTreeTXMockRecorder) Rollback() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockLogTreeTX)(nil).Rollback))
 }
 
-// SetMerkleNodes mocks base method
+// SetMerkleNodes mocks base method.
 func (m *MockLogTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetMerkleNodes", arg0, arg1)
@@ -595,13 +596,13 @@ func (m *MockLogTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) e
 	return ret0
 }
 
-// SetMerkleNodes indicates an expected call of SetMerkleNodes
+// SetMerkleNodes indicates an expected call of SetMerkleNodes.
 func (mr *MockLogTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMerkleNodes", reflect.TypeOf((*MockLogTreeTX)(nil).SetMerkleNodes), arg0, arg1)
 }
 
-// StoreSignedLogRoot mocks base method
+// StoreSignedLogRoot mocks base method.
 func (m *MockLogTreeTX) StoreSignedLogRoot(arg0 context.Context, arg1 *trillian.SignedLogRoot) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSignedLogRoot", arg0, arg1)
@@ -609,13 +610,13 @@ func (m *MockLogTreeTX) StoreSignedLogRoot(arg0 context.Context, arg1 *trillian.
 	return ret0
 }
 
-// StoreSignedLogRoot indicates an expected call of StoreSignedLogRoot
+// StoreSignedLogRoot indicates an expected call of StoreSignedLogRoot.
 func (mr *MockLogTreeTXMockRecorder) StoreSignedLogRoot(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreSignedLogRoot", reflect.TypeOf((*MockLogTreeTX)(nil).StoreSignedLogRoot), arg0, arg1)
 }
 
-// UpdateSequencedLeaves mocks base method
+// UpdateSequencedLeaves mocks base method.
 func (m *MockLogTreeTX) UpdateSequencedLeaves(arg0 context.Context, arg1 []*trillian.LogLeaf) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSequencedLeaves", arg0, arg1)
@@ -623,13 +624,13 @@ func (m *MockLogTreeTX) UpdateSequencedLeaves(arg0 context.Context, arg1 []*tril
 	return ret0
 }
 
-// UpdateSequencedLeaves indicates an expected call of UpdateSequencedLeaves
+// UpdateSequencedLeaves indicates an expected call of UpdateSequencedLeaves.
 func (mr *MockLogTreeTXMockRecorder) UpdateSequencedLeaves(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSequencedLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).UpdateSequencedLeaves), arg0, arg1)
 }
 
-// WriteRevision mocks base method
+// WriteRevision mocks base method.
 func (m *MockLogTreeTX) WriteRevision(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteRevision", arg0)
@@ -638,36 +639,36 @@ func (m *MockLogTreeTX) WriteRevision(arg0 context.Context) (int64, error) {
 	return ret0, ret1
 }
 
-// WriteRevision indicates an expected call of WriteRevision
+// WriteRevision indicates an expected call of WriteRevision.
 func (mr *MockLogTreeTXMockRecorder) WriteRevision(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteRevision", reflect.TypeOf((*MockLogTreeTX)(nil).WriteRevision), arg0)
 }
 
-// MockReadOnlyAdminTX is a mock of ReadOnlyAdminTX interface
+// MockReadOnlyAdminTX is a mock of ReadOnlyAdminTX interface.
 type MockReadOnlyAdminTX struct {
 	ctrl     *gomock.Controller
 	recorder *MockReadOnlyAdminTXMockRecorder
 }
 
-// MockReadOnlyAdminTXMockRecorder is the mock recorder for MockReadOnlyAdminTX
+// MockReadOnlyAdminTXMockRecorder is the mock recorder for MockReadOnlyAdminTX.
 type MockReadOnlyAdminTXMockRecorder struct {
 	mock *MockReadOnlyAdminTX
 }
 
-// NewMockReadOnlyAdminTX creates a new mock instance
+// NewMockReadOnlyAdminTX creates a new mock instance.
 func NewMockReadOnlyAdminTX(ctrl *gomock.Controller) *MockReadOnlyAdminTX {
 	mock := &MockReadOnlyAdminTX{ctrl: ctrl}
 	mock.recorder = &MockReadOnlyAdminTXMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockReadOnlyAdminTX) EXPECT() *MockReadOnlyAdminTXMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method
+// Close mocks base method.
 func (m *MockReadOnlyAdminTX) Close() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
@@ -675,13 +676,13 @@ func (m *MockReadOnlyAdminTX) Close() error {
 	return ret0
 }
 
-// Close indicates an expected call of Close
+// Close indicates an expected call of Close.
 func (mr *MockReadOnlyAdminTXMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).Close))
 }
 
-// Commit mocks base method
+// Commit mocks base method.
 func (m *MockReadOnlyAdminTX) Commit() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Commit")
@@ -689,13 +690,13 @@ func (m *MockReadOnlyAdminTX) Commit() error {
 	return ret0
 }
 
-// Commit indicates an expected call of Commit
+// Commit indicates an expected call of Commit.
 func (mr *MockReadOnlyAdminTXMockRecorder) Commit() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).Commit))
 }
 
-// GetTree mocks base method
+// GetTree mocks base method.
 func (m *MockReadOnlyAdminTX) GetTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTree", arg0, arg1)
@@ -704,13 +705,13 @@ func (m *MockReadOnlyAdminTX) GetTree(arg0 context.Context, arg1 int64) (*trilli
 	return ret0, ret1
 }
 
-// GetTree indicates an expected call of GetTree
+// GetTree indicates an expected call of GetTree.
 func (mr *MockReadOnlyAdminTXMockRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTree", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).GetTree), arg0, arg1)
 }
 
-// IsClosed mocks base method
+// IsClosed mocks base method.
 func (m *MockReadOnlyAdminTX) IsClosed() bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsClosed")
@@ -718,13 +719,13 @@ func (m *MockReadOnlyAdminTX) IsClosed() bool {
 	return ret0
 }
 
-// IsClosed indicates an expected call of IsClosed
+// IsClosed indicates an expected call of IsClosed.
 func (mr *MockReadOnlyAdminTXMockRecorder) IsClosed() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsClosed", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).IsClosed))
 }
 
-// ListTreeIDs mocks base method
+// ListTreeIDs mocks base method.
 func (m *MockReadOnlyAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListTreeIDs", arg0, arg1)
@@ -733,13 +734,13 @@ func (m *MockReadOnlyAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]in
 	return ret0, ret1
 }
 
-// ListTreeIDs indicates an expected call of ListTreeIDs
+// ListTreeIDs indicates an expected call of ListTreeIDs.
 func (mr *MockReadOnlyAdminTXMockRecorder) ListTreeIDs(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTreeIDs), arg0, arg1)
 }
 
-// ListTrees mocks base method
+// ListTrees mocks base method.
 func (m *MockReadOnlyAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*trillian.Tree, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListTrees", arg0, arg1)
@@ -748,13 +749,13 @@ func (m *MockReadOnlyAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*tri
 	return ret0, ret1
 }
 
-// ListTrees indicates an expected call of ListTrees
+// ListTrees indicates an expected call of ListTrees.
 func (mr *MockReadOnlyAdminTXMockRecorder) ListTrees(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTrees), arg0, arg1)
 }
 
-// Rollback mocks base method
+// Rollback mocks base method.
 func (m *MockReadOnlyAdminTX) Rollback() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Rollback")
@@ -762,36 +763,36 @@ func (m *MockReadOnlyAdminTX) Rollback() error {
 	return ret0
 }
 
-// Rollback indicates an expected call of Rollback
+// Rollback indicates an expected call of Rollback.
 func (mr *MockReadOnlyAdminTXMockRecorder) Rollback() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).Rollback))
 }
 
-// MockReadOnlyLogTX is a mock of ReadOnlyLogTX interface
+// MockReadOnlyLogTX is a mock of ReadOnlyLogTX interface.
 type MockReadOnlyLogTX struct {
 	ctrl     *gomock.Controller
 	recorder *MockReadOnlyLogTXMockRecorder
 }
 
-// MockReadOnlyLogTXMockRecorder is the mock recorder for MockReadOnlyLogTX
+// MockReadOnlyLogTXMockRecorder is the mock recorder for MockReadOnlyLogTX.
 type MockReadOnlyLogTXMockRecorder struct {
 	mock *MockReadOnlyLogTX
 }
 
-// NewMockReadOnlyLogTX creates a new mock instance
+// NewMockReadOnlyLogTX creates a new mock instance.
 func NewMockReadOnlyLogTX(ctrl *gomock.Controller) *MockReadOnlyLogTX {
 	mock := &MockReadOnlyLogTX{ctrl: ctrl}
 	mock.recorder = &MockReadOnlyLogTXMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockReadOnlyLogTX) EXPECT() *MockReadOnlyLogTXMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method
+// Close mocks base method.
 func (m *MockReadOnlyLogTX) Close() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
@@ -799,13 +800,13 @@ func (m *MockReadOnlyLogTX) Close() error {
 	return ret0
 }
 
-// Close indicates an expected call of Close
+// Close indicates an expected call of Close.
 func (mr *MockReadOnlyLogTXMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Close))
 }
 
-// Commit mocks base method
+// Commit mocks base method.
 func (m *MockReadOnlyLogTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Commit", arg0)
@@ -813,13 +814,13 @@ func (m *MockReadOnlyLogTX) Commit(arg0 context.Context) error {
 	return ret0
 }
 
-// Commit indicates an expected call of Commit
+// Commit indicates an expected call of Commit.
 func (mr *MockReadOnlyLogTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Commit), arg0)
 }
 
-// GetActiveLogIDs mocks base method
+// GetActiveLogIDs mocks base method.
 func (m *MockReadOnlyLogTX) GetActiveLogIDs(arg0 context.Context) ([]int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetActiveLogIDs", arg0)
@@ -828,13 +829,13 @@ func (m *MockReadOnlyLogTX) GetActiveLogIDs(arg0 context.Context) ([]int64, erro
 	return ret0, ret1
 }
 
-// GetActiveLogIDs indicates an expected call of GetActiveLogIDs
+// GetActiveLogIDs indicates an expected call of GetActiveLogIDs.
 func (mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveLogIDs", reflect.TypeOf((*MockReadOnlyLogTX)(nil).GetActiveLogIDs), arg0)
 }
 
-// Rollback mocks base method
+// Rollback mocks base method.
 func (m *MockReadOnlyLogTX) Rollback() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Rollback")
@@ -842,36 +843,36 @@ func (m *MockReadOnlyLogTX) Rollback() error {
 	return ret0
 }
 
-// Rollback indicates an expected call of Rollback
+// Rollback indicates an expected call of Rollback.
 func (mr *MockReadOnlyLogTXMockRecorder) Rollback() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Rollback))
 }
 
-// MockReadOnlyLogTreeTX is a mock of ReadOnlyLogTreeTX interface
+// MockReadOnlyLogTreeTX is a mock of ReadOnlyLogTreeTX interface.
 type MockReadOnlyLogTreeTX struct {
 	ctrl     *gomock.Controller
 	recorder *MockReadOnlyLogTreeTXMockRecorder
 }
 
-// MockReadOnlyLogTreeTXMockRecorder is the mock recorder for MockReadOnlyLogTreeTX
+// MockReadOnlyLogTreeTXMockRecorder is the mock recorder for MockReadOnlyLogTreeTX.
 type MockReadOnlyLogTreeTXMockRecorder struct {
 	mock *MockReadOnlyLogTreeTX
 }
 
-// NewMockReadOnlyLogTreeTX creates a new mock instance
+// NewMockReadOnlyLogTreeTX creates a new mock instance.
 func NewMockReadOnlyLogTreeTX(ctrl *gomock.Controller) *MockReadOnlyLogTreeTX {
 	mock := &MockReadOnlyLogTreeTX{ctrl: ctrl}
 	mock.recorder = &MockReadOnlyLogTreeTXMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockReadOnlyLogTreeTX) EXPECT() *MockReadOnlyLogTreeTXMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method
+// Close mocks base method.
 func (m *MockReadOnlyLogTreeTX) Close() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
@@ -879,13 +880,13 @@ func (m *MockReadOnlyLogTreeTX) Close() error {
 	return ret0
 }
 
-// Close indicates an expected call of Close
+// Close indicates an expected call of Close.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Close))
 }
 
-// Commit mocks base method
+// Commit mocks base method.
 func (m *MockReadOnlyLogTreeTX) Commit(arg0 context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Commit", arg0)
@@ -893,13 +894,13 @@ func (m *MockReadOnlyLogTreeTX) Commit(arg0 context.Context) error {
 	return ret0
 }
 
-// Commit indicates an expected call of Commit
+// Commit indicates an expected call of Commit.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) Commit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Commit), arg0)
 }
 
-// GetLeavesByHash mocks base method
+// GetLeavesByHash mocks base method.
 func (m *MockReadOnlyLogTreeTX) GetLeavesByHash(arg0 context.Context, arg1 [][]byte, arg2 bool) ([]*trillian.LogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLeavesByHash", arg0, arg1, arg2)
@@ -908,13 +909,13 @@ func (m *MockReadOnlyLogTreeTX) GetLeavesByHash(arg0 context.Context, arg1 [][]b
 	return ret0, ret1
 }
 
-// GetLeavesByHash indicates an expected call of GetLeavesByHash
+// GetLeavesByHash indicates an expected call of GetLeavesByHash.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByHash", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetLeavesByHash), arg0, arg1, arg2)
 }
 
-// GetLeavesByIndex mocks base method
+// GetLeavesByIndex mocks base method.
 func (m *MockReadOnlyLogTreeTX) GetLeavesByIndex(arg0 context.Context, arg1 []int64) ([]*trillian.LogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLeavesByIndex", arg0, arg1)
@@ -923,13 +924,13 @@ func (m *MockReadOnlyLogTreeTX) GetLeavesByIndex(arg0 context.Context, arg1 []in
 	return ret0, ret1
 }
 
-// GetLeavesByIndex indicates an expected call of GetLeavesByIndex
+// GetLeavesByIndex indicates an expected call of GetLeavesByIndex.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByIndex", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetLeavesByIndex), arg0, arg1)
 }
 
-// GetLeavesByRange mocks base method
+// GetLeavesByRange mocks base method.
 func (m *MockReadOnlyLogTreeTX) GetLeavesByRange(arg0 context.Context, arg1, arg2 int64) ([]*trillian.LogLeaf, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLeavesByRange", arg0, arg1, arg2)
@@ -938,13 +939,13 @@ func (m *MockReadOnlyLogTreeTX) GetLeavesByRange(arg0 context.Context, arg1, arg
 	return ret0, ret1
 }
 
-// GetLeavesByRange indicates an expected call of GetLeavesByRange
+// GetLeavesByRange indicates an expected call of GetLeavesByRange.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByRange", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetLeavesByRange), arg0, arg1, arg2)
 }
 
-// GetMerkleNodes mocks base method
+// GetMerkleNodes mocks base method.
 func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []tree.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
@@ -953,13 +954,13 @@ func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64,
 	return ret0, ret1
 }
 
-// GetMerkleNodes indicates an expected call of GetMerkleNodes
+// GetMerkleNodes indicates an expected call of GetMerkleNodes.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMerkleNodes", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetMerkleNodes), arg0, arg1, arg2)
 }
 
-// GetSequencedLeafCount mocks base method
+// GetSequencedLeafCount mocks base method.
 func (m *MockReadOnlyLogTreeTX) GetSequencedLeafCount(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSequencedLeafCount", arg0)
@@ -968,13 +969,13 @@ func (m *MockReadOnlyLogTreeTX) GetSequencedLeafCount(arg0 context.Context) (int
 	return ret0, ret1
 }
 
-// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount
+// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSequencedLeafCount", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetSequencedLeafCount), arg0)
 }
 
-// IsOpen mocks base method
+// IsOpen mocks base method.
 func (m *MockReadOnlyLogTreeTX) IsOpen() bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsOpen")
@@ -982,13 +983,13 @@ func (m *MockReadOnlyLogTreeTX) IsOpen() bool {
 	return ret0
 }
 
-// IsOpen indicates an expected call of IsOpen
+// IsOpen indicates an expected call of IsOpen.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOpen", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).IsOpen))
 }
 
-// LatestSignedLogRoot mocks base method
+// LatestSignedLogRoot mocks base method.
 func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.SignedLogRoot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestSignedLogRoot", arg0)
@@ -997,13 +998,13 @@ func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*tril
 	return ret0, ret1
 }
 
-// LatestSignedLogRoot indicates an expected call of LatestSignedLogRoot
+// LatestSignedLogRoot indicates an expected call of LatestSignedLogRoot.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestSignedLogRoot", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).LatestSignedLogRoot), arg0)
 }
 
-// ReadRevision mocks base method
+// ReadRevision mocks base method.
 func (m *MockReadOnlyLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadRevision", arg0)
@@ -1012,13 +1013,13 @@ func (m *MockReadOnlyLogTreeTX) ReadRevision(arg0 context.Context) (int64, error
 	return ret0, ret1
 }
 
-// ReadRevision indicates an expected call of ReadRevision
+// ReadRevision indicates an expected call of ReadRevision.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).ReadRevision), arg0)
 }
 
-// Rollback mocks base method
+// Rollback mocks base method.
 func (m *MockReadOnlyLogTreeTX) Rollback() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Rollback")
@@ -1026,7 +1027,7 @@ func (m *MockReadOnlyLogTreeTX) Rollback() error {
 	return ret0
 }
 
-// Rollback indicates an expected call of Rollback
+// Rollback indicates an expected call of Rollback.
 func (mr *MockReadOnlyLogTreeTXMockRecorder) Rollback() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Rollback))
