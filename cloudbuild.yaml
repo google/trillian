@@ -21,19 +21,35 @@ options:
 # https://cloud.google.com/cloud-build/docs/speeding-up-builds#using_a_cached_docker_image
 #
 # TODO(pavelkalinnikov): Consider pushing this image only on commits to master.
-images: ['gcr.io/$PROJECT_ID/trillian_testbase:latest']
+images: [
+  'gcr.io/$PROJECT_ID/trillian_buildbase:latest',
+  'gcr.io/$PROJECT_ID/trillian_testbase:latest',
+  ]
 
 # Cloud Build logs sent to GCS bucket
 logsBucket: 'gs://trillian-cloudbuild-logs'
 
 steps:
 
-# Try to pull the testbase image from Container Registry.
+# Try to pull the build/testbase images from Container Registry.
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args: ['-c', 'docker pull gcr.io/$PROJECT_ID/trillian_buildbase:latest || exit 0']
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
   args: ['-c', 'docker pull gcr.io/$PROJECT_ID/trillian_testbase:latest || exit 0']
-# Build the testbase image reusing as much of the cached image as possible.
+# Build the build/testbase images reusing as much of the cached images as possible.
 - name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-t', 'gcr.io/$PROJECT_ID/trillian_buildbase:latest',
+    '-t', 'buildbase:latest',
+    '--cache-from', 'gcr.io/$PROJECT_ID/trillian_buildbase:latest',
+    '-f', './build/buildbase/Dockerfile',
+    '.'
+  ]
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'testbase'
   args: [
     'build',
     '-t', 'gcr.io/$PROJECT_ID/trillian_testbase:latest',
@@ -41,11 +57,6 @@ steps:
     '-f', './integration/cloudbuild/testbase/Dockerfile',
     '.'
   ]
-
-# Set up tools and any other common steps which should not be part of Docker image.
-- id: prepare
-  name: 'gcr.io/${PROJECT_ID}/trillian_testbase'
-  entrypoint: ./integration/cloudbuild/prepare.sh
 
 # Run lint and porcelain checks, make sure the diff is empty and no files need
 # to be updated. This includes gofmt, golangci-linter, go mod tidy, go mod
@@ -58,7 +69,7 @@ steps:
     - --fix
     - --empty-diff
   waitFor:
-    - prepare
+    - testbase
 
 # Run Bazel check.
 - id: bazel
@@ -66,7 +77,7 @@ steps:
   entrypoint: bazel
   args: ['build', '//:*']
   waitFor:
-    - prepare
+    - testbase
 
 # Presubmit
 - id: presubmit
