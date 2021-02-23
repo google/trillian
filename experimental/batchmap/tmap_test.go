@@ -155,8 +155,7 @@ func TestUpdate(t *testing.T) {
 		wantRoot      string
 		wantTileCount int
 
-		wantFailConstruct bool
-		wantFailRun       bool
+		wantFailRun bool
 	}{
 		{
 			name:          "update single entry in single tile",

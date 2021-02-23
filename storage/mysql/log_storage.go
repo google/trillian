@@ -423,10 +423,6 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	}
 	label := labelForTX(t)
 	observe(dequeueSelectLatency, time.Since(start), label)
-
-	if err != nil {
-		return nil, err
-	}
 	observe(dequeueLatency, time.Since(start), label)
 	dequeuedCounter.Add(float64(len(leaves)), label)
 
