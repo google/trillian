@@ -87,7 +87,7 @@ main() {
   fi
 
   # This is the go minor version. It's asumed that the major version is 1.
-  GOVER=`go version | awk -F. '{print $2}'`
+  GOVER=`go version | awk -F. '{print $2}' | awk '{print $1}'`
   if [[ "$fix" -eq 1 ]]; then
     check_pkg goimports golang.org/x/tools/cmd/goimports || exit 1
 
