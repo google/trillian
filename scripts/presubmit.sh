@@ -102,13 +102,14 @@ main() {
     go build ./...
 
     export TEST_FLAGS="-timeout=${GO_TEST_TIMEOUT:-5m}"
+    export TEST_FLAGS_SUFFIX="-alsologtostderr -test.paniconexit0=false"
 
     if [[ ${coverage} -eq 1 ]]; then
       TEST_FLAGS+=" -covermode=atomic -coverprofile=coverage.txt"
     fi
 
     echo "running go test ${TEST_FLAGS} ./..."
-    go test ${TEST_FLAGS} ./... -alsologtostderr
+    go test ${TEST_FLAGS} ./... ${TEST_FLAGS_SUFFIX}
   fi
 
   if [[ "${run_lint}" -eq 1 ]]; then
