@@ -86,8 +86,6 @@ main() {
     exit 1
   fi
 
-  # This is the go minor version. It's asumed that the major version is 1.
-  GOVER=`go version | awk -F. '{print $2}' | awk '{print $1}'`
   if [[ "$fix" -eq 1 ]]; then
     check_pkg goimports golang.org/x/tools/cmd/goimports || exit 1
 
@@ -104,19 +102,13 @@ main() {
     go build ./...
 
     export TEST_FLAGS="-timeout=${GO_TEST_TIMEOUT:-5m}"
-    export TEST_FLAGS_SUFFIX="-alsologtostderr"
 
     if [[ ${coverage} -eq 1 ]]; then
       TEST_FLAGS+=" -covermode=atomic -coverprofile=coverage.txt"
     fi
 
-    if [[ ${GOVER} -ge 16 ]]; then
-      # https://github.com/google/trillian/issues/2364
-      TEST_FLAGS_SUFFIX+=" -test.paniconexit0=false"
-    fi
-
     echo "running go test ${TEST_FLAGS} ./..."
-    go test ${TEST_FLAGS} ./... ${TEST_FLAGS_SUFFIX}
+    go test ${TEST_FLAGS} ./... -alsologtostderr
   fi
 
   if [[ "${run_lint}" -eq 1 ]]; then

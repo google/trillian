@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"testing"
 	"time"
 
@@ -47,7 +46,7 @@ func TestFreezeTree(t *testing.T) {
 		{
 			desc: "mandatoryOptsNotSet",
 			// Undo the flags set by runTest, so that mandatory options are no longer set.
-			setFlags: resetFlags,
+			setFlags: flagsaver.Save().MustRestore,
 			wantErr:  true,
 		},
 		{
@@ -170,11 +169,4 @@ func expectCalls(call *gomock.Call, err error, prevErr ...error) *gomock.Call {
 	}
 	// If this function succeeds it should only be called once.
 	return call.Times(1)
-}
-
-// resetFlags sets all flags to their default values.
-func resetFlags() {
-	flag.Visit(func(f *flag.Flag) {
-		f.Value.Set(f.DefValue)
-	})
 }
