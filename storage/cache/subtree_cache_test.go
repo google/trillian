@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/maphasher"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage/storagepb"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -32,19 +31,15 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-var (
-	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
-	defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
-)
-
-const treeID = int64(0)
+// TODO(pavelkalinnikov): This should be 8 bytes instead of 32.
+var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
 func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
 
 	nodeID := tree.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
@@ -54,6 +49,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 		e := nodeID
 		e.PrefixLenBits = b
 		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Return(&storagepb.SubtreeProto{
+			Depth:  logStrataDepth,
 			Prefix: e.Path,
 		}, nil)
 		si++
@@ -73,7 +69,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
 
 	nodeIDs := []tree.NodeID{
 		tree.NewNodeIDFromHash([]byte("1234")),
@@ -135,7 +131,7 @@ func TestCacheFlush(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
 
 	h := "0123456789abcdef0123456789abcdef"
 	nodeID := tree.NewNodeIDFromHash([]byte(h))
@@ -143,7 +139,7 @@ func TestCacheFlush(t *testing.T) {
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := -1
-	for b := 0; b < nodeID.PrefixLenBits; b += defaultMapStrata[si] {
+	for b := 0; b < nodeID.PrefixLenBits; b += defaultLogStrata[si] {
 		si++
 		e := nodeID
 		e.PrefixLenBits = b
@@ -307,8 +303,8 @@ func TestIdempotentWrites(t *testing.T) {
 
 	m := NewMockNodeStorage(mockCtrl)
 
-	h := "0123456789abcdef0123456789abcdef"
-	nodeID := tree.NewNodeIDFromHash([]byte(h))
+	// Note: The ID must end with zero, to be the first leaf in the tile.
+	nodeID := tree.NewNodeIDFromHash([]byte("0123\000"))
 	nodeID.PrefixLenBits = 40
 	subtreeID := nodeID
 	subtreeID.PrefixLenBits = 32
@@ -352,7 +348,7 @@ func TestIdempotentWrites(t *testing.T) {
 	// We should see many reads, but only the first call to SetNodeHash should
 	// result in an actual write being flushed through to storage.
 	for i := 0; i < 10; i++ {
-		c := NewSubtreeCache(defaultMapStrata, populateMapSubtreeNodes(treeID, maphasher.Default), prepareMapSubtreeWrite())
+		c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
 		_, err := c.getNodeHash(nodeID, m.GetSubtree)
 		if err != nil {
 			t.Fatalf("%d: failed to get node hash: %v", i, err)
