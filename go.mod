@@ -43,6 +43,6 @@ require (
 	golang.org/x/tools v0.0.0-20201014170642-d1624618ad65
 	google.golang.org/api v0.29.0
 	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df
-	google.golang.org/grpc v1.32.0
+	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 )
