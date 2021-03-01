@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"testing"
 )
 
@@ -117,57 +116,6 @@ func TestNewNodeIDFromPrefixPanic(t *testing.T) {
 				}
 			}()
 			_ = NewNodeIDFromPrefix([]byte("prefix"), tc.depth, 0, tc.subDepth, tc.totalDepth)
-		})
-	}
-}
-
-func TestNewNodeIDFromBigInt(t *testing.T) {
-	for _, tc := range []struct {
-		depth      int
-		index      *big.Int
-		totalDepth int
-		wantPath   []byte
-		wantDepth  int
-	}{
-		{256, new(big.Int).SetBytes(h2b("00")), 256, h2b("0000000000000000000000000000000000000000000000000000000000000000"), 256},
-		{256, new(big.Int).SetBytes(h2b("01")), 256, h2b("0000000000000000000000000000000000000000000000000000000000000001"), 256},
-		{
-			8, new(big.Int).SetBytes(h2b("4100000000000000000000000000000000000000000000000000000000000000")), 256,
-			h2b("4100000000000000000000000000000000000000000000000000000000000000"), 8,
-		},
-	} {
-		n := NewNodeIDFromBigInt(tc.depth, tc.index, tc.totalDepth)
-		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
-			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): %x, want %x",
-				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
-		}
-		if got, want := n.PrefixLenBits, tc.wantDepth; got != want {
-			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): depth %v, want %v",
-				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
-		}
-		// We should be able to get the same big.Int back. This is used in
-		// the HStar2 implementation so should be tested.
-		if got, want := n.BigInt(), tc.index; want.Cmp(got) != 0 {
-			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v):got:\n%v, want:\n%v",
-				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
-		}
-	}
-}
-
-func TestNewNodeIDFromBigIntPanic(t *testing.T) {
-	for b := 0; b < 64; b++ {
-		t.Run(fmt.Sprintf("%dbits", b), func(t *testing.T) {
-			// Only multiples of 8 bits should be accepted. This method also
-			// fails for 0 bits, unlike NewNodeIDFromPrefix.
-			want := (b%8 != 0) || b == 0
-			// Unfortunately we have to test for panics.
-			defer func() {
-				got := recover()
-				if (got != nil && !want) || (got == nil && want) {
-					t.Errorf("Incorrect panic behaviour (b=%d) got: %v, want: %v", b, got, want)
-				}
-			}()
-			_ = NewNodeIDFromBigInt(12, big.NewInt(234), b)
 		})
 	}
 }
@@ -637,7 +585,7 @@ func TestString(t *testing.T) {
 			wantKey: "112:7468697320697320612068617368",
 		},
 		{
-			n:       NewNodeIDFromBigInt(5, big.NewInt(20), 16),
+			n:       NewNodeIDFromPrefix(nil, 5, 20, 0, 16),
 			want:    "00000",
 			wantKey: "5:00",
 		},
@@ -836,15 +784,4 @@ func BenchmarkSuffix(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = n.Suffix(10, 176)
 	}
-}
-
-func runBenchmarkNewNodeIDFromBigInt(b *testing.B, f func(int, *big.Int, int) NodeID) {
-	b.Helper()
-	for i := 0; i < b.N; i++ {
-		_ = f(256, new(big.Int).SetBytes(h2b("00")), 256)
-	}
-}
-
-func BenchmarkNewNodeIDFromBigIntNew(b *testing.B) {
-	runBenchmarkNewNodeIDFromBigInt(b, NewNodeIDFromBigInt)
 }

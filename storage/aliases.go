@@ -43,7 +43,6 @@ type PrepareSubtreeWriteFunc func(*storagepb.SubtreeProto) error
 var (
 	NewNodeIDFromHash         = tree.NewNodeIDFromHash
 	NewNodeIDFromPrefix       = tree.NewNodeIDFromPrefix
-	NewNodeIDFromBigInt       = tree.NewNodeIDFromBigInt
 	NewNodeIDForTreeCoords    = tree.NewNodeIDForTreeCoords
 	NewNodeIDFromPrefixSuffix = tree.NewNodeIDFromPrefixSuffix
 
