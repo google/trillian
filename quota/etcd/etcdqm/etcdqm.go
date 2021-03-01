@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storage"
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // Manager implements a quota manager based on etcd.

@@ -32,7 +32,7 @@ import (
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/testonly/integration/etcd"
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

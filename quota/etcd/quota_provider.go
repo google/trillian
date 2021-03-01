@@ -24,7 +24,7 @@ import (
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/etcdqm"
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // QuotaManagerName identifies the etcd quota implementation.

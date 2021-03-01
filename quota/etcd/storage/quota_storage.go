@@ -28,10 +28,11 @@ import (
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/util/clock"
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/clientv3/concurrency"
+	"go.etcd.io/etcd/client/v3/concurrency"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (

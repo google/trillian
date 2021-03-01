@@ -22,8 +22,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/util/election2"
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/clientv3/concurrency"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
 const resignID = "<resign>"
