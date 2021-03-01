@@ -23,13 +23,14 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"path/filepath"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/experimental/batchmap"
-	"github.com/google/trillian/merkle"
 	coniks "github.com/google/trillian/merkle/coniks/hasher"
+	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/smt"
+	"github.com/google/trillian/storage/tree"
 )
 
 const hash = crypto.SHA512_256
@@ -73,7 +74,7 @@ func main() {
 	// 3) Check the computed root matches that reported in the tile
 	// 4) Check this root value is the key/value of the tile above.
 	// 5) Rinse and repeat until we reach the tree root.
-	hs2 := merkle.NewHStar2(*treeID, coniks.Default)
+	et := emptyTree{treeID: *treeID, hasher: coniks.Default}
 	needPath, needValue := keyPath, expectedValueHash
 
 	for i := *prefixStrata; i >= 0; i-- {
@@ -88,12 +89,12 @@ func main() {
 
 		// Identify the leaf we need, and convert all leaves to the format needed for hashing.
 		var leaf *batchmap.TileLeaf
-		hs2Leaves := make([]*merkle.HStar2LeafHash, len(tile.Leaves))
+		nodes := make([]smt.Node, len(tile.Leaves))
 		for j, l := range tile.Leaves {
 			if bytes.Equal(l.Path, needLeafPath) {
 				leaf = l
 			}
-			hs2Leaves[j] = toHStar2(tile.Path, l)
+			nodes[j] = toNode(tile.Path, l)
 		}
 
 		// Confirm we found the leaf we needed, and that it had the value we expected.
@@ -108,17 +109,23 @@ func main() {
 
 		// Hash this tile given its leaf values, and confirm that the value we compute
 		// matches the value reported in the tile.
-		root, err := hs2.HStar2Nodes(tile.Path, 8*len(leaf.Path), hs2Leaves, nil, nil)
+		hs, err := smt.NewHStar3(nodes, et.hasher.HashChildren,
+			uint(len(tile.Path)+len(leaf.Path))*8, uint(len(tile.Path))*8)
+		if err != nil {
+			glog.Fatalf("failed to create HStar3 for tile %x: %v", tile.Path, err)
+		}
+		res, err := hs.Update(et)
 		if err != nil {
 			glog.Fatalf("failed to hash tile %x: %v", tile.Path, err)
+		} else if got, want := len(res), 1; got != want {
+			glog.Fatalf("wrong number of roots for tile %x: got %v, want %v", tile.Path, got, want)
 		}
-		if !bytes.Equal(root, tile.RootHash) {
-			glog.Fatalf("wrong root hash for tile %x: got %x, calculated %x", tile.Path, tile.RootHash, root)
+		if got, want := res[0].Hash, tile.RootHash; !bytes.Equal(got, want) {
+			glog.Fatalf("wrong root hash for tile %x: got %x, calculated %x", tile.Path, want, got)
 		}
-
 		// Make the next iteration of the loop check that the tile above this has the
 		// root value of this tile stored as the value at the expected leaf index.
-		needPath, needValue = tile.Path, root
+		needPath, needValue = tile.Path, res[0].Hash
 	}
 
 	// If we get here then we have proved that the value was correct and that the map
@@ -146,14 +153,28 @@ func getTilesForKey(mapDir string, key []byte) ([]*batchmap.Tile, error) {
 	return tiles, nil
 }
 
-// toHStar2 converts a TileLeaf into the equivalent structure for HStar2.
-func toHStar2(prefix []byte, l *batchmap.TileLeaf) *merkle.HStar2LeafHash {
-	// In hstar2 all paths need to be 256 bit (32 bytes)
-	leafIndexBs := make([]byte, 32)
-	copy(leafIndexBs, prefix)
-	copy(leafIndexBs[len(prefix):], l.Path)
-	return &merkle.HStar2LeafHash{
-		Index:    new(big.Int).SetBytes(leafIndexBs),
-		LeafHash: l.Hash,
+// toNode converts a TileLeaf into the equivalent Node for HStar3.
+func toNode(prefix []byte, l *batchmap.TileLeaf) smt.Node {
+	path := make([]byte, 0, len(prefix)+len(l.Path))
+	path = append(append(path, prefix...), l.Path...)
+	return smt.Node{
+		ID:   tree.NewNodeID2(string(path), uint(len(path))*8),
+		Hash: l.Hash,
 	}
 }
+
+// emptyTree is a NodeAccessor for an empty tree with the given ID.
+type emptyTree struct {
+	treeID int64
+	hasher hashers.MapHasher
+}
+
+func (e emptyTree) Get(id tree.NodeID2) ([]byte, error) {
+	oldID := tree.NewNodeIDFromID2(id)
+	height := e.hasher.BitLen() - oldID.PrefixLenBits
+	// TODO(pavelkalinnikov): Make HashEmpty method take the NodeID2 directly,
+	// batchmap is the only remaining user of the map helpers.
+	return e.hasher.HashEmpty(e.treeID, oldID.Path, height), nil
+}
+
+func (e emptyTree) Set(id tree.NodeID2, hash []byte) {}

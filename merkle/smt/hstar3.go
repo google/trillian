@@ -21,8 +21,6 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
-// TODO(pavelkalinnikov): Unexport this file, as it is used only by Writer.
-
 // NodeAccessor provides read and write access to Merkle tree node hashes.
 //
 // The Update algorithm uses it to read the existing nodes of the tree and
@@ -40,8 +38,6 @@ type NodeAccessor interface {
 type HashChildrenFn func(left, right []byte) []byte
 
 // HStar3 is a faster non-recursive HStar2.
-//
-// TODO(pavelkalinnikov): Swap in the code, and document it properly.
 type HStar3 struct {
 	nodes []Node
 	hash  HashChildrenFn
