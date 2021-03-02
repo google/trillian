@@ -19,6 +19,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
+
+	_ "github.com/golang/glog"
 )
 
 func TestMaskLeft(t *testing.T) {
