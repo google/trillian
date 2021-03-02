@@ -2,6 +2,11 @@
 
 ## HEAD
 
+### Dependency updates
+ * Upgraded to etcd v3 in order to allow grpc to be upgraded (#2195)
+   * etcd was `v0.5.0-alpha.5`, now `v3.5.0-alpha.0`
+ * grpc upgraded from `v1.29.1` to `v1.36.0`
+
 ### Cleanup
  * Removed the deprecated crypto.NewSHA256Signer function.
  * Finish removing the `LogMetadata.GetUnsequencedCounts()` method.

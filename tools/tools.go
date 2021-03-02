@@ -25,7 +25,7 @@ import (
 	_ "github.com/golang/protobuf/proto" //nolint:staticcheck
 	_ "github.com/golang/protobuf/protoc-gen-go"
 	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
-	_ "go.etcd.io/etcd"
-	_ "go.etcd.io/etcd/etcdctl"
+	_ "go.etcd.io/etcd/etcdctl/v3"
+	_ "go.etcd.io/etcd/v3"
 	_ "golang.org/x/tools/cmd/stringer"
 )

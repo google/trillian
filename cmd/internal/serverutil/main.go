@@ -17,6 +17,7 @@ package serverutil
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -30,14 +31,13 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/client/v3/naming/endpoints"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/naming"
 	"google.golang.org/grpc/reflection"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	etcdnaming "go.etcd.io/etcd/clientv3/naming"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -215,8 +215,6 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 		return func() {}
 	}
 
-	res := etcdnaming.GRPCResolver{Client: client}
-
 	// Get a lease so our entry self-destructs.
 	leaseRsp, err := client.Grant(ctx, 30)
 	if err != nil {
@@ -224,16 +222,19 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 	}
 	client.KeepAlive(ctx, leaseRsp.ID)
 
-	update := naming.Update{Op: naming.Add, Addr: endpoint} // nolint: megacheck
-	res.Update(ctx, etcdService, update, clientv3.WithLease(leaseRsp.ID))
-	glog.Infof("Announcing our presence in %v with %+v", etcdService, update)
+	em, err := endpoints.NewManager(client, etcdService)
+	if err != nil {
+		glog.Exitf("Failed to create etcd manager: %v", err)
+	}
+	fullEndpoint := fmt.Sprintf("%s/%s", etcdService, endpoint)
+	em.AddEndpoint(ctx, fullEndpoint, endpoints.Endpoint{Addr: endpoint})
+	glog.Infof("Announcing our presence in %v", etcdService)
 
-	bye := naming.Update{Op: naming.Delete, Addr: endpoint} // nolint: megacheck
 	return func() {
 		// Use a background context because the original context may have been cancelled.
-		glog.Infof("Removing our presence in %v with %+v", etcdService, bye)
+		glog.Infof("Removing our presence in %v", etcdService)
 		ctx := context.Background()
-		res.Update(ctx, etcdService, bye)
+		em.DeleteEndpoint(ctx, fullEndpoint)
 		client.Revoke(ctx, leaseRsp.ID)
 	}
 }
