@@ -20,12 +20,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"math/bits"
 	"strconv"
 	"strings"
-
-	"github.com/golang/glog"
 )
 
 const hexChars = "0123456789abcdef"
@@ -158,50 +155,6 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 	}
 }
 
-// NewNodeIDFromBigInt creates a new node for a given depth and index, where
-// the index can exceed a 64-bit range. The total tree depth must be provided.
-// This occurs in the sparse Merkle tree implementation for maps as the lower
-// levels have up 2^(hash size) entries. For log trees see NewNodeIDForTreeCoords.
-func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
-	if got, want := totalDepth%8, 0; got != want {
-		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
-	}
-
-	if totalDepth == 0 {
-		panic("storage NewNodeFromBitInt(): totalDepth must not be zero")
-	}
-
-	// Put index in the LSB bits of path.
-	// This code more-or-less pinched from nat.go in the golang math/big package:
-	const _S = bits.UintSize / 8
-	path := make([]byte, totalDepth/8)
-
-	iBits := index.Bits()
-	i := len(path)
-loop:
-	for _, d := range iBits {
-		for j := 0; j < _S; j++ {
-			i--
-			if i < 0 {
-				break loop
-			}
-			path[i] = byte(d)
-			d >>= 8
-		}
-	}
-
-	// TODO(gdbelvin): consider masking off insignificant bits past depth.
-	if glog.V(5) {
-		glog.Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
-			depth, index, totalDepth, depth, path)
-	}
-
-	return NodeID{
-		Path:          path,
-		PrefixLenBits: depth,
-	}
-}
-
 // NewNodeIDFromID2 constructs a NodeID from a NodeID2.
 func NewNodeIDFromID2(id NodeID2) NodeID {
 	path := make([]byte, bytesForBits(int(id.BitLen())))
@@ -215,11 +168,6 @@ func NewNodeIDFromID2(id NodeID2) NodeID {
 // ToNodeID2 converts the ID to NodeID2.
 func (n NodeID) ToNodeID2() NodeID2 {
 	return NewNodeID2(string(n.Path), uint(n.PrefixLenBits))
-}
-
-// BigInt returns the big.Int for this node.
-func (n NodeID) BigInt() *big.Int {
-	return new(big.Int).SetBytes(n.Path)
 }
 
 // NewNodeIDForTreeCoords creates a new NodeID for a Tree node with a specified depth and
