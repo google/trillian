@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
-	github.com/apache/beam v2.27.0+incompatible
+	github.com/apache/beam v2.28.0+incompatible
 	github.com/fullstorydev/grpcurl v1.8.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.5.0
