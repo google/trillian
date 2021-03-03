@@ -22,7 +22,7 @@ spec:
         "--storage_system=$(STORAGE_SYSTEM)",
         "--quota_system=etcd",
         "--etcd_servers=trillian-etcd-cluster-client:2379",
-        "--etcd_http_service=trillian-logserver-http",
+        "--etcd_service=trillian-logserver",
         "--rpc_endpoint=0.0.0.0:8090",
         "--http_endpoint=0.0.0.0:8091",
         "--tracing",

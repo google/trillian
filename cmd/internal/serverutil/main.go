@@ -210,7 +210,7 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 // AnnounceSelf announces this binary's presence to etcd.  Returns a function that
 // should be called on process exit.
 // AnnounceSelf does nothing if client is nil.
-func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, endpoint string) func() {
+func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, endpointName, endpointAddr string) func() {
 	if client == nil {
 		return func() {}
 	}
@@ -226,13 +226,13 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 	if err != nil {
 		glog.Exitf("Failed to create etcd manager: %v", err)
 	}
-	fullEndpoint := fmt.Sprintf("%s/%s", etcdService, endpoint)
-	em.AddEndpoint(ctx, fullEndpoint, endpoints.Endpoint{Addr: endpoint})
+	fullEndpoint := fmt.Sprintf("%s/%s", etcdService, endpointName)
+	em.AddEndpoint(ctx, fullEndpoint, endpoints.Endpoint{Addr: endpointAddr})
 	glog.Infof("Announcing our presence in %v", etcdService)
 
 	return func() {
 		// Use a background context because the original context may have been cancelled.
-		glog.Infof("Removing our presence in %v", etcdService)
+		glog.Infof("Removing our presence at %v", fullEndpoint)
 		ctx := context.Background()
 		em.DeleteEndpoint(ctx, fullEndpoint)
 		client.Revoke(ctx, leaseRsp.ID)

@@ -30,7 +30,7 @@ spec:
         "--storage_system=$(STORAGE_SYSTEM)",
         "--etcd_servers=trillian-etcd-cluster-client:2379",
         "--quota_system=etcd",
-        "--etcd_http_service=trillian-logsigner-http",
+        "--etcd_service=trillian-logsigner",
         "--http_endpoint=0.0.0.0:8091",
         "--sequencer_guard_window=1s",
         "$(SIGNER_INTERVAL)",

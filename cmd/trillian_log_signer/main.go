@@ -70,7 +70,7 @@ var (
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
-	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
+	etcdService              = flag.String("etcd_service", "trillian-logsigner", "Service name to announce our endpoints under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
 	healthzTimeout           = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
 
@@ -158,7 +158,7 @@ func main() {
 	// Start HTTP server (optional)
 	if *httpEndpoint != "" {
 		// Announce our endpoint to etcd if so configured.
-		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdService, "http", *httpEndpoint)
 		defer unannounceHTTP()
 	}
 

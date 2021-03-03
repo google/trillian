@@ -144,8 +144,8 @@ log_prep_test() {
     ETCD_OPTS="--etcd_servers=${etcd_server}"
     ETCD_DB_DIR=default.etcd
     wait_for_server_startup ${etcd_port}
-    logserver_opts="${logserver_opts} --etcd_http_service=trillian-logserver-http --etcd_service=trillian-logserver --quota_system=etcd"
-    logsigner_opts="${logsigner_opts} --etcd_http_service=trillian-logsigner-http --quota_system=etcd"
+    logserver_opts="${logserver_opts} --etcd_service=trillian-logserver --quota_system=etcd"
+    logsigner_opts="${logsigner_opts} --etcd_service=trillian-logsigner --quota_system=etcd"
   else
     if  [[ ${log_signer_count} > 1 ]]; then
       echo "*** Warning: running multiple signers with no etcd instance ***"
@@ -208,12 +208,12 @@ log_prep_test() {
   done
 
   if [[ ! -z "${ETCD_OPTS}" ]]; then
-    RPC_SERVERS="trillian-logserver"
-    echo "Registered log servers @${RPC_SERVERS}/"
-    ETCDCTL_API=3 etcdctl get ${RPC_SERVERS}/ --prefix
+    RPC_SERVERS="trillian-logserver/rpc"
+    echo "Registered log servers @${RPC_SERVERS}"
+    ETCDCTL_API=3 etcdctl get ${RPC_SERVERS}
     echo "Registered HTTP endpoints"
-    ETCDCTL_API=3 etcdctl get trillian-logserver-http/ --prefix
-    ETCDCTL_API=3 etcdctl get trillian-logsigner-http/ --prefix
+    ETCDCTL_API=3 etcdctl get trillian-logserver/http
+    ETCDCTL_API=3 etcdctl get trillian-logsigner/http
   fi
 }
 

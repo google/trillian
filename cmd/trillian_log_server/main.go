@@ -64,13 +64,12 @@ import (
 )
 
 var (
-	rpcEndpoint     = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
-	httpEndpoint    = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics (host:port, empty means disabled)")
-	healthzTimeout  = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
-	tlsCertFile     = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
-	tlsKeyFile      = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
-	etcdService     = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
-	etcdHTTPService = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
+	rpcEndpoint    = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
+	httpEndpoint   = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics (host:port, empty means disabled)")
+	healthzTimeout = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
+	tlsCertFile    = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
+	tlsKeyFile     = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
+	etcdService    = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
 
 	quotaSystem = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quota.Providers()))
 	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
@@ -135,10 +134,10 @@ func main() {
 	}
 
 	// Announce our endpoints to etcd if so configured.
-	unannounce := serverutil.AnnounceSelf(ctx, client, *etcdService, *rpcEndpoint)
+	unannounce := serverutil.AnnounceSelf(ctx, client, *etcdService, "rpc", *rpcEndpoint)
 	defer unannounce()
 	if *httpEndpoint != "" {
-		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdService, "http", *httpEndpoint)
 		defer unannounceHTTP()
 	}
 

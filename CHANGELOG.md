@@ -2,6 +2,15 @@
 
 ## HEAD
 
+### Functional changes
+
+etcd integration for `trillian_log_server` and `trillian_log_signer` have changed.
+ * Affects flag names (both now only have `etcd_service` and `etcd_http_service` is deleted).
+ * Keys that the endpoints are announced under are changed (the values are unchanged):
+   * `trillian-logserver-http/{host:port}` changed to `trillian-logserver/http`
+   * `trillian-logserver/{host:port}` changed to `trillian-logserver/rpc`
+   * `trillian-logsigner-http/{host:port}` changed to `trillian-logsigner/http`
+
 ### Dependency updates
  * Upgraded to etcd v3 in order to allow grpc to be upgraded (#2195)
    * etcd was `v0.5.0-alpha.5`, now `v3.5.0-alpha.0`
