@@ -14,4 +14,4 @@
 
 package storagepb
 
-//go:generate protoc -I=. --go_out=:. storagepb.proto
+//go:generate protoc -I=. --go_out=paths=source_relative:. storagepb.proto

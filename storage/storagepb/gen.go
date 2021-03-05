@@ -24,4 +24,4 @@
 //  b) data structures are defined in the application layer.
 package storagepb
 
-//go:generate protoc -I=. -I=$GOPATH/src/ --go_out=plugins=grpc:. storage.proto
+//go:generate protoc -I=. -I=$GOPATH/src --go_out=plugins=grpc,paths=source_relative:. storage.proto
