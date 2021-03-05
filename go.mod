@@ -31,7 +31,7 @@ require (
 	github.com/onsi/gomega v1.7.1 // indirect
 	github.com/prometheus/client_golang v1.9.0
 	github.com/prometheus/client_model v0.2.0
-	github.com/pseudomuto/protoc-gen-doc v1.3.2
+	github.com/pseudomuto/protoc-gen-doc v1.4.1
 	go.etcd.io/etcd/client/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/etcdctl/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/server/v3 v3.5.0-alpha.0
