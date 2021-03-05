@@ -56,6 +56,7 @@ steps:
   args:
     - --no-build
     - --fix
+    - --no-mod-tidy
     - --empty-diff
   waitFor:
     - prepare

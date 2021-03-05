@@ -26,12 +26,13 @@ check_cmd() {
 }
 
 usage() {
-  echo "$0 [--coverage] [--fix] [--no-build] [--no-linters] [--no-generate] [--empty-diff]"
+  echo "$0 [--coverage] [--fix] [--no-mod-tidy] [--no-build] [--no-linters] [--no-generate] [--empty-diff]"
 }
 
 main() {
   local coverage=0
   local fix=0
+  local run_mod_tidy=1
   local run_build=1
   local run_lint=1
   local run_generate=1
@@ -43,6 +44,9 @@ main() {
         ;;
       --fix)
         fix=1
+        ;;
+      --no-mod-tidy)
+        run_mod_tidy=0
         ;;
       --help)
         usage
@@ -93,8 +97,10 @@ main() {
     gofmt -s -w ${go_srcs}
     echo 'running goimports'
     goimports -w ${go_srcs}
-    echo 'running go mod tidy'
-    go mod tidy
+    if [[ "$run_mod_tidy" -eq 1 ]]; then
+      echo 'running go mod tidy'
+      go mod tidy
+    fi
   fi
 
   if [[ "${run_build}" -eq 1 ]]; then
