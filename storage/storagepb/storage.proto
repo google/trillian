@@ -13,6 +13,7 @@
 // limitations under the License.
 
 syntax = "proto3";
+option go_package = "github.com/google/trillian/storage/storagepb";
 
 package storagepb;
 
