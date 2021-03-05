@@ -9,12 +9,12 @@ variable "region" {
 
 provider "google" {
   project = var.gcp_project
-  version = "~> v3.0.0-beta.1"
+  version = "~> 3.0.0-beta.1"
 }
 
 provider "google-beta" {
   project = var.gcp_project
-  version = "~> v3.0.0-beta.1"
+  version = "~> 3.0.0-beta.1"
 }
 
 # Enable required API in the project
@@ -32,7 +32,7 @@ resource "google_project_service" "spanner-api" {
 ## Force recent version for Kubernetes master
 data "google_container_engine_versions" "gke-ver" {
   location       = var.region
-  version_prefix = "1.14."
+  version_prefix = "1.19."
 }
 
 resource "google_container_cluster" "trillian-cluster" {
