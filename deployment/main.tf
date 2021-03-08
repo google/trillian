@@ -37,7 +37,7 @@ data "google_container_engine_versions" "gke-ver" {
 
 resource "google_container_cluster" "trillian-cluster" {
   provider           = google-beta
-  name               = "cluster"
+  name               = "trillian-opensource-ci"
   location           = var.region
   node_version       = data.google_container_engine_versions.gke-ver.latest_node_version
   min_master_version = data.google_container_engine_versions.gke-ver.latest_node_version
