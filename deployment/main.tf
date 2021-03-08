@@ -9,12 +9,12 @@ variable "region" {
 
 provider "google" {
   project = var.gcp_project
-  version = "~> v3.0.0-beta.1"
+  version = "~> 3.0.0-beta.1"
 }
 
 provider "google-beta" {
   project = var.gcp_project
-  version = "~> v3.0.0-beta.1"
+  version = "~> 3.0.0-beta.1"
 }
 
 # Enable required API in the project
@@ -32,12 +32,12 @@ resource "google_project_service" "spanner-api" {
 ## Force recent version for Kubernetes master
 data "google_container_engine_versions" "gke-ver" {
   location       = var.region
-  version_prefix = "1.14."
+  version_prefix = "1.19."
 }
 
 resource "google_container_cluster" "trillian-cluster" {
   provider           = google-beta
-  name               = "cluster"
+  name               = "trillian-opensource-ci"
   location           = var.region
   node_version       = data.google_container_engine_versions.gke-ver.latest_node_version
   min_master_version = data.google_container_engine_versions.gke-ver.latest_node_version
@@ -45,7 +45,7 @@ resource "google_container_cluster" "trillian-cluster" {
   initial_node_count = 3
 
   node_config {
-    machine_type = "n1-standard-2"
+    machine_type = "e2-standard-2"
     image_type   = "COS"
 
     workload_metadata_config {
