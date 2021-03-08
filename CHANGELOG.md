@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* GCP terraform script updated. GKE 1.19 and updated CPU type to E2
+
 ### Dependency updates
  * Upgraded to etcd v3 in order to allow grpc to be upgraded (#2195)
    * etcd was `v0.5.0-alpha.5`, now `v3.5.0-alpha.0`
