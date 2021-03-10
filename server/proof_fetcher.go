@@ -20,13 +20,11 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/tree"
 )
-
-// proofMaxBitLen is the max depth of a tree. Used for tree.NodeID creation.
-const proofMaxBitLen = 64
 
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
 // from storage and converts them into the proof proto that will be returned to the client.
@@ -56,36 +54,29 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 	}, nil
 }
 
-// fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
-// to storage, returning the result after some additional validation checks.
+// fetchNodes obtains the nodes denoted by the given NodeFetch structs, and
+// returns them after some validation checks.
 func fetchNodes(ctx context.Context, tx storage.NodeReader, fetches []merkle.NodeFetch) ([]tree.Node, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodes")
 	defer spanEnd()
-	proofNodeIDs := make([]tree.NodeID, 0, len(fetches))
-
+	ids := make([]compact.NodeID, 0, len(fetches))
 	for _, fetch := range fetches {
-		id, err := tree.NewNodeIDForTreeCoords(int64(fetch.ID.Level), int64(fetch.ID.Index), proofMaxBitLen)
-		if err != nil {
-			return nil, err
-		}
-		proofNodeIDs = append(proofNodeIDs, id)
+		ids = append(ids, fetch.ID)
 	}
 
-	proofNodes, err := tx.GetMerkleNodes(ctx, proofNodeIDs)
+	nodes, err := tx.GetMerkleNodes(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(proofNodes) != len(proofNodeIDs) {
-		return nil, fmt.Errorf("expected %d nodes from storage but got %d", len(proofNodeIDs), len(proofNodes))
+	if got, want := len(nodes), len(ids); got != want {
+		return nil, fmt.Errorf("expected %d nodes from storage but got %d", want, got)
 	}
-
-	for i, node := range proofNodes {
+	for i, node := range nodes {
 		// Additional check that the correct node was returned.
-		if !node.NodeID.Equivalent(proofNodeIDs[i]) {
-			return []tree.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
+		if got, want := node.ID, ids[i]; got != want {
+			return nil, fmt.Errorf("expected node %v at proof pos %d but got %v", want, i, got)
 		}
 	}
 
-	return proofNodes, nil
+	return nodes, nil
 }

@@ -25,9 +25,6 @@ import (
 // NodeID is an alias to github.com/google/trillian/storage/tree.NodeID.
 type NodeID = tree.NodeID
 
-// Node is an alias to github.com/google/trillian/storage/tree.Node.
-type Node = tree.Node
-
 // Suffix is an alias to github.com/google/trillian/storage/tree.Suffix.
 type Suffix = tree.Suffix
 

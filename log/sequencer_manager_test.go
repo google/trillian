@@ -30,6 +30,7 @@ import (
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/merkle/compact"
 	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/quota"
@@ -73,7 +74,7 @@ var (
 	}
 	testSignedRoot0, _ = fixedLog1Signer.SignLogRoot(testRoot0)
 
-	updatedNodes0 = []tree.Node{{NodeID: tree.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
+	updatedNodes0 = []tree.Node{{ID: compact.NewNodeID(0, 0), Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=")}}
 	updatedRoot   = &types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 		RootHash:       []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29},

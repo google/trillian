@@ -34,46 +34,42 @@ import (
 // NodeID -> Node mappings and will return only those. Requesting any other nodes results in
 // an error. For use in tests only, does not implement any other storage APIs.
 type FakeNodeReader struct {
-	treeRevision int64
-	nodeMap      map[string]tree.Node
+	nodeMap map[compact.NodeID]tree.Node
 }
 
 // NewFakeNodeReader creates and returns a FakeNodeReader with the supplied nodes
 // assuming that all the nodes are at a specified tree revision. All the node IDs
 // must be distinct.
-func NewFakeNodeReader(nodes []tree.Node, treeRevision int64) *FakeNodeReader {
-	nodeMap := make(map[string]tree.Node)
+func NewFakeNodeReader(nodes []tree.Node) *FakeNodeReader {
+	nodeMap := make(map[compact.NodeID]tree.Node)
 
 	for _, node := range nodes {
-		id := node.NodeID.String()
+		id := node.ID
 		if _, ok := nodeMap[id]; ok {
 			// Duplicate mapping - the test data is invalid so don't continue.
-			glog.Fatalf("NewFakeNodeReader duplicate mapping for: %s in:\n%v", id, nodes)
+			glog.Fatalf("NewFakeNodeReader duplicate mapping for: %+v in:\n%v", id, nodes)
 		}
 		nodeMap[id] = node
 	}
 
-	return &FakeNodeReader{nodeMap: nodeMap, treeRevision: treeRevision}
+	return &FakeNodeReader{nodeMap: nodeMap}
 }
 
 // GetMerkleNodes implements the corresponding NodeReader API.
-func (f FakeNodeReader) GetMerkleNodes(NodeIDs []tree.NodeID) ([]tree.Node, error) {
-	nodes := make([]tree.Node, 0, len(NodeIDs))
-	for _, nodeID := range NodeIDs {
-		node, ok := f.nodeMap[nodeID.String()]
-
+func (f FakeNodeReader) GetMerkleNodes(ids []compact.NodeID) ([]tree.Node, error) {
+	nodes := make([]tree.Node, 0, len(ids))
+	for _, id := range ids {
+		node, ok := f.nodeMap[id]
 		if !ok {
-			return nil, fmt.Errorf("GetMerkleNodes() unknown node ID: %v", nodeID)
+			return nil, fmt.Errorf("GetMerkleNodes() unknown node ID: %v", id)
 		}
-
 		nodes = append(nodes, node)
 	}
-
 	return nodes, nil
 }
 
-func (f FakeNodeReader) hasID(nodeID tree.NodeID) bool {
-	_, ok := f.nodeMap[nodeID.String()]
+func (f FakeNodeReader) hasID(id compact.NodeID) bool {
+	_, ok := f.nodeMap[id]
 	return ok
 }
 
@@ -146,21 +142,19 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		// the batch for each ID. Use that to create a new FakeNodeReader.
 		nodes := make([]tree.Node, 0, len(nodeMap))
 		for id, hash := range nodeMap {
-			nID := MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
-			node := tree.Node{NodeID: nID, Hash: hash, NodeRevision: batch.TreeRevision}
-			nodes = append(nodes, node)
+			nodes = append(nodes, tree.Node{ID: id, Hash: hash})
 		}
 
-		readers = append(readers, *NewFakeNodeReader(nodes, batch.TreeRevision))
+		readers = append(readers, *NewFakeNodeReader(nodes))
 	}
 
 	return NewMultiFakeNodeReader(readers)
 }
 
-func (m MultiFakeNodeReader) readerForNodeID(nodeID tree.NodeID) *FakeNodeReader {
+func (m MultiFakeNodeReader) readerForNodeID(id compact.NodeID) *FakeNodeReader {
 	// Work backwards and use the first reader where the node is present.
 	for i := len(m.readers) - 1; i >= 0; i-- {
-		if m.readers[i].hasID(nodeID) {
+		if m.readers[i].hasID(id) {
 			return &m.readers[i]
 		}
 	}
@@ -168,25 +162,23 @@ func (m MultiFakeNodeReader) readerForNodeID(nodeID tree.NodeID) *FakeNodeReader
 }
 
 // GetMerkleNodes implements the corresponding NodeReader API.
-func (m MultiFakeNodeReader) GetMerkleNodes(ctx context.Context, NodeIDs []tree.NodeID) ([]tree.Node, error) {
+func (m MultiFakeNodeReader) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error) {
 	// Find the correct reader for the supplied tree revision. This must be done for each node
 	// as earlier revisions may still be relevant
-	nodes := make([]tree.Node, 0, len(NodeIDs))
-	for _, nID := range NodeIDs {
-		reader := m.readerForNodeID(nID)
+	nodes := make([]tree.Node, 0, len(ids))
+	for _, id := range ids {
+		reader := m.readerForNodeID(id)
 
 		if reader == nil {
 			return nil,
-				fmt.Errorf("want nodeID %v, but no reader has it\n%v", nID, m)
+				fmt.Errorf("want nodeID %v, but no reader has it\n%v", id, m)
 		}
 
-		node, err := reader.GetMerkleNodes([]tree.NodeID{nID})
+		node, err := reader.GetMerkleNodes([]compact.NodeID{id})
 		if err != nil {
 			return nil, err
 		}
-
 		nodes = append(nodes, node[0])
 	}
-
 	return nodes, nil
 }

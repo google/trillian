@@ -11,6 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
+	compact "github.com/google/trillian/merkle/compact"
 	tree "github.com/google/trillian/storage/tree"
 )
 
@@ -501,7 +502,7 @@ func (mr *MockLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 interface
 }
 
 // GetMerkleNodes mocks base method.
-func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 []tree.NodeID) ([]tree.Node, error) {
+func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 []compact.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1)
 	ret0, _ := ret[0].([]tree.Node)
@@ -946,7 +947,7 @@ func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 i
 }
 
 // GetMerkleNodes mocks base method.
-func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 []tree.NodeID) ([]tree.Node, error) {
+func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 []compact.NodeID) ([]tree.Node, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1)
 	ret0, _ := ret[0].([]tree.Node)

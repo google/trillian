@@ -70,20 +70,25 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
 
-	nodeIDs := []tree.NodeID{
-		tree.NewNodeIDFromHash([]byte("1234")),
-		tree.NewNodeIDFromHash([]byte("1235")),
-		tree.NewNodeIDFromHash([]byte("4567")),
-		tree.NewNodeIDFromHash([]byte("89ab")),
-		tree.NewNodeIDFromHash([]byte("89ac")),
-		tree.NewNodeIDFromHash([]byte("89ad")),
+	ids := []compact.NodeID{
+		compact.NewNodeID(0, 0x1234),
+		compact.NewNodeID(0, 0x1235),
+		compact.NewNodeID(0, 0x4567),
+		compact.NewNodeID(0, 0x89ab),
+		compact.NewNodeID(0, 0x89ac),
+		compact.NewNodeID(0, 0x89ad),
 	}
+	oldIDs := make([]tree.NodeID, len(ids))
+	for i, id := range ids {
+		oldIDs[i] = stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxLogDepth)
+	}
+
 	// Test that node IDs from one subtree are collapsed into one stratum read.
 	skips := map[int]bool{1: true, 4: true, 5: true}
 
 	// Set up the expected reads. We expect one subtree read per entry in
 	// nodeIDs, except for the ones in the skips map.
-	for i, nodeID := range nodeIDs {
+	for i, nodeID := range oldIDs {
 		if skips[i] {
 			continue
 		}
@@ -99,7 +104,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 
 	// Now request the nodes:
 	_, err := c.GetNodes(
-		nodeIDs,
+		ids,
 		// Glue function to convert a call requesting multiple subtrees into a
 		// sequence of calls to our mock storage:
 		func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
@@ -132,10 +137,10 @@ func TestCacheFlush(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
 
-	h := "01234567"
-	nodeID := tree.NewNodeIDFromHash([]byte(h))
+	id := compact.NewNodeID(0, 12345)
+	nodeID := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxLogDepth)
 	expectedSetIDs := make(map[string]string)
-	// When we loop around asking for all 0..32 bit prefix lengths of the above
+	// When we loop around asking for all 0..64 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := -1
 	for b := 0; b < nodeID.PrefixLenBits; b += defaultLogStrata[si] {
@@ -181,13 +186,12 @@ func TestCacheFlush(t *testing.T) {
 	t.Logf("after sibs: %v", nodeID)
 
 	// Write nodes
-	for nodeID.PrefixLenBits > 0 {
-		h := []byte(nodeID.String())
-		err := c.SetNodeHash(nodeID, append([]byte("hash-"), h...), noFetch)
+	for level := id.Level; level < 64; level++ {
+		err := c.SetNodeHash(id, []byte(fmt.Sprintf("hash-%v", id)), noFetch)
 		if err != nil {
 			t.Fatalf("failed to set node hash: %v", err)
 		}
-		nodeID.PrefixLenBits--
+		id.Level, id.Index = id.Level+1, id.Index/2
 	}
 
 	if err := c.Flush(ctx, m.SetSubtrees); err != nil {
@@ -302,8 +306,9 @@ func TestIdempotentWrites(t *testing.T) {
 
 	m := NewMockNodeStorage(mockCtrl)
 
-	// Note: The ID must end with zero, to be the first leaf in the tile.
-	nodeID := tree.NewNodeIDFromHash([]byte("0123\000"))
+	// Note: The ID must end with a zero byte, to be the first leaf in the tile.
+	id := compact.NewNodeID(24, 0x12300)
+	nodeID := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxLogDepth)
 	nodeID.PrefixLenBits = 40
 	subtreeID := nodeID
 	subtreeID.PrefixLenBits = 32
@@ -353,7 +358,7 @@ func TestIdempotentWrites(t *testing.T) {
 			t.Fatalf("%d: failed to get node hash: %v", i, err)
 		}
 
-		err = c.SetNodeHash(nodeID, []byte("noodled"), noFetch)
+		err = c.SetNodeHash(id, []byte("noodled"), noFetch)
 		if err != nil {
 			t.Fatalf("%d: failed to set node hash: %v", i, err)
 		}

@@ -26,6 +26,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
@@ -411,7 +412,7 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *
 
 // GetMerkleNodes returns the requested set of nodes at, or before, the
 // transaction read revision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, ids []tree.NodeID) ([]tree.Node, error) {
+func (t *treeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.stx == nil {
@@ -474,7 +475,7 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 
 	for _, n := range nodes {
 		err := t.cache.SetNodeHash(
-			n.NodeID,
+			n.ID,
 			n.Hash,
 			func(nID tree.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(ctx, writeRev-1, nID)

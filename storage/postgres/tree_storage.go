@@ -402,7 +402,7 @@ func (t *treeTX) Close() error {
 
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	for _, n := range nodes {
-		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
+		err := t.subtreeCache.SetNodeHash(n.ID, n.Hash,
 			func(nID tree.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(ctx, t.writeRevision, nID)
 			})

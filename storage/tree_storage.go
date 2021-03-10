@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -63,6 +64,8 @@ type TreeTX interface {
 // TreeWriter represents additional transaction methods that modify the tree.
 type TreeWriter interface {
 	// SetMerkleNodes writes the nodes, at the write revision.
+	//
+	// TODO(pavelkalinnikov): Use tiles instead, here and in GetMerkleNodes.
 	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
 
 	// WriteRevision returns the tree revision that any writes through this TreeTX will be stored at.
@@ -75,9 +78,9 @@ type DatabaseChecker interface {
 	CheckDatabaseAccessible(context.Context) error
 }
 
-// NodeReader provides read-only access to the stored tree nodes, as an interface to allow easier
-// testing of node manipulation.
+// NodeReader provides read-only access to the stored tree nodes, as an
+// interface to allow easier testing of node manipulation.
 type NodeReader interface {
 	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
-	GetMerkleNodes(ctx context.Context, ids []tree.NodeID) ([]tree.Node, error)
+	GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error)
 }
