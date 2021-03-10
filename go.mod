@@ -22,7 +22,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
-	github.com/lib/pq v1.9.0
+	github.com/lib/pq v1.10.0
 	github.com/miekg/pkcs11 v1.0.3 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
