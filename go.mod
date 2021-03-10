@@ -17,7 +17,7 @@ require (
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.4.3
 	github.com/google/btree v1.0.0
-	github.com/google/certificate-transparency-go v1.0.21
+	github.com/google/certificate-transparency-go v1.1.1
 	github.com/google/go-cmp v0.5.5
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/huandu/xstrings v1.2.0 // indirect
