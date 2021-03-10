@@ -81,7 +81,7 @@ func TestNodeRoundTrip(t *testing.T) {
 				if err := tx.SetMerkleNodes(ctx, tc.store); err != nil {
 					t.Fatalf("Failed to store nodes: %s", err)
 				}
-				return nil
+				return storeLogRoot(ctx, tx, uint64(len(tc.store)), uint64(writeRev), []byte{1, 2, 3})
 			})
 
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -107,8 +107,9 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	const writeRevision = int64(100)
-	nodesToStore, err := createLogNodesForTreeAtSize(t, 871, writeRevision)
+	const writeRev = int64(100)
+	const size = 871
+	nodesToStore, err := createLogNodesForTreeAtSize(t, size, writeRev)
 	if err != nil {
 		t.Fatalf("failed to create test tree: %v", err)
 	}
@@ -119,7 +120,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 	{
 		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			forceWriteRevision(writeRevision, tx)
+			forceWriteRevision(writeRev, tx)
 
 			// Need to read nodes before attempting to write
 			if _, err := tx.GetMerkleNodes(ctx, nodeIDsToRead); err != nil {
@@ -128,7 +129,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 				t.Fatalf("Failed to store nodes: %s", err)
 			}
-			return nil
+			return storeLogRoot(ctx, tx, uint64(size), uint64(writeRev), []byte{1, 2, 3})
 		})
 	}
 
@@ -283,21 +284,23 @@ func getVersion(db *sql.DB) (string, error) {
 
 func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
 	t.Helper()
-	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
-
-	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
-		if err != nil {
-			return fmt.Errorf("error creating new SignedLogRoot: %v", err)
-		}
-		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
-			return fmt.Errorf("error storing new SignedLogRoot: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("ReadWriteTransaction() = %v", err)
+	if err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		return storeLogRoot(ctx, tx, treeSize, 0, []byte{0})
+	}); err != nil {
+		t.Fatalf("ReadWriteTransaction: %v", err)
 	}
+}
+
+func storeLogRoot(ctx context.Context, tx storage.LogTreeTX, size, rev uint64, hash []byte) error {
+	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
+	root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: size, Revision: rev, RootHash: hash})
+	if err != nil {
+		return fmt.Errorf("error creating new SignedLogRoot: %v", err)
+	}
+	if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
+		return fmt.Errorf("error storing new SignedLogRoot: %v", err)
+	}
+	return nil
 }
 
 // mustCreateTree creates the specified tree using AdminStorage.
