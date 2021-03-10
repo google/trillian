@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dumplib
+package main
 
 import (
 	"bytes"
@@ -56,8 +56,6 @@ import (
 	"github.com/google/trillian/util/clock"
 )
 
-var leafHashesFlag bool
-
 // A 32 bit magic number that is written at the start of record io files to identify the format.
 const recordIOMagic int32 = 0x3ed7230a
 
@@ -68,25 +66,27 @@ type treeAndRev struct {
 }
 
 // summarizeProto is an output formatter function that produces a single line summary.
-func summarizeProto(s *storagepb.SubtreeProto) string {
-	summary := fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d rh:%s\n",
-		hex.EncodeToString(s.Prefix),
-		s.Depth,
-		len(s.Leaves),
-		s.InternalNodeCount,
-		hex.EncodeToString(s.RootHash))
+func summarizeProto(leafHashesFlag bool) func(s *storagepb.SubtreeProto) string {
+	return func(s *storagepb.SubtreeProto) string {
+		summary := fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d rh:%s\n",
+			hex.EncodeToString(s.Prefix),
+			s.Depth,
+			len(s.Leaves),
+			s.InternalNodeCount,
+			hex.EncodeToString(s.RootHash))
 
-	if leafHashesFlag {
-		for prefix, hash := range s.Leaves {
-			dp, err := base64.StdEncoding.DecodeString(prefix)
-			if err != nil {
-				glog.Fatalf("Failed to decode leaf prefix: %v", err)
+		if leafHashesFlag {
+			for prefix, hash := range s.Leaves {
+				dp, err := base64.StdEncoding.DecodeString(prefix)
+				if err != nil {
+					glog.Fatalf("Failed to decode leaf prefix: %v", err)
+				}
+				summary += fmt.Sprintf("%s -> %s\n", hex.EncodeToString(dp), hex.EncodeToString(hash))
 			}
-			summary += fmt.Sprintf("%s -> %s\n", hex.EncodeToString(dp), hex.EncodeToString(hash))
 		}
-	}
 
-	return summary
+		return summary
+	}
 }
 
 // fullProto is an output formatter function that produces a single line in proto text format.
@@ -236,8 +236,6 @@ func Main(args Options) string {
 	ctx := context.Background()
 	validateFlagsOrDie(args.Summary, args.RecordIO)
 
-	leafHashesFlag = args.LeafHashes
-
 	glog.Info("Initializing memory log storage")
 	ts := memory.NewTreeStorage()
 	ls := memory.NewLogStorage(ts, monitoring.InertMetricFactory{})
@@ -291,7 +289,7 @@ func Main(args Options) string {
 	var formatter func(*storagepb.SubtreeProto) string
 	switch {
 	case args.Summary:
-		formatter = summarizeProto
+		formatter = summarizeProto(args.LeafHashes)
 	case args.RecordIO:
 		formatter = recordIOProto
 		recordIOHdr()
