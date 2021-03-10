@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dumplib
+package main
 
 import (
 	"io/ioutil"
@@ -32,7 +32,7 @@ func TestDBFormatNoChange(t *testing.T) {
 	}{
 		{
 			desc: "tree_size: 96",
-			file: "../../../../testdata/dump_tree_output_96",
+			file: "testdata/dump_tree_output_96",
 			opts: Options{
 				96, 50,
 				"Leaf %d",
@@ -41,7 +41,7 @@ func TestDBFormatNoChange(t *testing.T) {
 		},
 		{
 			desc: "tree_size: 871",
-			file: "../../../../testdata/dump_tree_output_871",
+			file: "testdata/dump_tree_output_871",
 			opts: Options{
 				871, 50,
 				"Leaf %d",
@@ -50,7 +50,7 @@ func TestDBFormatNoChange(t *testing.T) {
 		},
 		{
 			desc: "tree_size: 1000",
-			file: "../../../../testdata/dump_tree_output_1000",
+			file: "testdata/dump_tree_output_1000",
 			opts: Options{
 				1000, 50,
 				"Leaf %d",
@@ -59,7 +59,7 @@ func TestDBFormatNoChange(t *testing.T) {
 		},
 		{
 			desc: "tree_size: 1024",
-			file: "../../../../testdata/dump_tree_output_1024",
+			file: "testdata/dump_tree_output_1024",
 			opts: Options{
 				1024, 50,
 				"Leaf %d",
