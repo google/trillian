@@ -400,10 +400,6 @@ func (t *treeTX) Close() error {
 	return nil
 }
 
-func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]tree.Node, error) {
-	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
-}
-
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,

@@ -279,7 +279,7 @@ func Main(args Options) string {
 	glog.Info("Producing output")
 
 	if args.Traverse {
-		return traverseTreeStorage(ctx, ls, tree, args.TreeSize, int64(root.Revision))
+		return traverseTreeStorage(ctx, ls, tree, args.TreeSize)
 	}
 
 	if args.DumpLeaves {
@@ -407,7 +407,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 	glog.Info("Finished sequencing")
 }
 
-func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillian.Tree, ts int, rev int64) string {
+func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillian.Tree, ts int) string {
 	out := new(bytes.Buffer)
 	nodesAtLevel := int64(ts)
 
@@ -444,7 +444,7 @@ func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillia
 				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, node, err)
 			}
 
-			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []tree.NodeID{nodeID})
+			nodes, err := tx.GetMerkleNodes(context.TODO(), []tree.NodeID{nodeID})
 			if err != nil {
 				glog.Fatalf("GetMerkleNodes: %s: %v", nodeID.CoordString(), err)
 			}

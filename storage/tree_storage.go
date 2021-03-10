@@ -62,7 +62,7 @@ type TreeTX interface {
 
 // TreeWriter represents additional transaction methods that modify the tree.
 type TreeWriter interface {
-	// SetMerkleNodes stores the provided nodes, at the transaction's writeRevision.
+	// SetMerkleNodes writes the nodes, at the write revision.
 	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
 
 	// WriteRevision returns the tree revision that any writes through this TreeTX will be stored at.
@@ -78,7 +78,6 @@ type DatabaseChecker interface {
 // NodeReader provides read-only access to the stored tree nodes, as an interface to allow easier
 // testing of node manipulation.
 type NodeReader interface {
-	// GetMerkleNodes looks up the set of nodes identified by ids, at
-	// treeRevision, and returns them in the same order.
-	GetMerkleNodes(ctx context.Context, treeRevision int64, ids []tree.NodeID) ([]tree.Node, error)
+	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
+	GetMerkleNodes(ctx context.Context, ids []tree.NodeID) ([]tree.Node, error)
 }

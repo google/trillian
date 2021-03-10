@@ -151,7 +151,7 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 		storIDs[i] = nodeID
 	}
 
-	nodes, err := tx.GetMerkleNodes(ctx, int64(root.Revision), storIDs)
+	nodes, err := tx.GetMerkleNodes(ctx, storIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
 	}

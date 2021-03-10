@@ -351,14 +351,6 @@ func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtr
 	}
 }
 
-// GetMerkleNodes returns the requests nodes at (or below) the passed in treeRevision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]tree.Node, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
-}
-
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
