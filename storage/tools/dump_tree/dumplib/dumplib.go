@@ -36,6 +36,7 @@ import (
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/der"
+	_ "github.com/google/trillian/crypto/keys/der/proto"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
