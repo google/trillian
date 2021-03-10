@@ -42,6 +42,7 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/compact"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/hashers/registry"
 	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
@@ -301,19 +302,18 @@ func Main(args Options) string {
 	if err != nil {
 		glog.Fatalf("Failed to create a log hasher: %v", err)
 	}
-	repopFunc := cache.LogPopulateFunc(hasher)
 
 	if args.LatestRevision {
-		return latestRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
+		return latestRevisions(ls, tree.TreeId, hasher, formatter, args.Rebuild, args.HexKeys)
 	}
-	return allRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
+	return allRevisions(ls, tree.TreeId, hasher, formatter, args.Rebuild, args.HexKeys)
 }
 
-func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func allRevisions(ls storage.LogStorage, treeID int64, hasher hashers.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		if rebuildInternal {
-			repopFunc(v)
+			cache.PopulateLogTile(v, hasher)
 		}
 		if hexKeysFlag {
 			hexKeys(v)
@@ -323,7 +323,7 @@ func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Populat
 	return out.String()
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, hasher hashers.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
@@ -361,7 +361,7 @@ func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Popu
 	for _, k := range sKeys {
 		v := vMap[k]
 		if rebuildInternal {
-			repopFunc(v.subtree)
+			cache.PopulateLogTile(v.subtree, hasher)
 		}
 		if hexKeysFlag {
 			hexKeys(v.subtree)

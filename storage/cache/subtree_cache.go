@@ -25,7 +25,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 )
@@ -59,6 +59,7 @@ const maxSupportedTreeDepth = 64
 //  2. Subtrees/nodes are rarely written, and mostly read.
 type SubtreeCache struct {
 	layout *tree.Layout
+	hasher hashers.LogHasher
 
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
@@ -67,19 +68,13 @@ type SubtreeCache struct {
 	// to storage.
 	dirtyPrefixes sync.Map
 
-	// populate is used to rebuild internal nodes when subtrees are loaded from storage.
-	populate storage.PopulateSubtreeFunc
 	// populateConcurrency sets the amount of concurrency when repopulating subtrees.
 	populateConcurrency int
-	// prepare is used for preparation work when subtrees are about to be written to storage.
-	prepare storage.PrepareSubtreeWriteFunc
 }
 
-// NewSubtreeCache returns a newly intialised cache ready for use.
-// populateSubtree is a function which knows how to populate a subtree's
-// internal nodes given its leaves, and will be called for each subtree loaded
-// from storage.
-func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) *SubtreeCache {
+// NewLogSubtreeCache creates and returns a SubtreeCache appropriate for use with a log
+// tree. The caller must supply the strata depths to be used and a suitable LogHasher.
+func NewLogSubtreeCache(strataDepths []int, hasher hashers.LogHasher) *SubtreeCache {
 	// TODO(al): pass this in
 	maxTreeDepth := maxSupportedTreeDepth
 	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
@@ -94,12 +89,10 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 	if *populateConcurrency <= 0 {
 		panic(fmt.Errorf("populate_subtree_concurrency must be set to >= 1"))
 	}
-
 	return &SubtreeCache{
 		layout:              layout,
-		populate:            populateSubtree,
+		hasher:              hasher,
 		populateConcurrency: *populateConcurrency,
-		prepare:             prepareSubtreeWrite,
 	}
 }
 
@@ -159,7 +152,7 @@ func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) e
 			// return it when done
 			defer func() { workTokens <- true }()
 
-			s.populate(t)
+			PopulateLogTile(t, s.hasher)
 			ch <- t // Note: This never blocks because len(ch) == len(subtrees).
 		}()
 	}
@@ -296,7 +289,7 @@ func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([
 		if c == nil {
 			c = s.newEmptySubtree(subID)
 		} else {
-			if err := s.populate(c); err != nil {
+			if err := PopulateLogTile(c, s.hasher); err != nil {
 				return nil, err
 			}
 		}
@@ -426,8 +419,7 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 			v.RootHash = nil
 
 			if len(v.Leaves) > 0 {
-				// prepare internal nodes ready for the write (tree type specific)
-				if err := s.prepare(v); err != nil {
+				if err := prepareLogTile(v); err != nil {
 					rangeErr = err
 					return false
 				}
