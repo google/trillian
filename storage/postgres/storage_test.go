@@ -28,10 +28,10 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgres/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/storage/tree"
 	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
@@ -44,9 +44,9 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
-	nodeIDsToRead := make([]stree.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]compact.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
-		nodeIDsToRead[i] = nodesToStore[i].NodeID
+		nodeIDsToRead[i] = nodesToStore[i].ID
 	}
 
 	{
@@ -89,24 +89,24 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 func createSomeNodes() []stree.Node {
 	r := make([]stree.Node, 4)
 	for i := range r {
-		r[i].NodeID = tree.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
+		r[i].ID = compact.NewNodeID(0, uint64(i))
 		r[i].Hash = h[:]
-		glog.Infof("Node to store: %v\n", r[i].NodeID)
+		glog.Infof("Node to store: %v\n", r[i].ID)
 	}
 	return r
 }
 
-func nodesAreEqual(lhs []stree.Node, rhs []stree.Node) error {
+func nodesAreEqual(lhs, rhs []stree.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
 	}
 	for i := range lhs {
-		if l, r := lhs[i].NodeID.String(), rhs[i].NodeID.String(); l != r {
+		if l, r := lhs[i].ID, rhs[i].ID; l != r {
 			return fmt.Errorf("NodeIDs are not the same,\nlhs = %v,\nrhs = %v", l, r)
 		}
 		if l, r := lhs[i].Hash, rhs[i].Hash; !bytes.Equal(l, r) {
-			return fmt.Errorf("hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
+			return fmt.Errorf("hashes are not the same for %v,\nlhs = %v,\nrhs = %v", lhs[i].ID, l, r)
 		}
 	}
 	return nil

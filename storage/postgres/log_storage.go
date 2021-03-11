@@ -29,6 +29,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
@@ -370,9 +371,9 @@ func (t *logTreeTX) WriteRevision(ctx context.Context) (int64, error) {
 	return t.treeTX.writeRevision, nil
 }
 
-func (t *logTreeTX) GetMerkleNodes(ctx context.Context, nodeIDs []tree.NodeID) ([]tree.Node, error) {
+func (t *logTreeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error) {
 	rev := int64(t.root.Revision)
-	return t.treeTX.subtreeCache.GetNodes(nodeIDs, t.treeTX.getSubtreesAtRev(ctx, rev))
+	return t.treeTX.subtreeCache.GetNodes(ids, t.treeTX.getSubtreesAtRev(ctx, rev))
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {

@@ -107,12 +107,6 @@ type Sequencer struct {
 	qm         quota.Manager
 }
 
-// maxTreeDepth sets an upper limit on the size of Log trees.
-// Note: We actually can't go beyond 2^63 entries because we use int64s,
-// but we need to calculate tree depths from a multiple of 8 due to the
-// subtree assumptions.
-const maxTreeDepth = 64
-
 // NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(
 	hasher hashers.LogHasher,
@@ -142,33 +136,18 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 	}
 
 	ids := compact.RangeNodes(0, root.TreeSize)
-	storIDs := make([]tree.NodeID, len(ids))
-	for i, id := range ids {
-		nodeID, err := tree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create nodeID: %v", err)
-		}
-		storIDs[i] = nodeID
-	}
-
-	nodes, err := tx.GetMerkleNodes(ctx, storIDs)
+	nodes, err := tx.GetMerkleNodes(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Merkle nodes: %v", err)
+		return nil, fmt.Errorf("failed to read tree nodes: %v", err)
 	}
-	if got, want := len(nodes), len(storIDs); got != want {
-		return nil, fmt.Errorf("failed to get %d nodes at rev %d, got %d", want, root.Revision, got)
-	}
-	for i, id := range storIDs {
-		if !nodes[i].NodeID.Equivalent(id) {
-			return nil, fmt.Errorf("node ID mismatch at %d", i)
-		}
+	if got, want := len(nodes), len(ids); got != want {
+		return nil, fmt.Errorf("failed to get %d nodes, got %d", want, got)
 	}
 
 	hashes := make([][]byte, len(nodes))
 	for i, node := range nodes {
 		hashes[i] = node.Hash
 	}
-
 	cr, err := fact.NewRange(0, root.TreeSize, hashes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compact.Range: %v", err)
@@ -184,16 +163,12 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 	return cr, nil
 }
 
-func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte, newVersion int64) ([]tree.Node, error) {
+func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte) []tree.Node {
 	nodes := make([]tree.Node, 0, len(nodeMap))
 	for id, hash := range nodeMap {
-		nodeID, err := tree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxTreeDepth)
-		if err != nil {
-			return nil, err
-		}
-		nodes = append(nodes, tree.Node{NodeID: nodeID, Hash: hash, NodeRevision: newVersion})
+		nodes = append(nodes, tree.Node{ID: id, Hash: hash})
 	}
-	return nodes, nil
+	return nodes
 }
 
 func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string) error {
@@ -431,11 +406,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		// Build objects for the nodes to be updated. Because we deduped via the map
 		// each node can only be created / updated once in each tree revision and
 		// they cannot conflict when we do the storage update.
-		targetNodes, err := s.buildNodesFromNodeMap(nodeMap, newVersion)
-		if err != nil {
-			// Probably an internal error with map building, unexpected.
-			return fmt.Errorf("%v: Failed to build target nodes in sequencer: %v", tree.TreeId, err)
-		}
+		targetNodes := s.buildNodesFromNodeMap(nodeMap)
 
 		// Now insert or update the nodes affected by the above, at the new tree
 		// version.

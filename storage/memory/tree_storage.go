@@ -236,7 +236,7 @@ func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtr
 
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []stree.Node) error {
 	for _, n := range nodes {
-		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
+		err := t.subtreeCache.SetNodeHash(n.ID, n.Hash,
 			func(nID stree.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(ctx, t.writeRevision, nID)
 			})

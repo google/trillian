@@ -41,15 +41,15 @@ import (
 
 func TestNodeRoundTrip(t *testing.T) {
 	nodes := createSomeNodes(256)
-	nodeIDs := make([]stree.NodeID, len(nodes))
+	nodeIDs := make([]compact.NodeID, len(nodes))
 	for i := range nodes {
-		nodeIDs[i] = nodes[i].NodeID
+		nodeIDs[i] = nodes[i].ID
 	}
 
 	for _, tc := range []struct {
 		desc  string
 		store []stree.Node
-		read  []stree.NodeID
+		read  []compact.NodeID
 		want  []stree.Node
 	}{
 		{desc: "store-4-read-4", store: nodes[:4], read: nodeIDs[:4], want: nodes[:4]},
@@ -67,9 +67,9 @@ func TestNodeRoundTrip(t *testing.T) {
 			s := NewLogStorage(DB, nil)
 
 			const writeRev = int64(100)
-			preread := make([]stree.NodeID, len(tc.store))
+			preread := make([]compact.NodeID, len(tc.store))
 			for i := range tc.store {
-				preread[i] = tc.store[i].NodeID
+				preread[i] = tc.store[i].ID
 			}
 
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -113,9 +113,9 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test tree: %v", err)
 	}
-	nodeIDsToRead := make([]stree.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]compact.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
-		nodeIDsToRead[i] = nodesToStore[i].NodeID
+		nodeIDsToRead[i] = nodesToStore[i].ID
 	}
 
 	{
@@ -142,10 +142,10 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 			if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
 				missing, extra := diffNodes(readNodes, nodesToStore)
 				for _, n := range missing {
-					t.Errorf("Missing: %s %s", n.NodeID.String(), n.NodeID.CoordString())
+					t.Errorf("Missing: %v", n.ID)
 				}
 				for _, n := range extra {
-					t.Errorf("Extra  : %s %s", n.NodeID.String(), n.NodeID.CoordString())
+					t.Errorf("Extra  : %v", n.ID)
 				}
 				t.Fatalf("Read back different nodes from the ones stored: %s", err)
 			}
@@ -165,10 +165,10 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 func createSomeNodes(count int) []stree.Node {
 	r := make([]stree.Node, count)
 	for i := range r {
-		r[i].NodeID = stree.NewNodeIDFromPrefix([]byte{byte(i)}, 0, 8, 8, 8)
+		r[i].ID = compact.NewNodeID(0, uint64(i))
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
-		glog.V(3).Infof("Node to store: %v\n", r[i].NodeID)
+		glog.V(3).Infof("Node to store: %v", r[i].ID)
 	}
 	return r
 }
@@ -198,28 +198,22 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]stree.Node, err
 	// Unroll the map, which has deduped the updates for us and retained the latest
 	nodes := make([]stree.Node, 0, len(nodeMap))
 	for id, hash := range nodeMap {
-		nID, err := stree.NewNodeIDForTreeCoords(int64(id.Level), int64(id.Index), 64)
-		if err != nil {
-			t.Fatalf("failed to create NodeID for %+v: %v", id, err)
-		}
-		node := stree.Node{NodeID: nID, Hash: hash, NodeRevision: rev}
-		nodes = append(nodes, node)
+		nodes = append(nodes, stree.Node{ID: id, Hash: hash})
 	}
-
 	return nodes, nil
 }
 
 // TODO(pavelkalinnikov): Allow nodes to be out of order.
-func nodesAreEqual(lhs []stree.Node, rhs []stree.Node) error {
+func nodesAreEqual(lhs, rhs []stree.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
 	}
 	for i := range lhs {
-		if l, r := lhs[i].NodeID.String(), rhs[i].NodeID.String(); l != r {
+		if l, r := lhs[i].ID, rhs[i].ID; l != r {
 			return fmt.Errorf("NodeIDs are not the same,\nlhs = %v,\nrhs = %v", l, r)
 		}
 		if l, r := lhs[i].Hash, rhs[i].Hash; !bytes.Equal(l, r) {
-			return fmt.Errorf("Hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
+			return fmt.Errorf("Hashes are not the same for %v,\nlhs = %v,\nrhs = %v", lhs[i].ID, l, r)
 		}
 	}
 	return nil
@@ -227,16 +221,16 @@ func nodesAreEqual(lhs []stree.Node, rhs []stree.Node) error {
 
 func diffNodes(got, want []stree.Node) ([]stree.Node, []stree.Node) {
 	var missing []stree.Node
-	gotMap := make(map[string]stree.Node)
+	gotMap := make(map[compact.NodeID]stree.Node)
 	for _, n := range got {
-		gotMap[n.NodeID.String()] = n
+		gotMap[n.ID] = n
 	}
 	for _, n := range want {
-		_, ok := gotMap[n.NodeID.String()]
+		_, ok := gotMap[n.ID]
 		if !ok {
 			missing = append(missing, n)
 		}
-		delete(gotMap, n.NodeID.String())
+		delete(gotMap, n.ID)
 	}
 	// Unpack the extra nodes to return both as slices
 	extra := make([]stree.Node, 0, len(gotMap))

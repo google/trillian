@@ -45,22 +45,12 @@ func NodeIDEq(n tree.NodeID) gomock.Matcher {
 	return nodeIDEq{n}
 }
 
-// We need a stable order to match the mock expectations so we sort them by
-// prefix len before passing them to the mock library. Might need extending
-// if we have more complex tests.
-func prefixLen(n1, n2 *tree.Node) bool {
-	return n1.NodeID.PrefixLenBits < n2.NodeID.PrefixLenBits
-}
-
-// NodeSet returns a matcher that expects the given set of Nodes.
+// NodeSet returns a matcher that expects the given set of nodes.
 func NodeSet(nodes []tree.Node) gomock.Matcher {
-	by(prefixLen).sort(nodes)
-	return nodeSet{nodes}
+	return nodeSet(sorted(nodes))
 }
 
-type nodeSet struct {
-	other []tree.Node
-}
+type nodeSet []tree.Node
 
 // Matches implements the gomock.Matcher API.
 func (n nodeSet) Matches(x interface{}) bool {
@@ -68,41 +58,17 @@ func (n nodeSet) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	by(prefixLen).sort(nodes)
-	return reflect.DeepEqual(nodes, n.other)
+	return reflect.DeepEqual(sorted(nodes), []tree.Node(n))
 }
 
 func (n nodeSet) String() string {
-	return fmt.Sprintf("equivalent to %v", n.other)
+	return fmt.Sprintf("equivalent to %v", []tree.Node(n))
 }
 
-// Node sorting boilerplate below.
-
-type by func(n1, n2 *tree.Node) bool
-
-func (by by) sort(nodes []tree.Node) {
-	ns := &nodeSorter{nodes: nodes, by: by}
-	sort.Sort(ns)
+func sorted(n []tree.Node) []tree.Node {
+	sort.Slice(n, func(i, j int) bool {
+		return n[i].ID.Level < n[j].ID.Level ||
+			(n[i].ID.Level == n[j].ID.Level && n[i].ID.Index < n[j].ID.Index)
+	})
+	return n
 }
-
-type nodeSorter struct {
-	nodes []tree.Node
-	by    func(n1, n2 *tree.Node) bool
-}
-
-// Len implements the sort.Interface API.
-func (n *nodeSorter) Len() int {
-	return len(n.nodes)
-}
-
-// Swap implements the sort.Interface API.
-func (n *nodeSorter) Swap(i, j int) {
-	n.nodes[i], n.nodes[j] = n.nodes[j], n.nodes[i]
-}
-
-// Less implements the sort.Interface API.
-func (n *nodeSorter) Less(i, j int) bool {
-	return n.by(&n.nodes[i], &n.nodes[j])
-}
-
-// End sorting boilerplate.

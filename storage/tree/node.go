@@ -23,15 +23,16 @@ import (
 	"math/bits"
 	"strconv"
 	"strings"
+
+	"github.com/google/trillian/merkle/compact"
 )
 
 const hexChars = "0123456789abcdef"
 
 // Node represents a single node in a Merkle tree.
 type Node struct {
-	NodeID       NodeID
-	Hash         []byte
-	NodeRevision int64
+	ID   compact.NodeID
+	Hash []byte
 }
 
 // NodeID is an identifier of a Merkle tree Node. A default constructed NodeID

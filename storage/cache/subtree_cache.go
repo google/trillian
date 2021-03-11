@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
@@ -203,7 +204,17 @@ func (s *SubtreeCache) cacheSubtree(t *storagepb.SubtreeProto) error {
 
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
-func (s *SubtreeCache) GetNodes(ids []tree.NodeID, getSubtrees GetSubtreesFunc) ([]tree.Node, error) {
+func (s *SubtreeCache) GetNodes(nodeIDs []compact.NodeID, getSubtrees GetSubtreesFunc) ([]tree.Node, error) {
+	// TODO(pavelkalinnikov): Use compact.NodeID directly, don't convert.
+	ids := make([]tree.NodeID, len(nodeIDs))
+	for i, nID := range nodeIDs {
+		id, err := tree.NewNodeIDForTreeCoords(int64(nID.Level), int64(nID.Index), maxSupportedTreeDepth)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create nodeID %v: %v", nID, err)
+		}
+		ids[i] = id
+	}
+
 	glog.V(2).Infof("cache: GetNodes(count=%d)", len(ids))
 	if glog.V(3) {
 		for _, n := range ids {
@@ -215,7 +226,7 @@ func (s *SubtreeCache) GetNodes(ids []tree.NodeID, getSubtrees GetSubtreesFunc) 
 	}
 
 	ret := make([]tree.Node, 0, len(ids))
-	for _, id := range ids {
+	for i, id := range ids {
 		h, err := s.getNodeHash(
 			id,
 			func(n tree.NodeID) (*storagepb.SubtreeProto, error) {
@@ -237,15 +248,15 @@ func (s *SubtreeCache) GetNodes(ids []tree.NodeID, getSubtrees GetSubtreesFunc) 
 
 		if h != nil {
 			ret = append(ret, tree.Node{
-				NodeID: id,
-				Hash:   h,
+				ID:   nodeIDs[i],
+				Hash: h,
 			})
 		}
 	}
 	glog.V(2).Infof("cache: GetNodes(count=%d) => %d results", len(ids), len(ret))
 	if glog.V(3) {
 		for _, r := range ret {
-			glog.Infof("  cache: Node{rev=%d, path=%x, prefixLen=%d, hash=%x}", r.NodeRevision, r.NodeID.Path, r.NodeID.PrefixLenBits, r.Hash)
+			glog.Infof("  cache: %+v", r)
 		}
 	}
 	return ret, nil
@@ -327,7 +338,11 @@ func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id tree.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
+func (s *SubtreeCache) SetNodeHash(nID compact.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
+	id, err := tree.NewNodeIDForTreeCoords(int64(nID.Level), int64(nID.Index), maxSupportedTreeDepth)
+	if err != nil {
+		return fmt.Errorf("failed to create nodeID %v: %v", nID, err)
+	}
 	if glog.V(3) {
 		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
 	}

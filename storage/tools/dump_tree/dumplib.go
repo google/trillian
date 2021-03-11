@@ -41,6 +41,7 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers/registry"
 	_ "github.com/google/trillian/merkle/rfc6962" // Register the hasher.
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
@@ -50,7 +51,6 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
@@ -409,7 +409,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 
 func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillian.Tree, ts int) string {
 	out := new(bytes.Buffer)
-	nodesAtLevel := int64(ts)
+	nodesAtLevel := uint64(ts)
 
 	tx, err := ls.SnapshotForTree(context.TODO(), tt)
 	if err != nil {
@@ -421,7 +421,7 @@ func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillia
 		}
 	}()
 
-	levels := int64(0)
+	levels := uint(0)
 	n := nodesAtLevel
 	for n > 0 {
 		levels++
@@ -435,21 +435,17 @@ func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillia
 		levels++
 	}
 
-	for level := int64(0); level < levels; level++ {
-		for node := int64(0); node < nodesAtLevel; node++ {
+	for level := uint(0); level < levels; level++ {
+		for node := uint64(0); node < nodesAtLevel; node++ {
 			// We're going to request one node at a time, which would normally be slow but we have
 			// the tree in RAM so it's not a real problem.
-			nodeID, err := tree.NewNodeIDForTreeCoords(level, node, 64)
+			nodeID := compact.NewNodeID(level, node)
+			nodes, err := tx.GetMerkleNodes(context.TODO(), []compact.NodeID{nodeID})
 			if err != nil {
-				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, node, err)
-			}
-
-			nodes, err := tx.GetMerkleNodes(context.TODO(), []tree.NodeID{nodeID})
-			if err != nil {
-				glog.Fatalf("GetMerkleNodes: %s: %v", nodeID.CoordString(), err)
+				glog.Fatalf("GetMerkleNodes: %+v: %v", nodeID, err)
 			}
 			if len(nodes) != 1 {
-				glog.Fatalf("GetMerkleNodes: %s: want 1 node got: %v", nodeID.CoordString(), nodes)
+				glog.Fatalf("GetMerkleNodes: %+v: want 1 node got: %v", nodeID, nodes)
 			}
 
 			fmt.Fprintf(out, "%6d %6d -> %s\n", level, node, hex.EncodeToString(nodes[0].Hash))
