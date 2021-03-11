@@ -38,11 +38,11 @@ require (
 	go.etcd.io/etcd/v3 v3.5.0-alpha.0
 	go.opencensus.io v0.23.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
-	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
-	golang.org/x/sys v0.0.0-20210223095934-7937bea0104d
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/sys v0.0.0-20210305230114-8fe3ee5dd75b
 	golang.org/x/tools v0.1.0
-	google.golang.org/api v0.40.0
-	google.golang.org/genproto v0.0.0-20210222152913-aa3ee6e6a81c
+	google.golang.org/api v0.41.0
+	google.golang.org/genproto v0.0.0-20210303154014-9728d6b83eeb
 	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 )
