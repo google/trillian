@@ -410,12 +410,16 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *
 }
 
 // GetMerkleNodes returns the requested set of nodes at, or before, the
-// specified tree revision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, rev int64, ids []tree.NodeID) ([]tree.Node, error) {
+// transaction read revision.
+func (t *treeTX) GetMerkleNodes(ctx context.Context, ids []tree.NodeID) ([]tree.Node, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.stx == nil {
 		return nil, ErrTransactionClosed
+	}
+	rev, err := t.ReadRevision(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get read revision: %v", err)
 	}
 
 	return t.cache.GetNodes(ids,

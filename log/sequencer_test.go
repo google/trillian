@@ -318,7 +318,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		for _, node := range *params.merkleNodesGet {
 			ids = append(ids, node.NodeID)
 		}
-		mockTx.EXPECT().GetMerkleNodes(gomock.Any(), params.writeRevision-1, ids).Return(*params.merkleNodesGet, params.merkleNodesGetError)
+		mockTx.EXPECT().GetMerkleNodes(gomock.Any(), ids).Return(*params.merkleNodesGet, params.merkleNodesGetError)
 	}
 
 	if params.updatedLeaves != nil {
@@ -774,7 +774,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			logTX.EXPECT().DequeueLeaves(any, any, any).Return(test.leaves, nil)
 			logTX.EXPECT().LatestSignedLogRoot(any).Return(testSignedRoot16, nil)
 			if len(test.leaves) != 0 {
-				logTX.EXPECT().GetMerkleNodes(any, any, any).Return(compactTree16, nil)
+				logTX.EXPECT().GetMerkleNodes(any, any).Return(compactTree16, nil)
 			}
 			logTX.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(int64(testRoot16.Revision+1), nil)
 			logTX.EXPECT().UpdateSequencedLeaves(any, any).AnyTimes().Return(nil)

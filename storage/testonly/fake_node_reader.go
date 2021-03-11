@@ -57,11 +57,7 @@ func NewFakeNodeReader(nodes []tree.Node, treeRevision int64) *FakeNodeReader {
 }
 
 // GetMerkleNodes implements the corresponding NodeReader API.
-func (f FakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []tree.NodeID) ([]tree.Node, error) {
-	if f.treeRevision > treeRevision {
-		return nil, fmt.Errorf("GetMerkleNodes() got treeRevision:%d, want up to: %d", treeRevision, f.treeRevision)
-	}
-
+func (f FakeNodeReader) GetMerkleNodes(NodeIDs []tree.NodeID) ([]tree.Node, error) {
 	nodes := make([]tree.Node, 0, len(NodeIDs))
 	for _, nodeID := range NodeIDs {
 		node, ok := f.nodeMap[nodeID.String()]
@@ -161,31 +157,30 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 	return NewMultiFakeNodeReader(readers)
 }
 
-func (m MultiFakeNodeReader) readerForNodeID(nodeID tree.NodeID, revision int64) *FakeNodeReader {
-	// Work backwards and use the first reader where the node is present and the revision is in range
+func (m MultiFakeNodeReader) readerForNodeID(nodeID tree.NodeID) *FakeNodeReader {
+	// Work backwards and use the first reader where the node is present.
 	for i := len(m.readers) - 1; i >= 0; i-- {
-		if m.readers[i].treeRevision <= revision && m.readers[i].hasID(nodeID) {
+		if m.readers[i].hasID(nodeID) {
 			return &m.readers[i]
 		}
 	}
-
 	return nil
 }
 
 // GetMerkleNodes implements the corresponding NodeReader API.
-func (m MultiFakeNodeReader) GetMerkleNodes(ctx context.Context, treeRevision int64, NodeIDs []tree.NodeID) ([]tree.Node, error) {
+func (m MultiFakeNodeReader) GetMerkleNodes(ctx context.Context, NodeIDs []tree.NodeID) ([]tree.Node, error) {
 	// Find the correct reader for the supplied tree revision. This must be done for each node
 	// as earlier revisions may still be relevant
 	nodes := make([]tree.Node, 0, len(NodeIDs))
 	for _, nID := range NodeIDs {
-		reader := m.readerForNodeID(nID, treeRevision)
+		reader := m.readerForNodeID(nID)
 
 		if reader == nil {
 			return nil,
-				fmt.Errorf("want nodeID: %v with revision <= %d but no reader has it\n%v", nID, treeRevision, m)
+				fmt.Errorf("want nodeID %v, but no reader has it\n%v", nID, m)
 		}
 
-		node, err := reader.GetMerkleNodes(treeRevision, []tree.NodeID{nID})
+		node, err := reader.GetMerkleNodes([]tree.NodeID{nID})
 		if err != nil {
 			return nil, err
 		}

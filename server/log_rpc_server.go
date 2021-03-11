@@ -456,14 +456,7 @@ func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize, 
 	if err != nil {
 		return nil, err
 	}
-
-	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
-	// against.
-	rev, err := tx.ReadRevision(ctx)
-	if err != nil {
-		return nil, err
-	}
-	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, rev, 0, nodeFetches)
+	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, 0, nodeFetches)
 	if err != nil {
 		return nil, err
 	}
@@ -728,12 +721,7 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 	if err != nil {
 		return nil, err
 	}
-
-	rev, err := tx.ReadRevision(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return fetchNodesAndBuildProof(ctx, tx, hasher, rev, leafIndex, proofNodeIDs)
+	return fetchNodesAndBuildProof(ctx, tx, hasher, leafIndex, proofNodeIDs)
 }
 
 func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, hashers.LogHasher, error) {

@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -367,6 +368,11 @@ func (t *logTreeTX) WriteRevision(ctx context.Context) (int64, error) {
 		return t.treeTX.writeRevision, errors.New("logTreeTX write revision not populated")
 	}
 	return t.treeTX.writeRevision, nil
+}
+
+func (t *logTreeTX) GetMerkleNodes(ctx context.Context, nodeIDs []tree.NodeID) ([]tree.Node, error) {
+	rev := int64(t.root.Revision)
+	return t.treeTX.subtreeCache.GetNodes(nodeIDs, t.treeTX.getSubtreesAtRev(ctx, rev))
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {

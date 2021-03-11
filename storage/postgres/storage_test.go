@@ -54,7 +54,7 @@ func TestNodeRoundTrip(t *testing.T) {
 			forceWriteRevision(writeRevision, tx)
 
 			// Need to read nodes before attempting to write
-			if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
+			if _, err := tx.GetMerkleNodes(ctx, nodeIDsToRead); err != nil {
 				t.Fatalf("Failed to read nodes: %s", err)
 			}
 			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
@@ -66,7 +66,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	{
 		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
+			readNodes, err := tx.GetMerkleNodes(ctx, nodeIDsToRead)
 			if err != nil {
 				t.Fatalf("Failed to retrieve nodes: %s", err)
 			}

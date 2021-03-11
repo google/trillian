@@ -33,10 +33,10 @@ const proofMaxBitLen = 64
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
-	proofNodes, err := fetchNodes(ctx, tx, treeRevision, proofNodeFetches)
+	proofNodes, err := fetchNodes(ctx, tx, proofNodeFetches)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
 // to storage, returning the result after some additional validation checks.
-func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]tree.Node, error) {
+func fetchNodes(ctx context.Context, tx storage.NodeReader, fetches []merkle.NodeFetch) ([]tree.Node, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodes")
 	defer spanEnd()
 	proofNodeIDs := make([]tree.NodeID, 0, len(fetches))
@@ -71,7 +71,7 @@ func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, 
 		proofNodeIDs = append(proofNodeIDs, id)
 	}
 
-	proofNodes, err := tx.GetMerkleNodes(ctx, treeRevision, proofNodeIDs)
+	proofNodes, err := tx.GetMerkleNodes(ctx, proofNodeIDs)
 	if err != nil {
 		return nil, err
 	}
