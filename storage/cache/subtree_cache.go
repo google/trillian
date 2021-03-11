@@ -45,8 +45,8 @@ type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) erro
 
 // maxSupportedTreeDepth is the maximum depth a tree can reach. Note that log
 // trees are further limited to a depth of 63 by the use of signed 64 bit leaf
-// indices. Map trees do not have this restriction.
-const maxSupportedTreeDepth = 256
+// indices.
+const maxSupportedTreeDepth = 64
 
 // SubtreeCache provides a caching access to Subtree storage. Currently there are assumptions
 // in the code that all subtrees are multiple of 8 in depth and that log subtrees are always

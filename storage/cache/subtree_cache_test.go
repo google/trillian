@@ -31,8 +31,7 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-// TODO(pavelkalinnikov): This should be 8 bytes instead of 32.
-var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
 
 func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
@@ -133,7 +132,7 @@ func TestCacheFlush(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
 
-	h := "0123456789abcdef0123456789abcdef"
+	h := "01234567"
 	nodeID := tree.NewNodeIDFromHash([]byte(h))
 	expectedSetIDs := make(map[string]string)
 	// When we loop around asking for all 0..32 bit prefix lengths of the above

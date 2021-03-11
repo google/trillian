@@ -19,5 +19,5 @@ var (
 	// defLogStrata is a suitable set of stratum sizes for Log trees.
 	// Log trees are dense and so each individual stratum cannot over-commit on
 	// storage.
-	defLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+	defLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
 )

@@ -39,7 +39,7 @@ import (
 const logIDLabel = "logid"
 
 var (
-	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
 
 	once            sync.Once
 	queuedCounter   monitoring.Counter
