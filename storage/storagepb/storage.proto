@@ -20,13 +20,6 @@ package storagepb;
 // This file contains protos used only by storage. They are not exported via any
 // of our public APIs.
 
-// NodeIDProto is the serialized form of NodeID. It's used only for persistence
-// in storage. As this is long-term we prefer not to use a Go specific format.
-message NodeIDProto {
-  bytes path = 1;
-  int32 prefix_len_bits = 2;
-}
-
 // SubtreeProto contains nodes of a subtree.
 message SubtreeProto {
   // subtree's prefix (must be a multiple of 8 bits)
