@@ -16,6 +16,7 @@
 ### Storage refactoring
  * `NodeReader.GetMerkleNodes` does not accept revisions anymore. The
    implementations must use the transaction's `ReadRevision` instead.
+ * `TreeStorage` migrated to using `compact.NodeID` type suitable for logs.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
