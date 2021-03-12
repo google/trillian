@@ -252,8 +252,9 @@ func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor,
 // 256-bit map key based on SHA256 of the given key string.
 func genNode(key, value string) Node {
 	key256 := sha256.Sum256([]byte(key))
-	hash := hasher.HashLeaf(treeID, key256[:], []byte(value))
-	return Node{ID: tree.NewNodeID2(string(key256[:]), 256), Hash: hash}
+	id := tree.NewNodeID2(string(key256[:]), uint(len(key256)*8))
+	hash := hasher.HashLeaf(treeID, id, []byte(value))
+	return Node{ID: id, Hash: hash}
 }
 
 // testAccessor implements NodeBatchAccessor for testing purposes.

@@ -335,9 +335,7 @@ func (th *tileHasher) hashTile(depthBits uint, leaves []smt.Node) ([]byte, error
 
 // Get returns hash of an empty subtree for the given root node ID.
 func (th tileHasher) Get(id tree.NodeID2) ([]byte, error) {
-	oldID := tree.NewNodeIDFromID2(id)
-	height := th.h.BitLen() - oldID.PrefixLenBits
-	return th.h.HashEmpty(th.treeID, oldID.Path, height), nil
+	return th.h.HashEmpty(th.treeID, id), nil
 }
 
 func (th tileHasher) Set(id tree.NodeID2, hash []byte) {}
