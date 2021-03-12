@@ -10,5 +10,5 @@
 # review when someone opens a pull request.
 *                                @google/trillian-team
 
-/*.proto                         @Martin2112 @AlCutter
-/storage/storagepb/storage.proto @Martin2112 @AlCutter
+/*.proto                         @Martin2112 @AlCutter @pphaneuf
+/storage/storagepb/storage.proto @Martin2112 @AlCutter @pphaneuf
