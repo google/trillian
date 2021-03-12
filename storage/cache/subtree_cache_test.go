@@ -38,7 +38,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
+	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
 
 	nodeID := tree.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
@@ -68,7 +68,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
+	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
 
 	ids := []compact.NodeID{
 		compact.NewNodeID(0, 0x1234),
@@ -135,7 +135,7 @@ func TestCacheFlush(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
+	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
 
 	id := compact.NewNodeID(0, 12345)
 	nodeID := stestonly.MustCreateNodeIDForTreeCoords(int64(id.Level), int64(id.Index), maxLogDepth)
@@ -211,7 +211,6 @@ func TestCacheFlush(t *testing.T) {
 }
 
 func TestRepopulateLogSubtree(t *testing.T) {
-	populateTheThing := populateLogSubtreeNodes(rfc6962.DefaultHasher)
 	fact := compact.RangeFactory{Hash: rfc6962.DefaultHasher.HashChildren}
 	cr := fact.NewEmptyRange(0)
 	cmtStorage := storagepb.SubtreeProto{
@@ -223,7 +222,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		Leaves: make(map[string][]byte),
 		Depth:  int32(defaultLogStrata[0]),
 	}
-	c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
+	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
 	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
@@ -253,8 +252,8 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		}
 		cmtStorage.Leaves[sfxKey] = leafHash
 
-		if err := populateTheThing(&s); err != nil {
-			t.Fatalf("failed populate subtree: %v", err)
+		if err := PopulateLogTile(&s, rfc6962.DefaultHasher); err != nil {
+			t.Fatalf("failed populating tile: %v", err)
 		}
 		root, err := cr.GetRootHash(nil)
 		if err != nil {
@@ -291,10 +290,9 @@ func BenchmarkRepopulateLogSubtree(b *testing.B) {
 		s.Leaves[sfx.String()] = hash
 	}
 
-	populate := populateLogSubtreeNodes(hasher)
 	for n := 0; n < b.N; n++ {
-		if err := populate(&s); err != nil {
-			b.Fatalf("failed populate subtree: %v", err)
+		if err := PopulateLogTile(&s, hasher); err != nil {
+			b.Fatalf("failed populating tile: %v", err)
 		}
 	}
 }
@@ -352,7 +350,7 @@ func TestIdempotentWrites(t *testing.T) {
 	// We should see many reads, but only the first call to SetNodeHash should
 	// result in an actual write being flushed through to storage.
 	for i := 0; i < 10; i++ {
-		c := NewSubtreeCache(defaultLogStrata, populateLogSubtreeNodes(rfc6962.DefaultHasher), prepareLogSubtreeWrite())
+		c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
 		_, err := c.getNodeHash(nodeID, m.GetSubtree)
 		if err != nil {
 			t.Fatalf("%d: failed to get node hash: %v", i, err)
