@@ -241,9 +241,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			t.Fatalf("merkle tree update failed: %v", err)
 		}
 
-		nodeID := tree.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, numLeaves-1, logStrataDepth, maxLogDepth)
-		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
-		sfxKey := sfx.String()
+		sfxKey := toSuffix(compact.NewNodeID(0, uint64(numLeaves)-1))
 		s.Leaves[sfxKey] = leafHash
 		if numLeaves == 1<<uint(defaultLogStrata[0]) {
 			s.InternalNodeCount = uint32(len(cmtStorage.InternalNodes))
@@ -285,9 +283,7 @@ func BenchmarkRepopulateLogSubtree(b *testing.B) {
 	for i := 0; i < 256; i++ {
 		leaf := []byte(fmt.Sprintf("leaf %d", i))
 		hash := hasher.HashLeaf(leaf)
-		nodeID := tree.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, int64(i), logStrataDepth, maxLogDepth)
-		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
-		s.Leaves[sfx.String()] = hash
+		s.Leaves[toSuffix(compact.NewNodeID(0, uint64(i)))] = hash
 	}
 
 	for n := 0; n < b.N; n++ {
