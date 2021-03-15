@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian/storage/tree"
 )
 
 // Domain separation prefixes
@@ -49,41 +50,39 @@ func (m *Hasher) EmptyRoot() []byte {
 	panic("EmptyRoot() not defined for coniks.Hasher")
 }
 
-// HashEmpty returns the hash of an empty subtree of the given height at the
-// position defined by the BitLen()-height most significant bits of the given
-// index. Note that a height of 0 indicates a leaf.
-func (m *Hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
-	depth := m.BitLen() - height
+// HashEmpty returns the hash of an empty subtree with the given root.
+func (m *Hasher) HashEmpty(treeID int64, root tree.NodeID2) []byte {
+	depth := int(root.BitLen())
 
 	buf := bytes.NewBuffer(make([]byte, 0, 32))
 	h := m.New()
 	buf.Write(emptyIdentifier)
 	binary.Write(buf, binary.BigEndian, uint64(treeID))
-	m.writeMaskedIndex(buf, index, depth)
+	m.writeMaskedNodeID(buf, root)
 	binary.Write(buf, binary.BigEndian, uint32(depth))
 	h.Write(buf.Bytes())
 	r := h.Sum(nil)
 	if glog.V(5) {
-		glog.Infof("HashEmpty(%x, %d): %x", index, depth, r)
+		glog.Infof("HashEmpty(%v): %x", root, r)
 	}
 	return r
 }
 
 // HashLeaf calculate the merkle tree leaf value:
 // H(Identifier || treeID || depth || index || dataHash)
-func (m *Hasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
-	depth := m.BitLen()
+func (m *Hasher) HashLeaf(treeID int64, id tree.NodeID2, leaf []byte) []byte {
+	depth := int(id.BitLen())
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
 	buf.Write(leafIdentifier)
 	binary.Write(buf, binary.BigEndian, uint64(treeID))
-	m.writeMaskedIndex(buf, index, depth)
+	m.writeMaskedNodeID(buf, id)
 	binary.Write(buf, binary.BigEndian, uint32(depth))
 	buf.Write(leaf)
 	h.Write(buf.Bytes())
 	p := h.Sum(nil)
 	if glog.V(5) {
-		glog.Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
+		glog.Infof("HashLeaf(%v, %s): %x", id, leaf, p)
 	}
 	return p
 }
@@ -108,37 +107,28 @@ func (m *Hasher) BitLen() int {
 	return m.Size() * 8
 }
 
-// leftmask contains bitmasks indexed such that the left x bits are set. It is
-// indexed by byte position from 0-7 0 is special cased to 0xFF since 8 mod 8
-// is 0. leftmask is only used to mask the last byte.
-var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
-
-// writeMaskedIndex writes the left depth bits of index to the Buffer (which
-// never returns an error on writes), padded with zero bits to the byte Size()
-// of the hashes in use by this hasher.
+// writeMaskedNodeID writes the node ID bits to the buffer, padded with zero
+// bits to the byte Size() of the hashes in use by this hasher.
 //
 // TODO(pavelkalinnikov): We must not use BitLen() and Size() interchangeably.
 // The tree height and hash size could be different.
 // TODO(pavelkalinnikov): Padding with zeroes doesn't buy us anything, as the
 // depth is also written to the Buffer.
-func (m *Hasher) writeMaskedIndex(b *bytes.Buffer, index []byte, depth int) {
-	if got, min := len(index)*8, depth; got < min {
-		panic(fmt.Sprintf("index bits: %d, want >= %d", got, min))
-	}
-	if got, want := depth, m.BitLen(); got < 0 || got > want {
-		panic(fmt.Sprintf("depth: %d, want <= %d && >= 0", got, want))
+func (m *Hasher) writeMaskedNodeID(b *bytes.Buffer, node tree.NodeID2) {
+	depth := int(node.BitLen())
+	if got, want := depth, m.BitLen(); got > want {
+		panic(fmt.Sprintf("depth: %d, want <= %d", got, want))
 	}
 
 	prevLen := b.Len()
 	if depth > 0 {
-		// Write the first depthBytes, if there are any complete bytes.
-		depthBytes := depth / 8
-		if depthBytes > 0 {
-			b.Write(index[:depthBytes])
+		// Write the complete bytes.
+		if full := node.FullBytes(); len(full) > 0 {
+			b.WriteString(full)
 		}
 		// Mask off unwanted bits in the last byte, if there is an incomplete one.
-		if depth%8 != 0 {
-			b.WriteByte(index[depthBytes] & leftmask[depth%8])
+		if last, bits := node.LastByte(); bits != 0 {
+			b.WriteByte(last)
 		}
 	}
 	// Pad to the correct length with zeroes. Allow for future hashers that might

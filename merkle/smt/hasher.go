@@ -32,8 +32,5 @@ func bindHasher(hasher hashers.MapHasher, treeID int64) mapHasher {
 
 // hashEmpty returns the hash of an empty subtree with the given root ID.
 func (h mapHasher) hashEmpty(id tree.NodeID2) []byte {
-	oldID := tree.NewNodeIDFromID2(id)
-	height := h.mh.BitLen() - oldID.PrefixLenBits
-	// TODO(pavelkalinnikov): Make HashEmpty method take the NodeID2 directly.
-	return h.mh.HashEmpty(h.treeID, oldID.Path, height)
+	return h.mh.HashEmpty(h.treeID, id)
 }

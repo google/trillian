@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 )
 
@@ -39,22 +40,24 @@ func TestEmptyRoot(t *testing.T) {
 		t.Fatalf("couldn't decode empty root base64 constant.")
 	}
 	mh := New(crypto.SHA256)
-	if got, want := mh.HashEmpty(treeID, nil, mh.BitLen()), emptyRoot; !bytes.Equal(got, want) {
+	if got, want := mh.HashEmpty(treeID, tree.NodeID2{}), emptyRoot; !bytes.Equal(got, want) {
 		t.Fatalf("HashEmpty(0): %x, want %x", got, want)
 	}
 }
 
 func TestHashLeaf(t *testing.T) {
 	tests := []struct {
-		index, value, want []byte
+		node  tree.NodeID2
+		value []byte
+		want  []byte
 	}{
-		{[]byte{0x00}, nil, h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
-		{[]byte{0x00}, []byte(""), h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
-		{[]byte{0x01}, []byte(""), h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
-		{[]byte{0x01}, []byte("foo"), h2b("1d2039fa7971f4bf01a1c20cb2a3fe7af46865ca9cd9b840c2063df8fec4ff75")},
+		{tree.NewNodeID2WithLast("", 0, 8), nil, h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
+		{tree.NewNodeID2WithLast("", 0, 8), []byte(""), h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
+		{tree.NewNodeID2WithLast("", 1, 8), []byte(""), h2b("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")},
+		{tree.NewNodeID2WithLast("", 1, 8), []byte("foo"), h2b("1d2039fa7971f4bf01a1c20cb2a3fe7af46865ca9cd9b840c2063df8fec4ff75")},
 	}
 	for _, test := range tests {
-		got := Default.HashLeaf(6962, test.index, test.value)
+		got := Default.HashLeaf(6962, test.node, test.value)
 		if !bytes.Equal(got, test.want) {
 			t.Errorf("HashLeaf(%x)=%x; want %x", test.value, got, test.want)
 		}
@@ -64,14 +67,15 @@ func TestHashLeaf(t *testing.T) {
 // Compares the old HStar2 empty branch algorithm to the new.
 func TestHStar2Equivalence(t *testing.T) {
 	m := New(crypto.SHA256)
-	leafHash := m.HashLeaf(treeID, nil, []byte(""))
+	leafHash := m.HashLeaf(treeID, tree.NodeID2{}, []byte(""))
 	star := hstar{
 		hasher:          m,
 		hStarEmptyCache: [][]byte{leafHash},
 	}
+	zero := string(make([]byte, m.Size()))
 	fullDepth := m.Size() * 8
-	for i := 0; i < fullDepth; i++ {
-		if got, want := m.HashEmpty(treeID, nil, i), star.hStarEmpty(i); !bytes.Equal(got, want) {
+	for i := 0; i <= fullDepth; i++ {
+		if got, want := m.HashEmpty(treeID, tree.NewNodeID2(zero, uint(fullDepth-i))), star.hStarEmpty(i); !bytes.Equal(got, want) {
 			t.Errorf("HashEmpty(%v): \n%x, want: \n%x", i, got, want)
 		}
 	}

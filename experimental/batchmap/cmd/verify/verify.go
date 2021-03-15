@@ -58,9 +58,10 @@ func main() {
 	h := hash.New()
 	h.Write([]byte(fmt.Sprintf("%d", *key)))
 	keyPath := h.Sum(nil)
+	leafID := tree.NewNodeID2(string(keyPath), uint(len(keyPath)*8))
 
 	expectedString := fmt.Sprintf("[%s]%d", *valueSalt, *key)
-	expectedValueHash := coniks.Default.HashLeaf(*treeID, keyPath, []byte(expectedString))
+	expectedValueHash := coniks.Default.HashLeaf(*treeID, leafID, []byte(expectedString))
 
 	// Read the tiles required for this check from disk.
 	tiles, err := getTilesForKey(mapDir, keyPath)
@@ -170,11 +171,7 @@ type emptyTree struct {
 }
 
 func (e emptyTree) Get(id tree.NodeID2) ([]byte, error) {
-	oldID := tree.NewNodeIDFromID2(id)
-	height := e.hasher.BitLen() - oldID.PrefixLenBits
-	// TODO(pavelkalinnikov): Make HashEmpty method take the NodeID2 directly,
-	// batchmap is the only remaining user of the map helpers.
-	return e.hasher.HashEmpty(e.treeID, oldID.Path, height), nil
+	return e.hasher.HashEmpty(e.treeID, id), nil
 }
 
 func (e emptyTree) Set(id tree.NodeID2, hash []byte) {}

@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/hashers/registry"
+	"github.com/google/trillian/storage/tree"
 )
 
 func init() {
@@ -58,30 +59,28 @@ func (m *MapHasher) String() string {
 	return fmt.Sprintf("MapHasher{%v}", m.Hash)
 }
 
-// HashEmpty returns the hash of an empty subtree of the given height, e.g. the
-// height of 0 indicates an empty leaf. For this hasher, the result depends
-// only on height. The treeID and index, i.e. the precise position of this
-// subtree, are ignored.
-func (m *MapHasher) HashEmpty(treeID int64, index []byte, height int) []byte {
-	if height < 0 || height >= len(m.nullHashes) {
-		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", height))
+// HashEmpty returns the hash of an empty subtree with the given root. For this
+// hasher, the result depends only on the height of the subtree.
+func (m *MapHasher) HashEmpty(treeID int64, root tree.NodeID2) []byte {
+	if depth := root.BitLen(); depth >= uint(len(m.nullHashes)*8) {
+		panic(fmt.Sprintf("HashEmpty(%d) out of bounds", depth))
 	}
+	height := m.BitLen() - int(root.BitLen())
 	if glog.V(5) {
-		depth := m.BitLen() - height
-		glog.Infof("HashEmpty(%x, %d): %x", index, depth, m.nullHashes[height])
+		glog.Infof("HashEmpty(%v): %x", root, m.nullHashes[height])
 	}
 	return m.nullHashes[height]
 }
 
-// HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
-// The hashed structure is leafHashPrefix||leaf.
-func (m *MapHasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
+// HashLeaf returns the Merkle tree leaf hash of the data passed in through
+// leaf. The hashed structure is leafHashPrefix||leaf.
+func (m *MapHasher) HashLeaf(treeID int64, id tree.NodeID2, leaf []byte) []byte {
 	h := m.New()
 	h.Write([]byte{leafHashPrefix})
 	h.Write(leaf)
 	r := h.Sum(nil)
 	if glog.V(5) {
-		glog.Infof("HashLeaf(%x): %x", index, r)
+		glog.Infof("HashLeaf(%v): %x", id, r)
 	}
 	return r
 }
@@ -114,7 +113,7 @@ func (m *MapHasher) initNullHashes() {
 	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
 	nodes := m.Size()*8 + 1
 	r := make([][]byte, nodes)
-	r[0] = m.HashLeaf(0, nil, nil)
+	r[0] = m.HashLeaf(0, tree.NodeID2{}, nil)
 	for i := 1; i < nodes; i++ {
 		r[i] = m.HashChildren(r[i-1], r[i-1])
 	}
