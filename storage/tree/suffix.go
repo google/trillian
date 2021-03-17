@@ -114,6 +114,11 @@ func ParseSuffix(s string) (*Suffix, error) {
 	return NewSuffix(bits, b), nil
 }
 
+// bytesForBits returns the number of bytes required to store numBits bits.
+func bytesForBits(numBits int) int {
+	return (numBits + 7) >> 3
+}
+
 // Precalculate all the one byte suffix values (from depths 1-8) so they can be
 // reused either on construction or parsing.
 func init() {
