@@ -32,11 +32,10 @@ import (
 
 const degree = 8
 
-// unseqKey formats a key for use in a tree's BTree store.
-// The associated Item value will be the stubtreeProto with the given nodeID
-// prefix.
-func subtreeKey(treeID, rev int64, nodeID stree.NodeID) btree.Item {
-	return &kv{k: fmt.Sprintf("/%d/subtree/%s/%d", treeID, nodeID.String(), rev)}
+// subtreeKey formats a key for use in a tree's BTree store. The associated
+// Item value will be the SubtreeProto with the given prefix.
+func subtreeKey(treeID, rev int64, prefix []byte) btree.Item {
+	return &kv{k: fmt.Sprintf("/%d/subtree/%x/%d", treeID, prefix, rev)}
 }
 
 // tree stores all data for a given treeID
@@ -163,8 +162,8 @@ type treeTX struct {
 	unlock        func()
 }
 
-func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stree.NodeID) (*storagepb.SubtreeProto, error) {
-	s, err := t.getSubtrees(ctx, treeRevision, []stree.NodeID{nodeID})
+func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, id []byte) (*storagepb.SubtreeProto, error) {
+	s, err := t.getSubtrees(ctx, treeRevision, [][]byte{id})
 	if err != nil {
 		return nil, err
 	}
@@ -178,21 +177,17 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stre
 	}
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []stree.NodeID) ([]*storagepb.SubtreeProto, error) {
-	if len(nodeIDs) == 0 {
+func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
+	if len(ids) == 0 {
 		return nil, nil
 	}
 
-	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
+	ret := make([]*storagepb.SubtreeProto, 0, len(ids))
 
-	for _, nodeID := range nodeIDs {
-		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
-		}
-
+	for _, id := range ids {
 		// Look for a nodeID at or below treeRevision:
 		for r := treeRevision; r >= 0; r-- {
-			s := t.tx.Get(subtreeKey(t.treeID, r, nodeID))
+			s := t.tx.Get(subtreeKey(t.treeID, r, id))
 			if s == nil {
 				continue
 			}
@@ -220,7 +215,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		if s.Prefix == nil {
 			panic(fmt.Errorf("nil prefix on %v", s))
 		}
-		k := subtreeKey(t.treeID, t.writeRevision, stree.NewNodeIDFromHash(s.Prefix))
+		k := subtreeKey(t.treeID, t.writeRevision, s.Prefix)
 		k.(*kv).v = s
 		t.tx.ReplaceOrInsert(k)
 	}
@@ -229,7 +224,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
 func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
-	return func(ids []stree.NodeID) ([]*storagepb.SubtreeProto, error) {
+	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 		return t.getSubtrees(ctx, rev, ids)
 	}
 }
@@ -237,8 +232,8 @@ func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtr
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []stree.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.ID, n.Hash,
-			func(nID stree.NodeID) (*storagepb.SubtreeProto, error) {
-				return t.getSubtree(ctx, t.writeRevision, nID)
+			func(id []byte) (*storagepb.SubtreeProto, error) {
+				return t.getSubtree(ctx, t.writeRevision, id)
 			})
 		if err != nil {
 			return err
