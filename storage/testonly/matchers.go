@@ -23,28 +23,6 @@ import (
 	"github.com/google/trillian/storage/tree"
 )
 
-type nodeIDEq struct {
-	expectedID tree.NodeID
-}
-
-// Matches implements the gomock.Matcher API.
-func (m nodeIDEq) Matches(x interface{}) bool {
-	n, ok := x.(tree.NodeID)
-	if !ok {
-		return false
-	}
-	return n.Equivalent(m.expectedID)
-}
-
-func (m nodeIDEq) String() string {
-	return fmt.Sprintf("is %s", m.expectedID.String())
-}
-
-// NodeIDEq returns a matcher that expects the specified NodeID.
-func NodeIDEq(n tree.NodeID) gomock.Matcher {
-	return nodeIDEq{n}
-}
-
 // NodeSet returns a matcher that expects the given set of nodes.
 func NodeSet(nodes []tree.Node) gomock.Matcher {
 	return nodeSet(sorted(nodes))
