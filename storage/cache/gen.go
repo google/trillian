@@ -21,11 +21,10 @@ import (
 	"context"
 
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/storage/tree"
 )
 
 // NodeStorage provides an interface for storing and retrieving subtrees.
 type NodeStorage interface {
-	GetSubtree(n tree.NodeID) (*storagepb.SubtreeProto, error)
+	GetSubtree(prefix []byte) (*storagepb.SubtreeProto, error)
 	SetSubtrees(ctx context.Context, s []*storagepb.SubtreeProto) error
 }
