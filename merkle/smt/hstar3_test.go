@@ -29,10 +29,10 @@ import (
 
 type emptyNodes struct {
 	h   mapHasher
-	ids map[tree.NodeID2]bool
+	ids map[NodeID2]bool
 }
 
-func (e *emptyNodes) Get(id tree.NodeID2) ([]byte, error) {
+func (e *emptyNodes) Get(id NodeID2) ([]byte, error) {
 	if e.ids != nil {
 		if !e.ids[id] {
 			return nil, fmt.Errorf("not found or read twice: %v", id)
@@ -42,7 +42,7 @@ func (e *emptyNodes) Get(id tree.NodeID2) ([]byte, error) {
 	return e.h.hashEmpty(id), nil
 }
 
-func (e *emptyNodes) Set(id tree.NodeID2, hash []byte) {}
+func (e *emptyNodes) Set(id NodeID2, hash []byte) {}
 
 func BenchmarkHStar3Root(b *testing.B) {
 	hasher := coniks.New(crypto.SHA256)
@@ -149,8 +149,8 @@ func TestHStar3Prepare(t *testing.T) {
 
 func TestHStar3PrepareAlternative(t *testing.T) {
 	// This is the intuitively simpler alternative Prepare implementation.
-	prepare := func(nodes []Node, depth, top uint) map[tree.NodeID2]bool {
-		ids := make(map[tree.NodeID2]bool)
+	prepare := func(nodes []Node, depth, top uint) map[NodeID2]bool {
+		ids := make(map[NodeID2]bool)
 		// For each node, add all its ancestors' siblings, down to the given depth.
 		for _, n := range nodes {
 			for id, d := n.ID, depth; d > top; d-- {
@@ -218,9 +218,9 @@ func leafNodes(t testing.TB, n int) []Node {
 	return nodes
 }
 
-func idsToMap(t testing.TB, ids []tree.NodeID2) map[tree.NodeID2]bool {
+func idsToMap(t testing.TB, ids []NodeID2) map[NodeID2]bool {
 	t.Helper()
-	res := make(map[tree.NodeID2]bool, len(ids))
+	res := make(map[NodeID2]bool, len(ids))
 	for _, id := range ids {
 		if res[id] {
 			t.Errorf("ID duplicate: %v", id)

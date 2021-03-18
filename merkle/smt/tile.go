@@ -17,8 +17,6 @@ package smt
 import (
 	"errors"
 	"fmt"
-
-	"github.com/google/trillian/storage/tree"
 )
 
 // Tile represents a sparse Merkle tree tile, i.e. a dense set of tree nodes
@@ -36,7 +34,7 @@ import (
 // Algorithms that create Tile structures must ensure that these invariants
 // hold. Use NewNodesRow function for ordering nodes correctly.
 type Tile struct {
-	ID     tree.NodeID2
+	ID     NodeID2
 	Leaves NodesRow
 }
 
@@ -101,11 +99,11 @@ type emptyHashes struct {
 }
 
 // Get returns an empty hash for the given root node ID.
-func (e emptyHashes) Get(id tree.NodeID2) ([]byte, error) {
+func (e emptyHashes) Get(id NodeID2) ([]byte, error) {
 	return e.h.hashEmpty(id), nil
 }
 
 // Set calls the visitor callback for the given node and hash.
-func (e emptyHashes) Set(id tree.NodeID2, hash []byte) {
+func (e emptyHashes) Set(id NodeID2, hash []byte) {
 	e.visit(Node{ID: id, Hash: hash})
 }

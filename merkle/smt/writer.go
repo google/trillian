@@ -18,8 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"github.com/google/trillian/storage/tree"
 )
 
 // NodeBatchAccessor reads and writes batches of Merkle tree node hashes. It is
@@ -29,7 +27,7 @@ import (
 type NodeBatchAccessor interface {
 	// Get returns the hashes of the given nodes, as a map keyed by their IDs.
 	// The returned hashes may be missing or be nil for empty subtrees.
-	Get(ctx context.Context, ids []tree.NodeID2) (map[tree.NodeID2][]byte, error)
+	Get(ctx context.Context, ids []NodeID2) (map[NodeID2][]byte, error)
 	// Set applies the given node hash updates.
 	Set(ctx context.Context, nodes []Node) error
 }
@@ -130,7 +128,7 @@ func (w *Writer) shardTop(depth uint) (uint, error) {
 
 // newAccessor returns a NodeAccessor for HStar3 algorithm based on the set of
 // preloaded node hashes.
-func (w *Writer) newAccessor(nodes map[tree.NodeID2][]byte) *shardAccessor {
+func (w *Writer) newAccessor(nodes map[NodeID2][]byte) *shardAccessor {
 	// For any node that HStar3 reads, it also writes its sibling. Therefore we
 	// can pre-allocate this many items for the writes slice.
 	// TODO(pavelkalinnikov): The actual number of written nodes will be slightly
@@ -143,13 +141,13 @@ func (w *Writer) newAccessor(nodes map[tree.NodeID2][]byte) *shardAccessor {
 // operates entirely in-memory.
 type shardAccessor struct {
 	w      *Writer
-	reads  map[tree.NodeID2][]byte
+	reads  map[NodeID2][]byte
 	writes []Node
 }
 
 // Get returns the hash of the given node from the preloaded map, or a hash of
 // an empty subtree at this position if such node is not found.
-func (s *shardAccessor) Get(id tree.NodeID2) ([]byte, error) {
+func (s *shardAccessor) Get(id NodeID2) ([]byte, error) {
 	if hash, ok := s.reads[id]; ok && hash != nil {
 		return hash, nil
 	}
@@ -157,6 +155,6 @@ func (s *shardAccessor) Get(id tree.NodeID2) ([]byte, error) {
 }
 
 // Set adds the given node hash update to the list of writes.
-func (s *shardAccessor) Set(id tree.NodeID2, hash []byte) {
+func (s *shardAccessor) Set(id NodeID2, hash []byte) {
 	s.writes = append(s.writes, Node{ID: id, Hash: hash})
 }

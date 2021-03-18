@@ -15,11 +15,7 @@
 // Package smt contains the implementation of the sparse Merkle tree logic.
 package smt
 
-import (
-	"fmt"
-
-	"github.com/google/trillian/storage/tree"
-)
+import "fmt"
 
 // NodeAccessor provides read and write access to Merkle tree node hashes.
 //
@@ -29,9 +25,9 @@ import (
 type NodeAccessor interface {
 	// Get returns the hash of the given node. Returns an error if the hash is
 	// undefined, or can't be obtained for another reason.
-	Get(id tree.NodeID2) ([]byte, error)
+	Get(id NodeID2) ([]byte, error)
 	// Set sets the hash of the given node.
-	Set(id tree.NodeID2, hash []byte)
+	Set(id NodeID2, hash []byte)
 }
 
 // HashChildrenFn computes a node hash based on its child nodes' hashes.
@@ -67,13 +63,13 @@ func NewHStar3(nodes []Node, hash HashChildrenFn, depth, top uint) (HStar3, erro
 // by batch-reading the nodes from elsewhere.
 //
 // TODO(pavelkalinnikov): Return only tile IDs.
-func (h HStar3) Prepare() []tree.NodeID2 {
+func (h HStar3) Prepare() []NodeID2 {
 	// Start with a single "sentinel" empty ID, which helps maintaining the loop
 	// invariants below. Preallocate enough memory to store all the node IDs.
-	ids := make([]tree.NodeID2, 1, len(h.nodes)*int(h.depth-h.top)+1)
+	ids := make([]NodeID2, 1, len(h.nodes)*int(h.depth-h.top)+1)
 	pos := make([]int, h.depth-h.top)
 	// Note: This variable compares equal to ids[0].
-	empty := tree.NodeID2{}
+	empty := NodeID2{}
 
 	// For each node, add all its ancestors' siblings, down to the given depth.
 	// Avoid duplicate IDs, and possibly remove already added ones if they become
@@ -177,7 +173,7 @@ func (h HStar3) updateAt(nodes []Node, depth uint, na NodeAccessor) ([]Node, err
 }
 
 // isLeftChild returns whether the given node is a left child.
-func isLeftChild(id tree.NodeID2) bool {
+func isLeftChild(id NodeID2) bool {
 	last, bits := id.LastByte()
 	return last&(1<<(8-bits)) == 0
 }

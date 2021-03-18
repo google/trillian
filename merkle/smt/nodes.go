@@ -18,13 +18,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/google/trillian/storage/tree"
 )
 
 // Node represents a sparse Merkle tree node.
 type Node struct {
-	ID   tree.NodeID2
+	ID   NodeID2
 	Hash []byte
 }
 
@@ -48,7 +46,7 @@ func NewNodesRow(nodes []Node) (NodesRow, error) {
 
 // inSubtree returns whether all the nodes in this row are strictly under the
 // node with the given ID. Panics if the row is empty.
-func (n NodesRow) inSubtree(root tree.NodeID2) bool {
+func (n NodesRow) inSubtree(root NodeID2) bool {
 	rootLen := root.BitLen()
 	if n[0].ID.BitLen() <= rootLen {
 		return false
@@ -87,7 +85,7 @@ func Prepare(nodes []Node, depth uint) error {
 // tree level. Returns -1 if the first node is to the left from the second one,
 // 1 if the first node is to the right, and 0 if IDs are the same. The result
 // is undefined if nodes are not at the same level.
-func compareHorizontal(a, b tree.NodeID2) int {
+func compareHorizontal(a, b NodeID2) int {
 	if res := strings.Compare(a.FullBytes(), b.FullBytes()); res != 0 {
 		return res
 	}

@@ -14,13 +14,11 @@
 
 package smt
 
-import "github.com/google/trillian/storage/tree"
-
 // Hasher provides sparse Merkle tree hash functions.
 type Hasher interface {
 	// HashEmpty returns the hash of an empty subtree with the given root. Note
 	// that the empty NodeID2 indicates the root of the entire tree.
-	HashEmpty(treeID int64, root tree.NodeID2) []byte
+	HashEmpty(treeID int64, root NodeID2) []byte
 	// HashChildren returns the node hash based on its children node hashes.
 	HashChildren(l, r []byte) []byte
 }
@@ -37,6 +35,6 @@ func bindHasher(hasher Hasher, treeID int64) mapHasher {
 }
 
 // hashEmpty returns the hash of an empty subtree with the given root ID.
-func (h mapHasher) hashEmpty(id tree.NodeID2) []byte {
+func (h mapHasher) hashEmpty(id NodeID2) []byte {
 	return h.mh.HashEmpty(h.treeID, id)
 }

@@ -28,7 +28,6 @@ import (
 
 	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/smt"
-	"github.com/google/trillian/storage/tree"
 )
 
 var (
@@ -292,7 +291,7 @@ func (th *tileHasher) construct(rootPath []byte, nodes []smt.Node) (*Tile, error
 
 func (th *tileHasher) update(rootPath []byte, baseNodes, deltaNodes []smt.Node) (*Tile, error) {
 	// We add new values first and then update with base to easily check for duplicates in deltas.
-	m := make(map[tree.NodeID2]smt.Node)
+	m := make(map[smt.NodeID2]smt.Node)
 	for _, leaf := range deltaNodes {
 		if v, found := m[leaf.ID]; found {
 			return nil, fmt.Errorf("found duplicate values at leaf tile position %s: {%x, %x}", leaf.ID, v.Hash, leaf.Hash)
@@ -332,13 +331,13 @@ func (th *tileHasher) hashTile(depthBits uint, leaves []smt.Node) ([]byte, error
 }
 
 // Get returns hash of an empty subtree for the given root node ID.
-func (th tileHasher) Get(id tree.NodeID2) ([]byte, error) {
+func (th tileHasher) Get(id smt.NodeID2) ([]byte, error) {
 	return th.h.HashEmpty(th.treeID, id), nil
 }
 
-func (th tileHasher) Set(id tree.NodeID2, hash []byte) {}
+func (th tileHasher) Set(id smt.NodeID2, hash []byte) {}
 
-func nodeID2Encode(n tree.NodeID2) ([]byte, error) {
+func nodeID2Encode(n smt.NodeID2) ([]byte, error) {
 	b, c := n.LastByte()
 	if c == 0 {
 		return []byte{}, nil
@@ -349,8 +348,8 @@ func nodeID2Encode(n tree.NodeID2) ([]byte, error) {
 	return nil, fmt.Errorf("node ID bit length is not aligned to bytes: %d", n.BitLen())
 }
 
-func nodeID2Decode(bs []byte) (tree.NodeID2, error) {
-	return tree.NewNodeID2(string(bs), 8*uint(len(bs))), nil
+func nodeID2Decode(bs []byte) (smt.NodeID2, error) {
+	return smt.NewNodeID2(string(bs), 8*uint(len(bs))), nil
 }
 
 // getOptionalTile consumes the Beam-style iterator and returns:

@@ -29,7 +29,6 @@ import (
 	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/smt"
-	"github.com/google/trillian/storage/tree"
 )
 
 const hash = crypto.SHA512_256
@@ -57,7 +56,7 @@ func main() {
 	h := hash.New()
 	h.Write([]byte(fmt.Sprintf("%d", *key)))
 	keyPath := h.Sum(nil)
-	leafID := tree.NewNodeID2(string(keyPath), uint(len(keyPath)*8))
+	leafID := smt.NewNodeID2(string(keyPath), uint(len(keyPath)*8))
 
 	expectedString := fmt.Sprintf("[%s]%d", *valueSalt, *key)
 	expectedValueHash := coniks.Default.HashLeaf(*treeID, leafID, []byte(expectedString))
@@ -158,7 +157,7 @@ func toNode(prefix []byte, l *batchmap.TileLeaf) smt.Node {
 	path := make([]byte, 0, len(prefix)+len(l.Path))
 	path = append(append(path, prefix...), l.Path...)
 	return smt.Node{
-		ID:   tree.NewNodeID2(string(path), uint(len(path))*8),
+		ID:   smt.NewNodeID2(string(path), uint(len(path))*8),
 		Hash: l.Hash,
 	}
 }
@@ -172,4 +171,4 @@ func (e emptyTree) Get(id tree.NodeID2) ([]byte, error) {
 	return coniks.Default.HashEmpty(e.treeID, id), nil
 }
 
-func (e emptyTree) Set(id tree.NodeID2, hash []byte) {}
+func (e emptyTree) Set(id smt.NodeID2, hash []byte) {}
