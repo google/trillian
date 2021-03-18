@@ -168,17 +168,9 @@ func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) e
 		}
 		delete(want, string(t.Prefix))
 	}
-
-	// We might not have got all the subtrees we requested, if they don't already exist.
-	// Create empty subtrees for anything left over. Note that multiple parallel readers
-	// may be be running this code and touch the same keys, although this doesn't happen
-	// normally.
-	for _, id := range want {
-		if err := s.cacheSubtree(s.newEmptySubtree(id)); err != nil {
-			return err
-		}
+	if r := len(want); r != 0 {
+		return fmt.Errorf("preload did not get all tiles: %d not found", r)
 	}
-
 	return nil
 }
 
@@ -277,7 +269,7 @@ func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([
 			}
 		}
 		if c.Prefix == nil {
-			panic(fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %x", c, id.String(), subKey))
+			return nil, fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %x", c, id.String(), subKey)
 		}
 
 		s.subtrees.Store(subKey, c)
