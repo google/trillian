@@ -171,18 +171,9 @@ func TestCacheFlush(t *testing.T) {
 		}
 	}).Return(nil)
 
-	// Read nodes which touch the subtrees we'll write to.
-	for id := id; id.Level < 64; id = ancestor(id, 1) {
-		id.Index ^= 1 // Switch to the sibling.
-		if _, err := c.getNodeHash(id, m.GetSubtree); err != nil {
-			t.Fatalf("failed to get node hash: %v", err)
-		}
-	}
-	t.Logf("after sibs: %+v", id)
-
 	// Write nodes.
 	for id := id; id.Level < 64; id = ancestor(id, 1) {
-		err := c.SetNodeHash(id, []byte(fmt.Sprintf("hash-%v", id)), noFetch)
+		err := c.SetNodeHash(id, []byte(fmt.Sprintf("hash-%v", id)), m.GetSubtree)
 		if err != nil {
 			t.Fatalf("failed to set node hash: %v", err)
 		}
