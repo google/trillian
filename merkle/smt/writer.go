@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
 )
 
@@ -47,7 +46,7 @@ type Writer struct {
 
 // NewWriter creates a new Writer for the specified tree of the given height,
 // with two levels of sharding, where the upper shard is `split` levels high.
-func NewWriter(treeID int64, hasher hashers.MapHasher, height, split uint) *Writer {
+func NewWriter(treeID int64, hasher Hasher, height, split uint) *Writer {
 	if split > height {
 		panic(fmt.Errorf("NewWriter: split(%d) > height(%d)", split, height))
 	}

@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
 )
 
@@ -35,7 +34,7 @@ type TileSet struct {
 }
 
 // NewTileSet creates an empty TileSet with the given tree parameters.
-func NewTileSet(treeID int64, hasher hashers.MapHasher, layout *tree.Layout) *TileSet {
+func NewTileSet(treeID int64, hasher Hasher, layout *tree.Layout) *TileSet {
 	tiles := make(map[tree.NodeID2]NodesRow)
 	hashes := make(map[tree.NodeID2][]byte)
 	h := bindHasher(hasher, treeID)
