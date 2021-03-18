@@ -33,7 +33,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/google/trillian/experimental/batchmap"
-	coniks "github.com/google/trillian/merkle/coniks/hasher"
+	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/storage/tree"
 )
 

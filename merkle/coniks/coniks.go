@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package hasher provides CONIKS hashing for maps.
-package hasher
+// Package coniks provides CONIKS hashing for maps.
+package coniks
 
 import (
 	"bytes"
