@@ -17,7 +17,6 @@ package cache
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"sync"
@@ -208,12 +207,6 @@ func (s *SubtreeCache) GetNodes(nodeIDs []compact.NodeID, getSubtrees GetSubtree
 		ids[i] = id
 	}
 
-	glog.V(2).Infof("cache: GetNodes(count=%d)", len(ids))
-	if glog.V(3) {
-		for _, n := range ids {
-			glog.Infof("  cache: GetNodes(path=%x, prefixLen=%d)", n.Path, n.PrefixLenBits)
-		}
-	}
 	if err := s.preload(ids, getSubtrees); err != nil {
 		return nil, err
 	}
@@ -246,12 +239,6 @@ func (s *SubtreeCache) GetNodes(nodeIDs []compact.NodeID, getSubtrees GetSubtree
 			})
 		}
 	}
-	glog.V(2).Infof("cache: GetNodes(count=%d) => %d results", len(ids), len(ret))
-	if glog.V(3) {
-		for _, r := range ret {
-			glog.Infof("  cache: %+v", r)
-		}
-	}
 	return ret, nil
 }
 
@@ -272,10 +259,6 @@ func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
 
 // getNodeHash returns a single node hash from the cache.
 func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
-	if glog.V(3) {
-		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) {", id.Path, id.PrefixLenBits)
-	}
-
 	subID, sx := s.layout.Split(id)
 	subKey := subID.AsKey()
 	c := s.getCachedSubtree(subKey)
@@ -316,17 +299,7 @@ func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([
 	} else {
 		nh = c.InternalNodes[sfxKey]
 	}
-	if glog.V(4) {
-		b, err := base64.StdEncoding.DecodeString(sfxKey)
-		if err != nil {
-			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
-		}
-		glog.Infof("getNodeHash(%x | %x): %x", subKey, b, nh)
-	}
 
-	if glog.V(3) {
-		glog.Infof("cache: getNodeHash(path=%x, prefixLen=%d) => %x}", id.Path, id.PrefixLenBits, nh)
-	}
 	return nh, nil
 }
 
@@ -335,9 +308,6 @@ func (s *SubtreeCache) SetNodeHash(nID compact.NodeID, h []byte, getSubtree GetS
 	id, err := tree.NewNodeIDForTreeCoords(int64(nID.Level), int64(nID.Index), maxSupportedTreeDepth)
 	if err != nil {
 		return fmt.Errorf("failed to create nodeID %v: %v", nID, err)
-	}
-	if glog.V(3) {
-		glog.Infof("cache: SetNodeHash(%x, %d)=%x", id.Path, id.PrefixLenBits, h)
 	}
 
 	subID, sx := s.layout.Split(id)
@@ -381,20 +351,11 @@ func (s *SubtreeCache) SetNodeHash(nID compact.NodeID, h []byte, getSubtree GetS
 		c.InternalNodes[sfxKey] = h
 	}
 	s.dirtyPrefixes.Store(subKey, nil)
-	if glog.V(3) {
-		b, err := base64.StdEncoding.DecodeString(sfxKey)
-		if err != nil {
-			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
-		}
-		glog.Infof("SetNodeHash(pfx: %x, sfx: %x): %x", subKey, b, h)
-	}
 	return nil
 }
 
 // Flush causes the cache to write all dirty Subtrees back to storage.
 func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) error {
-	glog.V(1).Info("cache: Flush")
-
 	treesToWrite := make([]*storagepb.SubtreeProto, 0)
 	var rangeErr error
 	s.subtrees.Range(func(rawK, rawV interface{}) bool {
@@ -435,7 +396,6 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 		return nil
 	}
 	err := setSubtrees(ctx, treesToWrite)
-	glog.V(1).Infof("cache: Flush done %v", err)
 	return err
 }
 
