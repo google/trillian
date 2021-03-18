@@ -14,7 +14,12 @@
 
 package tree
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+
+	"github.com/google/trillian/merkle/compact"
+)
 
 const (
 	// depthQuantum defines the smallest supported tile height, which all tile
@@ -65,34 +70,41 @@ func NewLayout(heights []int) *Layout {
 	return &Layout{sIndex: sIndex, Height: height}
 }
 
-// GetTileID returns the ID of the tile that the given node belongs to.
+// GetTileID returns the path from the tree root to the tile that the given
+// node belongs to. All the bits of the returned byte slice are used, because
+// Layout enforces tile heights to be multiples of 8.
 //
 // Note that nodes located at strata boundaries normally belong to tiles rooted
-// above them. However, the topmost node (with an empty NodeID) is the root for
-// its own tile since there is nothing above it.
-func (l *Layout) GetTileID(id NodeID) TileID {
-	if depth := id.PrefixLenBits; depth > 0 {
-		info := l.getStratumAt(depth - 1)
-		// TODO(pavelkalinnikov): Use Prefix method once it no longer copies Path.
-		// TODO(pavelkalinnikov): Rename *FromHash to something sensible.
-		root := NewNodeIDFromHash(id.Path[:info.idBytes])
-		return TileID{Root: root}
+// above them. However, the topmost node is the root for its own tile since
+// there is nothing above it.
+func (l *Layout) GetTileID(id compact.NodeID) []byte {
+	if int(id.Level) >= l.Height {
+		return []byte{} // Note: Not nil, so that storage/SQL doesn't use NULL.
 	}
-	// TODO(pavelkalinnikov): Leave Path == nil when it's safe.
-	return TileID{Root: NodeID{Path: []byte{}}}
+
+	info := l.getStratumAt(l.Height - int(id.Level) - 1)
+	level := uint(l.Height - info.idBytes*8)
+	index := id.Index >> (level - id.Level)
+
+	var bytes [8]byte
+	binary.BigEndian.PutUint64(bytes[:], index)
+	return bytes[8-info.idBytes:]
 }
 
-// Split returns the ID of the that the given node belongs to, and the
-// corresponding local address within this tile.
-func (l *Layout) Split(id NodeID) (TileID, *Suffix) {
-	if depth := id.PrefixLenBits; depth > 0 {
-		info := l.getStratumAt(depth - 1)
-		root := NewNodeIDFromHash(id.Path[:info.idBytes])
-		suffix := id.Suffix(info.idBytes, info.height)
-		return TileID{Root: root}, suffix
+// Split returns the path from the tree root to the tile that the given node
+// belongs to, and the corresponding local address within this tile.
+func (l *Layout) Split(id compact.NodeID) ([]byte, *Suffix) {
+	if int(id.Level) >= l.Height {
+		return []byte{}, EmptySuffix
 	}
-	// TODO(pavelkalinnikov): Leave Path == nil when it's safe.
-	return TileID{Root: NodeID{Path: []byte{}}}, EmptySuffix
+	tileID := l.GetTileID(id)
+
+	var bytes [8]byte
+	bits := l.Height - int(id.Level) - len(tileID)*8
+	binary.BigEndian.PutUint64(bytes[:], id.Index<<(64-bits))
+	suffix := NewSuffix(uint8(bits), bytes[:])
+
+	return tileID, suffix
 }
 
 // TileHeight returns the height of a tile with its root located at the

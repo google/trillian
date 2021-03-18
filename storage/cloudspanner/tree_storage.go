@@ -337,30 +337,10 @@ func (t *treeTX) WriteRevision(ctx context.Context) (int64, error) {
 	return rev, nil
 }
 
-// subtreeKey returns a non-nil []byte suitable for use as a primary key column
-// for the subtree rooted at the passed-in node ID. Returns an error if the ID
-// is not aligned to bytes.
-func subtreeKey(id tree.NodeID) ([]byte, error) {
-	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
-	if id.PrefixLenBits%8 != 0 {
-		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
-	}
-	// The returned slice must not be nil, as it would correspond to NULL in SQL.
-	if bytes := id.Path; bytes != nil {
-		return bytes[:id.PrefixLenBits/8], nil
-	}
-	return []byte{}, nil
-}
-
 // getSubtree retrieves the most recent subtree specified by id at (or below)
 // the requested revision.
 // If no such subtree exists it returns nil.
-func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *storagepb.SubtreeProto, e error) {
-	stID, err := subtreeKey(id)
-	if err != nil {
-		return nil, err
-	}
-
+func (t *treeTX) getSubtree(ctx context.Context, rev int64, id []byte) (p *storagepb.SubtreeProto, e error) {
 	var ret *storagepb.SubtreeProto
 	stmt := spanner.NewStatement(
 		"SELECT Revision, Subtree FROM SubtreeData" +
@@ -370,11 +350,11 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *
 			"  ORDER BY Revision DESC" +
 			"  LIMIT 1")
 	stmt.Params["tree_id"] = t.treeID
-	stmt.Params["subtree_id"] = stID
+	stmt.Params["subtree_id"] = id
 	stmt.Params["revision"] = rev
 
 	rows := t.stx.Query(ctx, stmt)
-	err = rows.Do(func(r *spanner.Row) error {
+	err := rows.Do(func(r *spanner.Row) error {
 		if ret != nil {
 			return nil
 		}
@@ -382,17 +362,17 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *
 		var rRev int64
 		var st storagepb.SubtreeProto
 		stBytes := make([]byte, 1<<20)
-		if err = r.Columns(&rRev, &stBytes); err != nil {
+		if err := r.Columns(&rRev, &stBytes); err != nil {
 			return err
 		}
-		if err = proto.Unmarshal(stBytes, &st); err != nil {
+		if err := proto.Unmarshal(stBytes, &st); err != nil {
 			return err
 		}
 
 		if rRev > rev {
 			return fmt.Errorf("got subtree with too new a revision %d, want %d", rRev, rev)
 		}
-		if got, want := stID, st.Prefix; !bytes.Equal(got, want) {
+		if got, want := id, st.Prefix; !bytes.Equal(got, want) {
 			return fmt.Errorf("got subtree with prefix %v, wanted %v", got, want)
 		}
 		if got, want := rRev, rev; got > rev {
@@ -402,7 +382,7 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id tree.NodeID) (p *
 
 		// If this is a subtree with a zero-length prefix, we'll need to create an
 		// empty Prefix field:
-		if st.Prefix == nil && len(stID) == 0 {
+		if st.Prefix == nil && len(id) == 0 {
 			st.Prefix = []byte{}
 		}
 		return nil
@@ -424,7 +404,7 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tr
 	}
 
 	return t.cache.GetNodes(ids,
-		func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
+		func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 			// Request the various subtrees in parallel.
 			// c will carry any retrieved subtrees
 			c := make(chan *storagepb.SubtreeProto, len(ids))
@@ -477,8 +457,8 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 		err := t.cache.SetNodeHash(
 			n.ID,
 			n.Hash,
-			func(nID tree.NodeID) (*storagepb.SubtreeProto, error) {
-				return t.getSubtree(ctx, writeRev-1, nID)
+			func(id []byte) (*storagepb.SubtreeProto, error) {
+				return t.getSubtree(ctx, writeRev-1, id)
 			})
 		if err != nil {
 			return err

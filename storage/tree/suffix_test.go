@@ -17,17 +17,21 @@ package tree
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
+
+	_ "github.com/golang/glog" // Enable glog flags.
 )
 
-const (
-	logStrataDepth = 8
-	maxLogDepth    = 64
-	// TODO(gdbelvin): remove these constants in favor of the real ones in
-	// storage/cache when merkle no longer depends on storage.NodeID
-)
+func h2b(h string) []byte {
+	b, err := hex.DecodeString(h)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
 
 // h2b6 takes a hex string and emits a base64 string.
 func h2b6(h string) string {
@@ -69,87 +73,6 @@ func TestParseSuffix(t *testing.T) {
 				t.Errorf("ParseSuffix: got path %x, want %x", got, want)
 			}
 		})
-	}
-}
-
-func TestSplitParseSuffixRoundtrip(t *testing.T) {
-	for _, tc := range []struct {
-		prefix    []byte
-		leafIndex int64
-		wantPath  []byte
-	}{
-		// Because we're using logStrataDepth below we'll always get a one byte
-		// suffix path.
-		{h2b(""), 1, h2b("01")},
-		{h2b("00"), 1, h2b("01")},
-		{h2b("abcd"), 99, h2b("63")},
-		{h2b("98765432"), 27, h2b("1b")},
-		{h2b("12345678"), 253, h2b("fd")},
-	} {
-		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
-		sfx := nodeID.Suffix(len(tc.prefix), logStrataDepth)
-		sfxKey := sfx.String()
-
-		sfxP, err := ParseSuffix(sfxKey)
-		if err != nil {
-			t.Errorf("ParseSuffix(%s): %v", sfxKey, err)
-			continue
-		}
-		if got, want := sfx.Bits(), sfxP.Bits(); got != want {
-			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", sfxKey, got, want)
-		}
-		// This is the roundtrip test that the parsed value matches the Suffix().
-		if got, want := sfx.Path(), sfxP.Path(); !bytes.Equal(got, want) {
-			t.Errorf("ParseSuffix(%s).Path: %x, want %x", sfxKey, got, want)
-		}
-		// This tests that the path result was correct. Otherwise, if both
-		// sides had a bug it might pass the above.
-		if got, want := sfx.Path(), tc.wantPath; !bytes.Equal(got, want) {
-			t.Errorf("ParseSuffix(%s).Path: %x, want %x", sfxKey, got, want)
-		}
-	}
-}
-
-// TestSuffixKeyEquals ensures that NodeID.Suffix produces the same output as makeSuffixKey for the Log's use cases.
-func TestSuffixKeyEquals(t *testing.T) {
-	for _, tc := range []struct {
-		prefix    []byte
-		leafIndex int64
-		want      []byte
-	}{
-		{h2b(""), 1, h2b("0801")},
-		{h2b("00"), 1, h2b("0801")},
-	} {
-		sfxA, err := makeSuffixKey(logStrataDepth, tc.leafIndex)
-		if err != nil {
-			t.Errorf("makeSuffixKey(%v, %v): %v", logStrataDepth, tc.leafIndex, err)
-			continue
-		}
-
-		sfxABytes, err := base64.StdEncoding.DecodeString(sfxA)
-		if err != nil {
-			t.Errorf("makeSuffixKey(%v, %v): %v", logStrataDepth, tc.leafIndex, err)
-			continue
-		}
-
-		if got, want := sfxABytes, tc.want; !bytes.Equal(got, want) {
-			t.Errorf("makeSuffixKey(%v, %v): %x, want %x", logStrataDepth, tc.leafIndex, got, want)
-			continue
-		}
-
-		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
-		sfxB := nodeID.Suffix(len(tc.prefix), logStrataDepth)
-		sfxBKey := sfxB.String()
-		sfxBBytes, err := base64.StdEncoding.DecodeString(sfxBKey)
-		if err != nil {
-			t.Errorf("splitNodeID(%v): _, %v", nodeID, err)
-			continue
-		}
-
-		if got, want := sfxBBytes, tc.want; !bytes.Equal(got, want) {
-			t.Errorf("[%x, %v].splitNodeID(%v, %v): %v.Serialize(): %x, want %x", nodeID.Path, nodeID.PrefixLenBits, len(tc.prefix), logStrataDepth, sfxB, got, want)
-			continue
-		}
 	}
 }
 

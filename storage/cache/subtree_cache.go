@@ -35,10 +35,10 @@ var populateConcurrency = flag.Int("populate_subtree_concurrency", 256, "Max num
 // TODO(pavelkalinnikov): Rename subtrees to tiles.
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
-type GetSubtreeFunc func(id tree.NodeID) (*storagepb.SubtreeProto, error)
+type GetSubtreeFunc func(id []byte) (*storagepb.SubtreeProto, error)
 
 // GetSubtreesFunc describes a function which can return a number of Subtrees from storage.
-type GetSubtreesFunc func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error)
+type GetSubtreesFunc func(ids [][]byte) ([]*storagepb.SubtreeProto, error)
 
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) error
@@ -98,18 +98,17 @@ func NewLogSubtreeCache(strataDepths []int, hasher hashers.LogHasher) *SubtreeCa
 // preload calculates the set of subtrees required to know the hashes of the
 // passed in node IDs, uses getSubtrees to retrieve them, and finally populates
 // the cache structures with the data.
-func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) error {
+func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc) error {
 	// Figure out the set of subtrees we need.
-	want := make(map[string]tree.TileID)
+	want := make(map[string]bool)
 	for _, id := range ids {
-		subID := s.layout.GetTileID(id)
-		subKey := subID.AsKey()
-		if _, ok := want[subKey]; ok {
+		subID := string(s.layout.GetTileID(id))
+		if _, ok := want[subID]; ok {
 			// No need to check s.subtrees map twice.
 			continue
 		}
-		if _, ok := s.subtrees.Load(subKey); !ok {
-			want[subKey] = subID
+		if _, ok := s.subtrees.Load(subID); !ok {
+			want[subID] = true
 		}
 	}
 	// Note: At this point multiple parallel preload invocations can happen to
@@ -121,10 +120,9 @@ func (s *SubtreeCache) preload(ids []tree.NodeID, getSubtrees GetSubtreesFunc) e
 		return nil
 	}
 
-	// TODO(pavelkalinnikov): Change the getters to accept []tree.TileID.
-	list := make([]tree.NodeID, 0, len(want))
-	for _, v := range want {
-		list = append(list, v.Root)
+	list := make([][]byte, 0, len(want))
+	for id := range want {
+		list = append(list, []byte(id))
 	}
 	subtrees, err := getSubtrees(list)
 	if err != nil {
@@ -188,30 +186,20 @@ func (s *SubtreeCache) cacheSubtree(t *storagepb.SubtreeProto) error {
 
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
-func (s *SubtreeCache) GetNodes(nodeIDs []compact.NodeID, getSubtrees GetSubtreesFunc) ([]tree.Node, error) {
-	// TODO(pavelkalinnikov): Use compact.NodeID directly, don't convert.
-	ids := make([]tree.NodeID, len(nodeIDs))
-	for i, nID := range nodeIDs {
-		id, err := tree.NewNodeIDForTreeCoords(int64(nID.Level), int64(nID.Index), maxSupportedTreeDepth)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create nodeID %v: %v", nID, err)
-		}
-		ids[i] = id
-	}
-
+func (s *SubtreeCache) GetNodes(ids []compact.NodeID, getSubtrees GetSubtreesFunc) ([]tree.Node, error) {
 	if err := s.preload(ids, getSubtrees); err != nil {
 		return nil, err
 	}
 
 	ret := make([]tree.Node, 0, len(ids))
-	for i, id := range ids {
+	for _, id := range ids {
 		h, err := s.getNodeHash(
 			id,
-			func(n tree.NodeID) (*storagepb.SubtreeProto, error) {
+			func(id []byte) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
-				glog.Warningf("Unexpectedly reading from within getNodeHash(): %s", n.String())
-				ret, err := getSubtrees([]tree.NodeID{n})
+				glog.Warningf("Unexpectedly reading from within getNodeHash(): %x", id)
+				ret, err := getSubtrees([][]byte{id})
 				if err != nil || len(ret) == 0 {
 					return nil, err
 				}
@@ -226,7 +214,7 @@ func (s *SubtreeCache) GetNodes(nodeIDs []compact.NodeID, getSubtrees GetSubtree
 
 		if h != nil {
 			ret = append(ret, tree.Node{
-				ID:   nodeIDs[i],
+				ID:   id,
 				Hash: h,
 			})
 		}
@@ -234,8 +222,8 @@ func (s *SubtreeCache) GetNodes(nodeIDs []compact.NodeID, getSubtrees GetSubtree
 	return ret, nil
 }
 
-func (s *SubtreeCache) getCachedSubtree(prefixKey string) *storagepb.SubtreeProto {
-	raw, found := s.subtrees.Load(prefixKey)
+func (s *SubtreeCache) getCachedSubtree(id []byte) *storagepb.SubtreeProto {
+	raw, found := s.subtrees.Load(string(id))
 	if !found || raw == nil {
 		return nil
 	}
@@ -250,15 +238,14 @@ func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
 }
 
 // getNodeHash returns a single node hash from the cache.
-func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
+func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
 	subID, sx := s.layout.Split(id)
-	subKey := subID.AsKey()
-	c := s.getCachedSubtree(subKey)
+	c := s.getCachedSubtree(subID)
 	if c == nil {
-		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", subKey)
+		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", subID)
 		// Cache miss, so we'll try to fetch from storage.
 		var err error
-		if c, err = getSubtree(subID.Root); err != nil {
+		if c, err = getSubtree(subID); err != nil {
 			return nil, err
 		}
 		if c == nil {
@@ -269,10 +256,10 @@ func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([
 			}
 		}
 		if c.Prefix == nil {
-			return nil, fmt.Errorf("getNodeHash nil prefix on %v for id %v with px %x", c, id.String(), subKey)
+			return nil, fmt.Errorf("getNodeHash nil prefix on %v for id %+v with px %x", c, id, subID)
 		}
 
-		s.subtrees.Store(subKey, c)
+		s.subtrees.Store(string(subID), c)
 	}
 
 	// finally look for the particular node within the subtree so we can return
@@ -291,36 +278,29 @@ func (s *SubtreeCache) getNodeHash(id tree.NodeID, getSubtree GetSubtreeFunc) ([
 	} else {
 		nh = c.InternalNodes[sfxKey]
 	}
-
 	return nh, nil
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(nID compact.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
-	id, err := tree.NewNodeIDForTreeCoords(int64(nID.Level), int64(nID.Index), maxSupportedTreeDepth)
-	if err != nil {
-		return fmt.Errorf("failed to create nodeID %v: %v", nID, err)
-	}
-
+func (s *SubtreeCache) SetNodeHash(id compact.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
 	subID, sx := s.layout.Split(id)
-	subKey := subID.AsKey()
-	c := s.getCachedSubtree(subKey)
+	c := s.getCachedSubtree(subID)
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
 		// For now, just read from storage if we don't already have it.
-		glog.V(1).Infof("attempting to write to unread subtree for %v, reading now", id.String())
+		glog.V(1).Infof("attempting to write to unread subtree for %+v, reading now", id)
 		if _, err := s.getNodeHash(id, getSubtree); err != nil {
 			return err
 		}
 		// There must be a subtree present in the cache now, even if storage didn't have anything for us.
-		c = s.getCachedSubtree(subKey)
+		c = s.getCachedSubtree(subID)
 		if c == nil {
-			return fmt.Errorf("internal error, subtree cache for %v is nil after a read attempt", id.String())
+			return fmt.Errorf("internal error, subtree cache for %+v is nil after a read attempt", id)
 		}
 	}
 	if c.Prefix == nil {
-		return fmt.Errorf("nil prefix for %v (key %v)", id.String(), subKey)
+		return fmt.Errorf("nil prefix for %+v (key %v)", id, subID)
 	}
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
@@ -342,7 +322,7 @@ func (s *SubtreeCache) SetNodeHash(nID compact.NodeID, h []byte, getSubtree GetS
 		}
 		c.InternalNodes[sfxKey] = h
 	}
-	s.dirtyPrefixes.Store(subKey, nil)
+	s.dirtyPrefixes.Store(string(subID), nil)
 	return nil
 }
 
@@ -392,16 +372,16 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 }
 
 // newEmptySubtree creates an empty subtree for the passed-in ID.
-func (s *SubtreeCache) newEmptySubtree(id tree.TileID) *storagepb.SubtreeProto {
-	height := s.layout.TileHeight(id.Root.PrefixLenBits)
+func (s *SubtreeCache) newEmptySubtree(id []byte) *storagepb.SubtreeProto {
+	height := s.layout.TileHeight(len(id) * 8)
 	if glog.V(2) {
-		glog.Infof("Creating new empty subtree for %x, with height %d", id.AsBytes(), height)
+		glog.Infof("Creating new empty subtree for %x, with height %d", id, height)
 	}
 	// Storage didn't have one for us, so we'll store an empty proto here in case
 	// we try to update it later on (we won't flush it back to storage unless
 	// it's been written to).
 	return &storagepb.SubtreeProto{
-		Prefix:        id.AsBytes(),
+		Prefix:        id,
 		Depth:         int32(height),
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),

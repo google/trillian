@@ -152,20 +152,6 @@ func TestNodeID2Sibling(t *testing.T) {
 	}
 }
 
-func BenchmarkNodeIDSiblings(b *testing.B) {
-	const batch = 512
-	ids := make([]NodeID, batch)
-	for i := range ids {
-		bytes := append([]byte("0123456789012345678901234567"), byte(i&255), byte((i>>8)&255))
-		ids[i] = NewNodeIDFromHash(bytes)
-	}
-	for i, n := 0, b.N; i < n; i++ {
-		for _, id := range ids {
-			_ = id.Siblings()
-		}
-	}
-}
-
 func BenchmarkNodeID2Siblings(b *testing.B) {
 	siblings := func(id NodeID2) []NodeID2 {
 		ln := id.BitLen()

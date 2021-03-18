@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	storagepb "github.com/google/trillian/storage/storagepb"
-	tree "github.com/google/trillian/storage/tree"
 )
 
 // MockNodeStorage is a mock of NodeStorage interface.
@@ -37,7 +36,7 @@ func (m *MockNodeStorage) EXPECT() *MockNodeStorageMockRecorder {
 }
 
 // GetSubtree mocks base method.
-func (m *MockNodeStorage) GetSubtree(arg0 tree.NodeID) (*storagepb.SubtreeProto, error) {
+func (m *MockNodeStorage) GetSubtree(arg0 []byte) (*storagepb.SubtreeProto, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSubtree", arg0)
 	ret0, _ := ret[0].(*storagepb.SubtreeProto)

@@ -218,8 +218,8 @@ type treeTX struct {
 	writeRevision int64
 }
 
-func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID tree.NodeID) (*storagepb.SubtreeProto, error) {
-	s, err := t.getSubtrees(ctx, treeRevision, []tree.NodeID{nodeID})
+func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, id []byte) (*storagepb.SubtreeProto, error) {
+	s, err := t.getSubtrees(ctx, treeRevision, [][]byte{id})
 	if err != nil {
 		return nil, err
 	}
@@ -233,29 +233,25 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID tree
 	}
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 	glog.V(4).Infof("getSubtrees(")
-	if len(nodeIDs) == 0 {
+	if len(ids) == 0 {
 		return nil, nil
 	}
 
-	tmpl, err := t.ts.getSubtreeStmt(ctx, len(nodeIDs))
+	tmpl, err := t.ts.getSubtreeStmt(ctx, len(ids))
 	if err != nil {
 		return nil, err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
 	defer stx.Close()
 
-	args := make([]interface{}, 0, len(nodeIDs)+3)
+	args := make([]interface{}, 0, len(ids)+3)
 
 	// Populate args with node IDs.
-	for _, nodeID := range nodeIDs {
-		nodeIDBytes, err := subtreeKey(nodeID)
-		if err != nil {
-			return nil, err
-		}
-		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
-		args = append(args, nodeIDBytes)
+	for _, id := range ids {
+		glog.V(4).Infof("  id: %x", id)
+		args = append(args, id)
 	}
 
 	args = append(args, interface{}(t.treeID))
@@ -274,7 +270,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, rows.Err()
 	}
 
-	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
+	ret := make([]*storagepb.SubtreeProto, 0, len(ids))
 
 	for rows.Next() {
 		var subtreeIDBytes []byte
@@ -403,8 +399,8 @@ func (t *treeTX) Close() error {
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.ID, n.Hash,
-			func(nID tree.NodeID) (*storagepb.SubtreeProto, error) {
-				return t.getSubtree(ctx, t.writeRevision, nID)
+			func(id []byte) (*storagepb.SubtreeProto, error) {
+				return t.getSubtree(ctx, t.writeRevision, id)
 			})
 		if err != nil {
 			return err
@@ -419,7 +415,7 @@ func (t *treeTX) IsOpen() bool {
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
 func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
-	return func(ids []tree.NodeID) ([]*storagepb.SubtreeProto, error) {
+	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 		return t.getSubtrees(ctx, rev, ids)
 	}
 }
@@ -443,19 +439,4 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	}
 
 	return nil
-}
-
-// subtreeKey returns a non-nil []byte suitable for use as a primary key column
-// for the subtree rooted at the passed-in node ID. Returns an error if the ID
-// is not aligned to bytes.
-func subtreeKey(id tree.NodeID) ([]byte, error) {
-	// TODO(pavelkalinnikov): Extend this check to verify strata boundaries.
-	if id.PrefixLenBits%8 != 0 {
-		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", id.PrefixLenBits)
-	}
-	// The returned slice must not be nil, as it would correspond to NULL in SQL.
-	if bytes := id.Path; bytes != nil {
-		return bytes[:id.PrefixLenBits/8], nil
-	}
-	return []byte{}, nil
 }
