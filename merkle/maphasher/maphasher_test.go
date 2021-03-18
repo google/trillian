@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 )
@@ -83,7 +82,7 @@ func TestHStar2Equivalence(t *testing.T) {
 
 // Old hstar2 empty cache algorithm.
 type hstar struct {
-	hasher          hashers.MapHasher
+	hasher          *MapHasher
 	hStarEmptyCache [][]byte
 }
 

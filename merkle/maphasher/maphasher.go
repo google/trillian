@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
 )
 
@@ -42,8 +41,8 @@ type MapHasher struct {
 	nullHashes [][]byte
 }
 
-// New creates a new merkle.MapHasher using the passed in hash function.
-func New(h crypto.Hash) hashers.MapHasher {
+// New creates a new MapHasher using the passed in hash function.
+func New(h crypto.Hash) *MapHasher {
 	m := &MapHasher{Hash: h}
 	m.initNullHashes()
 	return m
