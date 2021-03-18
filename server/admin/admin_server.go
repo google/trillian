@@ -93,10 +93,6 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 		if _, err := registry.NewLogHasher(tree.HashStrategy); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 		}
-	case trillian.TreeType_MAP:
-		if _, err := registry.NewMapHasher(tree.HashStrategy); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
-		}
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tree type: %v", tree.TreeType)
 	}

@@ -17,18 +17,13 @@ package maphasher
 
 import (
 	"crypto"
+	_ "crypto/sha256"
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/storage/tree"
 )
-
-func init() {
-	registry.RegisterMapHasher(trillian.HashStrategy_TEST_MAP_HASHER, Default)
-}
 
 // Domain separation prefixes
 const (
