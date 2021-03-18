@@ -47,15 +47,16 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc  string
-		store []stree.Node
-		read  []compact.NodeID
-		want  []stree.Node
+		desc    string
+		store   []stree.Node
+		read    []compact.NodeID
+		want    []stree.Node
+		wantErr bool
 	}{
 		{desc: "store-4-read-4", store: nodes[:4], read: nodeIDs[:4], want: nodes[:4]},
 		{desc: "store-4-read-1", store: nodes[:4], read: nodeIDs[:1], want: nodes[:1]},
 		{desc: "store-2-read-4", store: nodes[:2], read: nodeIDs[:4], want: nodes[:2]},
-		{desc: "store-none-read-all", store: nil, read: nodeIDs, want: nil},
+		{desc: "store-none-read-all", store: nil, read: nodeIDs, wantErr: true},
 		{desc: "store-all-read-all", store: nodes, read: nodeIDs, want: nodes},
 		{desc: "store-all-read-none", store: nodes, read: nil, want: nil},
 	} {
@@ -67,17 +68,8 @@ func TestNodeRoundTrip(t *testing.T) {
 			s := NewLogStorage(DB, nil)
 
 			const writeRev = int64(100)
-			preread := make([]compact.NodeID, len(tc.store))
-			for i := range tc.store {
-				preread[i] = tc.store[i].ID
-			}
-
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 				forceWriteRevision(writeRev, tx)
-				// Need to read nodes before attempting to write.
-				if _, err := tx.GetMerkleNodes(ctx, preread); err != nil {
-					t.Fatalf("Failed to read nodes: %s", err)
-				}
 				if err := tx.SetMerkleNodes(ctx, tc.store); err != nil {
 					t.Fatalf("Failed to store nodes: %s", err)
 				}
@@ -86,8 +78,10 @@ func TestNodeRoundTrip(t *testing.T) {
 
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 				readNodes, err := tx.GetMerkleNodes(ctx, tc.read)
-				if err != nil {
+				if err != nil && !tc.wantErr {
 					t.Fatalf("Failed to retrieve nodes: %s", err)
+				} else if err == nil && tc.wantErr {
+					t.Fatal("Retrieving nodes succeeded unexpectedly")
 				}
 				if err := nodesAreEqual(readNodes, tc.want); err != nil {
 					t.Fatalf("Read back different nodes from the ones stored: %s", err)
@@ -121,11 +115,6 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	{
 		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			forceWriteRevision(writeRev, tx)
-
-			// Need to read nodes before attempting to write
-			if _, err := tx.GetMerkleNodes(ctx, nodeIDsToRead); err != nil {
-				t.Fatalf("Failed to read nodes: %s", err)
-			}
 			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 				t.Fatalf("Failed to store nodes: %s", err)
 			}
