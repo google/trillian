@@ -19,8 +19,6 @@
     - [GetInclusionProofResponse](#trillian.GetInclusionProofResponse)
     - [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest)
     - [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse)
-    - [GetLeavesByHashRequest](#trillian.GetLeavesByHashRequest)
-    - [GetLeavesByHashResponse](#trillian.GetLeavesByHashResponse)
     - [GetLeavesByIndexRequest](#trillian.GetLeavesByIndexRequest)
     - [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse)
     - [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest)
@@ -318,40 +316,6 @@ As an example, a Certificate Transparency frontend might set the following user 
 | ----- | ---- | ----- | ----------- |
 | signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
 | proof | [Proof](#trillian.Proof) |  | proof is filled in with a consistency proof if first_tree_size in GetLatestSignedLogRootRequest is non-zero (and within the tree size available at the server). |
-
-
-
-
-
-
-<a name="trillian.GetLeavesByHashRequest"></a>
-
-### GetLeavesByHashRequest
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| log_id | [int64](#int64) |  |  |
-| leaf_hash | [bytes](#bytes) | repeated | The Merkle leaf hash of the leaf to be retrieved. |
-| order_by_sequence | [bool](#bool) |  | If order_by_sequence is set then leaves will be returned in order of ascending leaf index. |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
-
-
-
-
-
-
-<a name="trillian.GetLeavesByHashResponse"></a>
-
-### GetLeavesByHashResponse
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| leaves | [LogLeaf](#trillian.LogLeaf) | repeated |  |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
 
 
 
@@ -675,7 +639,6 @@ If the requested tree size is unavailable but the leaf is in scope for the curre
 | AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | AddSequencedLeaves adds a batch of leaves with assigned sequence numbers to a pre-ordered log. The indices of the provided leaves must be contiguous. |
 | GetLeavesByIndex | [GetLeavesByIndexRequest](#trillian.GetLeavesByIndexRequest) | [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse) | GetLeavesByIndex returns a batch of leaves whose leaf indices are provided in the request. |
 | GetLeavesByRange | [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse) | GetLeavesByRange returns a batch of leaves whose leaf indices are in a sequential range. |
-| GetLeavesByHash | [GetLeavesByHashRequest](#trillian.GetLeavesByHashRequest) | [GetLeavesByHashResponse](#trillian.GetLeavesByHashResponse) | GetLeavesByHash returns a batch of leaves which are identified by their Merkle leaf hash values. |
 
  
 

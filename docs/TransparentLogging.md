@@ -105,9 +105,8 @@ that percolates up the Merkle tree and is therefore incorporated into the
 (signed) root hash for the Log; the cryptographic guarantees of the Log's Merkle
 tree only apply to data included in the Merkle hash.
 
-It is also the hash value that allows individual leaves to be retrieved, using
-the `trillian.GetLeavesByHash` entrypoint.  The default Merkle hash for a
-Trillian Log leaf is `SHA-256(0x00 | leaf.LeafValue)`.
+The default Merkle hash for a Trillian Log leaf is `SHA-256(0x00 |
+leaf.LeafValue)`.
 
  - For Certificate Transparency, this hash is defined by
    [RFC 6962](https://tools.ietf.org/html/rfc6962#section-3.4) to be the SHA-256

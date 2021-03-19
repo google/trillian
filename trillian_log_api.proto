@@ -178,11 +178,6 @@ service TrillianLog {
   // sequential range.
   rpc GetLeavesByRange(GetLeavesByRangeRequest)
       returns (GetLeavesByRangeResponse) {}
-
-  // GetLeavesByHash returns a batch of leaves which are identified by their
-  // Merkle leaf hash values.
-  rpc GetLeavesByHash(GetLeavesByHashRequest)
-      returns (GetLeavesByHashResponse) {}
 }
 
 // ChargeTo describes the user(s) associated with the request whose quota should
@@ -383,21 +378,6 @@ message GetLeavesByRangeResponse {
   // to return fewer leaves than requested.
   repeated LogLeaf leaves = 1;
   SignedLogRoot signed_log_root = 2;
-}
-
-message GetLeavesByHashRequest {
-  int64 log_id = 1;
-  // The Merkle leaf hash of the leaf to be retrieved.
-  repeated bytes leaf_hash = 2;
-  // If order_by_sequence is set then leaves will be returned in order of ascending
-  // leaf index.
-  bool order_by_sequence = 3;
-  ChargeTo charge_to = 5;
-}
-
-message GetLeavesByHashResponse {
-  repeated LogLeaf leaves = 2;
-  SignedLogRoot signed_log_root = 3;
 }
 
 // QueuedLogLeaf provides the result of submitting an entry to the log.
