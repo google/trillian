@@ -79,7 +79,7 @@ func (m *MapHasher) HashLeaf(treeID int64, id tree.NodeID2, leaf []byte) []byte 
 	return r
 }
 
-// HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
+// HashChildren returns the internal Merkle tree node hash of the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
 func (m *MapHasher) HashChildren(l, r []byte) []byte {
 	h := m.New()

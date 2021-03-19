@@ -32,7 +32,7 @@ func Dump(t *btree.BTree) {
 	})
 }
 
-// DumpSubtrees will traverse the the BTree and execute a callback on each subtree proto
+// DumpSubtrees will traverse the BTree and execute a callback on each subtree proto
 // that it contains. The traversal will be 'in order' according to the BTree keys, which
 // may not be useful at the application level.
 func DumpSubtrees(ls storage.LogStorage, treeID int64, callback func(string, *storagepb.SubtreeProto)) {
