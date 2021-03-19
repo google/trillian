@@ -17,18 +17,12 @@ package maphasher
 
 import (
 	"crypto"
+	_ "crypto/sha256" // Default hasher uses SHA256.
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/storage/tree"
 )
-
-func init() {
-	registry.RegisterMapHasher(trillian.HashStrategy_TEST_MAP_HASHER, Default)
-}
 
 // Domain separation prefixes
 const (
@@ -47,8 +41,8 @@ type MapHasher struct {
 	nullHashes [][]byte
 }
 
-// New creates a new merkle.MapHasher using the passed in hash function.
-func New(h crypto.Hash) hashers.MapHasher {
+// New creates a new MapHasher using the passed in hash function.
+func New(h crypto.Hash) *MapHasher {
 	m := &MapHasher{Hash: h}
 	m.initNullHashes()
 	return m

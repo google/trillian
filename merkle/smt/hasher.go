@@ -14,19 +14,25 @@
 
 package smt
 
-import (
-	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage/tree"
-)
+import "github.com/google/trillian/storage/tree"
 
-// mapHasher is a wrapper around MapHasher bound to a specific tree ID.
+// Hasher provides sparse Merkle tree hash functions.
+type Hasher interface {
+	// HashEmpty returns the hash of an empty subtree with the given root. Note
+	// that the empty NodeID2 indicates the root of the entire tree.
+	HashEmpty(treeID int64, root tree.NodeID2) []byte
+	// HashChildren returns the node hash based on its children node hashes.
+	HashChildren(l, r []byte) []byte
+}
+
+// mapHasher is a wrapper around Hasher bound to a specific tree ID.
 type mapHasher struct {
-	mh     hashers.MapHasher
+	mh     Hasher
 	treeID int64
 }
 
 // bindHasher returns a mapHasher binding the given hasher to a tree ID.
-func bindHasher(hasher hashers.MapHasher, treeID int64) mapHasher {
+func bindHasher(hasher Hasher, treeID int64) mapHasher {
 	return mapHasher{mh: hasher, treeID: treeID}
 }
 

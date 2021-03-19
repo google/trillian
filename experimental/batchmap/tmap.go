@@ -26,11 +26,10 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 
-	"github.com/google/trillian/storage/tree"
-
-	coniks "github.com/google/trillian/merkle/coniks/hasher"
+	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/smt"
+	"github.com/google/trillian/storage/tree"
 )
 
 var (

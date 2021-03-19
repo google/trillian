@@ -41,10 +41,4 @@ type MapHasher interface {
 	// HashChildren computes interior nodes, when at least one of the child
 	// subtrees is non-empty.
 	HashChildren(l, r []byte) []byte
-	// Size is the number of bytes in the underlying hash function.
-	// TODO(gbelvin): Replace Size() with BitLength().
-	Size() int
-	// BitLen returns the number of bits in the underlying hash function.
-	// It is also the height of the merkle tree.
-	BitLen() int
 }
