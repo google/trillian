@@ -68,9 +68,6 @@ func TestGetTree(t *testing.T) {
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 1
 
-	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	mapTree.TreeId = 2
-
 	frozenTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	frozenTree.TreeId = 3
 	frozenTree.TreeState = trillian.TreeState_FROZEN
@@ -107,13 +104,6 @@ func TestGetTree(t *testing.T) {
 			wantTree:    logTree,
 		},
 		{
-			desc:        "mapTree",
-			treeID:      mapTree.TreeId,
-			opts:        NewGetOpts(Query, trillian.TreeType_MAP),
-			storageTree: mapTree,
-			wantTree:    mapTree,
-		},
-		{
 			desc:        "logTreeButMaybeMap",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG, trillian.TreeType_MAP),
@@ -121,33 +111,10 @@ func TestGetTree(t *testing.T) {
 			wantTree:    logTree,
 		},
 		{
-			desc:        "mapTreeButMaybeLog",
-			treeID:      mapTree.TreeId,
-			opts:        NewGetOpts(Query, trillian.TreeType_LOG, trillian.TreeType_MAP),
-			storageTree: mapTree,
-			wantTree:    mapTree,
-		},
-		{
 			desc:        "wrongType1",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_MAP),
 			storageTree: logTree,
-			wantErr:     true,
-			code:        codes.InvalidArgument,
-		},
-		{
-			desc:        "wrongType2",
-			treeID:      mapTree.TreeId,
-			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			storageTree: mapTree,
-			wantErr:     true,
-			code:        codes.InvalidArgument,
-		},
-		{
-			desc:        "wrongType3",
-			treeID:      mapTree.TreeId,
-			opts:        NewGetOpts(Query, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG),
-			storageTree: mapTree,
 			wantErr:     true,
 			code:        codes.InvalidArgument,
 		},
@@ -173,13 +140,6 @@ func TestGetTree(t *testing.T) {
 			wantTree:    frozenTree,
 		},
 		{
-			desc:        "adminMap",
-			treeID:      mapTree.TreeId,
-			opts:        NewGetOpts(Admin, trillian.TreeType_MAP),
-			storageTree: mapTree,
-			wantTree:    mapTree,
-		},
-		{
 			desc:        "queryLog",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
@@ -192,13 +152,6 @@ func TestGetTree(t *testing.T) {
 			opts:        NewGetOpts(Query, trillian.TreeType_PREORDERED_LOG),
 			storageTree: testonly.PreorderedLogTree,
 			wantTree:    testonly.PreorderedLogTree,
-		},
-		{
-			desc:        "queryMap",
-			treeID:      mapTree.TreeId,
-			opts:        NewGetOpts(Query, trillian.TreeType_MAP),
-			storageTree: mapTree,
-			wantTree:    mapTree,
 		},
 		{
 			desc:        "queryFrozen",
@@ -267,7 +220,7 @@ func TestGetTree(t *testing.T) {
 			desc:        "wrongTreeInCtx",
 			treeID:      logTree.TreeId,
 			opts:        NewGetOpts(Query, trillian.TreeType_LOG),
-			ctxTree:     mapTree,
+			ctxTree:     frozenTree,
 			storageTree: logTree,
 			wantTree:    logTree,
 			wantErr:     true,

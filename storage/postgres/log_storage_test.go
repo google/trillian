@@ -154,7 +154,6 @@ func TestSnapshot(t *testing.T) {
 
 	activeLog := createTreeOrPanic(db, testonly.LogTree)
 	createFakeSignedLogRoot(db, activeLog, 0)
-	mapTreeID := createTreeOrPanic(db, testonly.MapTree).TreeId
 
 	tests := []struct {
 		desc    string
@@ -173,11 +172,6 @@ func TestSnapshot(t *testing.T) {
 		{
 			desc: "frozenSnapshot",
 			tree: frozenLog,
-		},
-		{
-			desc:    "mapSnapshot",
-			tree:    logTree(mapTreeID),
-			wantErr: true,
 		},
 	}
 
@@ -1088,10 +1082,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	drainingLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	deletedLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
-	map1 := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	map2 := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	for _, tree := range []**trillian.Tree{&log1, &log2, &log3, &drainingLog, &frozenLog, &deletedLog, &map1, &map2, &deletedMap} {
+	for _, tree := range []**trillian.Tree{&log1, &log2, &log3, &drainingLog, &frozenLog, &deletedLog} {
 		newTree, err := storage.CreateTree(ctx, admin, *tree)
 		if err != nil {
 			t.Fatalf("CreateTree(%+v) returned err = %v", tree, err)
@@ -1118,7 +1109,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 		t.Fatalf("PrepareContext() returned err = %v", err)
 	}
 	defer updateDeletedStmt.Close()
-	for _, treeID := range []int64{deletedLog.TreeId, deletedMap.TreeId} {
+	for _, treeID := range []int64{deletedLog.TreeId} {
 		if _, err := updateDeletedStmt.ExecContext(ctx, true, treeID); err != nil {
 			t.Fatalf("ExecContext(%v) returned err = %v", treeID, err)
 		}

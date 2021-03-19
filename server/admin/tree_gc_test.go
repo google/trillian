@@ -213,10 +213,6 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 	logTree2.TreeId = 20
 	logTree2.Deleted = true
 	logTree2.DeleteTime = deleteTimePB
-	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	mapTree.TreeId = 30
-	mapTree.Deleted = true
-	mapTree.DeleteTime = deleteTimePB
 	badTS := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	badTS.TreeId = 40
 	badTS.Deleted = true
@@ -258,7 +254,7 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 			desc: "snapshotCommitErr",
 			listTrees: listTreesSpec{
 				commitErr: errors.New("commit err"),
-				trees:     []*trillian.Tree{logTree1, logTree2, mapTree},
+				trees:     []*trillian.Tree{logTree1, logTree2},
 			},
 			wantErrs: []string{"commit err"},
 		},
@@ -301,19 +297,17 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 		{
 			// logTree1 = delete successful
 			// logTree2 = delete error
-			// mapTree  = commit error
 			// badTS    = timestamp parse error (no HardDeleteTree() call)
 			desc: "multipleErrors",
 			listTrees: listTreesSpec{
-				trees: []*trillian.Tree{logTree1, logTree2, mapTree, badTS},
+				trees: []*trillian.Tree{logTree1, logTree2, badTS},
 			},
 			hardDeleteTree: []hardDeleteTreeSpec{
 				{treeID: logTree1.TreeId},
 				{deleteErr: errors.New("delete err"), treeID: logTree2.TreeId},
-				{commitErr: errors.New("commit err"), treeID: mapTree.TreeId},
 			},
 			wantCount: 1,
-			wantErrs:  []string{"delete err", "commit err", "error parsing delete_time"},
+			wantErrs:  []string{"delete err", "error parsing delete_time"},
 		},
 	}
 
