@@ -91,6 +91,7 @@ func (r *Range) Hashes() [][]byte {
 // uses the tree hasher to calculate hashes of newly created nodes, and reports
 // them through the visitor function (if non-nil).
 func (r *Range) Append(hash []byte, visitor VisitFn) error {
+	// TODO(pphaneuf): Consider calling `visitor` for this hash, for consistency.
 	return r.appendImpl(r.end+1, hash, nil, visitor)
 }
 
