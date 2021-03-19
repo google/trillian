@@ -176,7 +176,7 @@ func (h HStar3) updateAt(nodes []Node, depth uint, na NodeAccessor) ([]Node, err
 	return nodes[:newLen], nil
 }
 
-// isLeftChild returns whether the the given node is a left child.
+// isLeftChild returns whether the given node is a left child.
 func isLeftChild(id tree.NodeID2) bool {
 	last, bits := id.LastByte()
 	return last&(1<<(8-bits)) == 0

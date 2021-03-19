@@ -87,7 +87,7 @@ func (m *Hasher) HashLeaf(treeID int64, id tree.NodeID2, leaf []byte) []byte {
 	return p
 }
 
-// HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
+// HashChildren returns the internal Merkle tree node hash of the two child nodes l and r.
 // The hashed structure is  H(l || r).
 func (m *Hasher) HashChildren(l, r []byte) []byte {
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(l)+len(r)))

@@ -93,7 +93,7 @@ func TestCachedManager_GetTokens_CachesTokens(t *testing.T) {
 	}
 
 	// Quota requests happen in tokens+minBatchSize steps, so that minBatchSize tokens get cached
-	// after the the request is satisfied.
+	// after the request is satisfied.
 	// Therefore, the call pattern below is satisfied by just 2 underlying GetTokens() calls.
 	calls := []int{tokens, minBatchSize, tokens, minBatchSize / 2, minBatchSize / 2}
 	for i, call := range calls {
