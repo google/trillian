@@ -17,7 +17,7 @@ package maphasher
 
 import (
 	"crypto"
-	_ "crypto/sha256"
+	_ "crypto/sha256" // Default hasher uses SHA256.
 	"fmt"
 
 	"github.com/golang/glog"
