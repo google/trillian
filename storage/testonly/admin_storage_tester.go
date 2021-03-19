@@ -110,24 +110,6 @@ var (
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
-
-	// MapTree is a valid, MAP-type trillian.Tree for tests.
-	MapTree = &trillian.Tree{
-		TreeState:          trillian.TreeState_ACTIVE,
-		TreeType:           trillian.TreeType_MAP,
-		HashStrategy:       trillian.HashStrategy_TEST_MAP_HASHER,
-		HashAlgorithm:      spb.DigitallySigned_SHA256,
-		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		DisplayName:        "Llamas Map",
-		Description:        "Key Transparency map for all your digital llama needs.",
-		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
-			Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
-		}),
-		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(testonly.DemoPublicKey),
-		},
-		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
-	}
 )
 
 // AdminStorageTester runs a suite of tests against AdminStorage implementations.
@@ -159,7 +141,6 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 	invalidTree.TreeType = trillian.TreeType_UNKNOWN_TREE_TYPE
 
 	validTree1 := proto.Clone(LogTree).(*trillian.Tree)
-	validTree2 := proto.Clone(MapTree).(*trillian.Tree)
 	validTree3 := proto.Clone(PreorderedLogTree).(*trillian.Tree)
 
 	validTreeWithoutOptionals := proto.Clone(LogTree).(*trillian.Tree)
@@ -179,10 +160,6 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		{
 			desc: "validTree1",
 			tree: validTree1,
-		},
-		{
-			desc: "validTree2",
-			tree: validTree2,
 		},
 		{
 			desc: "validTree3",
@@ -248,7 +225,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	unrelatedTree := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
+	unrelatedTree := makeTreeOrFail(ctx, s, spec{Tree: PreorderedLogTree}, t.Fatalf)
 
 	referenceLog := proto.Clone(LogTree).(*trillian.Tree)
 	validLog := proto.Clone(referenceLog).(*trillian.Tree)
@@ -274,13 +251,6 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 
 	readonlyChangedFunc := func(tree *trillian.Tree) {
 		tree.TreeType = trillian.TreeType_MAP
-	}
-
-	referenceMap := proto.Clone(MapTree).(*trillian.Tree)
-	validMap := proto.Clone(referenceMap).(*trillian.Tree)
-	validMap.DisplayName = "Updated Map"
-	validMapFunc := func(tree *trillian.Tree) {
-		tree.DisplayName = validMap.DisplayName
 	}
 
 	newPrivateKey := &empty.Empty{}
@@ -336,12 +306,6 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 			create:     referenceLog,
 			updateFunc: readonlyChangedFunc,
 			wantErr:    true,
-		},
-		{
-			desc:       "validMap",
-			create:     referenceMap,
-			updateFunc: validMapFunc,
-			want:       validMap,
 		},
 		{
 			desc:       "privateKeyChangedButKeyMaterialSame",
@@ -440,9 +404,8 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	activeLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree}, t.Fatalf)
 	frozenLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Frozen: true}, t.Fatalf)
 	deletedLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
-	activeMap := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
-	run("multipleTrees", false /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog, activeMap})
-	run("multipleTreesDeleted", true /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap})
+	run("multipleTrees", false /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog})
+	run("multipleTreesDeleted", true /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog, deletedLog})
 }
 
 func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDeleted bool, wantTrees []*trillian.Tree) error {
@@ -492,14 +455,12 @@ func (tester *AdminStorageTester) TestSoftDeleteTree(t *testing.T) {
 	s := tester.NewAdminStorage()
 
 	logTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree}, t.Fatalf)
-	mapTree := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
 
 	tests := []struct {
 		desc string
 		tree *trillian.Tree
 	}{
 		{desc: "logTree", tree: logTree},
-		{desc: "mapTree", tree: mapTree},
 	}
 	for _, test := range tests {
 		deletedTree, err := storage.SoftDeleteTree(ctx, s, test.tree.TreeId)
@@ -554,7 +515,6 @@ func (tester *AdminStorageTester) TestHardDeleteTree(t *testing.T) {
 
 	logTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
 	frozenTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true, Frozen: true}, t.Fatalf)
-	mapTree := makeTreeOrFail(ctx, s, spec{Tree: MapTree, Deleted: true}, t.Fatalf)
 
 	tests := []struct {
 		desc   string
@@ -562,7 +522,6 @@ func (tester *AdminStorageTester) TestHardDeleteTree(t *testing.T) {
 	}{
 		{desc: "logTree", treeID: logTree.TreeId},
 		{desc: "frozenTree", treeID: frozenTree.TreeId},
-		{desc: "mapTree", treeID: mapTree.TreeId},
 	}
 	for _, test := range tests {
 		if err := storage.HardDeleteTree(ctx, s, test.treeID); err != nil {

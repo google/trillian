@@ -298,12 +298,7 @@ func TestAdminServer_ListTrees(t *testing.T) {
 				t.Fatalf("numTrees = %v, but we already have %v stored trees", test.numTrees, l)
 			} else if l < test.numTrees {
 				for i := l; i < test.numTrees; i++ {
-					var tree *trillian.Tree
-					if i%2 == 0 {
-						tree = proto.Clone(testonly.LogTree).(*trillian.Tree)
-					} else {
-						tree = proto.Clone(testonly.MapTree).(*trillian.Tree)
-					}
+					tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 					req := &trillian.CreateTreeRequest{Tree: tree}
 					resp, err := ts.adminClient.CreateTree(ctx, req)
 					if err != nil {
@@ -356,7 +351,6 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 		baseTree *trillian.Tree
 	}{
 		{desc: "logTree", baseTree: testonly.LogTree},
-		{desc: "mapTree", baseTree: testonly.MapTree},
 	}
 
 	for _, test := range tests {
@@ -450,7 +444,6 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 		baseTree *trillian.Tree
 	}{
 		{desc: "logTree", baseTree: testonly.LogTree},
-		{desc: "mapTree", baseTree: testonly.MapTree},
 	}
 
 	for _, test := range tests {

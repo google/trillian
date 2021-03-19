@@ -92,7 +92,6 @@ func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 
 	activeLog := mustCreateTree(ctx, t, as, storageto.LogTree)
 	mustSignAndStoreLogRoot(ctx, t, s, activeLog, &types.LogRootV1{})
-	mapTreeID := mustCreateTree(ctx, t, as, storageto.MapTree).TreeId
 
 	tests := []struct {
 		desc    string
@@ -111,11 +110,6 @@ func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 		{
 			desc: "frozenSnapshot",
 			tree: frozenLog,
-		},
-		{
-			desc:    "mapSnapshot",
-			tree:    logTree(mapTreeID),
-			wantErr: true,
 		},
 	}
 

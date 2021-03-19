@@ -126,25 +126,23 @@ func TestServer_ListTrees(t *testing.T) {
 	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	frozenLog.TreeState = trillian.TreeState_FROZEN
 	deletedLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
-	activeMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
 
 	id := int64(17)
 	nowPB := ptypes.TimestampNow()
-	for _, tree := range []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap, deletedMap} {
+	for _, tree := range []*trillian.Tree{activeLog, frozenLog, deletedLog} {
 		tree.TreeId = id
 		tree.CreateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
 		tree.UpdateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
 		id++
 		nowPB.Seconds++
 	}
-	for _, tree := range []*trillian.Tree{deletedLog, deletedMap} {
+	for _, tree := range []*trillian.Tree{deletedLog} {
 		tree.Deleted = true
 		tree.DeleteTime = proto.Clone(nowPB).(*timestamp.Timestamp)
 		nowPB.Seconds++
 	}
-	nonDeletedTrees := []*trillian.Tree{activeLog, frozenLog, activeMap}
-	allTrees := []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap, deletedMap}
+	nonDeletedTrees := []*trillian.Tree{activeLog, frozenLog}
+	allTrees := []*trillian.Tree{activeLog, frozenLog, deletedLog}
 
 	tests := []struct {
 		desc  string
@@ -721,8 +719,7 @@ func TestServer_DeleteTree(t *testing.T) {
 	defer ctrl.Finish()
 
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	for i, tree := range []*trillian.Tree{logTree, mapTree} {
+	for i, tree := range []*trillian.Tree{logTree} {
 		tree.TreeId = int64(i) + 10
 		tree.CreateTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600, 0))
 		tree.UpdateTime = tree.CreateTime
@@ -733,7 +730,6 @@ func TestServer_DeleteTree(t *testing.T) {
 		tree *trillian.Tree
 	}{
 		{desc: "logTree", tree: logTree},
-		{desc: "mapTree", tree: mapTree},
 	}
 
 	ctx := context.Background()
@@ -805,8 +801,7 @@ func TestServer_UndeleteTree(t *testing.T) {
 	activeLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	frozenLog.TreeState = trillian.TreeState_FROZEN
-	activeMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	for i, tree := range []*trillian.Tree{activeLog, frozenLog, activeMap} {
+	for i, tree := range []*trillian.Tree{activeLog, frozenLog} {
 		tree.TreeId = int64(i) + 10
 		tree.CreateTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600, 0))
 		tree.UpdateTime = tree.CreateTime
@@ -820,7 +815,6 @@ func TestServer_UndeleteTree(t *testing.T) {
 	}{
 		{desc: "activeLog", tree: activeLog},
 		{desc: "frozenLog", tree: frozenLog},
-		{desc: "activeMap", tree: activeMap},
 	}
 
 	ctx := context.Background()
