@@ -307,8 +307,7 @@ similar to those available for Certificate Transparency logs
    Merkle tree for the log, including the tree size, hash value, timestamp and
    signature.
  - `GetLeavesByIndex` and `GetLeavesByRange` return leaf information for
-   particular leaves, specified either by their hash value or index in the
-   log.
+   particular leaves, specified by their index in the log.
  - `QueueLeaves` requests inclusion of specified items into the log.
      - For a pre-ordered log, `AddSequencedLeaves` requests the inclusion of
        specified items into the log at specified places in the tree.
