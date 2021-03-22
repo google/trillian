@@ -64,17 +64,6 @@ service TrillianLog {
     };
   }
 
-  // AddSequencedLeaf adds a single leaf with an assigned sequence number to a
-  // pre-ordered log.
-  rpc AddSequencedLeaf(AddSequencedLeafRequest)
-      returns (AddSequencedLeafResponse) {
-    option (google.api.http) = {
-      post: "/v1beta1/logs/{log_id}/leaves:sequenced"
-      body: "*"
-    };
-  }
-
-
   // GetInclusionProof returns an inclusion proof for a leaf with a given index
   // in a particular tree.
   //
@@ -193,16 +182,6 @@ message QueueLeafResponse {
   // its leaf identity hash), then the returned leaf will be the pre-existing
   // leaf entry rather than the submitted leaf.
   QueuedLogLeaf queued_leaf = 2;
-}
-
-message AddSequencedLeafRequest {
-  int64 log_id = 1;
-  LogLeaf leaf = 2;
-  ChargeTo charge_to = 3;
-}
-
-message AddSequencedLeafResponse {
-  QueuedLogLeaf result = 2;
 }
 
 message GetInclusionProofRequest {

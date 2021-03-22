@@ -4,8 +4,6 @@
 ## Table of Contents
 
 - [trillian_log_api.proto](#trillian_log_api.proto)
-    - [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest)
-    - [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse)
     - [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest)
     - [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse)
     - [ChargeTo](#trillian.ChargeTo)
@@ -61,38 +59,6 @@
 <p align="right"><a href="#top">Top</a></p>
 
 ## trillian_log_api.proto
-
-
-
-<a name="trillian.AddSequencedLeafRequest"></a>
-
-### AddSequencedLeafRequest
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| log_id | [int64](#int64) |  |  |
-| leaf | [LogLeaf](#trillian.LogLeaf) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
-
-
-
-
-
-
-<a name="trillian.AddSequencedLeafResponse"></a>
-
-### AddSequencedLeafResponse
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| result | [QueuedLogLeaf](#trillian.QueuedLogLeaf) |  |  |
-
-
-
 
 
 
@@ -541,7 +507,6 @@ in this case the server will typically return an OK response that contains:
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | QueueLeaf | [QueueLeafRequest](#trillian.QueueLeafRequest) | [QueueLeafResponse](#trillian.QueueLeafResponse) | QueueLeaf adds a single leaf to the queue of pending leaves for a normal log. |
-| AddSequencedLeaf | [AddSequencedLeafRequest](#trillian.AddSequencedLeafRequest) | [AddSequencedLeafResponse](#trillian.AddSequencedLeafResponse) | AddSequencedLeaf adds a single leaf with an assigned sequence number to a pre-ordered log. |
 | GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | GetInclusionProof returns an inclusion proof for a leaf with a given index in a particular tree.
 
 If the requested tree_size is larger than the server is aware of, the response will include the latest known log root and an empty proof. |

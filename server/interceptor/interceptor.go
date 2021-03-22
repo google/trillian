@@ -405,10 +405,6 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		info.tokens = len(req.GetLeaves())
 
 	// Pre-ordered Log / readwrite
-	case *trillian.AddSequencedLeafRequest:
-		info.readonly = false
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_PREORDERED_LOG}
-		info.tokens = 1
 	case *trillian.AddSequencedLeavesRequest:
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_PREORDERED_LOG}

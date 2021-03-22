@@ -157,31 +157,6 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	return &trillian.QueueLeavesResponse{QueuedLeaves: ret}, nil
 }
 
-// AddSequencedLeaf submits one sequenced leaf to the storage.
-func (t *TrillianLogRPCServer) AddSequencedLeaf(ctx context.Context, req *trillian.AddSequencedLeafRequest) (*trillian.AddSequencedLeafResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "AddSequencedLeaf")
-	defer spanEnd()
-	if err := validateLogLeaf(req.Leaf, "AddSequencedLeafRequest.Leaf"); err != nil {
-		return nil, err
-	}
-
-	batchReq := &trillian.AddSequencedLeavesRequest{
-		LogId:  req.LogId,
-		Leaves: []*trillian.LogLeaf{req.Leaf},
-	}
-	rsp, err := t.AddSequencedLeaves(ctx, batchReq)
-	if err != nil {
-		return nil, err
-	}
-	if rsp == nil {
-		return nil, status.Errorf(codes.Internal, "missing response")
-	}
-	if got, want := len(rsp.Results), 1; got != want {
-		return nil, status.Errorf(codes.Internal, "expected 1 leaf, got %d", got)
-	}
-	return &trillian.AddSequencedLeafResponse{Result: rsp.Results[0]}, nil
-}
-
 // AddSequencedLeaves submits a batch of sequenced leaves to a pre-ordered log
 // for later integration into its underlying tree.
 func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {

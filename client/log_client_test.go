@@ -40,10 +40,12 @@ func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *Lo
 	if len(leaves) == 0 {
 		return nil
 	}
+	dataByIndex := make(map[int64][]byte)
 	for i, l := range leaves {
-		if err := client.AddSequencedLeaf(ctx, l, int64(i)); err != nil {
-			return fmt.Errorf("AddSequencedLeaf(): %v", err)
-		}
+		dataByIndex[int64(i)] = l
+	}
+	if err := client.AddSequencedLeaves(ctx, dataByIndex); err != nil {
+		return fmt.Errorf("AddSequencedLeaves(): %v", err)
 	}
 	env.Sequencer.OperationSingle(ctx)
 	if err := client.WaitForInclusion(ctx, leaves[len(leaves)-1]); err != nil {
