@@ -35,21 +35,6 @@ func (m *MockTrillianLogServer) EXPECT() *MockTrillianLogServerMockRecorder {
 	return m.recorder
 }
 
-// AddSequencedLeaf mocks base method.
-func (m *MockTrillianLogServer) AddSequencedLeaf(arg0 context.Context, arg1 *trillian.AddSequencedLeafRequest) (*trillian.AddSequencedLeafResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddSequencedLeaf", arg0, arg1)
-	ret0, _ := ret[0].(*trillian.AddSequencedLeafResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddSequencedLeaf indicates an expected call of AddSequencedLeaf.
-func (mr *MockTrillianLogServerMockRecorder) AddSequencedLeaf(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaf", reflect.TypeOf((*MockTrillianLogServer)(nil).AddSequencedLeaf), arg0, arg1)
-}
-
 // AddSequencedLeaves mocks base method.
 func (m *MockTrillianLogServer) AddSequencedLeaves(arg0 context.Context, arg1 *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {
 	m.ctrl.T.Helper()

@@ -326,17 +326,6 @@ func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []b
 	return true, nil
 }
 
-// AddSequencedLeaf adds a leaf at a particular index.
-func (c *LogClient) AddSequencedLeaf(ctx context.Context, data []byte, index int64) error {
-	leaf := c.BuildLeaf(data)
-	leaf.LeafIndex = index
-	_, err := c.client.AddSequencedLeaf(ctx, &trillian.AddSequencedLeafRequest{
-		LogId: c.LogID,
-		Leaf:  leaf,
-	})
-	return err
-}
-
 // AddSequencedLeaves adds any number of pre-sequenced leaves to the log.
 // Indexes must be contiguous.
 func (c *LogClient) AddSequencedLeaves(ctx context.Context, dataByIndex map[int64][]byte) error {
