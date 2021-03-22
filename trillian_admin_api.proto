@@ -23,7 +23,6 @@ package trillian;
 
 import "trillian.proto";
 import "crypto/keyspb/keyspb.proto";
-import "google/api/annotations.proto";
 import "google/protobuf/field_mask.proto";
 
 // ListTrees request.
@@ -86,47 +85,25 @@ service TrillianAdmin {
   rpc ListTrees(ListTreesRequest) returns (ListTreesResponse) {}
 
   // Retrieves a tree by ID.
-  rpc GetTree(GetTreeRequest) returns (Tree) {
-    option (google.api.http) = {
-      get: "/v1beta1/trees/{tree_id=*}"
-    };
-  }
+  rpc GetTree(GetTreeRequest) returns (Tree) {}
 
   // Creates a new tree.
   // System-generated fields are not required and will be ignored if present,
   // e.g.: tree_id, create_time and update_time.
   // Returns the created tree, with all system-generated fields assigned.
-  rpc CreateTree(CreateTreeRequest) returns (Tree) {
-    option (google.api.http) = {
-      post: "/v1beta1/trees"
-      body: "*"
-    };
-  }
+  rpc CreateTree(CreateTreeRequest) returns (Tree) {}
 
   // Updates a tree.
   // See Tree for details. Readonly fields cannot be updated.
-  rpc UpdateTree(UpdateTreeRequest) returns (Tree) {
-    option (google.api.http) = {
-      patch: "/v1beta1/trees/{tree.tree_id=*}"
-      body: "*"
-    };
-  }
+  rpc UpdateTree(UpdateTreeRequest) returns (Tree) {}
 
   // Soft-deletes a tree.
   // A soft-deleted tree may be undeleted for a certain period, after which
   // it'll be permanently deleted.
-  rpc DeleteTree(DeleteTreeRequest) returns (Tree) {
-    option (google.api.http) = {
-      delete: "/v1beta1/trees/{tree_id=*}"
-    };
-  }
+  rpc DeleteTree(DeleteTreeRequest) returns (Tree) {}
 
   // Undeletes a soft-deleted a tree.
   // A soft-deleted tree may be undeleted for a certain period, after which
   // it'll be permanently deleted.
-  rpc UndeleteTree(UndeleteTreeRequest) returns (Tree) {
-    option (google.api.http) = {
-      delete: "/v1beta1/trees/{tree_id=*}:undelete"
-    };
-  }
+  rpc UndeleteTree(UndeleteTreeRequest) returns (Tree) {}
 }
