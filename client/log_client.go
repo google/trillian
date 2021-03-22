@@ -74,21 +74,6 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	return nil
 }
 
-// GetByIndex returns a single leaf at the requested index.
-func (c *LogClient) GetByIndex(ctx context.Context, index int64) (*trillian.LogLeaf, error) {
-	resp, err := c.client.GetLeavesByIndex(ctx, &trillian.GetLeavesByIndexRequest{
-		LogId:     c.LogID,
-		LeafIndex: []int64{index},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if got, want := len(resp.Leaves), 1; got != want {
-		return nil, fmt.Errorf("len(leaves): %v, want %v", got, want)
-	}
-	return resp.Leaves[0], nil
-}
-
 // ListByIndex returns the requested leaves by index.
 func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
 	resp, err := c.client.GetLeavesByRange(ctx,

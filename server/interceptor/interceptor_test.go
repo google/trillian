@@ -213,16 +213,6 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 1,
 		},
 		{
-			desc:   "logReadIndices",
-			method: "/trillian.TrillianLog/GetLeavesByIndex",
-			req:    &trillian.GetLeavesByIndexRequest{LogId: logTree.TreeId, LeafIndex: []int64{1, 2, 3}},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
-				{Group: quota.Global, Kind: quota.Read, Refundable: true},
-			},
-			wantTokens: 3,
-		},
-		{
 			desc:   "logReadRange",
 			method: "/trillian.TrillianLog/GetLeavesByRange",
 			req:    &trillian.GetLeavesByRangeRequest{LogId: logTree.TreeId, Count: 123},

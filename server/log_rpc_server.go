@@ -463,49 +463,6 @@ func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize, 
 	return proof, nil
 }
 
-// GetLeavesByIndex obtains one or more leaves based on their sequence number within the
-// tree. It is not possible to fetch leaves that have been queued but not yet integrated.
-// TODO: Validate indices against published tree size in case we implement write sharding that
-// can get ahead of this point. Not currently clear what component should own this state.
-func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetLeavesByIndex")
-	defer spanEnd()
-	if err := validateGetLeavesByIndexRequest(req); err != nil {
-		return nil, err
-	}
-
-	tree, ctx, err := t.getTreeAndContext(ctx, req.LogId, optsLogRead)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := t.snapshotForTree(ctx, tree, "GetLeavesByIndex")
-	if err != nil {
-		return nil, err
-	}
-	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetLeavesByIndex")
-
-	leaves, err := tx.GetLeavesByIndex(ctx, req.LeafIndex)
-	if err != nil {
-		return nil, err
-	}
-	t.fetchedLeaves.Add(float64(len(leaves)))
-
-	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByIndex"); err != nil {
-		return nil, err
-	}
-
-	slr, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var root types.LogRootV1
-	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
-	}
-
-	return &trillian.GetLeavesByIndexResponse{Leaves: leaves, SignedLogRoot: slr}, nil
-}
-
 // GetLeavesByRange obtains leaves based on a range of sequence numbers within the tree.
 // This only fetches sequenced leaves; leaves that have been queued but not yet integrated
 // are not visible.

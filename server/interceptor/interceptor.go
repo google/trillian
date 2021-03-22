@@ -388,9 +388,6 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		*trillian.GetLatestSignedLogRootRequest:
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
 		info.tokens = 1
-	case *trillian.GetLeavesByIndexRequest:
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
-		info.tokens = len(req.GetLeafIndex())
 	case *trillian.GetLeavesByRangeRequest:
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
 		info.tokens = 1

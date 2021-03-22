@@ -155,11 +155,6 @@ service TrillianLog {
   rpc AddSequencedLeaves(AddSequencedLeavesRequest)
       returns (AddSequencedLeavesResponse) {}
 
-  // GetLeavesByIndex returns a batch of leaves whose leaf indices are provided
-  // in the request.
-  rpc GetLeavesByIndex(GetLeavesByIndexRequest)
-      returns (GetLeavesByIndexResponse) {}
-
   // GetLeavesByRange returns a batch of leaves whose leaf indices are in a
   // sequential range.
   rpc GetLeavesByRange(GetLeavesByRangeRequest)
@@ -323,18 +318,6 @@ message AddSequencedLeavesRequest {
 message AddSequencedLeavesResponse {
   // Same number and order as in the corresponding request.
   repeated QueuedLogLeaf results = 2;
-}
-
-message GetLeavesByIndexRequest {
-  int64 log_id = 1;
-  repeated int64 leaf_index = 2;
-  ChargeTo charge_to = 5;
-}
-
-message GetLeavesByIndexResponse {
-  // TODO(gbelvin): Response syntax does not allow for some requested leaves to be available, and some not (but using QueuedLogLeaf might)
-  repeated LogLeaf leaves = 2;
-  SignedLogRoot signed_log_root = 3;
 }
 
 message GetLeavesByRangeRequest {

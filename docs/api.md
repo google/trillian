@@ -19,8 +19,6 @@
     - [GetInclusionProofResponse](#trillian.GetInclusionProofResponse)
     - [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest)
     - [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse)
-    - [GetLeavesByIndexRequest](#trillian.GetLeavesByIndexRequest)
-    - [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse)
     - [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest)
     - [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse)
     - [InitLogRequest](#trillian.InitLogRequest)
@@ -319,39 +317,6 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 
 
-<a name="trillian.GetLeavesByIndexRequest"></a>
-
-### GetLeavesByIndexRequest
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| log_id | [int64](#int64) |  |  |
-| leaf_index | [int64](#int64) | repeated |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
-
-
-
-
-
-
-<a name="trillian.GetLeavesByIndexResponse"></a>
-
-### GetLeavesByIndexResponse
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| leaves | [LogLeaf](#trillian.LogLeaf) | repeated | TODO(gbelvin): Response syntax does not allow for some requested leaves to be available, and some not (but using QueuedLogLeaf might) |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
-
-
-
-
-
-
 <a name="trillian.GetLeavesByRangeRequest"></a>
 
 ### GetLeavesByRangeRequest
@@ -595,7 +560,6 @@ If the requested tree size is unavailable but the leaf is in scope for the curre
 | InitLog | [InitLogRequest](#trillian.InitLogRequest) | [InitLogResponse](#trillian.InitLogResponse) | InitLog initializes a particular tree, creating the initial signed log root (which will be of size 0). |
 | QueueLeaves | [QueueLeavesRequest](#trillian.QueueLeavesRequest) | [QueueLeavesResponse](#trillian.QueueLeavesResponse) | QueueLeaf adds a batch of leaves to the queue of pending leaves for a normal log. |
 | AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | AddSequencedLeaves adds a batch of leaves with assigned sequence numbers to a pre-ordered log. The indices of the provided leaves must be contiguous. |
-| GetLeavesByIndex | [GetLeavesByIndexRequest](#trillian.GetLeavesByIndexRequest) | [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse) | GetLeavesByIndex returns a batch of leaves whose leaf indices are provided in the request. |
 | GetLeavesByRange | [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse) | GetLeavesByRange returns a batch of leaves whose leaf indices are in a sequential range. |
 
  
