@@ -23,8 +23,6 @@
     - [GetLeavesByIndexResponse](#trillian.GetLeavesByIndexResponse)
     - [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest)
     - [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse)
-    - [GetSequencedLeafCountRequest](#trillian.GetSequencedLeafCountRequest)
-    - [GetSequencedLeafCountResponse](#trillian.GetSequencedLeafCountResponse)
     - [InitLogRequest](#trillian.InitLogRequest)
     - [InitLogResponse](#trillian.InitLogResponse)
     - [LogLeaf](#trillian.LogLeaf)
@@ -388,40 +386,6 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 
 
-<a name="trillian.GetSequencedLeafCountRequest"></a>
-
-### GetSequencedLeafCountRequest
-DO NOT USE - FOR DEBUGGING/TEST ONLY
-
-(Use GetLatestSignedLogRoot then de-serialize the Log Root and use
-use the tree size field within.)
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| log_id | [int64](#int64) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
-
-
-
-
-
-
-<a name="trillian.GetSequencedLeafCountResponse"></a>
-
-### GetSequencedLeafCountResponse
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| leaf_count | [int64](#int64) |  |  |
-
-
-
-
-
-
 <a name="trillian.InitLogRequest"></a>
 
 ### InitLogRequest
@@ -625,11 +589,6 @@ If the requested tree size is larger than the server is aware of, the response w
 | GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | GetLatestSignedLogRoot returns the latest signed log root for a given tree, and optionally also includes a consistency proof from an earlier tree size to the new size of the tree.
 
 If the earlier tree size is larger than the server is aware of, an InvalidArgument error is returned. |
-| GetSequencedLeafCount | [GetSequencedLeafCountRequest](#trillian.GetSequencedLeafCountRequest) | [GetSequencedLeafCountResponse](#trillian.GetSequencedLeafCountResponse) | GetSequencedLeafCount returns the total number of leaves that have been integrated into the given tree.
-
-DO NOT USE - FOR DEBUGGING/TEST ONLY
-
-(Use GetLatestSignedLogRoot then de-serialize the Log Root and use use the tree size field within.) |
 | GetEntryAndProof | [GetEntryAndProofRequest](#trillian.GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian.GetEntryAndProofResponse) | GetEntryAndProof returns a log leaf and the corresponding inclusion proof to a specified tree size, for a given leaf index in a particular tree.
 
 If the requested tree size is unavailable but the leaf is in scope for the current tree, the returned proof will be for the current tree size rather than the requested tree size. |

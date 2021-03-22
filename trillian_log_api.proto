@@ -124,20 +124,6 @@ service TrillianLog {
     };
   }
 
-  // GetSequencedLeafCount returns the total number of leaves that have been
-  // integrated into the given tree.
-  //
-  // DO NOT USE - FOR DEBUGGING/TEST ONLY
-  //
-  // (Use GetLatestSignedLogRoot then de-serialize the Log Root and use
-  // use the tree size field within.)
-  rpc GetSequencedLeafCount(GetSequencedLeafCountRequest)
-      returns (GetSequencedLeafCountResponse) {
-    option (google.api.http) = {
-      get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
-    };
-  }
-
   // GetEntryAndProof returns a log leaf and the corresponding inclusion proof
   // to a specified tree size, for a given leaf index in a particular tree.
   //
@@ -293,19 +279,6 @@ message GetLatestSignedLogRootResponse {
   // GetLatestSignedLogRootRequest is non-zero (and within the tree size
   // available at the server).
   Proof proof = 3;
-}
-
-// DO NOT USE - FOR DEBUGGING/TEST ONLY
-//
-// (Use GetLatestSignedLogRoot then de-serialize the Log Root and use
-// use the tree size field within.)
-message GetSequencedLeafCountRequest {
-  int64 log_id = 1;
-  ChargeTo charge_to = 2;
-}
-
-message GetSequencedLeafCountResponse {
-  int64 leaf_count = 2;
 }
 
 message GetEntryAndProofRequest {

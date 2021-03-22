@@ -170,21 +170,6 @@ func (mr *MockTrillianLogServerMockRecorder) GetLeavesByRange(arg0, arg1 interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByRange", reflect.TypeOf((*MockTrillianLogServer)(nil).GetLeavesByRange), arg0, arg1)
 }
 
-// GetSequencedLeafCount mocks base method.
-func (m *MockTrillianLogServer) GetSequencedLeafCount(arg0 context.Context, arg1 *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSequencedLeafCount", arg0, arg1)
-	ret0, _ := ret[0].(*trillian.GetSequencedLeafCountResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount.
-func (mr *MockTrillianLogServerMockRecorder) GetSequencedLeafCount(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSequencedLeafCount", reflect.TypeOf((*MockTrillianLogServer)(nil).GetSequencedLeafCount), arg0, arg1)
-}
-
 // InitLog mocks base method.
 func (m *MockTrillianLogServer) InitLog(arg0 context.Context, arg1 *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
 	m.ctrl.T.Helper()

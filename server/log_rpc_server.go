@@ -463,33 +463,6 @@ func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize, 
 	return proof, nil
 }
 
-// GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
-// Tree. This can be zero for a log containing no entries.
-func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetSequencedLeafCount")
-	defer spanEnd()
-	tree, ctx, err := t.getTreeAndContext(ctx, req.LogId, optsLogRead)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := t.snapshotForTree(ctx, tree, "GetSequencedLeafCount")
-	if err != nil {
-		return nil, err
-	}
-	defer t.closeAndLog(ctx, tree.TreeId, tx, "GetSequencedLeafCount")
-
-	leafCount, err := tx.GetSequencedLeafCount(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := t.commitAndLog(ctx, req.LogId, tx, "GetSequencedLeafCount"); err != nil {
-		return nil, err
-	}
-
-	return &trillian.GetSequencedLeafCountResponse{LeafCount: leafCount}, nil
-}
-
 // GetLeavesByIndex obtains one or more leaves based on their sequence number within the
 // tree. It is not possible to fetch leaves that have been queued but not yet integrated.
 // TODO: Validate indices against published tree size in case we implement write sharding that

@@ -397,9 +397,6 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		if c := req.GetCount(); c > 1 {
 			info.tokens = int(c)
 		}
-	case *trillian.GetSequencedLeafCountRequest:
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
-
 	// Log / readwrite
 	case *trillian.QueueLeafRequest:
 		info.readonly = false

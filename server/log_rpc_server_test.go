@@ -1331,82 +1331,6 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 }
 
-func TestGetSequencedLeafCountBeginTXFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetSequencedLeafCount", readOnly, nopStorage,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().Close().Return(nil)
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
-			return err
-		})
-
-	test.executeBeginFailsTest(t, logID1)
-}
-
-func TestGetSequencedLeafCountStorageFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetSequencedLeafCount", readOnly, nopStorage,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetSequencedLeafCount(gomock.Any()).Return(int64(0), errors.New("STORAGE"))
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
-			return err
-		})
-
-	test.executeStorageFailureTest(t, logID1)
-}
-
-func TestGetSequencedLeafCountCommitFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetSequencedLeafCount", readOnly, nopStorage,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetSequencedLeafCount(gomock.Any()).Return(int64(27), nil)
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
-			return err
-		})
-
-	test.executeCommitFailsTest(t, logID1)
-}
-
-func TestGetSequencedLeafCount(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fakeStorage := storage.NewMockLogStorage(ctrl)
-	mockTX := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), cmpMatcher{tree1}).Return(mockTX, nil)
-
-	mockTX.EXPECT().GetSequencedLeafCount(gomock.Any()).Return(int64(268), nil)
-	mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
-	mockTX.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: logID1, numSnapshots: 1}),
-		LogStorage:   fakeStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	response, err := server.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
-	if err != nil {
-		t.Fatalf("expected no error getting leaf count but got: %v", err)
-	}
-
-	if got, want := response.LeafCount, int64(268); got != want {
-		t.Fatalf("expected leaf count: %d but got: %d", want, got)
-	}
-}
-
 type consistProofTest struct {
 	req         *trillian.GetConsistencyProofRequest
 	errStr      string
@@ -1976,37 +1900,6 @@ func newParameterizedTest(ctrl *gomock.Controller, operation string, m txMode, p
 	return &parameterizedTest{ctrl, operation, m, false /* preordered */, prepareStorage, prepareTx, makeRPC}
 }
 
-func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
-	t.Helper()
-
-	mockTX := storage.NewMockLogTreeTX(p.ctrl)
-	fakeStorage := &stestonly.FakeLogStorage{}
-
-	switch p.mode {
-	case readOnly:
-		fakeStorage.ReadOnlyTX = mockTX
-	case readWrite:
-		fakeStorage.TX = mockTX
-	}
-	if p.mode != noTX {
-		p.prepareTX(mockTX)
-		mockTX.EXPECT().Commit(gomock.Any()).Return(errors.New("bang"))
-		mockTX.EXPECT().Close().Return(errors.New("bang"))
-		mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
-	}
-
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil, false}),
-		LogStorage:   fakeStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	err := p.makeRPC(server)
-	if err == nil {
-		t.Fatalf("returned OK when commit failed: %s", p.operation)
-	}
-}
-
 func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T, snapshot bool) {
 	badLogErr := errors.New("BADLOGID")
 
@@ -2057,32 +1950,6 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T, logID int64)
 
 	if err := p.makeRPC(server); err == nil || !strings.Contains(err.Error(), "STORAGE") {
 		t.Fatalf("Returned wrong error response when storage failed: %s: %v", p.operation, err)
-	}
-}
-
-func (p *parameterizedTest) executeBeginFailsTest(t *testing.T, logID int64) {
-	logStorage := storage.NewMockLogStorage(p.ctrl)
-	logTX := storage.NewMockLogTreeTX(p.ctrl)
-
-	switch p.mode {
-	case readOnly:
-		logStorage.EXPECT().SnapshotForTree(gomock.Any(), cmpMatcher{tree1}).Return(logTX, errors.New("TX"))
-	case readWrite:
-		logStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).Return(errors.New("TX"))
-	}
-
-	if p.prepareTX != nil {
-		p.prepareTX(logTX)
-	}
-
-	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil, false}),
-		LogStorage:   logStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	if err := p.makeRPC(server); err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Returned wrong error response when begin failed: %v", err)
 	}
 }
 
