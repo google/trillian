@@ -29,7 +29,7 @@ require (
 	github.com/mwitkow/go-proto-validators v0.2.0 // indirect
 	github.com/onsi/ginkgo v1.10.3 // indirect
 	github.com/onsi/gomega v1.7.1 // indirect
-	github.com/prometheus/client_golang v1.9.0
+	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.4.1
 	go.etcd.io/etcd/client/v3 v3.5.0-alpha.0
@@ -39,7 +39,7 @@ require (
 	go.opencensus.io v0.23.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210305230114-8fe3ee5dd75b
+	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
 	golang.org/x/tools v0.1.0
 	google.golang.org/api v0.41.0
 	google.golang.org/genproto v0.0.0-20210303154014-9728d6b83eeb
