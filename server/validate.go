@@ -46,18 +46,6 @@ func validateGetInclusionProofByHashRequest(req *trillian.GetInclusionProofByHas
 	return nil
 }
 
-func validateGetLeavesByIndexRequest(req *trillian.GetLeavesByIndexRequest) error {
-	if len(req.LeafIndex) == 0 {
-		return status.Error(codes.InvalidArgument, "GetLeavesByIndexRequest.LeafIndex empty")
-	}
-	for i, leafIndex := range req.LeafIndex {
-		if leafIndex < 0 {
-			return status.Errorf(codes.InvalidArgument, "GetLeavesByIndexRequest.LeafIndex[%v]: %v, want >= 0", i, leafIndex)
-		}
-	}
-	return nil
-}
-
 func validateGetLeavesByRangeRequest(req *trillian.GetLeavesByRangeRequest) error {
 	if req.StartIndex < 0 {
 		return status.Errorf(codes.InvalidArgument, "GetLeavesByRangeRequest.StartIndex: %v, want >= 0", req.StartIndex)

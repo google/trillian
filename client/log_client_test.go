@@ -71,34 +71,6 @@ func clientEnvForTest(ctx context.Context, t *testing.T, template *trillian.Tree
 	return env, client
 }
 
-func TestGetByIndex(t *testing.T) {
-	ctx := context.Background()
-	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
-	defer env.Close()
-
-	// Add a few test leaves.
-	leafData := [][]byte{
-		[]byte("A"),
-		[]byte("B"),
-		[]byte("C"),
-	}
-
-	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
-		t.Fatalf("Failed to add leaves: %v", err)
-	}
-
-	for i, l := range leafData {
-		leaf, err := client.GetByIndex(ctx, int64(i))
-		if err != nil {
-			t.Errorf("Failed to GetByIndex(%v): %v", i, err)
-			continue
-		}
-		if got, want := leaf.LeafValue, l; !bytes.Equal(got, want) {
-			t.Errorf("GetByIndex(%v) = %x, want %x", i, got, want)
-		}
-	}
-}
-
 func TestListByIndex(t *testing.T) {
 	ctx := context.Background()
 	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
