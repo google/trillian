@@ -45,8 +45,6 @@ type ReadOnlyLogTreeTX interface {
 	// GetSequencedLeafCount returns the total number of leaves that have been integrated into the
 	// tree via sequencing.
 	GetSequencedLeafCount(ctx context.Context) (int64, error)
-	// GetLeavesByIndex returns leaf metadata and data for a set of specified sequenced leaf indexes.
-	GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error)
 	// GetLeavesByRange returns leaf data for a range of indexes. The returned
 	// slice is a contiguous prefix of leaves in [start, start+count) ordered by
 	// LeafIndex. It will be shorter than `count` if the requested range has

@@ -59,10 +59,6 @@ const (
                         AND s.sequence_number >= $1 AND s.sequence_number < $2 AND l.tree_id = $3 AND s.tree_id = l.tree_id` + orderBySequenceNumberSQL
 
 	// These statements need to be expanded to provide the correct number of parameter placeholders.
-	selectLeavesByIndexSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
-                        FROM leaf_data l,sequenced_leaf_data s
-                        WHERE l.leaf_identity_hash = s.leaf_identity_hash
-                        AND s.sequence_number IN (` + placeholderSQL + `) AND l.tree_id = <param> AND s.tree_id = l.tree_id`
 	selectLeavesByMerkleHashSQL = `SELECT s.merkle_leaf_hash,l.leaf_identity_hash,l.leaf_value,s.sequence_number,l.extra_data,l.queue_timestamp_nanos,s.integrate_timestamp_nanos
                         FROM leaf_data l,sequenced_leaf_data s
                         WHERE l.leaf_identity_hash = s.leaf_identity_hash
@@ -148,18 +144,6 @@ func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 
 func (m *postgresLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
-}
-
-func (m *postgresLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	stmt := &statementSkeleton{
-		sql:               selectLeavesByIndexSQL,
-		firstInsertion:    "%s",
-		firstPlaceholders: 1,
-		restInsertion:     "%s",
-		restPlaceholders:  1,
-		num:               num,
-	}
-	return m.getStmt(ctx, stmt)
 }
 
 func (m *postgresLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
@@ -664,70 +648,6 @@ func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	}
 
 	return sequencedLeafCount, err
-}
-
-func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error) {
-	if t.treeType == trillian.TreeType_LOG {
-		treeSize := int64(t.root.TreeSize)
-		for _, leaf := range leaves {
-			if leaf < 0 {
-				return nil, status.Errorf(codes.InvalidArgument, "index %d is < 0", leaf)
-			}
-			if leaf >= treeSize {
-				return nil, status.Errorf(codes.OutOfRange, "invalid leaf index %d, want < TreeSize(%d)", leaf, treeSize)
-			}
-		}
-	}
-	tmpl, err := t.ls.getLeavesByIndexStmt(ctx, len(leaves))
-	if err != nil {
-		return nil, err
-	}
-	stx := t.tx.StmtContext(ctx, tmpl)
-	defer stx.Close()
-
-	var args []interface{}
-	for _, nodeID := range leaves {
-		args = append(args, interface{}(int64(nodeID)))
-	}
-	args = append(args, interface{}(t.treeID))
-	rows, err := stx.QueryContext(ctx, args...)
-	if err != nil {
-		glog.Warningf("Failed to get leaves by idx: %s", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	ret := make([]*trillian.LogLeaf, 0, len(leaves))
-	for rows.Next() {
-		leaf := &trillian.LogLeaf{}
-		var qTimestamp, iTimestamp int64
-		if err := rows.Scan(
-			&leaf.MerkleLeafHash,
-			&leaf.LeafIdentityHash,
-			&leaf.LeafValue,
-			&leaf.LeafIndex,
-			&leaf.ExtraData,
-			&qTimestamp,
-			&iTimestamp); err != nil {
-			glog.Warningf("Failed to scan merkle leaves: %s", err)
-			return nil, err
-		}
-		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
-		}
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
-		}
-		ret = append(ret, leaf)
-	}
-
-	if got, want := len(ret), len(leaves); got != want {
-		return nil, status.Errorf(codes.Internal, "len(ret): %d, want %d", got, want)
-	}
-	return ret, nil
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {

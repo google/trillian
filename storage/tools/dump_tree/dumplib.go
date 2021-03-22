@@ -473,9 +473,9 @@ func dumpLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree,
 	}()
 
 	for l := int64(0); l < int64(ts); l++ {
-		leaves, err := tx.GetLeavesByIndex(ctx, []int64{l})
+		leaves, err := tx.GetLeavesByRange(ctx, int64(l), 1)
 		if err != nil {
-			glog.Fatalf("GetLeavesByIndex for index %d got: %v", l, err)
+			glog.Fatalf("GetLeavesByRange for index %d got: %v", l, err)
 		}
 		fmt.Fprintf(out, "%6d:%s\n", l, leaves[0].LeafValue)
 	}

@@ -33,8 +33,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 	ttestonly "github.com/google/trillian/testonly"
@@ -46,11 +44,10 @@ var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafDa
 
 // Must be 32 bytes to match sha256 length if it was a real hash
 var (
-	dummyHash     = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
-	dummyRawHash  = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
-	dummyRawHash2 = []byte("yyyyhashyyyyhashyyyyhashyyyyhash")
-	dummyHash2    = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
-	dummyHash3    = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
+	dummyHash    = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
+	dummyRawHash = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
+	dummyHash2   = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
+	dummyHash3   = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
 )
 
 // Time we will queue all leaves at
@@ -63,10 +60,7 @@ var fakeIntegrateTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
 // Used for tests involving extra data
-var (
-	someExtraData  = []byte("Some extra data")
-	someExtraData2 = []byte("Some even more extra data")
-)
+var someExtraData = []byte("Some extra data")
 
 const (
 	leavesToInsert       = 5
@@ -565,106 +559,6 @@ func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
 	}
 	if diff := cmp.Diff(want, got, cmp.Comparer(proto.Equal)); diff != "" {
 		t.Errorf("leaves not equivalent: diff -want,+got:\n%v", diff)
-	}
-}
-
-func TestGetLeavesByIndex(t *testing.T) {
-	ctx := context.Background()
-
-	// Create fake leaf as if it had been sequenced, read it back and check contents
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
-
-	// The leaf indices are checked against the tree size so we need a root.
-	mustSignAndStoreLogRoot(ctx, t, s, tree, uint64(sequenceNumber+1))
-
-	data := []byte("some data")
-	data2 := []byte("some other data")
-	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
-	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash2, dummyHash2, data2, someExtraData2, sequenceNumber-1, t)
-
-	tests := []struct {
-		desc     string
-		indices  []int64
-		wantErr  bool
-		wantCode codes.Code
-		checkFn  func([]*trillian.LogLeaf, *testing.T)
-	}{
-		{
-			desc:    "InTree",
-			indices: []int64{sequenceNumber},
-			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
-				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-			},
-		},
-		{
-			desc:    "InTree2",
-			indices: []int64{sequenceNumber - 1},
-			wantErr: false,
-			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
-				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash2, dummyHash2, data2, someExtraData2, t)
-			},
-		},
-		{
-			desc:    "InTreeMultiple",
-			indices: []int64{sequenceNumber - 1, sequenceNumber},
-			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
-				checkLeafContents(leaves[1], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash2, dummyHash2, data2, someExtraData2, t)
-			},
-		},
-		{
-			desc:    "InTreeMultipleReverse",
-			indices: []int64{sequenceNumber, sequenceNumber - 1},
-			checkFn: func(leaves []*trillian.LogLeaf, t *testing.T) {
-				checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-				checkLeafContents(leaves[1], sequenceNumber, dummyRawHash2, dummyHash2, data2, someExtraData2, t)
-			},
-		},
-		{
-			desc:     "OutsideTree",
-			indices:  []int64{sequenceNumber + 1},
-			wantErr:  true,
-			wantCode: codes.OutOfRange,
-		},
-		{
-			desc:     "LongWayOutsideTree",
-			indices:  []int64{9999},
-			wantErr:  true,
-			wantCode: codes.OutOfRange,
-		},
-		{
-			desc:     "MixedInOutTree",
-			indices:  []int64{sequenceNumber, sequenceNumber + 1},
-			wantErr:  true,
-			wantCode: codes.OutOfRange,
-		},
-		{
-			desc:     "MixedInOutTree2",
-			indices:  []int64{sequenceNumber - 1, sequenceNumber + 1},
-			wantErr:  true,
-			wantCode: codes.OutOfRange,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-				got, err := tx.GetLeavesByIndex(ctx, test.indices)
-				if test.wantErr {
-					if err == nil || status.Code(err) != test.wantCode {
-						t.Errorf("GetLeavesByIndex(%v)=%v,%v; want: nil, err with code %v", test.indices, got, err, test.wantCode)
-					}
-				} else {
-					if err != nil {
-						t.Errorf("GetLeavesByIndex(%v)=%v,%v; want: got, nil", test.indices, got, err)
-					}
-				}
-				return nil
-			})
-		})
 	}
 }
 
