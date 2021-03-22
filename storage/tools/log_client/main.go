@@ -33,20 +33,6 @@ var (
 	numLeavesFlag  = flag.Int64("num_leaves", 1, "The number of leaves to fetch")
 )
 
-func buildGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
-	if startLeaf < 0 || numLeaves <= 0 {
-		panic("Start leaf index and num_leaves must be >= 0")
-	}
-
-	var leafIndices []int64
-
-	for l := int64(0); l < numLeaves; l++ {
-		leafIndices = append(leafIndices, l+startLeaf)
-	}
-
-	return &trillian.GetLeavesByIndexRequest{LogId: logID, LeafIndex: leafIndices}
-}
-
 // TODO: Move this code out to a better place when we tidy up the initial test main stuff
 // It's just a basic skeleton at the moment.
 func main() {
@@ -68,12 +54,12 @@ func main() {
 
 	client := trillian.NewTrillianLogClient(conn)
 
-	req := buildGetLeavesByIndexRequest(*treeIDFlag, *startLeafFlag, *numLeavesFlag)
-	getLeafByIndexResponse, err := client.GetLeavesByIndex(ctx, req)
+	req := &trillian.GetLeavesByRangeRequest{LogId: *treeIDFlag, StartIndex: *startLeafFlag, Count: *numLeavesFlag}
+	getLeafByRangeResponse, err := client.GetLeavesByRange(ctx, req)
 
 	if err != nil {
 		fmt.Printf("Got error in call: %v", err)
 	} else {
-		fmt.Printf("Got server response: %v", getLeafByIndexResponse)
+		fmt.Printf("Got server response: %v", getLeafByRangeResponse)
 	}
 }
