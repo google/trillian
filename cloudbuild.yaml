@@ -33,14 +33,11 @@ steps:
   entrypoint: 'bash'
   args: ['-c', 'docker pull gcr.io/$PROJECT_ID/trillian_testbase:latest || exit 0']
 # Build the testbase image reusing as much of the cached image as possible.
-- name: 'gcr.io/cloud-builders/docker'
-  args: [
-    'build',
-    '-t', 'gcr.io/$PROJECT_ID/trillian_testbase:latest',
-    '--cache-from', 'gcr.io/$PROJECT_ID/trillian_testbase:latest',
-    '-f', './integration/cloudbuild/testbase/Dockerfile',
-    '.'
-  ]
+- name: 'gcr.io/kaniko-project/executor:latest'
+  args:
+    - --destination=gcr.io/$PROJECT_ID/trillian_testbase
+    - --cache-ttl=24h
+    - --dockerfile=./integration/cloudbuild/testbase/Dockerfile
 
 # Set up tools and any other common steps which should not be part of Docker image.
 - id: prepare
