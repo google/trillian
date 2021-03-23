@@ -24,7 +24,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"google.golang.org/genproto/protobuf/field_mask"
@@ -88,8 +87,8 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 	}
 	switch tree.TreeType {
 	case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
-		if _, err := registry.NewLogHasher(tree.HashStrategy); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
+		if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
+			return nil, status.Errorf(codes.InvalidArgument, "unknown hash strategy: %s", s)
 		}
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tree type: %v", tree.TreeType)

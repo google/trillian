@@ -29,7 +29,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers/registry"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
@@ -158,11 +158,10 @@ func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, erro
 }
 
 func newLogCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
-	hasher, err := registry.NewLogHasher(tree.HashStrategy)
-	if err != nil {
-		return nil, err
+	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
+		return nil, fmt.Errorf("unknown hash strategy: %s", s)
 	}
-	return cache.NewLogSubtreeCache(defLogStrata, hasher), nil
+	return cache.NewLogSubtreeCache(defLogStrata, rfc6962.DefaultHasher), nil
 }
 
 func (ls *logStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool, stx spanRead) (*logTX, error) {

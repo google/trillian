@@ -43,7 +43,6 @@ import (
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/hashers/registry"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
@@ -194,9 +193,8 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		glog.Fatalf("Create tree: %v", err)
 	}
 
-	hasher, err := registry.NewLogHasher(tree.HashStrategy)
-	if err != nil {
-		glog.Fatalf("NewLogHasher: %v", err)
+	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
+		glog.Fatalf("Unknown hash strategy: %s", s)
 	}
 	tSigner, err := trees.Signer(ctx, createdTree)
 	if err != nil {
@@ -204,7 +202,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 	}
 
 	sthZero, err := tSigner.SignLogRoot(&types.LogRootV1{
-		RootHash: hasher.EmptyRoot(),
+		RootHash: rfc6962.DefaultHasher.EmptyRoot(),
 	})
 	if err != nil {
 		glog.Fatalf("SignLogRoot: %v", err)
@@ -297,15 +295,10 @@ func Main(args Options) string {
 		formatter = fullProto
 	}
 
-	hasher, err := registry.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)
-	if err != nil {
-		glog.Fatalf("Failed to create a log hasher: %v", err)
-	}
-
 	if args.LatestRevision {
-		return latestRevisions(ls, tree.TreeId, hasher, formatter, args.Rebuild, args.HexKeys)
+		return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild, args.HexKeys)
 	}
-	return allRevisions(ls, tree.TreeId, hasher, formatter, args.Rebuild, args.HexKeys)
+	return allRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild, args.HexKeys)
 }
 
 func allRevisions(ls storage.LogStorage, treeID int64, hasher hashers.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
