@@ -26,7 +26,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/hashers/registry"
-	_ "github.com/google/trillian/merkle/rfc6962" // Load hashers
 )
 
 var (

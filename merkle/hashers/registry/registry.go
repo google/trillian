@@ -16,30 +16,18 @@
 package registry
 
 import (
+	"crypto"
 	"fmt"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/rfc6962/hasher"
 )
-
-var logHashers = make(map[trillian.HashStrategy]hashers.LogHasher)
-
-// RegisterLogHasher registers a hasher for use.
-func RegisterLogHasher(h trillian.HashStrategy, f hashers.LogHasher) {
-	if h == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY {
-		panic(fmt.Sprintf("RegisterLogHasher(%s) of unknown hasher", h))
-	}
-	if logHashers[h] != nil {
-		panic(fmt.Sprintf("%v already registered as a LogHasher", h))
-	}
-	logHashers[h] = f
-}
 
 // NewLogHasher returns a LogHasher.
 func NewLogHasher(h trillian.HashStrategy) (hashers.LogHasher, error) {
-	f := logHashers[h]
-	if f != nil {
-		return f, nil
+	if h == trillian.HashStrategy_RFC6962_SHA256 {
+		return hasher.New(crypto.SHA256), nil
 	}
 	return nil, fmt.Errorf("LogHasher(%s) is an unknown hasher", h)
 }

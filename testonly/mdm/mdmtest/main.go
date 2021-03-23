@@ -38,9 +38,6 @@ import (
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
-
-	// Load hashers
-	_ "github.com/google/trillian/merkle/rfc6962"
 )
 
 var (

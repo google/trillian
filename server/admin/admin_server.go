@@ -30,8 +30,6 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 )
 
 // Server is an implementation of trillian.TrillianAdminServer.
