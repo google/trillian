@@ -53,9 +53,6 @@ import (
 	_ "github.com/google/trillian/storage/cloudspanner"
 	_ "github.com/google/trillian/storage/mysql"
 
-	// Load hashers
-	_ "github.com/google/trillian/merkle/rfc6962"
-
 	// Load MySQL quota provider
 	_ "github.com/google/trillian/quota/mysqlqm"
 )
