@@ -24,7 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle/hashers/registry"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/trees"
 
 	tcrypto "github.com/google/trillian/crypto"
@@ -61,9 +61,8 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	hasher, err := registry.NewLogHasher(tree.HashStrategy)
-	if err != nil {
-		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
+	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
+		return 0, fmt.Errorf("unknown hash strategy for log %v: %s", logID, s)
 	}
 
 	signer, err := s.getSigner(ctx, tree)
@@ -71,7 +70,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
 	}
 
-	sequencer := NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
 
 	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
 	if err != nil {

@@ -431,7 +431,7 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc:    "invalidHashStrategy",
 			req:     &trillian.CreateTreeRequest{Tree: invalidHashStrategy},
-			wantErr: "unknown hasher",
+			wantErr: "unknown hash strategy",
 		},
 		{
 			desc:    "invalidSignatureAlgo",

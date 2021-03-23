@@ -27,7 +27,7 @@ import (
 	"github.com/google/btree"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/hashers/registry"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -153,13 +153,12 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	hasher, err := registry.NewLogHasher(tree.HashStrategy)
-	if err != nil {
-		return nil, err
+	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
+		return nil, fmt.Errorf("unknown hash strategy: %s", s)
 	}
 
-	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
-	ttx, err := m.TreeStorage.beginTreeTX(ctx, tree.TreeId, hasher.Size(), stCache, readonly)
+	stCache := cache.NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+	ttx, err := m.TreeStorage.beginTreeTX(ctx, tree.TreeId, rfc6962.DefaultHasher.Size(), stCache, readonly)
 	if err != nil {
 		return nil, err
 	}

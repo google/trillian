@@ -24,7 +24,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/hashers/registry"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
@@ -587,11 +587,10 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 	if err != nil {
 		return nil, nil, err
 	}
-	hasher, err := registry.NewLogHasher(tree.HashStrategy)
-	if err != nil {
-		return nil, nil, err
+	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
+		return nil, nil, fmt.Errorf("unknown hash strategy: %s", s)
 	}
-	return tree, hasher, nil
+	return tree, rfc6962.DefaultHasher, nil
 }
 
 func (t *TrillianLogRPCServer) getTreeAndContext(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, context.Context, error) {

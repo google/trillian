@@ -22,8 +22,8 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/hashers/registry"
 	"github.com/google/trillian/merkle/logverifier"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 
@@ -64,9 +64,8 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v or %v", got, log, pLog)
 	}
 
-	logHasher, err := registry.NewLogHasher(config.HashStrategy)
-	if err != nil {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %v", err)
+	if s := config.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): unknown hash strategy: %s", s)
 	}
 
 	logPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
@@ -79,7 +78,7 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
 	}
 
-	return NewLogVerifier(logHasher, logPubKey, sigHash), nil
+	return NewLogVerifier(rfc6962.DefaultHasher, logPubKey, sigHash), nil
 }
 
 // VerifyRoot verifies that newRoot is a valid append-only operation from

@@ -23,29 +23,10 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/hashers/registry"
+	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 )
 
-var (
-	hashStrategyFlag = flag.String("hash_strategy", "RFC6962_SHA256", "The log hashing strategy to use")
-	base64Flag       = flag.Bool("base64", false, "If true output in base64 instead of hex")
-)
-
-func createHasher() hashers.LogHasher {
-	strategy, ok := trillian.HashStrategy_value[*hashStrategyFlag]
-	if !ok {
-		glog.Fatalf("Unknown hash strategy: %s", *hashStrategyFlag)
-	}
-
-	hasher, err := registry.NewLogHasher(trillian.HashStrategy(strategy))
-	if err != nil {
-		glog.Fatalf("Failed to create a log hasher for strategy %s: %v", *hashStrategyFlag, err)
-	}
-
-	return hasher
-}
+var base64Flag = flag.Bool("base64", false, "If true output in base64 instead of hex")
 
 func decodeArgs(args []string) [][]byte {
 	dec := make([][]byte, 0, len(args))
@@ -65,18 +46,17 @@ func main() {
 	flag.Parse()
 	defer glog.Flush()
 
-	hasher := createHasher()
 	decoded := decodeArgs(flag.Args())
 	var hash []byte
 
 	switch len(decoded) {
 	case 1:
 		// Leaf hash requested
-		hash = hasher.HashLeaf(decoded[0])
+		hash = rfc6962.DefaultHasher.HashLeaf(decoded[0])
 
 	case 2:
 		// Node hash requested
-		hash = hasher.HashChildren(decoded[0], decoded[1])
+		hash = rfc6962.DefaultHasher.HashChildren(decoded[0], decoded[1])
 
 	default:
 		glog.Fatalf("Invalid number of arguments expected 1 (for leaf) or 2 (for node)")
