@@ -13,9 +13,6 @@ The MySQL / MariaDB implementation includes support for Maps. This has not yet
 been implemented by Cloud Spanner. There may be other storage implementations
 available from third parties.
 
-These implementations are under development and are not yet ready for use.
-   * Postgres, in the [postgres](postgres) package.
-
 These implementations are for test purposes only and should not be used by real
 applications:
    * In-memory Storage, in the [memory](memory) package.

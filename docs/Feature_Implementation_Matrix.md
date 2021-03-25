@@ -60,7 +60,6 @@ The Log storage implementations supporting the original Trillian log.
 | Spanner          | GA      | ✓                   | Google internal-only, see CloudSpanner for external use.                    |
 | CloudSpanner    | Beta     |                     | Google maintains continuous-integration environment based on CloudSpanner.  |
 | MySQL            | GA      | ✓                   |                                                                             |
-| Postgres        | In dev. |                     | [#1298](https://github.com/google/trillian/issues/1298)                     |
 
 ##### Spanner
 This is a Google-internal implementation, and is used by all of Google's current Trillian deployments.
@@ -79,9 +78,6 @@ This implementation has been tested with MySQL 5.7.
 It's currently in production use by at least one CT log operator.
 
 Write throughput of 4-500 entries/s has been observed.
-
-##### Postgres
-The postgres implementation is currently under development, and is not ready for use.
 
 ### Monitoring
 
@@ -111,7 +107,6 @@ Supported frameworks for quota management.
 | etcd            | GA      | ✓                   |                                                                             |
 | MySQL           | Beta    | ?                   |                                                                             |
 | Redis           | Alpha   | ✓                   |                                                                             |
-| Postgres        | NI      |                     |                                                                             |
 
 ### Key management
 

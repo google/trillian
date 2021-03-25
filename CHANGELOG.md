@@ -16,6 +16,7 @@
    - `TrillianLog.GetLeavesByHash`
    - `TrillianLog.GetLeavesByIndex`
    - `TrillianLog.QueueLeaves`
+ * Removed the incomplete Postgres storage backend (#1298).
 
 ### Storage refactoring
  * `NodeReader.GetMerkleNodes` does not accept revisions anymore. The
