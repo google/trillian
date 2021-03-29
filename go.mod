@@ -15,7 +15,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/mock v1.5.0
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.0
 	github.com/google/btree v1.0.1
 	github.com/google/certificate-transparency-go v1.0.21
 	github.com/google/go-cmp v0.5.5
@@ -44,5 +44,5 @@ require (
 	google.golang.org/api v0.43.0
 	google.golang.org/genproto v0.0.0-20210319143718-93e7006c17a6
 	google.golang.org/grpc v1.36.1
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/protobuf v1.26.0
 )
