@@ -24,8 +24,6 @@
     - [LogLeaf](#trillian.LogLeaf)
     - [QueueLeafRequest](#trillian.QueueLeafRequest)
     - [QueueLeafResponse](#trillian.QueueLeafResponse)
-    - [QueueLeavesRequest](#trillian.QueueLeavesRequest)
-    - [QueueLeavesResponse](#trillian.QueueLeavesResponse)
     - [QueuedLogLeaf](#trillian.QueuedLogLeaf)
   
     - [TrillianLog](#trillian.TrillianLog)
@@ -105,7 +103,7 @@ be checked and charged.
 | ----- | ---- | ----- | ----------- |
 | user | [string](#string) | repeated | user is a list of personality-defined strings. Trillian will treat them as /User/%{user}/... keys when checking and charging quota. If one or more of the specified users has insufficient quota, the request will be denied.
 
-As an example, a Certificate Transparency frontend might set the following user strings when sending a QueueLeaves request to the Trillian log: - The requesting IP address. This would limit the number of requests per IP. - The &#34;intermediate-&lt;hash&gt;&#34; for each of the intermediate certificates in the submitted chain. This would have the effect of limiting the rate of submissions under a given intermediate/root. |
+As an example, a Certificate Transparency frontend might set the following user strings when sending a QueueLeaf request to the Trillian log: - The requesting IP address. This would limit the number of requests per IP. - The &#34;intermediate-&lt;hash&gt;&#34; for each of the intermediate certificates in the submitted chain. This would have the effect of limiting the rate of submissions under a given intermediate/root. |
 
 
 
@@ -417,38 +415,6 @@ TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing identity ha
 
 
 
-<a name="trillian.QueueLeavesRequest"></a>
-
-### QueueLeavesRequest
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| log_id | [int64](#int64) |  |  |
-| leaves | [LogLeaf](#trillian.LogLeaf) | repeated |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
-
-
-
-
-
-
-<a name="trillian.QueueLeavesResponse"></a>
-
-### QueueLeavesResponse
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| queued_leaves | [QueuedLogLeaf](#trillian.QueuedLogLeaf) | repeated | Same number and order as in the corresponding request. |
-
-
-
-
-
-
 <a name="trillian.QueuedLogLeaf"></a>
 
 ### QueuedLogLeaf
@@ -523,7 +489,6 @@ If the earlier tree size is larger than the server is aware of, an InvalidArgume
 
 If the requested tree size is unavailable but the leaf is in scope for the current tree, the returned proof will be for the current tree size rather than the requested tree size. |
 | InitLog | [InitLogRequest](#trillian.InitLogRequest) | [InitLogResponse](#trillian.InitLogResponse) | InitLog initializes a particular tree, creating the initial signed log root (which will be of size 0). |
-| QueueLeaves | [QueueLeavesRequest](#trillian.QueueLeavesRequest) | [QueueLeavesResponse](#trillian.QueueLeavesResponse) | QueueLeaf adds a batch of leaves to the queue of pending leaves for a normal log. |
 | AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | AddSequencedLeaves adds a batch of leaves with assigned sequence numbers to a pre-ordered log. The indices of the provided leaves must be contiguous. |
 | GetLeavesByRange | [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse) | GetLeavesByRange returns a batch of leaves whose leaf indices are in a sequential range. |
 

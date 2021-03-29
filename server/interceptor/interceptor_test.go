@@ -277,27 +277,6 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 1,
 		},
 		{
-			desc:   "emptyBatchRequest",
-			method: "/trillian.TrillianLog/QueueLeaves",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: nil,
-			},
-		},
-		{
-			desc:   "batchLogLeavesRequest",
-			method: "/trillian.TrillianLog/QueueLeaves",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: []*trillian.LogLeaf{{}, {}, {}},
-			},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write, Refundable: true},
-			},
-			wantTokens: 3,
-		},
-		{
 			desc:   "batchSequencedLogLeavesRequest",
 			method: "/trillian.TrillianLog/AddSequencedLeaves",
 			req: &trillian.AddSequencedLeavesRequest{
@@ -311,11 +290,11 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 3,
 		},
 		{
-			desc:   "batchLogLeavesRequest with charges",
-			method: "/trillian.TrillianLog/QueueLeaves",
-			req: &trillian.QueueLeavesRequest{
+			desc:   "QueueLeafRequest with charges",
+			method: "/trillian.TrillianLog/QueueLeaf",
+			req: &trillian.QueueLeafRequest{
 				LogId:    logTree.TreeId,
-				Leaves:   []*trillian.LogLeaf{{}, {}, {}},
+				Leaf:     &trillian.LogLeaf{},
 				ChargeTo: charges,
 			},
 			specs: []quota.Spec{
@@ -324,7 +303,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
 				{Group: quota.Global, Kind: quota.Write, Refundable: true},
 			},
-			wantTokens: 3,
+			wantTokens: 1,
 		},
 		{
 			desc:   "quotaError",
@@ -435,58 +414,6 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 			},
 			wantGetTokens: 1,
 			wantPutTokens: 1,
-		},
-		{
-			desc:   "newLeaves",
-			method: "/trillian.TrillianLog/QueueLeaves",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: []*trillian.LogLeaf{{}, {}, {}},
-			},
-			resp: &trillian.QueueLeavesResponse{
-				QueuedLeaves: []*trillian.QueuedLogLeaf{{}, {}, {}}, // No explicit Status means OK
-			},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write, Refundable: true},
-			},
-			wantGetTokens: 3,
-		},
-		{
-			desc:   "duplicateLeaves",
-			method: "/trillian.TrillianLog/QueueLeaves",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: []*trillian.LogLeaf{{}, {}, {}},
-			},
-			resp: &trillian.QueueLeavesResponse{
-				QueuedLeaves: []*trillian.QueuedLogLeaf{
-					{Status: status.New(codes.AlreadyExists, "duplicate leaf").Proto()},
-					{Status: status.New(codes.AlreadyExists, "duplicate leaf").Proto()},
-					{},
-				},
-			},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write, Refundable: true},
-			},
-			wantGetTokens: 3,
-			wantPutTokens: 2,
-		},
-		{
-			desc:   "badQueueLeavesRequest",
-			method: "/trillian.TrillianLog/QueueLeaves",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: []*trillian.LogLeaf{{}, {}, {}},
-			},
-			specs: []quota.Spec{
-				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write, Refundable: true},
-			},
-			handlerErr:    errors.New("bad request"),
-			wantGetTokens: 3,
-			wantPutTokens: 3,
 		},
 	}
 

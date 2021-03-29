@@ -129,41 +129,6 @@ func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) {
 	}
 }
 
-// QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
-func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "QueueLeaves")
-	defer spanEnd()
-	if err := validateLogLeaves(req.Leaves, "QueueLeavesRequest"); err != nil {
-		return nil, err
-	}
-	logID := req.LogId
-
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogWrite)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx = trees.NewContext(ctx, tree)
-
-	hashLeaves(req.Leaves, hasher)
-
-	ret, err := t.registry.LogStorage.QueueLeaves(ctx, tree, req.Leaves, t.timeSource.Now())
-	if err != nil {
-		return nil, err
-	}
-
-	label := strconv.FormatInt(logID, 10)
-	for _, l := range ret {
-		if l.Status == nil || l.Status.Code == int32(codes.OK) {
-			t.leafCounter.Inc(label, "queued")
-		} else if l.Status.Code == int32(codes.AlreadyExists) {
-			t.leafCounter.Inc(label, "duplicate")
-		}
-	}
-
-	return &trillian.QueueLeavesResponse{QueuedLeaves: ret}, nil
-}
-
 // AddSequencedLeaves submits a batch of sequenced leaves to a pre-ordered log
 // for later integration into its underlying tree.
 func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {

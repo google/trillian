@@ -82,8 +82,8 @@ var (
 	leafHash2 = []byte("\x05\x37\xd4\x81\xf7\x3a\x75\x73\x34\x32\x80\x52\xda\x3a\xf9\x62\x6c\xed\x97\x02\x8e\x20\xb8\x49\xf6\x11\x5c\x22\xcd\x76\x51\x97")
 	leaf3     = newTestLeaf([]byte("value3"), []byte("extra3"), 3)
 
-	queueRequest0     = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{leaf1}}
-	queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{leaf1}}
+	queueRequest0     = trillian.QueueLeafRequest{LogId: logID1, Leaf: leaf1}
+	queueRequest0Log2 = trillian.QueueLeafRequest{LogId: logID2, Leaf: leaf1}
 
 	addSeqRequest0 = trillian.AddSequencedLeavesRequest{LogId: logID3, Leaves: []*trillian.LogLeaf{leaf1}}
 
@@ -271,30 +271,30 @@ func TestGetLeavesByRange(t *testing.T) {
 	}
 }
 
-func TestQueueLeavesStorageError(t *testing.T) {
+func TestQueueLeafStorageError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "QueueLeaves", noTX,
+	test := newParameterizedTest(ctrl, "QueueLeaf", noTX,
 		func(s *stestonly.FakeLogStorage) {
 			s.QueueLeavesErr = errors.New("STORAGE")
 		},
 		nopTX,
 		func(s *TrillianLogRPCServer) error {
-			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
+			_, err := s.QueueLeaf(context.Background(), &queueRequest0)
 			return err
 		})
 
 	test.executeStorageFailureTest(t, queueRequest0.LogId)
 }
 
-func TestQueueLeavesInvalidLogId(t *testing.T) {
+func TestQueueLeafInvalidLogId(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "QueueLeaves", noTX, nopStorage, nopTX,
+	test := newParameterizedTest(ctrl, "QueueLeaf", noTX, nopStorage, nopTX,
 		func(s *TrillianLogRPCServer) error {
-			_, err := s.QueueLeaves(context.Background(), &queueRequest0Log2)
+			_, err := s.QueueLeaf(context.Background(), &queueRequest0Log2)
 			return err
 		})
 
@@ -315,7 +315,7 @@ func dupeQueuedLeaf(l *trillian.LogLeaf) *trillian.QueuedLogLeaf {
 	}
 }
 
-func TestQueueLeaves(t *testing.T) {
+func TestQueueLeaf(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -330,41 +330,39 @@ func TestQueueLeaves(t *testing.T) {
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	rsp, err := server.QueueLeaves(ctx, &queueRequest0)
+	rsp, err := server.QueueLeaf(ctx, &queueRequest0)
 	if err != nil {
 		t.Fatalf("Failed to queue leaf: %v", err)
 	}
-	if len(rsp.QueuedLeaves) != 1 {
-		t.Errorf("QueueLeaves() returns %d leaves; want 1", len(rsp.QueuedLeaves))
+	if rsp.QueuedLeaf == nil {
+		t.Error("QueueLeaf() returned nil leaf; want non-nil")
 	}
-	queuedLeaf := rsp.QueuedLeaves[0]
-	if queuedLeaf.Status.Code != int32(code.Code_OK) {
-		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status.Code, code.Code_OK)
+	if rsp.QueuedLeaf.Status.Code != int32(code.Code_OK) {
+		t.Errorf("QueueLeaf().Status=%d,nil; want %d,nil", rsp.QueuedLeaf.Status.Code, code.Code_OK)
 	}
-	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
-		diff := cmp.Diff(queueRequest0.Leaves[0], queuedLeaf.Leaf)
-		t.Errorf("post-QueueLeaves() diff:\n%v", diff)
+	if !proto.Equal(queueRequest0.Leaf, rsp.QueuedLeaf.Leaf) {
+		diff := cmp.Diff(queueRequest0.Leaf, rsp.QueuedLeaf.Leaf)
+		t.Errorf("post-QueueLeaf() diff:\n%v", diff)
 	}
 
 	// Repeating the operation gives ALREADY_EXISTS.
-	rsp, err = server.QueueLeaves(ctx, &queueRequest0)
+	rsp, err = server.QueueLeaf(ctx, &queueRequest0)
 	if err != nil {
 		t.Fatalf("Failed to re-queue leaf: %v", err)
 	}
-	if len(rsp.QueuedLeaves) != 1 {
-		t.Errorf("QueueLeaves() returns %d leaves; want 1", len(rsp.QueuedLeaves))
+	if rsp.QueuedLeaf == nil {
+		t.Error("QueueLeaf() returned nil leaf; want non-nil")
 	}
-	queuedLeaf = rsp.QueuedLeaves[0]
-	if queuedLeaf.Status == nil || queuedLeaf.Status.Code != int32(code.Code_ALREADY_EXISTS) {
+	if rsp.QueuedLeaf.Status == nil || rsp.QueuedLeaf.Status.Code != int32(code.Code_ALREADY_EXISTS) {
 		sc := "nil"
-		if queuedLeaf.Status != nil {
-			sc = fmt.Sprintf("%v", queuedLeaf.Status.Code)
+		if rsp.QueuedLeaf.Status != nil {
+			sc = fmt.Sprintf("%v", rsp.QueuedLeaf.Status.Code)
 		}
-		t.Errorf("QueueLeaves().Status=%v,nil; want %v,nil", sc, code.Code_ALREADY_EXISTS)
+		t.Errorf("QueueLeaf().Status=%v,nil; want %v,nil", sc, code.Code_ALREADY_EXISTS)
 	}
-	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
-		diff := cmp.Diff(queueRequest0.Leaves[0], queuedLeaf.Leaf)
-		t.Errorf("post-QueueLeaves() diff:\n%v", diff)
+	if !proto.Equal(queueRequest0.Leaf, rsp.QueuedLeaf.Leaf) {
+		diff := cmp.Diff(queueRequest0.Leaf, rsp.QueuedLeaf.Leaf)
+		t.Errorf("post-QueueLeaf() diff:\n%v", diff)
 	}
 }
 
@@ -1535,64 +1533,6 @@ func TestTrillianLogRPCServer_QueueLeafErrors(t *testing.T) {
 		_, err := logServer.QueueLeaf(ctx, test.req)
 		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
 			t.Errorf("%v: QueueLeaf() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
-		}
-	}
-}
-
-func TestTrillianLogRPCServer_QueueLeavesErrors(t *testing.T) {
-	leafValue := []byte("leaf value")
-	goodLeaf := &trillian.LogLeaf{
-		LeafValue: leafValue,
-	}
-
-	tests := []struct {
-		desc string
-		req  *trillian.QueueLeavesRequest
-	}{
-		{
-			desc: "nilLeaves",
-			req: &trillian.QueueLeavesRequest{
-				LogId: 1,
-			},
-		},
-		{
-			desc: "nilLeaf",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  1,
-				Leaves: []*trillian.LogLeaf{goodLeaf, nil},
-			},
-		},
-		{
-			desc: "nilLeafValue",
-			req: &trillian.QueueLeavesRequest{
-				LogId: 1,
-				Leaves: []*trillian.LogLeaf{
-					goodLeaf,
-					{},
-				},
-			},
-		},
-		{
-			desc: "badLeafIndex",
-			req: &trillian.QueueLeavesRequest{
-				LogId: 1,
-				Leaves: []*trillian.LogLeaf{
-					goodLeaf,
-					{
-						LeafValue: leafValue,
-						LeafIndex: -10,
-					},
-				},
-			},
-		},
-	}
-
-	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
-	ctx := context.Background()
-	for _, test := range tests {
-		_, err := logServer.QueueLeaves(ctx, test.req)
-		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
-			t.Errorf("%v: QueueLeaves() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
 		}
 	}
 }

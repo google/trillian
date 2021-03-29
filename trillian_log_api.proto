@@ -105,10 +105,6 @@ service TrillianLog {
   rpc InitLog(InitLogRequest) returns (InitLogResponse) {}
 
 
-  // QueueLeaf adds a batch of leaves to the queue of pending leaves for a
-  // normal log.
-  rpc QueueLeaves(QueueLeavesRequest) returns (QueueLeavesResponse) {}
-
   // AddSequencedLeaves adds a batch of leaves with assigned sequence numbers
   // to a pre-ordered log.  The indices of the provided leaves must be contiguous.
   rpc AddSequencedLeaves(AddSequencedLeavesRequest)
@@ -130,7 +126,7 @@ message ChargeTo {
   // request will be denied.
   //
   // As an example, a Certificate Transparency frontend might set the following
-  // user strings when sending a QueueLeaves request to the Trillian log:
+  // user strings when sending a QueueLeaf request to the Trillian log:
   //   - The requesting IP address.
   //     This would limit the number of requests per IP.
   //   - The "intermediate-<hash>" for each of the intermediate certificates in
@@ -245,17 +241,6 @@ message InitLogRequest {
 
 message InitLogResponse {
   SignedLogRoot created = 1;
-}
-
-message QueueLeavesRequest {
-  int64 log_id = 1;
-  repeated LogLeaf leaves = 2;
-  ChargeTo charge_to = 3;
-}
-
-message QueueLeavesResponse {
-  // Same number and order as in the corresponding request.
-  repeated QueuedLogLeaf queued_leaves = 2;
 }
 
 message AddSequencedLeavesRequest {
