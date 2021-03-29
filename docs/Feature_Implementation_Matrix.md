@@ -4,8 +4,6 @@
  - [Functionality](#functionality)
    - [Log v1](#trillian-log-v1)
    - [Log v2](#trillian-log-v2-skylog)
-   - [Map](#trillian-map)
-   - [Log backed map](#log-backed-map)
  - [Concrete implementations](#concrete-implementations)
    - [Storage](#storage)
    - [Monitoring](#monitoring)
@@ -33,8 +31,6 @@ The status of features is listed as one of:
 |                     |  Status            | Deployed in production    | Notes                                                   |
 |:---                  |   :---:           | :---:                      |:---                                                     |
 | Log V1               |   GA              | ✓                         |                                                         |
-| Map                 |   Alpha            |                           |                                                         |
-| Log-Backed-Map      |   In development  |                           |                                                         |
 
 ### Trillian Log V1
 
@@ -44,24 +40,6 @@ This is feature complete, and is actively used in production by multiple CT log 
 
 Skylog is an append-only log with considerably higher throughput and lower integration latency than the v1 log.
 It currently exists as internal prototype.
-
-### Trillian Map
-
-The Trillian Map is currently considered experimental code; while it's functional
-and could certainly be used to prototype systems, its use is nuanced and it is
-not currently recommended to deploy it into a production system.
-
-(Also see section below on Log-Backed-Map for future work to make the map
-easier to use correctly.)
-
-### Log-backed-map
-
-The log backed map is a framework for combining log(s) and map(s) to build
-systems that are able to represent the evolution and current "world state"
-of an ecosystem.
-
-It's currently in a design phase.
-
 
 ## Concrete implementations
 
@@ -105,19 +83,6 @@ Write throughput of 4-500 entries/s has been observed.
 ##### Postgres
 The postgres implementation is currently under development, and is not ready for use.
 
-
-#### Map storage
-
-Storage implementations which support Trillian's Map mode.
-
-| Storage          | Status  | Deployed in prod    | Notes                                                                       |
-|:---              | :---:   | :---:               |:---                                                                         |
-| Spanner          | Alpha   |                     |                                                                             |
-| CloudSpanner     | Alpha   |                     |                                                                             |
-| MySQL            | Alpha   |                     |                                                                             |
-| Postgres         | NI      |                     |                                                                             |
-
-
 ### Monitoring
 
 Supported monitoring frameworks, allowing for production monitoring and alerting.
@@ -126,7 +91,6 @@ Supported monitoring frameworks, allowing for production monitoring and alerting
 |:---             | :---:   | :---:               |:---                                                                         |
 | Prometheus      | GA      | ✓                   |                                                                             |
 | OpenCensus      | Partial |                     | Currently, only support for Tracing is implemented.                         |
-
 
 ### Master election
 

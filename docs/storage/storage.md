@@ -244,38 +244,3 @@ recreates the hash of the internal node 'z'.
 The example is a simple case but there may be several levels of nodes affected depending on the
 size of the tree and therefore the shape of the right hand path at that size.
 
-## Map Storage
-
-NOTE: Initial outline documentation. A more complete documentation for maps will follow later.
-
-Maps are instances of a sparse Merkle tree where most of the nodes are not present. For more
-details on how this assists an implementation see the
-[Revocation Transparency](https://github.com/google/trillian/blob/master/docs/papers/RevocationTransparency.pdf)
-document.
-
-There are two major differences in the way map storage uses the tree storage from a log to
-represent its sparse Merkle tree.
-
-Firstly the strata depths are not uniform across the full depth of the map. In the log case the
-tree depth (and hence path length from the root to a leaf) expands up to 64 as the tree grows
-and later leaves will have longer paths than earlier ones. All log subtrees will be stored with
-depth 8 (see previous diagrams) from the root down to the leaf nodes for as many subtrees as
-are needed. For example a path of 17 bits will traverse three subtrees of depth 8.
-
-In a map all the paths from root to leaf are effectively 256 bits long. When these are passed to
-storage the top part of the tree (currently 80 bits) is stored as a set of depth 8 subtrees.
-Below this point the remainder use a single subtree strata, where the nodes are expected to be
-extremely sparse.
-
-The second main difference is that the tree uses the HStar2 algorithm. This requires a different
-method of rebuilding internal nodes when the map subtrees are read from disk.
-
-Each mutation to the map is a set of key / value updates and results in a collated set of subtree
-writes.
-
-### Map NodeIDs
-
-A `NodeID` for a map represents the bitwise path of the node from the root. These are
-usually created directly from a hash by `types.NewNodeIDFromHash()` Unlike the log all the bits
-in the ID are part of the 'prefix' because there is no suffix (the log suffix is the leaf index
-within the subtree).
