@@ -12,8 +12,10 @@
 ### Cleanup
  * Removed the deprecated crypto.NewSHA256Signer function.
  * Finish removing the `LogMetadata.GetUnsequencedCounts()` method.
- * Removed `TrillianLog.GetLeavesByHash` and `TrillianLog.GetLeavesByIndex`
-   API.
+ * Removed the following APIs:
+   - `TrillianLog.GetLeavesByHash`
+   - `TrillianLog.GetLeavesByIndex`
+   - `TrillianLog.QueueLeaves`
 
 ### Storage refactoring
  * `NodeReader.GetMerkleNodes` does not accept revisions anymore. The

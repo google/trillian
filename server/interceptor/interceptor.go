@@ -222,8 +222,8 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 	// be replenished:
 	// * Invalid requests (a bad request shouldn't spend sequencing-based tokens, as it won't
 	//   cause a corresponding sequencing to happen)
-	// * Requests that filter out duplicates (e.g., QueueLeaf and QueueLeaves, for the same
-	//   reason as above: duplicates aren't queued for sequencing)
+	// * Requests that filter out duplicates (e.g., QueueLeaf, for the same reason as above:
+	//   duplicates aren't queued for sequencing)
 	// These are only applied for Refundable specs.
 	refunds := make([]quota.Spec, 0)
 	for _, s := range tp.info.specs {
@@ -247,12 +247,6 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 			}
 		case *trillian.AddSequencedLeavesResponse:
 			for _, leaf := range resp.GetResults() {
-				if !isLeafOK(leaf) {
-					tokens++
-				}
-			}
-		case *trillian.QueueLeavesResponse:
-			for _, leaf := range resp.GetQueuedLeaves() {
 				if !isLeafOK(leaf) {
 					tokens++
 				}
@@ -399,10 +393,6 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG}
 		info.tokens = 1
-	case *trillian.QueueLeavesRequest:
-		info.readonly = false
-		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG}
-		info.tokens = len(req.GetLeaves())
 
 	// Pre-ordered Log / readwrite
 	case *trillian.AddSequencedLeavesRequest:

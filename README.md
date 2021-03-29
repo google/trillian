@@ -289,7 +289,7 @@ similar to those available for Certificate Transparency logs
    signature.
  - `GetLeavesByRange` returns leaf information for particular leaves,
    specified by their index in the log.
- - `QueueLeaves` requests inclusion of specified items into the log.
+ - `QueueLeaf` requests inclusion of the specified item into the log.
      - For a pre-ordered log, `AddSequencedLeaves` requests the inclusion of
        specified items into the log at specified places in the tree.
  - `GetInclusionProof`, `GetInclusionProofByHash` and `GetConsistencyProof`

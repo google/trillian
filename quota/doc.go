@@ -20,7 +20,7 @@
 //
 // Each Trillian request, be it either a read or write request, requires certain tokens to be
 // allowed to continue. Tokens exist at multiple layers: per-user, per-tree and global tokens.
-// For example, a TrillianLog.QueueLeaves request consumes a Write token from User, Tree and Global
+// For example, a TrillianLog.QueueLeaf request consumes a Write token from User, Tree and Global
 // quotas. If any of those quotas is out of tokens, the request is denied with a ResourceExhausted
 // error code.
 //
