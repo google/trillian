@@ -19,6 +19,7 @@ require (
 	github.com/google/btree v1.0.1
 	github.com/google/certificate-transparency-go v1.0.21
 	github.com/google/go-cmp v0.5.5
+	github.com/google/go-licenses v0.0.0-20210329231322-ce1d9163b77d // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
@@ -32,6 +33,7 @@ require (
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.4.1
+	github.com/urfave/cli v1.22.4 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/etcdctl/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/server/v3 v3.5.0-alpha.0

@@ -1,7 +1,7 @@
-FROM golang:1.13
+FROM golang:buster
 
 RUN apt-get update && \
-    apt-get install -y mysql-client
+    apt-get install -y mariadb-client
 
 ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian

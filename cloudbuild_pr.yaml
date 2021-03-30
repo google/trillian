@@ -9,7 +9,7 @@ substitutions:
   _MYSQL_ROOT_PASSWORD: ""
   _MYSQL_PASSWORD: ""
 options:
-  machineType: N1_HIGHCPU_8
+  machineType: E2_HIGHCPU_32
 
 steps:
 
