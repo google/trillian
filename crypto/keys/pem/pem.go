@@ -74,7 +74,7 @@ func UnmarshalPrivateKey(keyPEM, password string) (crypto.Signer, error) {
 
 	keyDER := block.Bytes
 	if password != "" {
-		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
+		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password)) //nolint:staticcheck
 		if err != nil {
 			return nil, fmt.Errorf("pemfile: failed to decrypt: %v", err)
 		}
