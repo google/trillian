@@ -96,21 +96,28 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 		return nil, err
 	}
 
-	queueReq := &trillian.QueueLeavesRequest{
-		LogId:  req.LogId,
-		Leaves: []*trillian.LogLeaf{req.Leaf},
-	}
-	queueRsp, err := t.QueueLeaves(ctx, queueReq)
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogWrite)
 	if err != nil {
 		return nil, err
 	}
-	if queueRsp == nil {
+
+	req.Leaf.MerkleLeafHash = hasher.HashLeaf(req.Leaf.LeafValue)
+	if len(req.Leaf.LeafIdentityHash) == 0 {
+		req.Leaf.LeafIdentityHash = req.Leaf.MerkleLeafHash
+	}
+
+	ret, err := t.registry.LogStorage.QueueLeaves(trees.NewContext(ctx, tree), tree, []*trillian.LogLeaf{req.Leaf}, t.timeSource.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	if ret == nil {
 		return nil, status.Errorf(codes.Internal, "missing response")
 	}
-	if len(queueRsp.QueuedLeaves) != 1 {
-		return nil, status.Errorf(codes.Internal, "unexpected count of leaves %d", len(queueRsp.QueuedLeaves))
+	if len(ret) != 1 {
+		return nil, status.Errorf(codes.Internal, "unexpected count of leaves %d", len(ret))
 	}
-	return &trillian.QueueLeafResponse{QueuedLeaf: queueRsp.QueuedLeaves[0]}, nil
+	return &trillian.QueueLeafResponse{QueuedLeaf: ret[0]}, nil
 }
 
 func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) {
