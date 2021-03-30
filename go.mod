@@ -33,6 +33,7 @@ require (
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.4.1
+	github.com/urfave/cli v1.22.4 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/etcdctl/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/server/v3 v3.5.0-alpha.0
