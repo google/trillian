@@ -501,21 +501,6 @@ func (mr *MockLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMerkleNodes", reflect.TypeOf((*MockLogTreeTX)(nil).GetMerkleNodes), arg0, arg1)
 }
 
-// GetSequencedLeafCount mocks base method.
-func (m *MockLogTreeTX) GetSequencedLeafCount(arg0 context.Context) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSequencedLeafCount", arg0)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount.
-func (mr *MockLogTreeTXMockRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSequencedLeafCount", reflect.TypeOf((*MockLogTreeTX)(nil).GetSequencedLeafCount), arg0)
-}
-
 // IsOpen mocks base method.
 func (m *MockLogTreeTX) IsOpen() bool {
 	m.ctrl.T.Helper()
@@ -929,21 +914,6 @@ func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 []comp
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMerkleNodes", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetMerkleNodes), arg0, arg1)
-}
-
-// GetSequencedLeafCount mocks base method.
-func (m *MockReadOnlyLogTreeTX) GetSequencedLeafCount(arg0 context.Context) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSequencedLeafCount", arg0)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount.
-func (mr *MockReadOnlyLogTreeTXMockRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSequencedLeafCount", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetSequencedLeafCount), arg0)
 }
 
 // IsOpen mocks base method.

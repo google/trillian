@@ -47,7 +47,6 @@ var (
 	dummyHash    = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
 	dummyRawHash = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
 	dummyHash2   = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
-	dummyHash3   = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
 )
 
 // Time we will queue all leaves at
@@ -803,52 +802,6 @@ func TestReadOnlyLogTX_Rollback(t *testing.T) {
 	if err := tx.Rollback(); err != nil {
 		t.Errorf("Rollback() = (_, %v), want = (_, nil)", err)
 	}
-}
-
-func TestGetSequencedLeafCount(t *testing.T) {
-	ctx := context.Background()
-
-	// We'll create leaves for two different trees
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	log1 := mustCreateTree(ctx, t, as, testonly.LogTree)
-	log2 := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
-
-	{
-		// Create fake leaf as if it had been sequenced
-		data := []byte("some data")
-		createFakeLeaf(ctx, DB, log1.TreeId, dummyHash, dummyRawHash, data, someExtraData, sequenceNumber, t)
-
-		// Create fake leaves for second tree as if they had been sequenced
-		data2 := []byte("some data 2")
-		data3 := []byte("some data 3")
-		createFakeLeaf(ctx, DB, log2.TreeId, dummyHash2, dummyRawHash, data2, someExtraData, sequenceNumber, t)
-		createFakeLeaf(ctx, DB, log2.TreeId, dummyHash3, dummyRawHash, data3, someExtraData, sequenceNumber+1, t)
-	}
-
-	// Read back the leaf counts from both trees
-	runLogTX(s, log1, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		count1, err := tx.GetSequencedLeafCount(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error getting leaf count: %v", err)
-		}
-		if want, got := int64(1), count1; want != got {
-			t.Fatalf("expected %d sequenced for logId but got %d", want, got)
-		}
-		return nil
-	})
-
-	runLogTX(s, log2, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		count2, err := tx.GetSequencedLeafCount(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error getting leaf count2: %v", err)
-		}
-		if want, got := int64(2), count2; want != got {
-			t.Fatalf("expected %d sequenced for logId2 but got %d", want, got)
-		}
-		return nil
-	})
 }
 
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {

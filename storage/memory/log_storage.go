@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -302,16 +301,6 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 
 func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
-}
-
-func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
-	var sequencedLeafCount int64
-
-	t.tx.DescendRange(seqLeafKey(t.treeID, math.MaxInt64), seqLeafKey(t.treeID, 0), func(i btree.Item) bool {
-		sequencedLeafCount = i.(*kv).v.(*trillian.LogLeaf).LeafIndex + 1
-		return false
-	})
-	return sequencedLeafCount, nil
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
