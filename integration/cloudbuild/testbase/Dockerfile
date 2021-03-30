@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
   curl \
   docker-compose \
   lsof \
-  mysql-client \
+  mariadb-client \
   netcat \
   socat \
   softhsm \
