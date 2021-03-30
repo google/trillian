@@ -710,17 +710,6 @@ func (tx *logTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	return nil
 }
 
-// GetSequencedLeafCount returns the number of leaves integrated into the tree
-// at the time the transaction was started.
-func (tx *logTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
-	currentSTH, err := tx.currentSTH(ctx)
-	if err != nil {
-		return -1, err
-	}
-
-	return currentSTH.TreeSize, nil
-}
-
 // leafmap is a map of LogLeaf by sequence number which knows how to populate
 // itself directly from Spanner Rows.
 type leafmap map[int64]*trillian.LogLeaf

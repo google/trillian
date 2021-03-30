@@ -51,7 +51,6 @@ const (
 		  AND TreeState IN(?,?)
 		  AND (Deleted IS NULL OR Deleted = 'false')`
 
-	selectSequencedLeafCountSQL  = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 			FROM TreeHead WHERE TreeId=?
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
@@ -636,20 +635,6 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	}
 
 	return res, nil
-}
-
-func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
-
-	var sequencedLeafCount int64
-
-	err := t.tx.QueryRowContext(ctx, selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
-	if err != nil {
-		glog.Warningf("Error getting sequenced leaf count: %s", err)
-	}
-
-	return sequencedLeafCount, err
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
