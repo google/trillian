@@ -61,7 +61,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	valid1 := newTree()
 
 	valid2 := newTree()
-	valid2.TreeType = trillian.TreeType_MAP
+	valid2.TreeType = trillian.TreeType_PREORDERED_LOG
 
 	invalidState1 := newTree()
 	invalidState1.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
@@ -339,7 +339,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "TreeType",
 			updatefn: func(tree *trillian.Tree) {
-				tree.TreeType = trillian.TreeType_MAP
+				tree.TreeType = trillian.TreeType_PREORDERED_LOG
 			},
 			wantErr: true,
 		},

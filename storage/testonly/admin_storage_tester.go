@@ -42,7 +42,6 @@ import (
 
 	_ "github.com/google/trillian/crypto/keys/der/proto" // PrivateKey proto handler
 	_ "github.com/google/trillian/crypto/keys/pem/proto" // PEMKeyFile proto handler
-	_ "github.com/google/trillian/merkle/maphasher"      // TEST_MAP_HASHER
 )
 
 const (
@@ -249,7 +248,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	}
 
 	readonlyChangedFunc := func(tree *trillian.Tree) {
-		tree.TreeType = trillian.TreeType_MAP
+		tree.TreeType = trillian.TreeType_PREORDERED_LOG
 	}
 
 	newPrivateKey := &empty.Empty{}
