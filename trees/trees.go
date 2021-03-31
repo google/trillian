@@ -59,7 +59,6 @@ var rules = map[OpType]accessRule{
 		},
 		okTypes: map[trillian.TreeType]bool{
 			trillian.TreeType_LOG:            true,
-			trillian.TreeType_MAP:            true,
 			trillian.TreeType_PREORDERED_LOG: true,
 		},
 	},
@@ -74,7 +73,6 @@ var rules = map[OpType]accessRule{
 		},
 		okTypes: map[trillian.TreeType]bool{
 			trillian.TreeType_LOG:            true,
-			trillian.TreeType_MAP:            true,
 			trillian.TreeType_PREORDERED_LOG: true,
 		},
 	},
@@ -102,14 +100,6 @@ var rules = map[OpType]accessRule{
 		},
 		rejectCodes: map[trillian.TreeState]codes.Code{
 			trillian.TreeState_FROZEN: codes.PermissionDenied,
-		},
-	},
-	UpdateMap: {
-		okStates: map[trillian.TreeState]bool{
-			trillian.TreeState_ACTIVE: true,
-		},
-		okTypes: map[trillian.TreeType]bool{
-			trillian.TreeType_MAP: true,
 		},
 	},
 }
