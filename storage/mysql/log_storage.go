@@ -771,7 +771,6 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoo
 	}
 
 	return &trillian.SignedLogRoot{
-		KeyHint:          types.SerializeKeyHint(t.treeID),
 		LogRoot:          logRoot,
 		LogRootSignature: rootSignatureBytes,
 	}, nil
