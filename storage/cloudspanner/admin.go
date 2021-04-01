@@ -50,7 +50,6 @@ var (
 	}
 	treeTypeMap = map[trillian.TreeType]spannerpb.TreeType{
 		trillian.TreeType_LOG:            spannerpb.TreeType_LOG,
-		trillian.TreeType_MAP:            spannerpb.TreeType_MAP,
 		trillian.TreeType_PREORDERED_LOG: spannerpb.TreeType_PREORDERED_LOG,
 	}
 	hashStrategyMap = map[trillian.HashStrategy]spannerpb.HashStrategy{
@@ -287,10 +286,6 @@ func (t *adminTX) getTreeInfo(ctx context.Context, treeID int64) (*spannerpb.Tre
 		if info.GetLogStorageConfig() == nil {
 			return nil, status.Errorf(codes.Internal, "corrupt TreeInfo %#v: LogStorageConfig is nil", treeID)
 		}
-	case spannerpb.TreeType_MAP:
-		if info.GetMapStorageConfig() == nil {
-			return nil, status.Errorf(codes.Internal, "corrupt TreeInfo #%v: MapStorageConfig is nil", treeID)
-		}
 	default:
 		return nil, status.Errorf(codes.Internal, "corrupt TreeInfo %#v: unexpected TreeType = %s", treeID, tt)
 	}
@@ -457,13 +452,6 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 			return nil, err
 		}
 		info.StorageConfig = &spannerpb.TreeInfo_LogStorageConfig{LogStorageConfig: config}
-	case trillian.TreeType_MAP:
-		config, err := mapConfigOrDefault(tree)
-		if err != nil {
-			return nil, err
-		}
-		// Nothing to validate on MapStorageConfig.
-		info.StorageConfig = &spannerpb.TreeInfo_MapStorageConfig{MapStorageConfig: config}
 	default:
 		return nil, fmt.Errorf("Unknown tree type %v", tt)
 	}
@@ -485,21 +473,6 @@ func logConfigOrDefault(tree *trillian.Tree) (*spannerpb.LogStorageConfig, error
 	config, ok := settings.(*spannerpb.LogStorageConfig)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "unsupported config type for LOG tree: %T", settings)
-	}
-	return config, nil
-}
-
-func mapConfigOrDefault(tree *trillian.Tree) (*spannerpb.MapStorageConfig, error) {
-	settings, err := unmarshalSettings(tree)
-	if err != nil {
-		return nil, err
-	}
-	if settings == nil {
-		return &spannerpb.MapStorageConfig{}, nil
-	}
-	config, ok := settings.(*spannerpb.MapStorageConfig)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "unsupported config type for MAP tree: %T", settings)
 	}
 	return config, nil
 }
@@ -704,8 +677,6 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		fallthrough
 	case spannerpb.TreeType_LOG:
 		config = info.GetLogStorageConfig()
-	case spannerpb.TreeType_MAP:
-		config = info.GetMapStorageConfig()
 	default:
 		return nil, fmt.Errorf("Unknown tree type %v", tt)
 	}

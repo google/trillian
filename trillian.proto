@@ -99,15 +99,15 @@ enum TreeType {
   // Tree represents a verifiable log.
   LOG = 1;
 
-  // Tree represents a verifiable map.
-  MAP = 2;
-
   // Tree represents a verifiable pre-ordered log, i.e., a log whose entries are
   // placed according to sequence numbers assigned outside of Trillian.
   PREORDERED_LOG = 3;
+
+  reserved 2;
+  reserved "MAP";
 }
 
-// Represents a tree, which may be either a verifiable log or map.
+// Represents a tree.
 // Readonly attributes are assigned at tree creation, after which they may not
 // be modified.
 //

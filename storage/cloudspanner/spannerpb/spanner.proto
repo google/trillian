@@ -19,8 +19,10 @@ enum TreeState {
 enum TreeType {
   UNKNOWN = 0;
   LOG = 1;
-  MAP = 2;
   PREORDERED_LOG = 3;
+
+  reserved 2;
+  reserved "MAP";
 }
 
 // Defines the preimage protection used for tree leaves / nodes.
