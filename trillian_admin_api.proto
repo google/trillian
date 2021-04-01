@@ -79,7 +79,7 @@ message UndeleteTreeRequest {
 }
 
 // Trillian Administrative interface.
-// Allows creation and management of Trillian trees (both log and map trees).
+// Allows creation and management of Trillian trees.
 service TrillianAdmin {
   // Lists all trees the requester has access to.
   rpc ListTrees(ListTreesRequest) returns (ListTreesResponse) {}

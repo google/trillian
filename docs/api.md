@@ -623,7 +623,7 @@ UpdateTree request.
 
 ### TrillianAdmin
 Trillian Administrative interface.
-Allows creation and management of Trillian trees (both log and map trees).
+Allows creation and management of Trillian trees.
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
@@ -692,7 +692,7 @@ A serialized v1 log root will therefore be laid out as:
 <a name="trillian.Tree"></a>
 
 ### Tree
-Represents a tree, which may be either a verifiable log or map.
+Represents a tree.
 Readonly attributes are assigned at tree creation, after which they may not
 be modified.
 
@@ -782,7 +782,6 @@ Type of the tree.
 | ---- | ------ | ----------- |
 | UNKNOWN_TREE_TYPE | 0 | Tree type cannot be determined. Included to enable detection of mismatched proto versions being used. Represents an invalid value. |
 | LOG | 1 | Tree represents a verifiable log. |
-| MAP | 2 | Tree represents a verifiable map. |
 | PREORDERED_LOG | 3 | Tree represents a verifiable pre-ordered log, i.e., a log whose entries are placed according to sequence numbers assigned outside of Trillian. |
 
 
