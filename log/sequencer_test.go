@@ -73,10 +73,10 @@ var (
 	compactTree16 = []tree.Node{{ID: compact.NewNodeID(4, 0), Hash: []byte{}}}
 
 	fixedGoSigner = newSignerWithFixedSig([]byte("signed"))
-	fixedSigner   = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256)
+	fixedSigner   = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256)
 
-	testSignedRoot16, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot16)
-	newSignedRoot16, _  = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).
+	testSignedRoot16, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot16)
+	newSignedRoot16, _  = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).
 				SignLogRoot(&types.LogRootV1{
 			TimestampNanos: uint64(fakeTime.UnixNano()),
 			TreeSize:       testRoot16.TreeSize,
@@ -92,7 +92,7 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 	}
-	testSignedRoot17, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot17)
+	testSignedRoot17, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot17)
 
 	testRoot18 = &types.LogRootV1{
 		TreeSize: 16,
@@ -102,7 +102,7 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTime.Add(10 * time.Millisecond).UnixNano()),
 	}
-	testSignedRoot18, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot18)
+	testSignedRoot18, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot18)
 
 	// These will be accepted in either order because of custom sorting in the mock
 	updatedNodes = []tree.Node{
@@ -122,7 +122,7 @@ var (
 		Revision:       6,
 		TreeSize:       17,
 	}
-	testSignedRoot, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot)
+	testSignedRoot, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot)
 
 	// TODO(pavelkalinnikov): Generate boilerplate structures, like the ones
 	// below, in a more compact way.
@@ -132,7 +132,7 @@ var (
 		RootHash:       testonly.MustDecodeBase64("lfLXEAeBNB/zX1+97lInoqpnLJtX+AS/Ok0mwlWFpRc="),
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
 	}
-	testSignedRoot21, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot21)
+	testSignedRoot21, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot21)
 	// Nodes that will be loaded when updating the tree of size 21.
 	compactTree21 = []tree.Node{
 		{ID: compact.NewNodeID(4, 0), Hash: testonly.MustDecodeBase64("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=")},
@@ -165,7 +165,7 @@ var (
 		Revision:       6,
 		TreeSize:       22,
 	}
-	updatedSignedRoot21, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(updatedRoot21)
+	updatedSignedRoot21, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(updatedRoot21)
 
 	emptyRoot = &types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
@@ -173,8 +173,8 @@ var (
 		Revision:       2,
 		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
 	}
-	signedEmptyRoot, _        = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(emptyRoot)
-	updatedSignedEmptyRoot, _ = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256).SignLogRoot(&types.LogRootV1{
+	signedEmptyRoot, _        = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(emptyRoot)
+	updatedSignedEmptyRoot, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(&types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 		TreeSize:       0,
 		Revision:       3,
@@ -317,7 +317,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		}
 	}
 
-	signer := tcrypto.NewSigner(0, params.signer, crypto.SHA256)
+	signer := tcrypto.NewSigner(params.signer, crypto.SHA256)
 	qm := params.qm
 	if qm == nil {
 		qm = quota.Noop()
@@ -677,7 +677,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 	// Needed to create a signer
 	hasher := rfc6962.DefaultHasher
 	ts := clock.NewFake(fakeTime)
-	signer := tcrypto.NewSigner(0, cryptoSigner, crypto.SHA256)
+	signer := tcrypto.NewSigner(cryptoSigner, crypto.SHA256)
 
 	// Needed for IntegrateBatch calls
 	const treeID int64 = 1234

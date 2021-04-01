@@ -46,9 +46,8 @@ var fakeTimeSource = clock.NewFake(fakeTime)
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var (
-	testLogID1 = int64(1)
-	leaf0Hash  = rfc6962.DefaultHasher.HashLeaf([]byte{})
-	testLeaf0  = &trillian.LogLeaf{
+	leaf0Hash = rfc6962.DefaultHasher.HashLeaf([]byte{})
+	testLeaf0 = &trillian.LogLeaf{
 		MerkleLeafHash: leaf0Hash,
 		LeafValue:      nil,
 		ExtraData:      nil,
@@ -65,7 +64,7 @@ var testLeaf0Updated = &trillian.LogLeaf{
 }
 
 var (
-	fixedLog1Signer = tcrypto.NewSigner(testLogID1, fixedGoSigner, crypto.SHA256)
+	fixedLog1Signer = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256)
 	testRoot0       = &types.LogRootV1{
 		TreeSize: 0,
 		Revision: 0,

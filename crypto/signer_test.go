@@ -32,7 +32,7 @@ func TestSign(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := NewSigner(0, key, crypto.SHA256)
+	signer := NewSigner(key, crypto.SHA256)
 
 	for _, test := range []struct {
 		message []byte
@@ -63,7 +63,7 @@ func TestSign_SignerFails(t *testing.T) {
 		t.Fatalf("Failed to load private key: %v", err)
 	}
 
-	_, err = NewSigner(0, testonly.NewSignerWithErr(key, errors.New("sign")), crypto.SHA256).Sign([]byte(message))
+	_, err = NewSigner(testonly.NewSignerWithErr(key, errors.New("sign")), crypto.SHA256).Sign([]byte(message))
 	if err == nil {
 		t.Fatalf("Ignored a signing error: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestSignWithSignedLogRoot_SignerFails(t *testing.T) {
 
 	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
 	root := &types.LogRootV1{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	_, err = NewSigner(0, s, crypto.SHA256).SignLogRoot(root)
+	_, err = NewSigner(s, crypto.SHA256).SignLogRoot(root)
 	testonly.EnsureErrorContains(t, err, "signfail")
 }
 
@@ -91,7 +91,7 @@ func TestSignLogRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := NewSigner(0, key, crypto.SHA256)
+	signer := NewSigner(key, crypto.SHA256)
 
 	for _, test := range []struct {
 		root *types.LogRootV1

@@ -75,7 +75,7 @@ func TestSignVerify(t *testing.T) {
 			msg := []byte("foo")
 			var signature []byte
 			if !test.skipSigning {
-				signature, err = NewSigner(0, key, crypto.SHA256).Sign(msg)
+				signature, err = NewSigner(key, crypto.SHA256).Sign(msg)
 				if err != nil {
 					t.Fatalf("Sign()=(_,%v), want (_,nil)", err)
 				}

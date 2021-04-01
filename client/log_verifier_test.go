@@ -33,7 +33,7 @@ func TestVerifyRootErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := tcrypto.NewSigner(0, key, crypto.SHA256)
+	signer := tcrypto.NewSigner(key, crypto.SHA256)
 	pk, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key, err=%v", err)

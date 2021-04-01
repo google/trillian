@@ -88,7 +88,7 @@ var (
 	addSeqRequest0 = trillian.AddSequencedLeavesRequest{LogId: logID3, Leaves: []*trillian.LogLeaf{leaf1}}
 
 	fixedGoSigner = newSignerWithFixedSig([]byte("signed"))
-	fixedSigner   = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256)
+	fixedSigner   = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256)
 
 	tree1              = addTreeID(stestonly.LogTree, logID1)
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
