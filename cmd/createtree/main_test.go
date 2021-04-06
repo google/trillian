@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/testonly/flagsaver"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
@@ -41,7 +42,7 @@ var defaultTree = &trillian.Tree{
 	HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 	SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 	PrivateKey:         mustMarshalAny(&empty.Empty{}),
-	MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
+	MaxRootDuration:    durationpb.New(0 * time.Millisecond),
 }
 
 type testCase struct {

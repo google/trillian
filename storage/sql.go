@@ -20,11 +20,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -127,7 +127,7 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 
 	tree.CreateTime = timestamppb.New(FromMillisSinceEpoch(createMillis))
 	tree.UpdateTime = timestamppb.New(FromMillisSinceEpoch(updateMillis))
-	tree.MaxRootDuration = ptypes.DurationProto(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
+	tree.MaxRootDuration = durationpb.New(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
 
 	tree.PrivateKey = &any.Any{}
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {

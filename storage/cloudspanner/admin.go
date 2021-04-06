@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -420,10 +421,10 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		return nil, status.Errorf(codes.Internal, "unexpected SignatureAlgorithm: %s", tree.SignatureAlgorithm)
 	}
 
-	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
+	if err := tree.MaxRootDuration.CheckValid(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "malformed MaxRootDuration: %v", err)
 	}
+	maxRootDuration := tree.MaxRootDuration.AsDuration()
 
 	info := &spannerpb.TreeInfo{
 		TreeId:                treeID,
@@ -503,10 +504,10 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, status.Errorf(codes.Internal, "unexpected TreeState: %s", tree.TreeState)
 	}
 
-	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
+	if err := tree.MaxRootDuration.CheckValid(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "malformed MaxRootDuration: %v", err)
 	}
+	maxRootDuration := tree.MaxRootDuration.AsDuration()
 
 	// Update (just) the mutable fields in treeInfo.
 	now := TimeNow()
@@ -633,7 +634,7 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		UpdateTime:      updatedPB,
 		PrivateKey:      info.PrivateKey,
 		PublicKey:       &keyspb.PublicKey{Der: info.PublicKeyDer},
-		MaxRootDuration: ptypes.DurationProto(time.Duration(info.MaxRootDurationMillis) * time.Millisecond),
+		MaxRootDuration: durationpb.New(time.Duration(info.MaxRootDurationMillis) * time.Millisecond),
 	}
 
 	ts, ok := treeStateReverseMap[info.TreeState]

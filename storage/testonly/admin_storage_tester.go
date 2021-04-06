@@ -36,6 +36,7 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -88,7 +89,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
 		},
-		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 
 	// PreorderedLogTree is a valid, PREORDERED_LOG-type trillian.Tree for tests.
@@ -106,7 +107,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
 		},
-		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 )
 

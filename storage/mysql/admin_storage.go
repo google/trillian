@@ -23,7 +23,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
@@ -257,10 +256,10 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if err != nil {
 		return nil, fmt.Errorf("failed to build update time: %v", err)
 	}
-	rootDuration, err := ptypes.Duration(newTree.MaxRootDuration)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse MaxRootDuration: %v", err)
+	if err := newTree.MaxRootDuration.CheckValid(); err != nil {
+		return nil, fmt.Errorf("could not parse MaxRootDuration: %w", err)
 	}
+	rootDuration := newTree.MaxRootDuration.AsDuration()
 
 	insertTreeStmt, err := t.tx.PrepareContext(
 		ctx,
@@ -369,10 +368,10 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if err != nil {
 		return nil, fmt.Errorf("failed to build update time: %v", err)
 	}
-	rootDuration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse MaxRootDuration: %v", err)
+	if err := tree.MaxRootDuration.CheckValid(); err != nil {
+		return nil, fmt.Errorf("could not parse MaxRootDuration: %w", err)
 	}
+	rootDuration := tree.MaxRootDuration.AsDuration()
 
 	privateKey, err := proto.Marshal(tree.PrivateKey)
 	if err != nil {

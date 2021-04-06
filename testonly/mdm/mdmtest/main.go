@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/crypto/keyspb"
@@ -34,6 +33,7 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
@@ -101,7 +101,7 @@ func innerMain(ctx context.Context) error {
 				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 				DisplayName:        fmt.Sprintf("mdmtest-%d", time.Now().UnixNano()/int64(time.Second)),
 				Description:        "Transient tree for mdmtest",
-				MaxRootDuration:    ptypes.DurationProto(time.Second * 3600),
+				MaxRootDuration:    durationpb.New(time.Second * 3600),
 			},
 			KeySpec: &keyspb.Specification{
 				Params: &keyspb.Specification_EcdsaParams{

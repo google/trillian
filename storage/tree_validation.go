@@ -19,7 +19,6 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
@@ -119,9 +118,9 @@ func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
 	if tree.TreeState == trillian.TreeState_UNKNOWN_TREE_STATE {
 		return status.Errorf(codes.InvalidArgument, "invalid tree_state: %v", tree.TreeState)
 	}
-	if duration, err := ptypes.Duration(tree.MaxRootDuration); err != nil {
-		return status.Errorf(codes.InvalidArgument, "max_root_duration malformed: %v", tree.MaxRootDuration)
-	} else if duration < 0 {
+	if err := tree.MaxRootDuration.CheckValid(); err != nil {
+		return status.Errorf(codes.InvalidArgument, "max_root_duration malformed: %v", err)
+	} else if duration := tree.MaxRootDuration.AsDuration(); duration < 0 {
 		return status.Errorf(codes.InvalidArgument, "max_root_duration negative: %v", tree.MaxRootDuration)
 	}
 

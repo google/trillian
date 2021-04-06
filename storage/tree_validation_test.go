@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
@@ -111,7 +112,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	nilRootDuration.MaxRootDuration = nil
 
 	invalidRootDuration := newTree()
-	invalidRootDuration.MaxRootDuration = ptypes.DurationProto(-1 * time.Second)
+	invalidRootDuration.MaxRootDuration = durationpb.New(-1 * time.Second)
 
 	deletedTree := newTree()
 	deletedTree.Deleted = true
@@ -276,13 +277,13 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "validRootDuration",
 			updatefn: func(tree *trillian.Tree) {
-				tree.MaxRootDuration = ptypes.DurationProto(200 * time.Millisecond)
+				tree.MaxRootDuration = durationpb.New(200 * time.Millisecond)
 			},
 		},
 		{
 			desc: "invalidRootDuration",
 			updatefn: func(tree *trillian.Tree) {
-				tree.MaxRootDuration = ptypes.DurationProto(-200 * time.Millisecond)
+				tree.MaxRootDuration = durationpb.New(-200 * time.Millisecond)
 			},
 			wantErr: true,
 		},
@@ -460,6 +461,6 @@ func newTree() *trillian.Tree {
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
 		},
-		MaxRootDuration: ptypes.DurationProto(1000 * time.Millisecond),
+		MaxRootDuration: durationpb.New(1000 * time.Millisecond),
 	}
 }

@@ -53,6 +53,7 @@ import (
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // A 32 bit magic number that is written at the start of record io files to identify the format.
@@ -186,7 +187,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		PrivateKey:         privKey,
 		PublicKey:          &keyspb.PublicKey{Der: pubKey},
-		MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
+		MaxRootDuration:    durationpb.New(0 * time.Millisecond),
 	}
 	createdTree, err := storage.CreateTree(ctx, as, tree)
 	if err != nil {

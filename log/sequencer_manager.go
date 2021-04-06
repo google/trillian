@@ -20,8 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
@@ -72,11 +70,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 
 	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
 
-	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
-		glog.Warning("failed to parse tree.MaxRootDuration, using zero")
-		maxRootDuration = 0
-	}
+	maxRootDuration := tree.MaxRootDuration.AsDuration()
 	leaves, err := sequencer.IntegrateBatch(ctx, tree, info.BatchSize, s.guardWindow, maxRootDuration)
 	if err != nil {
 		return 0, fmt.Errorf("failed to integrate batch for %v: %v", logID, err)
