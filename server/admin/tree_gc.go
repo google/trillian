@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 )
@@ -128,12 +127,12 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 		if !tree.Deleted {
 			continue
 		}
-		deleteTime, err := ptypes.Timestamp(tree.DeleteTime)
-		if err != nil {
+		if err := tree.DeleteTime.CheckValid(); err != nil {
 			errs = append(errs, fmt.Errorf("error parsing delete_time of tree %v: %v", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, timestampParseErrReson)
 			continue
 		}
+		deleteTime := tree.DeleteTime.AsTime()
 		durationSinceDelete := now.Sub(deleteTime)
 		if durationSinceDelete <= gc.deleteThreshold {
 			continue

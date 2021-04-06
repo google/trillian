@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -86,11 +85,11 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			return errors.New("sequenced leaf has incorrect hash size")
 		}
 
-		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
-		_, err = t.tx.ExecContext(
+		iTimestamp := leaf.IntegrateTimestamp.AsTime()
+		_, err := t.tx.ExecContext(
 			ctx,
 			insertSequencedLeafSQL+valuesPlaceholder5,
 			t.treeID,

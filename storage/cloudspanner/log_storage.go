@@ -27,7 +27,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage"
@@ -671,10 +670,10 @@ func (tx *logTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return fmt.Errorf("attempting to assign unknown merkleleafhash %v", l.MerkleLeafHash)
 		}
 
-		iTimestamp, err := ptypes.Timestamp(l.IntegrateTimestamp)
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		if err := l.IntegrateTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
+		iTimestamp := l.IntegrateTimestamp.AsTime()
 
 		// Add the sequence mapping...
 		m1, err := spanner.InsertStruct(seqDataTbl, sequencedLeafDataCols{

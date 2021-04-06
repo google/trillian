@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
@@ -185,10 +184,10 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 		// Old leaves might not have a QueueTimestamp, only calculate the merge
 		// delay if this one does.
 		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
-			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
-			if err != nil {
-				return fmt.Errorf("got invalid queue timestamp: %v", queueTS)
+			if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+				return fmt.Errorf("got invalid queue timestamp: %w", err)
 			}
+			queueTS := leaf.QueueTimestamp.AsTime()
 			mergeDelay := now.Sub(queueTS)
 			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
 		}

@@ -94,10 +94,10 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	args := []interface{}{}
 	dequeuedLeaves := make([]dequeuedLeaf, 0, len(leaves))
 	for _, leaf := range leaves {
-		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
+		iTimestamp := leaf.IntegrateTimestamp.AsTime()
 		querySuffix = append(querySuffix, valuesPlaceholder5)
 		args = append(args, t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, iTimestamp.UnixNano())
 		qe, ok := t.dequeued[string(leaf.LeafIdentityHash)]

@@ -185,10 +185,6 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 
 			createTime := newTree.CreateTime
 			updateTime := newTree.UpdateTime
-			if _, err := ptypes.Timestamp(createTime); err != nil {
-				t.Errorf("%v: CreateTime malformed after creation: %v", test.desc, newTree)
-				return
-			}
 
 			switch {
 			case newTree.TreeId == 0:
@@ -339,14 +335,8 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		if !proto.Equal(createdTree.CreateTime, updatedTree.CreateTime) {
 			t.Errorf("%v: CreateTime = %v, want = %v", test.desc, updatedTree.CreateTime, createdTree.CreateTime)
 		}
-		createUpdateTime, err := ptypes.Timestamp(createdTree.UpdateTime)
-		if err != nil {
-			t.Errorf("%v: createdTree.UpdateTime malformed: %v", test.desc, err)
-		}
-		updatedUpdateTime, err := ptypes.Timestamp(updatedTree.UpdateTime)
-		if err != nil {
-			t.Errorf("%v: updatedTree.UpdateTime malformed: %v", test.desc, err)
-		}
+		createUpdateTime := createdTree.UpdateTime.AsTime()
+		updatedUpdateTime := updatedTree.UpdateTime.AsTime()
 		if createUpdateTime.After(updatedUpdateTime) {
 			t.Errorf("%v: UpdateTime = %v, want >= %v", test.desc, updatedTree.UpdateTime, createdTree.UpdateTime)
 		}

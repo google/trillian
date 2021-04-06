@@ -23,7 +23,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -84,8 +83,7 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	const runInterval = 3 * time.Second
 
 	// now > tree1.DeleteTime + deleteThreshold, so tree1 gets deleted on first round
-	now, _ := ptypes.Timestamp(tree1.DeleteTime)
-	now = now.Add(deleteThreshold).Add(1 * time.Second)
+	now := tree1.DeleteTime.AsTime().Add(deleteThreshold).Add(1 * time.Second)
 	timeNow = func() time.Time { return now }
 
 	calls := 0

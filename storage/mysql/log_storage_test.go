@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/integration/storagetest"
@@ -116,10 +115,7 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 
-	iTime, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
-	if err != nil {
-		t.Fatalf("Got invalid integrate timestamp: %v", err)
-	}
+	iTime := leaf.IntegrateTimestamp.AsTime()
 	if got, want := iTime.UnixNano(), fakeIntegrateTime.UnixNano(); got != want {
 		t.Errorf("Wrong IntegrateTimestamp: got %v, want %v", got, want)
 	}
@@ -817,10 +813,7 @@ func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, want time.Time) {
 	t.Helper()
 	for _, leaf := range leaves {
-		gotQTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
-		if err != nil {
-			t.Fatalf("Got invalid queue timestamp: %v", err)
-		}
+		gotQTimestamp := leaf.QueueTimestamp.AsTime()
 		if got, want := gotQTimestamp.UnixNano(), want.UnixNano(); got != want {
 			t.Errorf("Got leaf with QueueTimestampNanos = %v, want %v: %v", got, want, leaf)
 		}
