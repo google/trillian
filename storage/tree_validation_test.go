@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
@@ -29,6 +28,7 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -101,7 +101,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidSettings.StorageSettings = &any.Any{Value: []byte("foobar")}
 
 	// As long as settings is a valid proto, the type doesn't matter for this test.
-	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
+	settings, err := anypb.New(proto.MessageV2(&keyspb.PEMKeyFile{}))
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			desc: "validSettings",
 			updatefn: func(tree *trillian.Tree) {
 				// As long as settings is a valid proto, the type doesn't matter for this test.
-				settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
+				settings, err := anypb.New(proto.MessageV2(&keyspb.PEMKeyFile{}))
 				if err != nil {
 					t.Fatalf("Error marshaling proto: %v", err)
 				}
@@ -290,9 +290,9 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "differentPrivateKeyProtoButSameKeyMaterial",
 			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&keyspb.PrivateKey{
+				key, err := anypb.New(proto.MessageV2(&keyspb.PrivateKey{
 					Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
-				})
+				}))
 				if err != nil {
 					panic(err)
 				}
@@ -302,9 +302,9 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "differentPrivateKeyProtoAndDifferentKeyMaterial",
 			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&keyspb.PrivateKey{
+				key, err := anypb.New(proto.MessageV2(&keyspb.PrivateKey{
 					Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
-				})
+				}))
 				if err != nil {
 					panic(err)
 				}
@@ -315,7 +315,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "unsupportedPrivateKeyProto",
 			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&empty.Empty{})
+				key, err := anypb.New(proto.MessageV2(&empty.Empty{}))
 				if err != nil {
 					panic(err)
 				}
@@ -441,10 +441,10 @@ func TestValidateTreeForUpdate(t *testing.T) {
 
 // newTree returns a valid log tree for tests.
 func newTree() *trillian.Tree {
-	privateKey, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{
+	privateKey, err := anypb.New(proto.MessageV2(&keyspb.PEMKeyFile{
 		Path:     privateKeyPath,
 		Password: privateKeyPass,
-	})
+	}))
 	if err != nil {
 		panic(err)
 	}

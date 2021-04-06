@@ -19,8 +19,8 @@ import (
 	"strings"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // ProtoBuilder creates a protobuf message that describes a private key.
@@ -52,7 +52,7 @@ func New(protoType string) (*any.Any, error) {
 		return nil, err
 	}
 
-	return ptypes.MarshalAny(pb)
+	return anypb.New(proto.MessageV2(pb))
 }
 
 // RegisteredTypes returns a list of protobuf message types that have been

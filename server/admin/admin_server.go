@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
@@ -29,6 +29,7 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Server is an implementation of trillian.TrillianAdminServer.
@@ -111,7 +112,7 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
 		}
 
-		tree.PrivateKey, err = ptypes.MarshalAny(keyProto)
+		tree.PrivateKey, err = anypb.New(proto.MessageV2(keyProto))
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to marshal private key: %v", err.Error())
 		}

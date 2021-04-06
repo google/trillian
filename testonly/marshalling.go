@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // MustMarshalAnyNoT is used to Marshal proto messages into the
@@ -40,7 +40,7 @@ func MustMarshalAnyNoT(in proto.Message) []byte {
 // Failure to marshal will fail the test but the suite will continue.
 func MustMarshalAny(t *testing.T, in proto.Message) *any.Any {
 	t.Helper()
-	anything, err := ptypes.MarshalAny(in)
+	anything, err := anypb.New(proto.MessageV2(in))
 	if err != nil {
 		t.Fatalf("failed to marshal %v as 'any': err %v", in, err)
 	}

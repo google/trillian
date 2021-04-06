@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
@@ -36,6 +35,7 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
@@ -64,9 +64,9 @@ Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 -----END PUBLIC KEY-----`
 )
 
-// mustMarshalAny panics if ptypes.MarshalAny fails.
+// mustMarshalAny panics if anypb.New(proto.MessageV2(p)) fails.
 func mustMarshalAny(pb proto.Message) *any.Any {
-	value, err := ptypes.MarshalAny(pb)
+	value, err := anypb.New(proto.MessageV2(pb))
 	if err != nil {
 		panic(err)
 	}

@@ -22,7 +22,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
@@ -31,6 +30,7 @@ import (
 	"github.com/google/trillian/testonly/flagsaver"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -56,7 +56,7 @@ type testCase struct {
 }
 
 func mustMarshalAny(p proto.Message) *any.Any {
-	anyKey, err := ptypes.MarshalAny(p)
+	anyKey, err := anypb.New(proto.MessageV2(p))
 	if err != nil {
 		panic(err)
 	}
