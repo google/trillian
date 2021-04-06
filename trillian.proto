@@ -211,15 +211,8 @@ message SignedLogRoot {
   // Deleted: TreeRevision moved to LogRoot.
   reserved 6;
 
-  // key_hint is a hint to identify the public key for signature verification.
-  // key_hint is not authenticated and may be incorrect or missing, in which
-  // case all known public keys may be used to verify the signature.
-  // When directly communicating with a Trillian gRPC server, the key_hint will
-  // typically contain the LogID encoded as a big-endian 64-bit integer;
-  // however, in other contexts the key_hint is likely to have different
-  // contents (e.g. it could be a GUID, a URL + TreeID, or it could be
-  // derived from the public key itself).
-  bytes key_hint = 7;
+  reserved "key_hint";
+  reserved 7;
 
   // log_root holds the TLS-serialization of the following structure (described
   // in RFC5246 notation): Clients should validate log_root_signature with

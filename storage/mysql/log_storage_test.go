@@ -585,7 +585,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
@@ -624,7 +624,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
@@ -655,7 +655,7 @@ func TestLogRootUpdate(t *testing.T) {
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,

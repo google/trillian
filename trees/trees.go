@@ -208,7 +208,7 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 		return nil, fmt.Errorf("%s signature not supported by signer of type %T", tree.SignatureAlgorithm, signer)
 	}
 
-	return tcrypto.NewSigner(tree.GetTreeId(), signer, hash), nil
+	return tcrypto.NewSigner(signer, hash), nil
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, func()) {

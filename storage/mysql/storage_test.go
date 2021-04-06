@@ -275,7 +275,7 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 }
 
 func storeLogRoot(ctx context.Context, tx storage.LogTreeTX, size, rev uint64, hash []byte) error {
-	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
+	signer := tcrypto.NewSigner(testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 	root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: size, Revision: rev, RootHash: hash})
 	if err != nil {
 		return fmt.Errorf("error creating new SignedLogRoot: %v", err)

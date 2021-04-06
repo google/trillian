@@ -17,7 +17,6 @@ package types
 import (
 	"encoding"
 	"reflect"
-	"strings"
 	"testing"
 
 	_ "github.com/golang/glog" // Don't crash when --logtostderr is supplied
@@ -97,30 +96,4 @@ func MustMarshalLogRoot(root *LogRootV1) []byte {
 		panic(err)
 	}
 	return b
-}
-
-func TestKeyHint(t *testing.T) {
-	for _, tc := range []struct {
-		hint   []byte
-		want   int64
-		errStr string
-	}{
-		{hint: SerializeKeyHint(4), want: 4},
-		{hint: SerializeKeyHint(3561657513447883733), want: 3561657513447883733},
-		{hint: []byte{0, 0, 0, 0, 0, 0, 0, 4}, want: 4},
-		{hint: []byte{0, 0, 0, 0, 0, 0, 4, 2}, want: 1026},
-		{hint: []byte{0xff, 0, 0, 0, 0, 0, 0, 4}, errStr: "is negative"},     // Integer overflow
-		{hint: []byte{0, 0, 0, 0, 0, 0, 0, 4, 0}, errStr: "9 bytes, want 8"}, // Wrong byte len
-	} {
-		logID, err := ParseKeyHint(tc.hint)
-		if len(tc.errStr) > 0 {
-			if err == nil || !strings.Contains(err.Error(), tc.errStr) {
-				t.Errorf("ParseKeyHint(%v): %v, %v. want err containing %s", logID, err, tc.errStr, err)
-			}
-			continue
-		}
-		if got, want := logID, tc.want; got != want {
-			t.Errorf("ParseKeyHint(%v): %v, want: %v", tc.hint, got, want)
-		}
-	}
 }

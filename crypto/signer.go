@@ -30,22 +30,20 @@ const noHash = crypto.Hash(0)
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	KeyHint []byte
 	// If Hash is noHash (zero), the signer expects to be given the full message not a hashed digest.
 	Hash   crypto.Hash
 	Signer crypto.Signer
 }
 
-// NewSigner returns a new signer. The signer will set the KeyHint field, when available, with KeyID.
-func NewSigner(keyID int64, signer crypto.Signer, hash crypto.Hash) *Signer {
+// NewSigner returns a new signer.
+func NewSigner(signer crypto.Signer, hash crypto.Hash) *Signer {
 	if _, ok := signer.(ed25519.PrivateKey); ok {
 		// Ed25519 signing requires the full message.
 		hash = noHash
 	}
 	return &Signer{
-		KeyHint: types.SerializeKeyHint(keyID),
-		Hash:    hash,
-		Signer:  signer,
+		Hash:   hash,
+		Signer: signer,
 	}
 }
 
@@ -75,12 +73,11 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 	}
 	signature, err := s.Sign(logRoot)
 	if err != nil {
-		glog.Warningf("%v: signer failed to sign log root: %v", s.KeyHint, err)
+		glog.Warningf("signer failed to sign log root: %v", err)
 		return nil, err
 	}
 
 	return &trillian.SignedLogRoot{
-		KeyHint:          s.KeyHint,
 		LogRoot:          logRoot,
 		LogRootSignature: signature,
 	}, nil

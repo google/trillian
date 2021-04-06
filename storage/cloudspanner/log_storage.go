@@ -470,7 +470,6 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRo
 	// We already read the latest root as part of starting the transaction (in
 	// order to calculate the writeRevision), so we just return that data here:
 	return &trillian.SignedLogRoot{
-		KeyHint:          types.SerializeKeyHint(tx.treeID),
 		LogRoot:          logRoot,
 		LogRootSignature: currentSTH.Signature,
 	}, nil

@@ -88,22 +88,3 @@ func (l *LogRootV1) MarshalBinary() ([]byte, error) {
 		V1:      l,
 	})
 }
-
-// SerializeKeyHint returns a byte slice with logID serialized as a big endian uint64.
-func SerializeKeyHint(logID int64) []byte {
-	hint := make([]byte, 8)
-	binary.BigEndian.PutUint64(hint, uint64(logID))
-	return hint
-}
-
-// ParseKeyHint converts a keyhint into a keyID.
-func ParseKeyHint(hint []byte) (int64, error) {
-	if len(hint) != 8 {
-		return 0, fmt.Errorf("hint is %v bytes, want %v", len(hint), 8)
-	}
-	keyID := int64(binary.BigEndian.Uint64(hint))
-	if keyID < 0 {
-		return 0, fmt.Errorf("hint %x is negative", keyID)
-	}
-	return keyID, nil
-}
