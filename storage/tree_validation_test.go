@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 
@@ -116,7 +117,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	deletedTree.Deleted = true
 
 	deleteTimeTree := newTree()
-	deleteTimeTree.DeleteTime = ptypes.TimestampNow()
+	deleteTimeTree.DeleteTime = timestamppb.Now()
 
 	tests := []struct {
 		desc    string
@@ -411,7 +412,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		},
 		{
 			desc:     "DeleteTime",
-			updatefn: func(tree *trillian.Tree) { tree.DeleteTime = ptypes.TimestampNow() },
+			updatefn: func(tree *trillian.Tree) { tree.DeleteTime = timestamppb.Now() },
 			wantErr:  true,
 		},
 	}

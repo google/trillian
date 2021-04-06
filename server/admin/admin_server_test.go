@@ -44,6 +44,7 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ttestonly "github.com/google/trillian/testonly"
 )
@@ -128,7 +129,7 @@ func TestServer_ListTrees(t *testing.T) {
 	deletedLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 
 	id := int64(17)
-	nowPB := ptypes.TimestampNow()
+	nowPB := timestamppb.Now()
 	for _, tree := range []*trillian.Tree{activeLog, frozenLog, deletedLog} {
 		tree.TreeId = id
 		tree.CreateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
@@ -490,7 +491,7 @@ func TestServer_CreateTree(t *testing.T) {
 			setup := setupAdminServer(ctrl, keygen, false /* snapshot */, test.wantCommit, test.commitErr)
 			tx := setup.tx
 			s := setup.server
-			nowPB := ptypes.TimestampNow()
+			nowPB := timestamppb.Now()
 
 			if test.req.Tree != nil {
 				newTree := proto.Clone(test.req.Tree).(*trillian.Tree)
@@ -592,7 +593,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	nowPB := ptypes.TimestampNow()
+	nowPB := timestamppb.Now()
 	existingTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	existingTree.TreeId = 12345
 	existingTree.CreateTime = nowPB

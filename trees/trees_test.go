@@ -28,7 +28,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
@@ -37,6 +36,7 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -78,7 +78,7 @@ func TestGetTree(t *testing.T) {
 
 	softDeletedTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	softDeletedTree.Deleted = true
-	softDeletedTree.DeleteTime = ptypes.TimestampNow()
+	softDeletedTree.DeleteTime = timestamppb.Now()
 
 	tests := []struct {
 		desc                           string

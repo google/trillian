@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tcrypto "github.com/google/trillian/crypto"
 	ttestonly "github.com/google/trillian/testonly"
@@ -379,7 +380,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 			if !leafInBatch(dequeue1[0], leaves2) || !leafInBatch(dequeue1[1], leaves2) {
 				t.Fatalf("Got leaf from wrong batch (1st dequeue): %v", dequeue1)
 			}
-			iTimestamp := ptypes.TimestampNow()
+			iTimestamp := timestamppb.Now()
 			for i, l := range dequeue1 {
 				l.IntegrateTimestamp = iTimestamp
 				l.LeafIndex = int64(i)

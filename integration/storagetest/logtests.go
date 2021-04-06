@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	storageto "github.com/google/trillian/storage/testonly"
 )
@@ -487,7 +488,7 @@ func dequeueAndSequence(ctx context.Context, t *testing.T, ls storage.LogStorage
 		t.Logf("DequeueLeaves took %v tries and %v to dequeue %d leaves", i, time.Since(start), len(ret))
 		ensureAllLeavesDistinct(t, ret)
 		ensureLeavesHaveQueueTimestamp(t, ret, ts)
-		iTimestamp := ptypes.TimestampNow()
+		iTimestamp := timestamppb.Now()
 		for i, l := range ret {
 			l.IntegrateTimestamp = iTimestamp
 			l.LeafIndex = int64(i) + startIndex
