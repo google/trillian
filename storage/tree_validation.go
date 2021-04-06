@@ -128,19 +128,19 @@ func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
 	// Implementations may vary, so let's assume storage_settings is mutable.
 	// Other than checking that it's a valid Any there isn't much to do at this layer, though.
 	if tree.StorageSettings != nil {
-		var settings ptypes.DynamicAny
-		if err := ptypes.UnmarshalAny(tree.StorageSettings, &settings); err != nil {
+		_, err := tree.StorageSettings.UnmarshalNew()
+		if err != nil {
 			return status.Errorf(codes.InvalidArgument, "invalid storage_settings: %v", err)
 		}
 	}
 
-	var privateKeyProto ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKeyProto); err != nil {
+	privateKeyProto, err := tree.PrivateKey.UnmarshalNew()
+	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
 	}
 
 	// Check that the private key can be obtained and matches the public key.
-	privateKey, err := keys.NewSigner(ctx, privateKeyProto.Message)
+	privateKey, err := keys.NewSigner(ctx, proto.MessageV1(privateKeyProto))
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
 	}

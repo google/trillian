@@ -708,11 +708,11 @@ func unmarshalSettings(tree *trillian.Tree) (proto.Message, error) {
 	if settings == nil {
 		return nil, nil
 	}
-	any := &ptypes.DynamicAny{}
-	if err := ptypes.UnmarshalAny(settings, any); err != nil {
+	any, err := settings.UnmarshalNew()
+	if err != nil {
 		return nil, err
 	}
-	return any.Message, nil
+	return proto.MessageV1(any), nil
 }
 
 func validateLogStorageConfig(config *spannerpb.LogStorageConfig) error {
