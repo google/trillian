@@ -394,14 +394,14 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "CreateTime",
 			updatefn: func(tree *trillian.Tree) {
-				tree.CreateTime, _ = ptypes.TimestampProto(time.Now())
+				tree.CreateTime = timestamppb.New(time.Now())
 			},
 			wantErr: true,
 		},
 		{
 			desc: "UpdateTime",
 			updatefn: func(tree *trillian.Tree) {
-				tree.UpdateTime, _ = ptypes.TimestampProto(time.Now())
+				tree.UpdateTime = timestamppb.New(time.Now())
 			},
 			wantErr: true,
 		},

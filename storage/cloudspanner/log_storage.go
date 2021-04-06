@@ -38,6 +38,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -760,10 +761,7 @@ func (b leavesByHash) addRow(r *spanner.Row) error {
 	if err := r.Columns(&h, &v, &ed, &qTimestamp); err != nil {
 		return err
 	}
-	queueTimestamp, err := ptypes.TimestampProto(time.Unix(0, qTimestamp))
-	if err != nil {
-		return fmt.Errorf("got invalid queue timestamp: %v", err)
-	}
+	queueTimestamp := timestamppb.New(time.Unix(0, qTimestamp))
 
 	leaves, ok := b[string(h)]
 	if !ok {

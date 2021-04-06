@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -173,10 +174,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte) []tr
 
 func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string) error {
 	now := s.timeSource.Now()
-	integrateAt, err := ptypes.TimestampProto(now)
-	if err != nil {
-		return fmt.Errorf("got invalid integrate timestamp: %v", err)
-	}
+	integrateAt := timestamppb.New(now)
 	for i, leaf := range leaves {
 		// The leaf should already have the correct index before it's integrated.
 		if got, want := leaf.LeafIndex, begin+uint64(i); got < 0 || got != int64(want) {

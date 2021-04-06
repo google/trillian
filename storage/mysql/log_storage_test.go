@@ -81,14 +81,8 @@ func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash,
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
 	}
-	queueTimestamp, err := ptypes.TimestampProto(fakeQueueTime)
-	if err != nil {
-		panic(err)
-	}
-	integrateTimestamp, err := ptypes.TimestampProto(fakeIntegrateTime)
-	if err != nil {
-		panic(err)
-	}
+	queueTimestamp := timestamppb.New(fakeQueueTime)
+	integrateTimestamp := timestamppb.New(fakeIntegrateTime)
 	return &trillian.LogLeaf{
 		MerkleLeafHash:     hash,
 		LeafValue:          data,

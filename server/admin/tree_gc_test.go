@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestDeletedTreeGC_Run(t *testing.T) {
@@ -45,7 +46,7 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	tree1 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	tree1.TreeId = 1
 	tree1.Deleted = true
-	tree1.DeleteTime, _ = ptypes.TimestampProto(time.Date(2017, 9, 21, 10, 0, 0, 0, time.UTC))
+	tree1.DeleteTime = timestamppb.New(time.Date(2017, 9, 21, 10, 0, 0, 0, time.UTC))
 
 	listTX1 := storage.NewMockReadOnlyAdminTX(ctrl)
 	listTX2 := storage.NewMockReadOnlyAdminTX(ctrl)
@@ -110,15 +111,15 @@ func TestDeletedTreeGC_RunOnce(t *testing.T) {
 	tree2 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	tree2.TreeId = 2
 	tree2.Deleted = true
-	tree2.DeleteTime, _ = ptypes.TimestampProto(time.Date(2017, 9, 21, 10, 0, 0, 0, time.UTC))
+	tree2.DeleteTime = timestamppb.New(time.Date(2017, 9, 21, 10, 0, 0, 0, time.UTC))
 	tree3 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	tree3.TreeId = 3
 	tree3.Deleted = true
-	tree3.DeleteTime, _ = ptypes.TimestampProto(time.Date(2017, 9, 22, 11, 0, 0, 0, time.UTC))
+	tree3.DeleteTime = timestamppb.New(time.Date(2017, 9, 22, 11, 0, 0, 0, time.UTC))
 	tree4 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	tree4.TreeId = 4
 	tree4.Deleted = true
-	tree4.DeleteTime, _ = ptypes.TimestampProto(time.Date(2017, 9, 23, 12, 0, 0, 0, time.UTC))
+	tree4.DeleteTime = timestamppb.New(time.Date(2017, 9, 23, 12, 0, 0, 0, time.UTC))
 	tree5 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	tree5.TreeId = 5
 	allTrees := []*trillian.Tree{tree1, tree2, tree3, tree4, tree5}
@@ -201,10 +202,7 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 	defer ctrl.Finish()
 
 	deleteTime := time.Date(2017, 10, 25, 16, 0, 0, 0, time.UTC)
-	deleteTimePB, err := ptypes.TimestampProto(deleteTime)
-	if err != nil {
-		t.Fatalf("TimestampProto(%v) returned err = %v", deleteTime, err)
-	}
+	deleteTimePB := timestamppb.New(deleteTime)
 	logTree1 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree1.TreeId = 10
 	logTree1.Deleted = true

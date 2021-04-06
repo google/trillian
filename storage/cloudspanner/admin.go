@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -622,14 +623,8 @@ func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tre
 }
 
 func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
-	createdPB, err := ptypes.TimestampProto(time.Unix(0, info.CreateTimeNanos))
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to convert creation time: %v", err)
-	}
-	updatedPB, err := ptypes.TimestampProto(time.Unix(0, info.UpdateTimeNanos))
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to convert creation time: %v", err)
-	}
+	createdPB := timestamppb.New(time.Unix(0, info.CreateTimeNanos))
+	updatedPB := timestamppb.New(time.Unix(0, info.UpdateTimeNanos))
 	tree := &trillian.Tree{
 		TreeId:          info.TreeId,
 		DisplayName:     info.Name,

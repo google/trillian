@@ -60,10 +60,7 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 		return nil, nil, err
 	}
 
-	queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
-	if err != nil {
-		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %v", err)
-	}
+	queueTimestampProto := timestamppb.New(time.Unix(0, queueTimestamp))
 	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
 	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
 	// supplied data was already written to LeafData as part of queueing the leaf.
