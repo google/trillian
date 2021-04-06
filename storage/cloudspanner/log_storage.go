@@ -296,17 +296,14 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 	errs := make(chan error, 1)
 	var wg sync.WaitGroup
 	for i, l := range leaves {
-		var err error
-		l.QueueTimestamp, err = ptypes.TimestampProto(ts)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
-		}
+		l.QueueTimestamp = timestamppb.New(ts)
 
 		// Capture the values for later reference in the MutationResultFunc below.
 		i, l := i, l
 		res[i] = &trillian.QueuedLogLeaf{Status: okProto}
 
 		wg.Add(1)
+		var err error
 		// The insert of the LeafData and SequencedLeafData must happen atomically.
 		m1, err := spanner.InsertStruct(leafDataTbl, leafDataCols{
 			TreeID:              tree.TreeId,
@@ -540,11 +537,7 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 		if err := r.Columns(&l.LeafIdentityHash, &l.LeafValue, &l.ExtraData, &qTimestamp); err != nil {
 			return err
 		}
-		var err error
-		l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
-		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp: %v", err)
-		}
+		l.QueueTimestamp = timestamppb.New(time.Unix(0, qTimestamp))
 		f(&l)
 		return nil
 	})
@@ -633,11 +626,7 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 			return err
 		}
 
-		var err error
-		l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qe.timestamp))
-		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp: %v", err)
-		}
+		l.QueueTimestamp = timestamppb.New(time.Unix(0, qe.timestamp))
 		k := string(l.LeafIdentityHash)
 		if tx.dequeued[k] != nil {
 			// dupe, user probably called DequeueLeaves more than once.
@@ -734,14 +723,11 @@ func (l leafmap) addFullRow(seqLeaves map[string]sequencedLeafDataCols) func(r *
 			LeafIdentityHash: leafData.LeafIdentityHash,
 		}
 		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, leafData.QueueTimestampNanos))
+		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, leafData.QueueTimestampNanos))
 		if err != nil {
 			return fmt.Errorf("got invalid queue timestamp %v", err)
 		}
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, seqLeaf.IntegrateTimestampNanos))
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp %v", err)
-		}
+		leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, seqLeaf.IntegrateTimestampNanos))
 
 		l[seqLeaf.SequenceNumber] = leaf
 		return nil

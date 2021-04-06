@@ -22,9 +22,9 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // NewAdminStorage returns a storage.AdminStorage implementation backed by
@@ -154,11 +154,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tr *trillian.Tree) (*trillian.
 
 	meta := proto.Clone(tr).(*trillian.Tree)
 	meta.TreeId = id
-	meta.CreateTime, err = ptypes.TimestampProto(now)
+	meta.CreateTime = timestamppb.New(now)
 	if err != nil {
 		return nil, err
 	}
-	meta.UpdateTime, err = ptypes.TimestampProto(now)
+	meta.UpdateTime = timestamppb.New(now)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	}
 
 	var err error
-	tree.UpdateTime, err = ptypes.TimestampProto(time.Now())
+	tree.UpdateTime = timestamppb.New(time.Now())
 	if err != nil {
 		return nil, err
 	}

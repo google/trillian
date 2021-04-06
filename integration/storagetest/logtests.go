@@ -598,8 +598,8 @@ func (*logTests) TestAddSequencedLeavesAndDequeueLeaves(ctx context.Context, t *
 		}
 	}
 
-	qts, _ := ptypes.TimestampProto(now)
-	its, _ := ptypes.TimestampProto(time.Unix(0, 0))
+	qts := timestamppb.New(now)
+	its := timestamppb.New(time.Unix(0, 0))
 
 	partial := make([]*trillian.LogLeaf, 0, len(leaves))
 	for _, leaf := range leaves {

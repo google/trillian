@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -248,11 +249,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	newTree := proto.Clone(tree).(*trillian.Tree)
 	newTree.TreeId = id
-	newTree.CreateTime, err = ptypes.TimestampProto(now)
+	newTree.CreateTime = timestamppb.New(now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build create time: %v", err)
 	}
-	newTree.UpdateTime, err = ptypes.TimestampProto(now)
+	newTree.UpdateTime = timestamppb.New(now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build update time: %v", err)
 	}
@@ -364,7 +365,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	// Use the time truncated-to-millis throughout, as that's what's stored.
 	nowMillis := storage.ToMillisSinceEpoch(time.Now())
 	now := storage.FromMillisSinceEpoch(nowMillis)
-	tree.UpdateTime, err = ptypes.TimestampProto(now)
+	tree.UpdateTime = timestamppb.New(now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build update time: %v", err)
 	}

@@ -685,11 +685,7 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		tree.Deleted = info.Deleted
 	}
 	if info.DeleteTimeNanos > 0 {
-		var err error
-		tree.DeleteTime, err = ptypes.TimestampProto(time.Unix(0, info.DeleteTimeNanos))
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to convert delete time: %v", err)
-		}
+		tree.DeleteTime = timestamppb.New(time.Unix(0, info.DeleteTimeNanos))
 	}
 
 	return tree, nil

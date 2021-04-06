@@ -37,6 +37,7 @@ import (
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -452,7 +453,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
 		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(queueTimestamp)
+		leaf.QueueTimestamp = timestamppb.New(queueTimestamp)
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
@@ -695,11 +696,11 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 			break
 		}
 		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
+		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, qTimestamp))
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
+		leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, iTimestamp))
 		if err != nil {
 			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
@@ -841,12 +842,12 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 			return nil, err
 		}
 		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, queueTS))
+		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, queueTS))
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
 		if integrateTS.Valid {
-			leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, integrateTS.Int64))
+			leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, integrateTS.Int64))
 			if err != nil {
 				return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
 			}
