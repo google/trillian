@@ -28,6 +28,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
