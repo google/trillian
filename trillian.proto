@@ -141,9 +141,6 @@ message Tree {
   // Readonly.
   sigpb.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
 
-  reserved 18;  // Signature cipher suite (removed)
-  reserved 7;   // DuplicatePolicy (removed)
-
   // Display name of the tree.
   // Optional.
   string display_name = 8;
@@ -151,9 +148,6 @@ message Tree {
   // Description of the tree,
   // Optional.
   string description = 9;
-
-  reserved 10;  // create_time_millis_since_epoch (removed)
-  reserved 11;  // update_time_millis_since_epoch (removed)
 
   // Identifies the private key used for signing tree heads and entry
   // timestamps.
@@ -194,26 +188,16 @@ message Tree {
   // Time of tree deletion, if any.
   // Readonly.
   google.protobuf.Timestamp delete_time = 20;
+
+  reserved 7, 10, 11, 18;
+  reserved "create_time_millis_since_epoch";
+  reserved "duplicate_policy";
+  reserved "signature_cipher_suite";
+  reserved "update_time_millis_since_epoch";
 }
 
 // SignedLogRoot represents a commitment by a Log to a particular tree.
 message SignedLogRoot {
-  // Deleted: TimestampNanos moved to LogRoot.
-  reserved 1;
-  // Deleted: RootHash moved to LogRoot.
-  reserved 2;
-  // Deleted: TreeSize moved to LogRoot.
-  reserved 3;
-  // Deleted: Signature replaced by LogRootSignature.
-  reserved 4;
-  // Deleted: LogID is associated with the public key that validates signature.
-  reserved 5;
-  // Deleted: TreeRevision moved to LogRoot.
-  reserved 6;
-
-  reserved "key_hint";
-  reserved 7;
-
   // log_root holds the TLS-serialization of the following structure (described
   // in RFC5246 notation): Clients should validate log_root_signature with
   // VerifySignedLogRoot before deserializing log_root.
@@ -251,6 +235,15 @@ message SignedLogRoot {
 
   // log_root_signature is the raw signature over log_root.
   bytes log_root_signature = 9;
+
+  reserved 1 to 7;
+  reserved "key_hint";
+  reserved "log_id";
+  reserved "root_hash";
+  reserved "signature";
+  reserved "timestamp_nanos";
+  reserved "tree_revision";
+  reserved "tree_size";
 }
 
 // Proof holds a consistency or inclusion proof for a Merkle tree, as returned
@@ -260,6 +253,8 @@ message Proof {
   // a leaf inclusion proof.  This field is set to zero when this message is
   // used for a consistency proof.
   int64 leaf_index = 1;
-  reserved 2; // Contained internal node details (removed)
   repeated bytes hashes = 3;
+
+  reserved 2;
+  reserved "proof_node";
 }
