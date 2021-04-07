@@ -758,6 +758,9 @@ func (b leavesByHash) addRow(r *spanner.Row) error {
 		return err
 	}
 	queueTimestamp := timestamppb.New(time.Unix(0, qTimestamp))
+	if err := queueTimestamp.CheckValid(); err != nil {
+		return fmt.Errorf("got invalid queue timestamp: %w", err)
+	}
 
 	leaves, ok := b[string(h)]
 	if !ok {

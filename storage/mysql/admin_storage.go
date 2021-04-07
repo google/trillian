@@ -249,12 +249,12 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	newTree := proto.Clone(tree).(*trillian.Tree)
 	newTree.TreeId = id
 	newTree.CreateTime = timestamppb.New(now)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build create time: %v", err)
+	if err := newTree.CreateTime.CheckValid(); err != nil {
+		return nil, fmt.Errorf("failed to build create time: %w", err)
 	}
 	newTree.UpdateTime = timestamppb.New(now)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build update time: %v", err)
+	if err := newTree.UpdateTime.CheckValid(); err != nil {
+		return nil, fmt.Errorf("failed to build update time: %w", err)
 	}
 	if err := newTree.MaxRootDuration.CheckValid(); err != nil {
 		return nil, fmt.Errorf("could not parse MaxRootDuration: %w", err)

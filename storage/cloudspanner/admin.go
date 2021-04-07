@@ -680,11 +680,11 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 	case spannerpb.TreeType_LOG:
 		config = info.GetLogStorageConfig()
 	default:
-		return nil, fmt.Errorf("Unknown tree type %v", tt)
+		return nil, fmt.Errorf("unknown tree type %v", tt)
 	}
 	settings, err := anypb.New(proto.MessageV2(config))
 	if err != nil {
-		return nil, fmt.Errorf("anypb.New(proto.MessageV2(p))(): %w", err)
+		return nil, fmt.Errorf("anypb.New(): %w", err)
 	}
 	tree.StorageSettings = settings
 

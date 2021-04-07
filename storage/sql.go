@@ -126,7 +126,13 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	}
 
 	tree.CreateTime = timestamppb.New(FromMillisSinceEpoch(createMillis))
+	if err := tree.CreateTime.CheckValid(); err != nil {
+		return nil, fmt.Errorf("failed to parse create time: %w", err)
+	}
 	tree.UpdateTime = timestamppb.New(FromMillisSinceEpoch(updateMillis))
+	if err := tree.UpdateTime.CheckValid(); err != nil {
+		return nil, fmt.Errorf("failed to parse update time: %w", err)
+	}
 	tree.MaxRootDuration = durationpb.New(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
 
 	tree.PrivateKey = &any.Any{}
@@ -138,6 +144,9 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	tree.Deleted = deleted.Valid && deleted.Bool
 	if tree.Deleted && deleteMillis.Valid {
 		tree.DeleteTime = timestamppb.New(FromMillisSinceEpoch(deleteMillis.Int64))
+		if err := tree.DeleteTime.CheckValid(); err != nil {
+			return nil, fmt.Errorf("failed to parse delete time: %w", err)
+		}
 	}
 
 	return tree, nil
