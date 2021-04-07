@@ -34,21 +34,21 @@ import (
 // and pre-ordered; it is safe for concurrent use (as its contents are fixed
 // after construction).
 type LogVerifier struct {
-	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
-	Hasher hashers.LogHasher
-	// PubKey verifies the signature on the digest of LogRoot.
-	PubKey crypto.PublicKey
-	// SigHash computes the digest of LogRoot for signing.
-	SigHash crypto.Hash
+	// hasher is the hash strategy used to compute nodes in the Merkle tree.
+	hasher hashers.LogHasher
+	// pubKey verifies the signature on the digest of LogRoot.
+	pubKey crypto.PublicKey
+	// sigHash computes the digest of LogRoot for signing.
+	sigHash crypto.Hash
 	v       logverifier.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
 func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash crypto.Hash) *LogVerifier {
 	return &LogVerifier{
-		Hasher:  hasher,
-		PubKey:  pubKey,
-		SigHash: sigHash,
+		hasher:  hasher,
+		pubKey:  pubKey,
+		sigHash: sigHash,
 		v:       logverifier.New(hasher),
 	}
 }
@@ -92,7 +92,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	}
 
 	// Verify SignedLogRoot signature and unpack its contents.
-	r, err := tcrypto.VerifySignedLogRoot(c.PubKey, c.SigHash, newRoot)
+	r, err := tcrypto.VerifySignedLogRoot(c.pubKey, c.sigHash, newRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (c *LogVerifier) VerifyInclusionByHash(trusted *types.LogRootV1, leafHash [
 // TODO(pavelkalinnikov): This can be misleading as it creates a partially
 // filled LogLeaf. Consider returning a pair instead, or leafHash only.
 func (c *LogVerifier) BuildLeaf(data []byte) *trillian.LogLeaf {
-	leafHash := c.Hasher.HashLeaf(data)
+	leafHash := c.hasher.HashLeaf(data)
 	return &trillian.LogLeaf{
 		LeafValue:      data,
 		MerkleLeafHash: leafHash,
