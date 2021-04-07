@@ -23,25 +23,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/google/trillian"
-	"github.com/google/trillian/types"
 	"golang.org/x/crypto/ed25519"
 )
 
 var errVerify = errors.New("signature verification failed")
-
-// VerifySignedLogRoot verifies the SignedLogRoot and returns its contents.
-func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {
-	if err := Verify(pub, hash, r.LogRoot, r.LogRootSignature); err != nil {
-		return nil, err
-	}
-
-	var logRoot types.LogRootV1
-	if err := logRoot.UnmarshalBinary(r.LogRoot); err != nil {
-		return nil, err
-	}
-	return &logRoot, nil
-}
 
 // Verify cryptographically verifies the output of Signer.
 func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {

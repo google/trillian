@@ -510,8 +510,8 @@ type SignedLogRoot struct {
 	unknownFields protoimpl.UnknownFields
 
 	// log_root holds the TLS-serialization of the following structure (described
-	// in RFC5246 notation): Clients should validate log_root_signature with
-	// VerifySignedLogRoot before deserializing log_root.
+	// in RFC5246 notation):
+	//
 	// enum { v1(1), (65535)} Version;
 	// struct {
 	//   uint64 tree_size;

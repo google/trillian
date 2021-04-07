@@ -15,34 +15,19 @@
 package client
 
 import (
-	"crypto"
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys/pem"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 func TestVerifyRootErrors(t *testing.T) {
-	// Test setup
-	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	logRoot, err := (&types.LogRootV1{}).MarshalBinary()
 	if err != nil {
-		t.Fatalf("Failed to open test key, err=%v", err)
+		t.Fatalf("Failed to create test signature: %v", err)
 	}
-	signer := tcrypto.NewSigner(key, crypto.SHA256)
-	pk, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
-	if err != nil {
-		t.Fatalf("Failed to load public key, err=%v", err)
-	}
-
-	signedRoot, err := signer.SignLogRoot(&types.LogRootV1{})
-	if err != nil {
-		t.Fatal("Failed to create test signature")
-	}
+	signedRoot := &trillian.SignedLogRoot{LogRoot: logRoot}
 
 	// Test execution
 	tests := []struct {
@@ -54,7 +39,7 @@ func TestVerifyRootErrors(t *testing.T) {
 		{desc: "trustedNil", trusted: nil, newRoot: signedRoot},
 	}
 	for _, test := range tests {
-		logVerifier := NewLogVerifier(rfc6962.DefaultHasher, pk, crypto.SHA256)
+		logVerifier := NewLogVerifier(rfc6962.DefaultHasher)
 
 		// This also makes sure that no nil pointer dereference errors occur (as this would cause a panic).
 		if _, err := logVerifier.VerifyRoot(test.trusted, test.newRoot, nil); err == nil {
@@ -64,7 +49,7 @@ func TestVerifyRootErrors(t *testing.T) {
 }
 
 func TestVerifyInclusionAtIndexErrors(t *testing.T) {
-	logVerifier := NewLogVerifier(nil, nil, crypto.SHA256)
+	logVerifier := NewLogVerifier(nil)
 	// An error is expected because the first parameter (trusted) is nil
 	err := logVerifier.VerifyInclusionAtIndex(nil, []byte{0, 0, 0}, 1, [][]byte{{0, 0}})
 	if err == nil {
@@ -83,7 +68,7 @@ func TestVerifyInclusionByHashErrors(t *testing.T) {
 	}
 	for _, test := range tests {
 
-		logVerifier := NewLogVerifier(nil, nil, crypto.SHA256)
+		logVerifier := NewLogVerifier(nil)
 		err := logVerifier.VerifyInclusionByHash(test.trusted, nil, test.proof)
 		if err == nil {
 			t.Errorf("%v: VerifyInclusionByHash() error expected, but got nil", test.desc)

@@ -107,7 +107,7 @@ func TestSignLogRoot(t *testing.T) {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
 		// Check that the signature is correct
-		if _, err := VerifySignedLogRoot(key.Public(), crypto.SHA256, slr); err != nil {
+		if err := Verify(key.Public(), crypto.SHA256, slr.LogRoot, slr.LogRootSignature); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}
