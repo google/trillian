@@ -469,10 +469,7 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRo
 
 	// We already read the latest root as part of starting the transaction (in
 	// order to calculate the writeRevision), so we just return that data here:
-	return &trillian.SignedLogRoot{
-		LogRoot:          logRoot,
-		LogRootSignature: currentSTH.Signature,
-	}, nil
+	return &trillian.SignedLogRoot{LogRoot: logRoot}, nil
 }
 
 // StoreSignedLogRoot stores the provided root.
@@ -512,7 +509,7 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLo
 			int64(logRoot.TimestampNanos),
 			int64(logRoot.TreeSize),
 			logRoot.RootHash,
-			root.LogRootSignature,
+			[]byte{},
 			writeRev,
 			logRoot.Metadata,
 		})

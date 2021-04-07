@@ -598,11 +598,6 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return status.Errorf(codes.AlreadyExists, "log is already initialised")
 		}
 
-		signer, err := trees.Signer(ctx, tree)
-		if err != nil {
-			return status.Errorf(codes.FailedPrecondition, "Signer()=%v", err)
-		}
-
 		logRoot, err := (&types.LogRootV1{
 			RootHash:       hasher.EmptyRoot(),
 			TimestampNanos: uint64(t.timeSource.Now().UnixNano()),
@@ -611,12 +606,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return err
 		}
 
-		signature, err := signer.Sign(logRoot)
-		if err != nil {
-			return err
-		}
-
-		newRoot = &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
+		newRoot = &trillian.SignedLogRoot{LogRoot: logRoot}
 
 		if err := tx.StoreSignedLogRoot(ctx, newRoot); err != nil {
 			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot()=%v", err)

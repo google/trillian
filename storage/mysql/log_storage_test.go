@@ -17,7 +17,6 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
@@ -33,9 +32,6 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/types"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	tcrypto "github.com/google/trillian/crypto"
-	ttestonly "github.com/google/trillian/testonly"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -569,16 +565,12 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	commit(ctx, tx, t)
 }
 
-func SignLogRoot(signer *tcrypto.Signer, root *types.LogRootV1) (*trillian.SignedLogRoot, error) {
+func SignLogRoot(root *types.LogRootV1) (*trillian.SignedLogRoot, error) {
 	logRoot, err := root.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	signature, err := signer.Sign(logRoot)
-	if err != nil {
-		return nil, err
-	}
-	return &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}, nil
+	return &trillian.SignedLogRoot{LogRoot: logRoot}, nil
 }
 
 func TestLatestSignedLogRoot(t *testing.T) {
@@ -588,8 +580,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
-	root, err := SignLogRoot(signer, &types.LogRootV1{
+	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		Revision:       0,
@@ -627,8 +618,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
-	root, err := SignLogRoot(signer, &types.LogRootV1{
+	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		Revision:       0,
@@ -658,8 +648,7 @@ func TestLogRootUpdate(t *testing.T) {
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
-	root, err := SignLogRoot(signer, &types.LogRootV1{
+	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		Revision:       0,
@@ -668,7 +657,7 @@ func TestLogRootUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SignLogRoot(): %v", err)
 	}
-	root2, err := SignLogRoot(signer, &types.LogRootV1{
+	root2, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98766,
 		TreeSize:       16,
 		Revision:       1,

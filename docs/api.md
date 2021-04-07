@@ -683,7 +683,6 @@ A serialized v1 log root will therefore be laid out as:
 &#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....---&#43; | len | metadata | &#43;---&#43;---&#43;---&#43;---&#43;---&#43;-....---&#43;
 
 (with all integers encoded big-endian). |
-| log_root_signature | [bytes](#bytes) |  | log_root_signature is the raw signature over log_root. |
 
 
 

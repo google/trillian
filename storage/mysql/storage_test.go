@@ -28,14 +28,12 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle/compact"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 )
 
@@ -275,16 +273,11 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 }
 
 func storeLogRoot(ctx context.Context, tx storage.LogTreeTX, size, rev uint64, hash []byte) error {
-	signer := tcrypto.NewSigner(testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 	logRoot, err := (&types.LogRootV1{TreeSize: size, Revision: rev, RootHash: hash}).MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("error marshaling new LogRoot: %v", err)
 	}
-	signature, err := signer.Sign(logRoot)
-	if err != nil {
-		return fmt.Errorf("error signing new SignedLogRoot: %v", err)
-	}
-	root := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
+	root := &trillian.SignedLogRoot{LogRoot: logRoot}
 	if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 		return fmt.Errorf("error storing new SignedLogRoot: %v", err)
 	}

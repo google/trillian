@@ -26,7 +26,6 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/compact"
@@ -63,15 +62,13 @@ var testLeaf0Updated = &trillian.LogLeaf{
 }
 
 var (
-	fixedLog1Signer = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256)
-	testRoot0       = &types.LogRootV1{
+	testRoot0 = &types.LogRootV1{
 		TreeSize: 0,
 		Revision: 0,
 		RootHash: []byte{},
 	}
 	testRoot0Bytes, _ = testRoot0.MarshalBinary()
-	testRoot0Sig, _   = fixedLog1Signer.Sign(testRoot0Bytes)
-	testSignedRoot0   = &trillian.SignedLogRoot{LogRoot: testRoot0Bytes, LogRootSignature: testRoot0Sig}
+	testSignedRoot0   = &trillian.SignedLogRoot{LogRoot: testRoot0Bytes}
 
 	updatedNodes0 = []tree.Node{{ID: compact.NewNodeID(0, 0), Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=")}}
 	updatedRoot   = &types.LogRootV1{
@@ -81,8 +78,7 @@ var (
 		Revision:       1,
 	}
 	updatedRootBytes, _ = updatedRoot.MarshalBinary()
-	updatedRootSig, _   = fixedSigner.Sign(updatedRootBytes)
-	updatedSignedRoot   = &trillian.SignedLogRoot{LogRoot: updatedRootBytes, LogRootSignature: updatedRootSig}
+	updatedSignedRoot   = &trillian.SignedLogRoot{LogRoot: updatedRootBytes}
 )
 
 var zeroDuration = 0 * time.Second

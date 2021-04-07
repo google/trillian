@@ -16,7 +16,6 @@ package storagetest
 
 import (
 	"context"
-	"crypto"
 	"crypto/sha256"
 	"fmt"
 	"testing"
@@ -24,10 +23,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 // runLogTX is a helps avoid copying out "if err != nil { blah }" all over the place
@@ -59,16 +55,11 @@ func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 
 func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, r *types.LogRootV1) {
 	t.Helper()
-	signer := tcrypto.NewSigner(testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 	logRoot, err := r.MarshalBinary()
 	if err != nil {
 		t.Fatalf("error marshaling new LogRootV1: %v", err)
 	}
-	signature, err := signer.Sign(logRoot)
-	if err != nil {
-		t.Fatalf("error signing new LogRootV1: %v", err)
-	}
-	root := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
+	root := &trillian.SignedLogRoot{LogRoot: logRoot}
 
 	if err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		return tx.StoreSignedLogRoot(ctx, root)

@@ -764,10 +764,7 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoo
 		return nil, err
 	}
 
-	return &trillian.SignedLogRoot{
-		LogRoot:          logRoot,
-		LogRootSignature: rootSignatureBytes,
-	}, nil
+	return &trillian.SignedLogRoot{LogRoot: logRoot}, nil
 }
 
 func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
@@ -794,7 +791,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 		logRoot.TreeSize,
 		logRoot.RootHash,
 		logRoot.Revision,
-		root.LogRootSignature)
+		[]byte{})
 	if err != nil {
 		glog.Warningf("Failed to store signed root: %s", err)
 	}
