@@ -15,19 +15,14 @@
 package client
 
 import (
-	"crypto"
 	"errors"
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/logverifier"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 // LogVerifier allows verification of output from Trillian Logs, both regular
@@ -36,20 +31,14 @@ import (
 type LogVerifier struct {
 	// hasher is the hash strategy used to compute nodes in the Merkle tree.
 	hasher hashers.LogHasher
-	// pubKey verifies the signature on the digest of LogRoot.
-	pubKey crypto.PublicKey
-	// sigHash computes the digest of LogRoot for signing.
-	sigHash crypto.Hash
-	v       logverifier.LogVerifier
+	v      logverifier.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
-func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash crypto.Hash) *LogVerifier {
+func NewLogVerifier(hasher hashers.LogHasher) *LogVerifier {
 	return &LogVerifier{
-		hasher:  hasher,
-		pubKey:  pubKey,
-		sigHash: sigHash,
-		v:       logverifier.New(hasher),
+		hasher: hasher,
+		v:      logverifier.New(hasher),
 	}
 }
 
@@ -68,17 +57,7 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): unknown hash strategy: %s", s)
 	}
 
-	logPubKey, err := der.UnmarshalPublicKey(config.PublicKey.GetDer())
-	if err != nil {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log public key: %v", err)
-	}
-
-	sigHash, err := trees.Hash(config)
-	if err != nil {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
-	}
-
-	return NewLogVerifier(rfc6962.DefaultHasher, logPubKey, sigHash), nil
+	return NewLogVerifier(rfc6962.DefaultHasher), nil
 }
 
 // VerifyRoot verifies that newRoot is a valid append-only operation from
@@ -91,9 +70,8 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 		return nil, fmt.Errorf("VerifyRoot() error: newRoot == nil")
 	}
 
-	// Verify SignedLogRoot signature and unpack its contents.
-	r, err := tcrypto.VerifySignedLogRoot(c.pubKey, c.sigHash, newRoot)
-	if err != nil {
+	var r types.LogRootV1
+	if err := r.UnmarshalBinary(newRoot.LogRoot); err != nil {
 		return nil, err
 	}
 
@@ -104,7 +82,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 			return nil, fmt.Errorf("failed to verify consistency proof from %d->%d %x->%x: %v", trusted.TreeSize, r.TreeSize, trusted.RootHash, r.RootHash, err)
 		}
 	}
-	return r, nil
+	return &r, nil
 }
 
 // VerifyInclusionAtIndex verifies that the inclusion proof for data at leafIndex

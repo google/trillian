@@ -101,7 +101,6 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 			return fmt.Errorf("failed to get latest log root: %v %v", resp, err)
 		}
 
-		// TODO(gbelvin): Replace with VerifySignedLogRoot
 		var root types.LogRootV1
 		if err := root.UnmarshalBinary(resp.SignedLogRoot.GetLogRoot()); err != nil {
 			return fmt.Errorf("could not read current log root: %v", err)

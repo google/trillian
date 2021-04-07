@@ -670,7 +670,9 @@ SignedLogRoot represents a commitment by a Log to a particular tree.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| log_root | [bytes](#bytes) |  | log_root holds the TLS-serialization of the following structure (described in RFC5246 notation): Clients should validate log_root_signature with VerifySignedLogRoot before deserializing log_root. enum { v1(1), (65535)} Version; struct { uint64 tree_size; opaque root_hash&lt;0..128&gt;; uint64 timestamp_nanos; uint64 revision; opaque metadata&lt;0..65535&gt;; } LogRootV1; struct { Version version; select(version) { case v1: LogRootV1; } } LogRoot;
+| log_root | [bytes](#bytes) |  | log_root holds the TLS-serialization of the following structure (described in RFC5246 notation):
+
+enum { v1(1), (65535)} Version; struct { uint64 tree_size; opaque root_hash&lt;0..128&gt;; uint64 timestamp_nanos; uint64 revision; opaque metadata&lt;0..65535&gt;; } LogRootV1; struct { Version version; select(version) { case v1: LogRootV1; } } LogRoot;
 
 A serialized v1 log root will therefore be laid out as:
 
