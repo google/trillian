@@ -276,10 +276,15 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 
 func storeLogRoot(ctx context.Context, tx storage.LogTreeTX, size, rev uint64, hash []byte) error {
 	signer := tcrypto.NewSigner(testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
-	root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: size, Revision: rev, RootHash: hash})
+	logRoot, err := (&types.LogRootV1{TreeSize: size, Revision: rev, RootHash: hash}).MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("error creating new SignedLogRoot: %v", err)
+		return fmt.Errorf("error marshaling new LogRoot: %v", err)
 	}
+	signature, err := signer.Sign(logRoot)
+	if err != nil {
+		return fmt.Errorf("error signing new SignedLogRoot: %v", err)
+	}
+	root := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
 	if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 		return fmt.Errorf("error storing new SignedLogRoot: %v", err)
 	}

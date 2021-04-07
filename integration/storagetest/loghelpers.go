@@ -60,10 +60,15 @@ func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, r *types.LogRootV1) {
 	t.Helper()
 	signer := tcrypto.NewSigner(testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
-	root, err := signer.SignLogRoot(r)
+	logRoot, err := r.MarshalBinary()
 	if err != nil {
-		t.Fatalf("error creating new SignedLogRoot: %v", err)
+		t.Fatalf("error marshaling new LogRootV1: %v", err)
 	}
+	signature, err := signer.Sign(logRoot)
+	if err != nil {
+		t.Fatalf("error signing new LogRootV1: %v", err)
+	}
+	root := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
 
 	if err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		return tx.StoreSignedLogRoot(ctx, root)

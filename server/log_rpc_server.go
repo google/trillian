@@ -603,14 +603,20 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return status.Errorf(codes.FailedPrecondition, "Signer()=%v", err)
 		}
 
-		root, err := signer.SignLogRoot(&types.LogRootV1{
+		logRoot, err := (&types.LogRootV1{
 			RootHash:       hasher.EmptyRoot(),
 			TimestampNanos: uint64(t.timeSource.Now().UnixNano()),
-		})
+		}).MarshalBinary()
 		if err != nil {
 			return err
 		}
-		newRoot = root
+
+		signature, err := signer.Sign(logRoot)
+		if err != nil {
+			return err
+		}
+
+		newRoot = &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
 
 		if err := tx.StoreSignedLogRoot(ctx, newRoot); err != nil {
 			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot()=%v", err)

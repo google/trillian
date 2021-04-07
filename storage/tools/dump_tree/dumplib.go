@@ -202,12 +202,15 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		glog.Fatalf("Creating signer: %v", err)
 	}
 
-	sthZero, err := tSigner.SignLogRoot(&types.LogRootV1{
-		RootHash: rfc6962.DefaultHasher.EmptyRoot(),
-	})
+	logRoot, err := (&types.LogRootV1{RootHash: rfc6962.DefaultHasher.EmptyRoot()}).MarshalBinary()
 	if err != nil {
-		glog.Fatalf("SignLogRoot: %v", err)
+		glog.Fatalf("MarshalBinary: %v", err)
 	}
+	signature, err := tSigner.Sign(logRoot)
+	if err != nil {
+		glog.Fatalf("Sign: %v", err)
+	}
+	sthZero := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
 
 	err = ls.ReadWriteTransaction(ctx, createdTree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		if err := tx.StoreSignedLogRoot(ctx, sthZero); err != nil {

@@ -75,14 +75,13 @@ var (
 	fixedGoSigner = newSignerWithFixedSig([]byte("signed"))
 	fixedSigner   = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256)
 
-	testSignedRoot16, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot16)
-	newSignedRoot16, _  = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).
-				SignLogRoot(&types.LogRootV1{
-			TimestampNanos: uint64(fakeTime.UnixNano()),
-			TreeSize:       testRoot16.TreeSize,
-			Revision:       testRoot16.Revision + 1,
-			RootHash:       testRoot16.RootHash,
-		})
+	testSignedRoot16 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot16)
+	newSignedRoot16  = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), &types.LogRootV1{
+		TimestampNanos: uint64(fakeTime.UnixNano()),
+		TreeSize:       testRoot16.TreeSize,
+		Revision:       testRoot16.Revision + 1,
+		RootHash:       testRoot16.RootHash,
+	})
 
 	testRoot17 = &types.LogRootV1{
 		TreeSize: 16,
@@ -92,7 +91,7 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 	}
-	testSignedRoot17, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot17)
+	testSignedRoot17 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot17)
 
 	testRoot18 = &types.LogRootV1{
 		TreeSize: 16,
@@ -102,7 +101,7 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTime.Add(10 * time.Millisecond).UnixNano()),
 	}
-	testSignedRoot18, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot18)
+	testSignedRoot18 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot18)
 
 	// These will be accepted in either order because of custom sorting in the mock
 	updatedNodes = []tree.Node{
@@ -122,7 +121,7 @@ var (
 		Revision:       6,
 		TreeSize:       17,
 	}
-	testSignedRoot, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot)
+	testSignedRoot = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot)
 
 	// TODO(pavelkalinnikov): Generate boilerplate structures, like the ones
 	// below, in a more compact way.
@@ -132,7 +131,7 @@ var (
 		RootHash:       testonly.MustDecodeBase64("lfLXEAeBNB/zX1+97lInoqpnLJtX+AS/Ok0mwlWFpRc="),
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
 	}
-	testSignedRoot21, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(testRoot21)
+	testSignedRoot21 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot21)
 	// Nodes that will be loaded when updating the tree of size 21.
 	compactTree21 = []tree.Node{
 		{ID: compact.NewNodeID(4, 0), Hash: testonly.MustDecodeBase64("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=")},
@@ -165,7 +164,7 @@ var (
 		Revision:       6,
 		TreeSize:       22,
 	}
-	updatedSignedRoot21, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(updatedRoot21)
+	updatedSignedRoot21 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), updatedRoot21)
 
 	emptyRoot = &types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
@@ -173,14 +172,20 @@ var (
 		Revision:       2,
 		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
 	}
-	signedEmptyRoot, _        = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(emptyRoot)
-	updatedSignedEmptyRoot, _ = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256).SignLogRoot(&types.LogRootV1{
+	signedEmptyRoot        = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), emptyRoot)
+	updatedSignedEmptyRoot = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), &types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 		TreeSize:       0,
 		Revision:       3,
 		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
 	})
 )
+
+func makeSLR(signer *tcrypto.Signer, root *types.LogRootV1) *trillian.SignedLogRoot {
+	logRoot, _ := root.MarshalBinary()
+	logRootSignature, _ := signer.Sign(logRoot)
+	return &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: logRootSignature}
+}
 
 // testParameters bundles up values needed for setting mock expectations in tests
 type testParameters struct {
