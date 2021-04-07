@@ -73,10 +73,9 @@ var (
 	compactTree16 = []tree.Node{{ID: compact.NewNodeID(4, 0), Hash: []byte{}}}
 
 	fixedGoSigner = newSignerWithFixedSig([]byte("signed"))
-	fixedSigner   = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256)
 
-	testSignedRoot16 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot16)
-	newSignedRoot16  = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), &types.LogRootV1{
+	testSignedRoot16 = makeSLR(testRoot16)
+	newSignedRoot16  = makeSLR(&types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 		TreeSize:       testRoot16.TreeSize,
 		Revision:       testRoot16.Revision + 1,
@@ -91,7 +90,7 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 	}
-	testSignedRoot17 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot17)
+	testSignedRoot17 = makeSLR(testRoot17)
 
 	testRoot18 = &types.LogRootV1{
 		TreeSize: 16,
@@ -101,7 +100,7 @@ var (
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTime.Add(10 * time.Millisecond).UnixNano()),
 	}
-	testSignedRoot18 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot18)
+	testSignedRoot18 = makeSLR(testRoot18)
 
 	// These will be accepted in either order because of custom sorting in the mock
 	updatedNodes = []tree.Node{
@@ -121,7 +120,7 @@ var (
 		Revision:       6,
 		TreeSize:       17,
 	}
-	testSignedRoot = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot)
+	testSignedRoot = makeSLR(testRoot)
 
 	// TODO(pavelkalinnikov): Generate boilerplate structures, like the ones
 	// below, in a more compact way.
@@ -131,7 +130,7 @@ var (
 		RootHash:       testonly.MustDecodeBase64("lfLXEAeBNB/zX1+97lInoqpnLJtX+AS/Ok0mwlWFpRc="),
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
 	}
-	testSignedRoot21 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), testRoot21)
+	testSignedRoot21 = makeSLR(testRoot21)
 	// Nodes that will be loaded when updating the tree of size 21.
 	compactTree21 = []tree.Node{
 		{ID: compact.NewNodeID(4, 0), Hash: testonly.MustDecodeBase64("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=")},
@@ -164,7 +163,7 @@ var (
 		Revision:       6,
 		TreeSize:       22,
 	}
-	updatedSignedRoot21 = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), updatedRoot21)
+	updatedSignedRoot21 = makeSLR(updatedRoot21)
 
 	emptyRoot = &types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
@@ -172,8 +171,8 @@ var (
 		Revision:       2,
 		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
 	}
-	signedEmptyRoot        = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), emptyRoot)
-	updatedSignedEmptyRoot = makeSLR(tcrypto.NewSigner(fixedGoSigner, crypto.SHA256), &types.LogRootV1{
+	signedEmptyRoot        = makeSLR(emptyRoot)
+	updatedSignedEmptyRoot = makeSLR(&types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 		TreeSize:       0,
 		Revision:       3,
@@ -181,10 +180,9 @@ var (
 	})
 )
 
-func makeSLR(signer *tcrypto.Signer, root *types.LogRootV1) *trillian.SignedLogRoot {
+func makeSLR(root *types.LogRootV1) *trillian.SignedLogRoot {
 	logRoot, _ := root.MarshalBinary()
-	logRootSignature, _ := signer.Sign(logRoot)
-	return &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: logRootSignature}
+	return &trillian.SignedLogRoot{LogRoot: logRoot}
 }
 
 // testParameters bundles up values needed for setting mock expectations in tests
@@ -252,15 +250,6 @@ func newSignerWithFixedSig(sig []byte) crypto.Signer {
 		panic(err)
 	}
 	return testonly.NewSignerWithFixedSig(key, sig)
-}
-
-func newSignerWithErr(signErr error) (crypto.Signer, error) {
-	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return testonly.NewSignerWithErr(key, signErr), nil
 }
 
 func createTestContext(ctrl *gomock.Controller, params testParameters) (testContext, context.Context) {
@@ -335,10 +324,6 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 // TODO(pavelkalinnikov): Consider using real in-memory storage.
 
 func TestIntegrateBatch(t *testing.T) {
-	signerErr, err := newSignerWithErr(errors.New("signerfailed"))
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
 	leaves16 := []*trillian.LogLeaf{testLeaf16}
 	guardWindow := time.Second * 10
 	expectedCutoffTime := fakeTime.Add(-guardWindow)
@@ -527,23 +512,6 @@ func TestIntegrateBatch(t *testing.T) {
 			errStr: "storesignedroot",
 		},
 		{
-			desc: "signer-fails",
-			params: testParameters{
-				logID:               154035,
-				writeRevision:       int64(testRoot16.Revision + 1),
-				dequeueLimit:        1,
-				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
-				latestSignedRoot:    testSignedRoot16,
-				merkleNodesGet:      &compactTree16,
-				updatedLeaves:       &leaves16,
-				merkleNodesSet:      &updatedNodes,
-				storeSignedRoot:     nil,
-				signer:              signerErr,
-				skipStoreSignedRoot: true,
-			},
-			errStr: "signerfailed",
-		},
-		{
 			desc: "commit-fails",
 			params: testParameters{
 				logID:            154035,
@@ -674,7 +642,7 @@ func TestIntegrateBatch(t *testing.T) {
 }
 
 func TestIntegrateBatch_PutTokens(t *testing.T) {
-	cryptoSigner := newSignerWithFixedSig(testSignedRoot.LogRootSignature)
+	cryptoSigner := newSignerWithFixedSig([]byte{})
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

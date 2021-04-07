@@ -439,11 +439,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		if err != nil {
 			return fmt.Errorf("%v: signer failed to marshal root: %v", tree.TreeId, err)
 		}
-		signature, err := s.signer.Sign(logRoot)
-		if err != nil {
-			return fmt.Errorf("%v: signer failed to sign root: %v", tree.TreeId, err)
-		}
-		newSLR := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
+		newSLR := &trillian.SignedLogRoot{LogRoot: logRoot}
 
 		if err := tx.StoreSignedLogRoot(ctx, newSLR); err != nil {
 			return fmt.Errorf("%v: failed to write updated tree root: %v", tree.TreeId, err)

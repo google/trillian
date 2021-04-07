@@ -233,12 +233,10 @@ message SignedLogRoot {
   // (with all integers encoded big-endian).
   bytes log_root = 8;
 
-  // log_root_signature is the raw signature over log_root.
-  bytes log_root_signature = 9;
-
-  reserved 1 to 7;
+  reserved 1 to 7, 9;
   reserved "key_hint";
   reserved "log_id";
+  reserved "log_root_signature";
   reserved "root_hash";
   reserved "signature";
   reserved "timestamp_nanos";

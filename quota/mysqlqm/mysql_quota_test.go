@@ -16,7 +16,6 @@ package mysqlqm_test
 
 import (
 	"context"
-	"crypto"
 	"database/sql"
 	"fmt"
 	"testing"
@@ -28,11 +27,9 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 
-	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 
@@ -255,16 +252,11 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	{
 		ls := mysql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-			signer := tcrypto.NewSigner(testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 			logRoot, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
 			if err != nil {
 				return err
 			}
-			signature, err := signer.Sign(logRoot)
-			if err != nil {
-				return err
-			}
-			slr := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
+			slr := &trillian.SignedLogRoot{LogRoot: logRoot}
 			return tx.StoreSignedLogRoot(ctx, slr)
 		})
 		if err != nil {

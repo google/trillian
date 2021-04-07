@@ -16,7 +16,6 @@ package server
 
 import (
 	"context"
-	"crypto"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,8 +26,6 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
-	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/compact"
@@ -36,7 +33,6 @@ import (
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/storage/tree"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 	"google.golang.org/genproto/googleapis/rpc/code"
@@ -87,15 +83,11 @@ var (
 
 	addSeqRequest0 = trillian.AddSequencedLeavesRequest{LogId: logID3, Leaves: []*trillian.LogLeaf{leaf1}}
 
-	fixedGoSigner = newSignerWithFixedSig([]byte("signed"))
-	fixedSigner   = tcrypto.NewSigner(fixedGoSigner, crypto.SHA256)
-
 	tree1              = addTreeID(stestonly.LogTree, logID1)
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 	root1              = &types.LogRootV1{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, Revision: uint64(5)}
 	root1Bytes, _      = root1.MarshalBinary()
-	root1Sig, _        = fixedSigner.Sign(root1Bytes)
-	signedRoot1        = &trillian.SignedLogRoot{LogRoot: root1Bytes, LogRootSignature: root1Sig}
+	signedRoot1        = &trillian.SignedLogRoot{LogRoot: root1Bytes}
 
 	getInclusionProofByHashRequest7  = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: leafHash1}
 	getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: leafHash2}
@@ -1546,11 +1538,7 @@ func TestInitLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MarshalBinary(): %v", err)
 	}
-	signature, err := fixedSigner.Sign(logRoot)
-	if err != nil {
-		t.Fatalf("Sign(): %v", err)
-	}
-	signedRoot := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
+	signedRoot := &trillian.SignedLogRoot{LogRoot: logRoot}
 
 	for _, tc := range []struct {
 		desc       string
@@ -1568,7 +1556,6 @@ func TestInitLog(t *testing.T) {
 		{desc: "snap err", snapErr: errors.New("snap"), wantCode: codes.FailedPrecondition, wantErrStr: "snap"},
 		{desc: "tree err", treeErr: errors.New("tree"), wantCode: codes.FailedPrecondition, wantErrStr: "tree"},
 		{desc: "root err", getRootErr: errors.New("root"), wantCode: codes.FailedPrecondition, wantErrStr: "root"},
-		{desc: "sign fail", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, signFail: true, wantCode: codes.FailedPrecondition, wantErrStr: "Signer()=signature alg"},
 		{desc: "store fail", getRootErr: storage.ErrTreeNeedsInit, storeErr: errors.New("store"), wantInit: true, wantCode: codes.FailedPrecondition},
 		{desc: "init new log", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, wantCode: codes.OK},
 		{desc: "init new preordered log", preordered: true, getRootErr: storage.ErrTreeNeedsInit, wantInit: true, wantCode: codes.OK},
@@ -1748,13 +1735,4 @@ func addTreeID(tree *trillian.Tree, treeID int64) *trillian.Tree {
 	newTree := proto.Clone(tree).(*trillian.Tree)
 	newTree.TreeId = treeID
 	return newTree
-}
-
-// newSignerWithFixedSig returns a fake signer that always returns the specified signature.
-func newSignerWithFixedSig(sig []byte) crypto.Signer {
-	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
-	if err != nil {
-		panic(err)
-	}
-	return testonly.NewSignerWithFixedSig(key, sig)
 }
