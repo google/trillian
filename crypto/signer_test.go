@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/types"
 )
 
 const message string = "testing"
@@ -69,46 +68,4 @@ func TestSign_SignerFails(t *testing.T) {
 	}
 
 	testonly.EnsureErrorContains(t, err, "sign")
-}
-
-func TestSignWithSignedLogRoot_SignerFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to load public key: %v", err)
-	}
-
-	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
-	root := &types.LogRootV1{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	_, err = NewSigner(s, crypto.SHA256).SignLogRoot(root)
-	testonly.EnsureErrorContains(t, err, "signfail")
-}
-
-func TestSignLogRoot(t *testing.T) {
-	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to open test key, err=%v", err)
-	}
-	signer := NewSigner(key, crypto.SHA256)
-
-	for _, test := range []struct {
-		root *types.LogRootV1
-	}{
-		{root: &types.LogRootV1{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}},
-	} {
-		slr, err := signer.SignLogRoot(test.root)
-		if err != nil {
-			t.Errorf("Failed to sign log root: %v", err)
-			continue
-		}
-		if got := len(slr.LogRootSignature); got == 0 {
-			t.Errorf("len(sig): %v, want > 0", got)
-		}
-		// Check that the signature is correct
-		if err := Verify(key.Public(), crypto.SHA256, slr.LogRoot, slr.LogRootSignature); err != nil {
-			t.Errorf("Verify(%v) failed: %v", test.root, err)
-		}
-	}
 }

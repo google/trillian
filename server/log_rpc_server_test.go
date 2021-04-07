@@ -93,7 +93,9 @@ var (
 	tree1              = addTreeID(stestonly.LogTree, logID1)
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 	root1              = &types.LogRootV1{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, Revision: uint64(5)}
-	signedRoot1, _     = fixedSigner.SignLogRoot(root1)
+	root1Bytes, _      = root1.MarshalBinary()
+	root1Sig, _        = fixedSigner.Sign(root1Bytes)
+	signedRoot1        = &trillian.SignedLogRoot{LogRoot: root1Bytes, LogRootSignature: root1Sig}
 
 	getInclusionProofByHashRequest7  = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: leafHash1}
 	getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: leafHash2}
@@ -1540,10 +1542,15 @@ func TestTrillianLogRPCServer_QueueLeafErrors(t *testing.T) {
 func TestInitLog(t *testing.T) {
 	ctx := context.Background()
 	// A non-empty log root
-	signedRoot, err := fixedSigner.SignLogRoot(&types.LogRootV1{})
+	logRoot, err := (&types.LogRootV1{}).MarshalBinary()
 	if err != nil {
-		t.Fatalf("SignedLogRoot(): %v", err)
+		t.Fatalf("MarshalBinary(): %v", err)
 	}
+	signature, err := fixedSigner.Sign(logRoot)
+	if err != nil {
+		t.Fatalf("Sign(): %v", err)
+	}
+	signedRoot := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
 
 	for _, tc := range []struct {
 		desc       string

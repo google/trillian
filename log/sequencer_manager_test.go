@@ -69,7 +69,9 @@ var (
 		Revision: 0,
 		RootHash: []byte{},
 	}
-	testSignedRoot0, _ = fixedLog1Signer.SignLogRoot(testRoot0)
+	testRoot0Bytes, _ = testRoot0.MarshalBinary()
+	testRoot0Sig, _   = fixedLog1Signer.Sign(testRoot0Bytes)
+	testSignedRoot0   = &trillian.SignedLogRoot{LogRoot: testRoot0Bytes, LogRootSignature: testRoot0Sig}
 
 	updatedNodes0 = []tree.Node{{ID: compact.NewNodeID(0, 0), Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=")}}
 	updatedRoot   = &types.LogRootV1{
@@ -78,7 +80,9 @@ var (
 		TreeSize:       1,
 		Revision:       1,
 	}
-	updatedSignedRoot, _ = fixedSigner.SignLogRoot(updatedRoot)
+	updatedRootBytes, _ = updatedRoot.MarshalBinary()
+	updatedRootSig, _   = fixedSigner.Sign(updatedRootBytes)
+	updatedSignedRoot   = &trillian.SignedLogRoot{LogRoot: updatedRootBytes, LogRootSignature: updatedRootSig}
 )
 
 var zeroDuration = 0 * time.Second

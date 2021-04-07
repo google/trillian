@@ -569,6 +569,18 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	commit(ctx, tx, t)
 }
 
+func SignLogRoot(signer *tcrypto.Signer, root *types.LogRootV1) (*trillian.SignedLogRoot, error) {
+	logRoot, err := root.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	signature, err := signer.Sign(logRoot)
+	if err != nil {
+		return nil, err
+	}
+	return &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}, nil
+}
+
 func TestLatestSignedLogRoot(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
@@ -577,7 +589,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
-	root, err := signer.SignLogRoot(&types.LogRootV1{
+	root, err := SignLogRoot(signer, &types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		Revision:       0,
@@ -616,7 +628,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
-	root, err := signer.SignLogRoot(&types.LogRootV1{
+	root, err := SignLogRoot(signer, &types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		Revision:       0,
@@ -647,7 +659,7 @@ func TestLogRootUpdate(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	signer := tcrypto.NewSigner(ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
-	root, err := signer.SignLogRoot(&types.LogRootV1{
+	root, err := SignLogRoot(signer, &types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		Revision:       0,
@@ -656,7 +668,7 @@ func TestLogRootUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SignLogRoot(): %v", err)
 	}
-	root2, err := signer.SignLogRoot(&types.LogRootV1{
+	root2, err := SignLogRoot(signer, &types.LogRootV1{
 		TimestampNanos: 98766,
 		TreeSize:       16,
 		Revision:       1,

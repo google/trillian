@@ -19,9 +19,6 @@ import (
 	"crypto"
 	"crypto/rand"
 
-	"github.com/golang/glog"
-	"github.com/google/trillian"
-	"github.com/google/trillian/types"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -63,22 +60,4 @@ func (s *Signer) Sign(data []byte) ([]byte, error) {
 	digest := h.Sum(nil)
 
 	return s.Signer.Sign(rand.Reader, digest, s.Hash)
-}
-
-// SignLogRoot returns a complete SignedLogRoot (including signature).
-func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error) {
-	logRoot, err := r.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	signature, err := s.Sign(logRoot)
-	if err != nil {
-		glog.Warningf("signer failed to sign log root: %v", err)
-		return nil, err
-	}
-
-	return &trillian.SignedLogRoot{
-		LogRoot:          logRoot,
-		LogRootSignature: signature,
-	}, nil
 }

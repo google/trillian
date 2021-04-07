@@ -256,10 +256,15 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 		ls := mysql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 			signer := tcrypto.NewSigner(testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
-			slr, err := signer.SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
+			logRoot, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
 			if err != nil {
 				return err
 			}
+			signature, err := signer.Sign(logRoot)
+			if err != nil {
+				return err
+			}
+			slr := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
 			return tx.StoreSignedLogRoot(ctx, slr)
 		})
 		if err != nil {

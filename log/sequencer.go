@@ -435,10 +435,15 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return fmt.Errorf("%v: refusing to sign root with timestamp earlier than previous root (%d <= %d)", tree.TreeId, newLogRoot.TimestampNanos, currentRoot.TimestampNanos)
 		}
 
-		newSLR, err = s.signer.SignLogRoot(newLogRoot)
+		logRoot, err := newLogRoot.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("%v: signer failed to marshal root: %v", tree.TreeId, err)
+		}
+		signature, err := s.signer.Sign(logRoot)
 		if err != nil {
 			return fmt.Errorf("%v: signer failed to sign root: %v", tree.TreeId, err)
 		}
+		newSLR := &trillian.SignedLogRoot{LogRoot: logRoot, LogRootSignature: signature}
 
 		if err := tx.StoreSignedLogRoot(ctx, newSLR); err != nil {
 			return fmt.Errorf("%v: failed to write updated tree root: %v", tree.TreeId, err)
