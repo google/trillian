@@ -451,10 +451,9 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
-		var err error
 		leaf.QueueTimestamp = timestamppb.New(queueTimestamp)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 	}
 	start := time.Now()
@@ -690,14 +689,13 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 			}
 			break
 		}
-		var err error
 		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, qTimestamp))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, iTimestamp))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		ret = append(ret, leaf)
 	}
@@ -836,15 +834,14 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 			glog.Warningf("LogID: %d Scan() %s = %s", t.treeID, desc, err)
 			return nil, err
 		}
-		var err error
 		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, queueTS))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		if integrateTS.Valid {
 			leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, integrateTS.Int64))
-			if err != nil {
-				return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+			if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+				return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 			}
 		}
 

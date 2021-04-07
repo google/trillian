@@ -42,7 +42,10 @@ func MustHexDecode(b string) []byte {
 }
 
 // MustToTimestampProto converts t to a Timestamp protobuf, or panics if this fails.
-// TODO(mhutchinson): inline this.
 func MustToTimestampProto(t time.Time) *tspb.Timestamp {
-	return timestamppb.New(t)
+	ts := timestamppb.New(t)
+	if err := ts.CheckValid(); err != nil {
+		panic(err)
+	}
+	return ts
 }

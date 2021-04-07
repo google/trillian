@@ -626,6 +626,12 @@ func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tre
 func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 	createdPB := timestamppb.New(time.Unix(0, info.CreateTimeNanos))
 	updatedPB := timestamppb.New(time.Unix(0, info.UpdateTimeNanos))
+	if err := createdPB.CheckValid(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to convert creation time: %v", err)
+	}
+	if err := updatedPB.CheckValid(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to convert update time: %v", err)
+	}
 	tree := &trillian.Tree{
 		TreeId:          info.TreeId,
 		DisplayName:     info.Name,
@@ -687,6 +693,9 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 	}
 	if info.DeleteTimeNanos > 0 {
 		tree.DeleteTime = timestamppb.New(time.Unix(0, info.DeleteTimeNanos))
+		if err := tree.DeleteTime.CheckValid(); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to convert delete time: %v", err)
+		}
 	}
 
 	return tree, nil

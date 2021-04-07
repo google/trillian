@@ -296,6 +296,9 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 	var wg sync.WaitGroup
 	for i, l := range leaves {
 		l.QueueTimestamp = timestamppb.New(ts)
+		if err := l.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
+		}
 
 		// Capture the values for later reference in the MutationResultFunc below.
 		i, l := i, l
@@ -537,6 +540,9 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 			return err
 		}
 		l.QueueTimestamp = timestamppb.New(time.Unix(0, qTimestamp))
+		if err := l.QueueTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
+		}
 		f(&l)
 		return nil
 	})
@@ -626,6 +632,9 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 		}
 
 		l.QueueTimestamp = timestamppb.New(time.Unix(0, qe.timestamp))
+		if err := l.QueueTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
+		}
 		k := string(l.LeafIdentityHash)
 		if tx.dequeued[k] != nil {
 			// dupe, user probably called DequeueLeaves more than once.
@@ -721,12 +730,14 @@ func (l leafmap) addFullRow(seqLeaves map[string]sequencedLeafDataCols) func(r *
 			LeafIndex:        seqLeaf.SequenceNumber,
 			LeafIdentityHash: leafData.LeafIdentityHash,
 		}
-		var err error
 		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, leafData.QueueTimestampNanos))
-		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp %v", err)
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, seqLeaf.IntegrateTimestampNanos))
+		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
+		}
 
 		l[seqLeaf.SequenceNumber] = leaf
 		return nil

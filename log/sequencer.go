@@ -174,6 +174,9 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte) []tr
 func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string) error {
 	now := s.timeSource.Now()
 	integrateAt := timestamppb.New(now)
+	if err := integrateAt.CheckValid(); err != nil {
+		return fmt.Errorf("got invalid integrate timestamp: %w", err)
+	}
 	for i, leaf := range leaves {
 		// The leaf should already have the correct index before it's integrated.
 		if got, want := leaf.LeafIndex, begin+uint64(i); got < 0 || got != int64(want) {
