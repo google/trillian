@@ -155,11 +155,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tr *trillian.Tree) (*trillian.
 	meta := proto.Clone(tr).(*trillian.Tree)
 	meta.TreeId = id
 	meta.CreateTime = timestamppb.New(now)
-	if err != nil {
+	if err := meta.CreateTime.CheckValid(); err != nil {
 		return nil, err
 	}
 	meta.UpdateTime = timestamppb.New(now)
-	if err != nil {
+	if err := meta.UpdateTime.CheckValid(); err != nil {
 		return nil, err
 	}
 
@@ -187,9 +187,8 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
-	var err error
 	tree.UpdateTime = timestamppb.New(time.Now())
-	if err != nil {
+	if err := tree.UpdateTime.CheckValid(); err != nil {
 		return nil, err
 	}
 	return tree, nil
