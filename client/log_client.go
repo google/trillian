@@ -266,45 +266,6 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 	}
 }
 
-// VerifyInclusion ensures that the given leaf data has been included in the log.
-func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
-	leaf := c.BuildLeaf(data)
-	root := c.GetRoot()
-	ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("no proof")
-	}
-	return nil
-}
-
-// GetAndVerifyInclusionAtIndex ensures that the given leaf data has been included in the log at a particular index.
-func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byte, index int64, sth *types.LogRootV1) error {
-	resp, err := c.client.GetInclusionProof(ctx,
-		&trillian.GetInclusionProofRequest{
-			LogId:     c.LogID,
-			LeafIndex: index,
-			TreeSize:  int64(sth.TreeSize),
-		})
-	if err != nil {
-		return err
-	}
-
-	// If this request hit a more out-of-date server instance than the GetSLR request,
-	// there may be an empty proof and an earlier SLR.
-	var proofRoot types.LogRootV1
-	if err := proofRoot.UnmarshalBinary(resp.GetSignedLogRoot().GetLogRoot()); err != nil {
-		return err
-	}
-	if proofRoot.TreeSize < sth.TreeSize {
-		return fmt.Errorf("response for InclusionProof has a smaller (%d) root than requested (%d)", proofRoot.TreeSize, sth.TreeSize)
-	}
-
-	return c.VerifyInclusionAtIndex(sth, data, index, resp.Proof.Hashes)
-}
-
 func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *types.LogRootV1) (bool, error) {
 	resp, err := c.client.GetInclusionProofByHash(ctx,
 		&trillian.GetInclusionProofByHashRequest{

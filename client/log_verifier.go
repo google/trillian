@@ -85,17 +85,6 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	return &r, nil
 }
 
-// VerifyInclusionAtIndex verifies that the inclusion proof for data at leafIndex
-// matches the given trusted root.
-func (c *LogVerifier) VerifyInclusionAtIndex(trusted *types.LogRootV1, data []byte, leafIndex int64, proof [][]byte) error {
-	if trusted == nil {
-		return fmt.Errorf("VerifyInclusionAtIndex() error: trusted == nil")
-	}
-	leaf := c.BuildLeaf(data)
-	return c.v.VerifyInclusionProof(leafIndex, int64(trusted.TreeSize),
-		proof, trusted.RootHash, leaf.MerkleLeafHash)
-}
-
 // VerifyInclusionByHash verifies that the inclusion proof for the given Merkle leafHash
 // matches the given trusted root.
 func (c *LogVerifier) VerifyInclusionByHash(trusted *types.LogRootV1, leafHash []byte, proof *trillian.Proof) error {

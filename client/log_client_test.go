@@ -101,57 +101,6 @@ func TestListByIndex(t *testing.T) {
 	}
 }
 
-func TestVerifyInclusion(t *testing.T) {
-	ctx := context.Background()
-	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
-	defer env.Close()
-
-	// Add a few test leaves.
-	leafData := [][]byte{
-		[]byte("A"),
-		[]byte("B"),
-	}
-
-	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
-		t.Fatalf("Failed to add leaves: %v", err)
-	}
-
-	for _, l := range leafData {
-		if err := client.VerifyInclusion(ctx, l); err != nil {
-			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
-		}
-	}
-}
-
-func TestVerifyInclusionAtIndex(t *testing.T) {
-	ctx := context.Background()
-	env, client := clientEnvForTest(ctx, t, stestonly.PreorderedLogTree)
-	defer env.Close()
-
-	// Add a few test leaves.
-	leafData := [][]byte{
-		[]byte("A"),
-		[]byte("B"),
-	}
-
-	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
-		t.Fatalf("Failed to add leaves: %v", err)
-	}
-
-	root := client.GetRoot()
-	for i, l := range leafData {
-		if err := client.GetAndVerifyInclusionAtIndex(ctx, l, int64(i), root); err != nil {
-			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
-		}
-	}
-
-	// Ask for inclusion in a too-large tree.
-	root.TreeSize += 1000
-	if err := client.GetAndVerifyInclusionAtIndex(ctx, leafData[0], 0, root); err == nil {
-		t.Errorf("GetAndVerifyInclusionAtIndex(0, %d)=nil, want error", root.TreeSize)
-	}
-}
-
 func TestWaitForInclusion(t *testing.T) {
 	ctx := context.Background()
 	tree := proto.Clone(stestonly.LogTree).(*trillian.Tree)
