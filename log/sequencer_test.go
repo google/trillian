@@ -34,7 +34,6 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 
-	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/storage/tree"
 )
@@ -187,8 +186,7 @@ func makeSLR(root *types.LogRootV1) *trillian.SignedLogRoot {
 
 // testParameters bundles up values needed for setting mock expectations in tests
 type testParameters struct {
-	logID  int64
-	signer crypto.Signer
+	logID int64
 
 	beginFails   bool
 	dequeueLimit int
@@ -229,7 +227,6 @@ type testParameters struct {
 type testContext struct {
 	mockTx      *storage.MockLogTreeTX
 	fakeStorage storage.LogStorage
-	signer      *tcrypto.Signer
 	sequencer   *Sequencer
 }
 
@@ -311,13 +308,12 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		}
 	}
 
-	signer := tcrypto.NewSigner(params.signer, crypto.SHA256)
 	qm := params.qm
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFake(fakeTime), fakeStorage, signer, nil, qm)
-	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, signer: signer, sequencer: sequencer}, context.Background()
+	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFake(fakeTime), fakeStorage, nil, qm)
+	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, sequencer: sequencer}, context.Background()
 }
 
 // Tests for sequencer. Currently relies on storage mocks.
@@ -389,7 +385,6 @@ func TestIntegrateBatch(t *testing.T) {
 				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &noLeaves,
 				merkleNodesSet:   &noNodes,
-				signer:           fixedGoSigner,
 				storeSignedRoot:  newSignedRoot16,
 			},
 			maxRootDuration: 9 * time.Millisecond,
@@ -406,7 +401,6 @@ func TestIntegrateBatch(t *testing.T) {
 				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &noLeaves,
 				merkleNodesSet:   &noNodes,
-				signer:           fixedGoSigner,
 				storeSignedRoot:  newSignedRoot16,
 			},
 			maxRootDuration: 10 * time.Millisecond,
@@ -507,7 +501,6 @@ func TestIntegrateBatch(t *testing.T) {
 				merkleNodesSet:       &updatedNodes,
 				storeSignedRoot:      nil,
 				storeSignedRootError: errors.New("storesignedroot"),
-				signer:               fixedGoSigner,
 			},
 			errStr: "storesignedroot",
 		},
@@ -526,7 +519,6 @@ func TestIntegrateBatch(t *testing.T) {
 				updatedLeaves:    &leaves16,
 				merkleNodesSet:   &updatedNodes,
 				storeSignedRoot:  nil,
-				signer:           fixedGoSigner,
 			},
 			errStr: "commit",
 		},
@@ -542,7 +534,6 @@ func TestIntegrateBatch(t *testing.T) {
 				updatedLeaves:    &noLeaves,
 				merkleNodesSet:   &noNodes,
 				storeSignedRoot:  updatedSignedEmptyRoot,
-				signer:           fixedGoSigner,
 			},
 			maxRootDuration: 5 * time.Millisecond,
 		},
@@ -559,7 +550,6 @@ func TestIntegrateBatch(t *testing.T) {
 				updatedLeaves:    &leaves16,
 				merkleNodesSet:   &updatedNodes,
 				storeSignedRoot:  testSignedRoot,
-				signer:           fixedGoSigner,
 			},
 			wantCount: 1,
 		},
@@ -576,7 +566,6 @@ func TestIntegrateBatch(t *testing.T) {
 				updatedLeaves:    &[]*trillian.LogLeaf{testLeaf21},
 				merkleNodesSet:   &updatedNodes21,
 				storeSignedRoot:  updatedSignedRoot21,
-				signer:           fixedGoSigner,
 			},
 			wantCount: 1,
 		},
@@ -642,15 +631,12 @@ func TestIntegrateBatch(t *testing.T) {
 }
 
 func TestIntegrateBatch_PutTokens(t *testing.T) {
-	cryptoSigner := newSignerWithFixedSig([]byte{})
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	// Needed to create a signer
 	hasher := rfc6962.DefaultHasher
 	ts := clock.NewFake(fakeTime)
-	signer := tcrypto.NewSigner(cryptoSigner, crypto.SHA256)
 
 	// Needed for IntegrateBatch calls
 	const treeID int64 = 1234
@@ -741,7 +727,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 				qm.EXPECT().PutTokens(any, test.wantTokens, specs)
 			}
 
-			sequencer := NewSequencer(hasher, ts, logStorage, signer, nil /* mf */, qm)
+			sequencer := NewSequencer(hasher, ts, logStorage, nil /* mf */, qm)
 			tree := &trillian.Tree{TreeId: treeID, TreeType: trillian.TreeType_LOG}
 			leaves, err := sequencer.IntegrateBatch(ctx, tree, limit, guardWindow, maxRootDuration)
 			if err != nil {

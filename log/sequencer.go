@@ -33,8 +33,6 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 const logIDLabel = "logid"
@@ -103,7 +101,6 @@ type Sequencer struct {
 	hasher     hashers.LogHasher
 	timeSource clock.TimeSource
 	logStorage storage.LogStorage
-	signer     *tcrypto.Signer
 	qm         quota.Manager
 }
 
@@ -112,7 +109,6 @@ func NewSequencer(
 	hasher hashers.LogHasher,
 	timeSource clock.TimeSource,
 	logStorage storage.LogStorage,
-	signer *tcrypto.Signer,
 	mf monitoring.MetricFactory,
 	qm quota.Manager) *Sequencer {
 	sequencerOnce.Do(func() {
@@ -122,7 +118,6 @@ func NewSequencer(
 		hasher:     hasher,
 		timeSource: timeSource,
 		logStorage: logStorage,
-		signer:     signer,
 		qm:         qm,
 	}
 }

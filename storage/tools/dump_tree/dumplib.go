@@ -33,7 +33,6 @@ import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/der"
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	"github.com/google/trillian/crypto/keys/pem"
@@ -49,7 +48,6 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -175,7 +173,7 @@ func getPublicKey(keyPEM string) []byte {
 	return keyDER
 }
 
-func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree, *tcrypto.Signer) {
+func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 	ctx := context.TODO()
 	privKey, _ := getPrivateKey(logPrivKeyPEM, "towel")
 	pubKey := getPublicKey(logPubKeyPEM)
@@ -197,10 +195,6 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
 		glog.Fatalf("Unknown hash strategy: %s", s)
 	}
-	tSigner, err := trees.Signer(ctx, createdTree)
-	if err != nil {
-		glog.Fatalf("Creating signer: %v", err)
-	}
 
 	logRoot, err := (&types.LogRootV1{RootHash: rfc6962.DefaultHasher.EmptyRoot()}).MarshalBinary()
 	if err != nil {
@@ -218,7 +212,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		glog.Fatalf("ReadWriteTransaction: %v", err)
 	}
 
-	return createdTree, tSigner
+	return createdTree
 }
 
 // Options are the commandline arguments one can pass to Main
@@ -238,12 +232,11 @@ func Main(args Options) string {
 	ts := memory.NewTreeStorage()
 	ls := memory.NewLogStorage(ts, monitoring.InertMetricFactory{})
 	as := memory.NewAdminStorage(ts)
-	tree, tSigner := createTree(as, ls)
+	tree := createTree(as, ls)
 
 	seq := log.NewSequencer(rfc6962.DefaultHasher,
 		clock.System,
 		ls,
-		tSigner,
 		nil,
 		quota.Noop())
 

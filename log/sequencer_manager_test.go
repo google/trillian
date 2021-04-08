@@ -17,7 +17,6 @@ package log
 import (
 	"context"
 	"crypto"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -178,44 +177,6 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		// This tests that the signer obtained by SequencerManager during the first sequencing
 		// pass is cached and re-used for the second pass.
 		keys.UnregisterHandler(kpm)
-	}
-}
-
-// Test that sequencing is skipped if no signer is available.
-func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
-	ctx := context.Background()
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	logID := stestonly.LogTree.GetTreeId()
-	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
-	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
-	fakeStorage := &stestonly.FakeLogStorage{}
-
-	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
-	if err != nil {
-		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
-	}
-	kpm := proto.MessageV1(keyProto)
-
-	keys.RegisterHandler(fakeKeyProtoHandler(kpm, nil, errors.New("no signer for this tree")))
-	defer keys.UnregisterHandler(kpm)
-
-	gomock.InOrder(
-		mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil),
-		mockAdminTx.EXPECT().Commit().Return(nil),
-		mockAdminTx.EXPECT().Close().Return(nil),
-	)
-
-	registry := extension.Registry{
-		AdminStorage: mockAdmin,
-		LogStorage:   fakeStorage,
-		QuotaManager: quota.Noop(),
-	}
-
-	sm := NewSequencerManager(registry, zeroDuration)
-	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err == nil {
-		t.Fatal("ExecutePass() = (_, nil), want err")
 	}
 }
 
