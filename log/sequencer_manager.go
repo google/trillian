@@ -17,7 +17,6 @@ package log
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -25,16 +24,12 @@ import (
 	"github.com/google/trillian/extension"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/trees"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 // SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
-	guardWindow  time.Duration
-	registry     extension.Registry
-	signers      map[int64]*tcrypto.Signer
-	signersMutex sync.Mutex
+	guardWindow time.Duration
+	registry    extension.Registry
 }
 
 var seqOpts = trees.NewGetOpts(trees.SequenceLog, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
@@ -45,7 +40,6 @@ func NewSequencerManager(registry extension.Registry, gw time.Duration) *Sequenc
 	return &SequencerManager{
 		guardWindow: gw,
 		registry:    registry,
-		signers:     make(map[int64]*tcrypto.Signer),
 	}
 }
 
@@ -64,12 +58,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 		return 0, fmt.Errorf("unknown hash strategy for log %v: %s", logID, s)
 	}
 
-	signer, err := s.getSigner(ctx, tree)
-	if err != nil {
-		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
-	}
-
-	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, s.registry.MetricFactory, s.registry.QuotaManager)
 
 	maxRootDuration := tree.MaxRootDuration.AsDuration()
 	if !tree.MaxRootDuration.IsValid() {
@@ -81,23 +70,4 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 		return 0, fmt.Errorf("failed to integrate batch for %v: %v", logID, err)
 	}
 	return leaves, nil
-}
-
-// getSigner returns a signer for the given tree.
-// Signers are cached, so only one will be created per tree.
-func (s *SequencerManager) getSigner(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
-	s.signersMutex.Lock()
-	defer s.signersMutex.Unlock()
-
-	if signer, ok := s.signers[tree.GetTreeId()]; ok {
-		return signer, nil
-	}
-
-	signer, err := trees.Signer(ctx, tree)
-	if err != nil {
-		return nil, err
-	}
-
-	s.signers[tree.GetTreeId()] = signer
-	return signer, nil
 }
