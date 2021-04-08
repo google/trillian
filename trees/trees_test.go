@@ -283,34 +283,6 @@ func TestGetTree(t *testing.T) {
 	}
 }
 
-func TestHash(t *testing.T) {
-	tests := []struct {
-		hashAlgo sigpb.DigitallySigned_HashAlgorithm
-		wantHash crypto.Hash
-		wantErr  bool
-	}{
-		{hashAlgo: sigpb.DigitallySigned_NONE, wantErr: true},
-		{hashAlgo: sigpb.DigitallySigned_SHA256, wantHash: crypto.SHA256},
-	}
-
-	for _, test := range tests {
-		tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-		tree.HashAlgorithm = test.hashAlgo
-
-		hash, err := Hash(tree)
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("Hash(%s) = (_, %q), wantErr = %v", test.hashAlgo, err, test.wantErr)
-			continue
-		} else if hasErr {
-			continue
-		}
-
-		if hash != test.wantHash {
-			t.Errorf("Hash(%s) = (%v, nil), want = (%v, nil)", test.hashAlgo, hash, test.wantHash)
-		}
-	}
-}
-
 func TestSigner(t *testing.T) {
 	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {

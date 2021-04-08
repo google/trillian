@@ -16,6 +16,7 @@ package quota
 
 import (
 	"context"
+	"crypto"
 	"errors"
 	"fmt"
 	"hash"
@@ -37,7 +38,6 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/testonly/integration/etcd"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util/clock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -136,11 +136,7 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 	if err != nil {
 		return fmt.Errorf("InitLog() returned err = %v", err)
 	}
-	hasherFn, err := trees.Hash(tree)
-	if err != nil {
-		return fmt.Errorf("trees.Hash()=%v, want: nil", err)
-	}
-	hasher := hasherFn.New()
+	hasher := crypto.SHA256.New()
 	lw := &leafWriter{client: s.log, hash: hasher, treeID: tree.TreeId}
 
 	// Requests where leaves < numTokens should work
