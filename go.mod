@@ -12,7 +12,7 @@ require (
 	github.com/apache/beam v2.28.0+incompatible
 	github.com/fullstorydev/grpcurl v1.8.0
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.5.2
