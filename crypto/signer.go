@@ -15,49 +15,20 @@
 // Package crypto provides signing functionality for Trillian.
 package crypto
 
-import (
-	"crypto"
-	"crypto/rand"
-
-	"golang.org/x/crypto/ed25519"
-)
-
-const noHash = crypto.Hash(0)
+import "crypto"
 
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	// If Hash is noHash (zero), the signer expects to be given the full message not a hashed digest.
-	Hash   crypto.Hash
 	Signer crypto.Signer
 }
 
 // NewSigner returns a new signer.
-func NewSigner(signer crypto.Signer, hash crypto.Hash) *Signer {
-	if _, ok := signer.(ed25519.PrivateKey); ok {
-		// Ed25519 signing requires the full message.
-		hash = noHash
-	}
-	return &Signer{
-		Hash:   hash,
-		Signer: signer,
-	}
+func NewSigner(signer crypto.Signer, _ crypto.Hash) *Signer {
+	return &Signer{Signer: signer}
 }
 
 // Public returns the public key that can verify signatures produced by s.
 func (s *Signer) Public() crypto.PublicKey {
 	return s.Signer.Public()
-}
-
-// Sign obtains a signature over the input data; this typically (but not always)
-// involves first hashing the input data.
-func (s *Signer) Sign(data []byte) ([]byte, error) {
-	if s.Hash == noHash {
-		return s.Signer.Sign(rand.Reader, data, noHash)
-	}
-	h := s.Hash.New()
-	h.Write(data)
-	digest := h.Sum(nil)
-
-	return s.Signer.Sign(rand.Reader, digest, s.Hash)
 }
