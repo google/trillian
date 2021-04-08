@@ -16,6 +16,7 @@ package mysqlqm_test
 
 import (
 	"context"
+	"crypto"
 	"database/sql"
 	"fmt"
 	"testing"
@@ -27,7 +28,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -268,11 +268,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 }
 
 func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, num int) error {
-	hasherFn, err := trees.Hash(tree)
-	if err != nil {
-		return err
-	}
-	hasher := hasherFn.New()
+	hasher := crypto.SHA256.New()
 
 	leaves := []*trillian.LogLeaf{}
 	for i := 0; i < num; i++ {
@@ -291,7 +287,7 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 	}
 
 	ls := mysql.NewLogStorage(db, nil)
-	_, err = ls.QueueLeaves(ctx, tree, leaves, time.Now())
+	_, err := ls.QueueLeaves(ctx, tree, leaves, time.Now())
 	return err
 }
 

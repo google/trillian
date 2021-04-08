@@ -173,25 +173,14 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 	return tree, nil
 }
 
-// Hash returns the crypto.Hash configured by the tree.
-func Hash(tree *trillian.Tree) (crypto.Hash, error) {
-	switch tree.HashAlgorithm {
-	case sigpb.DigitallySigned_SHA256:
-		return crypto.SHA256, nil
-	}
-	// There's no nil-like value for crypto.Hash, something has to be returned.
-	return crypto.SHA256, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
-}
-
 // Signer returns a Trillian crypto.Signer configured by the tree.
 func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 	if tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS {
 		return nil, fmt.Errorf("signature algorithm not supported: %s", tree.SignatureAlgorithm)
 	}
 
-	hash, err := Hash(tree)
-	if err != nil {
-		return nil, err
+	if tree.HashAlgorithm != sigpb.DigitallySigned_SHA256 {
+		return nil, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
 	}
 
 	keyProto, err := tree.PrivateKey.UnmarshalNew()
@@ -208,7 +197,7 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 		return nil, fmt.Errorf("%s signature not supported by signer of type %T", tree.SignatureAlgorithm, signer)
 	}
 
-	return tcrypto.NewSigner(signer, hash), nil
+	return tcrypto.NewSigner(signer, crypto.SHA256), nil
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, func()) {
