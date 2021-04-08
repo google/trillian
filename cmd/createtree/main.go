@@ -36,7 +36,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/client/rpcflags"
@@ -45,6 +44,7 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 var (
@@ -128,7 +128,7 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
 		DisplayName:        *displayName,
 		Description:        *description,
-		MaxRootDuration:    ptypes.DurationProto(*maxRootDuration),
+		MaxRootDuration:    durationpb.New(*maxRootDuration),
 	}}
 	glog.Infof("Creating tree %+v", ctr.Tree)
 

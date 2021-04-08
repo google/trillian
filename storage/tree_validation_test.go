@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
@@ -29,6 +28,9 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 
@@ -99,7 +101,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidSettings.StorageSettings = &any.Any{Value: []byte("foobar")}
 
 	// As long as settings is a valid proto, the type doesn't matter for this test.
-	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
+	settings, err := anypb.New(proto.MessageV2(&keyspb.PEMKeyFile{}))
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
@@ -110,13 +112,13 @@ func TestValidateTreeForCreation(t *testing.T) {
 	nilRootDuration.MaxRootDuration = nil
 
 	invalidRootDuration := newTree()
-	invalidRootDuration.MaxRootDuration = ptypes.DurationProto(-1 * time.Second)
+	invalidRootDuration.MaxRootDuration = durationpb.New(-1 * time.Second)
 
 	deletedTree := newTree()
 	deletedTree.Deleted = true
 
 	deleteTimeTree := newTree()
-	deleteTimeTree.DeleteTime = ptypes.TimestampNow()
+	deleteTimeTree.DeleteTime = timestamppb.Now()
 
 	tests := []struct {
 		desc    string
@@ -258,7 +260,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			desc: "validSettings",
 			updatefn: func(tree *trillian.Tree) {
 				// As long as settings is a valid proto, the type doesn't matter for this test.
-				settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
+				settings, err := anypb.New(proto.MessageV2(&keyspb.PEMKeyFile{}))
 				if err != nil {
 					t.Fatalf("Error marshaling proto: %v", err)
 				}
@@ -275,22 +277,22 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "validRootDuration",
 			updatefn: func(tree *trillian.Tree) {
-				tree.MaxRootDuration = ptypes.DurationProto(200 * time.Millisecond)
+				tree.MaxRootDuration = durationpb.New(200 * time.Millisecond)
 			},
 		},
 		{
 			desc: "invalidRootDuration",
 			updatefn: func(tree *trillian.Tree) {
-				tree.MaxRootDuration = ptypes.DurationProto(-200 * time.Millisecond)
+				tree.MaxRootDuration = durationpb.New(-200 * time.Millisecond)
 			},
 			wantErr: true,
 		},
 		{
 			desc: "differentPrivateKeyProtoButSameKeyMaterial",
 			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&keyspb.PrivateKey{
+				key, err := anypb.New(proto.MessageV2(&keyspb.PrivateKey{
 					Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
-				})
+				}))
 				if err != nil {
 					panic(err)
 				}
@@ -300,9 +302,9 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "differentPrivateKeyProtoAndDifferentKeyMaterial",
 			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&keyspb.PrivateKey{
+				key, err := anypb.New(proto.MessageV2(&keyspb.PrivateKey{
 					Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
-				})
+				}))
 				if err != nil {
 					panic(err)
 				}
@@ -313,7 +315,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "unsupportedPrivateKeyProto",
 			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&empty.Empty{})
+				key, err := anypb.New(proto.MessageV2(&empty.Empty{}))
 				if err != nil {
 					panic(err)
 				}
@@ -393,14 +395,14 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "CreateTime",
 			updatefn: func(tree *trillian.Tree) {
-				tree.CreateTime, _ = ptypes.TimestampProto(time.Now())
+				tree.CreateTime = timestamppb.New(time.Now())
 			},
 			wantErr: true,
 		},
 		{
 			desc: "UpdateTime",
 			updatefn: func(tree *trillian.Tree) {
-				tree.UpdateTime, _ = ptypes.TimestampProto(time.Now())
+				tree.UpdateTime = timestamppb.New(time.Now())
 			},
 			wantErr: true,
 		},
@@ -411,7 +413,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		},
 		{
 			desc:     "DeleteTime",
-			updatefn: func(tree *trillian.Tree) { tree.DeleteTime = ptypes.TimestampNow() },
+			updatefn: func(tree *trillian.Tree) { tree.DeleteTime = timestamppb.Now() },
 			wantErr:  true,
 		},
 	}
@@ -439,10 +441,10 @@ func TestValidateTreeForUpdate(t *testing.T) {
 
 // newTree returns a valid log tree for tests.
 func newTree() *trillian.Tree {
-	privateKey, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{
+	privateKey, err := anypb.New(proto.MessageV2(&keyspb.PEMKeyFile{
 		Path:     privateKeyPath,
 		Password: privateKeyPass,
-	})
+	}))
 	if err != nil {
 		panic(err)
 	}
@@ -459,6 +461,6 @@ func newTree() *trillian.Tree {
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
 		},
-		MaxRootDuration: ptypes.DurationProto(1000 * time.Millisecond),
+		MaxRootDuration: durationpb.New(1000 * time.Millisecond),
 	}
 }

@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
@@ -32,6 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	storageto "github.com/google/trillian/storage/testonly"
 )
@@ -487,7 +487,7 @@ func dequeueAndSequence(ctx context.Context, t *testing.T, ls storage.LogStorage
 		t.Logf("DequeueLeaves took %v tries and %v to dequeue %d leaves", i, time.Since(start), len(ret))
 		ensureAllLeavesDistinct(t, ret)
 		ensureLeavesHaveQueueTimestamp(t, ret, ts)
-		iTimestamp := ptypes.TimestampNow()
+		iTimestamp := timestamppb.Now()
 		for i, l := range ret {
 			l.IntegrateTimestamp = iTimestamp
 			l.LeafIndex = int64(i) + startIndex
@@ -518,10 +518,7 @@ func ensureAllLeavesDistinct(t *testing.T, leaves []*trillian.LogLeaf) {
 func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, want time.Time) {
 	t.Helper()
 	for _, leaf := range leaves {
-		gotQTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
-		if err != nil {
-			t.Fatalf("Got invalid queue timestamp: %v", err)
-		}
+		gotQTimestamp := leaf.QueueTimestamp.AsTime()
 		if got, want := gotQTimestamp.UnixNano(), want.UnixNano(); got != want {
 			t.Errorf("Got leaf with QueueTimestampNanos = %v, want %v: %v", got, want, leaf)
 		}
@@ -597,8 +594,8 @@ func (*logTests) TestAddSequencedLeavesAndDequeueLeaves(ctx context.Context, t *
 		}
 	}
 
-	qts, _ := ptypes.TimestampProto(now)
-	its, _ := ptypes.TimestampProto(time.Unix(0, 0))
+	qts := timestamppb.New(now)
+	its := timestamppb.New(time.Unix(0, 0))
 
 	partial := make([]*trillian.LogLeaf, 0, len(leaves))
 	for _, leaf := range leaves {

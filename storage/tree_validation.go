@@ -19,7 +19,6 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
@@ -119,28 +118,28 @@ func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
 	if tree.TreeState == trillian.TreeState_UNKNOWN_TREE_STATE {
 		return status.Errorf(codes.InvalidArgument, "invalid tree_state: %v", tree.TreeState)
 	}
-	if duration, err := ptypes.Duration(tree.MaxRootDuration); err != nil {
-		return status.Errorf(codes.InvalidArgument, "max_root_duration malformed: %v", tree.MaxRootDuration)
-	} else if duration < 0 {
+	if err := tree.MaxRootDuration.CheckValid(); err != nil {
+		return status.Errorf(codes.InvalidArgument, "max_root_duration malformed: %v", err)
+	} else if duration := tree.MaxRootDuration.AsDuration(); duration < 0 {
 		return status.Errorf(codes.InvalidArgument, "max_root_duration negative: %v", tree.MaxRootDuration)
 	}
 
 	// Implementations may vary, so let's assume storage_settings is mutable.
 	// Other than checking that it's a valid Any there isn't much to do at this layer, though.
 	if tree.StorageSettings != nil {
-		var settings ptypes.DynamicAny
-		if err := ptypes.UnmarshalAny(tree.StorageSettings, &settings); err != nil {
+		_, err := tree.StorageSettings.UnmarshalNew()
+		if err != nil {
 			return status.Errorf(codes.InvalidArgument, "invalid storage_settings: %v", err)
 		}
 	}
 
-	var privateKeyProto ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKeyProto); err != nil {
+	privateKeyProto, err := tree.PrivateKey.UnmarshalNew()
+	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
 	}
 
 	// Check that the private key can be obtained and matches the public key.
-	privateKey, err := keys.NewSigner(ctx, privateKeyProto.Message)
+	privateKey, err := keys.NewSigner(ctx, proto.MessageV1(privateKeyProto))
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
 	}

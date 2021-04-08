@@ -26,13 +26,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/integration/storagetest"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tcrypto "github.com/google/trillian/crypto"
 	ttestonly "github.com/google/trillian/testonly"
@@ -80,14 +80,8 @@ func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash,
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
 	}
-	queueTimestamp, err := ptypes.TimestampProto(fakeQueueTime)
-	if err != nil {
-		panic(err)
-	}
-	integrateTimestamp, err := ptypes.TimestampProto(fakeIntegrateTime)
-	if err != nil {
-		panic(err)
-	}
+	queueTimestamp := timestamppb.New(fakeQueueTime)
+	integrateTimestamp := timestamppb.New(fakeIntegrateTime)
 	return &trillian.LogLeaf{
 		MerkleLeafHash:     hash,
 		LeafValue:          data,
@@ -121,10 +115,7 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 
-	iTime, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
-	if err != nil {
-		t.Fatalf("Got invalid integrate timestamp: %v", err)
-	}
+	iTime := leaf.IntegrateTimestamp.AsTime()
 	if got, want := iTime.UnixNano(), fakeIntegrateTime.UnixNano(); got != want {
 		t.Errorf("Wrong IntegrateTimestamp: got %v, want %v", got, want)
 	}
@@ -379,7 +370,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 			if !leafInBatch(dequeue1[0], leaves2) || !leafInBatch(dequeue1[1], leaves2) {
 				t.Fatalf("Got leaf from wrong batch (1st dequeue): %v", dequeue1)
 			}
-			iTimestamp := ptypes.TimestampNow()
+			iTimestamp := timestamppb.Now()
 			for i, l := range dequeue1 {
 				l.IntegrateTimestamp = iTimestamp
 				l.LeafIndex = int64(i)
@@ -822,10 +813,7 @@ func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, want time.Time) {
 	t.Helper()
 	for _, leaf := range leaves {
-		gotQTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
-		if err != nil {
-			t.Fatalf("Got invalid queue timestamp: %v", err)
-		}
+		gotQTimestamp := leaf.QueueTimestamp.AsTime()
 		if got, want := gotQTimestamp.UnixNano(), want.UnixNano(); got != want {
 			t.Errorf("Got leaf with QueueTimestampNanos = %v, want %v: %v", got, want, leaf)
 		}

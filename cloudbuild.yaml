@@ -13,6 +13,7 @@ options:
   env:
     - GO111MODULE=on
     - GOPATH=/go
+    - GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore # Temporary work-around v1.proto already registered error.
     - DOCKER_CLIENT_TIMEOUT=120
     - COMPOSE_HTTP_TIMEOUT=120
 

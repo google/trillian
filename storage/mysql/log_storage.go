@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
@@ -37,6 +36,7 @@ import (
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -451,10 +451,9 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
-		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(queueTimestamp)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		leaf.QueueTimestamp = timestamppb.New(queueTimestamp)
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 	}
 	start := time.Now()
@@ -468,11 +467,11 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		i, leaf := ol.idx, ol.leaf
 
 		leafStart := time.Now()
-		qTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
-		_, err = t.tx.ExecContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
+		qTimestamp := leaf.QueueTimestamp.AsTime()
+		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
@@ -493,11 +492,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
 		}
-		queueTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
-		}
-		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, queueTimestamp)...)
+		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, qTimestamp)...)
 		_, err = t.tx.ExecContext(
 			ctx,
 			insertUnsequencedEntrySQL,
@@ -694,14 +689,13 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 			}
 			break
 		}
-		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, qTimestamp))
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+		leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, iTimestamp))
+		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		ret = append(ret, leaf)
 	}
@@ -840,15 +834,14 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 			glog.Warningf("LogID: %d Scan() %s = %s", t.treeID, desc, err)
 			return nil, err
 		}
-		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, queueTS))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, queueTS))
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		if integrateTS.Valid {
-			leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, integrateTS.Int64))
-			if err != nil {
-				return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+			leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, integrateTS.Int64))
+			if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+				return nil, fmt.Errorf("got invalid integrate timestamp: %w", err)
 			}
 		}
 

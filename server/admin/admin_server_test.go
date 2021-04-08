@@ -29,7 +29,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
@@ -44,6 +43,8 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ttestonly "github.com/google/trillian/testonly"
 )
@@ -128,7 +129,7 @@ func TestServer_ListTrees(t *testing.T) {
 	deletedLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 
 	id := int64(17)
-	nowPB := ptypes.TimestampNow()
+	nowPB := timestamppb.Now()
 	for _, tree := range []*trillian.Tree{activeLog, frozenLog, deletedLog} {
 		tree.TreeId = id
 		tree.CreateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
@@ -490,7 +491,7 @@ func TestServer_CreateTree(t *testing.T) {
 			setup := setupAdminServer(ctrl, keygen, false /* snapshot */, test.wantCommit, test.commitErr)
 			tx := setup.tx
 			s := setup.server
-			nowPB := ptypes.TimestampNow()
+			nowPB := timestamppb.Now()
 
 			if test.req.Tree != nil {
 				newTree := proto.Clone(test.req.Tree).(*trillian.Tree)
@@ -592,12 +593,12 @@ func TestServer_UpdateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	nowPB := ptypes.TimestampNow()
+	nowPB := timestamppb.Now()
 	existingTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	existingTree.TreeId = 12345
 	existingTree.CreateTime = nowPB
 	existingTree.UpdateTime = nowPB
-	existingTree.MaxRootDuration = ptypes.DurationProto(1 * time.Nanosecond)
+	existingTree.MaxRootDuration = durationpb.New(1 * time.Nanosecond)
 
 	// Any valid proto works here, the type doesn't matter for this test.
 	settings := ttestonly.MustMarshalAny(t, &empty.Empty{})
@@ -608,7 +609,7 @@ func TestServer_UpdateTree(t *testing.T) {
 		DisplayName:     "Brand New Tree Name",
 		Description:     "Brand New Tree Desc",
 		StorageSettings: settings,
-		MaxRootDuration: ptypes.DurationProto(2 * time.Nanosecond),
+		MaxRootDuration: durationpb.New(2 * time.Nanosecond),
 		PrivateKey:      ttestonly.MustMarshalAny(t, &empty.Empty{}),
 	}
 	successMask := &field_mask.FieldMask{
@@ -721,7 +722,7 @@ func TestServer_DeleteTree(t *testing.T) {
 	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	for i, tree := range []*trillian.Tree{logTree} {
 		tree.TreeId = int64(i) + 10
-		tree.CreateTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600, 0))
+		tree.CreateTime = timestamppb.New(time.Unix(int64(i)*3600, 0))
 		tree.UpdateTime = tree.CreateTime
 	}
 
@@ -803,10 +804,10 @@ func TestServer_UndeleteTree(t *testing.T) {
 	frozenLog.TreeState = trillian.TreeState_FROZEN
 	for i, tree := range []*trillian.Tree{activeLog, frozenLog} {
 		tree.TreeId = int64(i) + 10
-		tree.CreateTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600, 0))
+		tree.CreateTime = timestamppb.New(time.Unix(int64(i)*3600, 0))
 		tree.UpdateTime = tree.CreateTime
 		tree.Deleted = true
-		tree.DeleteTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600+10, 0))
+		tree.DeleteTime = timestamppb.New(time.Unix(int64(i)*3600+10, 0))
 	}
 
 	tests := []struct {

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
@@ -72,8 +71,8 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 
 	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
 
-	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
+	maxRootDuration := tree.MaxRootDuration.AsDuration()
+	if !tree.MaxRootDuration.IsValid() {
 		glog.Warning("failed to parse tree.MaxRootDuration, using zero")
 		maxRootDuration = 0
 	}

@@ -31,7 +31,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
@@ -53,6 +52,8 @@ import (
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // A 32 bit magic number that is written at the start of record io files to identify the format.
@@ -153,7 +154,7 @@ func getPrivateKey(pemPath, pemPassword string) (*any.Any, crypto.Signer) {
 	if err != nil {
 		glog.Fatalf("MarshalPrivateKey(): %v", err)
 	}
-	anyPrivKey, err := ptypes.MarshalAny(&keyspb.PrivateKey{Der: pemDer})
+	anyPrivKey, err := anypb.New(proto.MessageV2(&keyspb.PrivateKey{Der: pemDer}))
 	if err != nil {
 		glog.Fatalf("MarshalAny(%v): %v", pemDer, err)
 	}
@@ -186,7 +187,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		PrivateKey:         privKey,
 		PublicKey:          &keyspb.PublicKey{Der: pubKey},
-		MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
+		MaxRootDuration:    durationpb.New(0 * time.Millisecond),
 	}
 	createdTree, err := storage.CreateTree(ctx, as, tree)
 	if err != nil {

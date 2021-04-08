@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
@@ -33,6 +32,7 @@ import (
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -173,9 +173,9 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte) []tr
 
 func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string) error {
 	now := s.timeSource.Now()
-	integrateAt, err := ptypes.TimestampProto(now)
-	if err != nil {
-		return fmt.Errorf("got invalid integrate timestamp: %v", err)
+	integrateAt := timestamppb.New(now)
+	if err := integrateAt.CheckValid(); err != nil {
+		return fmt.Errorf("got invalid integrate timestamp: %w", err)
 	}
 	for i, leaf := range leaves {
 		// The leaf should already have the correct index before it's integrated.
@@ -187,10 +187,10 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 		// Old leaves might not have a QueueTimestamp, only calculate the merge
 		// delay if this one does.
 		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
-			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
-			if err != nil {
-				return fmt.Errorf("got invalid queue timestamp: %v", queueTS)
+			if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+				return fmt.Errorf("got invalid queue timestamp: %w", err)
 			}
+			queueTS := leaf.QueueTimestamp.AsTime()
 			mergeDelay := now.Sub(queueTS)
 			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
 		}

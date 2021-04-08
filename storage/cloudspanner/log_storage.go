@@ -27,7 +27,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/storage"
@@ -38,6 +37,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -295,10 +295,9 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 	errs := make(chan error, 1)
 	var wg sync.WaitGroup
 	for i, l := range leaves {
-		var err error
-		l.QueueTimestamp, err = ptypes.TimestampProto(ts)
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		l.QueueTimestamp = timestamppb.New(ts)
+		if err := l.QueueTimestamp.CheckValid(); err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 
 		// Capture the values for later reference in the MutationResultFunc below.
@@ -306,6 +305,7 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 		res[i] = &trillian.QueuedLogLeaf{Status: okProto}
 
 		wg.Add(1)
+		var err error
 		// The insert of the LeafData and SequencedLeafData must happen atomically.
 		m1, err := spanner.InsertStruct(leafDataTbl, leafDataCols{
 			TreeID:              tree.TreeId,
@@ -539,10 +539,9 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 		if err := r.Columns(&l.LeafIdentityHash, &l.LeafValue, &l.ExtraData, &qTimestamp); err != nil {
 			return err
 		}
-		var err error
-		l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
-		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp: %v", err)
+		l.QueueTimestamp = timestamppb.New(time.Unix(0, qTimestamp))
+		if err := l.QueueTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		f(&l)
 		return nil
@@ -632,10 +631,9 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 			return err
 		}
 
-		var err error
-		l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qe.timestamp))
-		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp: %v", err)
+		l.QueueTimestamp = timestamppb.New(time.Unix(0, qe.timestamp))
+		if err := l.QueueTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		k := string(l.LeafIdentityHash)
 		if tx.dequeued[k] != nil {
@@ -681,10 +679,10 @@ func (tx *logTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return fmt.Errorf("attempting to assign unknown merkleleafhash %v", l.MerkleLeafHash)
 		}
 
-		iTimestamp, err := ptypes.Timestamp(l.IntegrateTimestamp)
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		if err := l.IntegrateTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
+		iTimestamp := l.IntegrateTimestamp.AsTime()
 
 		// Add the sequence mapping...
 		m1, err := spanner.InsertStruct(seqDataTbl, sequencedLeafDataCols{
@@ -732,14 +730,13 @@ func (l leafmap) addFullRow(seqLeaves map[string]sequencedLeafDataCols) func(r *
 			LeafIndex:        seqLeaf.SequenceNumber,
 			LeafIdentityHash: leafData.LeafIdentityHash,
 		}
-		var err error
-		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, leafData.QueueTimestampNanos))
-		if err != nil {
-			return fmt.Errorf("got invalid queue timestamp %v", err)
+		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, leafData.QueueTimestampNanos))
+		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
-		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, seqLeaf.IntegrateTimestampNanos))
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp %v", err)
+		leaf.IntegrateTimestamp = timestamppb.New(time.Unix(0, seqLeaf.IntegrateTimestampNanos))
+		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 
 		l[seqLeaf.SequenceNumber] = leaf
@@ -760,9 +757,9 @@ func (b leavesByHash) addRow(r *spanner.Row) error {
 	if err := r.Columns(&h, &v, &ed, &qTimestamp); err != nil {
 		return err
 	}
-	queueTimestamp, err := ptypes.TimestampProto(time.Unix(0, qTimestamp))
-	if err != nil {
-		return fmt.Errorf("got invalid queue timestamp: %v", err)
+	queueTimestamp := timestamppb.New(time.Unix(0, qTimestamp))
+	if err := queueTimestamp.CheckValid(); err != nil {
+		return fmt.Errorf("got invalid queue timestamp: %w", err)
 	}
 
 	leaves, ok := b[string(h)]

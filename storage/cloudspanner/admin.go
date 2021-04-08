@@ -24,7 +24,6 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
@@ -32,6 +31,9 @@ import (
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -419,10 +421,10 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		return nil, status.Errorf(codes.Internal, "unexpected SignatureAlgorithm: %s", tree.SignatureAlgorithm)
 	}
 
-	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
+	if err := tree.MaxRootDuration.CheckValid(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "malformed MaxRootDuration: %v", err)
 	}
+	maxRootDuration := tree.MaxRootDuration.AsDuration()
 
 	info := &spannerpb.TreeInfo{
 		TreeId:                treeID,
@@ -502,10 +504,10 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, status.Errorf(codes.Internal, "unexpected TreeState: %s", tree.TreeState)
 	}
 
-	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
+	if err := tree.MaxRootDuration.CheckValid(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "malformed MaxRootDuration: %v", err)
 	}
+	maxRootDuration := tree.MaxRootDuration.AsDuration()
 
 	// Update (just) the mutable fields in treeInfo.
 	now := TimeNow()
@@ -622,13 +624,13 @@ func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tre
 }
 
 func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
-	createdPB, err := ptypes.TimestampProto(time.Unix(0, info.CreateTimeNanos))
-	if err != nil {
+	createdPB := timestamppb.New(time.Unix(0, info.CreateTimeNanos))
+	updatedPB := timestamppb.New(time.Unix(0, info.UpdateTimeNanos))
+	if err := createdPB.CheckValid(); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to convert creation time: %v", err)
 	}
-	updatedPB, err := ptypes.TimestampProto(time.Unix(0, info.UpdateTimeNanos))
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to convert creation time: %v", err)
+	if err := updatedPB.CheckValid(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to convert update time: %v", err)
 	}
 	tree := &trillian.Tree{
 		TreeId:          info.TreeId,
@@ -638,7 +640,7 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		UpdateTime:      updatedPB,
 		PrivateKey:      info.PrivateKey,
 		PublicKey:       &keyspb.PublicKey{Der: info.PublicKeyDer},
-		MaxRootDuration: ptypes.DurationProto(time.Duration(info.MaxRootDurationMillis) * time.Millisecond),
+		MaxRootDuration: durationpb.New(time.Duration(info.MaxRootDurationMillis) * time.Millisecond),
 	}
 
 	ts, ok := treeStateReverseMap[info.TreeState]
@@ -678,11 +680,11 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 	case spannerpb.TreeType_LOG:
 		config = info.GetLogStorageConfig()
 	default:
-		return nil, fmt.Errorf("Unknown tree type %v", tt)
+		return nil, fmt.Errorf("unknown tree type %v", tt)
 	}
-	settings, err := ptypes.MarshalAny(config)
+	settings, err := anypb.New(proto.MessageV2(config))
 	if err != nil {
-		return nil, fmt.Errorf("ptypes.MarshalAny(): %w", err)
+		return nil, fmt.Errorf("anypb.New(): %w", err)
 	}
 	tree.StorageSettings = settings
 
@@ -690,9 +692,8 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		tree.Deleted = info.Deleted
 	}
 	if info.DeleteTimeNanos > 0 {
-		var err error
-		tree.DeleteTime, err = ptypes.TimestampProto(time.Unix(0, info.DeleteTimeNanos))
-		if err != nil {
+		tree.DeleteTime = timestamppb.New(time.Unix(0, info.DeleteTimeNanos))
+		if err := tree.DeleteTime.CheckValid(); err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to convert delete time: %v", err)
 		}
 	}
@@ -708,11 +709,11 @@ func unmarshalSettings(tree *trillian.Tree) (proto.Message, error) {
 	if settings == nil {
 		return nil, nil
 	}
-	any := &ptypes.DynamicAny{}
-	if err := ptypes.UnmarshalAny(settings, any); err != nil {
+	any, err := settings.UnmarshalNew()
+	if err != nil {
 		return nil, err
 	}
-	return any.Message, nil
+	return proto.MessageV1(any), nil
 }
 
 func validateLogStorageConfig(config *spannerpb.LogStorageConfig) error {

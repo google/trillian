@@ -20,11 +20,12 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ToMillisSinceEpoch converts a timestamp into milliseconds since epoch
@@ -124,15 +125,15 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 			treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm)
 	}
 
-	tree.CreateTime, err = ptypes.TimestampProto(FromMillisSinceEpoch(createMillis))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse create time: %v", err)
+	tree.CreateTime = timestamppb.New(FromMillisSinceEpoch(createMillis))
+	if err := tree.CreateTime.CheckValid(); err != nil {
+		return nil, fmt.Errorf("failed to parse create time: %w", err)
 	}
-	tree.UpdateTime, err = ptypes.TimestampProto(FromMillisSinceEpoch(updateMillis))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse update time: %v", err)
+	tree.UpdateTime = timestamppb.New(FromMillisSinceEpoch(updateMillis))
+	if err := tree.UpdateTime.CheckValid(); err != nil {
+		return nil, fmt.Errorf("failed to parse update time: %w", err)
 	}
-	tree.MaxRootDuration = ptypes.DurationProto(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
+	tree.MaxRootDuration = durationpb.New(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
 
 	tree.PrivateKey = &any.Any{}
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
@@ -142,9 +143,9 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 
 	tree.Deleted = deleted.Valid && deleted.Bool
 	if tree.Deleted && deleteMillis.Valid {
-		tree.DeleteTime, err = ptypes.TimestampProto(FromMillisSinceEpoch(deleteMillis.Int64))
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse delete time: %v", err)
+		tree.DeleteTime = timestamppb.New(FromMillisSinceEpoch(deleteMillis.Int64))
+		if err := tree.DeleteTime.CheckValid(); err != nil {
+			return nil, fmt.Errorf("failed to parse delete time: %w", err)
 		}
 	}
 

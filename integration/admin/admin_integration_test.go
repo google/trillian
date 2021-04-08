@@ -23,7 +23,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/server/interceptor"
@@ -35,6 +34,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	sa "github.com/google/trillian/server/admin"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -52,10 +52,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	invalidTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	invalidTree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
 
-	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
-	if err != nil {
-		t.Fatalf("TimestampProto() returned err = %v", err)
-	}
+	timestamp := timestamppb.New(time.Unix(1000, 0))
 
 	// All fields set below are ignored / overwritten by storage
 	generatedFieldsTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
@@ -212,14 +209,8 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 			continue
 		}
 
-		created, err := ptypes.Timestamp(tree.CreateTime)
-		if err != nil {
-			t.Errorf("%v: failed to convert timestamp: %v", test.desc, err)
-		}
-		updated, err := ptypes.Timestamp(tree.UpdateTime)
-		if err != nil {
-			t.Errorf("%v: failed to convert timestamp: %v", test.desc, err)
-		}
+		created := tree.CreateTime.AsTime()
+		updated := tree.UpdateTime.AsTime()
 		if created.After(updated) {
 			t.Errorf("%v: CreateTime > UpdateTime (%v > %v)", test.desc, tree.CreateTime, tree.UpdateTime)
 		}

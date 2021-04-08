@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -64,9 +64,9 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
 	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
 	// supplied data was already written to LeafData as part of queueing the leaf.
-	queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
-	if err != nil {
-		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %v", err)
+	queueTimestampProto := timestamppb.New(time.Unix(0, queueTimestamp))
+	if err := queueTimestampProto.CheckValid(); err != nil {
+		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %w", err)
 	}
 	leaf := &trillian.LogLeaf{
 		LeafIdentityHash: leafIDHash,
@@ -88,11 +88,11 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			return errors.New("sequenced leaf has incorrect hash size")
 		}
 
-		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
-		if err != nil {
-			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
-		_, err = t.tx.ExecContext(
+		iTimestamp := leaf.IntegrateTimestamp.AsTime()
+		_, err := t.tx.ExecContext(
 			ctx,
 			insertSequencedLeafSQL+valuesPlaceholder5,
 			t.treeID,

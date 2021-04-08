@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
@@ -36,6 +35,8 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -63,9 +64,9 @@ Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 -----END PUBLIC KEY-----`
 )
 
-// mustMarshalAny panics if ptypes.MarshalAny fails.
+// mustMarshalAny panics if if it doesn't marshal.
 func mustMarshalAny(pb proto.Message) *any.Any {
-	value, err := ptypes.MarshalAny(pb)
+	value, err := anypb.New(proto.MessageV2(pb))
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +89,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
 		},
-		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 
 	// PreorderedLogTree is a valid, PREORDERED_LOG-type trillian.Tree for tests.
@@ -106,7 +107,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
 		},
-		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 )
 
@@ -185,7 +186,7 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 
 			createTime := newTree.CreateTime
 			updateTime := newTree.UpdateTime
-			if _, err := ptypes.Timestamp(createTime); err != nil {
+			if err := createTime.CheckValid(); err != nil {
 				t.Errorf("%v: CreateTime malformed after creation: %v", test.desc, newTree)
 				return
 			}
@@ -339,14 +340,14 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		if !proto.Equal(createdTree.CreateTime, updatedTree.CreateTime) {
 			t.Errorf("%v: CreateTime = %v, want = %v", test.desc, updatedTree.CreateTime, createdTree.CreateTime)
 		}
-		createUpdateTime, err := ptypes.Timestamp(createdTree.UpdateTime)
-		if err != nil {
+		if err := createdTree.UpdateTime.CheckValid(); err != nil {
 			t.Errorf("%v: createdTree.UpdateTime malformed: %v", test.desc, err)
 		}
-		updatedUpdateTime, err := ptypes.Timestamp(updatedTree.UpdateTime)
-		if err != nil {
+		if err := updatedTree.UpdateTime.CheckValid(); err != nil {
 			t.Errorf("%v: updatedTree.UpdateTime malformed: %v", test.desc, err)
 		}
+		createUpdateTime := createdTree.UpdateTime.AsTime()
+		updatedUpdateTime := updatedTree.UpdateTime.AsTime()
 		if createUpdateTime.After(updatedUpdateTime) {
 			t.Errorf("%v: UpdateTime = %v, want >= %v", test.desc, updatedTree.UpdateTime, createdTree.UpdateTime)
 		}

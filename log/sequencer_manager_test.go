@@ -24,7 +24,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
@@ -97,13 +96,14 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
-	var keyProto ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
+	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
+	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(keyProto.Message)
+	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
+	defer keys.UnregisterHandler(kpm)
 
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
@@ -136,12 +136,13 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{}
 
-	var keyProto ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
+	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
+	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
+	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
@@ -176,7 +177,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		// This guarantees that no further calls to keys.NewSigner() will succeed.
 		// This tests that the signer obtained by SequencerManager during the first sequencing
 		// pass is cached and re-used for the second pass.
-		keys.UnregisterHandler(keyProto.Message)
+		keys.UnregisterHandler(kpm)
 	}
 }
 
@@ -191,13 +192,14 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	fakeStorage := &stestonly.FakeLogStorage{}
 
-	var keyProto ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
+	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
+	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, nil, errors.New("no signer for this tree")))
-	defer keys.UnregisterHandler(keyProto.Message)
+	keys.RegisterHandler(fakeKeyProtoHandler(kpm, nil, errors.New("no signer for this tree")))
+	defer keys.UnregisterHandler(kpm)
 
 	gomock.InOrder(
 		mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil),
@@ -228,13 +230,14 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
-	var keyProto ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
+	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
+	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(keyProto.Message)
+	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
+	defer keys.UnregisterHandler(kpm)
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -284,13 +287,14 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
-	var keyProto ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
+	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
+	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(keyProto.Message)
+	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
+	defer keys.UnregisterHandler(kpm)
 
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)

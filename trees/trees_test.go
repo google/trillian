@@ -28,7 +28,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
@@ -37,6 +36,7 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -78,7 +78,7 @@ func TestGetTree(t *testing.T) {
 
 	softDeletedTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	softDeletedTree.Deleted = true
-	softDeletedTree.DeleteTime = ptypes.TimestampNow()
+	softDeletedTree.DeleteTime = timestamppb.Now()
 
 	tests := []struct {
 		desc                           string
@@ -375,18 +375,19 @@ func TestSigner(t *testing.T) {
 			tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
 			tree.SignatureAlgorithm = test.sigAlgo
 
-			var wantKeyProto ptypes.DynamicAny
-			if err := ptypes.UnmarshalAny(tree.PrivateKey, &wantKeyProto); err != nil {
+			wantKeyProto, err := tree.PrivateKey.UnmarshalNew()
+			if err != nil {
 				t.Fatalf("failed to unmarshal tree.PrivateKey: %v", err)
 			}
+			wantKPM := proto.MessageV1(wantKeyProto)
 
-			keys.RegisterHandler(wantKeyProto.Message, func(ctx context.Context, gotKeyProto proto.Message) (crypto.Signer, error) {
-				if !proto.Equal(gotKeyProto, wantKeyProto.Message) {
-					return nil, fmt.Errorf("NewSigner(_, %#v) called, want NewSigner(_, %#v)", gotKeyProto, wantKeyProto.Message)
+			keys.RegisterHandler(wantKPM, func(ctx context.Context, gotKeyProto proto.Message) (crypto.Signer, error) {
+				if !proto.Equal(gotKeyProto, wantKPM) {
+					return nil, fmt.Errorf("NewSigner(_, %#v) called, want NewSigner(_, %#v)", gotKeyProto, wantKPM)
 				}
 				return test.signer, test.newSignerErr
 			})
-			defer keys.UnregisterHandler(wantKeyProto.Message)
+			defer keys.UnregisterHandler(wantKPM)
 
 			signer, err := Signer(ctx, tree)
 			if hasErr := err != nil; hasErr != test.wantErr {
