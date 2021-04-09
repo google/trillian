@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
@@ -46,6 +45,7 @@ import (
 	"github.com/google/trillian/util/clock"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"

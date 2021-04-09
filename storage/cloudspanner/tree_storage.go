@@ -24,7 +24,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage"
@@ -35,6 +34,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 var (

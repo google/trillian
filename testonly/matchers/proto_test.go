@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	_ "github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestProtoEquals(t *testing.T) {

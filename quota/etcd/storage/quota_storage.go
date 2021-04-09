@@ -24,13 +24,13 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/util/clock"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 )

@@ -14,7 +14,7 @@
 
 package trillian
 
-//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis --go_out=plugins=grpc,paths=source_relative:. trillian_log_api.proto trillian_admin_api.proto trillian.proto --doc_out=markdown,api.md:./docs/
+//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. --go-grpc_opt=require_unimplemented_servers=false trillian_log_api.proto trillian_admin_api.proto trillian.proto --doc_out=markdown,api.md:./docs/
 //go:generate protoc -I=. --go_out=paths=source_relative:. crypto/sigpb/sigpb.proto
 //go:generate protoc -I=. --go_out=paths=source_relative:. crypto/keyspb/keyspb.proto
 

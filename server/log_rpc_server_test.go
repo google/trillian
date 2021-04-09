@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
@@ -38,6 +37,8 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 )
 
 // cmpMatcher is a custom gomock.Matcher that uses cmp.Equal combined with a
@@ -754,7 +755,7 @@ func TestGetProofByHash(t *testing.T) {
 			}
 
 			if !proto.Equal(proofResponse.Proof[0], expectedProof) {
-				t.Fatalf("expected proof: %v but got: %v", proto.CompactTextString(expectedProof), proto.CompactTextString(proofResponse.Proof[0]))
+				t.Fatalf("expected proof: %v but got: %v", prototext.MarshalOptions{Multiline: false}.Format(expectedProof), prototext.MarshalOptions{Multiline: false}.Format(proofResponse.Proof[0]))
 			}
 		})
 	}

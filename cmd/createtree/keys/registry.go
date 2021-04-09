@@ -18,8 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -41,7 +40,7 @@ func RegisterType(protoType string, builder ProtoBuilder) {
 // New returns a protobuf message of the specified type that describes a private
 // key. A ProtoBuilder must have been registered for this type using
 // RegisterType() first.
-func New(protoType string) (*any.Any, error) {
+func New(protoType string) (*anypb.Any, error) {
 	buildProto, ok := protoBuilders[protoType]
 	if !ok {
 		return nil, fmt.Errorf("key protobuf type must be one of: %s", strings.Join(RegisteredTypes(), ", "))
@@ -52,7 +51,7 @@ func New(protoType string) (*any.Any, error) {
 		return nil, err
 	}
 
-	return anypb.New(proto.MessageV2(pb))
+	return anypb.New(pb)
 }
 
 // RegisteredTypes returns a list of protobuf message types that have been

@@ -21,17 +21,16 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/flagsaver"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
@@ -41,7 +40,7 @@ var defaultTree = &trillian.Tree{
 	HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 	HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 	SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-	PrivateKey:         mustMarshalAny(&empty.Empty{}),
+	PrivateKey:         mustMarshalAny(&emptypb.Empty{}),
 	MaxRootDuration:    durationpb.New(0 * time.Millisecond),
 }
 
@@ -55,8 +54,8 @@ type testCase struct {
 	wantTree    *trillian.Tree
 }
 
-func mustMarshalAny(p proto.Message) *any.Any {
-	anyKey, err := anypb.New(proto.MessageV2(p))
+func mustMarshalAny(p proto.Message) *anypb.Any {
+	anyKey, err := anypb.New(p)
 	if err != nil {
 		panic(err)
 	}

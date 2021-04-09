@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
@@ -112,7 +111,7 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
 		}
 
-		tree.PrivateKey, err = anypb.New(proto.MessageV2(keyProto))
+		tree.PrivateKey, err = anypb.New(keyProto)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to marshal private key: %v", err.Error())
 		}

@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -44,7 +44,7 @@ var (
 func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
 	handlersMu.Lock()
 	defer handlersMu.Unlock()
-	keyProtoType := proto.MessageReflect(keyProto).Descriptor().FullName()
+	keyProtoType := keyProto.ProtoReflect().Descriptor().FullName()
 
 	if _, alreadyExists := handlers[keyProtoType]; alreadyExists {
 		glog.Warningf("Overridding ProtoHandler for protobuf %q", keyProtoType)
@@ -58,7 +58,7 @@ func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
 func UnregisterHandler(keyProto proto.Message) {
 	handlersMu.Lock()
 	defer handlersMu.Unlock()
-	delete(handlers, proto.MessageReflect(keyProto).Descriptor().FullName())
+	delete(handlers, keyProto.ProtoReflect().Descriptor().FullName())
 }
 
 // NewSigner uses a registered ProtoHandler (see RegisterHandler()) to convert a
@@ -71,7 +71,7 @@ func NewSigner(ctx context.Context, keyProto proto.Message) (crypto.Signer, erro
 	if keyProto == nil {
 		return nil, fmt.Errorf("nil keyProto")
 	}
-	keyProtoType := proto.MessageReflect(keyProto).Descriptor().FullName()
+	keyProtoType := keyProto.ProtoReflect().Descriptor().FullName()
 
 	if handler, ok := handlers[keyProtoType]; ok {
 		return handler(ctx, keyProto)

@@ -21,13 +21,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/testonly/integration/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/protobuf/proto"
 )
 
 const (

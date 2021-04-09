@@ -23,9 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
@@ -35,8 +32,10 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -65,8 +64,8 @@ Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 )
 
 // mustMarshalAny panics if it doesn't marshal.
-func mustMarshalAny(pb proto.Message) *any.Any {
-	value, err := anypb.New(proto.MessageV2(pb))
+func mustMarshalAny(pb proto.Message) *anypb.Any {
+	value, err := anypb.New(pb)
 	if err != nil {
 		panic(err)
 	}
@@ -252,7 +251,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		tree.TreeType = trillian.TreeType_PREORDERED_LOG
 	}
 
-	newPrivateKey := &empty.Empty{}
+	newPrivateKey := &emptypb.Empty{}
 	privateKeyChangedButKeyMaterialSameTree := tweakedCopy(LogTree, func(tree *trillian.Tree) {
 		tree.PrivateKey = testonly.MustMarshalAny(t, newPrivateKey)
 	})
