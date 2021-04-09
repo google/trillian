@@ -53,7 +53,6 @@ var (
 
 	treeState          = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
 	treeType           = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
-	hashStrategy       = flag.String("hash_strategy", trillian.HashStrategy_RFC6962_SHA256.String(), "Hash strategy (aka preimage protection) of the new tree")
 	hashAlgorithm      = flag.String("hash_algorithm", sigpb.DigitallySigned_SHA256.String(), "Hash algorithm of the new tree")
 	signatureAlgorithm = flag.String("signature_algorithm", sigpb.DigitallySigned_ECDSA.String(), "Signature algorithm of the new tree")
 	displayName        = flag.String("display_name", "", "Display name of the new tree")
@@ -105,11 +104,6 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		return nil, fmt.Errorf("unknown TreeType: %v", *treeType)
 	}
 
-	hs, ok := trillian.HashStrategy_value[*hashStrategy]
-	if !ok {
-		return nil, fmt.Errorf("unknown HashStrategy: %v", *hashStrategy)
-	}
-
 	ha, ok := sigpb.DigitallySigned_HashAlgorithm_value[*hashAlgorithm]
 	if !ok {
 		return nil, fmt.Errorf("unknown HashAlgorithm: %v", *hashAlgorithm)
@@ -123,7 +117,6 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 	ctr := &trillian.CreateTreeRequest{Tree: &trillian.Tree{
 		TreeState:          trillian.TreeState(ts),
 		TreeType:           trillian.TreeType(tt),
-		HashStrategy:       trillian.HashStrategy(hs),
 		HashAlgorithm:      sigpb.DigitallySigned_HashAlgorithm(ha),
 		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
 		DisplayName:        *displayName,

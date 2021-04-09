@@ -53,10 +53,6 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v or %v", got, log, pLog)
 	}
 
-	if s := config.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
-		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): unknown hash strategy: %s", s)
-	}
-
 	return NewLogVerifier(rfc6962.DefaultHasher), nil
 }
 

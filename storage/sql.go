@@ -96,9 +96,7 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	} else {
 		return nil, fmt.Errorf("unknown TreeType: %v", treeType)
 	}
-	if hs, ok := trillian.HashStrategy_value[hashStrategy]; ok {
-		tree.HashStrategy = trillian.HashStrategy(hs)
-	} else {
+	if hashStrategy != "RFC6962_SHA256" {
 		return nil, fmt.Errorf("unknown HashStrategy: %v", hashStrategy)
 	}
 	if ha, ok := spb.DigitallySigned_HashAlgorithm_value[hashAlgorithm]; ok {
@@ -115,7 +113,6 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	// Let's make sure we didn't mismatch any of the casts above
 	ok := tree.TreeState.String() == treeState &&
 		tree.TreeType.String() == treeType &&
-		tree.HashStrategy.String() == hashStrategy &&
 		tree.HashAlgorithm.String() == hashAlgorithm &&
 		tree.SignatureAlgorithm.String() == signatureAlgorithm
 	if !ok {

@@ -72,9 +72,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidType := newTree()
 	invalidType.TreeType = trillian.TreeType_UNKNOWN_TREE_TYPE
 
-	invalidHashStrategy := newTree()
-	invalidHashStrategy.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
-
 	invalidHashAlgorithm := newTree()
 	invalidHashAlgorithm.HashAlgorithm = sigpb.DigitallySigned_NONE
 
@@ -150,11 +147,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidType",
 			tree:    invalidType,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidHashStrategy",
-			tree:    invalidHashStrategy,
 			wantErr: true,
 		},
 		{
@@ -371,13 +363,6 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc: "HashStrategy",
-			updatefn: func(tree *trillian.Tree) {
-				tree.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
-			},
-			wantErr: true,
-		},
-		{
 			desc: "HashAlgorithm",
 			updatefn: func(tree *trillian.Tree) {
 				tree.HashAlgorithm = sigpb.DigitallySigned_NONE
@@ -451,7 +436,6 @@ func newTree() *trillian.Tree {
 	return &trillian.Tree{
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_LOG,
-		HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		DisplayName:        "Llamas Log",

@@ -344,7 +344,6 @@ func TestSigner(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 			tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
-			tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
 			tree.SignatureAlgorithm = test.sigAlgo
 
 			wantKeyProto, err := tree.PrivateKey.UnmarshalNew()

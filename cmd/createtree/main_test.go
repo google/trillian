@@ -37,7 +37,6 @@ import (
 var defaultTree = &trillian.Tree{
 	TreeState:          trillian.TreeState_ACTIVE,
 	TreeType:           trillian.TreeType_LOG,
-	HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 	HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 	SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 	PrivateKey:         mustMarshalAny(&emptypb.Empty{}),

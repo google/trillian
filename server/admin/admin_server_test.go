@@ -326,9 +326,6 @@ func TestServer_CreateTree(t *testing.T) {
 	invalidHashAlgo := proto.Clone(validTree).(*trillian.Tree)
 	invalidHashAlgo.HashAlgorithm = sigpb.DigitallySigned_NONE
 
-	invalidHashStrategy := proto.Clone(validTree).(*trillian.Tree)
-	invalidHashStrategy.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
-
 	invalidSignatureAlgo := proto.Clone(validTree).(*trillian.Tree)
 	invalidSignatureAlgo.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
 
@@ -427,11 +424,6 @@ func TestServer_CreateTree(t *testing.T) {
 			desc:    "invalidHashAlgo",
 			req:     &trillian.CreateTreeRequest{Tree: invalidHashAlgo},
 			wantErr: "unexpected hash algorithm",
-		},
-		{
-			desc:    "invalidHashStrategy",
-			req:     &trillian.CreateTreeRequest{Tree: invalidHashStrategy},
-			wantErr: "unknown hash strategy",
 		},
 		{
 			desc:    "invalidSignatureAlgo",
