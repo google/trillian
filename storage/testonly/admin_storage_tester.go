@@ -64,7 +64,7 @@ Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 -----END PUBLIC KEY-----`
 )
 
-// mustMarshalAny panics if if it doesn't marshal.
+// mustMarshalAny panics if it doesn't marshal.
 func mustMarshalAny(pb proto.Message) *any.Any {
 	value, err := anypb.New(proto.MessageV2(pb))
 	if err != nil {
