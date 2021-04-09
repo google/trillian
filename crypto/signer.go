@@ -24,7 +24,7 @@ type Signer struct {
 }
 
 // NewSigner returns a new signer.
-func NewSigner(signer crypto.Signer, _ crypto.Hash) *Signer {
+func NewSigner(signer crypto.Signer) *Signer {
 	return &Signer{Signer: signer}
 }
 

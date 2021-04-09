@@ -368,7 +368,7 @@ func TestSigner(t *testing.T) {
 				return
 			}
 
-			want := tcrypto.NewSigner(test.signer, crypto.SHA256)
+			want := tcrypto.NewSigner(test.signer)
 			if diff := cmp.Diff(signer, want, cmp.Comparer(func(a, b *big.Int) bool { return a.Cmp(b) == 0 })); diff != "" {
 				t.Fatalf("post-Signer(_, %s) diff:\n%v", test.sigAlgo, diff)
 			}

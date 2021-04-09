@@ -18,7 +18,6 @@ package trees
 
 import (
 	"context"
-	"crypto"
 	"fmt"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
@@ -197,7 +196,7 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 		return nil, fmt.Errorf("%s signature not supported by signer of type %T", tree.SignatureAlgorithm, signer)
 	}
 
-	return tcrypto.NewSigner(signer, crypto.SHA256), nil
+	return tcrypto.NewSigner(signer), nil
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, func()) {
