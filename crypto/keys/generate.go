@@ -23,9 +23,9 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/crypto/keyspb"
 	"golang.org/x/crypto/ed25519"
+	"google.golang.org/protobuf/proto"
 )
 
 const (

@@ -22,11 +22,12 @@ import (
 	_ "github.com/fullstorydev/grpcurl/cmd/grpcurl"
 	_ "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen"
-	_ "github.com/golang/protobuf/proto" //nolint:staticcheck
-	_ "github.com/golang/protobuf/protoc-gen-go"
 	_ "github.com/google/go-licenses"
 	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 	_ "go.etcd.io/etcd/etcdctl/v3"
 	_ "go.etcd.io/etcd/v3"
 	_ "golang.org/x/tools/cmd/stringer"
+	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
+	_ "google.golang.org/protobuf/proto"
 )

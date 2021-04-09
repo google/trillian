@@ -19,7 +19,6 @@ import (
 	"encoding/hex"
 	"time"
 
-	tspb "github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -42,7 +41,7 @@ func MustHexDecode(b string) []byte {
 }
 
 // MustToTimestampProto converts t to a Timestamp protobuf, or panics if this fails.
-func MustToTimestampProto(t time.Time) *tspb.Timestamp {
+func MustToTimestampProto(t time.Time) *timestamppb.Timestamp {
 	ts := timestamppb.New(t)
 	if err := ts.CheckValid(); err != nil {
 		panic(err)

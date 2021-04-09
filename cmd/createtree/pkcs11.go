@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
+	"google.golang.org/protobuf/proto"
 
 	pkcs11key "github.com/letsencrypt/pkcs11key/v4"
 )

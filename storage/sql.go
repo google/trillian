@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -135,7 +135,7 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	}
 	tree.MaxRootDuration = durationpb.New(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
 
-	tree.PrivateKey = &any.Any{}
+	tree.PrivateKey = &anypb.Any{}
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
 		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
 	}

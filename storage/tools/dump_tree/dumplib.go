@@ -30,8 +30,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	_ "github.com/google/trillian/crypto/keys/der/proto"
@@ -50,6 +48,8 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -89,7 +89,7 @@ func summarizeProto(leafHashesFlag bool) func(s *storagepb.SubtreeProto) string 
 
 // fullProto is an output formatter function that produces a single line in proto text format.
 func fullProto(s *storagepb.SubtreeProto) string {
-	return fmt.Sprintf("%s\n", proto.MarshalTextString(s))
+	return fmt.Sprintf("%s\n", prototext.Format(s))
 }
 
 // recordIOProto is an output formatter that produces binary recordio format
@@ -143,7 +143,7 @@ func sequence(tree *trillian.Tree, seq *log.Sequencer, count, batchSize int) {
 	}
 }
 
-func getPrivateKey(pemPath, pemPassword string) (*any.Any, crypto.Signer) {
+func getPrivateKey(pemPath, pemPassword string) (*anypb.Any, crypto.Signer) {
 	pemSigner, err := pem.UnmarshalPrivateKey(pemPath, pemPassword)
 	if err != nil {
 		glog.Fatalf("UnmarshalPrivateKey(): %v", err)
@@ -152,7 +152,7 @@ func getPrivateKey(pemPath, pemPassword string) (*any.Any, crypto.Signer) {
 	if err != nil {
 		glog.Fatalf("MarshalPrivateKey(): %v", err)
 	}
-	anyPrivKey, err := anypb.New(proto.MessageV2(&keyspb.PrivateKey{Der: pemDer}))
+	anyPrivKey, err := anypb.New(&keyspb.PrivateKey{Der: pemDer})
 	if err != nil {
 		glog.Fatalf("MarshalAny(%v): %v", pemDer, err)
 	}

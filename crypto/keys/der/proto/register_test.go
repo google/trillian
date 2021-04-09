@@ -19,10 +19,10 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestProtoHandler(t *testing.T) {

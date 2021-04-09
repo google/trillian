@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"google.golang.org/protobuf/proto"
 )
 
 type protoEqual struct {

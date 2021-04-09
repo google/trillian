@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
@@ -36,6 +35,7 @@ import (
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"google.golang.org/protobuf/proto"
 )
 
 // Arbitrary time for use in tests
@@ -99,10 +99,9 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
-	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(kpm)
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
+	defer keys.UnregisterHandler(keyProto)
 
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
@@ -139,9 +138,8 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
-	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
@@ -176,7 +174,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		// This guarantees that no further calls to keys.NewSigner() will succeed.
 		// This tests that the signer obtained by SequencerManager during the first sequencing
 		// pass is cached and re-used for the second pass.
-		keys.UnregisterHandler(kpm)
+		keys.UnregisterHandler(keyProto)
 	}
 }
 
@@ -195,10 +193,9 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
-	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(kpm)
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
+	defer keys.UnregisterHandler(keyProto)
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -252,10 +249,9 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
-	kpm := proto.MessageV1(keyProto)
 
-	keys.RegisterHandler(fakeKeyProtoHandler(kpm, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(kpm)
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
+	defer keys.UnregisterHandler(keyProto)
 
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)

@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
+	"google.golang.org/protobuf/proto"
 )
 
 // TestGetTree is really testing param / result / error propagation is correct

@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"

@@ -18,13 +18,13 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // ValidateTreeForCreation returns nil if tree is valid for insertion, error
@@ -139,7 +139,7 @@ func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
 	}
 
 	// Check that the private key can be obtained and matches the public key.
-	privateKey, err := keys.NewSigner(ctx, proto.MessageV1(privateKeyProto))
+	privateKey, err := keys.NewSigner(ctx, privateKeyProto)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
 	}

@@ -23,7 +23,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
@@ -31,6 +30,7 @@ import (
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -682,7 +682,7 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 	default:
 		return nil, fmt.Errorf("unknown tree type %v", tt)
 	}
-	settings, err := anypb.New(proto.MessageV2(config))
+	settings, err := anypb.New(config)
 	if err != nil {
 		return nil, fmt.Errorf("anypb.New(): %w", err)
 	}
@@ -713,7 +713,7 @@ func unmarshalSettings(tree *trillian.Tree) (proto.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	return proto.MessageV1(any), nil
+	return any, nil
 }
 
 func validateLogStorageConfig(config *spannerpb.LogStorageConfig) error {

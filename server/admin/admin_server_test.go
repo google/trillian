@@ -28,9 +28,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
@@ -43,7 +40,9 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ttestonly "github.com/google/trillian/testonly"
@@ -64,7 +63,7 @@ func TestServer_BeginError(t *testing.T) {
 	// Need to remove the public key, as it won't correspond to the privateKey that was just generated.
 	validTree.PublicKey = nil
 
-	keyProto := &empty.Empty{}
+	keyProto := &emptypb.Empty{}
 	validTree.PrivateKey = ttestonly.MustMarshalAny(t, keyProto)
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, privateKey))
 	defer keys.UnregisterHandler(keyProto)
@@ -132,14 +131,14 @@ func TestServer_ListTrees(t *testing.T) {
 	nowPB := timestamppb.Now()
 	for _, tree := range []*trillian.Tree{activeLog, frozenLog, deletedLog} {
 		tree.TreeId = id
-		tree.CreateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
-		tree.UpdateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
+		tree.CreateTime = proto.Clone(nowPB).(*timestamppb.Timestamp)
+		tree.UpdateTime = proto.Clone(nowPB).(*timestamppb.Timestamp)
 		id++
 		nowPB.Seconds++
 	}
 	for _, tree := range []*trillian.Tree{deletedLog} {
 		tree.Deleted = true
-		tree.DeleteTime = proto.Clone(nowPB).(*timestamp.Timestamp)
+		tree.DeleteTime = proto.Clone(nowPB).(*timestamppb.Timestamp)
 		nowPB.Seconds++
 	}
 	nonDeletedTrees := []*trillian.Tree{activeLog, frozenLog}
@@ -299,7 +298,7 @@ func TestServer_CreateTree(t *testing.T) {
 	validTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	// Except in key generation test cases, a keys.ProtoHandler will be registered that
 	// returns ecdsaPrivateKey when passed an empty proto.
-	wantKeyProto := &empty.Empty{}
+	wantKeyProto := &emptypb.Empty{}
 	validTree.PrivateKey = ttestonly.MustMarshalAny(t, wantKeyProto)
 	validTree.PublicKey = func() *keyspb.PublicKey {
 		pb, err := der.ToPublicProto(ecdsaPrivateKey.Public())
@@ -601,7 +600,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	existingTree.MaxRootDuration = durationpb.New(1 * time.Nanosecond)
 
 	// Any valid proto works here, the type doesn't matter for this test.
-	settings := ttestonly.MustMarshalAny(t, &empty.Empty{})
+	settings := ttestonly.MustMarshalAny(t, &emptypb.Empty{})
 
 	// successTree specifies changes in all rw fields
 	successTree := &trillian.Tree{
@@ -610,7 +609,7 @@ func TestServer_UpdateTree(t *testing.T) {
 		Description:     "Brand New Tree Desc",
 		StorageSettings: settings,
 		MaxRootDuration: durationpb.New(2 * time.Nanosecond),
-		PrivateKey:      ttestonly.MustMarshalAny(t, &empty.Empty{}),
+		PrivateKey:      ttestonly.MustMarshalAny(t, &emptypb.Empty{}),
 	}
 	successMask := &field_mask.FieldMask{
 		Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration", "private_key"},

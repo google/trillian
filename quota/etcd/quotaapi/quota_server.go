@@ -19,7 +19,6 @@ import (
 	"context"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
@@ -27,6 +26,7 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Server is a quotapb.QuotaServer implementation backed by etcd.
@@ -66,7 +66,7 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 }
 
 // DeleteConfig implements quotapb.QuotaServer.DeleteConfig.
-func (s *Server) DeleteConfig(ctx context.Context, req *quotapb.DeleteConfigRequest) (*empty.Empty, error) {
+func (s *Server) DeleteConfig(ctx context.Context, req *quotapb.DeleteConfigRequest) (*emptypb.Empty, error) {
 	if err := validateName(req.Name); err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (s *Server) DeleteConfig(ctx context.Context, req *quotapb.DeleteConfigRequ
 	if notFound {
 		return nil, status.Errorf(codes.NotFound, "%q not found", req.Name)
 	}
-	return &empty.Empty{}, err
+	return &emptypb.Empty{}, err
 }
 
 // GetConfig implements quotapb.QuotaServer.GetConfig.

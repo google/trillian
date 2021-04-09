@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
@@ -187,7 +186,7 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 		return nil, fmt.Errorf("failed to unmarshal tree.PrivateKey: %v", err)
 	}
 
-	signer, err := keys.NewSigner(ctx, proto.MessageV1(keyProto))
+	signer, err := keys.NewSigner(ctx, keyProto)
 	if err != nil {
 		return nil, err
 	}

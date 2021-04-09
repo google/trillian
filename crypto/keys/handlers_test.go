@@ -20,11 +20,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/golang/protobuf/ptypes/empty"
 	. "github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/testonly"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func fakeHandler(signer crypto.Signer, err error) ProtoHandler {
@@ -49,18 +49,18 @@ func TestNewSigner(t *testing.T) {
 	}{
 		{
 			desc:     "KeyProto with handler",
-			keyProto: &empty.Empty{},
+			keyProto: &emptypb.Empty{},
 			handler:  fakeHandler(wantSigner, nil),
 		},
 		{
 			desc:     "Invalid KeyProto with handler",
-			keyProto: &empty.Empty{},
+			keyProto: &emptypb.Empty{},
 			handler:  fakeHandler(nil, errors.New("invalid KeyProto")),
 			wantErr:  true,
 		},
 		{
 			desc:     "KeyProto with no handler",
-			keyProto: &empty.Empty{},
+			keyProto: &emptypb.Empty{},
 			wantErr:  true,
 		},
 		{

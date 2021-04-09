@@ -25,11 +25,11 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
+	"google.golang.org/protobuf/proto"
 )
 
 // These statements are fixed

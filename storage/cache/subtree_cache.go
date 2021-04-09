@@ -22,11 +22,11 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
+	"google.golang.org/protobuf/proto"
 )
 
 // TODO(al): move this up the stack

@@ -29,13 +29,13 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/rpcflags"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
@@ -133,7 +133,7 @@ func main() {
 	}
 
 	if *printTree {
-		fmt.Println(proto.MarshalTextString(tree))
+		fmt.Println(prototext.Format(tree))
 	} else {
 		// DO NOT change the default output format, some scripts depend on it. If
 		// you really want to change it, hide the new format behind a flag.

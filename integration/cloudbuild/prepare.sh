@@ -18,8 +18,9 @@ git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/gi
 # commit the generated files in an up-to-date state.
 go install \
     github.com/golang/mock/mockgen \
-    github.com/golang/protobuf/proto \
-    github.com/golang/protobuf/protoc-gen-go \
+    google.golang.org/protobuf/proto \
+    google.golang.org/protobuf/cmd/protoc-gen-go \
+    google.golang.org/grpc/cmd/protoc-gen-go-grpc \
     github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc \
     golang.org/x/tools/cmd/goimports \
     golang.org/x/tools/cmd/stringer
