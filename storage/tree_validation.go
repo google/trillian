@@ -39,8 +39,6 @@ func ValidateTreeForCreation(ctx context.Context, tree *trillian.Tree) error {
 		return status.Errorf(codes.InvalidArgument, "invalid tree_state: %s", tree.TreeState)
 	case tree.TreeType == trillian.TreeType_UNKNOWN_TREE_TYPE:
 		return status.Errorf(codes.InvalidArgument, "invalid tree_type: %s", tree.TreeType)
-	case tree.HashStrategy == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY:
-		return status.Errorf(codes.InvalidArgument, "invalid hash_strategy: %s", tree.HashStrategy)
 	case tree.HashAlgorithm == sigpb.DigitallySigned_NONE:
 		return status.Errorf(codes.InvalidArgument, "invalid hash_algorithm: %s", tree.HashAlgorithm)
 	case tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS:
@@ -94,8 +92,6 @@ func ValidateTreeForUpdate(ctx context.Context, storedTree, newTree *trillian.Tr
 		if err := validateTreeTypeUpdate(storedTree, newTree); err != nil {
 			return err
 		}
-	case storedTree.HashStrategy != newTree.HashStrategy:
-		return status.Error(codes.InvalidArgument, "readonly field changed: hash_strategy")
 	case storedTree.HashAlgorithm != newTree.HashAlgorithm:
 		return status.Error(codes.InvalidArgument, "readonly field changed: hash_algorithm")
 	case storedTree.SignatureAlgorithm != newTree.SignatureAlgorithm:

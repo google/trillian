@@ -559,9 +559,6 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 	if err != nil {
 		return nil, nil, err
 	}
-	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
-		return nil, nil, fmt.Errorf("unknown hash strategy: %s", s)
-	}
 	return tree, rfc6962.DefaultHasher, nil
 }
 

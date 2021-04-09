@@ -129,10 +129,6 @@ message Tree {
   // PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state.
   TreeType tree_type = 3;
 
-  // Hash strategy to be used by the tree.
-  // Readonly.
-  HashStrategy hash_strategy = 4;
-
   // Hash algorithm to be used by the tree.
   // Readonly.
   sigpb.DigitallySigned.HashAlgorithm hash_algorithm = 5;
@@ -189,9 +185,10 @@ message Tree {
   // Readonly.
   google.protobuf.Timestamp delete_time = 20;
 
-  reserved 7, 10, 11, 18;
+  reserved 4, 7, 10, 11, 18;
   reserved "create_time_millis_since_epoch";
   reserved "duplicate_policy";
+  reserved "hash_strategy";
   reserved "signature_cipher_suite";
   reserved "update_time_millis_since_epoch";
 }

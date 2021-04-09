@@ -293,7 +293,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
-		newTree.HashStrategy.String(),
+		"RFC6962_SHA256",
 		newTree.HashAlgorithm.String(),
 		newTree.SignatureAlgorithm.String(),
 		newTree.DisplayName,

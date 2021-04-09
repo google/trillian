@@ -54,13 +54,6 @@ var (
 		trillian.TreeType_LOG:            spannerpb.TreeType_LOG,
 		trillian.TreeType_PREORDERED_LOG: spannerpb.TreeType_PREORDERED_LOG,
 	}
-	hashStrategyMap = map[trillian.HashStrategy]spannerpb.HashStrategy{
-		trillian.HashStrategy_RFC6962_SHA256:        spannerpb.HashStrategy_RFC_6962,
-		trillian.HashStrategy_TEST_MAP_HASHER:       spannerpb.HashStrategy_TEST_MAP_HASHER,
-		trillian.HashStrategy_OBJECT_RFC6962_SHA256: spannerpb.HashStrategy_OBJECT_RFC6962_SHA256,
-		trillian.HashStrategy_CONIKS_SHA512_256:     spannerpb.HashStrategy_CONIKS_SHA512_256,
-		trillian.HashStrategy_CONIKS_SHA256:         spannerpb.HashStrategy_CONIKS_SHA256,
-	}
 	hashAlgMap = map[sigpb.DigitallySigned_HashAlgorithm]spannerpb.HashAlgorithm{
 		sigpb.DigitallySigned_SHA256: spannerpb.HashAlgorithm_SHA256,
 	}
@@ -71,7 +64,6 @@ var (
 
 	treeStateReverseMap    = reverseTreeStateMap(treeStateMap)
 	treeTypeReverseMap     = reverseTreeTypeMap(treeTypeMap)
-	hashStrategyReverseMap = reverseHashStrategyMap(hashStrategyMap)
 	hashAlgReverseMap      = reverseHashAlgMap(hashAlgMap)
 	signatureAlgReverseMap = reverseSignatureAlgMap(signatureAlgMap)
 )
@@ -91,17 +83,6 @@ func reverseTreeStateMap(m map[trillian.TreeState]spannerpb.TreeState) map[spann
 
 func reverseTreeTypeMap(m map[trillian.TreeType]spannerpb.TreeType) map[spannerpb.TreeType]trillian.TreeType {
 	reverse := make(map[spannerpb.TreeType]trillian.TreeType)
-	for k, v := range m {
-		if x, ok := reverse[v]; ok {
-			glog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
-		}
-		reverse[v] = k
-	}
-	return reverse
-}
-
-func reverseHashStrategyMap(m map[trillian.HashStrategy]spannerpb.HashStrategy) map[spannerpb.HashStrategy]trillian.HashStrategy {
-	reverse := make(map[spannerpb.HashStrategy]trillian.HashStrategy)
 	for k, v := range m {
 		if x, ok := reverse[v]; ok {
 			glog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
@@ -406,11 +387,6 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		return nil, status.Errorf(codes.Internal, "unexpected TreeType: %s", tree.TreeType)
 	}
 
-	hs, ok := hashStrategyMap[tree.HashStrategy]
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "unexpected HashStrategy: %s", tree.HashStrategy)
-	}
-
 	ha, ok := hashAlgMap[tree.HashAlgorithm]
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "unexpected HashAlgorithm: %s", tree.HashAlgorithm)
@@ -432,7 +408,6 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		Description:           tree.Description,
 		TreeState:             ts,
 		TreeType:              tt,
-		HashStrategy:          hs,
 		HashAlgorithm:         ha,
 		SignatureAlgorithm:    sa,
 		CreateTimeNanos:       now.UnixNano(),
@@ -654,12 +629,6 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		return nil, status.Errorf(codes.Internal, "unexpected TreeType: %s", info.TreeType)
 	}
 	tree.TreeType = tt
-
-	hs, ok := hashStrategyReverseMap[info.HashStrategy]
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "unexpected HashStrategy: %s", info.HashStrategy)
-	}
-	tree.HashStrategy = hs
 
 	ha, ok := hashAlgReverseMap[info.HashAlgorithm]
 	if !ok {

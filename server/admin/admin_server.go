@@ -85,12 +85,7 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 	if err := s.validateAllowedTreeType(tree.TreeType); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	switch tree.TreeType {
-	case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
-		if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
-			return nil, status.Errorf(codes.InvalidArgument, "unknown hash strategy: %s", s)
-		}
-	default:
+	if tree.TreeType != trillian.TreeType_LOG && tree.TreeType != trillian.TreeType_PREORDERED_LOG {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tree type: %v", tree.TreeType)
 	}
 

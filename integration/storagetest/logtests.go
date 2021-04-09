@@ -201,9 +201,8 @@ func (*logTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s s
 
 func logTree(logID int64) *trillian.Tree {
 	return &trillian.Tree{
-		TreeId:       logID,
-		TreeType:     trillian.TreeType_LOG,
-		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
+		TreeId:   logID,
+		TreeType: trillian.TreeType_LOG,
 	}
 }
 

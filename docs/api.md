@@ -706,7 +706,6 @@ not created dynamically.
 | tree_id | [int64](#int64) |  | ID of the tree. Readonly. |
 | tree_state | [TreeState](#trillian.TreeState) |  | State of the tree. Trees are ACTIVE after creation. At any point the tree may transition between ACTIVE, DRAINING and FROZEN states. |
 | tree_type | [TreeType](#trillian.TreeType) |  | Type of the tree. Readonly after Tree creation. Exception: Can be switched from PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state. |
-| hash_strategy | [HashStrategy](#trillian.HashStrategy) |  | Hash strategy to be used by the tree. Readonly. |
 | hash_algorithm | [sigpb.DigitallySigned.HashAlgorithm](#sigpb.DigitallySigned.HashAlgorithm) |  | Hash algorithm to be used by the tree. Readonly. |
 | signature_algorithm | [sigpb.DigitallySigned.SignatureAlgorithm](#sigpb.DigitallySigned.SignatureAlgorithm) |  | Signature algorithm to be used by the tree. Readonly. |
 | display_name | [string](#string) |  | Display name of the tree. Optional. |

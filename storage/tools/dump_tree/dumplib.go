@@ -181,7 +181,6 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 		TreeType:           trillian.TreeType_LOG,
 		TreeState:          trillian.TreeState_ACTIVE,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		PrivateKey:         privKey,
 		PublicKey:          &keyspb.PublicKey{Der: pubKey},
@@ -190,10 +189,6 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 	createdTree, err := storage.CreateTree(ctx, as, tree)
 	if err != nil {
 		glog.Fatalf("Create tree: %v", err)
-	}
-
-	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
-		glog.Fatalf("Unknown hash strategy: %s", s)
 	}
 
 	logRoot, err := (&types.LogRootV1{RootHash: rfc6962.DefaultHasher.EmptyRoot()}).MarshalBinary()

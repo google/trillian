@@ -158,9 +158,6 @@ func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, erro
 }
 
 func newLogCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
-	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
-		return nil, fmt.Errorf("unknown hash strategy: %s", s)
-	}
 	return cache.NewLogSubtreeCache(defLogStrata, rfc6962.DefaultHasher), nil
 }
 

@@ -54,10 +54,6 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
-		return 0, fmt.Errorf("unknown hash strategy for log %v: %s", logID, s)
-	}
-
 	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, s.registry.MetricFactory, s.registry.QuotaManager)
 
 	maxRootDuration := tree.MaxRootDuration.AsDuration()

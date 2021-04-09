@@ -227,9 +227,6 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	if s := tree.HashStrategy; s != trillian.HashStrategy_RFC6962_SHA256 {
-		return nil, fmt.Errorf("unknown hash strategy: %s", s)
-	}
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
 	ttx, err := m.beginTreeTx(ctx, tree, rfc6962.DefaultHasher.Size(), stCache)
