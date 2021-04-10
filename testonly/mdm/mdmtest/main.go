@@ -94,13 +94,12 @@ func innerMain(ctx context.Context) error {
 		// No logID provided, so create an ephemeral tree to test against.
 		req := trillian.CreateTreeRequest{
 			Tree: &trillian.Tree{
-				TreeState:          trillian.TreeState_ACTIVE,
-				TreeType:           trillian.TreeType_LOG,
-				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-				DisplayName:        fmt.Sprintf("mdmtest-%d", time.Now().UnixNano()/int64(time.Second)),
-				Description:        "Transient tree for mdmtest",
-				MaxRootDuration:    durationpb.New(time.Second * 3600),
+				TreeState:       trillian.TreeState_ACTIVE,
+				TreeType:        trillian.TreeType_LOG,
+				HashAlgorithm:   sigpb.DigitallySigned_SHA256,
+				DisplayName:     fmt.Sprintf("mdmtest-%d", time.Now().UnixNano()/int64(time.Second)),
+				Description:     "Transient tree for mdmtest",
+				MaxRootDuration: durationpb.New(time.Second * 3600),
 			},
 			KeySpec: &keyspb.Specification{
 				Params: &keyspb.Specification_EcdsaParams{

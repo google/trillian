@@ -25,7 +25,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/compact"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
@@ -403,7 +402,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 		Return([]*trillian.QueuedLogLeaf{{Status: status.New(codes.OK, "OK").Proto()}}, nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{addSeqRequest0.LogId, true, 1, nil, nil, false}),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{addSeqRequest0.LogId, true, 1, nil, nil}),
 		LogStorage:   mockStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1544,7 +1543,6 @@ func TestInitLog(t *testing.T) {
 	for _, tc := range []struct {
 		desc       string
 		preordered bool
-		signFail   bool
 		snapErr    error
 		treeErr    error
 		getRootErr error
@@ -1578,7 +1576,7 @@ func TestInitLog(t *testing.T) {
 				mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
 				mockTX.EXPECT().Close().Return(nil)
 			}
-			if tc.wantInit && !tc.signFail {
+			if tc.wantInit {
 				if tc.storeErr == nil {
 					mockTX.EXPECT().Commit(gomock.Any()).Return(nil)
 				}
@@ -1586,7 +1584,7 @@ func TestInitLog(t *testing.T) {
 			}
 
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorage(ctrl, storageParams{logID1, tc.preordered, 1, tc.snapErr, tc.treeErr, tc.signFail}),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{logID1, tc.preordered, 1, tc.snapErr, tc.treeErr}),
 				LogStorage:   fakeStorage,
 			}
 			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1598,7 +1596,7 @@ func TestInitLog(t *testing.T) {
 			if len(tc.wantErrStr) > 0 && !strings.Contains(err.Error(), tc.wantErrStr) {
 				t.Errorf("InitLog()=%v,%v, want err containing: %s", c, err, tc.wantErrStr)
 			}
-			if tc.wantInit && !tc.signFail && tc.storeErr == nil {
+			if tc.wantInit && tc.storeErr == nil {
 				if err != nil {
 					t.Fatalf("InitLog()=%v,%v want err=nil", c, err)
 				}
@@ -1689,7 +1687,7 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T, logID int64)
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil, false}),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1, nil, nil}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1705,7 +1703,6 @@ type storageParams struct {
 	numSnapshots int
 	snapErr      error
 	treeErr      error
-	badSigAlg    bool
 }
 
 func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
@@ -1714,12 +1711,6 @@ func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.Adm
 		tree = proto.Clone(stestonly.PreorderedLogTree).(*trillian.Tree)
 	}
 	tree.TreeId = params.treeID
-
-	if params.badSigAlg {
-		// Force the algorithm to one that can't be signed, which will provoke
-		// an error.
-		tree.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
-	}
 
 	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)

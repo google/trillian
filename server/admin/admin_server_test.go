@@ -326,12 +326,6 @@ func TestServer_CreateTree(t *testing.T) {
 	invalidHashAlgo := proto.Clone(validTree).(*trillian.Tree)
 	invalidHashAlgo.HashAlgorithm = sigpb.DigitallySigned_NONE
 
-	invalidSignatureAlgo := proto.Clone(validTree).(*trillian.Tree)
-	invalidSignatureAlgo.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
-
-	keySignatureMismatch := proto.Clone(validTree).(*trillian.Tree)
-	keySignatureMismatch.SignatureAlgorithm = sigpb.DigitallySigned_RSA
-
 	tests := []struct {
 		desc                  string
 		req                   *trillian.CreateTreeRequest
@@ -382,18 +376,6 @@ func TestServer_CreateTree(t *testing.T) {
 			wantErr: "key generation is not enabled",
 		},
 		{
-			// Tree specifies ECDSA signatures, but key specification provides RSA parameters.
-			desc: "privateKeySpecWithMismatchedAlgorithm",
-			req: &trillian.CreateTreeRequest{
-				Tree: omittedKeys,
-				KeySpec: &keyspb.Specification{
-					Params: &keyspb.Specification_RsaParams{},
-				},
-			},
-			wantKeyGenerator: true,
-			wantErr:          "signature not supported by signer",
-		},
-		{
 			desc: "privateKeySpecAndPrivateKeyProvided",
 			req: &trillian.CreateTreeRequest{
 				Tree: validTree,
@@ -424,16 +406,6 @@ func TestServer_CreateTree(t *testing.T) {
 			desc:    "invalidHashAlgo",
 			req:     &trillian.CreateTreeRequest{Tree: invalidHashAlgo},
 			wantErr: "unexpected hash algorithm",
-		},
-		{
-			desc:    "invalidSignatureAlgo",
-			req:     &trillian.CreateTreeRequest{Tree: invalidSignatureAlgo},
-			wantErr: "signature algorithm not supported",
-		},
-		{
-			desc:    "keySignatureMismatch",
-			req:     &trillian.CreateTreeRequest{Tree: keySignatureMismatch},
-			wantErr: "signature not supported by signer",
 		},
 		{
 			desc:      "createErr",

@@ -345,8 +345,7 @@ map_provision() {
       --hash_strategy=TEST_MAP_HASHER \
       --private_key_format=PrivateKey \
       --pem_key_path=${TRILLIAN_PATH}/testdata/map-rpc-server.privkey.pem \
-      --pem_key_password=towel \
-      --signature_algorithm=ECDSA)
+      --pem_key_password=towel)
     echo "Created map ${tree_id}"
     if [[ $i -eq 0 ]]; then
       MAP_IDS="${map_id}"

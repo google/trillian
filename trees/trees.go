@@ -173,10 +173,6 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 
 // Signer returns a Trillian crypto.Signer configured by the tree.
 func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
-	if tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS {
-		return nil, fmt.Errorf("signature algorithm not supported: %s", tree.SignatureAlgorithm)
-	}
-
 	if tree.HashAlgorithm != sigpb.DigitallySigned_SHA256 {
 		return nil, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
 	}
@@ -189,10 +185,6 @@ func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 	signer, err := keys.NewSigner(ctx, keyProto)
 	if err != nil {
 		return nil, err
-	}
-
-	if tcrypto.SignatureAlgorithm(signer.Public()) != tree.SignatureAlgorithm {
-		return nil, fmt.Errorf("%s signature not supported by signer of type %T", tree.SignatureAlgorithm, signer)
 	}
 
 	return tcrypto.NewSigner(signer), nil

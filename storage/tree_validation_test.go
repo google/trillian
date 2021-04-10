@@ -75,9 +75,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidHashAlgorithm := newTree()
 	invalidHashAlgorithm.HashAlgorithm = sigpb.DigitallySigned_NONE
 
-	invalidSignatureAlgorithm := newTree()
-	invalidSignatureAlgorithm.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
-
 	unsupportedPrivateKey := newTree()
 	unsupportedPrivateKey.PrivateKey.TypeUrl = "urn://unknown-type"
 
@@ -152,11 +149,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidHashAlgorithm",
 			tree:    invalidHashAlgorithm,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidSignatureAlgorithm",
-			tree:    invalidSignatureAlgorithm,
 			wantErr: true,
 		},
 		{
@@ -370,13 +362,6 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc: "SignatureAlgorithm",
-			updatefn: func(tree *trillian.Tree) {
-				tree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
-			},
-			wantErr: true,
-		},
-		{
 			desc: "CreateTime",
 			updatefn: func(tree *trillian.Tree) {
 				tree.CreateTime = timestamppb.New(time.Now())
@@ -434,13 +419,12 @@ func newTree() *trillian.Tree {
 	}
 
 	return &trillian.Tree{
-		TreeState:          trillian.TreeState_ACTIVE,
-		TreeType:           trillian.TreeType_LOG,
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-		DisplayName:        "Llamas Log",
-		Description:        "Registry of publicly-owned llamas",
-		PrivateKey:         privateKey,
+		TreeState:     trillian.TreeState_ACTIVE,
+		TreeType:      trillian.TreeType_LOG,
+		HashAlgorithm: sigpb.DigitallySigned_SHA256,
+		DisplayName:   "Llamas Log",
+		Description:   "Registry of publicly-owned llamas",
+		PrivateKey:    privateKey,
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
 		},

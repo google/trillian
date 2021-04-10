@@ -293,9 +293,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
-		"RFC6962_SHA256",
+		"RFC6962_SHA256", // Unused, filling in for backward compatibility.
 		newTree.HashAlgorithm.String(),
-		newTree.SignatureAlgorithm.String(),
+		"ECDSA", // Unused, filling in for backward compatibility.
 		newTree.DisplayName,
 		newTree.Description,
 		nowMillis,

@@ -35,12 +35,11 @@ import (
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
 var defaultTree = &trillian.Tree{
-	TreeState:          trillian.TreeState_ACTIVE,
-	TreeType:           trillian.TreeType_LOG,
-	HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-	SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-	PrivateKey:         mustMarshalAny(&emptypb.Empty{}),
-	MaxRootDuration:    durationpb.New(0 * time.Millisecond),
+	TreeState:       trillian.TreeState_ACTIVE,
+	TreeType:        trillian.TreeType_LOG,
+	HashAlgorithm:   sigpb.DigitallySigned_SHA256,
+	PrivateKey:      mustMarshalAny(&emptypb.Empty{}),
+	MaxRootDuration: durationpb.New(0 * time.Millisecond),
 }
 
 type testCase struct {
@@ -64,7 +63,6 @@ func mustMarshalAny(p proto.Message) *anypb.Any {
 func TestCreateTree(t *testing.T) {
 	nonDefaultTree := proto.Clone(defaultTree).(*trillian.Tree)
 	nonDefaultTree.TreeType = trillian.TreeType_LOG
-	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 	nonDefaultTree.DisplayName = "Llamas Log"
 	nonDefaultTree.Description = "For all your digital llama needs!"
 
@@ -78,7 +76,6 @@ func TestCreateTree(t *testing.T) {
 			desc: "nonDefaultOpts",
 			setFlags: func() {
 				*treeType = nonDefaultTree.TreeType.String()
-				*signatureAlgorithm = nonDefaultTree.SignatureAlgorithm.String()
 				*displayName = nonDefaultTree.DisplayName
 				*description = nonDefaultTree.Description
 			},

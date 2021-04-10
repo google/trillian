@@ -41,8 +41,6 @@ func ValidateTreeForCreation(ctx context.Context, tree *trillian.Tree) error {
 		return status.Errorf(codes.InvalidArgument, "invalid tree_type: %s", tree.TreeType)
 	case tree.HashAlgorithm == sigpb.DigitallySigned_NONE:
 		return status.Errorf(codes.InvalidArgument, "invalid hash_algorithm: %s", tree.HashAlgorithm)
-	case tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS:
-		return status.Errorf(codes.InvalidArgument, "invalid signature_algorithm: %s", tree.SignatureAlgorithm)
 	case tree.PrivateKey == nil:
 		return status.Error(codes.InvalidArgument, "a private_key is required")
 	case tree.PublicKey == nil:
@@ -94,8 +92,6 @@ func ValidateTreeForUpdate(ctx context.Context, storedTree, newTree *trillian.Tr
 		}
 	case storedTree.HashAlgorithm != newTree.HashAlgorithm:
 		return status.Error(codes.InvalidArgument, "readonly field changed: hash_algorithm")
-	case storedTree.SignatureAlgorithm != newTree.SignatureAlgorithm:
-		return status.Error(codes.InvalidArgument, "readonly field changed: signature_algorithm")
 	case !proto.Equal(storedTree.CreateTime, newTree.CreateTime):
 		return status.Error(codes.InvalidArgument, "readonly field changed: create_time")
 	case !proto.Equal(storedTree.UpdateTime, newTree.UpdateTime):

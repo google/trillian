@@ -75,12 +75,11 @@ func mustMarshalAny(pb proto.Message) *anypb.Any {
 var (
 	// LogTree is a valid, LOG-type trillian.Tree for tests.
 	LogTree = &trillian.Tree{
-		TreeState:          trillian.TreeState_ACTIVE,
-		TreeType:           trillian.TreeType_LOG,
-		HashAlgorithm:      spb.DigitallySigned_SHA256,
-		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		DisplayName:        "Llamas Log",
-		Description:        "Registry of publicly-owned llamas",
+		TreeState:     trillian.TreeState_ACTIVE,
+		TreeType:      trillian.TreeType_LOG,
+		HashAlgorithm: spb.DigitallySigned_SHA256,
+		DisplayName:   "Llamas Log",
+		Description:   "Registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
 		}),
@@ -92,12 +91,11 @@ var (
 
 	// PreorderedLogTree is a valid, PREORDERED_LOG-type trillian.Tree for tests.
 	PreorderedLogTree = &trillian.Tree{
-		TreeState:          trillian.TreeState_ACTIVE,
-		TreeType:           trillian.TreeType_PREORDERED_LOG,
-		HashAlgorithm:      spb.DigitallySigned_SHA256,
-		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		DisplayName:        "Pre-ordered Log",
-		Description:        "Mirror registry of publicly-owned llamas",
+		TreeState:     trillian.TreeState_ACTIVE,
+		TreeType:      trillian.TreeType_PREORDERED_LOG,
+		HashAlgorithm: spb.DigitallySigned_SHA256,
+		DisplayName:   "Pre-ordered Log",
+		Description:   "Mirror registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
 		}),

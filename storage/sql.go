@@ -104,17 +104,11 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	} else {
 		return nil, fmt.Errorf("unknown HashAlgorithm: %v", hashAlgorithm)
 	}
-	if sa, ok := spb.DigitallySigned_SignatureAlgorithm_value[signatureAlgorithm]; ok {
-		tree.SignatureAlgorithm = spb.DigitallySigned_SignatureAlgorithm(sa)
-	} else {
-		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", signatureAlgorithm)
-	}
 
 	// Let's make sure we didn't mismatch any of the casts above
 	ok := tree.TreeState.String() == treeState &&
 		tree.TreeType.String() == treeType &&
-		tree.HashAlgorithm.String() == hashAlgorithm &&
-		tree.SignatureAlgorithm.String() == signatureAlgorithm
+		tree.HashAlgorithm.String() == hashAlgorithm
 	if !ok {
 		return nil, fmt.Errorf(
 			"mismatched enum: tree = %v, enums = [%v, %v, %v, %v, %v]",
