@@ -23,9 +23,7 @@
 // automated scripts.
 //
 // Several flags are provided to configure the create tree, most of which try to
-// assume reasonable defaults. Multiple types of private keys may be supported;
-// one has only to set the appropriate --private_key_format value and supply the
-// corresponding flags for the chosen key type.
+// assume reasonable defaults.
 package main
 
 import (
@@ -40,8 +38,6 @@ import (
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/client/rpcflags"
 	"github.com/google/trillian/cmd"
-	"github.com/google/trillian/cmd/createtree/keys"
-	"github.com/google/trillian/crypto/keyspb"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -50,12 +46,11 @@ var (
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 	rpcDeadline     = flag.Duration("rpc_deadline", time.Second*10, "Deadline for RPC requests")
 
-	treeState        = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
-	treeType         = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
-	displayName      = flag.String("display_name", "", "Display name of the new tree")
-	description      = flag.String("description", "", "Description of the new tree")
-	maxRootDuration  = flag.Duration("max_root_duration", time.Hour, "Interval after which a new signed root is produced despite no submissions; zero means never")
-	privateKeyFormat = flag.String("private_key_format", "", "Type of protobuf message to send the key as (PrivateKey, PEMKeyFile, or PKCS11ConfigFile). If empty, a key will be generated for you by Trillian.")
+	treeState       = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
+	treeType        = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
+	displayName     = flag.String("display_name", "", "Display name of the new tree")
+	description     = flag.String("description", "", "Description of the new tree")
+	maxRootDuration = flag.Duration("max_root_duration", time.Hour, "Interval after which a new signed root is produced despite no submissions; zero means never")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 
@@ -109,20 +104,6 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		MaxRootDuration: durationpb.New(*maxRootDuration),
 	}}
 	glog.Infof("Creating tree %+v", ctr.Tree)
-
-	if *privateKeyFormat != "" {
-		pk, err := keys.New(*privateKeyFormat)
-		if err != nil {
-			return nil, err
-		}
-		ctr.Tree.PrivateKey = pk
-	} else {
-		ctr.KeySpec = &keyspb.Specification{
-			Params: &keyspb.Specification_EcdsaParams{
-				EcdsaParams: &keyspb.Specification_ECDSA{},
-			},
-		}
-	}
 
 	return ctr, nil
 }

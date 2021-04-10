@@ -26,27 +26,10 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
-)
-
-const (
-	privateKeyPath = "../testdata/log-rpc-server.privkey.pem"
-	privateKeyPass = "towel"
-	privateKeyPEM  = `
------BEGIN EC PRIVATE KEY-----
-Proc-Type: 4,ENCRYPTED
-DEK-Info: DES-CBC,D95ECC664FF4BDEC
-
-Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
-sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
-S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
------END EC PRIVATE KEY-----`
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
@@ -64,15 +47,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 
 	invalidType := newTree()
 	invalidType.TreeType = trillian.TreeType_UNKNOWN_TREE_TYPE
-
-	unsupportedPrivateKey := newTree()
-	unsupportedPrivateKey.PrivateKey.TypeUrl = "urn://unknown-type"
-
-	invalidPrivateKey := newTree()
-	invalidPrivateKey.PrivateKey.Value = []byte("foobar")
-
-	nilPrivateKey := newTree()
-	nilPrivateKey.PrivateKey = nil
 
 	invalidSettings := newTree()
 	invalidSettings.StorageSettings = &anypb.Any{Value: []byte("foobar")}
@@ -128,21 +102,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidType",
 			tree:    invalidType,
-			wantErr: true,
-		},
-		{
-			desc:    "unsupportedPrivateKey",
-			tree:    unsupportedPrivateKey,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidPrivateKey",
-			tree:    invalidPrivateKey,
-			wantErr: true,
-		},
-		{
-			desc:    "nilPrivateKey",
-			tree:    nilPrivateKey,
 			wantErr: true,
 		},
 		{
@@ -239,36 +198,6 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		{
-			desc: "differentPrivateKeyProtoButSameKeyMaterial",
-			updatefn: func(tree *trillian.Tree) {
-				key, err := anypb.New(&keyspb.PrivateKey{
-					Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
-				})
-				if err != nil {
-					panic(err)
-				}
-				tree.PrivateKey = key
-			},
-		},
-		{
-			desc: "unsupportedPrivateKeyProto",
-			updatefn: func(tree *trillian.Tree) {
-				key, err := anypb.New(&emptypb.Empty{})
-				if err != nil {
-					panic(err)
-				}
-				tree.PrivateKey = key
-			},
-			wantErr: true,
-		},
-		{
-			desc: "nilPrivateKeyProto",
-			updatefn: func(tree *trillian.Tree) {
-				tree.PrivateKey = nil
-			},
-			wantErr: true,
-		},
 		// Changes on readonly fields
 		{
 			desc: "TreeId",
@@ -359,20 +288,11 @@ func TestValidateTreeForUpdate(t *testing.T) {
 
 // newTree returns a valid log tree for tests.
 func newTree() *trillian.Tree {
-	privateKey, err := anypb.New(&keyspb.PEMKeyFile{
-		Path:     privateKeyPath,
-		Password: privateKeyPass,
-	})
-	if err != nil {
-		panic(err)
-	}
-
 	return &trillian.Tree{
 		TreeState:       trillian.TreeState_ACTIVE,
 		TreeType:        trillian.TreeType_LOG,
 		DisplayName:     "Llamas Log",
 		Description:     "Registry of publicly-owned llamas",
-		PrivateKey:      privateKey,
 		MaxRootDuration: durationpb.New(1000 * time.Millisecond),
 	}
 }

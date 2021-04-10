@@ -149,7 +149,6 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 	successWant.TreeState = successTree.TreeState
 	successWant.DisplayName = successTree.DisplayName
 	successWant.Description = successTree.Description
-	successWant.PrivateKey = nil // redacted on responses
 
 	tests := []struct {
 		desc                 string
@@ -310,12 +309,6 @@ func TestAdminServer_ListTrees(t *testing.T) {
 			sortByTreeID(got)
 			if diff := cmp.Diff(got, createdTrees, cmp.Comparer(proto.Equal)); diff != "" {
 				t.Errorf("post-ListTrees diff:\n%v", diff)
-			}
-
-			for _, tree := range resp.Tree {
-				if tree.PrivateKey != nil {
-					t.Errorf("PrivateKey not redacted: %v", tree)
-				}
 			}
 		})
 	}

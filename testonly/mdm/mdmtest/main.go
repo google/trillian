@@ -25,7 +25,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/testonly/mdm"
@@ -98,13 +97,6 @@ func innerMain(ctx context.Context) error {
 				DisplayName:     fmt.Sprintf("mdmtest-%d", time.Now().UnixNano()/int64(time.Second)),
 				Description:     "Transient tree for mdmtest",
 				MaxRootDuration: durationpb.New(time.Second * 3600),
-			},
-			KeySpec: &keyspb.Specification{
-				Params: &keyspb.Specification_EcdsaParams{
-					EcdsaParams: &keyspb.Specification_ECDSA{
-						Curve: keyspb.Specification_ECDSA_P256,
-					},
-				},
 			},
 		}
 		tree, err := client.CreateAndInitTree(ctx, &req, adminCl, cl)

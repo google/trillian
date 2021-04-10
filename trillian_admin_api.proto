@@ -22,7 +22,6 @@ option go_package = "github.com/google/trillian";
 package trillian;
 
 import "trillian.proto";
-import "crypto/keyspb/keyspb.proto";
 import "google/protobuf/field_mask.proto";
 
 // ListTrees request.
@@ -51,9 +50,8 @@ message CreateTreeRequest {
   // Tree to be created. See Tree and CreateTree for more details.
   Tree tree = 1;
 
-  // Describes how the tree's private key should be generated.
-  // Only needs to be set if tree.private_key is not set.
-  keyspb.Specification key_spec = 2;
+  reserved 2;
+  reserved "key_spec";
 }
 
 // UpdateTree request.

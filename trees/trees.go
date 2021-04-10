@@ -21,13 +21,10 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 const traceSpanRoot = "/trillian/trees"
@@ -168,21 +165,6 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 	}
 
 	return tree, nil
-}
-
-// Signer returns a Trillian crypto.Signer configured by the tree.
-func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
-	keyProto, err := tree.PrivateKey.UnmarshalNew()
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal tree.PrivateKey: %v", err)
-	}
-
-	signer, err := keys.NewSigner(ctx, keyProto)
-	if err != nil {
-		return nil, err
-	}
-
-	return tcrypto.NewSigner(signer), nil
 }
 
 func spanFor(ctx context.Context, name string) (context.Context, func()) {

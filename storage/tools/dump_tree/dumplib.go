@@ -17,7 +17,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
@@ -30,10 +29,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys/der"
-	_ "github.com/google/trillian/crypto/keys/der/proto"
-	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
@@ -48,7 +43,6 @@ import (
 	"github.com/google/trillian/util/clock"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -111,17 +105,6 @@ func recordIOProto(s *storagepb.SubtreeProto) string {
 	return buf.String()
 }
 
-// This is a copy of the logserver private key from the testdata directory
-var logPrivKeyPEM = `
------BEGIN EC PRIVATE KEY-----
-Proc-Type: 4,ENCRYPTED
-DEK-Info: DES-CBC,D95ECC664FF4BDEC
-
-Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
-sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
-S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
------END EC PRIVATE KEY-----`
-
 func sequence(tree *trillian.Tree, seq *log.Sequencer, count, batchSize int) {
 	glog.Infof("Sequencing batch of size %d", count)
 	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour)
@@ -134,30 +117,11 @@ func sequence(tree *trillian.Tree, seq *log.Sequencer, count, batchSize int) {
 	}
 }
 
-func getPrivateKey(pemPath, pemPassword string) (*anypb.Any, crypto.Signer) {
-	pemSigner, err := pem.UnmarshalPrivateKey(pemPath, pemPassword)
-	if err != nil {
-		glog.Fatalf("UnmarshalPrivateKey(): %v", err)
-	}
-	pemDer, err := der.MarshalPrivateKey(pemSigner)
-	if err != nil {
-		glog.Fatalf("MarshalPrivateKey(): %v", err)
-	}
-	anyPrivKey, err := anypb.New(&keyspb.PrivateKey{Der: pemDer})
-	if err != nil {
-		glog.Fatalf("MarshalAny(%v): %v", pemDer, err)
-	}
-
-	return anyPrivKey, pemSigner
-}
-
 func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 	ctx := context.TODO()
-	privKey, _ := getPrivateKey(logPrivKeyPEM, "towel")
 	tree := &trillian.Tree{
 		TreeType:        trillian.TreeType_LOG,
 		TreeState:       trillian.TreeState_ACTIVE,
-		PrivateKey:      privKey,
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 	createdTree, err := storage.CreateTree(ctx, as, tree)

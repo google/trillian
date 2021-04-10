@@ -16,7 +16,6 @@ package testonly
 
 import (
 	"context"
-	"crypto"
 	"fmt"
 	"reflect"
 	"sort"
@@ -25,68 +24,29 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/emptypb"
-
-	ktestonly "github.com/google/trillian/crypto/keys/testonly"
-
-	_ "github.com/google/trillian/crypto/keys/der/proto" // PrivateKey proto handler
-	_ "github.com/google/trillian/crypto/keys/pem/proto" // PEMKeyFile proto handler
 )
-
-const (
-	privateKeyPass = "towel"
-	privateKeyPEM  = `
------BEGIN EC PRIVATE KEY-----
-Proc-Type: 4,ENCRYPTED
-DEK-Info: DES-CBC,D95ECC664FF4BDEC
-
-Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
-sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
-S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
------END EC PRIVATE KEY-----`
-)
-
-// mustMarshalAny panics if it doesn't marshal.
-func mustMarshalAny(pb proto.Message) *anypb.Any {
-	value, err := anypb.New(pb)
-	if err != nil {
-		panic(err)
-	}
-	return value
-}
 
 var (
 	// LogTree is a valid, LOG-type trillian.Tree for tests.
 	LogTree = &trillian.Tree{
-		TreeState:   trillian.TreeState_ACTIVE,
-		TreeType:    trillian.TreeType_LOG,
-		DisplayName: "Llamas Log",
-		Description: "Registry of publicly-owned llamas",
-		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
-			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
-		}),
+		TreeState:       trillian.TreeState_ACTIVE,
+		TreeType:        trillian.TreeType_LOG,
+		DisplayName:     "Llamas Log",
+		Description:     "Registry of publicly-owned llamas",
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 
 	// PreorderedLogTree is a valid, PREORDERED_LOG-type trillian.Tree for tests.
 	PreorderedLogTree = &trillian.Tree{
-		TreeState:   trillian.TreeState_ACTIVE,
-		TreeType:    trillian.TreeType_PREORDERED_LOG,
-		DisplayName: "Pre-ordered Log",
-		Description: "Mirror registry of publicly-owned llamas",
-		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
-			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
-		}),
+		TreeState:       trillian.TreeState_ACTIVE,
+		TreeType:        trillian.TreeType_PREORDERED_LOG,
+		DisplayName:     "Pre-ordered Log",
+		Description:     "Mirror registry of publicly-owned llamas",
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 )
@@ -232,19 +192,6 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		tree.TreeType = trillian.TreeType_PREORDERED_LOG
 	}
 
-	newPrivateKey := &emptypb.Empty{}
-	privateKeyChangedButKeyMaterialSameTree := tweakedCopy(LogTree, func(tree *trillian.Tree) {
-		tree.PrivateKey = testonly.MustMarshalAny(t, newPrivateKey)
-	})
-	keys.RegisterHandler(newPrivateKey, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
-		return pem.UnmarshalPrivateKey(privateKeyPEM, privateKeyPass)
-	})
-	defer keys.UnregisterHandler(newPrivateKey)
-
-	privateKeyChangedButKeyMaterialSameFunc := func(tree *trillian.Tree) {
-		tree.PrivateKey = privateKeyChangedButKeyMaterialSameTree.PrivateKey
-	}
-
 	// Test for an unknown tree outside the loop: it makes the test logic simpler
 	if _, err := storage.UpdateTree(ctx, s, -1, func(tree *trillian.Tree) {}); err == nil {
 		t.Error("UpdateTree() for treeID -1 returned nil err")
@@ -279,12 +226,6 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 			create:     referenceLog,
 			updateFunc: readonlyChangedFunc,
 			wantErr:    true,
-		},
-		{
-			desc:       "privateKeyChangedButKeyMaterialSame",
-			create:     referenceLog,
-			updateFunc: privateKeyChangedButKeyMaterialSameFunc,
-			want:       privateKeyChangedButKeyMaterialSameTree,
 		},
 	}
 	for _, test := range tests {

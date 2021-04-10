@@ -16,13 +16,7 @@ package admin
 
 import (
 	"context"
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/rsa"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -30,8 +24,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -50,18 +42,7 @@ func TestServer_BeginError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	// PEM on the testonly trees is ECDSA, so let's use an ECDSA key for tests.
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("Error generating test key: %v", err)
-	}
-
 	validTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-
-	keyProto := &emptypb.Empty{}
-	validTree.PrivateKey = ttestonly.MustMarshalAny(t, keyProto)
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, privateKey))
-	defer keys.UnregisterHandler(keyProto)
 
 	tests := []struct {
 		desc     string
@@ -158,7 +139,6 @@ func TestServer_ListTrees(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,  /* keygen */
 			true, /* snapshot */
 			true, /* shouldCommit */
 			false /* commitErr */)
@@ -175,7 +155,6 @@ func TestServer_ListTrees(t *testing.T) {
 		want := []*trillian.Tree{}
 		for _, tree := range test.trees {
 			wantTree := proto.Clone(tree).(*trillian.Tree)
-			wantTree.PrivateKey = nil // redacted
 			want = append(want, wantTree)
 		}
 		for i, wantTree := range want {
@@ -204,7 +183,6 @@ func TestServer_ListTreesErrors(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,                 /* keygen */
 			true,                /* snapshot */
 			test.listErr == nil, /* shouldCommit */
 			test.commitErr /* commitErr */)
@@ -244,7 +222,6 @@ func TestServer_GetTree(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,          /* keygen */
 			true,         /* snapshot */
 			!test.getErr, /* shouldCommit */
 			test.commitErr)
@@ -270,7 +247,6 @@ func TestServer_GetTree(t *testing.T) {
 		}
 
 		wantTree := proto.Clone(storedTree).(*trillian.Tree)
-		wantTree.PrivateKey = nil // redacted
 		if diff := cmp.Diff(tree, wantTree, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("%v: post-GetTree diff (-got +want):\n%v", test.desc, diff)
 		}
@@ -278,25 +254,7 @@ func TestServer_GetTree(t *testing.T) {
 }
 
 func TestServer_CreateTree(t *testing.T) {
-	// PEM on the testonly trees is ECDSA, so let's use an ECDSA key for tests.
-	ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("Error generating test ECDSA key: %v", err)
-	}
-
-	rsaPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		t.Fatalf("Error generating test RSA key: %v", err)
-	}
-
 	validTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-	// Except in key generation test cases, a keys.ProtoHandler will be registered that
-	// returns ecdsaPrivateKey when passed an empty proto.
-	wantKeyProto := &emptypb.Empty{}
-	validTree.PrivateKey = ttestonly.MustMarshalAny(t, wantKeyProto)
-
-	omittedPrivateKey := proto.Clone(validTree).(*trillian.Tree)
-	omittedPrivateKey.PrivateKey = nil
 
 	invalidTree := proto.Clone(validTree).(*trillian.Tree)
 	invalidTree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
@@ -304,7 +262,6 @@ func TestServer_CreateTree(t *testing.T) {
 	tests := []struct {
 		desc                  string
 		req                   *trillian.CreateTreeRequest
-		wantKeyGenerator      bool
 		createErr             error
 		commitErr, wantCommit bool
 		wantErr               string
@@ -318,22 +275,6 @@ func TestServer_CreateTree(t *testing.T) {
 			desc:    "nilTree",
 			req:     &trillian.CreateTreeRequest{},
 			wantErr: "tree is required",
-		},
-		{
-			desc:    "omittedPrivateKey",
-			req:     &trillian.CreateTreeRequest{Tree: omittedPrivateKey},
-			wantErr: "private_key or key_spec is required",
-		},
-		{
-			desc: "privateKeySpecAndPrivateKeyProvided",
-			req: &trillian.CreateTreeRequest{
-				Tree: validTree,
-				KeySpec: &keyspb.Specification{
-					Params: &keyspb.Specification_EcdsaParams{},
-				},
-			},
-			wantKeyGenerator: true,
-			wantErr:          "private_key and key_spec fields are mutually exclusive",
 		},
 		{
 			desc:      "createErr",
@@ -356,30 +297,7 @@ func TestServer_CreateTree(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			var privateKey crypto.Signer = ecdsaPrivateKey
-			var keygen keys.ProtoGenerator
-			// If KeySpec is set, select the correct type of key to "generate".
-			if test.req.GetKeySpec() != nil {
-				switch keySpec := test.req.GetKeySpec().GetParams().(type) {
-				case *keyspb.Specification_EcdsaParams:
-					privateKey = ecdsaPrivateKey
-				case *keyspb.Specification_RsaParams:
-					privateKey = rsaPrivateKey
-				default:
-					t.Fatalf("unexpected KeySpec.Params type: %T", keySpec)
-				}
-
-				if test.wantKeyGenerator {
-					// Setup a fake key generator. If it receives the expected KeySpec, it returns wantKeyProto,
-					// which a keys.ProtoHandler will expect to receive later on.
-					keygen = fakeKeyProtoGenerator(test.req.GetKeySpec(), wantKeyProto)
-				}
-			}
-
-			keys.RegisterHandler(fakeKeyProtoHandler(wantKeyProto, privateKey))
-			defer keys.UnregisterHandler(wantKeyProto)
-
-			setup := setupAdminServer(ctrl, keygen, false /* snapshot */, test.wantCommit, test.commitErr)
+			setup := setupAdminServer(ctrl, false /* snapshot */, test.wantCommit, test.commitErr)
 			tx := setup.tx
 			s := setup.server
 			nowPB := timestamppb.Now()
@@ -408,7 +326,6 @@ func TestServer_CreateTree(t *testing.T) {
 			wantTree.TreeId = 12345
 			wantTree.CreateTime = nowPB
 			wantTree.UpdateTime = nowPB
-			wantTree.PrivateKey = nil // redacted
 			if diff := cmp.Diff(tree, wantTree, cmp.Comparer(proto.Equal)); diff != "" {
 				t.Fatalf("post-CreateTree diff (-got +want):\n%v", diff)
 			}
@@ -453,7 +370,6 @@ func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   // keygen
 			false, // snapshot
 			test.wantCode == codes.OK,
 			false)
@@ -496,10 +412,9 @@ func TestServer_UpdateTree(t *testing.T) {
 		Description:     "Brand New Tree Desc",
 		StorageSettings: settings,
 		MaxRootDuration: durationpb.New(2 * time.Nanosecond),
-		PrivateKey:      ttestonly.MustMarshalAny(t, &emptypb.Empty{}),
 	}
 	successMask := &field_mask.FieldMask{
-		Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration", "private_key"},
+		Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration"},
 	}
 
 	successWant := proto.Clone(existingTree).(*trillian.Tree)
@@ -507,7 +422,6 @@ func TestServer_UpdateTree(t *testing.T) {
 	successWant.DisplayName = successTree.DisplayName
 	successWant.Description = successTree.Description
 	successWant.StorageSettings = successTree.StorageSettings
-	successWant.PrivateKey = nil // redacted on responses
 	successWant.MaxRootDuration = successTree.MaxRootDuration
 
 	tests := []struct {
@@ -571,7 +485,6 @@ func TestServer_UpdateTree(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
 			false, /* snapshot */
 			test.wantCommit,
 			test.commitErr)
@@ -623,7 +536,6 @@ func TestServer_DeleteTree(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
 			false, /* snapshot */
 			true,  /* shouldCommit */
 			false)
@@ -640,7 +552,6 @@ func TestServer_DeleteTree(t *testing.T) {
 		}
 
 		want := proto.Clone(test.tree).(*trillian.Tree)
-		want.PrivateKey = nil // redacted
 		if !proto.Equal(got, want) {
 			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-DeleteTree() diff (-got +want):\n%v", test.desc, diff)
@@ -665,7 +576,6 @@ func TestServer_DeleteTreeErrors(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,
 			false,
 			test.deleteErr == nil,
 			test.commitErr)
@@ -708,7 +618,6 @@ func TestServer_UndeleteTree(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,   /* keygen */
 			false, /* snapshot */
 			true,  /* shouldCommit */
 			false)
@@ -725,7 +634,6 @@ func TestServer_UndeleteTree(t *testing.T) {
 		}
 
 		want := proto.Clone(test.tree).(*trillian.Tree)
-		want.PrivateKey = nil // redacted
 		if !proto.Equal(got, want) {
 			diff := cmp.Diff(got, want)
 			t.Errorf("%v: post-UneleteTree() diff (-got +want):\n%v", test.desc, diff)
@@ -750,7 +658,6 @@ func TestServer_UndeleteTreeErrors(t *testing.T) {
 	for _, test := range tests {
 		setup := setupAdminServer(
 			ctrl,
-			nil,
 			false,
 			test.undeleteErr == nil,
 			test.commitErr)
@@ -780,7 +687,7 @@ type adminTestSetup struct {
 // Storage will be set to use either snapshots or regular TXs via snapshot parameter.
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
-func setupAdminServer(ctrl *gomock.Controller, keygen keys.ProtoGenerator, snapshot, shouldCommit, commitErr bool) adminTestSetup {
+func setupAdminServer(ctrl *gomock.Controller, snapshot, shouldCommit, commitErr bool) adminTestSetup {
 	as := &testonly.FakeAdminStorage{}
 
 	var snapshotTX *storage.MockReadOnlyAdminTX
@@ -809,30 +716,9 @@ func setupAdminServer(ctrl *gomock.Controller, keygen keys.ProtoGenerator, snaps
 		}
 	}
 
-	registry := extension.Registry{
-		AdminStorage: as,
-		NewKeyProto:  keygen,
-	}
+	registry := extension.Registry{AdminStorage: as}
 
 	s := &Server{registry: registry}
 
 	return adminTestSetup{registry, as, tx, snapshotTX, s}
-}
-
-func fakeKeyProtoHandler(wantKeyProto proto.Message, key crypto.Signer) (proto.Message, keys.ProtoHandler) {
-	return wantKeyProto, func(ctx context.Context, gotKeyProto proto.Message) (crypto.Signer, error) {
-		if !proto.Equal(gotKeyProto, wantKeyProto) {
-			return nil, fmt.Errorf("NewSigner(_, %#v) called, want NewSigner(_, %#v)", gotKeyProto, wantKeyProto)
-		}
-		return key, nil
-	}
-}
-
-func fakeKeyProtoGenerator(wantKeySpec *keyspb.Specification, keyProto proto.Message) keys.ProtoGenerator {
-	return func(ctx context.Context, gotKeySpec *keyspb.Specification) (proto.Message, error) {
-		if !proto.Equal(gotKeySpec, wantKeySpec) {
-			return nil, fmt.Errorf("NewKeyProto(_, %#v) called, want NewKeyProto(_, %#v)", gotKeySpec, wantKeySpec)
-		}
-		return keyProto, nil
-	}
 }
