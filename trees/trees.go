@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
@@ -173,10 +172,6 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 
 // Signer returns a Trillian crypto.Signer configured by the tree.
 func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
-	if tree.HashAlgorithm != sigpb.DigitallySigned_SHA256 {
-		return nil, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
-	}
-
 	keyProto, err := tree.PrivateKey.UnmarshalNew()
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal tree.PrivateKey: %v", err)

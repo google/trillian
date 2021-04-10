@@ -42,7 +42,6 @@ import (
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -53,7 +52,6 @@ var (
 
 	treeState        = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
 	treeType         = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
-	hashAlgorithm    = flag.String("hash_algorithm", sigpb.DigitallySigned_SHA256.String(), "Hash algorithm of the new tree")
 	displayName      = flag.String("display_name", "", "Display name of the new tree")
 	description      = flag.String("description", "", "Description of the new tree")
 	maxRootDuration  = flag.Duration("max_root_duration", time.Hour, "Interval after which a new signed root is produced despite no submissions; zero means never")
@@ -103,15 +101,9 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		return nil, fmt.Errorf("unknown TreeType: %v", *treeType)
 	}
 
-	ha, ok := sigpb.DigitallySigned_HashAlgorithm_value[*hashAlgorithm]
-	if !ok {
-		return nil, fmt.Errorf("unknown HashAlgorithm: %v", *hashAlgorithm)
-	}
-
 	ctr := &trillian.CreateTreeRequest{Tree: &trillian.Tree{
 		TreeState:       trillian.TreeState(ts),
 		TreeType:        trillian.TreeType(tt),
-		HashAlgorithm:   sigpb.DigitallySigned_HashAlgorithm(ha),
 		DisplayName:     *displayName,
 		Description:     *description,
 		MaxRootDuration: durationpb.New(*maxRootDuration),

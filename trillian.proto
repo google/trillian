@@ -22,7 +22,6 @@ option go_package = "github.com/google/trillian";
 package trillian;
 
 import "crypto/keyspb/keyspb.proto";
-import "crypto/sigpb/sigpb.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
@@ -129,10 +128,6 @@ message Tree {
   // PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state.
   TreeType tree_type = 3;
 
-  // Hash algorithm to be used by the tree.
-  // Readonly.
-  sigpb.DigitallySigned.HashAlgorithm hash_algorithm = 5;
-
   // Display name of the tree.
   // Optional.
   string display_name = 8;
@@ -181,9 +176,10 @@ message Tree {
   // Readonly.
   google.protobuf.Timestamp delete_time = 20;
 
-  reserved 4, 6, 7, 10, 11, 18;
+  reserved 4 to 7, 10, 11, 18;
   reserved "create_time_millis_since_epoch";
   reserved "duplicate_policy";
+  reserved "hash_algorithm";
   reserved "hash_strategy";
   reserved "signature_algorithm";
   reserved "signature_cipher_suite";

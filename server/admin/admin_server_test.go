@@ -33,7 +33,6 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -323,9 +322,6 @@ func TestServer_CreateTree(t *testing.T) {
 	invalidTree := proto.Clone(validTree).(*trillian.Tree)
 	invalidTree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
 
-	invalidHashAlgo := proto.Clone(validTree).(*trillian.Tree)
-	invalidHashAlgo.HashAlgorithm = sigpb.DigitallySigned_NONE
-
 	tests := []struct {
 		desc                  string
 		req                   *trillian.CreateTreeRequest
@@ -401,11 +397,6 @@ func TestServer_CreateTree(t *testing.T) {
 			desc:       "omittedPublicKey",
 			req:        &trillian.CreateTreeRequest{Tree: omittedPublicKey},
 			wantCommit: true,
-		},
-		{
-			desc:    "invalidHashAlgo",
-			req:     &trillian.CreateTreeRequest{Tree: invalidHashAlgo},
-			wantErr: "unexpected hash algorithm",
 		},
 		{
 			desc:      "createErr",

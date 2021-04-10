@@ -35,7 +35,6 @@ import (
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
@@ -180,7 +179,6 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 	tree := &trillian.Tree{
 		TreeType:        trillian.TreeType_LOG,
 		TreeState:       trillian.TreeState_ACTIVE,
-		HashAlgorithm:   sigpb.DigitallySigned_SHA256,
 		PrivateKey:      privKey,
 		PublicKey:       &keyspb.PublicKey{Der: pubKey},
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),

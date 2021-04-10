@@ -30,7 +30,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"google.golang.org/grpc/codes"
@@ -322,7 +321,6 @@ func TestSigner(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-			tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
 
 			wantKeyProto, err := tree.PrivateKey.UnmarshalNew()
 			if err != nil {
