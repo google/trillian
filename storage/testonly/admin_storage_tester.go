@@ -54,12 +54,6 @@ Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
 sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
 S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
 -----END EC PRIVATE KEY-----`
-	// PublicKeyPEM is the public key for: LogTree and PreorderedLogTree
-	PublicKeyPEM = `
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
-Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
------END PUBLIC KEY-----`
 )
 
 // mustMarshalAny panics if it doesn't marshal.
@@ -81,9 +75,6 @@ var (
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
 		}),
-		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
-		},
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 
@@ -96,9 +87,6 @@ var (
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
 		}),
-		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(PublicKeyPEM),
-		},
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 )
@@ -257,12 +245,6 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		tree.PrivateKey = privateKeyChangedButKeyMaterialSameTree.PrivateKey
 	}
 
-	privateKeyChangedAndKeyMaterialDifferentFunc := func(tree *trillian.Tree) {
-		tree.PrivateKey = testonly.MustMarshalAny(t, &keyspb.PrivateKey{
-			Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
-		})
-	}
-
 	// Test for an unknown tree outside the loop: it makes the test logic simpler
 	if _, err := storage.UpdateTree(ctx, s, -1, func(tree *trillian.Tree) {}); err == nil {
 		t.Error("UpdateTree() for treeID -1 returned nil err")
@@ -303,12 +285,6 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 			create:     referenceLog,
 			updateFunc: privateKeyChangedButKeyMaterialSameFunc,
 			want:       privateKeyChangedButKeyMaterialSameTree,
-		},
-		{
-			desc:       "privateKeyChangedAndKeyMaterialDifferent",
-			create:     referenceLog,
-			updateFunc: privateKeyChangedAndKeyMaterialDifferentFunc,
-			wantErr:    true,
 		},
 	}
 	for _, test := range tests {

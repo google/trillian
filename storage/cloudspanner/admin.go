@@ -24,7 +24,6 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"google.golang.org/grpc/codes"
@@ -369,7 +368,6 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		CreateTimeNanos:       now.UnixNano(),
 		UpdateTimeNanos:       now.UnixNano(),
 		PrivateKey:            tree.GetPrivateKey(),
-		PublicKeyDer:          tree.GetPublicKey().GetDer(),
 		MaxRootDurationMillis: int64(maxRootDuration / time.Millisecond),
 	}
 
@@ -570,7 +568,6 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		CreateTime:      createdPB,
 		UpdateTime:      updatedPB,
 		PrivateKey:      info.PrivateKey,
-		PublicKey:       &keyspb.PublicKey{Der: info.PublicKeyDer},
 		MaxRootDuration: durationpb.New(time.Duration(info.MaxRootDurationMillis) * time.Millisecond),
 	}
 

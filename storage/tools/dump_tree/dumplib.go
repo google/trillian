@@ -19,7 +19,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -123,13 +122,6 @@ sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
 S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
 -----END EC PRIVATE KEY-----`
 
-// And the corresponding public key
-var logPubKeyPEM = `
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
-Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
------END PUBLIC KEY-----`
-
 func sequence(tree *trillian.Tree, seq *log.Sequencer, count, batchSize int) {
 	glog.Infof("Sequencing batch of size %d", count)
 	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour)
@@ -159,28 +151,13 @@ func getPrivateKey(pemPath, pemPassword string) (*anypb.Any, crypto.Signer) {
 	return anyPrivKey, pemSigner
 }
 
-func getPublicKey(keyPEM string) []byte {
-	key, err := pem.UnmarshalPublicKey(keyPEM)
-	if err != nil {
-		panic(err)
-	}
-
-	keyDER, err := x509.MarshalPKIXPublicKey(key)
-	if err != nil {
-		panic(err)
-	}
-	return keyDER
-}
-
 func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 	ctx := context.TODO()
 	privKey, _ := getPrivateKey(logPrivKeyPEM, "towel")
-	pubKey := getPublicKey(logPubKeyPEM)
 	tree := &trillian.Tree{
 		TreeType:        trillian.TreeType_LOG,
 		TreeState:       trillian.TreeState_ACTIVE,
 		PrivateKey:      privKey,
-		PublicKey:       &keyspb.PublicKey{Der: pubKey},
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 	createdTree, err := storage.CreateTree(ctx, as, tree)

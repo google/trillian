@@ -31,7 +31,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
@@ -58,9 +57,6 @@ func TestServer_BeginError(t *testing.T) {
 	}
 
 	validTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-
-	// Need to remove the public key, as it won't correspond to the privateKey that was just generated.
-	validTree.PublicKey = nil
 
 	keyProto := &emptypb.Empty{}
 	validTree.PrivateKey = ttestonly.MustMarshalAny(t, keyProto)
@@ -293,31 +289,14 @@ func TestServer_CreateTree(t *testing.T) {
 		t.Fatalf("Error generating test RSA key: %v", err)
 	}
 
-	// Need to change the public key to correspond with the ECDSA private key generated above.
 	validTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	// Except in key generation test cases, a keys.ProtoHandler will be registered that
 	// returns ecdsaPrivateKey when passed an empty proto.
 	wantKeyProto := &emptypb.Empty{}
 	validTree.PrivateKey = ttestonly.MustMarshalAny(t, wantKeyProto)
-	validTree.PublicKey = func() *keyspb.PublicKey {
-		pb, err := der.ToPublicProto(ecdsaPrivateKey.Public())
-		if err != nil {
-			t.Fatalf("Error marshaling ECDSA public key: %v", err)
-		}
-		return pb
-	}()
-
-	mismatchedPublicKey := proto.Clone(validTree).(*trillian.Tree)
-	mismatchedPublicKey.PublicKey = testonly.LogTree.GetPublicKey()
-
-	omittedPublicKey := proto.Clone(validTree).(*trillian.Tree)
-	omittedPublicKey.PublicKey = nil
 
 	omittedPrivateKey := proto.Clone(validTree).(*trillian.Tree)
 	omittedPrivateKey.PrivateKey = nil
-
-	omittedKeys := proto.Clone(omittedPublicKey).(*trillian.Tree)
-	omittedKeys.PrivateKey = nil
 
 	invalidTree := proto.Clone(validTree).(*trillian.Tree)
 	invalidTree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
@@ -341,35 +320,9 @@ func TestServer_CreateTree(t *testing.T) {
 			wantErr: "tree is required",
 		},
 		{
-			desc:    "mismatchedPublicKey",
-			req:     &trillian.CreateTreeRequest{Tree: mismatchedPublicKey},
-			wantErr: "public and private keys are not a pair",
-		},
-		{
 			desc:    "omittedPrivateKey",
 			req:     &trillian.CreateTreeRequest{Tree: omittedPrivateKey},
 			wantErr: "private_key or key_spec is required",
-		},
-		{
-			desc: "privateKeySpec",
-			req: &trillian.CreateTreeRequest{
-				Tree: omittedKeys,
-				KeySpec: &keyspb.Specification{
-					Params: &keyspb.Specification_EcdsaParams{},
-				},
-			},
-			wantKeyGenerator: true,
-			wantCommit:       true,
-		},
-		{
-			desc: "privateKeySpecButNoKeyGenerator",
-			req: &trillian.CreateTreeRequest{
-				Tree: omittedKeys,
-				KeySpec: &keyspb.Specification{
-					Params: &keyspb.Specification_EcdsaParams{},
-				},
-			},
-			wantErr: "key generation is not enabled",
 		},
 		{
 			desc: "privateKeySpecAndPrivateKeyProvided",
@@ -381,22 +334,6 @@ func TestServer_CreateTree(t *testing.T) {
 			},
 			wantKeyGenerator: true,
 			wantErr:          "private_key and key_spec fields are mutually exclusive",
-		},
-		{
-			desc: "privateKeySpecAndPublicKeyProvided",
-			req: &trillian.CreateTreeRequest{
-				Tree: omittedPrivateKey,
-				KeySpec: &keyspb.Specification{
-					Params: &keyspb.Specification_EcdsaParams{},
-				},
-			},
-			wantKeyGenerator: true,
-			wantErr:          "public_key and key_spec fields are mutually exclusive",
-		},
-		{
-			desc:       "omittedPublicKey",
-			req:        &trillian.CreateTreeRequest{Tree: omittedPublicKey},
-			wantCommit: true,
 		},
 		{
 			desc:      "createErr",
@@ -452,7 +389,6 @@ func TestServer_CreateTree(t *testing.T) {
 				newTree.TreeId = 12345
 				newTree.CreateTime = nowPB
 				newTree.UpdateTime = nowPB
-				newTree.PublicKey, err = der.ToPublicProto(privateKey.Public())
 				tx.EXPECT().CreateTree(gomock.Any(), gomock.Any()).MaxTimes(1).Return(newTree, test.createErr)
 			}
 
@@ -473,10 +409,6 @@ func TestServer_CreateTree(t *testing.T) {
 			wantTree.CreateTime = nowPB
 			wantTree.UpdateTime = nowPB
 			wantTree.PrivateKey = nil // redacted
-			wantTree.PublicKey, err = der.ToPublicProto(privateKey.Public())
-			if err != nil {
-				t.Fatalf("failed to marshal test public key as protobuf: %v", err)
-			}
 			if diff := cmp.Diff(tree, wantTree, cmp.Comparer(proto.Equal)); diff != "" {
 				t.Fatalf("post-CreateTree diff (-got +want):\n%v", diff)
 			}
