@@ -133,10 +133,6 @@ message Tree {
   // Readonly.
   sigpb.DigitallySigned.HashAlgorithm hash_algorithm = 5;
 
-  // Signature algorithm to be used by the tree.
-  // Readonly.
-  sigpb.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
-
   // Display name of the tree.
   // Optional.
   string display_name = 8;
@@ -185,10 +181,11 @@ message Tree {
   // Readonly.
   google.protobuf.Timestamp delete_time = 20;
 
-  reserved 4, 7, 10, 11, 18;
+  reserved 4, 6, 7, 10, 11, 18;
   reserved "create_time_millis_since_epoch";
   reserved "duplicate_policy";
   reserved "hash_strategy";
+  reserved "signature_algorithm";
   reserved "signature_cipher_suite";
   reserved "update_time_millis_since_epoch";
 }

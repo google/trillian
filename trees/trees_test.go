@@ -299,41 +299,20 @@ func TestSigner(t *testing.T) {
 
 	tests := []struct {
 		desc         string
-		sigAlgo      sigpb.DigitallySigned_SignatureAlgorithm
 		signer       crypto.Signer
 		newSignerErr error
 		wantErr      bool
 	}{
 		{
-			desc:    "anonymous",
-			sigAlgo: sigpb.DigitallySigned_ANONYMOUS,
-			wantErr: true,
+			desc:   "ecdsa",
+			signer: ecdsaKey,
 		},
 		{
-			desc:    "ecdsa",
-			sigAlgo: sigpb.DigitallySigned_ECDSA,
-			signer:  ecdsaKey,
-		},
-		{
-			desc:    "rsa",
-			sigAlgo: sigpb.DigitallySigned_RSA,
-			signer:  rsaKey,
-		},
-		{
-			desc:    "keyMismatch1",
-			sigAlgo: sigpb.DigitallySigned_ECDSA,
-			signer:  rsaKey,
-			wantErr: true,
-		},
-		{
-			desc:    "keyMismatch2",
-			sigAlgo: sigpb.DigitallySigned_RSA,
-			signer:  ecdsaKey,
-			wantErr: true,
+			desc:   "rsa",
+			signer: rsaKey,
 		},
 		{
 			desc:         "newSignerErr",
-			sigAlgo:      sigpb.DigitallySigned_ECDSA,
 			newSignerErr: errors.New("NewSigner() error"),
 			wantErr:      true,
 		},
@@ -344,7 +323,6 @@ func TestSigner(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 			tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
-			tree.SignatureAlgorithm = test.sigAlgo
 
 			wantKeyProto, err := tree.PrivateKey.UnmarshalNew()
 			if err != nil {
@@ -361,14 +339,14 @@ func TestSigner(t *testing.T) {
 
 			signer, err := Signer(ctx, tree)
 			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Fatalf("Signer(_, %s) = (_, %q), wantErr = %v", test.sigAlgo, err, test.wantErr)
+				t.Fatalf("Signer() = (_, %q), wantErr = %v", err, test.wantErr)
 			} else if hasErr {
 				return
 			}
 
 			want := tcrypto.NewSigner(test.signer)
 			if diff := cmp.Diff(signer, want, cmp.Comparer(func(a, b *big.Int) bool { return a.Cmp(b) == 0 })); diff != "" {
-				t.Fatalf("post-Signer(_, %s) diff:\n%v", test.sigAlgo, diff)
+				t.Fatalf("post-Signer() diff:\n%v", diff)
 			}
 		})
 	}

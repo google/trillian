@@ -178,13 +178,12 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 	privKey, _ := getPrivateKey(logPrivKeyPEM, "towel")
 	pubKey := getPublicKey(logPubKeyPEM)
 	tree := &trillian.Tree{
-		TreeType:           trillian.TreeType_LOG,
-		TreeState:          trillian.TreeState_ACTIVE,
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-		PrivateKey:         privKey,
-		PublicKey:          &keyspb.PublicKey{Der: pubKey},
-		MaxRootDuration:    durationpb.New(0 * time.Millisecond),
+		TreeType:        trillian.TreeType_LOG,
+		TreeState:       trillian.TreeState_ACTIVE,
+		HashAlgorithm:   sigpb.DigitallySigned_SHA256,
+		PrivateKey:      privKey,
+		PublicKey:       &keyspb.PublicKey{Der: pubKey},
+		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	}
 	createdTree, err := storage.CreateTree(ctx, as, tree)
 	if err != nil {
