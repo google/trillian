@@ -512,7 +512,6 @@ CreateTree request.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | tree | [Tree](#trillian.Tree) |  | Tree to be created. See Tree and CreateTree for more details. |
-| key_spec | [keyspb.Specification](#keyspb.Specification) |  | Describes how the tree&#39;s private key should be generated. Only needs to be set if tree.private_key is not set. |
 
 
 
@@ -708,7 +707,6 @@ not created dynamically.
 | tree_type | [TreeType](#trillian.TreeType) |  | Type of the tree. Readonly after Tree creation. Exception: Can be switched from PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state. |
 | display_name | [string](#string) |  | Display name of the tree. Optional. |
 | description | [string](#string) |  | Description of the tree, Optional. |
-| private_key | [google.protobuf.Any](#google.protobuf.Any) |  | Identifies the private key used for signing tree heads and entry timestamps. This can be any type of message to accommodate different key management systems, e.g. PEM files, HSMs, etc. Private keys are write-only: they&#39;re never returned by RPCs. The private_key message can be changed after a tree is created, but the underlying key must remain the same - this is to enable migrating a key from one provider to another. |
 | storage_settings | [google.protobuf.Any](#google.protobuf.Any) |  | Storage-specific settings. Varies according to the storage implementation backing Trillian. |
 | max_root_duration | [google.protobuf.Duration](#google.protobuf.Duration) |  | Interval after which a new signed root is produced even if there have been no submission. If zero, this behavior is disabled. |
 | create_time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Time of tree creation. Readonly. |

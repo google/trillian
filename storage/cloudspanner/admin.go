@@ -367,7 +367,6 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		TreeType:              tt,
 		CreateTimeNanos:       now.UnixNano(),
 		UpdateTimeNanos:       now.UnixNano(),
-		PrivateKey:            tree.GetPrivateKey(),
 		MaxRootDurationMillis: int64(maxRootDuration / time.Millisecond),
 	}
 
@@ -445,7 +444,6 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	info.Description = tree.Description
 	info.UpdateTimeNanos = now.UnixNano()
 	info.MaxRootDurationMillis = int64(maxRootDuration / time.Millisecond)
-	info.PrivateKey = tree.PrivateKey
 
 	if err := t.updateTreeInfo(ctx, info); err != nil {
 		return nil, err
@@ -567,7 +565,6 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		Description:     info.Description,
 		CreateTime:      createdPB,
 		UpdateTime:      updatedPB,
-		PrivateKey:      info.PrivateKey,
 		MaxRootDuration: durationpb.New(time.Duration(info.MaxRootDurationMillis) * time.Millisecond),
 	}
 

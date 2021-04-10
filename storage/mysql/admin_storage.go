@@ -283,11 +283,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 	defer insertTreeStmt.Close()
 
-	privateKey, err := proto.Marshal(newTree.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
-	}
-
 	_, err = insertTreeStmt.ExecContext(
 		ctx,
 		newTree.TreeId,
@@ -300,7 +295,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.Description,
 		nowMillis,
 		nowMillis,
-		privateKey,
+		[]byte{}, // Unused, filling in for backward compatibility.
 		[]byte{}, // Unused, filling in for backward compatibility.
 		rootDuration/time.Millisecond,
 	)
@@ -373,11 +368,6 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	}
 	rootDuration := tree.MaxRootDuration.AsDuration()
 
-	privateKey, err := proto.Marshal(tree.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
-	}
-
 	stmt, err := t.tx.PrepareContext(ctx, updateTreeSQL)
 	if err != nil {
 		return nil, err
@@ -392,7 +382,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		tree.Description,
 		nowMillis,
 		rootDuration/time.Millisecond,
-		privateKey,
+		[]byte{}, // Unused, filling in for backward compatibility.
 		tree.TreeId); err != nil {
 		return nil, err
 	}

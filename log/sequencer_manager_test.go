@@ -16,7 +16,6 @@ package log
 
 import (
 	"context"
-	"crypto"
 	"fmt"
 	"testing"
 	"time"
@@ -24,7 +23,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/compact"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
@@ -95,14 +93,6 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
-	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
-	if err != nil {
-		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(keyProto)
-
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil)
@@ -134,13 +124,6 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{}
 
-	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
-	if err != nil {
-		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
-
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
 		LogStorage:   fakeStorage,
@@ -169,12 +152,6 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err != nil {
 			t.Fatal(err)
 		}
-
-		// Remove the ProtoHandler added earlier in the test.
-		// This guarantees that no further calls to keys.NewSigner() will succeed.
-		// This tests that the signer obtained by SequencerManager during the first sequencing
-		// pass is cached and re-used for the second pass.
-		keys.UnregisterHandler(keyProto)
 	}
 }
 
@@ -188,14 +165,6 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
-
-	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
-	if err != nil {
-		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(keyProto)
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -245,14 +214,6 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
-	keyProto, err := stestonly.LogTree.PrivateKey.UnmarshalNew()
-	if err != nil {
-		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, fixedGoSigner, nil))
-	defer keys.UnregisterHandler(keyProto)
-
 	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(writeRev, nil)
@@ -281,14 +242,5 @@ func createTestInfo(registry extension.Registry) *OperationInfo {
 		BatchSize:   50,
 		RunInterval: time.Second,
 		TimeSource:  fakeTimeSource,
-	}
-}
-
-func fakeKeyProtoHandler(wantKeyProto proto.Message, signer crypto.Signer, err error) (proto.Message, keys.ProtoHandler) {
-	return wantKeyProto, func(ctx context.Context, gotKeyProto proto.Message) (crypto.Signer, error) {
-		if proto.Equal(wantKeyProto, gotKeyProto) {
-			return signer, err
-		}
-		return nil, fmt.Errorf("fakeKeyProtoHandler: got %s, want %s", gotKeyProto, wantKeyProto)
 	}
 }

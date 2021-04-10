@@ -343,7 +343,6 @@ map_provision() {
       --admin_server="${admin_server}" \
       --tree_type=MAP \
       --hash_strategy=TEST_MAP_HASHER \
-      --private_key_format=PrivateKey \
       --pem_key_path=${TRILLIAN_PATH}/testdata/map-rpc-server.privkey.pem \
       --pem_key_password=towel)
     echo "Created map ${tree_id}"

@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -117,11 +115,6 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 		return nil, fmt.Errorf("failed to parse update time: %w", err)
 	}
 	tree.MaxRootDuration = durationpb.New(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
-
-	tree.PrivateKey = &anypb.Any{}
-	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
-		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
-	}
 
 	tree.Deleted = deleted.Valid && deleted.Bool
 	if tree.Deleted && deleteMillis.Valid {

@@ -16,28 +16,18 @@ package trees
 
 import (
 	"context"
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/rsa"
 	"errors"
-	"fmt"
-	"math/big"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	tcrypto "github.com/google/trillian/crypto"
 )
 
 func TestFromContext(t *testing.T) {
@@ -279,73 +269,5 @@ func TestGetTree(t *testing.T) {
 			diff := cmp.Diff(tree, test.wantTree)
 			t.Errorf("%v: post-GetTree diff:\n%v", test.desc, diff)
 		}
-	}
-}
-
-func TestSigner(t *testing.T) {
-	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("Error generating test ECDSA key: %v", err)
-	}
-
-	rsaKey, err := rsa.GenerateKey(rand.Reader, 1024)
-	if err != nil {
-		t.Fatalf("Error generating test RSA key: %v", err)
-	}
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	tests := []struct {
-		desc         string
-		signer       crypto.Signer
-		newSignerErr error
-		wantErr      bool
-	}{
-		{
-			desc:   "ecdsa",
-			signer: ecdsaKey,
-		},
-		{
-			desc:   "rsa",
-			signer: rsaKey,
-		},
-		{
-			desc:         "newSignerErr",
-			newSignerErr: errors.New("NewSigner() error"),
-			wantErr:      true,
-		},
-	}
-
-	ctx := context.Background()
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-
-			wantKeyProto, err := tree.PrivateKey.UnmarshalNew()
-			if err != nil {
-				t.Fatalf("failed to unmarshal tree.PrivateKey: %v", err)
-			}
-
-			keys.RegisterHandler(wantKeyProto, func(ctx context.Context, gotKeyProto proto.Message) (crypto.Signer, error) {
-				if !proto.Equal(gotKeyProto, wantKeyProto) {
-					return nil, fmt.Errorf("NewSigner(_, %#v) called, want NewSigner(_, %#v)", gotKeyProto, wantKeyProto)
-				}
-				return test.signer, test.newSignerErr
-			})
-			defer keys.UnregisterHandler(wantKeyProto)
-
-			signer, err := Signer(ctx, tree)
-			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Fatalf("Signer() = (_, %q), wantErr = %v", err, test.wantErr)
-			} else if hasErr {
-				return
-			}
-
-			want := tcrypto.NewSigner(test.signer)
-			if diff := cmp.Diff(signer, want, cmp.Comparer(func(a, b *big.Int) bool { return a.Cmp(b) == 0 })); diff != "" {
-				t.Fatalf("post-Signer() diff:\n%v", diff)
-			}
-		})
 	}
 }

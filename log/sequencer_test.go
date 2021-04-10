@@ -16,7 +16,6 @@ package log
 
 import (
 	"context"
-	"crypto"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,7 +24,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/merkle/compact"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/quota"
@@ -70,8 +68,6 @@ var (
 	// TODO(pavelkalinnikov): Put a well-formed hash here. The current one is
 	// taken from testRoot16 and retained for regression purposes.
 	compactTree16 = []tree.Node{{ID: compact.NewNodeID(4, 0), Hash: []byte{}}}
-
-	fixedGoSigner = newSignerWithFixedSig([]byte("signed"))
 
 	testSignedRoot16 = makeSLR(testRoot16)
 	newSignedRoot16  = makeSLR(&types.LogRootV1{
@@ -238,15 +234,6 @@ func getLeaf42() *trillian.LogLeaf {
 		ExtraData:      nil,
 		LeafIndex:      42,
 	}
-}
-
-// newSignerWithFixedSig returns a fake signer that always returns the specified signature.
-func newSignerWithFixedSig(sig []byte) crypto.Signer {
-	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
-	if err != nil {
-		panic(err)
-	}
-	return testonly.NewSignerWithFixedSig(key, sig)
 }
 
 func createTestContext(ctrl *gomock.Controller, params testParameters) (testContext, context.Context) {

@@ -135,16 +135,6 @@ message Tree {
   // Optional.
   string description = 9;
 
-  // Identifies the private key used for signing tree heads and entry
-  // timestamps.
-  // This can be any type of message to accommodate different key management
-  // systems, e.g. PEM files, HSMs, etc.
-  // Private keys are write-only: they're never returned by RPCs.
-  // The private_key message can be changed after a tree is created, but the
-  // underlying key must remain the same - this is to enable migrating a key
-  // from one provider to another.
-  google.protobuf.Any private_key = 12;
-
   // Storage-specific settings.
   // Varies according to the storage implementation backing Trillian.
   google.protobuf.Any storage_settings = 13;
@@ -171,11 +161,12 @@ message Tree {
   // Readonly.
   google.protobuf.Timestamp delete_time = 20;
 
-  reserved 4 to 7, 10, 11, 14, 18;
+  reserved 4 to 7, 10 to 12, 14, 18;
   reserved "create_time_millis_since_epoch";
   reserved "duplicate_policy";
   reserved "hash_algorithm";
   reserved "hash_strategy";
+  reserved "private_key";
   reserved "public_key";
   reserved "signature_algorithm";
   reserved "signature_cipher_suite";

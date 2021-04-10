@@ -27,16 +27,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
 var defaultTree = &trillian.Tree{
 	TreeState:       trillian.TreeState_ACTIVE,
 	TreeType:        trillian.TreeType_LOG,
-	PrivateKey:      mustMarshalAny(&emptypb.Empty{}),
 	MaxRootDuration: durationpb.New(0 * time.Millisecond),
 }
 
@@ -48,14 +45,6 @@ type testCase struct {
 	initErr     error
 	wantErr     bool
 	wantTree    *trillian.Tree
-}
-
-func mustMarshalAny(p proto.Message) *anypb.Any {
-	anyKey, err := anypb.New(p)
-	if err != nil {
-		panic(err)
-	}
-	return anyKey
 }
 
 func TestCreateTree(t *testing.T) {
@@ -96,12 +85,6 @@ func TestCreateTree(t *testing.T) {
 			desc:        "invalidEnumOpts",
 			setFlags:    func() { *treeType = "LLAMA!" },
 			validateErr: errors.New("unknown TreeType"),
-			wantErr:     true,
-		},
-		{
-			desc:        "invalidKeyTypeOpts",
-			setFlags:    func() { *privateKeyFormat = "LLAMA!!" },
-			validateErr: errors.New("key protobuf must be one of"),
 			wantErr:     true,
 		},
 		{

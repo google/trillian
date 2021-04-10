@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -36,8 +35,6 @@ func ValidateTreeForCreation(ctx context.Context, tree *trillian.Tree) error {
 		return status.Errorf(codes.InvalidArgument, "invalid tree_state: %s", tree.TreeState)
 	case tree.TreeType == trillian.TreeType_UNKNOWN_TREE_TYPE:
 		return status.Errorf(codes.InvalidArgument, "invalid tree_type: %s", tree.TreeType)
-	case tree.PrivateKey == nil:
-		return status.Error(codes.InvalidArgument, "a private_key is required")
 	case tree.Deleted:
 		return status.Errorf(codes.InvalidArgument, "invalid deleted: %v", tree.Deleted)
 	case tree.DeleteTime != nil:
@@ -112,17 +109,6 @@ func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
 		if err != nil {
 			return status.Errorf(codes.InvalidArgument, "invalid storage_settings: %v", err)
 		}
-	}
-
-	privateKeyProto, err := tree.PrivateKey.UnmarshalNew()
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
-	}
-
-	// Check that the private key can be obtained.
-	_, err = keys.NewSigner(ctx, privateKeyProto)
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
 	}
 
 	return nil

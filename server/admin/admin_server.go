@@ -22,11 +22,9 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/trees"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Server is an implementation of trillian.TrillianAdminServer.
@@ -59,9 +57,6 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 	if err != nil {
 		return nil, err
 	}
-	for _, tree := range resp {
-		redact(tree)
-	}
 	return &trillian.ListTreesResponse{Tree: resp}, nil
 }
 
@@ -71,7 +66,7 @@ func (s *Server) GetTree(ctx context.Context, req *trillian.GetTreeRequest) (*tr
 	if err != nil {
 		return nil, err
 	}
-	return redact(tree), nil
+	return tree, nil
 }
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
@@ -87,36 +82,6 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tree type: %v", tree.TreeType)
 	}
 
-	// If a key specification was provided, generate a new key.
-	if req.KeySpec != nil {
-		if tree.PrivateKey != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "the tree.private_key and key_spec fields are mutually exclusive")
-		}
-		if s.registry.NewKeyProto == nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "key generation is not enabled")
-		}
-
-		keyProto, err := s.registry.NewKeyProto(ctx, req.KeySpec)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
-		}
-
-		tree.PrivateKey, err = anypb.New(keyProto)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to marshal private key: %v", err.Error())
-		}
-	}
-
-	if tree.PrivateKey == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "tree.private_key or key_spec is required")
-	}
-
-	// Check that the tree.PrivateKey is valid by trying to get a signer.
-	_, err := trees.Signer(ctx, tree)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
-	}
-
 	// Clear generated fields, storage must set those
 	tree.TreeId = 0
 	tree.CreateTime = nil
@@ -128,7 +93,7 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 	if err != nil {
 		return nil, err
 	}
-	return redact(createdTree), nil
+	return createdTree, nil
 }
 
 func (s *Server) validateAllowedTreeType(tt trillian.TreeType) error {
@@ -164,7 +129,7 @@ func (s *Server) UpdateTree(ctx context.Context, req *trillian.UpdateTreeRequest
 	if err != nil {
 		return nil, err
 	}
-	return redact(updatedTree), nil
+	return updatedTree, nil
 }
 
 func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error {
@@ -185,8 +150,6 @@ func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error 
 			to.StorageSettings = from.StorageSettings
 		case "max_root_duration":
 			to.MaxRootDuration = from.MaxRootDuration
-		case "private_key":
-			to.PrivateKey = from.PrivateKey
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid update_mask path: %q", path)
 		}
@@ -200,7 +163,7 @@ func (s *Server) DeleteTree(ctx context.Context, req *trillian.DeleteTreeRequest
 	if err != nil {
 		return nil, err
 	}
-	return redact(tree), nil
+	return tree, nil
 }
 
 // UndeleteTree implements trillian.TrillianAdminServer.UndeleteTree.
@@ -209,11 +172,5 @@ func (s *Server) UndeleteTree(ctx context.Context, req *trillian.UndeleteTreeReq
 	if err != nil {
 		return nil, err
 	}
-	return redact(tree), nil
-}
-
-// redact removes sensitive information from t. Returns t for convenience.
-func redact(t *trillian.Tree) *trillian.Tree {
-	t.PrivateKey = nil
-	return t
+	return tree, nil
 }
