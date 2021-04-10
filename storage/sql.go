@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -99,16 +98,10 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	if hashStrategy != "RFC6962_SHA256" {
 		return nil, fmt.Errorf("unknown HashStrategy: %v", hashStrategy)
 	}
-	if ha, ok := spb.DigitallySigned_HashAlgorithm_value[hashAlgorithm]; ok {
-		tree.HashAlgorithm = spb.DigitallySigned_HashAlgorithm(ha)
-	} else {
-		return nil, fmt.Errorf("unknown HashAlgorithm: %v", hashAlgorithm)
-	}
 
 	// Let's make sure we didn't mismatch any of the casts above
 	ok := tree.TreeState.String() == treeState &&
-		tree.TreeType.String() == treeType &&
-		tree.HashAlgorithm.String() == hashAlgorithm
+		tree.TreeType.String() == treeType
 	if !ok {
 		return nil, fmt.Errorf(
 			"mismatched enum: tree = %v, enums = [%v, %v, %v, %v, %v]",

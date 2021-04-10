@@ -26,7 +26,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/testonly/mdm"
@@ -96,7 +95,6 @@ func innerMain(ctx context.Context) error {
 			Tree: &trillian.Tree{
 				TreeState:       trillian.TreeState_ACTIVE,
 				TreeType:        trillian.TreeType_LOG,
-				HashAlgorithm:   sigpb.DigitallySigned_SHA256,
 				DisplayName:     fmt.Sprintf("mdmtest-%d", time.Now().UnixNano()/int64(time.Second)),
 				Description:     "Transient tree for mdmtest",
 				MaxRootDuration: durationpb.New(time.Second * 3600),

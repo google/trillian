@@ -25,7 +25,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"google.golang.org/grpc/codes"
@@ -54,13 +53,9 @@ var (
 		trillian.TreeType_LOG:            spannerpb.TreeType_LOG,
 		trillian.TreeType_PREORDERED_LOG: spannerpb.TreeType_PREORDERED_LOG,
 	}
-	hashAlgMap = map[sigpb.DigitallySigned_HashAlgorithm]spannerpb.HashAlgorithm{
-		sigpb.DigitallySigned_SHA256: spannerpb.HashAlgorithm_SHA256,
-	}
 
 	treeStateReverseMap = reverseTreeStateMap(treeStateMap)
 	treeTypeReverseMap  = reverseTreeTypeMap(treeTypeMap)
-	hashAlgReverseMap   = reverseHashAlgMap(hashAlgMap)
 )
 
 const nanosPerMilli = int64(time.Millisecond / time.Nanosecond)
@@ -78,17 +73,6 @@ func reverseTreeStateMap(m map[trillian.TreeState]spannerpb.TreeState) map[spann
 
 func reverseTreeTypeMap(m map[trillian.TreeType]spannerpb.TreeType) map[spannerpb.TreeType]trillian.TreeType {
 	reverse := make(map[spannerpb.TreeType]trillian.TreeType)
-	for k, v := range m {
-		if x, ok := reverse[v]; ok {
-			glog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
-		}
-		reverse[v] = k
-	}
-	return reverse
-}
-
-func reverseHashAlgMap(m map[sigpb.DigitallySigned_HashAlgorithm]spannerpb.HashAlgorithm) map[spannerpb.HashAlgorithm]sigpb.DigitallySigned_HashAlgorithm {
-	reverse := make(map[spannerpb.HashAlgorithm]sigpb.DigitallySigned_HashAlgorithm)
 	for k, v := range m {
 		if x, ok := reverse[v]; ok {
 			glog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
@@ -371,11 +355,6 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		return nil, status.Errorf(codes.Internal, "unexpected TreeType: %s", tree.TreeType)
 	}
 
-	ha, ok := hashAlgMap[tree.HashAlgorithm]
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "unexpected HashAlgorithm: %s", tree.HashAlgorithm)
-	}
-
 	if err := tree.MaxRootDuration.CheckValid(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "malformed MaxRootDuration: %v", err)
 	}
@@ -387,7 +366,6 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		Description:           tree.Description,
 		TreeState:             ts,
 		TreeType:              tt,
-		HashAlgorithm:         ha,
 		CreateTimeNanos:       now.UnixNano(),
 		UpdateTimeNanos:       now.UnixNano(),
 		PrivateKey:            tree.GetPrivateKey(),
@@ -607,12 +585,6 @@ func toTrillianTree(info *spannerpb.TreeInfo) (*trillian.Tree, error) {
 		return nil, status.Errorf(codes.Internal, "unexpected TreeType: %s", info.TreeType)
 	}
 	tree.TreeType = tt
-
-	ha, ok := hashAlgReverseMap[info.HashAlgorithm]
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "unexpected HashAlgorithm: %s", info.HashAlgorithm)
-	}
-	tree.HashAlgorithm = ha
 
 	var config proto.Message
 	switch tt := info.TreeType; tt {

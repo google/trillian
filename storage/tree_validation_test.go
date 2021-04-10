@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -71,9 +70,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 
 	invalidType := newTree()
 	invalidType.TreeType = trillian.TreeType_UNKNOWN_TREE_TYPE
-
-	invalidHashAlgorithm := newTree()
-	invalidHashAlgorithm.HashAlgorithm = sigpb.DigitallySigned_NONE
 
 	unsupportedPrivateKey := newTree()
 	unsupportedPrivateKey.PrivateKey.TypeUrl = "urn://unknown-type"
@@ -144,11 +140,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidType",
 			tree:    invalidType,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidHashAlgorithm",
-			tree:    invalidHashAlgorithm,
 			wantErr: true,
 		},
 		{
@@ -355,13 +346,6 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc: "HashAlgorithm",
-			updatefn: func(tree *trillian.Tree) {
-				tree.HashAlgorithm = sigpb.DigitallySigned_NONE
-			},
-			wantErr: true,
-		},
-		{
 			desc: "CreateTime",
 			updatefn: func(tree *trillian.Tree) {
 				tree.CreateTime = timestamppb.New(time.Now())
@@ -419,12 +403,11 @@ func newTree() *trillian.Tree {
 	}
 
 	return &trillian.Tree{
-		TreeState:     trillian.TreeState_ACTIVE,
-		TreeType:      trillian.TreeType_LOG,
-		HashAlgorithm: sigpb.DigitallySigned_SHA256,
-		DisplayName:   "Llamas Log",
-		Description:   "Registry of publicly-owned llamas",
-		PrivateKey:    privateKey,
+		TreeState:   trillian.TreeState_ACTIVE,
+		TreeType:    trillian.TreeType_LOG,
+		DisplayName: "Llamas Log",
+		Description: "Registry of publicly-owned llamas",
+		PrivateKey:  privateKey,
 		PublicKey: &keyspb.PublicKey{
 			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
 		},

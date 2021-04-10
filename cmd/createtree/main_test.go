@@ -22,7 +22,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/flagsaver"
 	"google.golang.org/grpc/codes"
@@ -37,7 +36,6 @@ import (
 var defaultTree = &trillian.Tree{
 	TreeState:       trillian.TreeState_ACTIVE,
 	TreeType:        trillian.TreeType_LOG,
-	HashAlgorithm:   sigpb.DigitallySigned_SHA256,
 	PrivateKey:      mustMarshalAny(&emptypb.Empty{}),
 	MaxRootDuration: durationpb.New(0 * time.Millisecond),
 }
