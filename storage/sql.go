@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -123,7 +122,6 @@ func ReadTree(row Row) (*trillian.Tree, error) {
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
 		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
 	}
-	tree.PublicKey = &keyspb.PublicKey{Der: publicKey}
 
 	tree.Deleted = deleted.Valid && deleted.Bool
 	if tree.Deleted && deleteMillis.Valid {

@@ -301,7 +301,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		nowMillis,
 		nowMillis,
 		privateKey,
-		newTree.PublicKey.GetDer(),
+		[]byte{}, // Unused, filling in for backward compatibility.
 		rootDuration/time.Millisecond,
 	)
 	if err != nil {

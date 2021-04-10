@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/testonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -48,11 +47,6 @@ Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
 sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
 S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
 -----END EC PRIVATE KEY-----`
-	publicKeyPEM = `
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
-Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
------END PUBLIC KEY-----`
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
@@ -79,12 +73,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 
 	nilPrivateKey := newTree()
 	nilPrivateKey.PrivateKey = nil
-
-	invalidPublicKey := newTree()
-	invalidPublicKey.PublicKey.Der = []byte("foobar")
-
-	nilPublicKey := newTree()
-	nilPublicKey.PublicKey = nil
 
 	invalidSettings := newTree()
 	invalidSettings.StorageSettings = &anypb.Any{Value: []byte("foobar")}
@@ -155,16 +143,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "nilPrivateKey",
 			tree:    nilPrivateKey,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidPublicKey",
-			tree:    invalidPublicKey,
-			wantErr: true,
-		},
-		{
-			desc:    "nilPublicKey",
-			tree:    nilPublicKey,
 			wantErr: true,
 		},
 		{
@@ -272,19 +250,6 @@ func TestValidateTreeForUpdate(t *testing.T) {
 				}
 				tree.PrivateKey = key
 			},
-		},
-		{
-			desc: "differentPrivateKeyProtoAndDifferentKeyMaterial",
-			updatefn: func(tree *trillian.Tree) {
-				key, err := anypb.New(&keyspb.PrivateKey{
-					Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
-				})
-				if err != nil {
-					panic(err)
-				}
-				tree.PrivateKey = key
-			},
-			wantErr: true,
 		},
 		{
 			desc: "unsupportedPrivateKeyProto",
@@ -403,14 +368,11 @@ func newTree() *trillian.Tree {
 	}
 
 	return &trillian.Tree{
-		TreeState:   trillian.TreeState_ACTIVE,
-		TreeType:    trillian.TreeType_LOG,
-		DisplayName: "Llamas Log",
-		Description: "Registry of publicly-owned llamas",
-		PrivateKey:  privateKey,
-		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
-		},
+		TreeState:       trillian.TreeState_ACTIVE,
+		TreeType:        trillian.TreeType_LOG,
+		DisplayName:     "Llamas Log",
+		Description:     "Registry of publicly-owned llamas",
+		PrivateKey:      privateKey,
 		MaxRootDuration: durationpb.New(1000 * time.Millisecond),
 	}
 }

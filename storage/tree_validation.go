@@ -15,12 +15,10 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/keys/der"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -40,8 +38,6 @@ func ValidateTreeForCreation(ctx context.Context, tree *trillian.Tree) error {
 		return status.Errorf(codes.InvalidArgument, "invalid tree_type: %s", tree.TreeType)
 	case tree.PrivateKey == nil:
 		return status.Error(codes.InvalidArgument, "a private_key is required")
-	case tree.PublicKey == nil:
-		return status.Error(codes.InvalidArgument, "a public_key is required")
 	case tree.Deleted:
 		return status.Errorf(codes.InvalidArgument, "invalid deleted: %v", tree.Deleted)
 	case tree.DeleteTime != nil:
@@ -91,8 +87,6 @@ func ValidateTreeForUpdate(ctx context.Context, storedTree, newTree *trillian.Tr
 		return status.Error(codes.InvalidArgument, "readonly field changed: create_time")
 	case !proto.Equal(storedTree.UpdateTime, newTree.UpdateTime):
 		return status.Error(codes.InvalidArgument, "readonly field changed: update_time")
-	case !proto.Equal(storedTree.PublicKey, newTree.PublicKey):
-		return status.Error(codes.InvalidArgument, "readonly field changed: public_key")
 	case storedTree.Deleted != newTree.Deleted:
 		return status.Error(codes.InvalidArgument, "readonly field changed: deleted")
 	case !proto.Equal(storedTree.DeleteTime, newTree.DeleteTime):
@@ -125,17 +119,10 @@ func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
 		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
 	}
 
-	// Check that the private key can be obtained and matches the public key.
-	privateKey, err := keys.NewSigner(ctx, privateKeyProto)
+	// Check that the private key can be obtained.
+	_, err = keys.NewSigner(ctx, privateKeyProto)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
-	}
-	publicKeyDER, err := der.MarshalPublicKey(privateKey.Public())
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "invalid private_key: %v", err)
-	}
-	if !bytes.Equal(publicKeyDER, tree.PublicKey.GetDer()) {
-		return status.Errorf(codes.InvalidArgument, "private_key and public_key are not a matching pair")
 	}
 
 	return nil

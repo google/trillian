@@ -21,7 +21,6 @@ option go_package = "github.com/google/trillian";
 
 package trillian;
 
-import "crypto/keyspb/keyspb.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
@@ -150,10 +149,6 @@ message Tree {
   // Varies according to the storage implementation backing Trillian.
   google.protobuf.Any storage_settings = 13;
 
-  // The public key used for verifying tree heads and entry timestamps.
-  // Readonly.
-  keyspb.PublicKey public_key = 14;
-
   // Interval after which a new signed root is produced even if there have been
   // no submission.  If zero, this behavior is disabled.
   google.protobuf.Duration max_root_duration = 15;
@@ -176,11 +171,12 @@ message Tree {
   // Readonly.
   google.protobuf.Timestamp delete_time = 20;
 
-  reserved 4 to 7, 10, 11, 18;
+  reserved 4 to 7, 10, 11, 14, 18;
   reserved "create_time_millis_since_epoch";
   reserved "duplicate_policy";
   reserved "hash_algorithm";
   reserved "hash_strategy";
+  reserved "public_key";
   reserved "signature_algorithm";
   reserved "signature_cipher_suite";
   reserved "update_time_millis_since_epoch";
