@@ -20,6 +20,9 @@ import (
 	"testing"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto"
+	"github.com/google/trillian/storage/storagepb"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 )
 
 // TestDBFormatNoChange ensures that the prefix, suffix, and protos stored in the database do not change.
@@ -73,15 +76,22 @@ func TestDBFormatNoChange(t *testing.T) {
 			t.Fatalf("ReadFile(%v): %v", tc.file, err)
 		}
 
-		savedS := strings.Split(string(saved), "\n")
-		outS := strings.Split(out, "\n")
-		for i := range savedS {
-			if got, want := savedS[i], outS[i]; got != want {
-				t.Errorf("%v dump_tree line %3v %v, want %v", tc.desc, i, got, want)
-			}
+		savedS := strings.Split(string(saved), "\n\n")
+		outS := strings.Split(out, "\n\n")
+		if got, want := len(outS), len(savedS); got != want {
+			t.Fatalf("%v dump_tree: got %v lines, want %v", tc.desc, got, want)
 		}
-		if got, want := len(savedS), len(outS); got != want {
-			t.Errorf("%v dump_tree %v lines, want %v", tc.desc, got, want)
+		for i := range savedS {
+			var got, want storagepb.SubtreeProto
+			if err := prototext.Unmarshal([]byte(outS[i]), &got); err != nil {
+				t.Fatalf("Failed to unmarshal 'got': %v", err)
+			}
+			if err := prototext.Unmarshal([]byte(savedS[i]), &want); err != nil {
+				t.Fatalf("Failed to unmarshal 'want': %v", err)
+			}
+			if !proto.Equal(&got, &want) {
+				t.Errorf("%v dump_tree tile %d:\n%v\nwant:\n%v", tc.desc, i, outS[i], savedS[i])
+			}
 		}
 	}
 }
