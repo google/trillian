@@ -30,8 +30,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
-	"github.com/google/trillian/crypto/keys/der"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
@@ -45,12 +43,6 @@ import (
 	"github.com/google/trillian/util/clock"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
-
-	// Register key ProtoHandlers
-	_ "github.com/google/trillian/crypto/keys/der/proto"
-	_ "github.com/google/trillian/crypto/keys/pem/proto"
-	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
 
 	// Register supported storage providers.
 	_ "github.com/google/trillian/storage/cloudspanner"
@@ -149,9 +141,6 @@ func main() {
 		LogStorage:    sp.LogStorage(),
 		QuotaManager:  qm,
 		MetricFactory: mf,
-		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
-			return der.NewProtoFromSpec(spec)
-		},
 	}
 
 	// Enable CPU profile if requested.
