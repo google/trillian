@@ -44,11 +44,6 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 
-	// Register key ProtoHandlers
-	_ "github.com/google/trillian/crypto/keys/der/proto"
-	_ "github.com/google/trillian/crypto/keys/pem/proto"
-	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
-
 	// Register supported storage providers.
 	_ "github.com/google/trillian/storage/cloudspanner"
 	_ "github.com/google/trillian/storage/mysql"

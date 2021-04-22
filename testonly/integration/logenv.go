@@ -25,11 +25,8 @@ import (
 
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys/der"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/quota"
@@ -97,9 +94,6 @@ func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts
 		AdminStorage: mysql.NewAdminStorage(db),
 		LogStorage:   mysql.NewLogStorage(db, nil),
 		QuotaManager: quota.Noop(),
-		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
-			return der.NewProtoFromSpec(spec)
-		},
 	}
 
 	ret, err := NewLogEnvWithRegistryAndGRPCOptions(ctx, numSequencers, registry, serverOpts, clientOpts)
