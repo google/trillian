@@ -8,6 +8,8 @@
  * Upgraded to etcd v3 in order to allow grpc to be upgraded (#2195)
    * etcd was `v0.5.0-alpha.5`, now `v3.5.0-alpha.0`
  * grpc upgraded from `v1.29.1` to `v1.36.0`
+ * certificate-transparency-go from `v1.0.21` to
+   `v1.1.2-0.20210422104406-9f33727a7a18`
 
 ### Cleanup
  * Removed the deprecated crypto.NewSHA256Signer function.
