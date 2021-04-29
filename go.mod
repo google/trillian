@@ -17,7 +17,7 @@ require (
 	github.com/google/certificate-transparency-go v1.1.2-0.20210422104406-9f33727a7a18
 	github.com/google/go-cmp v0.5.5
 	github.com/google/go-licenses v0.0.0-20210329231322-ce1d9163b77d
-	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
