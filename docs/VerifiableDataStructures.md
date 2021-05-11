@@ -14,7 +14,9 @@ site­ owners trust Certificate Authorities to issue certificates, mail clients
 may trust a key server to return the right public key for a recipient they wish
 to mail to, server administrators trust their package distributors to send them
 binaries for their software. In the real world, citizens trust land registries
-to accurately record who owns which land. This paper describes a number of data
+to accurately record who owns which land.  
+
+This paper describes a number of data
 structures and their applications that allow adding transparency to the trust
 model, allowing an ecosystem to evolve from pure trust, to trust but verify. By
 adding transparency to services, trust can be verified by the ecosystems that
@@ -25,7 +27,7 @@ depend upon them.
 The first structure we describe is an append­-only log. It begins empty and is
 mutated only by entries being appended to it. Once an entry has been accepted by
 the log, it can never be removed or changed. Periodically the log will publish a
-signed tree head which includes a root hash of all entries for a given log size.
+*signed tree head* which includes a root hash of all entries for a given log size.
 Clients of the log can: 
 1. Efficiently verify that a specific entry is included in the log. 
 2. Efficiently detect split-­view attacks. 
@@ -154,7 +156,7 @@ class VerifiableDatabase(VerifiableBase):
     def delete(self, key):
 	self._log.append(json.dumps({'operation': 'delete', 'key': key}))
 
-    # Private callback fro the underlying map when new entries are sequenced by the log
+    # Private callback for the underlying map when new entries are sequenced by the log
     def _apply_operation(self, idx, operation, map):
 	op = json.loads(operation)
 	if op['operation'] == 'set':
