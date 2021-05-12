@@ -14,7 +14,7 @@ require (
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/btree v1.0.1
-	github.com/google/certificate-transparency-go v1.1.2-0.20210422104406-9f33727a7a18
+	github.com/google/certificate-transparency-go v1.1.2-0.20210512142713-bed466244fa6
 	github.com/google/go-cmp v0.5.5
 	github.com/google/go-licenses v0.0.0-20210329231322-ce1d9163b77d
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
