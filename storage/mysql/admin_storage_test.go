@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"google.golang.org/protobuf/proto"
@@ -151,7 +150,7 @@ func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
 	s := NewAdminStorage(DB)
 	ctx := context.Background()
 
-	settings, err := anypb.New(&keyspb.PEMKeyFile{})
+	settings, err := anypb.New(&trillian.Tree{})
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}

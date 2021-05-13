@@ -32,10 +32,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
-
-	// Register key ProtoHandlers
-	_ "github.com/google/trillian/crypto/keys/der/proto"
-	_ "github.com/google/trillian/crypto/keys/pem/proto"
 )
 
 var (
