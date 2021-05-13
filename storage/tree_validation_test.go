@@ -20,16 +20,12 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	_ "github.com/google/trillian/crypto/keys/der/proto"
-	_ "github.com/google/trillian/crypto/keys/pem/proto"
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
@@ -52,7 +48,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidSettings.StorageSettings = &anypb.Any{Value: []byte("foobar")}
 
 	// As long as settings is a valid proto, the type doesn't matter for this test.
-	settings, err := anypb.New(&keyspb.PEMKeyFile{})
+	settings, err := anypb.New(&trillian.Tree{})
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
@@ -171,7 +167,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			desc: "validSettings",
 			updatefn: func(tree *trillian.Tree) {
 				// As long as settings is a valid proto, the type doesn't matter for this test.
-				settings, err := anypb.New(&keyspb.PEMKeyFile{})
+				settings, err := anypb.New(&trillian.Tree{})
 				if err != nil {
 					t.Fatalf("Error marshaling proto: %v", err)
 				}

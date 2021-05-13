@@ -30,7 +30,6 @@ import (
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly/integration"
 
-	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 

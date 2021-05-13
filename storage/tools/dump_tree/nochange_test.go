@@ -19,7 +19,6 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/google/trillian/crypto/keys/der/proto"
 	"github.com/google/trillian/storage/storagepb"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"

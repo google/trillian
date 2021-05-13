@@ -37,8 +37,7 @@ import (
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/util/clock"
 
-	_ "github.com/go-sql-driver/mysql"                   // Load MySQL driver
-	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
+	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 )
 
 var (
