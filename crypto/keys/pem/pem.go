@@ -23,13 +23,7 @@ import (
 	"io/ioutil"
 
 	"github.com/google/trillian/crypto/keys/der"
-	"github.com/google/trillian/crypto/keyspb"
 )
-
-// FromProto takes a PEMKeyFile protobuf message and loads the private key it specifies.
-func FromProto(pb *keyspb.PEMKeyFile) (crypto.Signer, error) {
-	return ReadPrivateKeyFile(pb.GetPath(), pb.GetPassword())
-}
 
 // ReadPrivateKeyFile reads a PEM-encoded private key from a file.
 // The key must be protected by a password.
