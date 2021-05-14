@@ -16,7 +16,11 @@
 
 package pkcs11
 
-import "testing"
+import (
+	"testing"
+
+	_ "github.com/golang/glog"
+)
 
 func TestPkcs11(t *testing.T) {
 	// PKCS11Config support is tested by integration/log_integration.sh (when $WITH_PKCS11 == "true").

@@ -21,7 +21,6 @@ import (
 	"crypto/x509"
 	"fmt"
 
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"golang.org/x/crypto/ed25519"
 )
@@ -29,22 +28,6 @@ import (
 // FromProto takes a PrivateKey protobuf message and returns the private key contained within.
 func FromProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
 	return UnmarshalPrivateKey(pb.GetDer())
-}
-
-// NewProtoFromSpec creates a new private key based on a key specification.
-// It returns a PrivateKey protobuf message that contains the private key.
-func NewProtoFromSpec(spec *keyspb.Specification) (*keyspb.PrivateKey, error) {
-	key, err := keys.NewFromSpec(spec)
-	if err != nil {
-		return nil, fmt.Errorf("der: error generating key: %v", err)
-	}
-
-	der, err := MarshalPrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("der: error marshaling private key: %v", err)
-	}
-
-	return &keyspb.PrivateKey{Der: der}, nil
 }
 
 // FromPublicProto takes a PublicKey protobuf message and returns the public
