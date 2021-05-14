@@ -44,7 +44,6 @@ proto_library(
     name = "trillian_proto",
     srcs = [
         "crypto/keyspb/keyspb.proto",
-        "crypto/sigpb/sigpb.proto",
         "trillian.proto",
     ],
     deps = [
