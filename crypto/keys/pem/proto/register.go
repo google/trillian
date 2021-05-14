@@ -30,7 +30,7 @@ import (
 func init() {
 	keys.RegisterHandler(&keyspb.PEMKeyFile{}, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
 		if pb, ok := pb.(*keyspb.PEMKeyFile); ok {
-			return pem.FromProto(pb)
+			return pem.ReadPrivateKeyFile(pb.GetPath(), pb.GetPassword())
 		}
 		return nil, fmt.Errorf("pemfile: got %T, want *keyspb.PEMKeyFile", pb)
 	})
