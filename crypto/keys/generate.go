@@ -15,15 +15,9 @@
 package keys
 
 import (
-	"crypto"
-	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/rsa"
-	"fmt"
 
 	"github.com/google/trillian/crypto/keyspb"
-	"golang.org/x/crypto/ed25519"
 )
 
 const (
@@ -33,38 +27,6 @@ const (
 	// MinRsaKeySizeInBits is the smallest RSA key that this package will generate.
 	MinRsaKeySizeInBits = 2048
 )
-
-// NewFromSpec generates a new private key based on a key specification.
-// If an RSA key is specified, the key size must be at least MinRsaKeySizeInBits.
-func NewFromSpec(spec *keyspb.Specification) (crypto.Signer, error) {
-	switch params := spec.GetParams().(type) {
-	case *keyspb.Specification_EcdsaParams:
-		curve := ECDSACurveFromParams(params.EcdsaParams)
-		if curve == nil {
-			return nil, fmt.Errorf("unsupported ECDSA curve: %s", params.EcdsaParams.GetCurve())
-		}
-
-		return ecdsa.GenerateKey(curve, rand.Reader)
-
-	case *keyspb.Specification_RsaParams:
-		bits := int(params.RsaParams.GetBits())
-		if bits == 0 {
-			bits = DefaultRsaKeySizeInBits
-		}
-		if bits < MinRsaKeySizeInBits {
-			return nil, fmt.Errorf("minimum RSA key size is %v bits, got %v bits", MinRsaKeySizeInBits, bits)
-		}
-
-		return rsa.GenerateKey(rand.Reader, bits)
-
-	case *keyspb.Specification_Ed25519Params:
-		_, privKey, err := ed25519.GenerateKey(rand.Reader)
-		return privKey, err
-
-	default:
-		return nil, fmt.Errorf("unsupported keygen params type: %T", params)
-	}
-}
 
 // ECDSACurveFromParams returns the curve specified by the given parameters.
 // Returns nil if the curve is not supported.
