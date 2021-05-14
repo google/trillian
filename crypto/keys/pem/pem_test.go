@@ -21,6 +21,8 @@ import (
 	. "github.com/google/trillian/crypto/keys/pem"
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/testonly"
+
+	_ "github.com/golang/glog"
 )
 
 const (

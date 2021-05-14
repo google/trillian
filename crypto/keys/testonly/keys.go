@@ -17,6 +17,7 @@ package testonly
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -26,7 +27,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
@@ -153,7 +153,7 @@ func CheckKeyMatchesSpec(key crypto.PrivateKey, spec *keyspb.Specification) erro
 }
 
 func checkEcdsaKeyMatchesParams(key *ecdsa.PrivateKey, params *keyspb.Specification_ECDSA) error {
-	wantCurve := keys.ECDSACurveFromParams(params)
+	wantCurve := ecdsaCurveFromParams(params)
 	if wantCurve.Params().Name != key.Params().Name {
 		return fmt.Errorf("ECDSA key on %v curve, want %v curve", key.Params().Name, wantCurve.Params().Name)
 	}
@@ -162,7 +162,7 @@ func checkEcdsaKeyMatchesParams(key *ecdsa.PrivateKey, params *keyspb.Specificat
 }
 
 func checkRsaKeyMatchesParams(key *rsa.PrivateKey, params *keyspb.Specification_RSA) error {
-	wantBits := keys.DefaultRsaKeySizeInBits
+	wantBits := 2048
 	if params.GetBits() != 0 {
 		wantBits = int(params.GetBits())
 	}
@@ -171,5 +171,19 @@ func checkRsaKeyMatchesParams(key *rsa.PrivateKey, params *keyspb.Specification_
 		return fmt.Errorf("%v-bit RSA key, want %v-bit", got, want)
 	}
 
+	return nil
+}
+
+func ecdsaCurveFromParams(params *keyspb.Specification_ECDSA) elliptic.Curve {
+	switch params.GetCurve() {
+	case keyspb.Specification_ECDSA_DEFAULT_CURVE:
+		return elliptic.P256()
+	case keyspb.Specification_ECDSA_P256:
+		return elliptic.P256()
+	case keyspb.Specification_ECDSA_P384:
+		return elliptic.P384()
+	case keyspb.Specification_ECDSA_P521:
+		return elliptic.P521()
+	}
 	return nil
 }
