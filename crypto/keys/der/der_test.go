@@ -106,36 +106,3 @@ func TestMarshalUnmarshalPublicKey(t *testing.T) {
 		t.Errorf("MarshalPublicKey(): %x, want %x", got, want)
 	}
 }
-
-func TestFromToPublicProto(t *testing.T) {
-	t.Parallel()
-
-	keyDER, err := base64.StdEncoding.DecodeString(pubKeyBase64)
-	if err != nil {
-		t.Fatalf("Could not decode test key: %v", err)
-	}
-
-	key, err := UnmarshalPublicKey(keyDER)
-	if err != nil {
-		t.Fatalf("UnmarshalPublicKey(%v): %v", keyDER, err)
-	}
-
-	keyProto, err := ToPublicProto(key)
-	if err != nil {
-		t.Fatalf("ToPublicProto(%v): %v", key, err)
-	}
-
-	key2, err := FromPublicProto(keyProto)
-	if err != nil {
-		t.Fatalf("FromPublicProto(%v): %v", keyProto, err)
-	}
-
-	keyDER2, err := MarshalPublicKey(key2)
-	if err != nil {
-		t.Fatalf("MarshalPublicKey(%v): %v", key2, err)
-	}
-
-	if got, want := keyDER2, keyDER; !bytes.Equal(got, want) {
-		t.Errorf("MarshalPublicKey(): %x, want %x", got, want)
-	}
-}

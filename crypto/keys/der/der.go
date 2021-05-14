@@ -30,21 +30,6 @@ func FromProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
 	return UnmarshalPrivateKey(pb.GetDer())
 }
 
-// FromPublicProto takes a PublicKey protobuf message and returns the public
-// key contained within.
-func FromPublicProto(pb *keyspb.PublicKey) (crypto.PublicKey, error) {
-	return UnmarshalPublicKey(pb.GetDer())
-}
-
-// ToPublicProto returns a keyspb.PublicKey that contains pubKey in DER encoding.
-func ToPublicProto(pubKey crypto.PublicKey) (*keyspb.PublicKey, error) {
-	keyDER, err := MarshalPublicKey(pubKey)
-	if err != nil {
-		return nil, err
-	}
-	return &keyspb.PublicKey{Der: keyDER}, nil
-}
-
 // UnmarshalPrivateKey reads a DER-encoded private key.
 func UnmarshalPrivateKey(keyDER []byte) (crypto.Signer, error) {
 	key1, err1 := x509.ParseECPrivateKey(keyDER)
