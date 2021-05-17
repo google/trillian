@@ -299,7 +299,8 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFake(fakeTime), fakeStorage, nil, qm)
+	InitMetrics(nil)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, clock.NewFake(fakeTime), fakeStorage, qm)
 	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, sequencer: sequencer}, context.Background()
 }
 
@@ -646,6 +647,8 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 		}
 	}
 
+	InitMetrics(nil)
+
 	tests := []struct {
 		desc                   string
 		leaves                 []*trillian.LogLeaf
@@ -714,7 +717,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 				qm.EXPECT().PutTokens(any, test.wantTokens, specs)
 			}
 
-			sequencer := NewSequencer(hasher, ts, logStorage, nil /* mf */, qm)
+			sequencer := NewSequencer(hasher, ts, logStorage, qm)
 			tree := &trillian.Tree{TreeId: treeID, TreeType: trillian.TreeType_LOG}
 			leaves, err := sequencer.IntegrateBatch(ctx, tree, limit, guardWindow, maxRootDuration)
 			if err != nil {
