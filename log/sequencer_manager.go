@@ -37,6 +37,7 @@ var seqOpts = trees.NewGetOpts(trees.SequenceLog, trillian.TreeType_LOG, trillia
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.
 func NewSequencerManager(registry extension.Registry, gw time.Duration) *SequencerManager {
+	InitMetrics(registry.MetricFactory)
 	return &SequencerManager{
 		guardWindow: gw,
 		registry:    registry,
@@ -54,7 +55,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, s.registry.MetricFactory, s.registry.QuotaManager)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, s.registry.QuotaManager)
 
 	maxRootDuration := tree.MaxRootDuration.AsDuration()
 	if !tree.MaxRootDuration.IsValid() {

@@ -167,10 +167,10 @@ func Main(args Options) string {
 	as := memory.NewAdminStorage(ts)
 	tree := createTree(as, ls)
 
+	log.InitMetrics(nil)
 	seq := log.NewSequencer(rfc6962.DefaultHasher,
 		clock.System,
 		ls,
-		nil,
 		quota.Noop())
 
 	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
