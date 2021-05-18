@@ -190,21 +190,6 @@ func (mr *MockAdminTXMockRecorder) IsClosed() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsClosed", reflect.TypeOf((*MockAdminTX)(nil).IsClosed))
 }
 
-// ListTreeIDs mocks base method.
-func (m *MockAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListTreeIDs", arg0, arg1)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListTreeIDs indicates an expected call of ListTreeIDs.
-func (mr *MockAdminTXMockRecorder) ListTreeIDs(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockAdminTX)(nil).ListTreeIDs), arg0, arg1)
-}
-
 // ListTrees mocks base method.
 func (m *MockAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*trillian.Tree, error) {
 	m.ctrl.T.Helper()
@@ -694,21 +679,6 @@ func (m *MockReadOnlyAdminTX) IsClosed() bool {
 func (mr *MockReadOnlyAdminTXMockRecorder) IsClosed() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsClosed", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).IsClosed))
-}
-
-// ListTreeIDs mocks base method.
-func (m *MockReadOnlyAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListTreeIDs", arg0, arg1)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListTreeIDs indicates an expected call of ListTreeIDs.
-func (mr *MockReadOnlyAdminTXMockRecorder) ListTreeIDs(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTreeIDs), arg0, arg1)
 }
 
 // ListTrees mocks base method.

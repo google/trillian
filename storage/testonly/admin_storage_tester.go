@@ -283,16 +283,13 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	}
 }
 
-// TestListTrees tests both ListTreeIDs and ListTrees.
+// TestListTrees tests ListTrees.
 func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
 	run := func(desc string, includeDeleted bool, wantTrees []*trillian.Tree) {
 		if err := storage.RunInAdminSnapshot(ctx, s, func(tx storage.ReadOnlyAdminTX) error {
-			if err := runListTreeIDsTest(ctx, tx, includeDeleted, wantTrees); err != nil {
-				t.Errorf("%v: %v", desc, err)
-			}
 			if err := runListTreesTest(ctx, tx, includeDeleted, wantTrees); err != nil {
 				t.Errorf("%v: %v", desc, err)
 			}
@@ -314,25 +311,6 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	deletedLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
 	run("multipleTrees", false /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog})
 	run("multipleTreesDeleted", true /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog, deletedLog})
-}
-
-func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDeleted bool, wantTrees []*trillian.Tree) error {
-	got, err := tx.ListTreeIDs(ctx, includeDeleted)
-	if err != nil {
-		return fmt.Errorf("ListTreeIDs() returned err = %v", err)
-	}
-
-	want := make([]int64, 0, len(wantTrees))
-	for _, tree := range wantTrees {
-		want = append(want, tree.TreeId)
-	}
-
-	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
-	sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
-	if diff := cmp.Diff(got, want); diff != "" {
-		return fmt.Errorf("post-ListTreeIDs() diff (-got +want):\n%v", diff)
-	}
-	return nil
 }
 
 func runListTreesTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDeleted bool, wantTrees []*trillian.Tree) error {

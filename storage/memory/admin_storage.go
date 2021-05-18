@@ -115,17 +115,6 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 	return tree.meta, nil
 }
 
-func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
-	t.ms.mu.RLock()
-	defer t.ms.mu.RUnlock()
-
-	var ret []int64
-	for _, v := range t.ms.trees {
-		ret = append(ret, v.meta.TreeId)
-	}
-	return ret, nil
-}
-
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
 	t.ms.mu.RLock()
 	defer t.ms.mu.RUnlock()

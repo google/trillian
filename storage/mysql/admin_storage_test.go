@@ -106,23 +106,6 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 			},
 		},
 		{
-			// ListTreeIDs *shouldn't* care about other columns, but let's test it just
-			// in case.
-			desc: "ListTreeIDs",
-			fn: func(ctx context.Context, tx storage.AdminTX) error {
-				ids, err := tx.ListTreeIDs(ctx, false /* includeDeleted */)
-				if err != nil {
-					return err
-				}
-				for _, id := range ids {
-					if id == treeID {
-						return nil
-					}
-				}
-				return fmt.Errorf("ID not found: %v", treeID)
-			},
-		},
-		{
 			desc: "ListTrees",
 			fn: func(ctx context.Context, tx storage.AdminTX) error {
 				trees, err := tx.ListTrees(ctx, false /* includeDeleted */)
