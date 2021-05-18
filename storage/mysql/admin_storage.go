@@ -35,9 +35,6 @@ const (
 
 	nonDeletedWhere = " WHERE (Deleted IS NULL OR Deleted = 'false')"
 
-	selectTreeIDs           = "SELECT TreeId FROM Trees"
-	selectNonDeletedTreeIDs = selectTreeIDs + nonDeletedWhere
-
 	selectTrees = `
 		SELECT
 			TreeId,
@@ -167,37 +164,6 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 		return nil, fmt.Errorf("error reading tree %v: %v", treeID, err)
 	}
 	return tree, nil
-}
-
-func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
-	var query string
-	if includeDeleted {
-		query = selectTreeIDs
-	} else {
-		query = selectNonDeletedTreeIDs
-	}
-
-	stmt, err := t.tx.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.QueryContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	treeIDs := []int64{}
-	var treeID int64
-	for rows.Next() {
-		if err := rows.Scan(&treeID); err != nil {
-			return nil, err
-		}
-		treeIDs = append(treeIDs, treeID)
-	}
-	return treeIDs, nil
 }
 
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {

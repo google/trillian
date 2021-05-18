@@ -243,20 +243,6 @@ func (t *adminTX) getTreeInfo(ctx context.Context, treeID int64) (*spannerpb.Tre
 	return info, nil
 }
 
-// ListTreeIDs implements AdminReader.ListTreeIDs.
-func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
-	ids := []int64{}
-	err := t.readTrees(ctx, includeDeleted, true /* idOnly */, func(r *spanner.Row) error {
-		var id int64
-		if err := r.Columns(&id); err != nil {
-			return err
-		}
-		ids = append(ids, id)
-		return nil
-	})
-	return ids, err
-}
-
 // ListTrees implements AdminReader.ListTrees.
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
 	trees := []*trillian.Tree{}

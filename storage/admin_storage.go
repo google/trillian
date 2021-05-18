@@ -79,11 +79,6 @@ type AdminReader interface {
 	// GetTree returns the tree corresponding to treeID or an error.
 	GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
 
-	// ListTreeIDs returns the IDs of all trees in storage.
-	// Note that there's no authorization restriction on the IDs returned,
-	// so it should be used with caution in production code.
-	ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error)
-
 	// ListTrees returns all trees in storage.
 	// Note that there's no authorization restriction on the trees returned,
 	// so it should be used with caution in production code.
