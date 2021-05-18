@@ -22,7 +22,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/trees"
 )
 
@@ -55,7 +54,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	sequencer := NewSequencer(rfc6962.DefaultHasher, info.TimeSource, s.registry.LogStorage, s.registry.QuotaManager)
+	sequencer := NewSequencer(info.TimeSource, s.registry.LogStorage, s.registry.QuotaManager)
 
 	maxRootDuration := tree.MaxRootDuration.AsDuration()
 	if !tree.MaxRootDuration.IsValid() {

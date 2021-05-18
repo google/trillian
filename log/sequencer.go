@@ -25,7 +25,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/rfc6962/hasher"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
@@ -102,7 +102,6 @@ func InitMetrics(mf monitoring.MetricFactory) {
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	hasher     hashers.LogHasher
 	timeSource clock.TimeSource
 	logStorage storage.LogStorage
 	qm         quota.Manager
@@ -110,12 +109,10 @@ type Sequencer struct {
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(
-	hasher hashers.LogHasher,
 	timeSource clock.TimeSource,
 	logStorage storage.LogStorage,
 	qm quota.Manager) *Sequencer {
 	return &Sequencer{
-		hasher:     hasher,
 		timeSource: timeSource,
 		logStorage: logStorage,
 		qm:         qm,
@@ -125,7 +122,7 @@ func NewSequencer(
 // initCompactRangeFromStorage builds a compact range that matches the latest
 // data in the database. Ensures that the root hash matches the passed in root.
 func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
-	fact := compact.RangeFactory{Hash: s.hasher.HashChildren}
+	fact := compact.RangeFactory{Hash: hasher.DefaultHasher.HashChildren}
 	if root.TreeSize == 0 {
 		return fact.NewEmptyRange(0), nil
 	}
@@ -414,7 +411,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		// Create the log root ready for signing.
 		if cr.End() == 0 {
 			// Override the nil root hash returned by the compact range.
-			newRoot = s.hasher.EmptyRoot()
+			newRoot = hasher.DefaultHasher.EmptyRoot()
 		}
 		newLogRoot = &types.LogRootV1{
 			RootHash:       newRoot,

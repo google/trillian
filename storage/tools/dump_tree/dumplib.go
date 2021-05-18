@@ -168,10 +168,7 @@ func Main(args Options) string {
 	tree := createTree(as, ls)
 
 	log.InitMetrics(nil)
-	seq := log.NewSequencer(rfc6962.DefaultHasher,
-		clock.System,
-		ls,
-		quota.Noop())
+	seq := log.NewSequencer(clock.System, ls, quota.Noop())
 
 	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
 	sequence(tree, seq, 0, args.BatchSize)
