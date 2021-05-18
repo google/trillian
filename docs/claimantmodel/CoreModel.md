@@ -9,6 +9,13 @@ This paper introduces an intuitive, standalone model for a common scenario where
 There is a **Claimant** that makes a **Claim** that is relied upon by a **Believer** as a precondition to take an action they would not have taken if the claim was false. Claims are represented by signed **Statements**. The veracity of a Claim can be verified by a **Claim Verifier**, who will notify a **Claim Arbiter** of any false Claims.
 
 ## Example: Certification Claims
+
+As a concrete example of the Claimant Model in action, we'll model one of the core claims made by [Certificate Authorities](https://en.wikipedia.org/wiki/Certificate_authority) (CAs).
+A CA should create and sign a Certificate, *only at the request of the Domain Owner*.
+A user's web browser receives this cert when attempting to establish a secure connection to a domain, and proceeds with the connection only if it was signed by a CA that the Browser Vendor has blessed.
+In the event of a CA issuing bad certificates, the Browser Vendor can protect their users by removing the CA from the blessed set.
+The only party which can verify that a certificate was issued under authorization is the Domain Owner.
+
 <dl>
 <dt>Claim<sup>CERT</sup></dt>
 <dd><i>"I, ${CA}, am authorized to certify $pubKey for $domain"</i></dd>
@@ -17,16 +24,15 @@ There is a **Claimant** that makes a **Claim** that is relied upon by a **Believ
 <dt>Claimant<sup>CERT</sup></dt>
 <dd>Certificate Authority</dd>
 <dt>Believer<sup>CERT</sup></dt>
-<dd>User Agent (Browser)</dd>
+<dd>Web Browser</dd>
 <dt>Verifier<sup>CERT</sup></dt>
 <dd>Domain Owner</dd>
 <dt>Arbiter<sup>CERT</sup></dt>
-<dd>User Agent Vendor</dd>
+<dd>Browser Vendor</dd>
 </dl>
 
-The CA creates and signs a Certificate. The UA receives this cert when attempting to establish a secure connection to a domain, and proceeds with the connection only if it was signed by a CA that the Browser Vendor has blessed. In the event of a CA issuing bad certificates, the Browser Vendor can protect their users by removing the CA from the blessed set. The only party which can verify that a certificate was issued under authorization is the Domain Owner.
-
-The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any Statement<sup>CERT</sup> relied on by Believer<sup>CERT</sup> can be discovered by Verifier<sup>CERT</sup>. This is why Certificate Transparency was created. Using Logs to provide this discoverability is described in [Claimant Model: Logs](Logs.md).
+The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any Statement<sup>CERT</sup> relied on by Believer<sup>CERT</sup> can be discovered by Verifier<sup>CERT</sup>. This is why Certificate Transparency was created; to allow verifiers to discover all of the certificates that have been believed.
+Using Logs to provide this discoverability is described in [Claimant Model: Logs](Logs.md).
 
 <!-- TODO(mhutchinson): Discuss Closed Loop Systems below and link to this. -->
 

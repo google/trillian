@@ -9,12 +9,20 @@ Log Transparency as described here should be applied to situations where the Cla
 
 A Claim is discoverable if it can be found by the Verifier without information being passed to them by the Believer. This property is essential when Believers are employing Trust But Verify and the identity of all Verifiers does not form part of the Believer’s [TCB](https://en.wikipedia.org/wiki/Trusted_computing_base).
 
+More formally: *Any claim believed by any honest Believer must be eventually verified by an honest Verifier*.
+
 Another way to conceptualize this is that Logs provide a verifiable transport mechanism to ensure that any Claim that a Believer relies on will be eventually discovered by the Verifier.
 
 # Model
 Log Transparency is another application of the Claimant Model to solve a transport problem in what we will refer to as System<sup>DOMAIN</sup>; it provides a mechanism for all Statement<sup>DOMAIN</sup> relied upon by Believer<sup>DOMAIN</sup> to be discovered by Verifier<sup>DOMAIN</sup>.
 
 ## System<sup>LOG</sup>
+
+A log operator maintains an append-only list of Statement<sup>DOMAIN</sup>, and presents all clients with the same list.
+The log produces and signs checkpoints to commit to the state of the list as it grows, and committments to data to by a checkpoint should be cryptographically verifiable.
+A Statement<sup>DOMAIN</sup> should only be believed once its inclusion in the log has been verified.
+Clients of the log should verify that any new checkpoints they receive are consistent with any previous checkpoint that they have relied on, and checkpoints can be shared amongst clients to detect any inconsistencies in the list of data being presented.
+
 <dl>
 <dt>Claim<sup>LOG</sup></dt>
 <dd><i>"I make available a globally consistent, append-only list of Statement<sup>DOMAIN</sup>"</i></dd>
@@ -30,18 +38,19 @@ Log Transparency is another application of the Claimant Model to solve a transpo
 <dd>Log Arbiter</dd>
 </dl>
 
-## New Artifacts
+### Artifacts
 <dl>
 <dt>Log Checkpoint (aka STH)</dt>
-<dd>a <i>signed statement</i> by the <i>Claim Log</i> which declares the number of <i>Claims</i> in the log, and represents a verifiable commitment to the contents of the log. The signature on a Checkpoint states nothing about the veracity of any claims, but asserts that:
+<dd>a <i>signed statement</i> by the <i>Claim Log</i> which declares the number of <i>Claims</i> in the log, and represents a verifiable commitment to the contents of the log.
+    The signature on a Checkpoint states nothing about the veracity of any Claim<sup>DOMAIN</sup>, but asserts that:
 <ul>
 <li>This Checkpoint is consistent with all earlier Checkpoints; and</li>
-<li>All Claims committed to by this Checkpoint are immutable and discoverable</li>
+<li>All Statement<sup>DOMAIN</sup> committed to by this Checkpoint are immutable and discoverable</li>
 </ul>
 </dd>
 </dl>
 
-## New Roles
+### Roles
 <dl>
 <dt>Claim Log (Claimant<sup>Log</sup>)</dt>
 <dd>maintains the log, appends well-formed Statements, and periodically produces Checkpoints. All Statements must be made available to Verifier<sup>DOMAIN</sup>, and commitments made available to all roles.</dd>
@@ -63,7 +72,7 @@ This mechanism doesn’t always require proof, e.g. you can’t prove that a log
 <dd>writes Claims to the Log. This role doesn’t map to a role in the Claimant Model, but someone has to do it. In many systems this will be the Claimant, but it could also be the Believer, or another third party.</dd>
 </dl>
 
-## Relationship Graph
+### Relationship Graph
 This shows which roles must know about the actors playing the other roles before any of the machinery starts moving. For example, the Believer must know about the Claimant ahead of time because they need to have some basis on which to trust a Claim and verify its authenticity.
 
 Believer, Claimant, Claim Verifier, and Claimant Arbiter are all for System<sup>DOMAIN</sup>.
