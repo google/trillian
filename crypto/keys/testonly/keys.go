@@ -17,7 +17,6 @@ package testonly
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -27,9 +26,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/keyspb"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -42,21 +39,6 @@ func MustMarshalPublicPEMToDER(keyPEM string) []byte {
 	}
 
 	keyDER, err := x509.MarshalPKIXPublicKey(key)
-	if err != nil {
-		panic(err)
-	}
-	return keyDER
-}
-
-// MustMarshalPrivatePEMToDER decrypts a PEM-encoded private key and returns it in DER encoding.
-// If an error occurs, it panics.
-func MustMarshalPrivatePEMToDER(keyPEM, password string) []byte {
-	key, err := pem.UnmarshalPrivateKey(keyPEM, password)
-	if err != nil {
-		panic(err)
-	}
-
-	keyDER, err := der.MarshalPrivateKey(key)
 	if err != nil {
 		panic(err)
 	}
@@ -124,66 +106,6 @@ func verifyRSA(pubKey *rsa.PublicKey, digest, sig []byte, hasher crypto.Hash, op
 func verifyEd25519(pubKey ed25519.PublicKey, digest, sig []byte) error {
 	if !ed25519.Verify(pubKey, digest, sig) {
 		return errors.New("ed25519 signature failed verification")
-	}
-	return nil
-}
-
-// CheckKeyMatchesSpec verifies that the key conforms to the specification.
-// If it does not, an error is returned.
-func CheckKeyMatchesSpec(key crypto.PrivateKey, spec *keyspb.Specification) error {
-	switch params := spec.Params.(type) {
-	case *keyspb.Specification_EcdsaParams:
-		if key, ok := key.(*ecdsa.PrivateKey); ok {
-			return checkEcdsaKeyMatchesParams(key, params.EcdsaParams)
-		}
-		return fmt.Errorf("%T, want *ecdsa.PrivateKey", key)
-	case *keyspb.Specification_RsaParams:
-		if key, ok := key.(*rsa.PrivateKey); ok {
-			return checkRsaKeyMatchesParams(key, params.RsaParams)
-		}
-		return fmt.Errorf("%T, want *rsa.PrivateKey", key)
-	case *keyspb.Specification_Ed25519Params:
-		if _, ok := key.(ed25519.PrivateKey); ok {
-			return nil
-		}
-		return fmt.Errorf("%T, want *ed25519.PrivateKey", key)
-	}
-
-	return fmt.Errorf("%T is not a supported keyspb.Specification.Params type", spec.Params)
-}
-
-func checkEcdsaKeyMatchesParams(key *ecdsa.PrivateKey, params *keyspb.Specification_ECDSA) error {
-	wantCurve := ecdsaCurveFromParams(params)
-	if wantCurve.Params().Name != key.Params().Name {
-		return fmt.Errorf("ECDSA key on %v curve, want %v curve", key.Params().Name, wantCurve.Params().Name)
-	}
-
-	return nil
-}
-
-func checkRsaKeyMatchesParams(key *rsa.PrivateKey, params *keyspb.Specification_RSA) error {
-	wantBits := 2048
-	if params.GetBits() != 0 {
-		wantBits = int(params.GetBits())
-	}
-
-	if got, want := key.N.BitLen(), wantBits; got != want {
-		return fmt.Errorf("%v-bit RSA key, want %v-bit", got, want)
-	}
-
-	return nil
-}
-
-func ecdsaCurveFromParams(params *keyspb.Specification_ECDSA) elliptic.Curve {
-	switch params.GetCurve() {
-	case keyspb.Specification_ECDSA_DEFAULT_CURVE:
-		return elliptic.P256()
-	case keyspb.Specification_ECDSA_P256:
-		return elliptic.P256()
-	case keyspb.Specification_ECDSA_P384:
-		return elliptic.P384()
-	case keyspb.Specification_ECDSA_P521:
-		return elliptic.P521()
 	}
 	return nil
 }
