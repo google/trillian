@@ -28,7 +28,7 @@ The only party which can verify that a certificate was issued under authorizatio
 <dt>Verifier<sup>CERT</sup></dt>
 <dd>Domain Owner</dd>
 <dt>Arbiter<sup>CERT</sup></dt>
-<dd>Brower Vendor</dd>
+<dd>Browser Vendor</dd>
 </dl>
 
 The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any Statement<sup>CERT</sup> relied on by Believer<sup>CERT</sup> can be discovered by Verifier<sup>CERT</sup>. This is why Certificate Transparency was created; to allow verifiers to discover all of the certificates that have been believed.
