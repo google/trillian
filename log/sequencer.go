@@ -121,7 +121,7 @@ func NewSequencer(
 
 // initCompactRangeFromStorage builds a compact range that matches the latest
 // data in the database. Ensures that the root hash matches the passed in root.
-func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
+func initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
 	fact := compact.RangeFactory{Hash: hasher.DefaultHasher.HashChildren}
 	if root.TreeSize == 0 {
 		return fact.NewEmptyRange(0), nil
@@ -155,7 +155,7 @@ func (s Sequencer) initCompactRangeFromStorage(ctx context.Context, root *types.
 	return cr, nil
 }
 
-func (s Sequencer) buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte) []tree.Node {
+func buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte) []tree.Node {
 	nodes := make([]tree.Node, 0, len(nodeMap))
 	for id, hash := range nodeMap {
 		nodes = append(nodes, tree.Node{ID: id, Hash: hash})
@@ -192,7 +192,7 @@ func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label
 
 // updateCompactRange adds the passed in leaves to the compact range. Returns a
 // map of all updated tree nodes, and the new root hash.
-func (s Sequencer) updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
+func updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label string) (map[compact.NodeID][]byte, []byte, error) {
 	nodeMap := make(map[compact.NodeID][]byte)
 	store := func(id compact.NodeID, hash []byte) { nodeMap[id] = hash }
 
@@ -360,7 +360,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		stageStart = s.timeSource.Now()
-		cr, err := s.initCompactRangeFromStorage(ctx, &currentRoot, tx)
+		cr, err := initCompactRangeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
 			return fmt.Errorf("%v: compact range init failed: %v", tree.TreeId, err)
 		}
@@ -383,7 +383,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		if err := s.prepareLeaves(sequencedLeaves, cr.End(), label); err != nil {
 			return err
 		}
-		nodeMap, newRoot, err := s.updateCompactRange(cr, sequencedLeaves, label)
+		nodeMap, newRoot, err := updateCompactRange(cr, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
@@ -398,7 +398,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		// Build objects for the nodes to be updated. Because we deduped via the map
 		// each node can only be created / updated once in each tree revision and
 		// they cannot conflict when we do the storage update.
-		targetNodes := s.buildNodesFromNodeMap(nodeMap)
+		targetNodes := buildNodesFromNodeMap(nodeMap)
 
 		// Now insert or update the nodes affected by the above, at the new tree
 		// version.
