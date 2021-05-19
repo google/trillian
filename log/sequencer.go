@@ -102,18 +102,12 @@ func InitMetrics(mf monitoring.MetricFactory) {
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	logStorage storage.LogStorage
-	qm         quota.Manager
+	qm quota.Manager
 }
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(
-	logStorage storage.LogStorage,
-	qm quota.Manager) *Sequencer {
-	return &Sequencer{
-		logStorage: logStorage,
-		qm:         qm,
-	}
+func NewSequencer(qm quota.Manager) *Sequencer {
+	return &Sequencer{qm: qm}
 }
 
 // initCompactRangeFromStorage builds a compact range that matches the latest
@@ -289,14 +283,14 @@ func (s *preorderedLogSequencingTask) update(ctx context.Context, leaves []*tril
 
 // IntegrateBatch wraps up all the operations needed to take a batch of queued
 // or sequenced leaves and integrate them into the tree.
-func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration, ts clock.TimeSource) (int, error) {
+func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration, ts clock.TimeSource, ls storage.LogStorage) (int, error) {
 	start := ts.Now()
 	label := strconv.FormatInt(tree.TreeId, 10)
 
 	numLeaves := 0
 	var newLogRoot *types.LogRootV1
 	var newSLR *trillian.SignedLogRoot
-	err := s.logStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+	err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		stageStart := ts.Now()
 		defer seqBatches.Inc(label)
 		defer func() { seqLatency.Observe(clock.SecondsSince(ts, start), label) }()

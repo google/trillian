@@ -54,14 +54,14 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	sequencer := NewSequencer(s.registry.LogStorage, s.registry.QuotaManager)
+	sequencer := NewSequencer(s.registry.QuotaManager)
 
 	maxRootDuration := tree.MaxRootDuration.AsDuration()
 	if !tree.MaxRootDuration.IsValid() {
 		glog.Warning("failed to parse tree.MaxRootDuration, using zero")
 		maxRootDuration = 0
 	}
-	leaves, err := sequencer.IntegrateBatch(ctx, tree, info.BatchSize, s.guardWindow, maxRootDuration, info.TimeSource)
+	leaves, err := sequencer.IntegrateBatch(ctx, tree, info.BatchSize, s.guardWindow, maxRootDuration, info.TimeSource, s.registry.LogStorage)
 	if err != nil {
 		return 0, fmt.Errorf("failed to integrate batch for %v: %v", logID, err)
 	}
