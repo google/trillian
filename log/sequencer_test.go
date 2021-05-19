@@ -223,7 +223,7 @@ type testParameters struct {
 type testContext struct {
 	mockTx      *storage.MockLogTreeTX
 	fakeStorage storage.LogStorage
-	sequencer   *Sequencer
+	qm          quota.Manager
 	timeSource  clock.TimeSource
 }
 
@@ -301,8 +301,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		qm = quota.Noop()
 	}
 	InitMetrics(nil)
-	sequencer := NewSequencer(qm)
-	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, sequencer: sequencer, timeSource: clock.NewFake(fakeTime)}, context.Background()
+	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, qm: qm, timeSource: clock.NewFake(fakeTime)}, context.Background()
 }
 
 // Tests for sequencer. Currently relies on storage mocks.
@@ -603,7 +602,7 @@ func TestIntegrateBatch(t *testing.T) {
 			c, ctx := createTestContext(ctrl, test.params)
 			tree := &trillian.Tree{TreeId: test.params.logID, TreeType: trillian.TreeType_LOG}
 
-			got, err := c.sequencer.IntegrateBatch(ctx, tree, 1, test.guardWindow, test.maxRootDuration, c.timeSource, c.fakeStorage)
+			got, err := IntegrateBatch(ctx, tree, 1, test.guardWindow, test.maxRootDuration, c.timeSource, c.fakeStorage, c.qm)
 			if err != nil {
 				if test.errStr == "" {
 					t.Errorf("IntegrateBatch(%+v)=%v,%v; want _,nil", test.params, got, err)
@@ -717,9 +716,8 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 				qm.EXPECT().PutTokens(any, test.wantTokens, specs)
 			}
 
-			sequencer := NewSequencer(qm)
 			tree := &trillian.Tree{TreeId: treeID, TreeType: trillian.TreeType_LOG}
-			leaves, err := sequencer.IntegrateBatch(ctx, tree, limit, guardWindow, maxRootDuration, ts, logStorage)
+			leaves, err := IntegrateBatch(ctx, tree, limit, guardWindow, maxRootDuration, ts, logStorage, qm)
 			if err != nil {
 				t.Errorf("%v: IntegrateBatch() returned err = %v", test.desc, err)
 				return

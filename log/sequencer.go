@@ -97,19 +97,6 @@ func InitMetrics(mf monitoring.MetricFactory) {
 	})
 }
 
-// Sequencer instances are responsible for integrating new leaves into a single log.
-// Leaves will be assigned unique sequence numbers when they are processed.
-// There is no strong ordering guarantee but in general entries will be processed
-// in order of submission to the log.
-type Sequencer struct {
-	qm quota.Manager
-}
-
-// NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(qm quota.Manager) *Sequencer {
-	return &Sequencer{qm: qm}
-}
-
 // initCompactRangeFromStorage builds a compact range that matches the latest
 // data in the database. Ensures that the root hash matches the passed in root.
 func initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
@@ -283,7 +270,7 @@ func (s *preorderedLogSequencingTask) update(ctx context.Context, leaves []*tril
 
 // IntegrateBatch wraps up all the operations needed to take a batch of queued
 // or sequenced leaves and integrate them into the tree.
-func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration, ts clock.TimeSource, ls storage.LogStorage) (int, error) {
+func IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration, ts clock.TimeSource, ls storage.LogStorage, qm quota.Manager) (int, error) {
 	start := ts.Now()
 	label := strconv.FormatInt(tree.TreeId, 10)
 
@@ -435,7 +422,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 	}
 
 	// Let quota.Manager know about newly-sequenced entries.
-	replenishQuota(ctx, numLeaves, tree.TreeId, s.qm)
+	replenishQuota(ctx, numLeaves, tree.TreeId, qm)
 
 	seqCounter.Add(float64(numLeaves), label)
 	if newSLR != nil {

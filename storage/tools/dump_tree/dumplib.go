@@ -105,9 +105,9 @@ func recordIOProto(s *storagepb.SubtreeProto) string {
 	return buf.String()
 }
 
-func sequence(tree *trillian.Tree, seq *log.Sequencer, logStorage storage.LogStorage, count, batchSize int) {
+func sequence(tree *trillian.Tree, logStorage storage.LogStorage, count, batchSize int) {
 	glog.Infof("Sequencing batch of size %d", count)
-	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System, logStorage)
+	sequenced, err := log.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System, logStorage, quota.Noop())
 	if err != nil {
 		glog.Fatalf("IntegrateBatch got: %v, want: no err", err)
 	}
@@ -168,11 +168,10 @@ func Main(args Options) string {
 	tree := createTree(as, ls)
 
 	log.InitMetrics(nil)
-	seq := log.NewSequencer(quota.Noop())
 
 	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
-	sequence(tree, seq, ls, 0, args.BatchSize)
-	sequenceLeaves(ls, seq, tree, args.TreeSize, args.BatchSize, args.LeafFormat)
+	sequence(tree, ls, 0, args.BatchSize)
+	sequenceLeaves(ls, tree, args.TreeSize, args.BatchSize, args.LeafFormat)
 
 	// Read the latest STH back
 	var root types.LogRootV1
@@ -293,7 +292,7 @@ func validateFlagsOrDie(summary, recordIO bool) {
 	}
 }
 
-func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tree, treeSize, batchSize int, leafDataFormat string) {
+func sequenceLeaves(ls storage.LogStorage, tree *trillian.Tree, treeSize, batchSize int, leafDataFormat string) {
 	glog.Info("Queuing work")
 	for l := 0; l < treeSize; l++ {
 		glog.V(1).Infof("Queuing leaf %d", l)
@@ -309,7 +308,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 		}
 
 		if l > 0 && l%batchSize == 0 {
-			sequence(tree, seq, ls, batchSize, batchSize)
+			sequence(tree, ls, batchSize, batchSize)
 		}
 	}
 	glog.Info("Finished queueing")
@@ -318,7 +317,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 	if left == 0 {
 		left = batchSize
 	}
-	sequence(tree, seq, ls, left, batchSize)
+	sequence(tree, ls, left, batchSize)
 	glog.Info("Finished sequencing")
 }
 
