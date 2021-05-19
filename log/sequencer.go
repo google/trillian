@@ -102,18 +102,15 @@ func InitMetrics(mf monitoring.MetricFactory) {
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	timeSource clock.TimeSource
 	logStorage storage.LogStorage
 	qm         quota.Manager
 }
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(
-	timeSource clock.TimeSource,
 	logStorage storage.LogStorage,
 	qm quota.Manager) *Sequencer {
 	return &Sequencer{
-		timeSource: timeSource,
 		logStorage: logStorage,
 		qm:         qm,
 	}
@@ -292,17 +289,17 @@ func (s *preorderedLogSequencingTask) update(ctx context.Context, leaves []*tril
 
 // IntegrateBatch wraps up all the operations needed to take a batch of queued
 // or sequenced leaves and integrate them into the tree.
-func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
-	start := s.timeSource.Now()
+func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration, ts clock.TimeSource) (int, error) {
+	start := ts.Now()
 	label := strconv.FormatInt(tree.TreeId, 10)
 
 	numLeaves := 0
 	var newLogRoot *types.LogRootV1
 	var newSLR *trillian.SignedLogRoot
 	err := s.logStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		stageStart := s.timeSource.Now()
+		stageStart := ts.Now()
 		defer seqBatches.Inc(label)
-		defer func() { seqLatency.Observe(clock.SecondsSince(s.timeSource, start), label) }()
+		defer func() { seqLatency.Observe(clock.SecondsSince(ts, start), label) }()
 
 		// Get the latest known root from storage
 		sth, err := tx.LatestSignedLogRoot(ctx)
@@ -316,7 +313,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		if err := currentRoot.UnmarshalBinary(sth.LogRoot); err != nil {
 			return fmt.Errorf("%v: Sequencer failed to unmarshal latest root: %v", tree.TreeId, err)
 		}
-		seqGetRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
+		seqGetRootLatency.Observe(clock.SecondsSince(ts, stageStart), label)
 		seqTreeSize.Set(float64(currentRoot.TreeSize), label)
 
 		if currentRoot.RootHash == nil {
@@ -327,7 +324,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		taskData := &sequencingTaskData{
 			label:      label,
 			treeSize:   currentRoot.TreeSize,
-			timeSource: s.timeSource,
+			timeSource: ts,
 			tx:         tx,
 		}
 		var st sequencingTask
@@ -349,7 +346,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		// We need to create a signed root if entries were added or the latest root
 		// is too old.
 		if numLeaves == 0 {
-			nowNanos := s.timeSource.Now().UnixNano()
+			nowNanos := ts.Now().UnixNano()
 			interval := time.Duration(nowNanos - int64(currentRoot.TimestampNanos))
 			if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
 				// We have nothing to integrate into the tree.
@@ -359,13 +356,13 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			glog.Infof("%v: Force new root generation as %v since last root", tree.TreeId, interval)
 		}
 
-		stageStart = s.timeSource.Now()
+		stageStart = ts.Now()
 		cr, err := initCompactRangeFromStorage(ctx, &currentRoot, tx)
 		if err != nil {
 			return fmt.Errorf("%v: compact range init failed: %v", tree.TreeId, err)
 		}
-		seqInitTreeLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
-		stageStart = s.timeSource.Now()
+		seqInitTreeLatency.Observe(clock.SecondsSince(ts, stageStart), label)
+		stageStart = ts.Now()
 
 		// We've done all the reads, can now do the updates in the same transaction.
 		// The schema should prevent multiple SLRs being inserted with the same
@@ -380,20 +377,20 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
-		if err := prepareLeaves(sequencedLeaves, cr.End(), label, s.timeSource); err != nil {
+		if err := prepareLeaves(sequencedLeaves, cr.End(), label, ts); err != nil {
 			return err
 		}
 		nodeMap, newRoot, err := updateCompactRange(cr, sequencedLeaves, label)
 		if err != nil {
 			return err
 		}
-		seqWriteTreeLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
+		seqWriteTreeLatency.Observe(clock.SecondsSince(ts, stageStart), label)
 
 		// Store the sequenced batch.
 		if err := st.update(ctx, sequencedLeaves); err != nil {
 			return err
 		}
-		stageStart = s.timeSource.Now()
+		stageStart = ts.Now()
 
 		// Build objects for the nodes to be updated. Because we deduped via the map
 		// each node can only be created / updated once in each tree revision and
@@ -405,8 +402,8 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		if err := tx.SetMerkleNodes(ctx, targetNodes); err != nil {
 			return fmt.Errorf("%v: Sequencer failed to set Merkle nodes: %v", tree.TreeId, err)
 		}
-		seqSetNodesLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
-		stageStart = s.timeSource.Now()
+		seqSetNodesLatency.Observe(clock.SecondsSince(ts, stageStart), label)
+		stageStart = ts.Now()
 
 		// Create the log root ready for signing.
 		if cr.End() == 0 {
@@ -415,7 +412,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 		newLogRoot = &types.LogRootV1{
 			RootHash:       newRoot,
-			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
+			TimestampNanos: uint64(ts.Now().UnixNano()),
 			TreeSize:       cr.End(),
 			Revision:       uint64(newVersion),
 		}
@@ -436,7 +433,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		if err := tx.StoreSignedLogRoot(ctx, newSLR); err != nil {
 			return fmt.Errorf("%v: failed to write updated tree root: %v", tree.TreeId, err)
 		}
-		seqStoreRootLatency.Observe(clock.SecondsSince(s.timeSource, stageStart), label)
+		seqStoreRootLatency.Observe(clock.SecondsSince(ts, stageStart), label)
 		return nil
 	})
 	if err != nil {

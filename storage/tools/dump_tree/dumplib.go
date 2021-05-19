@@ -107,7 +107,7 @@ func recordIOProto(s *storagepb.SubtreeProto) string {
 
 func sequence(tree *trillian.Tree, seq *log.Sequencer, count, batchSize int) {
 	glog.Infof("Sequencing batch of size %d", count)
-	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour)
+	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System)
 	if err != nil {
 		glog.Fatalf("IntegrateBatch got: %v, want: no err", err)
 	}
@@ -168,7 +168,7 @@ func Main(args Options) string {
 	tree := createTree(as, ls)
 
 	log.InitMetrics(nil)
-	seq := log.NewSequencer(clock.System, ls, quota.Noop())
+	seq := log.NewSequencer(ls, quota.Noop())
 
 	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
 	sequence(tree, seq, 0, args.BatchSize)
