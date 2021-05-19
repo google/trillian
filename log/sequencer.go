@@ -163,8 +163,8 @@ func buildNodesFromNodeMap(nodeMap map[compact.NodeID][]byte) []tree.Node {
 	return nodes
 }
 
-func (s Sequencer) prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string) error {
-	now := s.timeSource.Now()
+func prepareLeaves(leaves []*trillian.LogLeaf, begin uint64, label string, timeSource clock.TimeSource) error {
+	now := timeSource.Now()
 	integrateAt := timestamppb.New(now)
 	if err := integrateAt.CheckValid(); err != nil {
 		return fmt.Errorf("got invalid integrate timestamp: %w", err)
@@ -380,7 +380,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 
 		// Collate node updates.
-		if err := s.prepareLeaves(sequencedLeaves, cr.End(), label); err != nil {
+		if err := prepareLeaves(sequencedLeaves, cr.End(), label, s.timeSource); err != nil {
 			return err
 		}
 		nodeMap, newRoot, err := updateCompactRange(cr, sequencedLeaves, label)
@@ -444,7 +444,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 	}
 
 	// Let quota.Manager know about newly-sequenced entries.
-	s.replenishQuota(ctx, numLeaves, tree.TreeId)
+	replenishQuota(ctx, numLeaves, tree.TreeId, s.qm)
 
 	seqCounter.Add(float64(numLeaves), label)
 	if newSLR != nil {
@@ -461,7 +461,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 // TODO(codingllama): Consider adding a source-aware replenish method (e.g.,
 // qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no
 // ambiguity as to where the tokens come from.
-func (s Sequencer) replenishQuota(ctx context.Context, numLeaves int, treeID int64) {
+func replenishQuota(ctx context.Context, numLeaves int, treeID int64, qm quota.Manager) {
 	if numLeaves > 0 {
 		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
 		specs := []quota.Spec{
@@ -471,7 +471,7 @@ func (s Sequencer) replenishQuota(ctx context.Context, numLeaves int, treeID int
 			{Group: quota.Global, Kind: quota.Write},
 		}
 		glog.V(2).Infof("%v: replenishing %d tokens (numLeaves = %d)", treeID, tokens, numLeaves)
-		err := s.qm.PutTokens(ctx, tokens, specs)
+		err := qm.PutTokens(ctx, tokens, specs)
 		if err != nil {
 			glog.Warningf("%v: failed to replenish %d tokens: %v", treeID, tokens, err)
 		}
