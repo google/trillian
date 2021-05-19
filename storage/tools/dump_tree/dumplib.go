@@ -105,9 +105,9 @@ func recordIOProto(s *storagepb.SubtreeProto) string {
 	return buf.String()
 }
 
-func sequence(tree *trillian.Tree, seq *log.Sequencer, count, batchSize int) {
+func sequence(tree *trillian.Tree, seq *log.Sequencer, logStorage storage.LogStorage, count, batchSize int) {
 	glog.Infof("Sequencing batch of size %d", count)
-	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System)
+	sequenced, err := seq.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System, logStorage)
 	if err != nil {
 		glog.Fatalf("IntegrateBatch got: %v, want: no err", err)
 	}
@@ -168,10 +168,10 @@ func Main(args Options) string {
 	tree := createTree(as, ls)
 
 	log.InitMetrics(nil)
-	seq := log.NewSequencer(ls, quota.Noop())
+	seq := log.NewSequencer(quota.Noop())
 
 	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
-	sequence(tree, seq, 0, args.BatchSize)
+	sequence(tree, seq, ls, 0, args.BatchSize)
 	sequenceLeaves(ls, seq, tree, args.TreeSize, args.BatchSize, args.LeafFormat)
 
 	// Read the latest STH back
@@ -309,7 +309,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 		}
 
 		if l > 0 && l%batchSize == 0 {
-			sequence(tree, seq, batchSize, batchSize)
+			sequence(tree, seq, ls, batchSize, batchSize)
 		}
 	}
 	glog.Info("Finished queueing")
@@ -318,7 +318,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 	if left == 0 {
 		left = batchSize
 	}
-	sequence(tree, seq, left, batchSize)
+	sequence(tree, seq, ls, left, batchSize)
 	glog.Info("Finished sequencing")
 }
 
