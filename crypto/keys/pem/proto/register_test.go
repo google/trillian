@@ -21,58 +21,20 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestProtoHandler(t *testing.T) {
 	ctx := context.Background()
 
-	for _, test := range []struct {
-		desc     string
-		keyProto proto.Message
-		wantErr  bool
-	}{
-		{
-			desc: "PEMKeyFile",
-			keyProto: &keyspb.PEMKeyFile{
-				Path:     "../../../../testdata/log-rpc-server.privkey.pem",
-				Password: "towel",
-			},
-		},
-		{
-			desc: "PemKeyFile with non-existent file",
-			keyProto: &keyspb.PEMKeyFile{
-				Path: "non-existent.pem",
-			},
-			wantErr: true,
-		},
-		{
-			desc: "PemKeyFile with wrong password",
-			keyProto: &keyspb.PEMKeyFile{
-				Path:     "../../../../testdata/log-rpc-server.privkey.pem",
-				Password: "wrong-password",
-			},
-			wantErr: true,
-		},
-		{
-			desc: "PemKeyFile with missing password",
-			keyProto: &keyspb.PEMKeyFile{
-				Path: "../../../../testdata/log-rpc-server.privkey.pem",
-			},
-			wantErr: true,
-		},
-	} {
-		signer, err := keys.NewSigner(ctx, test.keyProto)
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%v: NewSigner(_, %#v) = (_, %q), want (_, nil)", test.desc, test.keyProto, err)
-			continue
-		} else if gotErr {
-			continue
-		}
+	keyProto := &keyspb.PEMKeyFile{Path: "../../../../testdata/log-rpc-server.privkey.pem", Password: "towel"}
 
-		// Check that the returned signer can produce signatures successfully.
-		if err := testonly.SignAndVerify(signer, signer.Public()); err != nil {
-			t.Errorf("%v: SignAndVerify() = %q, want nil", test.desc, err)
-		}
+	signer, err := keys.NewSigner(ctx, keyProto)
+	if err != nil {
+		t.Errorf("keys.NewSigner(_, %#v) = (_, %q), want (_, nil)", keyProto, err)
+	}
+
+	// Check that the returned signer can produce signatures successfully.
+	if err := testonly.SignAndVerify(signer, signer.Public()); err != nil {
+		t.Errorf("SignAndVerify() = %q, want nil", err)
 	}
 }

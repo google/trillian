@@ -17,21 +17,11 @@
 package proto
 
 import (
-	"context"
-	"crypto"
-	"fmt"
-
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
-	"google.golang.org/protobuf/proto"
 )
 
 func init() {
-	keys.RegisterHandler(&keyspb.PEMKeyFile{}, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
-		if pb, ok := pb.(*keyspb.PEMKeyFile); ok {
-			return pem.ReadPrivateKeyFile(pb.GetPath(), pb.GetPassword())
-		}
-		return nil, fmt.Errorf("pemfile: got %T, want *keyspb.PEMKeyFile", pb)
-	})
+	keys.RegisterHandler(&keyspb.PEMKeyFile{}, pem.FromProto)
 }

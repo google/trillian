@@ -15,6 +15,7 @@
 package pem
 
 import (
+	"context"
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
@@ -23,6 +24,8 @@ import (
 	"io/ioutil"
 
 	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keyspb"
+	"google.golang.org/protobuf/proto"
 )
 
 // ReadPrivateKeyFile reads a PEM-encoded private key from a file.
@@ -79,4 +82,12 @@ func UnmarshalPublicKey(keyPEM string) (crypto.PublicKey, error) {
 	}
 
 	return der.UnmarshalPublicKey(block.Bytes)
+}
+
+// FromProto builds a crypto.Signer from a proto.Message, which must be of type PEMKeyFile.
+func FromProto(_ context.Context, pb proto.Message) (crypto.Signer, error) {
+	if pb, ok := pb.(*keyspb.PEMKeyFile); ok {
+		return ReadPrivateKeyFile(pb.GetPath(), pb.GetPassword())
+	}
+	return nil, fmt.Errorf("pemfile: got %T, want *keyspb.PEMKeyFile", pb)
 }
