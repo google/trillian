@@ -38,7 +38,7 @@ const (
 var now = time.Now
 
 type manager struct {
-	qm                       quota.Manager
+	quota.Manager
 	minBatchSize, maxEntries int
 
 	// mu guards cache
@@ -70,21 +70,11 @@ func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) (quota.Man
 		return nil, fmt.Errorf("invalid maxEntries: %v", minBatchSize)
 	}
 	return &manager{
-		qm:           qm,
+		Manager:      qm,
 		minBatchSize: minBatchSize,
 		maxEntries:   maxEntries,
 		cache:        make(map[quota.Spec]*bucket),
 	}, nil
-}
-
-// PutTokens implements Manager.PutTokens.
-func (m *manager) PutTokens(ctx context.Context, numTokens int, specs []quota.Spec) error {
-	return m.qm.PutTokens(ctx, numTokens, specs)
-}
-
-// ResetQuota implements Manager.ResetQuota.
-func (m *manager) ResetQuota(ctx context.Context, specs []quota.Spec) error {
-	return m.qm.ResetQuota(ctx, specs)
 }
 
 // GetTokens implements Manager.GetTokens.
@@ -116,7 +106,7 @@ func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Sp
 		// force us to make a GetTokens call for each spec. A single call is likely to be more
 		// efficient.
 		tokens := numTokens + m.minBatchSize
-		if err := m.qm.GetTokens(ctx, tokens, specsToRefill); err != nil {
+		if err := m.Manager.GetTokens(ctx, tokens, specsToRefill); err != nil {
 			return err
 		}
 		for _, spec := range specsToRefill {
@@ -174,7 +164,7 @@ func (m *manager) evict(ctx context.Context) {
 		// goroutines must not access the cache, the lock is released before they complete.
 		wg.Add(1)
 		go func() {
-			if err := m.qm.PutTokens(ctx, b.tokens, []quota.Spec{b.spec}); err != nil {
+			if err := m.Manager.PutTokens(ctx, b.tokens, []quota.Spec{b.spec}); err != nil {
 				glog.Warningf("Error replenishing tokens from evicted bucket (spec = %+v, bucket = %+v): %v", b.spec, b.bucket, err)
 			}
 			wg.Done()
