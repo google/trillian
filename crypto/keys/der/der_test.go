@@ -16,12 +16,14 @@ package der_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"testing"
 
 	. "github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
+	"google.golang.org/protobuf/proto"
 
 	_ "github.com/golang/glog"
 )
@@ -36,6 +38,8 @@ const (
 func TestFromProto(t *testing.T) {
 	t.Parallel()
 
+	ctx := context.Background()
+
 	keyDER, err := base64.StdEncoding.DecodeString(privKeyBase64)
 	if err != nil {
 		t.Fatalf("Could not decode test key: %v", err)
@@ -43,7 +47,7 @@ func TestFromProto(t *testing.T) {
 
 	for _, test := range []struct {
 		desc     string
-		keyProto *keyspb.PrivateKey
+		keyProto proto.Message
 		wantErr  bool
 	}{
 		{
@@ -51,6 +55,11 @@ func TestFromProto(t *testing.T) {
 			keyProto: &keyspb.PrivateKey{
 				Der: keyDER,
 			},
+		},
+		{
+			desc:     "wrong proto",
+			keyProto: &keyspb.PEMKeyFile{},
+			wantErr:  true,
 		},
 		{
 			desc: "PrivateKey with invalid DER",
@@ -69,7 +78,7 @@ func TestFromProto(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			signer, err := FromProto(test.keyProto)
+			signer, err := FromProto(ctx, test.keyProto)
 			if gotErr := err != nil; gotErr != test.wantErr {
 				t.Fatalf("FromProto(%#v) = (_, %q), want (_, nil)", test.keyProto, err)
 			} else if gotErr {
