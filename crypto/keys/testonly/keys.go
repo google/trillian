@@ -22,18 +22,19 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/google/trillian/crypto/keys/pem"
 	"golang.org/x/crypto/ed25519"
 )
 
 // MustMarshalPublicPEMToDER reads a PEM-encoded public key and returns it in DER encoding.
 // If an error occurs, it panics.
 func MustMarshalPublicPEMToDER(keyPEM string) []byte {
-	key, err := pem.UnmarshalPublicKey(keyPEM)
+	block, _ := pem.Decode([]byte(keyPEM))
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		panic(err)
 	}

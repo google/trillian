@@ -71,19 +71,6 @@ func UnmarshalPrivateKey(keyPEM, password string) (crypto.Signer, error) {
 	return der.UnmarshalPrivateKey(keyDER)
 }
 
-// UnmarshalPublicKey reads a PEM-encoded public key from a string.
-func UnmarshalPublicKey(keyPEM string) (crypto.PublicKey, error) {
-	block, rest := pem.Decode([]byte(keyPEM))
-	if block == nil {
-		return nil, errors.New("pemfile: invalid public key PEM")
-	}
-	if len(rest) > 0 {
-		return nil, errors.New("pemfile: extra data found after first PEM block")
-	}
-
-	return der.UnmarshalPublicKey(block.Bytes)
-}
-
 // FromProto builds a crypto.Signer from a proto.Message, which must be of type PEMKeyFile.
 func FromProto(_ context.Context, pb proto.Message) (crypto.Signer, error) {
 	if pb, ok := pb.(*keyspb.PEMKeyFile); ok {
