@@ -53,9 +53,9 @@ func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
 	handlers[keyProtoType] = handler
 }
 
-// UnregisterHandler removes a previously-added protobuf message handler.
+// unregisterHandler removes a previously-added protobuf message handler.
 // See RegisterHandler().
-func UnregisterHandler(keyProto proto.Message) {
+func unregisterHandler(keyProto proto.Message) {
 	handlersMu.Lock()
 	defer handlersMu.Unlock()
 	delete(handlers, keyProto.ProtoReflect().Descriptor().FullName())
