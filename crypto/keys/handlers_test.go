@@ -80,7 +80,7 @@ func TestNewSigner(t *testing.T) {
 		}
 
 		if test.handler != nil {
-			UnregisterHandler(test.keyProto)
+			unregisterHandler(test.keyProto)
 		}
 	}
 }
