@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys_test
+package keys
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 	"errors"
 	"testing"
 
-	. "github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/testonly"
 	"google.golang.org/protobuf/proto"
