@@ -33,7 +33,7 @@ require (
 	golang.org/x/tools v0.1.1
 	google.golang.org/api v0.47.0
 	google.golang.org/genproto v0.0.0-20210513213006-bf773b8c8384
-	google.golang.org/grpc v1.37.1
+	google.golang.org/grpc v1.38.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0
 	google.golang.org/protobuf v1.26.0
 )
