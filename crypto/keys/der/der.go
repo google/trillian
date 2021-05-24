@@ -15,6 +15,7 @@
 package der
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -23,11 +24,15 @@ import (
 
 	"github.com/google/trillian/crypto/keyspb"
 	"golang.org/x/crypto/ed25519"
+	"google.golang.org/protobuf/proto"
 )
 
-// FromProto takes a PrivateKey protobuf message and returns the private key contained within.
-func FromProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
-	return UnmarshalPrivateKey(pb.GetDer())
+// FromProto builds a crypto.Signer from a proto.Message, which must be of type PrivateKey.
+func FromProto(_ context.Context, pb proto.Message) (crypto.Signer, error) {
+	if pb, ok := pb.(*keyspb.PrivateKey); ok {
+		return UnmarshalPrivateKey(pb.GetDer())
+	}
+	return nil, fmt.Errorf("der: got %T, want *keyspb.PrivateKey", pb)
 }
 
 // UnmarshalPrivateKey reads a DER-encoded private key.

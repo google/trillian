@@ -17,21 +17,11 @@
 package proto
 
 import (
-	"context"
-	"crypto"
-	"fmt"
-
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
-	"google.golang.org/protobuf/proto"
 )
 
 func init() {
-	keys.RegisterHandler(&keyspb.PrivateKey{}, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
-		if pb, ok := pb.(*keyspb.PrivateKey); ok {
-			return der.FromProto(pb)
-		}
-		return nil, fmt.Errorf("der: got %T, want *keyspb.PrivateKey", pb)
-	})
+	keys.RegisterHandler(&keyspb.PrivateKey{}, der.FromProto)
 }

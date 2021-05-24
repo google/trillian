@@ -22,7 +22,6 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestProtoHandler(t *testing.T) {
@@ -34,41 +33,15 @@ func TestProtoHandler(t *testing.T) {
 
 	ctx := context.Background()
 
-	for _, test := range []struct {
-		desc     string
-		keyProto proto.Message
-		wantErr  bool
-	}{
-		{
-			desc: "PrivateKey",
-			keyProto: &keyspb.PrivateKey{
-				Der: keyDER,
-			},
-		},
-		{
-			desc: "PrivateKey with invalid DER",
-			keyProto: &keyspb.PrivateKey{
-				Der: []byte("foobar"),
-			},
-			wantErr: true,
-		},
-		{
-			desc:     "PrivateKey with missing DER",
-			keyProto: &keyspb.PrivateKey{},
-			wantErr:  true,
-		},
-	} {
-		signer, err := keys.NewSigner(ctx, test.keyProto)
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%v: NewSigner(_, %#v) = (_, %q), want (_, nil)", test.desc, test.keyProto, err)
-			continue
-		} else if gotErr {
-			continue
-		}
+	keyProto := &keyspb.PrivateKey{Der: keyDER}
 
-		// Check that the returned signer can produce signatures successfully.
-		if err := testonly.SignAndVerify(signer, signer.Public()); err != nil {
-			t.Errorf("%v: SignAndVerify() = %q, want nil", test.desc, err)
-		}
+	signer, err := keys.NewSigner(ctx, keyProto)
+	if err != nil {
+		t.Errorf("keys.NewSigner(_, %#v) = (_, %q), want (_, nil)", keyProto, err)
+	}
+
+	// Check that the returned signer can produce signatures successfully.
+	if err := testonly.SignAndVerify(signer, signer.Public()); err != nil {
+		t.Errorf("SignAndVerify() = %q, want nil", err)
 	}
 }
