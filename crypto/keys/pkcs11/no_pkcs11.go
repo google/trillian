@@ -1,3 +1,5 @@
+// +build !pkcs11
+
 // Copyright 2017 Google LLC. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,27 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proto
+package pkcs11
 
 import (
-	"context"
 	"crypto"
-	"flag"
-	"fmt"
+	"errors"
 
-	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/crypto/keys/pkcs11"
 	"github.com/google/trillian/crypto/keyspb"
-	"google.golang.org/protobuf/proto"
 )
 
-var modulePath = flag.String("pkcs11_module_path", "", "Path to the PKCS#11 module to use for keys that use the PKCS#11 interface")
-
-func init() {
-	keys.RegisterHandler(&keyspb.PKCS11Config{}, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
-		if cfg, ok := pb.(*keyspb.PKCS11Config); ok {
-			return pkcs11.FromConfig(*modulePath, cfg)
-		}
-		return nil, fmt.Errorf("pkcs11: got %T, want *keyspb.PKCS11Config", pb)
-	})
+// FromConfig returns an error indicating that PKCS11 is not supported.
+func FromConfig(_ string, _ *keyspb.PKCS11Config) (crypto.Signer, error) {
+	return nil, errors.New("pkcs11: Not supported in this binary")
 }
