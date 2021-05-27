@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package testonly contains code and data that should only be used by tests.
+// Production code MUST NOT depend on anything in this package. This will be
+// enforced by tools where possible.
 package testonly
 
 import (
