@@ -22,7 +22,7 @@ require (
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.4.1
-	go.etcd.io/etcd/client/v3 v3.5.0-beta.3
+	go.etcd.io/etcd/client/v3 v3.5.0-beta.4
 	go.etcd.io/etcd/etcdctl/v3 v3.5.0-beta.3
 	go.etcd.io/etcd/server/v3 v3.5.0-beta.3
 	go.etcd.io/etcd/v3 v3.5.0-beta.3
