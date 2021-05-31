@@ -22,10 +22,10 @@ require (
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.4.1
-	go.etcd.io/etcd/client/v3 v3.5.0-beta.3
-	go.etcd.io/etcd/etcdctl/v3 v3.5.0-beta.3
-	go.etcd.io/etcd/server/v3 v3.5.0-beta.3
-	go.etcd.io/etcd/v3 v3.5.0-beta.3
+	go.etcd.io/etcd/client/v3 v3.5.0-beta.4
+	go.etcd.io/etcd/etcdctl/v3 v3.5.0-beta.4
+	go.etcd.io/etcd/server/v3 v3.5.0-beta.4
+	go.etcd.io/etcd/v3 v3.5.0-beta.4
 	go.opencensus.io v0.23.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
