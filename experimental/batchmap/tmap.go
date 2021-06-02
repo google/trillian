@@ -27,7 +27,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 
 	"github.com/google/trillian/merkle/coniks"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage/tree"
 )
@@ -256,7 +255,7 @@ func (fn *tileUpdateFn) updateTile(rootPath []byte, base *Tile, deltas []smt.Nod
 // This is not serializable and must be constructed within each worker stage.
 type tileHasher struct {
 	treeID int64
-	h      hashers.MapHasher
+	h      *coniks.Hasher
 }
 
 func (th *tileHasher) construct(rootPath []byte, nodes []smt.Node) (*Tile, error) {

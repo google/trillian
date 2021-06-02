@@ -14,8 +14,6 @@
 
 package hashers
 
-import "github.com/google/trillian/storage/tree"
-
 // LogHasher provides the hash functions needed to compute dense merkle trees.
 type LogHasher interface {
 	// EmptyRoot supports returning a special case for the root of an empty tree.
@@ -27,18 +25,4 @@ type LogHasher interface {
 	// Size is the number of bytes in the underlying hash function.
 	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int
-}
-
-// MapHasher provides the hash functions needed to compute sparse merkle trees.
-type MapHasher interface {
-	// HashEmpty returns the hash of an empty subtree with the given root. Note
-	// that the empty NodeID2 indicates the root of the entire tree.
-	HashEmpty(treeID int64, root tree.NodeID2) []byte
-	// HashLeaf computes the hash of an existing leaf. Note that for non-existing
-	// leaves the HashEmpty method must be used instead, because we differentiate
-	// unset leaves and leaves that are set to an empty byte string.
-	HashLeaf(treeID int64, id tree.NodeID2, leaf []byte) []byte
-	// HashChildren computes interior nodes, when at least one of the child
-	// subtrees is non-empty.
-	HashChildren(l, r []byte) []byte
 }
