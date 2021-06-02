@@ -28,7 +28,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/merkle/coniks"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/storage/tree"
 )
@@ -75,7 +74,7 @@ func main() {
 	// 3) Check the computed root matches that reported in the tile
 	// 4) Check this root value is the key/value of the tile above.
 	// 5) Rinse and repeat until we reach the tree root.
-	et := emptyTree{treeID: *treeID, hasher: coniks.Default}
+	et := emptyTree{treeID: *treeID}
 	needPath, needValue := keyPath, expectedValueHash
 
 	for i := *prefixStrata; i >= 0; i-- {
@@ -110,7 +109,7 @@ func main() {
 
 		// Hash this tile given its leaf values, and confirm that the value we compute
 		// matches the value reported in the tile.
-		hs, err := smt.NewHStar3(nodes, et.hasher.HashChildren,
+		hs, err := smt.NewHStar3(nodes, coniks.Default.HashChildren,
 			uint(len(tile.Path)+len(leaf.Path))*8, uint(len(tile.Path))*8)
 		if err != nil {
 			glog.Fatalf("failed to create HStar3 for tile %x: %v", tile.Path, err)
@@ -167,11 +166,10 @@ func toNode(prefix []byte, l *batchmap.TileLeaf) smt.Node {
 // emptyTree is a NodeAccessor for an empty tree with the given ID.
 type emptyTree struct {
 	treeID int64
-	hasher hashers.MapHasher
 }
 
 func (e emptyTree) Get(id tree.NodeID2) ([]byte, error) {
-	return e.hasher.HashEmpty(e.treeID, id), nil
+	return coniks.Default.HashEmpty(e.treeID, id), nil
 }
 
 func (e emptyTree) Set(id tree.NodeID2, hash []byte) {}
