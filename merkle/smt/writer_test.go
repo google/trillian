@@ -39,13 +39,13 @@ var (
 )
 
 func TestWriterSplit(t *testing.T) {
-	ids := []node.NodeID2{
-		node.NewNodeID2("\x01\x00\x00\x00", 32),
-		node.NewNodeID2("\x00\x00\x00\x00", 32),
-		node.NewNodeID2("\x02\x00\x00\x00", 32),
-		node.NewNodeID2("\x03\x00\x00\x00", 32),
-		node.NewNodeID2("\x02\x00\x01\x00", 32),
-		node.NewNodeID2("\x03\x00\x00\x00", 32),
+	ids := []node.ID{
+		node.NewID("\x01\x00\x00\x00", 32),
+		node.NewID("\x00\x00\x00\x00", 32),
+		node.NewID("\x02\x00\x00\x00", 32),
+		node.NewID("\x03\x00\x00\x00", 32),
+		node.NewID("\x02\x00\x01\x00", 32),
+		node.NewID("\x03\x00\x00\x00", 32),
 	}
 	// Generate some nodes based on IDs.
 	all := make([]Node, len(ids))
@@ -61,7 +61,7 @@ func TestWriterSplit(t *testing.T) {
 		err   bool
 	}{
 		{desc: "dup", nodes: all, err: true},
-		{desc: "wrong-len", nodes: []Node{{ID: node.NewNodeID2("ab", 10)}}, err: true},
+		{desc: "wrong-len", nodes: []Node{{ID: node.NewID("ab", 10)}}, err: true},
 		{
 			desc: "ok-24", split: 24, nodes: all[:5],
 			want: [][]Node{{all[1]}, {all[0]}, {all[2]}, {all[4]}, {all[3]}},
@@ -119,7 +119,7 @@ func TestWriterWrite(t *testing.T) {
 		},
 
 		{desc: "empty", wantErr: "nothing to write"},
-		{desc: "unaligned", nodes: []Node{{ID: node.NewNodeID2("ab", 10)}}, wantErr: "unexpected depth"},
+		{desc: "unaligned", nodes: []Node{{ID: node.NewID("ab", 10)}}, wantErr: "unexpected depth"},
 		{desc: "dup", nodes: []Node{all[0], all[0]}, wantErr: "duplicate ID"},
 		{desc: "2-shards", split: 128, nodes: []Node{all[0], all[1]}, wantErr: "writing across"},
 		{desc: "get-err", acc: &testAccessor{get: errors.New("fail")}, nodes: []Node{all[0]}, wantErr: "fail"},
@@ -200,7 +200,7 @@ func TestWriterBigBatchMultipleWrites(t *testing.T) {
 	}
 
 	w := NewWriter(treeID, hasher, 256, 8)
-	acc := &testAccessor{h: make(map[node.NodeID2][]byte), save: true}
+	acc := &testAccessor{h: make(map[node.ID][]byte), save: true}
 
 	for i := 0; i < numBatches; i++ {
 		nodes := make([]Node, 0, batchSize)
@@ -253,7 +253,7 @@ func update(ctx context.Context, t testing.TB, w *Writer, acc NodeBatchAccessor,
 // 256-bit map key based on SHA256 of the given key string.
 func genNode(key, value string) Node {
 	key256 := sha256.Sum256([]byte(key))
-	id := node.NewNodeID2(string(key256[:]), uint(len(key256)*8))
+	id := node.NewID(string(key256[:]), uint(len(key256)*8))
 	hash := hasher.HashLeaf(treeID, id, []byte(value))
 	return Node{ID: id, Hash: hash}
 }
@@ -261,13 +261,13 @@ func genNode(key, value string) Node {
 // testAccessor implements NodeBatchAccessor for testing purposes.
 type testAccessor struct {
 	mu   sync.RWMutex // Guards the h map.
-	h    map[node.NodeID2][]byte
+	h    map[node.ID][]byte
 	save bool  // Persist node updates in this accessor.
 	get  error // The error returned by Get.
 	set  error // The error returned by Set.
 }
 
-func (t *testAccessor) Get(ctx context.Context, ids []node.NodeID2) (map[node.NodeID2][]byte, error) {
+func (t *testAccessor) Get(ctx context.Context, ids []node.ID) (map[node.ID][]byte, error) {
 	if err := t.get; err != nil {
 		return nil, err
 	} else if !t.save {
@@ -275,7 +275,7 @@ func (t *testAccessor) Get(ctx context.Context, ids []node.NodeID2) (map[node.No
 	}
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	h := make(map[node.NodeID2][]byte, len(ids))
+	h := make(map[node.ID][]byte, len(ids))
 	for _, id := range ids {
 		if hash, ok := t.h[id]; ok {
 			h[id] = hash

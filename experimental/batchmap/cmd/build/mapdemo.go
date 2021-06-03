@@ -104,7 +104,7 @@ func (fn *mapEntryFn) ProcessElement(i int64) *batchmap.Entry {
 	h := hash.New()
 	h.Write([]byte(fmt.Sprintf("%d", i)))
 	kbs := h.Sum(nil)
-	leafID := node.NewNodeID2(string(kbs), uint(len(kbs)*8))
+	leafID := node.NewID(string(kbs), uint(len(kbs)*8))
 
 	data := []byte(fmt.Sprintf("[%s]%d", fn.Salt, i))
 

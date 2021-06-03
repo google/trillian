@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func TestNewNodeID2WithLast(t *testing.T) {
+func TestNewIDWithLast(t *testing.T) {
 	const bytes = "\x0A\x0B\x0C\xFA"
 	for _, tc := range []struct {
 		length uint
@@ -44,17 +44,17 @@ func TestNewNodeID2WithLast(t *testing.T) {
 		{length: 31, path: bytes[:3], last: 0xFA, bits: 7},
 		{length: 32, path: bytes[:3], last: 0xFA, bits: 8},
 	} {
-		id := NewNodeID2(bytes, tc.length)
+		id := NewID(bytes, tc.length)
 		t.Run(id.String(), func(t *testing.T) {
-			got := NewNodeID2WithLast(tc.path, tc.last, tc.bits)
+			got := NewIDWithLast(tc.path, tc.last, tc.bits)
 			if want := id; got != want {
-				t.Errorf("NewNodeID2WithLast: %v, want %v", got, want)
+				t.Errorf("NewIDWithLast: %v, want %v", got, want)
 			}
 		})
 	}
 }
 
-func TestNodeID2String(t *testing.T) {
+func TestIDString(t *testing.T) {
 	bytes := string([]byte{5, 1, 127})
 	for _, tc := range []struct {
 		bits uint
@@ -70,7 +70,7 @@ func TestNodeID2String(t *testing.T) {
 		{bits: 24, want: "[00000101 00000001 01111111]"},
 	} {
 		t.Run(fmt.Sprintf("bits:%d", tc.bits), func(t *testing.T) {
-			id := NewNodeID2(bytes, tc.bits)
+			id := NewID(bytes, tc.bits)
 			if got, want := id.String(), tc.want; got != want {
 				t.Errorf("String: got %q, want %q", got, want)
 			}
@@ -78,21 +78,21 @@ func TestNodeID2String(t *testing.T) {
 	}
 }
 
-func TestNodeID2Comparison(t *testing.T) {
+func TestIDComparison(t *testing.T) {
 	const bytes = "\x0A\x0B\x0C\x0A\x0B\x0C\x01"
 	for _, tc := range []struct {
 		desc string
-		id1  NodeID2
-		id2  NodeID2
+		id1  ID
+		id2  ID
 		want bool
 	}{
-		{desc: "all-same", id1: NewNodeID2(bytes, 56), id2: NewNodeID2(bytes, 56), want: true},
-		{desc: "same-bytes", id1: NewNodeID2(bytes[:3], 24), id2: NewNodeID2(bytes[3:6], 24), want: true},
-		{desc: "same-bits1", id1: NewNodeID2(bytes[:4], 25), id2: NewNodeID2(bytes[3:], 25), want: true},
-		{desc: "same-bits2", id1: NewNodeID2(bytes[:4], 28), id2: NewNodeID2(bytes[3:], 28), want: true},
-		{desc: "diff-bits", id1: NewNodeID2(bytes[:4], 29), id2: NewNodeID2(bytes[3:], 29)},
-		{desc: "diff-len", id1: NewNodeID2(bytes, 56), id2: NewNodeID2(bytes, 55)},
-		{desc: "diff-bytes", id1: NewNodeID2(bytes, 56), id2: NewNodeID2(bytes, 48)},
+		{desc: "all-same", id1: NewID(bytes, 56), id2: NewID(bytes, 56), want: true},
+		{desc: "same-bytes", id1: NewID(bytes[:3], 24), id2: NewID(bytes[3:6], 24), want: true},
+		{desc: "same-bits1", id1: NewID(bytes[:4], 25), id2: NewID(bytes[3:], 25), want: true},
+		{desc: "same-bits2", id1: NewID(bytes[:4], 28), id2: NewID(bytes[3:], 28), want: true},
+		{desc: "diff-bits", id1: NewID(bytes[:4], 29), id2: NewID(bytes[3:], 29)},
+		{desc: "diff-len", id1: NewID(bytes, 56), id2: NewID(bytes, 55)},
+		{desc: "diff-bytes", id1: NewID(bytes, 56), id2: NewID(bytes, 48)},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			eq := tc.id1 == tc.id2
@@ -103,21 +103,21 @@ func TestNodeID2Comparison(t *testing.T) {
 	}
 }
 
-func TestNodeID2Prefix(t *testing.T) {
+func TestIDPrefix(t *testing.T) {
 	const bytes = "\x0A\x0B\x0C"
 	for i, tc := range []struct {
-		id   NodeID2
+		id   ID
 		bits uint
-		want NodeID2
+		want ID
 	}{
-		{id: NewNodeID2(bytes, 24), bits: 0, want: NodeID2{}},
-		{id: NewNodeID2(bytes, 24), bits: 1, want: NewNodeID2(bytes, 1)},
-		{id: NewNodeID2(bytes, 24), bits: 2, want: NewNodeID2(bytes, 2)},
-		{id: NewNodeID2(bytes, 24), bits: 5, want: NewNodeID2(bytes, 5)},
-		{id: NewNodeID2(bytes, 24), bits: 8, want: NewNodeID2(bytes, 8)},
-		{id: NewNodeID2(bytes, 24), bits: 15, want: NewNodeID2(bytes, 15)},
-		{id: NewNodeID2(bytes, 24), bits: 24, want: NewNodeID2(bytes, 24)},
-		{id: NewNodeID2(bytes, 21), bits: 15, want: NewNodeID2(bytes, 15)},
+		{id: NewID(bytes, 24), bits: 0, want: ID{}},
+		{id: NewID(bytes, 24), bits: 1, want: NewID(bytes, 1)},
+		{id: NewID(bytes, 24), bits: 2, want: NewID(bytes, 2)},
+		{id: NewID(bytes, 24), bits: 5, want: NewID(bytes, 5)},
+		{id: NewID(bytes, 24), bits: 8, want: NewID(bytes, 8)},
+		{id: NewID(bytes, 24), bits: 15, want: NewID(bytes, 15)},
+		{id: NewID(bytes, 24), bits: 24, want: NewID(bytes, 24)},
+		{id: NewID(bytes, 21), bits: 15, want: NewID(bytes, 15)},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			if got, want := tc.id.Prefix(tc.bits), tc.want; got != want {
@@ -127,17 +127,17 @@ func TestNodeID2Prefix(t *testing.T) {
 	}
 }
 
-func TestNodeID2Sibling(t *testing.T) {
+func TestIDSibling(t *testing.T) {
 	const bytes = "\x0A\x0B\x0C"
 	for _, tc := range []struct {
-		id   NodeID2
-		want NodeID2
+		id   ID
+		want ID
 	}{
-		{id: NewNodeID2(bytes, 0), want: NodeID2{}},
-		{id: NewNodeID2(bytes, 1), want: NewNodeID2("\xA0", 1)},
-		{id: NewNodeID2(bytes, 2), want: NewNodeID2("\x40", 2)},
-		{id: NewNodeID2(bytes, 8), want: NewNodeID2("\x0B", 8)},
-		{id: NewNodeID2(bytes, 24), want: NewNodeID2("\x0A\x0B\x0D", 24)},
+		{id: NewID(bytes, 0), want: ID{}},
+		{id: NewID(bytes, 1), want: NewID("\xA0", 1)},
+		{id: NewID(bytes, 2), want: NewID("\x40", 2)},
+		{id: NewID(bytes, 8), want: NewID("\x0B", 8)},
+		{id: NewID(bytes, 24), want: NewID("\x0A\x0B\x0D", 24)},
 	} {
 		t.Run(tc.id.String(), func(t *testing.T) {
 			sib := tc.id.Sibling()
@@ -152,10 +152,10 @@ func TestNodeID2Sibling(t *testing.T) {
 	}
 }
 
-func BenchmarkNodeID2Siblings(b *testing.B) {
-	siblings := func(id NodeID2) []NodeID2 {
+func BenchmarkIDSiblings(b *testing.B) {
+	siblings := func(id ID) []ID {
 		ln := id.BitLen()
-		sibs := make([]NodeID2, ln)
+		sibs := make([]ID, ln)
 		for height := range sibs {
 			depth := ln - uint(height)
 			sibs[height] = id.Prefix(depth).Sibling()
@@ -164,10 +164,10 @@ func BenchmarkNodeID2Siblings(b *testing.B) {
 	}
 
 	const batch = 512
-	ids := make([]NodeID2, batch)
+	ids := make([]ID, batch)
 	for i := range ids {
 		bytes := fmt.Sprintf("0123456789012345678901234567%02x%02x", i&255, (i>>8)&255)
-		ids[i] = NewNodeID2(bytes, uint(len(bytes))*8)
+		ids[i] = NewID(bytes, uint(len(bytes))*8)
 	}
 	for i, n := 0, b.N; i < n; i++ {
 		for _, id := range ids {

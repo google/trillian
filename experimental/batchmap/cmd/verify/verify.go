@@ -57,7 +57,7 @@ func main() {
 	h := hash.New()
 	h.Write([]byte(fmt.Sprintf("%d", *key)))
 	keyPath := h.Sum(nil)
-	leafID := node.NewNodeID2(string(keyPath), uint(len(keyPath)*8))
+	leafID := node.NewID(string(keyPath), uint(len(keyPath)*8))
 
 	expectedString := fmt.Sprintf("[%s]%d", *valueSalt, *key)
 	expectedValueHash := coniks.Default.HashLeaf(*treeID, leafID, []byte(expectedString))
@@ -158,7 +158,7 @@ func toNode(prefix []byte, l *batchmap.TileLeaf) smt.Node {
 	path := make([]byte, 0, len(prefix)+len(l.Path))
 	path = append(append(path, prefix...), l.Path...)
 	return smt.Node{
-		ID:   node.NewNodeID2(string(path), uint(len(path))*8),
+		ID:   node.NewID(string(path), uint(len(path))*8),
 		Hash: l.Hash,
 	}
 }
@@ -168,8 +168,8 @@ type emptyTree struct {
 	treeID int64
 }
 
-func (e emptyTree) Get(id node.NodeID2) ([]byte, error) {
+func (e emptyTree) Get(id node.ID) ([]byte, error) {
 	return coniks.Default.HashEmpty(e.treeID, id), nil
 }
 
-func (e emptyTree) Set(id node.NodeID2, hash []byte) {}
+func (e emptyTree) Set(id node.ID, hash []byte) {}
