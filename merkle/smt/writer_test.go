@@ -25,7 +25,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/sync/errgroup"
@@ -34,7 +33,7 @@ import (
 const treeID = int64(0)
 
 var (
-	hasher = maphasher.Default
+	hasher = Default
 	b64    = testonly.MustDecodeBase64
 )
 

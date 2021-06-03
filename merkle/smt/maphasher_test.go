@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package maphasher
+
+package smt
 
 import (
 	"bytes"
@@ -28,7 +29,6 @@ const (
 	// This was taken from the C++ SparseMerkleTree tests in
 	// github.com/google/certificate-transparency.
 	emptyMapRootB64 = "xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo="
-	treeID          = int64(0)
 )
 
 var h2b = testonly.MustHexDecode
