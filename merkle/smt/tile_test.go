@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/trillian/merkle/maphasher"
+	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/storage/tree"
 )
 
@@ -110,7 +110,7 @@ func TestTileMerge(t *testing.T) {
 
 func TestTileScan(t *testing.T) {
 	lo := tree.NewLayout([]int{8, 24})
-	h := bindHasher(maphasher.Default, 1)
+	h := bindHasher(coniks.Default, 1)
 
 	ids := []tree.NodeID2{
 		tree.NewNodeID2("\x00", 8),

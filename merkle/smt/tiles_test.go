@@ -19,12 +19,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/trillian/merkle/maphasher"
+	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/storage/tree"
 )
 
 func TestTileSetAdd(t *testing.T) {
-	hasher := maphasher.Default
+	hasher := coniks.Default
 	l := tree.NewLayout([]int{8, 8})
 
 	existing := Tile{
@@ -65,7 +65,7 @@ func TestTileSetAdd(t *testing.T) {
 
 func TestTileSetHashes(t *testing.T) {
 	l := tree.NewLayout([]int{8, 8})
-	ts := NewTileSet(0, maphasher.Default, l)
+	ts := NewTileSet(0, coniks.Default, l)
 
 	count := 0
 	for i, tc := range []struct {
@@ -109,7 +109,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 		tree.NewNodeID2("\x77\x77", 16),
 		tree.NewNodeID2("\x77\x88", 16),
 	}
-	ts := NewTileSet(0, maphasher.Default, l)
+	ts := NewTileSet(0, coniks.Default, l)
 	for _, tile := range []Tile{
 		{Leaves: []Node{ // Root tile.
 			{ID: ids[0].Prefix(8), Hash: []byte("hash_00")},

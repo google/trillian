@@ -25,7 +25,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/google/trillian/merkle/maphasher"
+	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/sync/errgroup"
@@ -34,7 +34,7 @@ import (
 const treeID = int64(0)
 
 var (
-	hasher = maphasher.Default
+	hasher = coniks.Default
 	b64    = testonly.MustDecodeBase64
 )
 
@@ -110,12 +110,12 @@ func TestWriterWrite(t *testing.T) {
 		{
 			desc:     "single-leaf",
 			nodes:    []Node{all[0]},
-			wantRoot: b64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA="),
+			wantRoot: b64("KKBw4yrtfa5Ugm9jo4SHZ79wJy4bUAW1jLPyMOJoAPQ="),
 		},
 		{
 			desc:     "multi-leaf",
 			nodes:    []Node{all[0], all[1], all[2]},
-			wantRoot: b64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
+			wantRoot: b64("l/IJC6+DcqpNvnQ+HdAwwmXEXfmQ6Ha9/lOD7smeIVc="),
 		},
 
 		{desc: "empty", wantErr: "nothing to write"},
@@ -176,8 +176,9 @@ func testWriterBigBatch(t testing.TB) {
 	rootUpd := update(ctx, t, w, &testAccessor{}, nodes)
 
 	// Calculated using Python code from the original Revocation Transparency
-	// doc: https://www.links.org/files/RevocationTransparency.pdf.
-	want := b64("Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA=")
+	// doc: https://www.links.org/files/RevocationTransparency.pdf, but using the
+	// CONIKS hasher instead.
+	want := b64("P2SiYPpD858dVfAIG5RW0dxKKm7ZQr6DrhVIMDBWcJY=")
 	if got := rootUpd.Hash; !bytes.Equal(got, want) {
 		t.Errorf("root mismatch: got %x, want %x", got, want)
 	}
@@ -192,10 +193,10 @@ func TestWriterBigBatchMultipleWrites(t *testing.T) {
 	const batchSize = 1024
 	const numBatches = 4
 	roots := [numBatches][]byte{
-		b64("7R5uvGy5MJ2Y8xrQr4/mnn3aPw39vYscghmg9KBJaKc="),
-		b64("VTrPStz/chupeOjzAYFIHGfhiMT8yN+v589jxWZO1F0="),
-		b64("nRvRV/NfC06rXGI5cKeTieyyp/69bHoMcVDs0AtZzus="),
-		b64("Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA="),
+		b64("aAMq3tm3aChuTrjocEp9pau/rERbY3ClQ5iLuvkOwAw="),
+		b64("8F5CF69Dkhebse22dhPvmwxaXGESqtKfQB3A8rMLh9k="),
+		b64("f1b6zuA5OuG2Joedcq0XYm9AwGUw//C2ZAyGxqOv+G4="),
+		b64("P2SiYPpD858dVfAIG5RW0dxKKm7ZQr6DrhVIMDBWcJY="),
 	}
 
 	w := NewWriter(treeID, hasher, 256, 8)
