@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+
+	_ "github.com/golang/glog" // Add flags for the overarching test-all command.
 )
 
 func TestNewIDWithLast(t *testing.T) {
