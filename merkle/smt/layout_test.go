@@ -14,9 +14,7 @@
 
 package smt
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestLayoutLocate(t *testing.T) {
 	l1 := NewLayout([]int{1, 2, 4, 8})
