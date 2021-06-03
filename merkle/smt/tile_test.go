@@ -21,17 +21,17 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/coniks"
-	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/merkle/smt/node"
 )
 
 func TestTileMerge(t *testing.T) {
-	ids := []tree.NodeID2{
-		tree.NewNodeID2("\xAB\x00", 15),
-		tree.NewNodeID2("\xAB\x10", 15),
-		tree.NewNodeID2("\xAB\x20", 15),
-		tree.NewNodeID2("\xAB\x30", 15),
-		tree.NewNodeID2("\xAB\x40", 15),
-		tree.NewNodeID2("\xAC\x00", 15), // In another tile.
+	ids := []node.NodeID2{
+		node.NewNodeID2("\xAB\x00", 15),
+		node.NewNodeID2("\xAB\x10", 15),
+		node.NewNodeID2("\xAB\x20", 15),
+		node.NewNodeID2("\xAB\x30", 15),
+		node.NewNodeID2("\xAB\x40", 15),
+		node.NewNodeID2("\xAC\x00", 15), // In another tile.
 	}
 	id := ids[0].Prefix(8)
 	n := func(idIndex int, hash string) Node {
@@ -101,7 +101,7 @@ func TestTileMerge(t *testing.T) {
 			}
 
 			want := Tile{ID: id, Leaves: tc.want}
-			if d := cmp.Diff(got, want, cmp.AllowUnexported(tree.NodeID2{})); d != "" {
+			if d := cmp.Diff(got, want, cmp.AllowUnexported(node.NodeID2{})); d != "" {
 				t.Errorf("Merge result mismatch:\n%s", d)
 			}
 		})
@@ -112,14 +112,14 @@ func TestTileScan(t *testing.T) {
 	lo := NewLayout([]uint{8, 24})
 	h := bindHasher(coniks.Default, 1)
 
-	ids := []tree.NodeID2{
-		tree.NewNodeID2("\x00", 8),
-		tree.NewNodeID2("\x02", 8),
-		tree.NewNodeID2("\xF0", 8),
-		tree.NewNodeID2("\x00\x01\x02\x03", 32),
+	ids := []node.NodeID2{
+		node.NewNodeID2("\x00", 8),
+		node.NewNodeID2("\x02", 8),
+		node.NewNodeID2("\xF0", 8),
+		node.NewNodeID2("\x00\x01\x02\x03", 32),
 	}
-	prefixes := func(high, low uint, ids ...tree.NodeID2) []tree.NodeID2 {
-		ret := make([]tree.NodeID2, 0, int(high-low)*len(ids))
+	prefixes := func(high, low uint, ids ...node.NodeID2) []node.NodeID2 {
+		ret := make([]node.NodeID2, 0, int(high-low)*len(ids))
 		for i := high; i > low; i-- {
 			for _, id := range ids {
 				ret = append(ret, id.Prefix(i))
@@ -129,11 +129,11 @@ func TestTileScan(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		id     tree.NodeID2
+		id     node.NodeID2
 		leaves []Node
-		visits []tree.NodeID2
+		visits []node.NodeID2
 	}{
-		{leaves: nil, visits: []tree.NodeID2{}},
+		{leaves: nil, visits: []node.NodeID2{}},
 		{leaves: []Node{{ID: ids[0]}}, visits: prefixes(8, 0, ids[0])},
 		{
 			leaves: []Node{{ID: ids[0]}, {ID: ids[1]}},
@@ -147,7 +147,7 @@ func TestTileScan(t *testing.T) {
 	} {
 		t.Run("", func(t *testing.T) {
 			tile := Tile{ID: tc.id, Leaves: tc.leaves}
-			visits := make([]tree.NodeID2, 0, len(tc.visits))
+			visits := make([]node.NodeID2, 0, len(tc.visits))
 			if err := tile.scan(lo, h, func(node Node) {
 				visits = append(visits, node.ID)
 			}); err != nil {

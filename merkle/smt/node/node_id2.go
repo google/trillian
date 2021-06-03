@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package smt
+// Package node implements a sparse Merkle tree node.
+package node
 
 import "fmt"
 

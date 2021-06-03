@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/coniks"
-	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/merkle/smt/node"
 )
 
 func TestTileSetAdd(t *testing.T) {
@@ -28,19 +28,19 @@ func TestTileSetAdd(t *testing.T) {
 	l := NewLayout([]uint{8, 8})
 
 	existing := Tile{
-		ID:     tree.NewNodeID2("\x00", 8),
-		Leaves: []Node{{ID: tree.NewNodeID2("\x00\x05", 16)}},
+		ID:     node.NewNodeID2("\x00", 8),
+		Leaves: []Node{{ID: node.NewNodeID2("\x00\x05", 16)}},
 	}
 	for _, tc := range []struct {
 		tile    Tile
 		wantErr string
 	}{
-		{tile: Tile{ID: tree.NewNodeID2("\x01", 8)}},
-		{tile: Tile{ID: tree.NewNodeID2("\x00", 8)}, wantErr: "exists"},
+		{tile: Tile{ID: node.NewNodeID2("\x01", 8)}},
+		{tile: Tile{ID: node.NewNodeID2("\x00", 8)}, wantErr: "exists"},
 		{
 			tile: Tile{
-				ID:     tree.NewNodeID2("\x01", 8),
-				Leaves: []Node{{ID: tree.NewNodeID2("\x00\x05\x00", 24)}},
+				ID:     node.NewNodeID2("\x01", 8),
+				Leaves: []Node{{ID: node.NewNodeID2("\x00\x05\x00", 24)}},
 			},
 			wantErr: "invalid depth",
 		},
@@ -72,18 +72,18 @@ func TestTileSetHashes(t *testing.T) {
 		tile  Tile
 		added int
 	}{
-		{tile: Tile{ID: tree.NewNodeID2("\x02", 8), Leaves: nil}, added: 0},
+		{tile: Tile{ID: node.NewNodeID2("\x02", 8), Leaves: nil}, added: 0},
 		{
 			tile: Tile{
-				ID:     tree.NewNodeID2("\x00", 8),
-				Leaves: []Node{{ID: tree.NewNodeID2("\x00\x01", 16)}},
+				ID:     node.NewNodeID2("\x00", 8),
+				Leaves: []Node{{ID: node.NewNodeID2("\x00\x01", 16)}},
 			},
 			added: 8,
 		},
 		{
 			tile: Tile{Leaves: []Node{
-				{ID: tree.NewNodeID2("\x00", 8)},
-				{ID: tree.NewNodeID2("\x02", 8)},
+				{ID: node.NewNodeID2("\x00", 8)},
+				{ID: node.NewNodeID2("\x02", 8)},
 			}},
 			added: 10,
 		},
@@ -139,26 +139,26 @@ func TestTileSetMutationBuild(t *testing.T) {
 
 	for _, tc := range []struct {
 		upd  []Node                  // Node updates.
-		want map[tree.NodeID2][]Node // Updated tiles.
+		want map[node.NodeID2][]Node // Updated tiles.
 	}{
-		{upd: nil, want: make(map[tree.NodeID2][]Node)},
+		{upd: nil, want: make(map[node.NodeID2][]Node)},
 		{ // Updating the hash with the old value.
 			upd:  []Node{{ID: ids[0], Hash: []byte("hash_0000")}},
-			want: make(map[tree.NodeID2][]Node), // Tiles are intact.
+			want: make(map[node.NodeID2][]Node), // Tiles are intact.
 		},
 		{ // Ignoring non-leaf node updates for tiles.
 			upd:  []Node{{ID: ids[0].Prefix(1), Hash: []byte("root")}},
-			want: make(map[tree.NodeID2][]Node),
+			want: make(map[node.NodeID2][]Node),
 		},
 		{ // Updating a non-existing node of a non-existing tile.
 			upd: []Node{{ID: ids[4], Hash: []byte("new_7777")}},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[4].Prefix(8): {{ID: ids[4], Hash: []byte("new_7777")}},
 			},
 		},
 		{ // Updating an existing node.
 			upd: []Node{{ID: ids[0], Hash: []byte("new_0000")}},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[0].Prefix(8): {
 					{ID: ids[0], Hash: []byte("new_0000")},
 					{ID: ids[1], Hash: []byte("hash_0070")},
@@ -167,7 +167,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 		},
 		{ // Updating nodes of an existing tile.
 			upd: []Node{{ID: ids[0].Sibling(), Hash: []byte("new_0001")}},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[0].Prefix(8): {
 					{ID: ids[0], Hash: []byte("hash_0000")},
 					{ID: ids[0].Sibling(), Hash: []byte("new_0001")},
@@ -180,7 +180,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 				{ID: ids[0], Hash: []byte("new_0000")},
 				{ID: ids[1], Hash: []byte("new_0001")},
 			},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[0].Prefix(8): {
 					{ID: ids[0], Hash: []byte("new_0000")},
 					{ID: ids[1], Hash: []byte("new_0001")},
@@ -192,7 +192,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 				{ID: ids[1], Hash: []byte("new_0001")},
 				{ID: ids[0], Hash: []byte("new_0000")},
 			},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[0].Prefix(8): {
 					{ID: ids[0], Hash: []byte("new_0000")},
 					{ID: ids[1], Hash: []byte("new_0001")},
@@ -204,7 +204,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 				{ID: ids[4], Hash: []byte("new_7777")},
 				{ID: ids[5], Hash: []byte("new_7788")},
 			},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[4].Prefix(8): {
 					{ID: ids[4], Hash: []byte("new_7777")},
 					{ID: ids[5], Hash: []byte("new_7788")},
@@ -216,7 +216,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 				{ID: ids[5], Hash: []byte("new_7788")},
 				{ID: ids[4], Hash: []byte("new_7777")},
 			},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[4].Prefix(8): {
 					{ID: ids[4], Hash: []byte("new_7777")},
 					{ID: ids[5], Hash: []byte("new_7788")},
@@ -228,7 +228,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 				{ID: ids[0], Hash: []byte("new_0000")},
 				{ID: ids[2], Hash: []byte("new_0101")},
 			},
-			want: map[tree.NodeID2][]Node{
+			want: map[node.NodeID2][]Node{
 				ids[0].Prefix(8): {
 					{ID: ids[0], Hash: []byte("new_0000")},
 					{ID: ids[1], Hash: []byte("hash_0070")},
@@ -248,7 +248,7 @@ func TestTileSetMutationBuild(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Build: %v", err)
 			}
-			got := make(map[tree.NodeID2][]Node, len(tiles))
+			got := make(map[node.NodeID2][]Node, len(tiles))
 			for _, tile := range tiles {
 				got[tile.ID] = tile.Leaves
 			}

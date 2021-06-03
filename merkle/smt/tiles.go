@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+
+	"github.com/google/trillian/merkle/smt/node"
 )
 
 // TileSet represents a set of Merkle tree tiles and the corresponding nodes.
@@ -26,21 +28,21 @@ import (
 // TODO(pavelkalinnikov): Make it immutable.
 type TileSet struct {
 	layout Layout
-	tiles  map[NodeID2]NodesRow
-	hashes map[NodeID2][]byte
+	tiles  map[node.NodeID2]NodesRow
+	hashes map[node.NodeID2][]byte
 	h      mapHasher
 }
 
 // NewTileSet creates an empty TileSet with the given tree parameters.
 func NewTileSet(treeID int64, hasher Hasher, layout Layout) *TileSet {
-	tiles := make(map[NodeID2]NodesRow)
-	hashes := make(map[NodeID2][]byte)
+	tiles := make(map[node.NodeID2]NodesRow)
+	hashes := make(map[node.NodeID2][]byte)
 	h := bindHasher(hasher, treeID)
 	return &TileSet{layout: layout, tiles: tiles, hashes: hashes, h: h}
 }
 
 // Hashes returns a map containing all node hashes keyed by node IDs.
-func (t *TileSet) Hashes() map[NodeID2][]byte {
+func (t *TileSet) Hashes() map[node.NodeID2][]byte {
 	return t.hashes
 }
 
@@ -61,14 +63,14 @@ func (t *TileSet) Add(tile Tile) error {
 // not thread-safe.
 type TileSetMutation struct {
 	read  *TileSet
-	tiles map[NodeID2][]Node
+	tiles map[node.NodeID2][]Node
 }
 
 // NewTileSetMutation creates a mutation which is based off the provided
 // TileSet. This means that each modification is checked against the hashes in
 // this set, and is applied if it does change the hash.
 func NewTileSetMutation(ts *TileSet) *TileSetMutation {
-	tiles := make(map[NodeID2][]Node)
+	tiles := make(map[node.NodeID2][]Node)
 	return &TileSetMutation{read: ts, tiles: tiles}
 }
 
@@ -77,7 +79,7 @@ func NewTileSetMutation(ts *TileSet) *TileSetMutation {
 // TODO(pavelkalinnikov): Elaborate on the expected order of Set calls.
 // Currently, Build method sorts nodes to allow any order, but it can be
 // avoided.
-func (t *TileSetMutation) Set(id NodeID2, hash []byte) {
+func (t *TileSetMutation) Set(id node.NodeID2, hash []byte) {
 	if bytes.Equal(t.read.hashes[id], hash) {
 		return // Nothing changed.
 	}

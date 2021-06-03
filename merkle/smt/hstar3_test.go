@@ -24,15 +24,15 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/coniks"
-	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/merkle/smt/node"
 )
 
 type emptyNodes struct {
 	h   mapHasher
-	ids map[NodeID2]bool
+	ids map[node.NodeID2]bool
 }
 
-func (e *emptyNodes) Get(id NodeID2) ([]byte, error) {
+func (e *emptyNodes) Get(id node.NodeID2) ([]byte, error) {
 	if e.ids != nil {
 		if !e.ids[id] {
 			return nil, fmt.Errorf("not found or read twice: %v", id)
@@ -42,7 +42,7 @@ func (e *emptyNodes) Get(id NodeID2) ([]byte, error) {
 	return e.h.hashEmpty(id), nil
 }
 
-func (e *emptyNodes) Set(id NodeID2, hash []byte) {}
+func (e *emptyNodes) Set(id node.NodeID2, hash []byte) {}
 
 func BenchmarkHStar3Root(b *testing.B) {
 	hasher := coniks.New(crypto.SHA256)
@@ -83,10 +83,10 @@ func TestHStar3Golden(t *testing.T) {
 }
 
 func TestNewHStar3(t *testing.T) {
-	id1 := tree.NewNodeID2("01234567890000000000000000000001", 256)
-	id2 := tree.NewNodeID2("01234567890000000000000000000002", 256)
-	id3 := tree.NewNodeID2("01234567890000000000000000000003", 256)
-	id4 := tree.NewNodeID2("01234567890000000000000001111111", 256)
+	id1 := node.NewNodeID2("01234567890000000000000000000001", 256)
+	id2 := node.NewNodeID2("01234567890000000000000000000002", 256)
+	id3 := node.NewNodeID2("01234567890000000000000000000003", 256)
+	id4 := node.NewNodeID2("01234567890000000000000001111111", 256)
 	hasher := coniks.Default
 
 	for _, tc := range []struct {
@@ -149,8 +149,8 @@ func TestHStar3Prepare(t *testing.T) {
 
 func TestHStar3PrepareAlternative(t *testing.T) {
 	// This is the intuitively simpler alternative Prepare implementation.
-	prepare := func(nodes []Node, depth, top uint) map[NodeID2]bool {
-		ids := make(map[NodeID2]bool)
+	prepare := func(nodes []Node, depth, top uint) map[node.NodeID2]bool {
+		ids := make(map[node.NodeID2]bool)
 		// For each node, add all its ancestors' siblings, down to the given depth.
 		for _, n := range nodes {
 			for id, d := n.ID, depth; d > top; d-- {
@@ -212,15 +212,15 @@ func leafNodes(t testing.TB, n int) []Node {
 		if _, err := r.Read(path); err != nil {
 			t.Fatalf("Failed to make random path: %v", err)
 		}
-		nodes[i].ID = tree.NewNodeID2(string(path), 256)
+		nodes[i].ID = node.NewNodeID2(string(path), 256)
 	}
 
 	return nodes
 }
 
-func idsToMap(t testing.TB, ids []NodeID2) map[NodeID2]bool {
+func idsToMap(t testing.TB, ids []node.NodeID2) map[node.NodeID2]bool {
 	t.Helper()
-	res := make(map[NodeID2]bool, len(ids))
+	res := make(map[node.NodeID2]bool, len(ids))
 	for _, id := range ids {
 		if res[id] {
 			t.Errorf("ID duplicate: %v", id)
