@@ -79,9 +79,9 @@ func merge(nodes, updates NodesRow) NodesRow {
 
 // scan visits all non-empty nodes of the tile except the root. The order of
 // node visits is arbitrary.
-func (t Tile) scan(l *tree.Layout, h mapHasher, visit func(Node)) error {
+func (t Tile) scan(l Layout, h mapHasher, visit func(Node)) error {
 	top := t.ID.BitLen()
-	height := uint(l.TileHeight(int(top)))
+	_, height := l.Locate(top + 1)
 	// TODO(pavelkalinnikov): Remove HStar3 side effects, to avoid copying here.
 	// Currently, the Update method modifies the nodes given to NewHStar3.
 	leaves := make([]Node, len(t.Leaves))

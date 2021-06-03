@@ -27,14 +27,14 @@ import (
 //
 // TODO(pavelkalinnikov): Make it immutable.
 type TileSet struct {
-	layout *tree.Layout
+	layout Layout
 	tiles  map[tree.NodeID2]NodesRow
 	hashes map[tree.NodeID2][]byte
 	h      mapHasher
 }
 
 // NewTileSet creates an empty TileSet with the given tree parameters.
-func NewTileSet(treeID int64, hasher Hasher, layout *tree.Layout) *TileSet {
+func NewTileSet(treeID int64, hasher Hasher, layout Layout) *TileSet {
 	tiles := make(map[tree.NodeID2]NodesRow)
 	hashes := make(map[tree.NodeID2][]byte)
 	h := bindHasher(hasher, treeID)
@@ -80,14 +80,14 @@ func NewTileSetMutation(ts *TileSet) *TileSetMutation {
 // Currently, Build method sorts nodes to allow any order, but it can be
 // avoided.
 func (t *TileSetMutation) Set(id tree.NodeID2, hash []byte) {
-	root := t.read.layout.GetTileRootID(id)
-	height := uint(t.read.layout.TileHeight(int(root.BitLen())))
-	if root.BitLen()+height != id.BitLen() {
-		return // Not a leaf node of a tile.
-	}
 	if bytes.Equal(t.read.hashes[id], hash) {
 		return // Nothing changed.
 	}
+	d, height := t.read.layout.Locate(id.BitLen())
+	if d+height != id.BitLen() {
+		return // Not a leaf node of a tile.
+	}
+	root := id.Prefix(d)
 	t.tiles[root] = append(t.tiles[root], Node{ID: id, Hash: hash})
 }
 
