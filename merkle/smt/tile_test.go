@@ -109,7 +109,7 @@ func TestTileMerge(t *testing.T) {
 }
 
 func TestTileScan(t *testing.T) {
-	lo := NewLayout([]int{8, 24})
+	lo := NewLayout([]uint{8, 24})
 	h := bindHasher(coniks.Default, 1)
 
 	ids := []tree.NodeID2{

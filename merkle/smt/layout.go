@@ -27,13 +27,13 @@ type Layout struct {
 }
 
 // NewLayout creates a tree layout based on the passed-in tier heights.
-func NewLayout(heights []int) Layout {
+func NewLayout(heights []uint) Layout {
 	depths := make([]int, len(heights)+1)
 	for i, h := range heights {
 		if h <= 0 {
 			panic("tile heights must be positive")
 		}
-		depths[i+1] = depths[i] + h
+		depths[i+1] = depths[i] + int(h)
 	}
 	return Layout{depths: depths}
 }

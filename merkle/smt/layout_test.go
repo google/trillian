@@ -17,8 +17,8 @@ package smt
 import "testing"
 
 func TestLayoutLocate(t *testing.T) {
-	l1 := NewLayout([]int{1, 2, 4, 8})
-	l2 := NewLayout([]int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176})
+	l1 := NewLayout([]uint{1, 2, 4, 8})
+	l2 := NewLayout([]uint{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176})
 	for _, tc := range []struct {
 		desc  string
 		l     Layout

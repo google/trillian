@@ -25,7 +25,7 @@ import (
 
 func TestTileSetAdd(t *testing.T) {
 	hasher := coniks.Default
-	l := NewLayout([]int{8, 8})
+	l := NewLayout([]uint{8, 8})
 
 	existing := Tile{
 		ID:     tree.NewNodeID2("\x00", 8),
@@ -64,7 +64,7 @@ func TestTileSetAdd(t *testing.T) {
 }
 
 func TestTileSetHashes(t *testing.T) {
-	l := NewLayout([]int{8, 8})
+	l := NewLayout([]uint{8, 8})
 	ts := NewTileSet(0, coniks.Default, l)
 
 	count := 0
@@ -100,7 +100,7 @@ func TestTileSetHashes(t *testing.T) {
 }
 
 func TestTileSetMutationBuild(t *testing.T) {
-	l := NewLayout([]int{8, 8})
+	l := NewLayout([]uint{8, 8})
 	ids := []tree.NodeID2{
 		tree.NewNodeID2("\x00\x00", 16),
 		tree.NewNodeID2("\x00\x70", 16),
