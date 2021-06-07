@@ -23,11 +23,7 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-var (
-	// TODO(pavelkalinnikov): Use only log layout.
-	defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
-	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
-)
+var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
 
 func TestGetTileID(t *testing.T) {
 	layout := NewLayout(defaultLogStrata)
@@ -108,8 +104,8 @@ func TestStrataIndex(t *testing.T) {
 	}
 }
 
-func TestDefaultMapStrataIndex(t *testing.T) {
-	layout := NewLayout(defaultMapStrata)
+func TestDefaultLogStrataIndex(t *testing.T) {
+	layout := NewLayout(defaultLogStrata)
 	for _, tc := range []struct {
 		depth int
 		want  stratumInfo
@@ -119,10 +115,9 @@ func TestDefaultMapStrataIndex(t *testing.T) {
 		{7, stratumInfo{0, 8}},
 		{8, stratumInfo{1, 8}},
 		{15, stratumInfo{1, 8}},
-		{79, stratumInfo{9, 8}},
-		{80, stratumInfo{10, 176}},
-		{81, stratumInfo{10, 176}},
-		{156, stratumInfo{10, 176}},
+		{30, stratumInfo{3, 8}},
+		{60, stratumInfo{7, 8}},
+		{63, stratumInfo{7, 8}},
 	} {
 		t.Run(fmt.Sprintf("depth:%d", tc.depth), func(t *testing.T) {
 			got := layout.getStratumAt(tc.depth)
@@ -134,7 +129,7 @@ func TestDefaultMapStrataIndex(t *testing.T) {
 }
 
 func TestLayoutTileHeight(t *testing.T) {
-	layout := NewLayout(defaultMapStrata)
+	layout := NewLayout([]int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176})
 	for _, tc := range []struct {
 		depth  int
 		height int

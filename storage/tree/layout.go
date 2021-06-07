@@ -116,16 +116,6 @@ func (l *Layout) TileHeight(rootDepth int) int {
 	return l.getStratumAt(rootDepth).height
 }
 
-// GetTileRootID returns the ID for the root of the tile that the node with the
-// given ID belongs to.
-func (l *Layout) GetTileRootID(id NodeID2) NodeID2 {
-	if depth := id.BitLen(); depth > 0 {
-		info := l.getStratumAt(int(depth) - 1)
-		return id.Prefix(uint(info.idBytes * 8))
-	}
-	return NodeID2{}
-}
-
 func (l *Layout) getStratumAt(depth int) stratumInfo {
 	return l.sIndex[depth/depthQuantum]
 }
