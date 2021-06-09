@@ -52,7 +52,6 @@ type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) erro
 //  1. Parallel readers/writers working on non-intersecting subsets of subtrees/nodes.
 //  2. Subtrees/nodes are rarely written, and mostly read.
 type SubtreeCache struct {
-	layout tree.Layout
 	hasher hashers.LogHasher
 
 	// subtrees contains the Subtree data read from storage, and is updated by
@@ -73,7 +72,6 @@ func NewLogSubtreeCache(hasher hashers.LogHasher) *SubtreeCache {
 		panic(fmt.Errorf("populate_subtree_concurrency must be set to >= 1"))
 	}
 	return &SubtreeCache{
-		layout:              tree.Layout{},
 		hasher:              hasher,
 		populateConcurrency: *populateConcurrency,
 	}
@@ -86,7 +84,7 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 	// Figure out the set of subtrees we need.
 	want := make(map[string]bool)
 	for _, id := range ids {
-		subID := string(s.layout.GetTileID(id))
+		subID := string(tree.GetTileID(id))
 		if _, ok := want[subID]; ok {
 			// No need to check s.subtrees map twice.
 			continue
@@ -223,7 +221,7 @@ func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
 
 // getNodeHash returns a single node hash from the cache.
 func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
-	subID, sx := s.layout.Split(id)
+	subID, sx := tree.Split(id)
 	c := s.getCachedSubtree(subID)
 	if c == nil {
 		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", subID)
@@ -267,7 +265,7 @@ func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc)
 
 // SetNodeHash sets a node hash in the cache.
 func (s *SubtreeCache) SetNodeHash(id compact.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
-	subID, sx := s.layout.Split(id)
+	subID, sx := tree.Split(id)
 	c := s.getCachedSubtree(subID)
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
