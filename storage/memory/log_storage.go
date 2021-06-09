@@ -39,8 +39,6 @@ import (
 const logIDLabel = "logid"
 
 var (
-	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
-
 	once            sync.Once
 	queuedCounter   monitoring.Counter
 	dequeuedCounter monitoring.Counter
@@ -153,7 +151,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 		createMetrics(m.metricFactory)
 	})
 
-	stCache := cache.NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+	stCache := cache.NewLogSubtreeCache(rfc6962.DefaultHasher)
 	ttx, err := m.TreeStorage.beginTreeTX(ctx, tree.TreeId, rfc6962.DefaultHasher.Size(), stCache, readonly)
 	if err != nil {
 		return nil, err

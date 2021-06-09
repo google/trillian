@@ -19,14 +19,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
 )
 
-var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
+var layout Layout
 
 func TestGetTileID(t *testing.T) {
-	layout := NewLayout(defaultLogStrata)
 	for _, tc := range []struct {
 		id   compact.NodeID
 		want []byte
@@ -57,7 +55,6 @@ func TestGetTileID(t *testing.T) {
 }
 
 func TestSplitNodeID(t *testing.T) {
-	layout := NewLayout(defaultLogStrata)
 	for _, tc := range []struct {
 		id            compact.NodeID
 		outPrefix     []byte
@@ -89,63 +86,6 @@ func TestSplitNodeID(t *testing.T) {
 			}
 			if got, want := s.Path(), tc.outSuffix; !bytes.Equal(got, want) {
 				t.Errorf("suffix.Path %x, want %x", got, want)
-			}
-		})
-	}
-}
-
-func TestStrataIndex(t *testing.T) {
-	heights := []int{8, 8, 16, 32, 64, 128}
-	want := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
-
-	layout := NewLayout(heights)
-	if diff := cmp.Diff(layout.sIndex, want, cmp.AllowUnexported(stratumInfo{})); diff != "" {
-		t.Fatalf("sIndex diff:\n%v", diff)
-	}
-}
-
-func TestDefaultLogStrataIndex(t *testing.T) {
-	layout := NewLayout(defaultLogStrata)
-	for _, tc := range []struct {
-		depth int
-		want  stratumInfo
-	}{
-		{0, stratumInfo{0, 8}},
-		{1, stratumInfo{0, 8}},
-		{7, stratumInfo{0, 8}},
-		{8, stratumInfo{1, 8}},
-		{15, stratumInfo{1, 8}},
-		{30, stratumInfo{3, 8}},
-		{60, stratumInfo{7, 8}},
-		{63, stratumInfo{7, 8}},
-	} {
-		t.Run(fmt.Sprintf("depth:%d", tc.depth), func(t *testing.T) {
-			got := layout.getStratumAt(tc.depth)
-			if want := tc.want; got != want {
-				t.Errorf("got %+v; want %+v", got, want)
-			}
-		})
-	}
-}
-
-func TestLayoutTileHeight(t *testing.T) {
-	layout := NewLayout([]int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176})
-	for _, tc := range []struct {
-		depth  int
-		height int
-	}{
-		{depth: 0, height: 8},
-		{depth: 5, height: 8},
-		{depth: 8, height: 8},
-		{depth: 16, height: 8},
-		{depth: 79, height: 8},
-		{depth: 80, height: 176},
-		{depth: 81, height: 176},
-		{depth: 255, height: 176},
-	} {
-		t.Run(fmt.Sprintf("depth:%d", tc.depth), func(t *testing.T) {
-			if got, want := layout.TileHeight(tc.depth), tc.height; got != want {
-				t.Errorf("TileHeight: got %d, want %d", got, want)
 			}
 		})
 	}

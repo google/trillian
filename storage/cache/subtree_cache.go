@@ -43,11 +43,6 @@ type GetSubtreesFunc func(ids [][]byte) ([]*storagepb.SubtreeProto, error)
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) error
 
-// maxSupportedTreeDepth is the maximum depth a tree can reach. Note that log
-// trees are further limited to a depth of 63 by the use of signed 64 bit leaf
-// indices.
-const maxSupportedTreeDepth = 64
-
 // SubtreeCache provides a caching access to Subtree storage. Currently there are assumptions
 // in the code that all subtrees are multiple of 8 in depth and that log subtrees are always
 // of depth 8. It is not possible to just change the constants above and have things still
@@ -57,7 +52,7 @@ const maxSupportedTreeDepth = 64
 //  1. Parallel readers/writers working on non-intersecting subsets of subtrees/nodes.
 //  2. Subtrees/nodes are rarely written, and mostly read.
 type SubtreeCache struct {
-	layout *tree.Layout
+	layout tree.Layout
 	hasher hashers.LogHasher
 
 	// subtrees contains the Subtree data read from storage, and is updated by
@@ -72,24 +67,13 @@ type SubtreeCache struct {
 }
 
 // NewLogSubtreeCache creates and returns a SubtreeCache appropriate for use with a log
-// tree. The caller must supply the strata depths to be used and a suitable LogHasher.
-func NewLogSubtreeCache(strataDepths []int, hasher hashers.LogHasher) *SubtreeCache {
-	// TODO(al): pass this in
-	maxTreeDepth := maxSupportedTreeDepth
-	glog.V(1).Infof("Creating new subtree cache maxDepth=%d strataDepths=%v", maxTreeDepth, strataDepths)
-	layout := tree.NewLayout(strataDepths)
-
-	// TODO(al): This needs to be passed in, particularly for Map use cases where
-	// we need to know it matches the number of bits in the chosen hash function.
-	if got, want := layout.Height, maxTreeDepth; got != want {
-		panic(fmt.Errorf("strata indicate tree of depth %d, but expected %d", got, want))
-	}
-
+// tree. The caller must supply a suitable LogHasher.
+func NewLogSubtreeCache(hasher hashers.LogHasher) *SubtreeCache {
 	if *populateConcurrency <= 0 {
 		panic(fmt.Errorf("populate_subtree_concurrency must be set to >= 1"))
 	}
 	return &SubtreeCache{
-		layout:              layout,
+		layout:              tree.Layout{},
 		hasher:              hasher,
 		populateConcurrency: *populateConcurrency,
 	}
@@ -373,7 +357,7 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 
 // newEmptySubtree creates an empty subtree for the passed-in ID.
 func (s *SubtreeCache) newEmptySubtree(id []byte) *storagepb.SubtreeProto {
-	height := s.layout.TileHeight(len(id) * 8)
+	const height = 8
 	if glog.V(2) {
 		glog.Infof("Creating new empty subtree for %x, with height %d", id, height)
 	}

@@ -82,8 +82,6 @@ const (
 )
 
 var (
-	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
-
 	once             sync.Once
 	queuedCounter    monitoring.Counter
 	queuedDupCounter monitoring.Counter
@@ -228,7 +226,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 		createMetrics(m.metricFactory)
 	})
 
-	stCache := cache.NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+	stCache := cache.NewLogSubtreeCache(rfc6962.DefaultHasher)
 	ttx, err := m.beginTreeTx(ctx, tree, rfc6962.DefaultHasher.Size(), stCache)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err

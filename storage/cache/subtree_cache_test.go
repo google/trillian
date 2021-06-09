@@ -30,8 +30,6 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8}
-
 func ancestor(id compact.NodeID, levelsUp uint) compact.NodeID {
 	return compact.NewNodeID(id.Level+levelsUp, id.Index>>levelsUp)
 }
@@ -51,7 +49,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+	c := NewLogSubtreeCache(rfc6962.DefaultHasher)
 
 	id := compact.NewNodeID(28, 0x112233445)
 	// When we loop around asking for all parents of the above NodeID, we should
@@ -76,7 +74,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+	c := NewLogSubtreeCache(rfc6962.DefaultHasher)
 
 	ids := []compact.NodeID{
 		compact.NewNodeID(0, 0x1234),
@@ -137,7 +135,7 @@ func TestCacheFlush(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+	c := NewLogSubtreeCache(rfc6962.DefaultHasher)
 
 	id := compact.NewNodeID(0, 12345)
 	expectedSetIDs := make(map[string]string)
@@ -152,7 +150,7 @@ func TestCacheFlush(t *testing.T) {
 	}
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
-			if got, want := s.Depth, c.layout.TileHeight(len(s.Prefix)*8); got != int32(want) {
+			if got, want := s.Depth, int32(8); got != want {
 				t.Errorf("Got subtree with depth %d, expected %d for prefix %x", got, want, s.Prefix)
 			}
 			state, ok := expectedSetIDs[string(s.Prefix)]
@@ -201,13 +199,13 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
-		Depth:         int32(defaultLogStrata[0]),
+		Depth:         8,
 	}
 	s := storagepb.SubtreeProto{
 		Leaves: make(map[string][]byte),
-		Depth:  int32(defaultLogStrata[0]),
+		Depth:  8,
 	}
-	c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+	c := NewLogSubtreeCache(rfc6962.DefaultHasher)
 	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
@@ -227,7 +225,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		sfxKey := toSuffix(compact.NewNodeID(0, uint64(numLeaves)-1))
 		s.Leaves[sfxKey] = leafHash
-		if numLeaves == 1<<uint(defaultLogStrata[0]) {
+		if numLeaves == 256 {
 			s.InternalNodeCount = uint32(len(cmtStorage.InternalNodes))
 		} else {
 			s.InternalNodeCount = 0
@@ -247,7 +245,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		// Repopulation should only have happened with a full subtree, otherwise the internal nodes map
 		// should be empty
-		if numLeaves != 1<<uint(defaultLogStrata[0]) {
+		if numLeaves != 256 {
 			if len(s.InternalNodes) != 0 {
 				t.Fatalf("(it %d) internal nodes should be empty but got: %v", numLeaves, s.InternalNodes)
 			}
@@ -261,7 +259,7 @@ func BenchmarkRepopulateLogSubtree(b *testing.B) {
 	hasher := rfc6962.DefaultHasher
 	s := storagepb.SubtreeProto{
 		Leaves:            make(map[string][]byte),
-		Depth:             int32(defaultLogStrata[0]),
+		Depth:             8,
 		InternalNodeCount: 254,
 	}
 	for i := 0; i < 256; i++ {
@@ -326,7 +324,7 @@ func TestIdempotentWrites(t *testing.T) {
 	// We should see many reads, but only the first call to SetNodeHash should
 	// result in an actual write being flushed through to storage.
 	for i := 0; i < 10; i++ {
-		c := NewLogSubtreeCache(defaultLogStrata, rfc6962.DefaultHasher)
+		c := NewLogSubtreeCache(rfc6962.DefaultHasher)
 		if _, err := c.getNodeHash(id, m.GetSubtree); err != nil {
 			t.Fatalf("%d: failed to get node hash: %v", i, err)
 		}
