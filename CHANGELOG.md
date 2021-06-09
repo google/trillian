@@ -24,6 +24,7 @@
  * `NodeReader.GetMerkleNodes` does not accept revisions anymore. The
    implementations must use the transaction's `ReadRevision` instead.
  * `TreeStorage` migrated to using `compact.NodeID` type suitable for logs.
+ * Removed the tree storage `ReadRevision` method.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13

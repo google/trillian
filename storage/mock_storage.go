@@ -515,21 +515,6 @@ func (mr *MockLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestSignedLogRoot", reflect.TypeOf((*MockLogTreeTX)(nil).LatestSignedLogRoot), arg0)
 }
 
-// ReadRevision mocks base method.
-func (m *MockLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadRevision", arg0)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ReadRevision indicates an expected call of ReadRevision.
-func (mr *MockLogTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockLogTreeTX)(nil).ReadRevision), arg0)
-}
-
 // Rollback mocks base method.
 func (m *MockLogTreeTX) Rollback() error {
 	m.ctrl.T.Helper()
@@ -913,21 +898,6 @@ func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*tril
 func (mr *MockReadOnlyLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestSignedLogRoot", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).LatestSignedLogRoot), arg0)
-}
-
-// ReadRevision mocks base method.
-func (m *MockReadOnlyLogTreeTX) ReadRevision(arg0 context.Context) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadRevision", arg0)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ReadRevision indicates an expected call of ReadRevision.
-func (mr *MockReadOnlyLogTreeTXMockRecorder) ReadRevision(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRevision", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).ReadRevision), arg0)
 }
 
 // Rollback mocks base method.

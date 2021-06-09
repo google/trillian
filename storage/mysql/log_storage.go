@@ -342,13 +342,6 @@ type logTreeTX struct {
 	dequeued map[string]dequeuedLeaf
 }
 
-func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
-
-	return int64(t.root.Revision), nil
-}
-
 func (t *logTreeTX) WriteRevision(ctx context.Context) (int64, error) {
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()

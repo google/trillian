@@ -317,9 +317,9 @@ func (t *treeTX) IsOpen() bool {
 	return t.stx != nil
 }
 
-// ReadRevision returns the tree revision at which the currently visible (taking
+// readRevision returns the tree revision at which the currently visible (taking
 // into account read-staleness) STH was stored.
-func (t *treeTX) ReadRevision(ctx context.Context) (int64, error) {
+func (t *treeTX) readRevision(ctx context.Context) (int64, error) {
 	sth, err := t.currentSTH(ctx)
 	if err != nil {
 		return -1, err
@@ -398,7 +398,7 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tr
 	if t.stx == nil {
 		return nil, ErrTransactionClosed
 	}
-	rev, err := t.ReadRevision(ctx)
+	rev, err := t.readRevision(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get read revision: %v", err)
 	}
