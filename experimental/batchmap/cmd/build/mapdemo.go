@@ -34,7 +34,7 @@ import (
 
 	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/merkle/coniks"
-	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/merkle/smt/node"
 )
 
 const hash = crypto.SHA512_256
@@ -104,7 +104,7 @@ func (fn *mapEntryFn) ProcessElement(i int64) *batchmap.Entry {
 	h := hash.New()
 	h.Write([]byte(fmt.Sprintf("%d", i)))
 	kbs := h.Sum(nil)
-	leafID := tree.NewNodeID2(string(kbs), uint(len(kbs)*8))
+	leafID := node.NewID(string(kbs), uint(len(kbs)*8))
 
 	data := []byte(fmt.Sprintf("[%s]%d", fn.Salt, i))
 

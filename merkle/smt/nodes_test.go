@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/merkle/smt/node"
 )
 
 func TestNewNodesRow(t *testing.T) {
@@ -33,25 +33,25 @@ func TestNewNodesRow(t *testing.T) {
 		{desc: "empty", want: nil},
 		{
 			desc:    "error-depth",
-			nodes:   []Node{{ID: tree.NewNodeID2("00", 16)}, {ID: tree.NewNodeID2("001", 24)}},
+			nodes:   []Node{{ID: node.NewID("00", 16)}, {ID: node.NewID("001", 24)}},
 			wantErr: "invalid depth",
 		},
 		{
 			desc:    "error-dups",
-			nodes:   []Node{{ID: tree.NewNodeID2("01", 16)}, {ID: tree.NewNodeID2("01", 16)}},
+			nodes:   []Node{{ID: node.NewID("01", 16)}, {ID: node.NewID("01", 16)}},
 			wantErr: "duplicate ID",
 		},
 		{
 			desc: "sorted",
 			nodes: []Node{
-				{ID: tree.NewNodeID2("01", 16)},
-				{ID: tree.NewNodeID2("00", 16)},
-				{ID: tree.NewNodeID2("02", 16)},
+				{ID: node.NewID("01", 16)},
+				{ID: node.NewID("00", 16)},
+				{ID: node.NewID("02", 16)},
 			},
 			want: []Node{
-				{ID: tree.NewNodeID2("00", 16)},
-				{ID: tree.NewNodeID2("01", 16)},
-				{ID: tree.NewNodeID2("02", 16)},
+				{ID: node.NewID("00", 16)},
+				{ID: node.NewID("01", 16)},
+				{ID: node.NewID("02", 16)},
 			},
 		},
 	} {
@@ -67,7 +67,7 @@ func TestNewNodesRow(t *testing.T) {
 			} else if want := tc.wantErr; want != "" {
 				t.Fatalf("NewNodesRow: got no error; want prefix %q", want)
 			}
-			if d := cmp.Diff(row, tc.want, cmp.AllowUnexported(tree.NodeID2{})); d != "" {
+			if d := cmp.Diff(row, tc.want, cmp.AllowUnexported(node.ID{})); d != "" {
 				t.Errorf("NewNodesRow result mismatch:\n%s", d)
 			}
 		})
@@ -75,10 +75,10 @@ func TestNewNodesRow(t *testing.T) {
 }
 
 func TestPrepare(t *testing.T) {
-	id1 := tree.NewNodeID2("01234567890000000000000000000001", 256)
-	id2 := tree.NewNodeID2("01234567890000000000000000000002", 256)
-	id3 := tree.NewNodeID2("01234567890000000000000000000003", 256)
-	id4 := tree.NewNodeID2("01234567890000000000000001111111", 256)
+	id1 := node.NewID("01234567890000000000000000000001", 256)
+	id2 := node.NewID("01234567890000000000000000000002", 256)
+	id3 := node.NewID("01234567890000000000000000000003", 256)
+	id4 := node.NewID("01234567890000000000000001111111", 256)
 
 	for _, tc := range []struct {
 		desc    string

@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/merkle/smt/node"
 	"github.com/google/trillian/testonly"
 )
 
@@ -61,7 +61,7 @@ func TestHashChildren(t *testing.T) {
 func TestHashEmpty(t *testing.T) {
 	for _, tc := range []struct {
 		treeID int64
-		root   tree.NodeID2
+		root   node.ID
 		want   []byte
 	}{
 		{0, newID("0000000000000000000000000000000000000000000000000000000000000000", 0), h2b("2b71932d625e7b83ce864f8092ae4eb470670ccff37eaac83f21679bb3b24bbb")},
@@ -78,7 +78,7 @@ func TestHashEmpty(t *testing.T) {
 func TestHashLeaf(t *testing.T) {
 	for _, tc := range []struct {
 		treeID int64
-		id     tree.NodeID2
+		id     node.ID
 		leaf   []byte
 		want   []byte
 	}{
@@ -100,7 +100,7 @@ func TestHashLeaf(t *testing.T) {
 func TestWriteMaskedNodeID(t *testing.T) {
 	h := &Hasher{crypto.SHA1} // Use a shorter hash for shorter test vectors.
 	for _, tc := range []struct {
-		node tree.NodeID2
+		node node.ID
 		want []byte
 	}{
 		{node: newID("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 0), want: h2b("0000000000000000000000000000000000000000")},
@@ -132,7 +132,7 @@ func TestWriteMaskedNodeID(t *testing.T) {
 func TestWriteMaskedNodeID512Bits(t *testing.T) {
 	h := &Hasher{crypto.SHA512} // Use a hasher with > 32 byte length.
 	for _, tc := range []struct {
-		node tree.NodeID2
+		node node.ID
 		want []byte
 	}{
 		{
@@ -221,13 +221,13 @@ func TestWriteMaskedNodeIDBits(t *testing.T) {
 	h := &Hasher{crypto.SHA512} // Use a hasher with > 32 byte length.
 	ref := new(big.Int)
 	// Go through all the bits, set them one at a time in the big.Int and compare
-	// the results against writeMaskedIndex with a depth of that many set bits.
+	// the results against writeMaskedNodeID with a depth of that many set bits.
 	val := make([]byte, len(allFF))
 	for b := 1; b < 512; b++ {
 		ref.SetBit(ref, 512-b, 1)
 		copy(val, allFF)
 		buf := new(bytes.Buffer)
-		node := tree.NewNodeID2(string(val), uint(b))
+		node := node.NewID(string(val), uint(b))
 		h.writeMaskedNodeID(buf, node)
 		if got, want := buf.Bytes(), ref.Bytes(); !bytes.Equal(got, want) {
 			t.Errorf("bit: %d got: %s, want: %s", b, hex.EncodeToString(got), hex.EncodeToString(want))
@@ -235,6 +235,6 @@ func TestWriteMaskedNodeIDBits(t *testing.T) {
 	}
 }
 
-func newID(hex string, bits uint) tree.NodeID2 {
-	return tree.NewNodeID2(string(h2b(hex)), bits)
+func newID(hex string, bits uint) node.ID {
+	return node.NewID(string(h2b(hex)), bits)
 }

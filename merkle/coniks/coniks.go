@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/merkle/smt/node"
 )
 
 // Domain separation prefixes
@@ -51,7 +51,7 @@ func (m *Hasher) EmptyRoot() []byte {
 }
 
 // HashEmpty returns the hash of an empty subtree with the given root.
-func (m *Hasher) HashEmpty(treeID int64, root tree.NodeID2) []byte {
+func (m *Hasher) HashEmpty(treeID int64, root node.ID) []byte {
 	depth := int(root.BitLen())
 
 	buf := bytes.NewBuffer(make([]byte, 0, 32))
@@ -70,7 +70,7 @@ func (m *Hasher) HashEmpty(treeID int64, root tree.NodeID2) []byte {
 
 // HashLeaf calculate the merkle tree leaf value:
 // H(Identifier || treeID || depth || index || dataHash)
-func (m *Hasher) HashLeaf(treeID int64, id tree.NodeID2, leaf []byte) []byte {
+func (m *Hasher) HashLeaf(treeID int64, id node.ID, leaf []byte) []byte {
 	depth := int(id.BitLen())
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
@@ -114,8 +114,8 @@ func (m *Hasher) BitLen() int {
 // The tree height and hash size could be different.
 // TODO(pavelkalinnikov): Padding with zeroes doesn't buy us anything, as the
 // depth is also written to the Buffer.
-func (m *Hasher) writeMaskedNodeID(b *bytes.Buffer, node tree.NodeID2) {
-	depth := int(node.BitLen())
+func (m *Hasher) writeMaskedNodeID(b *bytes.Buffer, id node.ID) {
+	depth := int(id.BitLen())
 	if got, want := depth, m.BitLen(); got > want {
 		panic(fmt.Sprintf("depth: %d, want <= %d", got, want))
 	}
@@ -123,11 +123,11 @@ func (m *Hasher) writeMaskedNodeID(b *bytes.Buffer, node tree.NodeID2) {
 	prevLen := b.Len()
 	if depth > 0 {
 		// Write the complete bytes.
-		if full := node.FullBytes(); len(full) > 0 {
+		if full := id.FullBytes(); len(full) > 0 {
 			b.WriteString(full)
 		}
 		// Mask off unwanted bits in the last byte, if there is an incomplete one.
-		if last, bits := node.LastByte(); bits != 0 {
+		if last, bits := id.LastByte(); bits != 0 {
 			b.WriteByte(last)
 		}
 	}
