@@ -38,8 +38,8 @@ type LogRootV1 struct {
 	TreeSize       uint64
 	RootHash       []byte `tls:"minlen:0,maxlen:128"`
 	TimestampNanos uint64
-	Revision       uint64
-	Metadata       []byte `tls:"minlen:0,maxlen:65535"`
+	// Revision       uint64 // Deprecated.
+	Metadata []byte `tls:"minlen:0,maxlen:65535"`
 }
 
 // LogRoot holds the TLS-deserialization of the following structure

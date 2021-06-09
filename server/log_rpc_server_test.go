@@ -85,7 +85,7 @@ var (
 
 	tree1              = addTreeID(stestonly.LogTree, logID1)
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
-	root1              = &types.LogRootV1{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, Revision: uint64(5)}
+	root1              = &types.LogRootV1{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7}
 	root1Bytes, _      = root1.MarshalBinary()
 	signedRoot1        = &trillian.SignedLogRoot{LogRoot: root1Bytes}
 

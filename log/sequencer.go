@@ -345,19 +345,8 @@ func IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWi
 		seqInitTreeLatency.Observe(clock.SecondsSince(ts, stageStart), label)
 		stageStart = ts.Now()
 
-		// We've done all the reads, can now do the updates in the same transaction.
-		// The schema should prevent multiple SLRs being inserted with the same
-		// revision number so it should not be possible for colliding updates to
-		// commit.
-		newVersion, err := tx.WriteRevision(ctx)
-		if err != nil {
-			return err
-		}
-		if got, want := newVersion, int64(currentRoot.Revision)+1; got != want {
-			return fmt.Errorf("%v: got writeRevision of %v, but expected %v", tree.TreeId, got, want)
-		}
-
-		// Collate node updates.
+		// We've done all the reads, can now do the updates in the same
+		// transaction. Collate node updates.
 		if err := prepareLeaves(sequencedLeaves, cr.End(), label, ts); err != nil {
 			return err
 		}
@@ -395,7 +384,6 @@ func IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWi
 			RootHash:       newRoot,
 			TimestampNanos: uint64(ts.Now().UnixNano()),
 			TreeSize:       cr.End(),
-			Revision:       uint64(newVersion),
 		}
 		seqTreeSize.Set(float64(newLogRoot.TreeSize), label)
 		seqTimestamp.Set(float64(time.Duration(newLogRoot.TimestampNanos)*time.Nanosecond/
@@ -426,7 +414,7 @@ func IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWi
 
 	seqCounter.Add(float64(numLeaves), label)
 	if newSLR != nil {
-		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", tree.TreeId, numLeaves, newLogRoot.TreeSize, newLogRoot.Revision)
+		glog.Infof("%v: sequenced %v leaves, size %v", tree.TreeId, numLeaves, newLogRoot.TreeSize)
 	}
 	return numLeaves, nil
 }

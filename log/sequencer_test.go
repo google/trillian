@@ -59,7 +59,6 @@ var (
 
 	testRoot16 = &types.LogRootV1{
 		TreeSize: 16,
-		Revision: 5,
 		// RootHash can't be nil because that's how the sequencer currently
 		// detects that there was no stored tree head.
 		RootHash:       []byte{},
@@ -73,13 +72,11 @@ var (
 	newSignedRoot16  = makeSLR(&types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 		TreeSize:       testRoot16.TreeSize,
-		Revision:       testRoot16.Revision + 1,
 		RootHash:       testRoot16.RootHash,
 	})
 
 	testRoot17 = &types.LogRootV1{
 		TreeSize: 16,
-		Revision: 5,
 		// RootHash can't be nil because that's how the sequencer currently
 		// detects that there was no stored tree head.
 		RootHash:       []byte{},
@@ -89,7 +86,6 @@ var (
 
 	testRoot18 = &types.LogRootV1{
 		TreeSize: 16,
-		Revision: 5,
 		// RootHash can't be nil because that's how the sequencer currently
 		// detects that there was no stored tree head.
 		RootHash:       []byte{},
@@ -112,7 +108,6 @@ var (
 	testRoot = &types.LogRootV1{
 		RootHash:       []byte{71, 158, 195, 172, 164, 198, 185, 151, 99, 8, 213, 227, 191, 162, 39, 26, 185, 184, 172, 0, 75, 58, 127, 114, 90, 151, 71, 153, 131, 168, 47, 5},
 		TimestampNanos: uint64(fakeTime.UnixNano()),
-		Revision:       6,
 		TreeSize:       17,
 	}
 	testSignedRoot = makeSLR(testRoot)
@@ -121,7 +116,6 @@ var (
 	// below, in a more compact way.
 	testRoot21 = &types.LogRootV1{
 		TreeSize:       21,
-		Revision:       5,
 		RootHash:       testonly.MustDecodeBase64("lfLXEAeBNB/zX1+97lInoqpnLJtX+AS/Ok0mwlWFpRc="),
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
 	}
@@ -155,7 +149,6 @@ var (
 	updatedRoot21 = &types.LogRootV1{
 		RootHash:       testonly.MustDecodeBase64("1oUtLDlyOWXLHLAvL3NvWaO4D9kr0oQYScylDlgjey4="),
 		TimestampNanos: uint64(fakeTime.UnixNano()),
-		Revision:       6,
 		TreeSize:       22,
 	}
 	updatedSignedRoot21 = makeSLR(updatedRoot21)
@@ -163,14 +156,12 @@ var (
 	emptyRoot = &types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.Add(-10 * time.Millisecond).UnixNano()),
 		TreeSize:       0,
-		Revision:       2,
 		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
 	}
 	signedEmptyRoot        = makeSLR(emptyRoot)
 	updatedSignedEmptyRoot = makeSLR(&types.LogRootV1{
 		TimestampNanos: uint64(fakeTime.UnixNano()),
 		TreeSize:       0,
-		Revision:       3,
 		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
 	})
 )
@@ -211,8 +202,6 @@ type testParameters struct {
 	storeSignedRoot      *trillian.SignedLogRoot
 	storeSignedRootError error
 
-	writeRevision int64
-
 	overrideDequeueTime *time.Time
 
 	// qm is the quota.Manager to be used. If nil, quota.Noop() is used instead.
@@ -241,7 +230,6 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	fakeStorage := &stestonly.FakeLogStorage{}
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 
-	mockTx.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(params.writeRevision, nil)
 	if params.beginFails {
 		fakeStorage.TXErr = errors.New("TX")
 	} else {
@@ -369,7 +357,6 @@ func TestIntegrateBatch(t *testing.T) {
 				shouldCommit:     true,
 				latestSignedRoot: testSignedRoot16,
 				dequeuedLeaves:   noLeaves,
-				writeRevision:    int64(testRoot16.Revision + 1),
 				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &noLeaves,
 				merkleNodesSet:   &noNodes,
@@ -385,7 +372,6 @@ func TestIntegrateBatch(t *testing.T) {
 				shouldCommit:     true,
 				latestSignedRoot: testSignedRoot16,
 				dequeuedLeaves:   noLeaves,
-				writeRevision:    int64(testRoot16.Revision + 1),
 				merkleNodesGet:   &compactTree16,
 				updatedLeaves:    &noLeaves,
 				merkleNodesSet:   &noNodes,
@@ -435,7 +421,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "get-merkle-nodes-fails",
 			params: testParameters{
 				logID:               154035,
-				writeRevision:       int64(testRoot21.Revision + 1),
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot21,
@@ -449,7 +434,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "update-seq-leaves-fails",
 			params: testParameters{
 				logID:               154035,
-				writeRevision:       int64(testRoot16.Revision + 1),
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot16,
@@ -464,7 +448,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "set-merkle-nodes-fails",
 			params: testParameters{
 				logID:               154035,
-				writeRevision:       int64(testRoot16.Revision + 1),
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot16,
@@ -480,7 +463,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "store-root-fails",
 			params: testParameters{
 				logID:                154035,
-				writeRevision:        int64(testRoot16.Revision + 1),
 				dequeueLimit:         1,
 				dequeuedLeaves:       []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:     testSignedRoot16,
@@ -496,7 +478,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "commit-fails",
 			params: testParameters{
 				logID:            154035,
-				writeRevision:    int64(testRoot16.Revision + 1),
 				dequeueLimit:     1,
 				shouldCommit:     true,
 				commitFails:      true,
@@ -514,7 +495,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "sequence-empty",
 			params: testParameters{
 				logID:            154035,
-				writeRevision:    int64(emptyRoot.Revision) + 1,
 				dequeueLimit:     1,
 				shouldCommit:     true,
 				dequeuedLeaves:   noLeaves,
@@ -529,7 +509,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "sequence-leaf-16",
 			params: testParameters{
 				logID:            154035,
-				writeRevision:    int64(testRoot16.Revision + 1),
 				dequeueLimit:     1,
 				shouldCommit:     true,
 				dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
@@ -545,7 +524,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "sequence-leaf-21",
 			params: testParameters{
 				logID:            154035,
-				writeRevision:    int64(testRoot21.Revision + 1),
 				dequeueLimit:     1,
 				shouldCommit:     true,
 				dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
@@ -561,7 +539,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "prev-root-timestamp-equals",
 			params: testParameters{
 				logID:               154035,
-				writeRevision:       int64(testRoot16.Revision + 1),
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot17,
@@ -576,7 +553,6 @@ func TestIntegrateBatch(t *testing.T) {
 			desc: "prev-root-timestamp-in-future",
 			params: testParameters{
 				logID:               154035,
-				writeRevision:       int64(testRoot16.Revision + 1),
 				dequeueLimit:        1,
 				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:    testSignedRoot18,
@@ -703,7 +679,6 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			if len(test.leaves) != 0 {
 				logTX.EXPECT().GetMerkleNodes(any, any).Return(compactTree16, nil)
 			}
-			logTX.EXPECT().WriteRevision(gomock.Any()).AnyTimes().Return(int64(testRoot16.Revision+1), nil)
 			logTX.EXPECT().UpdateSequencedLeaves(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().SetMerkleNodes(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().StoreSignedLogRoot(any, any).AnyTimes().Return(nil)

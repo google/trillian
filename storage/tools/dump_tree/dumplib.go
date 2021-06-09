@@ -185,10 +185,9 @@ func Main(args Options) string {
 			return fmt.Errorf("could not parse current log root: %v", err)
 		}
 
-		glog.Infof("STH at size %d has hash %s@%d",
+		glog.Infof("STH at size %d has hash %s",
 			root.TreeSize,
-			hex.EncodeToString(root.RootHash),
-			root.Revision)
+			hex.EncodeToString(root.RootHash))
 		return nil
 	})
 	if err != nil {

@@ -583,7 +583,6 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		Revision:       0,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {
@@ -621,7 +620,6 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		Revision:       0,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {
@@ -651,7 +649,6 @@ func TestLogRootUpdate(t *testing.T) {
 	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		Revision:       0,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {
@@ -660,7 +657,6 @@ func TestLogRootUpdate(t *testing.T) {
 	root2, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98766,
 		TreeSize:       16,
-		Revision:       1,
 		RootHash:       []byte(dummyHash),
 	})
 	if err != nil {

@@ -17,7 +17,6 @@ package memory
 import (
 	"container/list"
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -76,6 +75,12 @@ func hashToSeqKey(treeID int64) btree.Item {
 // The associated Item value will be the STH with the given timestamp.
 func sthKey(treeID int64, timestamp uint64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/sth/%020d", treeID, timestamp)}
+}
+
+// revKey formats a key for use in a tree's BTree store. The associated Item
+// value will be the revision number for the given timestamp.
+func revKey(treeID int64, timestamp uint64) btree.Item {
+	return &kv{k: fmt.Sprintf("/%d/rev/%020d", treeID, timestamp)}
 }
 
 // getActiveLogIDs returns the IDs of all logs that are currently in a state
@@ -162,7 +167,8 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 		ls:     m,
 	}
 
-	ltx.slr, err = ltx.fetchLatestRoot(ctx)
+	var rev int64
+	ltx.slr, rev, err = ltx.fetchLatestRoot(ctx)
 	if err == storage.ErrTreeNeedsInit {
 		return ltx, err
 	} else if err != nil {
@@ -175,7 +181,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 		return nil, err
 	}
 
-	ltx.treeTX.writeRevision = int64(ltx.root.Revision) + 1
+	ltx.treeTX.writeRevision = rev + 1
 
 	return ltx, nil
 }
@@ -245,16 +251,9 @@ type logTreeTX struct {
 	slr  *trillian.SignedLogRoot
 }
 
-func (t *logTreeTX) WriteRevision(ctx context.Context) (int64, error) {
-	if t.treeTX.writeRevision < 0 {
-		return t.treeTX.writeRevision, errors.New("logTreeTX write revision not populated")
-	}
-	return t.treeTX.writeRevision, nil
-}
-
 // GetMerkleNodes returns the requested nodes at (or below) the read revision.
 func (t *logTreeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]stree.Node, error) {
-	rev := int64(t.root.Revision)
+	rev := t.treeTX.writeRevision - 1
 	return t.treeTX.subtreeCache.GetNodes(ids, t.treeTX.getSubtreesAtRev(ctx, rev))
 }
 
@@ -330,12 +329,20 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLo
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
-func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
+func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, int64, error) {
 	r := t.tx.Get(sthKey(t.treeID, t.tree.currentSTH))
 	if r == nil {
-		return nil, storage.ErrTreeNeedsInit
+		return nil, 0, storage.ErrTreeNeedsInit
 	}
-	return r.(*kv).v.(*trillian.SignedLogRoot), nil
+	sth := r.(*kv).v.(*trillian.SignedLogRoot)
+
+	r = t.tx.Get(revKey(t.treeID, t.tree.currentSTH))
+	if r == nil {
+		return nil, 0, storage.ErrTreeNeedsInit
+	}
+	rev := r.(*kv).v.(int64)
+
+	return sth, rev, nil
 }
 
 func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr *trillian.SignedLogRoot) error {
@@ -345,6 +352,10 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr *trillian.Signed
 	}
 	k := sthKey(t.treeID, root.TimestampNanos)
 	k.(*kv).v = slr
+	t.tx.ReplaceOrInsert(k)
+
+	k = revKey(t.treeID, root.TimestampNanos)
+	k.(*kv).v = t.treeTX.writeRevision
 	t.tx.ReplaceOrInsert(k)
 
 	// TODO(alcutter): this breaks the transactional model

@@ -457,7 +457,6 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRo
 		TimestampNanos: uint64(currentSTH.TsNanos),
 		RootHash:       currentSTH.RootHash,
 		TreeSize:       uint64(currentSTH.TreeSize),
-		Revision:       uint64(currentSTH.TreeRevision),
 		Metadata:       currentSTH.Metadata,
 	}).MarshalBinary()
 	if err != nil {
@@ -484,10 +483,6 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLo
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
-	}
-
-	if got, want := int64(logRoot.Revision), writeRev; got != want {
-		return status.Errorf(codes.Internal, "root.Revision: %v, want %v", got, want)
 	}
 
 	m := spanner.Insert(

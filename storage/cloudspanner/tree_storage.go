@@ -327,16 +327,6 @@ func (t *treeTX) readRevision(ctx context.Context) (int64, error) {
 	return sth.TreeRevision, nil
 }
 
-// WriteRevision returns the tree revision at which any tree-modifying
-// operations will write.
-func (t *treeTX) WriteRevision(ctx context.Context) (int64, error) {
-	rev, err := t.writeRev(ctx)
-	if err != nil {
-		return -1, err
-	}
-	return rev, nil
-}
-
 // getSubtree retrieves the most recent subtree specified by id at (or below)
 // the requested revision.
 // If no such subtree exists it returns nil.

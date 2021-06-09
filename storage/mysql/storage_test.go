@@ -273,7 +273,7 @@ func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogSto
 }
 
 func storeLogRoot(ctx context.Context, tx storage.LogTreeTX, size, rev uint64, hash []byte) error {
-	logRoot, err := (&types.LogRootV1{TreeSize: size, Revision: rev, RootHash: hash}).MarshalBinary()
+	logRoot, err := (&types.LogRootV1{TreeSize: size, RootHash: hash}).MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("error marshaling new LogRoot: %v", err)
 	}
