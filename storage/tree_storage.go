@@ -31,10 +31,6 @@ var ErrTreeNeedsInit = status.Error(codes.FailedPrecondition, "tree needs initia
 type ReadOnlyTreeTX interface {
 	NodeReader
 
-	// ReadRevision returns the tree revision that was current at the time this
-	// transaction was started.
-	ReadRevision(ctx context.Context) (int64, error)
-
 	// Commit attempts to commit any reads performed under this transaction.
 	Commit(context.Context) error
 

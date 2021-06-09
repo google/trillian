@@ -247,10 +247,6 @@ type logTreeTX struct {
 	slr  *trillian.SignedLogRoot
 }
 
-func (t *logTreeTX) ReadRevision(ctx context.Context) (int64, error) {
-	return int64(t.root.Revision), nil
-}
-
 func (t *logTreeTX) WriteRevision(ctx context.Context) (int64, error) {
 	if t.treeTX.writeRevision < 0 {
 		return t.treeTX.writeRevision, errors.New("logTreeTX write revision not populated")
