@@ -158,7 +158,7 @@ func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, erro
 }
 
 func newLogCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
-	return cache.NewLogSubtreeCache(defLogStrata, rfc6962.DefaultHasher), nil
+	return cache.NewLogSubtreeCache(rfc6962.DefaultHasher), nil
 }
 
 func (ls *logStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool, stx spanRead) (*logTX, error) {
