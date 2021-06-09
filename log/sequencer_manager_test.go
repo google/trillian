@@ -78,8 +78,6 @@ var (
 
 var zeroDuration = 0 * time.Second
 
-const writeRev = int64(24)
-
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
