@@ -571,21 +571,6 @@ func (mr *MockLogTreeTXMockRecorder) UpdateSequencedLeaves(arg0, arg1 interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSequencedLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).UpdateSequencedLeaves), arg0, arg1)
 }
 
-// WriteRevision mocks base method.
-func (m *MockLogTreeTX) WriteRevision(arg0 context.Context) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteRevision", arg0)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WriteRevision indicates an expected call of WriteRevision.
-func (mr *MockLogTreeTXMockRecorder) WriteRevision(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteRevision", reflect.TypeOf((*MockLogTreeTX)(nil).WriteRevision), arg0)
-}
-
 // MockReadOnlyAdminTX is a mock of ReadOnlyAdminTX interface.
 type MockReadOnlyAdminTX struct {
 	ctrl     *gomock.Controller
