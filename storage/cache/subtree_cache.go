@@ -355,16 +355,15 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 
 // newEmptySubtree creates an empty subtree for the passed-in ID.
 func (s *SubtreeCache) newEmptySubtree(id []byte) *storagepb.SubtreeProto {
-	const height = 8
 	if glog.V(2) {
-		glog.Infof("Creating new empty subtree for %x, with height %d", id, height)
+		glog.Infof("Creating new empty subtree for %x", id)
 	}
 	// Storage didn't have one for us, so we'll store an empty proto here in case
 	// we try to update it later on (we won't flush it back to storage unless
 	// it's been written to).
 	return &storagepb.SubtreeProto{
 		Prefix:        id,
-		Depth:         int32(height),
+		Depth:         8,
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
 	}
