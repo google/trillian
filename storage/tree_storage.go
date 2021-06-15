@@ -63,9 +63,6 @@ type TreeWriter interface {
 	//
 	// TODO(pavelkalinnikov): Use tiles instead, here and in GetMerkleNodes.
 	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
-
-	// WriteRevision returns the tree revision that any writes through this TreeTX will be stored at.
-	WriteRevision(ctx context.Context) (int64, error)
 }
 
 // DatabaseChecker performs connectivity checks on the database.

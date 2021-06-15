@@ -148,13 +148,11 @@ func (*logTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s s
 		wantNeedsInit bool
 		wantErr       bool
 		wantLogRoot   []byte
-		wantTXRev     int64
 	}{
 		{
 			desc:          "uninitializedBegin",
 			tree:          logTree(-1),
 			wantNeedsInit: true,
-			wantTXRev:     0,
 		},
 		{
 			desc: "activeLogBegin",
@@ -166,7 +164,6 @@ func (*logTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s s
 				}
 				return b
 			}(),
-			wantTXRev: 1,
 		},
 	}
 
@@ -176,10 +173,6 @@ func (*logTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s s
 				root, err := tx.LatestSignedLogRoot(ctx)
 				if err != nil && !(err == storage.ErrTreeNeedsInit && test.wantNeedsInit) {
 					t.Fatalf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
-				}
-				gotRev, _ := tx.WriteRevision(ctx)
-				if gotRev != test.wantTXRev {
-					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, gotRev, test.wantTXRev)
 				}
 				if got, want := root.GetLogRoot(), test.wantLogRoot; !bytes.Equal(got, want) {
 					var logRoot types.LogRootV1
@@ -546,7 +539,6 @@ func (*logTests) TestDequeueLeavesTwoBatches(ctx context.Context, t *testing.T, 
 	}
 
 	mustSignAndStoreLogRoot(ctx, t, s, tree, &types.LogRootV1{
-		Revision:       1,
 		TreeSize:       uint64(leavesToDequeue1),
 		TimestampNanos: 1,
 	})
@@ -623,7 +615,6 @@ func (*logTests) TestAddSequencedLeavesAndDequeueLeaves(ctx context.Context, t *
 		TimestampNanos: uint64(time.Now().UnixNano()),
 		TreeSize:       1,
 		RootHash:       []byte("roothash"),
-		Revision:       1,
 	})
 
 	// Check that the 2nd and 3rd sequenced entries are returned.
