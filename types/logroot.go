@@ -48,7 +48,7 @@ type LogRootV1 struct {
 	// Deprecated: Revision is a concept internal to the storage layer.
 	Revision uint64
 
-	// Metadata holds additional data attached to this root.
+	// Metadata holds additional data associated with this root.
 	Metadata []byte `tls:"minlen:0,maxlen:65535"`
 }
 
