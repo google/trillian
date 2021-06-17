@@ -35,11 +35,20 @@ import (
 //   opaque metadata<0..65535>;
 // } LogRootV1;
 type LogRootV1 struct {
-	TreeSize       uint64
-	RootHash       []byte `tls:"minlen:0,maxlen:128"`
+	// TreeSize is the number of leaves in the log Merkle tree.
+	TreeSize uint64
+	// RootHash is the hash of the root node of the tree.
+	RootHash []byte `tls:"minlen:0,maxlen:128"`
+	// TimestampNanos is the time in nanoseconds for when this root was created,
+	// counting from the UNIX epoch.
 	TimestampNanos uint64
-	// Deprecated.
+
+	// Revision is the Merkle tree revision associated with this root.
+	//
+	// Deprecated: Revision is a concept internal to the storage layer.
 	Revision uint64
+
+	// Metadata holds additional data attached to this root.
 	Metadata []byte `tls:"minlen:0,maxlen:65535"`
 }
 
