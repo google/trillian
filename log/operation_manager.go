@@ -156,15 +156,6 @@ func NewOperationManager(info OperationInfo, logOperation Operation) *OperationM
 	}
 }
 
-// getActiveLogIDs returns IDs of logs eligible for sequencing.
-func (o *OperationManager) getActiveLogIDs(ctx context.Context) ([]int64, error) {
-	logIDs, err := o.info.Registry.LogStorage.GetActiveLogIDs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get active logIDs: %v", err)
-	}
-	return logIDs, nil
-}
-
 // logName maps a logID to a human-readable name, caching results along the way.
 // The human-readable name may non-unique so should only be used for diagnostics.
 func (o *OperationManager) logName(ctx context.Context, logID int64) string {
@@ -304,7 +295,7 @@ func (o *OperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	runCtx, cancel := context.WithTimeout(ctx, o.info.Timeout)
 	defer cancel()
 
-	activeIDs, err := o.getActiveLogIDs(runCtx)
+	activeIDs, err := o.info.Registry.LogStorage.GetActiveLogIDs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list active log IDs: %v", err)
 	}
