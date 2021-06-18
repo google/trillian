@@ -34,6 +34,7 @@
    interfaces.
  * Removed the `ReadOnlyLogTX` interface, and put its only used
    `GetActiveLogIDs` method to `LogStorage`.
+ * Inlined the `LogMetadata` interface to `ReadOnlyLogStorage`.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
