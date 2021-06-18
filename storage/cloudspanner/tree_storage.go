@@ -279,35 +279,16 @@ func (t *treeTX) Commit(ctx context.Context) error {
 // Close aborts any operations perfomed on the underlying Spanner transaction.
 // On return from the call, this transaction will be in a closed state.
 func (t *treeTX) Close() error {
-	if !t.IsOpen() {
-		return nil
-	}
-
 	t.mu.Lock()
-	defer func() {
-		t.stx = nil
-		t.mu.Unlock()
-	}()
-
+	defer t.mu.Unlock()
 	if t.stx == nil {
 		return ErrTransactionClosed
 	}
-
 	if stx, ok := t.stx.(*spanner.ReadOnlyTransaction); ok {
 		glog.V(1).Infof("Closed snapshot %p", stx)
 		stx.Close()
 	}
-
 	return nil
-}
-
-// IsOpen returns true iff neither Commit nor Close have been called.
-// If this function returns false, further operations may not be attempted on
-// this transaction object.
-func (t *treeTX) IsOpen() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return t.stx != nil
 }
 
 // readRevision returns the tree revision at which the currently visible (taking

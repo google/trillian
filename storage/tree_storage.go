@@ -31,16 +31,14 @@ var ErrTreeNeedsInit = status.Error(codes.FailedPrecondition, "tree needs initia
 type ReadOnlyTreeTX interface {
 	NodeReader
 
-	// Commit attempts to commit any reads performed under this transaction.
+	// Commit applies the operations performed to the underlying storage. It must
+	// be called before any reads from storage are considered consistent.
 	Commit(context.Context) error
 
-	// Close attempts to rollback the TX if it's open, it's a noop otherwise.
+	// Close rolls back the transaction if it wasn't committed or closed
+	// previously. Resources are cleaned up regardless of the success, and the
+	// transaction should not be used after it.
 	Close() error
-
-	// IsOpen indicates if this transaction is open. An open transaction is one for which
-	// Commit() has never been called. Implementations must do all clean up in these methods
-	// so transactions are assumed closed regardless of the reported success.
-	IsOpen() bool
 }
 
 // TreeTX represents an in-process tree-modifying transaction.

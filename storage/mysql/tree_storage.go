@@ -399,20 +399,12 @@ func (t *treeTX) rollbackInternal() error {
 func (t *treeTX) Close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
-	if !t.closed {
-		err := t.rollbackInternal()
-		if err != nil {
-			glog.Warningf("Rollback error on Close(): %v", err)
-		}
-		return err
+	if t.closed {
+		return nil
 	}
-	return nil
-}
-
-func (t *treeTX) IsOpen() bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	return !t.closed
+	err := t.rollbackInternal()
+	if err != nil {
+		glog.Warningf("Rollback error on Close(): %v", err)
+	}
+	return err
 }

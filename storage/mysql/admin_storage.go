@@ -101,11 +101,10 @@ func (s *mysqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
 type adminTX struct {
 	tx *sql.Tx
 
-	// mu guards *direct* reads/writes on closed, which happen only on
-	// Commit/IsClosed/Close methods.
-	// We don't check closed on *all* methods (apart from the ones above),
-	// as we trust tx to keep tabs on its state (and consequently fail to do
-	// queries after closed).
+	// mu guards reads/writes on closed, which happen on Commit/Close methods.
+	//
+	// We don't check closed on methods apart from the ones above, as we trust tx
+	// to keep tabs on its state, and hence fail to do queries after closed.
 	mu     sync.RWMutex
 	closed bool
 }
@@ -117,18 +116,12 @@ func (t *adminTX) Commit() error {
 	return t.tx.Commit()
 }
 
-func (t *adminTX) IsClosed() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return t.closed
-}
-
 func (t *adminTX) Close() error {
-	if t.IsClosed() {
-		return nil
-	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if t.closed {
+		return nil
+	}
 	t.closed = true
 	return t.tx.Rollback()
 }

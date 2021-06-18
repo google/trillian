@@ -25,20 +25,13 @@ import (
 type ReadOnlyAdminTX interface {
 	AdminReader
 
-	// Commit applies the operations performed to the underlying storage, or
-	// returns an error.
-	// A commit must be performed before any reads from storage are
-	// considered consistent.
+	// Commit applies the operations performed to the underlying storage. It must
+	// be called before any reads from storage are considered consistent.
 	Commit() error
 
-	// IsClosed returns true if the transaction is closed.
-	// A transaction is closed when either Commit() or Close() are called.
-	IsClosed() bool
-
-	// Close rolls back the transaction if it's not yet closed.
-	// It's advisable to call "defer tx.Close()" after the creation of
-	// transaction to ensure that it's always rolled back if not explicitly
-	// committed.
+	// Close rolls back the transaction if it wasn't committed or closed
+	// previously. Resources are cleaned up regardless of the success, and the
+	// transaction should not be used after it.
 	Close() error
 }
 
