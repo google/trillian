@@ -16,7 +16,6 @@ package cloudspanner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -41,8 +40,6 @@ var (
 	NumMerkleBuckets = int64(16)
 	// TimeNow is the function used to get the current time. Exposed so it may be mocked by tests.
 	TimeNow = time.Now
-
-	errRollback = errors.New("rollback")
 
 	treeStateMap = map[trillian.TreeState]spannerpb.TreeState{
 		trillian.TreeState_ACTIVE: spannerpb.TreeState_ACTIVE,
@@ -92,7 +89,7 @@ type adminTX struct {
 	tx spanRead
 
 	// mu guards closed, but it's only actively used for
-	// Commit/Rollback/Closed. In other scenarios we trust Spanner to blow up
+	// Commit/Close. In other scenarios we trust Spanner to blow up
 	// if you try to use a closed tx.
 	// Note that, if tx is a spanner.SnapshotTransaction, it'll be set to
 	// nil when adminTX is closed.
@@ -138,14 +135,6 @@ func (s *adminStorage) ReadWriteTransaction(ctx context.Context, f storage.Admin
 // Commit implements ReadOnlyAdminTX.Commit.
 func (t *adminTX) Commit() error {
 	return t.Close()
-}
-
-// Rollback implements ReadOnlyAdminTX.Rollback.
-func (t *adminTX) Rollback() error {
-	if err := t.Close(); err != nil {
-		return nil
-	}
-	return errRollback
 }
 
 // IsClosed implements ReadOnlyAdminTX.IsClosed.

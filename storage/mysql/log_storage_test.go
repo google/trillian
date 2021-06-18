@@ -774,24 +774,6 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 	}
 }
 
-func TestReadOnlyLogTX_Rollback(t *testing.T) {
-	ctx := context.Background()
-	cleanTestDB(DB)
-	s := NewLogStorage(DB, nil)
-	tx, err := s.Snapshot(ctx)
-	if err != nil {
-		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
-	}
-	defer tx.Close()
-	if _, err := tx.GetActiveLogIDs(ctx); err != nil {
-		t.Fatalf("GetActiveLogIDs() = (_, %v), want = (_, nil)", err)
-	}
-	// It's a bit hard to have a more meaningful test. This should suffice.
-	if err := tx.Rollback(); err != nil {
-		t.Errorf("Rollback() = (_, %v), want = (_, nil)", err)
-	}
-}
-
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 	t.Helper()
 	// All the leaf value hashes should be distinct because the leaves were created with distinct

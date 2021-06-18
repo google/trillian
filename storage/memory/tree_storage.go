@@ -129,7 +129,7 @@ func newTree(t *trillian.Tree) *tree {
 func (m *TreeStorage) beginTreeTX(ctx context.Context, treeID int64, hashSizeBytes int, cache *cache.SubtreeCache, readonly bool) (treeTX, error) {
 	tree := m.getTree(treeID)
 	// Lock the tree for the duration of the TX.
-	// It will be unlocked by a call to Commit or Rollback.
+	// It will be unlocked by a call to Commit or Close.
 	var unlock func()
 	if readonly {
 		tree.RLock()
@@ -259,21 +259,12 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	return nil
 }
 
-func (t *treeTX) Rollback() error {
-	defer t.unlock()
-
-	t.closed = true
-	return nil
-}
-
 func (t *treeTX) Close() error {
-	if !t.closed {
-		err := t.Rollback()
-		if err != nil {
-			glog.Warningf("Rollback error on Close(): %v", err)
-		}
-		return err
+	if !t.IsOpen() {
+		return nil
 	}
+	defer t.unlock()
+	t.closed = true
 	return nil
 }
 

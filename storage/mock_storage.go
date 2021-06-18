@@ -205,20 +205,6 @@ func (mr *MockAdminTXMockRecorder) ListTrees(arg0, arg1 interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockAdminTX)(nil).ListTrees), arg0, arg1)
 }
 
-// Rollback mocks base method.
-func (m *MockAdminTX) Rollback() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Rollback")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Rollback indicates an expected call of Rollback.
-func (mr *MockAdminTXMockRecorder) Rollback() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockAdminTX)(nil).Rollback))
-}
-
 // SoftDeleteTree mocks base method.
 func (m *MockAdminTX) SoftDeleteTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
 	m.ctrl.T.Helper()
@@ -515,20 +501,6 @@ func (mr *MockLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestSignedLogRoot", reflect.TypeOf((*MockLogTreeTX)(nil).LatestSignedLogRoot), arg0)
 }
 
-// Rollback mocks base method.
-func (m *MockLogTreeTX) Rollback() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Rollback")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Rollback indicates an expected call of Rollback.
-func (mr *MockLogTreeTXMockRecorder) Rollback() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockLogTreeTX)(nil).Rollback))
-}
-
 // SetMerkleNodes mocks base method.
 func (m *MockLogTreeTX) SetMerkleNodes(arg0 context.Context, arg1 []tree.Node) error {
 	m.ctrl.T.Helper()
@@ -666,20 +638,6 @@ func (mr *MockReadOnlyAdminTXMockRecorder) ListTrees(arg0, arg1 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTrees), arg0, arg1)
 }
 
-// Rollback mocks base method.
-func (m *MockReadOnlyAdminTX) Rollback() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Rollback")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Rollback indicates an expected call of Rollback.
-func (mr *MockReadOnlyAdminTXMockRecorder) Rollback() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).Rollback))
-}
-
 // MockReadOnlyLogTX is a mock of ReadOnlyLogTX interface.
 type MockReadOnlyLogTX struct {
 	ctrl     *gomock.Controller
@@ -744,20 +702,6 @@ func (m *MockReadOnlyLogTX) GetActiveLogIDs(arg0 context.Context) ([]int64, erro
 func (mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveLogIDs", reflect.TypeOf((*MockReadOnlyLogTX)(nil).GetActiveLogIDs), arg0)
-}
-
-// Rollback mocks base method.
-func (m *MockReadOnlyLogTX) Rollback() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Rollback")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Rollback indicates an expected call of Rollback.
-func (mr *MockReadOnlyLogTXMockRecorder) Rollback() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockReadOnlyLogTX)(nil).Rollback))
 }
 
 // MockReadOnlyLogTreeTX is a mock of ReadOnlyLogTreeTX interface.
@@ -883,18 +827,4 @@ func (m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*tril
 func (mr *MockReadOnlyLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestSignedLogRoot", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).LatestSignedLogRoot), arg0)
-}
-
-// Rollback mocks base method.
-func (m *MockReadOnlyLogTreeTX) Rollback() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Rollback")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Rollback indicates an expected call of Rollback.
-func (mr *MockReadOnlyLogTreeTXMockRecorder) Rollback() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).Rollback))
 }

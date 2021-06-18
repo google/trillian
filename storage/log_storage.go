@@ -30,10 +30,7 @@ type ReadOnlyLogTX interface {
 	// data read should be regarded as valid.
 	Commit(context.Context) error
 
-	// Rollback discards the read-only TX.
-	Rollback() error
-
-	// Close attempts to Rollback the TX if it's open, it's a noop otherwise.
+	// Close attempts to rollback the TX if it's open, it's a noop otherwise.
 	Close() error
 }
 
@@ -61,7 +58,7 @@ type ReadOnlyLogTreeTX interface {
 
 // LogTreeTX is the transactional interface for reading/updating a Log.
 // It extends the basic TreeTX interface with Log specific methods.
-// After a call to Commit or Rollback implementations must be in a clean state and have
+// After a call to Commit or Close implementations must be in a clean state and have
 // released any resources owned by the LogTX.
 // A LogTreeTX can only modify the tree specified in its creation.
 type LogTreeTX interface {

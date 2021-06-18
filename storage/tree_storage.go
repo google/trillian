@@ -34,22 +34,19 @@ type ReadOnlyTreeTX interface {
 	// Commit attempts to commit any reads performed under this transaction.
 	Commit(context.Context) error
 
-	// Rollback aborts this transaction.
-	Rollback() error
-
-	// Close attempts to Rollback the TX if it's open, it's a noop otherwise.
+	// Close attempts to rollback the TX if it's open, it's a noop otherwise.
 	Close() error
 
 	// IsOpen indicates if this transaction is open. An open transaction is one for which
-	// Commit() or Rollback() has never been called. Implementations must do all clean up
-	// in these methods so transactions are assumed closed regardless of the reported success.
+	// Commit() has never been called. Implementations must do all clean up in these methods
+	// so transactions are assumed closed regardless of the reported success.
 	IsOpen() bool
 }
 
 // TreeTX represents an in-process tree-modifying transaction.
-// The transaction must end with a call to Commit or Rollback.
-// After a call to Commit or Rollback, all operations on the transaction will fail.
-// After a call to Commit or Rollback implementations must be in a clean state and have
+// The transaction must end with a call to Commit or Close.
+// After a call to Commit or Close, all operations on the transaction will fail.
+// After a call to Commit or Close implementations must be in a clean state and have
 // released any resources owned by the TreeTX.
 // A TreeTX can only modify the tree specified in its creation.
 type TreeTX interface {

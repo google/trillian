@@ -58,7 +58,7 @@ func (s *memoryAdminStorage) CheckDatabaseAccessible(ctx context.Context) error 
 type adminTX struct {
 	ms *TreeStorage
 	// mu guards reads/writes on closed, which happen only on
-	// Commit/Rollback/IsClosed/Close methods.
+	// Commit/IsClosed/Close methods.
 	// We don't check closed on *all* methods (apart from the ones above),
 	// as we trust tx to keep tabs on its state (and consequently fail to do
 	// queries after closed).
@@ -74,14 +74,6 @@ func (t *adminTX) Commit() error {
 	return nil
 }
 
-func (t *adminTX) Rollback() error {
-	// TODO(al): The admin implementation isn't transactional
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.closed = true
-	return nil
-}
-
 func (t *adminTX) IsClosed() bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -89,18 +81,10 @@ func (t *adminTX) IsClosed() bool {
 }
 
 func (t *adminTX) Close() error {
-	// Acquire and release read lock manually, without defer, as if the txn
-	// is not closed Rollback() will attempt to acquire the rw lock.
-	t.mu.RLock()
-	closed := t.closed
-	t.mu.RUnlock()
-	if !closed {
-		err := t.Rollback()
-		if err != nil {
-			glog.Warningf("Rollback error on Close(): %v", err)
-		}
-		return err
-	}
+	// TODO(al): The admin implementation isn't transactional
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.closed = true
 	return nil
 }
 
