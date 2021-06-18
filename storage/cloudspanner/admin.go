@@ -82,19 +82,19 @@ func reverseTreeTypeMap(m map[trillian.TreeType]spannerpb.TreeType) map[spannerp
 type adminTX struct {
 	client *spanner.Client
 
+	// mu guards tx, but it's only actively used for Commit/Close. In other
+	// scenarios we trust Spanner to blow up if you try to use a closed tx.
+	//
+	// Note that, if tx is a spanner.SnapshotTransaction, it'll be set to nil
+	// when adminTX is closed.
+	mu sync.RWMutex
+
 	// tx is either spanner.ReadOnlyTransaction or spanner.ReadWriteTransaction,
 	// according to the role adminTX is meant to fill.
-	// If tx is a snapshot transaction it'll be set to nil when adminTX is
-	// closed to avoid reuse.
+	//
+	// If tx is a snapshot transaction it'll be set to nil when adminTX is closed
+	// to avoid reuse.
 	tx spanRead
-
-	// mu guards closed, but it's only actively used for
-	// Commit/Close. In other scenarios we trust Spanner to blow up
-	// if you try to use a closed tx.
-	// Note that, if tx is a spanner.SnapshotTransaction, it'll be set to
-	// nil when adminTX is closed.
-	mu     sync.RWMutex
-	closed bool
 }
 
 // adminStorage implements storage.AdminStorage.
