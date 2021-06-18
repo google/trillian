@@ -137,13 +137,6 @@ func (t *adminTX) Commit() error {
 	return t.Close()
 }
 
-// IsClosed implements ReadOnlyAdminTX.IsClosed.
-func (t *adminTX) IsClosed() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return t.closed
-}
-
 // Close implements ReadOnlyAdminTX.Close.
 func (t *adminTX) Close() error {
 	t.mu.Lock()
