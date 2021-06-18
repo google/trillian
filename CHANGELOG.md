@@ -30,6 +30,8 @@
    change allows log implementations which don't need revisions.
  * Removed `Rollback` methods from storage interfaces, as `Close` is enough to
    cover the use-case.
+ * Removed the unused `IsOpen` and `IsClosed` methods from transaction
+   interfaces.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
