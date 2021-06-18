@@ -31,13 +31,8 @@ type ReadOnlyAdminTX interface {
 	// considered consistent.
 	Commit() error
 
-	// Rollback aborts any performed operations, or returns an error.
-	// See Close() for a way to automatically manage transactions.
-	Rollback() error
-
 	// IsClosed returns true if the transaction is closed.
-	// A transaction is closed when either Commit() or Rollback() are
-	// called.
+	// A transaction is closed when either Commit() or Close() are called.
 	IsClosed() bool
 
 	// Close rolls back the transaction if it's not yet closed.
