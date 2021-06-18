@@ -177,7 +177,7 @@ func (ls *logStorage) begin(ctx context.Context, tree *trillian.Tree, readonly b
 	if err := ltx.getLatestRoot(ctx); err == storage.ErrTreeNeedsInit {
 		return ltx, err
 	} else if err != nil {
-		tx.Rollback()
+		tx.Close()
 		return nil, err
 	}
 	return ltx, nil

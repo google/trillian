@@ -47,7 +47,7 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 
 	// ErrTransactionClosed is returned by interface methods when an operation is
-	// attempted on a transaction whose Commit or Rollback methods have
+	// attempted on a transaction whose Commit or Close methods have
 	// previously been called.
 	ErrTransactionClosed = errors.New("transaction is closed")
 
@@ -276,10 +276,13 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	}
 }
 
-// Rollback aborts any operations perfomed on the underlying Spanner
-// transaction.
+// Close aborts any operations perfomed on the underlying Spanner transaction.
 // On return from the call, this transaction will be in a closed state.
-func (t *treeTX) Rollback() error {
+func (t *treeTX) Close() error {
+	if !t.IsOpen() {
+		return nil
+	}
+
 	t.mu.Lock()
 	defer func() {
 		t.stx = nil
@@ -298,17 +301,7 @@ func (t *treeTX) Rollback() error {
 	return nil
 }
 
-func (t *treeTX) Close() error {
-	if t.IsOpen() {
-		if err := t.Rollback(); err != nil && err != ErrTransactionClosed {
-			glog.Warningf("Rollback error on Close(): %v", err)
-			return err
-		}
-	}
-	return nil
-}
-
-// IsOpen returns true iff neither Commit nor Rollback have been called.
+// IsOpen returns true iff neither Commit nor Close have been called.
 // If this function returns false, further operations may not be attempted on
 // this transaction object.
 func (t *treeTX) IsOpen() bool {
@@ -477,10 +470,6 @@ type snapshotTX struct {
 
 func (t *snapshotTX) Commit(ctx context.Context) error {
 	// No work required to commit snapshot transactions
-	return t.Close()
-}
-
-func (t *snapshotTX) Rollback() error {
 	return t.Close()
 }
 
