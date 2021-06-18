@@ -28,6 +28,8 @@
  * Removed the tree storage `ReadRevision` and `WriteRevision` methods.
    Revisions are now an implementation detail of the current storages. The
    change allows log implementations which don't need revisions.
+ * Removed `Rollback` methods from storage interfaces, as `Close` is enough to
+   cover the use-case.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
