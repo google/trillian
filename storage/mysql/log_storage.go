@@ -156,33 +156,6 @@ func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, n
 	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
-// readOnlyLogTX implements storage.ReadOnlyLogTX
-type readOnlyLogTX struct {
-	ls *mySQLLogStorage
-
-	// mu ensures that tx can only be used for one query/exec at a time.
-	mu *sync.Mutex
-	tx *sql.Tx
-}
-
-func (t *readOnlyLogTX) Commit(context.Context) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	return t.tx.Commit()
-}
-
-func (t *readOnlyLogTX) Close() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if err := t.tx.Rollback(); err != nil && err != sql.ErrTxDone {
-		glog.Warningf("Rollback error on Close(): %v", err)
-		return err
-	}
-	return nil
-}
-
 func (m *mySQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	// Include logs that are DRAINING in the active list as we're still
 	// integrating leaves into them.
