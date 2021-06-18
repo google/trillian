@@ -83,26 +83,6 @@ func revKey(treeID int64, timestamp uint64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/rev/%020d", treeID, timestamp)}
 }
 
-// getActiveLogIDs returns the IDs of all logs that are currently in a state
-// that requires sequencing (e.g. ACTIVE, DRAINING).
-func getActiveLogIDs(trees map[int64]*tree) []int64 {
-	var ret []int64
-	for id, tree := range trees {
-		if tree.meta.GetDeleted() {
-			continue
-		}
-
-		switch tree.meta.GetTreeType() {
-		case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
-			switch tree.meta.GetTreeState() {
-			case trillian.TreeState_ACTIVE, trillian.TreeState_DRAINING:
-				ret = append(ret, id)
-			}
-		}
-	}
-	return ret
-}
-
 type memoryLogStorage struct {
 	*TreeStorage
 	metricFactory monitoring.MetricFactory
@@ -124,6 +104,29 @@ func (m *memoryLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return nil
 }
 
+// GetActiveLogIDs returns the IDs of all logs that are currently in a state
+// that requires sequencing (e.g. ACTIVE, DRAINING).
+func (m *memoryLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var ret []int64
+	for id, tree := range m.trees {
+		if tree.meta.GetDeleted() {
+			continue
+		}
+		switch tree.meta.GetTreeType() {
+		case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
+			switch tree.meta.GetTreeState() {
+			case trillian.TreeState_ACTIVE, trillian.TreeState_DRAINING:
+				ret = append(ret, id)
+			}
+		}
+	}
+
+	return ret, nil
+}
+
 type readOnlyLogTX struct {
 	ms *TreeStorage
 }
@@ -134,12 +137,6 @@ func (t *readOnlyLogTX) Commit(context.Context) error {
 
 func (t *readOnlyLogTX) Close() error {
 	return nil
-}
-
-func (t *TreeStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return getActiveLogIDs(t.trees), nil
 }
 
 func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree, readonly bool) (*logTreeTX, error) {
@@ -398,8 +395,4 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	}
 
 	return nil
-}
-
-func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDs(t.ts.trees), nil
 }
