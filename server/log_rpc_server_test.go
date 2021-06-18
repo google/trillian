@@ -635,7 +635,6 @@ func TestGetProofByHashErrors(t *testing.T) {
 				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(&trillian.SignedLogRoot{}, errors.New("SLR"))
 				tx.EXPECT().Close().Return(nil)
-				tx.EXPECT().IsOpen().AnyTimes().Return(false)
 			},
 			req:    &getInclusionProofByHashRequest7,
 			errStr: "SLR",
@@ -648,7 +647,6 @@ func TestGetProofByHashErrors(t *testing.T) {
 				tx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{leafHash1}, false).Return(nil, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(corruptLogRoot, nil)
 				tx.EXPECT().Close().Return(nil)
-				tx.EXPECT().IsOpen().AnyTimes().Return(false)
 			},
 			req:    &getInclusionProofByHashRequest7,
 			errStr: "not read current log root",
@@ -862,7 +860,6 @@ func TestGetProofByIndex(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), cmpMatcher{tree1}).Return(tx, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(&trillian.SignedLogRoot{}, errors.New("SLR"))
 				tx.EXPECT().Close().Return(nil)
-				tx.EXPECT().IsOpen().AnyTimes().Return(false)
 			},
 			req:    &getInclusionProofByIndexRequest7,
 			errStr: "SLR",
@@ -874,7 +871,6 @@ func TestGetProofByIndex(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), cmpMatcher{tree1}).Return(tx, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(corruptLogRoot, nil)
 				tx.EXPECT().Close().Return(nil)
-				tx.EXPECT().IsOpen().AnyTimes().Return(false)
 			},
 			req:    &getInclusionProofByIndexRequest7,
 			errStr: "not read current log root",
@@ -1031,7 +1027,6 @@ func TestGetEntryAndProof(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), cmpMatcher{tree1}).Return(tx, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, errors.New("SLR"))
 				tx.EXPECT().Close().Return(nil)
-				tx.EXPECT().IsOpen().AnyTimes().Return(false)
 			},
 			req:    &getEntryAndProofRequest17,
 			errStr: "SLR",
@@ -1043,7 +1038,6 @@ func TestGetEntryAndProof(t *testing.T) {
 				s.EXPECT().SnapshotForTree(gomock.Any(), cmpMatcher{tree1}).Return(tx, nil)
 				tx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(corruptLogRoot, nil)
 				tx.EXPECT().Close().Return(nil)
-				tx.EXPECT().IsOpen().AnyTimes().Return(false)
 			},
 			req:    &getEntryAndProofRequest17,
 			errStr: "not read current log root",
@@ -1573,7 +1567,6 @@ func TestInitLog(t *testing.T) {
 				} else {
 					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(tc.slr, nil)
 				}
-				mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
 				mockTX.EXPECT().Close().Return(nil)
 			}
 			if tc.wantInit {

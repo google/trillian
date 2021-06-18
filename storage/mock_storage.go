@@ -176,20 +176,6 @@ func (mr *MockAdminTXMockRecorder) HardDeleteTree(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HardDeleteTree", reflect.TypeOf((*MockAdminTX)(nil).HardDeleteTree), arg0, arg1)
 }
 
-// IsClosed mocks base method.
-func (m *MockAdminTX) IsClosed() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsClosed")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsClosed indicates an expected call of IsClosed.
-func (mr *MockAdminTXMockRecorder) IsClosed() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsClosed", reflect.TypeOf((*MockAdminTX)(nil).IsClosed))
-}
-
 // ListTrees mocks base method.
 func (m *MockAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*trillian.Tree, error) {
 	m.ctrl.T.Helper()
@@ -472,20 +458,6 @@ func (mr *MockLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMerkleNodes", reflect.TypeOf((*MockLogTreeTX)(nil).GetMerkleNodes), arg0, arg1)
 }
 
-// IsOpen mocks base method.
-func (m *MockLogTreeTX) IsOpen() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsOpen")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsOpen indicates an expected call of IsOpen.
-func (mr *MockLogTreeTXMockRecorder) IsOpen() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOpen", reflect.TypeOf((*MockLogTreeTX)(nil).IsOpen))
-}
-
 // LatestSignedLogRoot mocks base method.
 func (m *MockLogTreeTX) LatestSignedLogRoot(arg0 context.Context) (*trillian.SignedLogRoot, error) {
 	m.ctrl.T.Helper()
@@ -607,20 +579,6 @@ func (m *MockReadOnlyAdminTX) GetTree(arg0 context.Context, arg1 int64) (*trilli
 func (mr *MockReadOnlyAdminTXMockRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTree", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).GetTree), arg0, arg1)
-}
-
-// IsClosed mocks base method.
-func (m *MockReadOnlyAdminTX) IsClosed() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsClosed")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsClosed indicates an expected call of IsClosed.
-func (mr *MockReadOnlyAdminTXMockRecorder) IsClosed() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsClosed", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).IsClosed))
 }
 
 // ListTrees mocks base method.
@@ -798,20 +756,6 @@ func (m *MockReadOnlyLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 []comp
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMerkleNodes", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetMerkleNodes), arg0, arg1)
-}
-
-// IsOpen mocks base method.
-func (m *MockReadOnlyLogTreeTX) IsOpen() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsOpen")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsOpen indicates an expected call of IsOpen.
-func (mr *MockReadOnlyLogTreeTXMockRecorder) IsOpen() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOpen", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).IsOpen))
 }
 
 // LatestSignedLogRoot mocks base method.

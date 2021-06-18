@@ -26,11 +26,13 @@ import (
 type ReadOnlyLogTX interface {
 	LogMetadata
 
-	// Commit ensures the data read by the TX is consistent in the database. Only after Commit the
-	// data read should be regarded as valid.
+	// Commit applies the operations performed to the underlying storage. It must
+	// be called before any reads from storage are considered consistent.
 	Commit(context.Context) error
 
-	// Close attempts to rollback the TX if it's open, it's a noop otherwise.
+	// Close rolls back the transaction if it wasn't committed or closed
+	// previously. Resources are cleaned up regardless of the success, and the
+	// transaction should not be used after it.
 	Close() error
 }
 
