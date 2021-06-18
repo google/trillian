@@ -136,10 +136,6 @@ func (t *readOnlyLogTX) Commit(context.Context) error {
 	return nil
 }
 
-func (t *readOnlyLogTX) Rollback() error {
-	return nil
-}
-
 func (t *readOnlyLogTX) Close() error {
 	return nil
 }
@@ -172,12 +168,12 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 	if err == storage.ErrTreeNeedsInit {
 		return ltx, err
 	} else if err != nil {
-		ttx.Rollback()
+		ttx.Close()
 		return nil, err
 	}
 
 	if err := ltx.root.UnmarshalBinary(ltx.slr.LogRoot); err != nil {
-		ttx.Rollback()
+		ttx.Close()
 		return nil, err
 	}
 
