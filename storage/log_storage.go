@@ -87,7 +87,10 @@ type LogTreeTX interface {
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
 type ReadOnlyLogStorage interface {
 	DatabaseChecker
-	LogMetadata
+
+	// GetActiveLogIDs returns a list of the IDs of all the logs that are
+	// configured in storage and are eligible to have entries sequenced.
+	GetActiveLogIDs(ctx context.Context) ([]int64, error)
 
 	// SnapshotForTree starts a read-only transaction for the specified treeID.
 	// Commit must be called when the caller is finished with the returned object,
@@ -145,11 +148,4 @@ type LogStorage interface {
 	// TODO(pavelkalinnikov): Not checking values of the occupied indices might
 	// be a good optimization. Could also be optional.
 	AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
-}
-
-// LogMetadata provides access to information about the logs in storage
-type LogMetadata interface {
-	// GetActiveLogIDs returns a list of the IDs of all the logs that are
-	// configured in storage and are eligible to have entries sequenced.
-	GetActiveLogIDs(ctx context.Context) ([]int64, error)
 }
