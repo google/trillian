@@ -32,6 +32,8 @@
    cover the use-case.
  * Removed the unused `IsOpen` and `IsClosed` methods from transaction
    interfaces.
+ * Removed the `ReadOnlyLogTX` interface, and put its only used
+   `GetActiveLogIDs` method to `LogStorage`.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
