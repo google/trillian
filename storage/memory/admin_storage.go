@@ -57,31 +57,22 @@ func (s *memoryAdminStorage) CheckDatabaseAccessible(ctx context.Context) error 
 
 type adminTX struct {
 	ms *TreeStorage
-	// mu guards reads/writes on closed, which happen only on
-	// Commit/IsClosed/Close methods.
-	// We don't check closed on *all* methods (apart from the ones above),
-	// as we trust tx to keep tabs on its state (and consequently fail to do
-	// queries after closed).
+
+	// mu guards reads/writes on closed, which happen on Commit/Close methods.
+	//
+	// We don't check closed on methods apart from the ones above, as we trust tx
+	// to keep tabs on its state, and hence fail to do queries after closed.
 	mu     sync.RWMutex
 	closed bool
 }
 
 func (t *adminTX) Commit() error {
-	// TODO(al): The admin implementation isn't transactional
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.closed = true
-	return nil
-}
-
-func (t *adminTX) IsClosed() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return t.closed
+	// TODO(al): The admin implementation isn't transactional.
+	return t.Close()
 }
 
 func (t *adminTX) Close() error {
-	// TODO(al): The admin implementation isn't transactional
+	// TODO(al): The admin implementation isn't transactional.
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.closed = true

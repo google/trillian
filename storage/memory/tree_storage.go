@@ -260,14 +260,10 @@ func (t *treeTX) Commit(ctx context.Context) error {
 }
 
 func (t *treeTX) Close() error {
-	if !t.IsOpen() {
+	if t.closed {
 		return nil
 	}
 	defer t.unlock()
 	t.closed = true
 	return nil
-}
-
-func (t *treeTX) IsOpen() bool {
-	return !t.closed
 }
