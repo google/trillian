@@ -21,21 +21,6 @@ import (
 	"github.com/google/trillian"
 )
 
-// ReadOnlyLogTX provides a read-only view into log data.
-// A ReadOnlyLogTX, unlike ReadOnlyLogTreeTX, is not tied to a particular tree.
-type ReadOnlyLogTX interface {
-	LogMetadata
-
-	// Commit applies the operations performed to the underlying storage. It must
-	// be called before any reads from storage are considered consistent.
-	Commit(context.Context) error
-
-	// Close rolls back the transaction if it wasn't committed or closed
-	// previously. Resources are cleaned up regardless of the success, and the
-	// transaction should not be used after it.
-	Close() error
-}
-
 // ReadOnlyLogTreeTX provides a read-only view into the Log data.
 // A ReadOnlyLogTreeTX can only read from the tree specified in its creation.
 type ReadOnlyLogTreeTX interface {
@@ -102,9 +87,7 @@ type LogTreeTX interface {
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
 type ReadOnlyLogStorage interface {
 	DatabaseChecker
-
-	// Snapshot starts a read-only transaction not tied to any particular tree.
-	Snapshot(ctx context.Context) (ReadOnlyLogTX, error)
+	LogMetadata
 
 	// SnapshotForTree starts a read-only transaction for the specified treeID.
 	// Commit must be called when the caller is finished with the returned object,

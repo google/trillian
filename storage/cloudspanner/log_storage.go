@@ -141,20 +141,14 @@ func (ls *logStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return checkDatabaseAccessible(ctx, ls.ts.client)
 }
 
-func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+func (ls *logStorage) readOnlyTX() *spanner.ReadOnlyTransaction {
 	var staleness spanner.TimestampBound
 	if ls.opts.ReadOnlyStaleness > 0 {
 		staleness = spanner.ExactStaleness(ls.opts.ReadOnlyStaleness)
 	} else {
 		staleness = spanner.StrongRead()
 	}
-
-	snapshotTX := &snapshotTX{
-		client: ls.ts.client,
-		stx:    ls.ts.client.ReadOnlyTransaction().WithTimestampBound(staleness),
-		ls:     ls,
-	}
-	return &readOnlyLogTX{snapshotTX}, nil
+	return ls.ts.client.ReadOnlyTransaction().WithTimestampBound(staleness)
 }
 
 func newLogCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
@@ -975,17 +969,11 @@ type readOnlyLogTX struct {
 	*snapshotTX
 }
 
-func (tx *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	tx.mu.RLock()
-	defer tx.mu.RUnlock()
-	if tx.stx == nil {
-		return nil, ErrTransactionClosed
-	}
-
+func (ls *logStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	ids := []int64{}
 	// We have to use SQL as Read() doesn't work against an index.
 	stmt := spanner.NewStatement(getActiveLogIDsSQL)
-	rows := tx.stx.Query(ctx, stmt)
+	rows := ls.readOnlyTX().Query(ctx, stmt)
 	if err := rows.Do(func(r *spanner.Row) error {
 		var id int64
 		if err := r.Columns(&id); err != nil {

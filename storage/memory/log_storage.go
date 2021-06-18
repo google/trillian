@@ -128,10 +128,6 @@ type readOnlyLogTX struct {
 	ms *TreeStorage
 }
 
-func (m *memoryLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
-	return &readOnlyLogTX{m.TreeStorage}, nil
-}
-
 func (t *readOnlyLogTX) Commit(context.Context) error {
 	return nil
 }
@@ -140,11 +136,10 @@ func (t *readOnlyLogTX) Close() error {
 	return nil
 }
 
-func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	t.ms.mu.RLock()
-	defer t.ms.mu.RUnlock()
-
-	return getActiveLogIDs(t.ms.trees), nil
+func (t *TreeStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return getActiveLogIDs(t.trees), nil
 }
 
 func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree, readonly bool) (*logTreeTX, error) {
