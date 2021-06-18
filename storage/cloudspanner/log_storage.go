@@ -141,20 +141,33 @@ func (ls *logStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return checkDatabaseAccessible(ctx, ls.ts.client)
 }
 
-func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+func (ls *logStorage) readOnlyTX() *spanner.ReadOnlyTransaction {
 	var staleness spanner.TimestampBound
 	if ls.opts.ReadOnlyStaleness > 0 {
 		staleness = spanner.ExactStaleness(ls.opts.ReadOnlyStaleness)
 	} else {
 		staleness = spanner.StrongRead()
 	}
+	return ls.ts.client.ReadOnlyTransaction().WithTimestampBound(staleness)
+}
 
-	snapshotTX := &snapshotTX{
-		client: ls.ts.client,
-		stx:    ls.ts.client.ReadOnlyTransaction().WithTimestampBound(staleness),
-		ls:     ls,
+func (ls *logStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+	ids := []int64{}
+	// We have to use SQL as Read() doesn't work against an index.
+	stmt := spanner.NewStatement(getActiveLogIDsSQL)
+	rows := ls.readOnlyTX().Query(ctx, stmt)
+	if err := rows.Do(func(r *spanner.Row) error {
+		var id int64
+		if err := r.Columns(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+		return nil
+	}); err != nil {
+		glog.Warningf("GetActiveLogIDs: %v", err)
+		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
 	}
-	return &readOnlyLogTX{snapshotTX}, nil
+	return ids, nil
 }
 
 func newLogCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
@@ -968,36 +981,6 @@ type QueuedEntry struct {
 	leaf      *trillian.LogLeaf
 	bucket    int64
 	timestamp int64
-}
-
-// readOnlyLogTX implements storage.ReadOnlyLogTX.
-type readOnlyLogTX struct {
-	*snapshotTX
-}
-
-func (tx *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	tx.mu.RLock()
-	defer tx.mu.RUnlock()
-	if tx.stx == nil {
-		return nil, ErrTransactionClosed
-	}
-
-	ids := []int64{}
-	// We have to use SQL as Read() doesn't work against an index.
-	stmt := spanner.NewStatement(getActiveLogIDsSQL)
-	rows := tx.stx.Query(ctx, stmt)
-	if err := rows.Do(func(r *spanner.Row) error {
-		var id int64
-		if err := r.Columns(&id); err != nil {
-			return err
-		}
-		ids = append(ids, id)
-		return nil
-	}); err != nil {
-		glog.Warningf("GetActiveLogIDs: %v", err)
-		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
-	}
-	return ids, nil
 }
 
 // LogLeaf sorting boilerplate below.

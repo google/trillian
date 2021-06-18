@@ -60,8 +60,8 @@ type FakeLogStorage struct {
 	AddSequencedLeavesErr error
 }
 
-// Snapshot implements LogStorage.Snapshot
-func (f *FakeLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+// GetActiveLogIDs implements LogStorage.GetActiveLogIDs.
+func (f *FakeLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return nil, ErrNotImplemented
 }
 

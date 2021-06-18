@@ -729,17 +729,9 @@ func TestGetActiveLogIDs(t *testing.T) {
 	}
 
 	s := NewLogStorage(DB, nil)
-	tx, err := s.Snapshot(ctx)
-	if err != nil {
-		t.Fatalf("Snapshot() returns err = %v", err)
-	}
-	defer tx.Close()
-	got, err := tx.GetActiveLogIDs(ctx)
+	got, err := s.GetActiveLogIDs(ctx)
 	if err != nil {
 		t.Fatalf("GetActiveLogIDs() returns err = %v", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		t.Errorf("Commit() returned err = %v", err)
 	}
 
 	want := []int64{log1.TreeId, log2.TreeId, log3.TreeId, drainingLog.TreeId}
@@ -756,17 +748,9 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 	cleanTestDB(DB)
 	s := NewLogStorage(DB, nil)
 
-	tx, err := s.Snapshot(context.Background())
-	if err != nil {
-		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
-	}
-	defer tx.Close()
-	ids, err := tx.GetActiveLogIDs(ctx)
+	ids, err := s.GetActiveLogIDs(ctx)
 	if err != nil {
 		t.Fatalf("GetActiveLogIDs() = (_, %v), want = (_, nil)", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		t.Errorf("Commit() = %v, want = nil", err)
 	}
 
 	if got, want := len(ids), 0; got != want {

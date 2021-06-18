@@ -156,49 +156,10 @@ func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, n
 	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
-// readOnlyLogTX implements storage.ReadOnlyLogTX
-type readOnlyLogTX struct {
-	ls *mySQLLogStorage
-
-	// mu ensures that tx can only be used for one query/exec at a time.
-	mu *sync.Mutex
-	tx *sql.Tx
-}
-
-func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
-	tx, err := m.db.BeginTx(ctx, nil /* opts */)
-	if err != nil {
-		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
-		return nil, err
-	}
-	return &readOnlyLogTX{m, &sync.Mutex{}, tx}, nil
-}
-
-func (t *readOnlyLogTX) Commit(context.Context) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	return t.tx.Commit()
-}
-
-func (t *readOnlyLogTX) Close() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if err := t.tx.Rollback(); err != nil && err != sql.ErrTxDone {
-		glog.Warningf("Rollback error on Close(): %v", err)
-		return err
-	}
-	return nil
-}
-
-func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
+func (m *mySQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	// Include logs that are DRAINING in the active list as we're still
 	// integrating leaves into them.
-	rows, err := t.tx.QueryContext(
+	rows, err := m.db.QueryContext(
 		ctx, selectNonDeletedTreeIDByTypeAndStateSQL,
 		trillian.TreeType_LOG.String(), trillian.TreeType_PREORDERED_LOG.String(),
 		trillian.TreeState_ACTIVE.String(), trillian.TreeState_DRAINING.String())
