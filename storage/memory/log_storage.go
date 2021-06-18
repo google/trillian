@@ -127,18 +127,6 @@ func (m *memoryLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error)
 	return ret, nil
 }
 
-type readOnlyLogTX struct {
-	ms *TreeStorage
-}
-
-func (t *readOnlyLogTX) Commit(context.Context) error {
-	return nil
-}
-
-func (t *readOnlyLogTX) Close() error {
-	return nil
-}
-
 func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree, readonly bool) (*logTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
