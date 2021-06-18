@@ -964,11 +964,6 @@ type QueuedEntry struct {
 	timestamp int64
 }
 
-// readOnlyLogTX implements storage.ReadOnlyLogTX.
-type readOnlyLogTX struct {
-	*snapshotTX
-}
-
 func (ls *logStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	ids := []int64{}
 	// We have to use SQL as Read() doesn't work against an index.
