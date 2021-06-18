@@ -438,33 +438,3 @@ func checkDatabaseAccessible(ctx context.Context, client *spanner.Client) error 
 	defer rows.Stop()
 	return rows.Do(func(row *spanner.Row) error { return nil })
 }
-
-// snapshotTX provides the standard methods for snapshot-based TXs.
-type snapshotTX struct {
-	client *spanner.Client
-
-	// mu guards stx, which is set to nil when the TX is closed.
-	mu  sync.RWMutex
-	stx spanRead
-	ls  *logStorage
-}
-
-func (t *snapshotTX) Commit(ctx context.Context) error {
-	// No work required to commit snapshot transactions
-	return t.Close()
-}
-
-func (t *snapshotTX) Close() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.stx == nil {
-		return ErrTransactionClosed
-	}
-	if stx, ok := t.stx.(*spanner.ReadOnlyTransaction); ok {
-		glog.V(1).Infof("Closed log snapshot %p", stx)
-		stx.Close()
-	}
-	t.stx = nil
-
-	return nil
-}
