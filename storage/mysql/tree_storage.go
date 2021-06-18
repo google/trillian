@@ -387,13 +387,6 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	return nil
 }
 
-func (t *treeTX) Rollback() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	return t.rollbackInternal()
-}
-
 func (t *treeTX) rollbackInternal() error {
 	t.closed = true
 	if err := t.tx.Rollback(); err != nil {

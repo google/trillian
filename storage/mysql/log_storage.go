@@ -181,15 +181,11 @@ func (t *readOnlyLogTX) Commit(context.Context) error {
 	return t.tx.Commit()
 }
 
-func (t *readOnlyLogTX) Rollback() error {
-	return t.tx.Rollback()
-}
-
 func (t *readOnlyLogTX) Close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if err := t.Rollback(); err != nil && err != sql.ErrTxDone {
+	if err := t.tx.Rollback(); err != nil && err != sql.ErrTxDone {
 		glog.Warningf("Rollback error on Close(): %v", err)
 		return err
 	}
@@ -242,12 +238,12 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 		ltx.treeTX.writeRevision = 0
 		return ltx, err
 	} else if err != nil {
-		ttx.Rollback()
+		ttx.Close()
 		return nil, err
 	}
 
 	if err := ltx.root.UnmarshalBinary(ltx.slr.LogRoot); err != nil {
-		ttx.Rollback()
+		ttx.Close()
 		return nil, err
 	}
 

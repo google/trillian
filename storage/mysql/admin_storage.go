@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
@@ -103,7 +102,7 @@ type adminTX struct {
 	tx *sql.Tx
 
 	// mu guards *direct* reads/writes on closed, which happen only on
-	// Commit/Rollback/IsClosed/Close methods.
+	// Commit/IsClosed/Close methods.
 	// We don't check closed on *all* methods (apart from the ones above),
 	// as we trust tx to keep tabs on its state (and consequently fail to do
 	// queries after closed).
@@ -118,13 +117,6 @@ func (t *adminTX) Commit() error {
 	return t.tx.Commit()
 }
 
-func (t *adminTX) Rollback() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.closed = true
-	return t.tx.Rollback()
-}
-
 func (t *adminTX) IsClosed() bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -132,19 +124,13 @@ func (t *adminTX) IsClosed() bool {
 }
 
 func (t *adminTX) Close() error {
-	// Acquire and release read lock manually, without defer, as if the txn
-	// is not closed Rollback() will attempt to acquire the rw lock.
-	t.mu.RLock()
-	closed := t.closed
-	t.mu.RUnlock()
-	if !closed {
-		err := t.Rollback()
-		if err != nil {
-			glog.Warningf("Rollback error on Close(): %v", err)
-		}
-		return err
+	if t.IsClosed() {
+		return nil
 	}
-	return nil
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.closed = true
+	return t.tx.Rollback()
 }
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
