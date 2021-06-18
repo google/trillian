@@ -151,6 +151,25 @@ func (ls *logStorage) readOnlyTX() *spanner.ReadOnlyTransaction {
 	return ls.ts.client.ReadOnlyTransaction().WithTimestampBound(staleness)
 }
 
+func (ls *logStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+	ids := []int64{}
+	// We have to use SQL as Read() doesn't work against an index.
+	stmt := spanner.NewStatement(getActiveLogIDsSQL)
+	rows := ls.readOnlyTX().Query(ctx, stmt)
+	if err := rows.Do(func(r *spanner.Row) error {
+		var id int64
+		if err := r.Columns(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+		return nil
+	}); err != nil {
+		glog.Warningf("GetActiveLogIDs: %v", err)
+		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
+	}
+	return ids, nil
+}
+
 func newLogCache(tree *trillian.Tree) (*cache.SubtreeCache, error) {
 	return cache.NewLogSubtreeCache(rfc6962.DefaultHasher), nil
 }
@@ -962,25 +981,6 @@ type QueuedEntry struct {
 	leaf      *trillian.LogLeaf
 	bucket    int64
 	timestamp int64
-}
-
-func (ls *logStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	ids := []int64{}
-	// We have to use SQL as Read() doesn't work against an index.
-	stmt := spanner.NewStatement(getActiveLogIDsSQL)
-	rows := ls.readOnlyTX().Query(ctx, stmt)
-	if err := rows.Do(func(r *spanner.Row) error {
-		var id int64
-		if err := r.Columns(&id); err != nil {
-			return err
-		}
-		ids = append(ids, id)
-		return nil
-	}); err != nil {
-		glog.Warningf("GetActiveLogIDs: %v", err)
-		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
-	}
-	return ids, nil
 }
 
 // LogLeaf sorting boilerplate below.
