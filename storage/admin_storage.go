@@ -23,7 +23,13 @@ import (
 // ReadOnlyAdminTX is a transaction capable only of read operations in the
 // AdminStorage.
 type ReadOnlyAdminTX interface {
-	AdminReader
+	// GetTree returns the tree corresponding to treeID or an error.
+	GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
+
+	// ListTrees returns all trees in storage.
+	// Note that there's no authorization restriction on the trees returned,
+	// so it should be used with caution in production code.
+	ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error)
 
 	// Commit applies the operations performed to the underlying storage. It must
 	// be called before any reads from storage are considered consistent.
@@ -60,17 +66,6 @@ type AdminStorage interface {
 	// CheckDatabaseAccessible checks whether we are able to connect to / open the
 	// underlying storage.
 	CheckDatabaseAccessible(ctx context.Context) error
-}
-
-// AdminReader provides a read-only interface for tree data.
-type AdminReader interface {
-	// GetTree returns the tree corresponding to treeID or an error.
-	GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
-
-	// ListTrees returns all trees in storage.
-	// Note that there's no authorization restriction on the trees returned,
-	// so it should be used with caution in production code.
-	ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error)
 }
 
 // AdminWriter provides a write-only interface for tree data.

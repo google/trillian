@@ -25,7 +25,7 @@ import (
 const traceSpanRoot = "/trillian/storage"
 
 // GetTree reads a tree from storage using a snapshot transaction.
-// It's a convenience wrapper around RunInAdminSnapshot and AdminReader's GetTree.
+// It's a convenience wrapper around RunInAdminSnapshot and ReadOnlyAdminTX's GetTree.
 // See RunInAdminSnapshot if you need to perform more than one action per transaction.
 func GetTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
 	ctx, spanEnd := spanFor(ctx, "GetTree")
@@ -40,7 +40,7 @@ func GetTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.T
 }
 
 // ListTrees reads trees from storage using a snapshot transaction.
-// It's a convenience wrapper around RunInAdminSnapshot and AdminReader's ListTrees.
+// It's a convenience wrapper around RunInAdminSnapshot and ReadOnlyAdminTX's ListTrees.
 // See RunInAdminSnapshot if you need to perform more than one action per transaction.
 func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool) ([]*trillian.Tree, error) {
 	ctx, spanEnd := spanFor(ctx, "ListTrees")

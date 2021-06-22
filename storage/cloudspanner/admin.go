@@ -153,7 +153,7 @@ func (t *adminTX) Close() error {
 	return nil
 }
 
-// GetTree implements AdminReader.GetTree.
+// GetTree implements ReadOnlyAdminTX.GetTree.
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
 	info, err := t.getTreeInfo(ctx, treeID)
 	if err != nil {
@@ -225,7 +225,7 @@ func (t *adminTX) getTreeInfo(ctx context.Context, treeID int64) (*spannerpb.Tre
 	return info, nil
 }
 
-// ListTrees implements AdminReader.ListTrees.
+// ListTrees implements ReadOnlyAdminTX.ListTrees.
 func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
 	trees := []*trillian.Tree{}
 	err := t.readTrees(ctx, includeDeleted, false /* idOnly */, func(r *spanner.Row) error {
