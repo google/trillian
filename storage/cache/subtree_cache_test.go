@@ -15,7 +15,6 @@
 package cache
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -234,13 +233,6 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		if err := PopulateLogTile(&s, rfc6962.DefaultHasher); err != nil {
 			t.Fatalf("failed populating tile: %v", err)
-		}
-		root, err := cr.GetRootHash(nil)
-		if err != nil {
-			t.Fatalf("GetRootHash: %v", err)
-		}
-		if got, expected := s.RootHash, root; !bytes.Equal(got, expected) {
-			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())
 		}
 
 		// Repopulation should only have happened with a full subtree, otherwise the internal nodes map

@@ -58,12 +58,11 @@ type treeAndRev struct {
 // summarizeProto is an output formatter function that produces a single line summary.
 func summarizeProto(leafHashesFlag bool) func(s *storagepb.SubtreeProto) string {
 	return func(s *storagepb.SubtreeProto) string {
-		summary := fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d rh:%s\n",
+		summary := fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d\n",
 			hex.EncodeToString(s.Prefix),
 			s.Depth,
 			len(s.Leaves),
-			s.InternalNodeCount,
-			hex.EncodeToString(s.RootHash))
+			s.InternalNodeCount)
 
 		if leafHashesFlag {
 			for prefix, hash := range s.Leaves {
