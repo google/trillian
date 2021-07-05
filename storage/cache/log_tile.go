@@ -39,12 +39,11 @@ const (
 //
 // TODO(pavelkalinnikov): Unexport it after the refactoring.
 func PopulateLogTile(st *storagepb.SubtreeProto, hasher merkle.LogHasher) error {
-	if st.Depth < 1 {
-		return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
+	if got, want := st.Depth, int32(logStrataDepth); got != want {
+		return fmt.Errorf("invalid log tile depth %d, want %d", got, want)
 	}
-	// maxLeaves is the number of leaves that fully populates a subtree of the depth we are
-	// working with.
-	maxLeaves := 1 << uint(st.Depth)
+	// maxLeaves is the number of leaves in a fully populated tile.
+	const maxLeaves = 1 << logStrataDepth
 
 	// If the subtree is fully populated then the internal node map is expected to be nil but in
 	// case it isn't we recreate it as we're about to rebuild the contents. We'll check
