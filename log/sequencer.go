@@ -185,8 +185,8 @@ func updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label str
 			return nil, nil, err
 		}
 	}
-	// Store ephemeral nodes on the right border of the tree as well.
-	hash, err := cr.GetRootHash(store)
+	// Note: The ephemeral node hashes are not stored.
+	hash, err := cr.GetRootHash(nil)
 	if err != nil {
 		return nil, nil, err
 	}
