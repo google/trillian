@@ -19,9 +19,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian/storage/storagepb"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
 )
 
 // TestDBFormatNoChange ensures that the prefix, suffix, and protos stored in the database do not change.
@@ -74,23 +75,22 @@ func TestDBFormatNoChange(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ReadFile(%v): %v", tc.file, err)
 		}
-
-		savedS := strings.Split(string(saved), "\n\n")
-		outS := strings.Split(out, "\n\n")
-		if got, want := len(outS), len(savedS); got != want {
-			t.Fatalf("%v dump_tree: got %v lines, want %v", tc.desc, got, want)
-		}
-		for i := range savedS {
-			var got, want storagepb.SubtreeProto
-			if err := prototext.Unmarshal([]byte(outS[i]), &got); err != nil {
-				t.Fatalf("Failed to unmarshal 'got': %v", err)
-			}
-			if err := prototext.Unmarshal([]byte(savedS[i]), &want); err != nil {
-				t.Fatalf("Failed to unmarshal 'want': %v", err)
-			}
-			if !proto.Equal(&got, &want) {
-				t.Errorf("%v dump_tree tile %d:\n%v\nwant:\n%v", tc.desc, i, outS[i], savedS[i])
-			}
+		got := parseTiles(t, out)
+		want := parseTiles(t, string(saved))
+		if d := cmp.Diff(want, got, cmpopts.IgnoreUnexported(storagepb.SubtreeProto{})); d != "" {
+			t.Errorf("Diff(-want,+got):\n%s", d)
 		}
 	}
+}
+
+func parseTiles(t *testing.T, text string) []storagepb.SubtreeProto {
+	t.Helper()
+	parts := strings.Split(text, "\n\n")
+	tiles := make([]storagepb.SubtreeProto, len(parts))
+	for i, part := range parts {
+		if err := prototext.Unmarshal([]byte(part), &tiles[i]); err != nil {
+			t.Fatalf("Failed to unmarshal part %d: %v", i, err)
+		}
+	}
+	return tiles
 }
