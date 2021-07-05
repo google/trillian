@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
@@ -135,4 +136,20 @@ func toSuffix(id compact.NodeID) string {
 	var index [8]byte
 	binary.BigEndian.PutUint64(index[:], id.Index<<(maxLogDepth-depth))
 	return tree.NewSuffix(uint8(depth), index[:]).String()
+}
+
+// newEmptySubtree creates an empty subtree for the passed-in ID.
+func newEmptySubtree(id []byte) *storagepb.SubtreeProto {
+	if glog.V(2) {
+		glog.Infof("Creating new empty subtree for %x", id)
+	}
+	// Storage didn't have one for us, so we'll store an empty proto here in case
+	// we try to update it later on (we won't flush it back to storage unless
+	// it's been written to).
+	return &storagepb.SubtreeProto{
+		Prefix:        id,
+		Depth:         8,
+		Leaves:        make(map[string][]byte),
+		InternalNodes: make(map[string][]byte),
+	}
 }
