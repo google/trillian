@@ -332,9 +332,6 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 				rangeErr = fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", bk, v.Prefix)
 				return false
 			}
-			// TODO(al): Do actually write this one once we're storing the updated
-			// subtree root value here during tree update calculations.
-			v.RootHash = nil
 
 			if len(v.Leaves) > 0 {
 				if err := prepareLogTile(v); err != nil {

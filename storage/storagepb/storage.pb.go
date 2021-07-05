@@ -43,7 +43,8 @@ type SubtreeProto struct {
 	// subtree's prefix (must be a multiple of 8 bits)
 	Prefix []byte `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
 	// subtree's depth
-	Depth    int32  `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	Depth int32 `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	// Deprecated: Stored the root hash of the tile, but was not used.
 	RootHash []byte `protobuf:"bytes,3,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	// map of suffix (within subtree) to subtree-leaf node hash
 	Leaves map[string][]byte `protobuf:"bytes,4,rep,name=leaves,proto3" json:"leaves,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
