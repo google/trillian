@@ -231,7 +231,7 @@ func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc)
 			return nil, err
 		}
 		if c == nil {
-			c = newEmptySubtree(subID)
+			c = newEmptyTile(subID)
 		} else {
 			if err := PopulateLogTile(c, s.hasher); err != nil {
 				return nil, err
