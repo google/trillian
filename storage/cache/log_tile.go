@@ -18,7 +18,6 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
@@ -140,9 +139,6 @@ func toSuffix(id compact.NodeID) string {
 
 // newEmptyTile creates an empty log tile for the passed-in ID.
 func newEmptyTile(id []byte) *storagepb.SubtreeProto {
-	if glog.V(2) {
-		glog.Infof("Creating new empty tile for %x", id)
-	}
 	return &storagepb.SubtreeProto{
 		Prefix:        id,
 		Depth:         8,
