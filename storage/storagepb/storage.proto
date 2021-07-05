@@ -27,8 +27,8 @@ message SubtreeProto {
   // subtree's depth
   int32 depth = 2;
 
-  // Deprecated: Stored the root hash of the tile, but was not used.
-  bytes root_hash = 3;
+  // The root hash of the tile.
+  bytes root_hash = 3 [deprecated=true];
 
   // map of suffix (within subtree) to subtree-leaf node hash
   map<string, bytes> leaves = 4;
