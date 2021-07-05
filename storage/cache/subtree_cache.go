@@ -231,7 +231,10 @@ func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc)
 			return nil, err
 		}
 		if c == nil {
-			c = s.newEmptySubtree(subID)
+			// Storage didn't have one for us, so we'll store an empty tile here in
+			// case we try to update it later on (we won't flush it back to storage
+			// unless it's been written to).
+			c = newEmptyTile(subID)
 		} else {
 			if err := PopulateLogTile(c, s.hasher); err != nil {
 				return nil, err
@@ -351,20 +354,4 @@ func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) e
 	}
 	err := setSubtrees(ctx, treesToWrite)
 	return err
-}
-
-// newEmptySubtree creates an empty subtree for the passed-in ID.
-func (s *SubtreeCache) newEmptySubtree(id []byte) *storagepb.SubtreeProto {
-	if glog.V(2) {
-		glog.Infof("Creating new empty subtree for %x", id)
-	}
-	// Storage didn't have one for us, so we'll store an empty proto here in case
-	// we try to update it later on (we won't flush it back to storage unless
-	// it's been written to).
-	return &storagepb.SubtreeProto{
-		Prefix:        id,
-		Depth:         8,
-		Leaves:        make(map[string][]byte),
-		InternalNodes: make(map[string][]byte),
-	}
 }

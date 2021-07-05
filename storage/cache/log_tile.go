@@ -136,3 +136,13 @@ func toSuffix(id compact.NodeID) string {
 	binary.BigEndian.PutUint64(index[:], id.Index<<(maxLogDepth-depth))
 	return tree.NewSuffix(uint8(depth), index[:]).String()
 }
+
+// newEmptyTile creates an empty log tile for the passed-in ID.
+func newEmptyTile(id []byte) *storagepb.SubtreeProto {
+	return &storagepb.SubtreeProto{
+		Prefix:        id,
+		Depth:         8,
+		Leaves:        make(map[string][]byte),
+		InternalNodes: make(map[string][]byte),
+	}
+}
