@@ -27,9 +27,6 @@ message SubtreeProto {
   // subtree's depth
   int32 depth = 2;
 
-  // The root hash of the tile.
-  bytes root_hash = 3 [deprecated=true];
-
   // map of suffix (within subtree) to subtree-leaf node hash
   map<string, bytes> leaves = 4;
 
@@ -41,4 +38,6 @@ message SubtreeProto {
   // Used as a crosscheck on the internal node map by recording its expected
   // size after loading and repopulation.
   uint32 internal_node_count = 6;
+
+  reserved 3;
 }
