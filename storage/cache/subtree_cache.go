@@ -231,6 +231,9 @@ func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc)
 			return nil, err
 		}
 		if c == nil {
+			// Storage didn't have one for us, so we'll store an empty tile here in
+			// case we try to update it later on (we won't flush it back to storage
+			// unless it's been written to).
 			c = newEmptyTile(subID)
 		} else {
 			if err := PopulateLogTile(c, s.hasher); err != nil {

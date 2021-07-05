@@ -143,9 +143,6 @@ func newEmptyTile(id []byte) *storagepb.SubtreeProto {
 	if glog.V(2) {
 		glog.Infof("Creating new empty tile for %x", id)
 	}
-	// Storage didn't have one for us, so we'll store an empty proto here in case
-	// we try to update it later on (we won't flush it back to storage unless
-	// it's been written to).
 	return &storagepb.SubtreeProto{
 		Prefix:        id,
 		Depth:         8,
