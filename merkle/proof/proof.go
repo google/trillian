@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package merkle
+// Package proof contains helpers for constructing log Merkle tree proofs.
+package proof
 
 import (
 	"math/bits"
@@ -20,9 +21,16 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-// consistencyNodes returns node addresses for the consistency proof between
-// the given tree sizes.
-func consistencyNodes(size1, size2 uint64) []NodeFetch {
+// NodeFetch bundles a node ID with additional information on how to use the
+// node to construct a proof.
+type NodeFetch struct {
+	ID     compact.NodeID
+	Rehash bool
+}
+
+// Consistency returns node addresses for the consistency proof between the
+// given tree sizes.
+func Consistency(size1, size2 uint64) []NodeFetch {
 	if size1 == size2 {
 		return []NodeFetch{}
 	}
@@ -40,13 +48,13 @@ func consistencyNodes(size1, size2 uint64) []NodeFetch {
 	}
 
 	// Now append the path from this node to the root of size2.
-	p := proofNodes(index, level, size2, true)
+	p := Nodes(index, level, size2, true)
 	return append(proof, p...)
 }
 
-// proofNodes returns the node IDs necessary to prove that the (level, index)
-// node is included in the Merkle tree of the given size.
-func proofNodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch {
+// Nodes returns the node IDs necessary to prove that the (level, index) node
+// is included in the Merkle tree of the given size.
+func Nodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch {
 	// [begin, end) is the leaves range covered by the (level, index) node.
 	begin, end := index<<level, (index+1)<<level
 	// To prove inclusion of range [begin, end), we only need nodes of compact

@@ -17,17 +17,14 @@ package merkle
 import (
 	"errors"
 
-	"github.com/google/trillian/merkle/compact"
+	"github.com/google/trillian/merkle/proof"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // NodeFetch bundles a node ID with additional information on how to use the
 // node to construct a proof.
-type NodeFetch struct {
-	ID     compact.NodeID
-	Rehash bool
-}
+type NodeFetch = proof.NodeFetch
 
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to build an
 // inclusion proof for a specified tree size and leaf index. All the returned
@@ -44,7 +41,7 @@ func CalcInclusionProofNodeAddresses(size, index int64) ([]NodeFetch, error) {
 	if index < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
 	}
-	return proofNodes(uint64(index), 0, uint64(size), true), nil
+	return proof.Nodes(uint64(index), 0, uint64(size), true), nil
 }
 
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to build
@@ -63,7 +60,7 @@ func CalcConsistencyProofNodeAddresses(size1, size2 int64) ([]NodeFetch, error) 
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d > size2 %d", size1, size2)
 	}
 
-	return consistencyNodes(uint64(size1), uint64(size2)), nil
+	return proof.Consistency(uint64(size1), uint64(size2)), nil
 }
 
 // Rehash computes the proof based on the slice of NodeFetch structs, and the
