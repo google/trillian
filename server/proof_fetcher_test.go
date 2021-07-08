@@ -40,7 +40,7 @@ func TestTree813FetchAll(t *testing.T) {
 	})
 
 	for l := int64(271); l < ts; l++ {
-		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l, ts)
+		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 
 		for s := int64(2); s <= int64(ts); s++ {
 			for l := int64(0); l < s; l++ {
-				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, int64(ts))
+				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -127,7 +127,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 
 	for s := int64(2); s <= 32; s++ {
 		for l := int64(0); l < s; l++ {
-			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, 32)
+			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l)
 			if err != nil {
 				t.Fatal(err)
 			}

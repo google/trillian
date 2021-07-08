@@ -44,13 +44,12 @@ func checkSize(desc string, size, storedSize int64) error {
 }
 
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to build an
-// inclusion proof for a specified tree size and leaf index. The size parameter
-// is the tree size being queried for, storedSize is the actual size of the
-// tree at the revision we are using to fetch nodes (this can be > size).
+// inclusion proof for a specified tree size and leaf index. All the returned
+// nodes represent complete subtrees in the tree of this size or above.
 //
 // Use Rehash function to compose the proof after the node hashes are fetched.
-func CalcInclusionProofNodeAddresses(size, index, storedSize int64) ([]NodeFetch, error) {
-	if err := checkSize("size", size, storedSize); err != nil {
+func CalcInclusionProofNodeAddresses(size, index int64) ([]NodeFetch, error) {
+	if err := checkSize("size", size, size); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
 	}
 	if index >= size {
@@ -59,9 +58,7 @@ func CalcInclusionProofNodeAddresses(size, index, storedSize int64) ([]NodeFetch
 	if index < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
 	}
-	// Note: If size < storedSize, the storage might not contain the
-	// "ephemeral" node of this proof, so rehashing is needed.
-	return proofNodes(uint64(index), 0, uint64(size), size < storedSize), nil
+	return proofNodes(uint64(index), 0, uint64(size), true), nil
 }
 
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to build
