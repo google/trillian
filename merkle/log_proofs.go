@@ -87,12 +87,12 @@ func CalcConsistencyProofNodeAddresses(size1, size2, storedSize int64) ([]NodeFe
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d > size2 %d", size1, size2)
 	}
 
-	return snapshotConsistency(size1, size2, storedSize)
+	return consistencyNodes(size1, size2, storedSize)
 }
 
-// snapshotConsistency does the calculation of consistency proof node addresses
-// between two snapshots in a bigger tree of the given size.
-func snapshotConsistency(size1, size2, storedSize int64) ([]NodeFetch, error) {
+// consistencyNodes does the calculation of consistency proof node addresses
+// between two tree sizes in a bigger tree of the given storedSize.
+func consistencyNodes(size1, size2, storedSize int64) ([]NodeFetch, error) {
 	if size1 == size2 {
 		return []NodeFetch{}, nil
 	}
