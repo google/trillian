@@ -27,6 +27,7 @@ import (
 	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -35,12 +36,19 @@ func init() {
 	runtime.RegisterFunction(partitionByPrefixLenFn)
 	runtime.RegisterFunction(tileToNodeHashFn)
 	runtime.RegisterType(reflect.TypeOf((*Entry)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*Entry)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*Tile)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*Tile)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*leafShardFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*leafShardFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*nodeHash)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*nodeHash)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*tileHashFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*tileHashFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*tileUpdateFn)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*tileUpdateFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*leafShardFn)(nil)).Elem(), wrapMakerLeafShardFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*tileHashFn)(nil)).Elem(), wrapMakerTileHashFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*tileUpdateFn)(nil)).Elem(), wrapMakerTileUpdateFn)
