@@ -24,8 +24,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// NodeFetch bundles a nodeID with additional information on how to use the node to construct the
-// correct proof.
+// NodeFetch bundles a node ID with additional information on how to use the
+// node to construct a proof.
 type NodeFetch struct {
 	ID     compact.NodeID
 	Rehash bool
