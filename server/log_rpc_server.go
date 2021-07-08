@@ -327,7 +327,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return r, nil
 	}
 	// Try to get consistency proof
-	proof, err := tryGetConsistencyProof(ctx, req.FirstTreeSize, req.SecondTreeSize, int64(root.TreeSize), tx, hasher)
+	proof, err := tryGetConsistencyProof(ctx, req.FirstTreeSize, req.SecondTreeSize, tx, hasher)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +386,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, err
 	}
 	// Try to get consistency proof
-	proof, err := tryGetConsistencyProof(ctx, reqProof.FirstTreeSize, reqProof.SecondTreeSize, int64(root.TreeSize), tx, hasher)
+	proof, err := tryGetConsistencyProof(ctx, reqProof.FirstTreeSize, reqProof.SecondTreeSize, tx, hasher)
 	if err != nil {
 		return nil, err
 	}
@@ -398,8 +398,8 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	return r, nil
 }
 
-func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize, rootTreeSize int64, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher) (*trillian.Proof, error) {
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize, rootTreeSize)
+func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize int64, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher) (*trillian.Proof, error) {
+	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize)
 	if err != nil {
 		return nil, err
 	}

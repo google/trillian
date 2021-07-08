@@ -62,34 +62,27 @@ func CalcInclusionProofNodeAddresses(size, index int64) ([]NodeFetch, error) {
 }
 
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to build
-// a consistency proof between two specified tree sizes. size1 and size2
-// represent the two tree sizes for which consistency should be proved,
-// storedSize is the actual size of the tree at the revision we are using to
-// fetch nodes (this can be > size2).
-//
-// The caller is responsible for checking that the input tree sizes correspond
-// to valid tree heads. All returned NodeIDs are tree coordinates within the
-// new tree. It is assumed that they will be fetched from storage at a revision
-// corresponding to the STH associated with the storedSize parameter.
+// a consistency proof between two specified tree sizes. All the returned nodes
+// represent complete subtrees in the tree of size2 or above.
 //
 // Use Rehash function to compose the proof after the node hashes are fetched.
-func CalcConsistencyProofNodeAddresses(size1, size2, storedSize int64) ([]NodeFetch, error) {
-	if err := checkSize("size1", size1, storedSize); err != nil {
+func CalcConsistencyProofNodeAddresses(size1, size2 int64) ([]NodeFetch, error) {
+	if err := checkSize("size1", size1, size2); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
 	}
-	if err := checkSize("size2", size2, storedSize); err != nil {
+	if err := checkSize("size2", size2, size2); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
 	}
 	if size1 > size2 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d > size2 %d", size1, size2)
 	}
 
-	return consistencyNodes(size1, size2, storedSize)
+	return consistencyNodes(size1, size2)
 }
 
-// consistencyNodes does the calculation of consistency proof node addresses
-// between two tree sizes in a bigger tree of the given storedSize.
-func consistencyNodes(size1, size2, storedSize int64) ([]NodeFetch, error) {
+// consistencyNodes returns node addresses for the consistency proof between
+// the given tree sizes.
+func consistencyNodes(size1, size2 int64) ([]NodeFetch, error) {
 	if size1 == size2 {
 		return []NodeFetch{}, nil
 	}
@@ -107,7 +100,7 @@ func consistencyNodes(size1, size2, storedSize int64) ([]NodeFetch, error) {
 	}
 
 	// Now append the path from this node to the root of size2.
-	p := proofNodes(index, level, uint64(size2), size2 < storedSize)
+	p := proofNodes(index, level, uint64(size2), true)
 	return append(proof, p...), nil
 }
 

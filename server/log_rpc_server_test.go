@@ -111,7 +111,7 @@ var (
 		compact.NewNodeID(1, 2),
 	}
 
-	nodeIdsConsistencySize4ToSize7 = []compact.NodeID{compact.NewNodeID(2, 1)}
+	nodeIdsConsistencySize4ToSize7 = []compact.NodeID{compact.NewNodeID(0, 6), compact.NewNodeID(1, 2)}
 	corruptLogRoot                 = &trillian.SignedLogRoot{LogRoot: []byte("this is not tls encoded data")}
 )
 
@@ -1232,26 +1232,36 @@ func TestGetConsistencyProof(t *testing.T) {
 			errStr:     "commit",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
-			nodes:      []tree.Node{{ID: compact.NewNodeID(2, 1), Hash: []byte("nodehash")}},
-			commitErr:  errors.New("commit() failed"),
+			nodes: []tree.Node{
+				{ID: compact.NewNodeID(0, 6), Hash: []byte("nodehash1")},
+				{ID: compact.NewNodeID(1, 2), Hash: []byte("nodehash2")},
+			},
+			commitErr: errors.New("commit() failed"),
 		},
 		{
 			// Storage doesn't return the requested node, should result in an error.
 			req:        &getConsistencyProofRequest7,
-			errStr:     "expected node {2 1} at",
+			errStr:     "expected node {0 6} at",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
-			nodes:      []tree.Node{{ID: compact.NewNodeID(3, 1), Hash: []byte("nodehash")}},
-			noCommit:   true,
+			nodes: []tree.Node{
+				{ID: compact.NewNodeID(3, 1), Hash: []byte("nodehash1")},
+				{ID: compact.NewNodeID(1, 2), Hash: []byte("nodehash2")},
+			},
+			noCommit: true,
 		},
 		{
 			// Storage returns an unexpected extra node, should result in an error.
 			req:        &getConsistencyProofRequest7,
-			errStr:     "expected 1 nodes",
+			errStr:     "expected 2 nodes",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
-			nodes:      []tree.Node{{ID: compact.NewNodeID(2, 1), Hash: []byte("nodehash")}, {ID: compact.NewNodeID(3, 10), Hash: []byte("nodehash2")}},
-			noCommit:   true,
+			nodes: []tree.Node{
+				{ID: compact.NewNodeID(0, 6), Hash: []byte("nodehash1")},
+				{ID: compact.NewNodeID(1, 2), Hash: []byte("nodehash2")},
+				{ID: compact.NewNodeID(3, 10), Hash: []byte("nodehash3")},
+			},
+			noCommit: true,
 		},
 		{
 			// Ask for a proof from size 4 to 8 but the tree is only size 7. This should succeed but with no proof.
@@ -1263,9 +1273,12 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// A normal request which should succeed.
 			req:        &getConsistencyProofRequest7,
-			wantHashes: [][]byte{[]byte("nodehash")},
+			wantHashes: [][]byte{[]byte("\xdeOm%ճ\xf0\xd10:˨φ\xe6\xaa\x12\x80\xba\xbf\xe3\x11XD\xea \xaf\xb2>5\x9b\xe7")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
-			nodes:      []tree.Node{{ID: compact.NewNodeID(2, 1), Hash: []byte("nodehash")}},
+			nodes: []tree.Node{
+				{ID: compact.NewNodeID(0, 6), Hash: []byte("nodehash1")},
+				{ID: compact.NewNodeID(1, 2), Hash: []byte("nodehash2")},
+			},
 		},
 		{
 			// Tests first==second edge case, which should succeed but is an empty proof.
