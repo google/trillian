@@ -20,8 +20,8 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/proof"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/tree"
 )
@@ -31,10 +31,10 @@ import (
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, leafIndex int64, pn proof.Nodes) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
-	proofNodes, err := fetchNodes(ctx, tx, proofNodeFetches)
+	proofNodes, err := fetchNodes(ctx, tx, pn)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 	for i, node := range proofNodes {
 		h[i] = node.Hash
 	}
-	proof, err := merkle.Rehash(h, proofNodeFetches, th.HashChildren)
+	proof, err := merkle.Rehash(h, pn, th.HashChildren)
 	if err != nil {
 		return nil, err
 	}
@@ -56,24 +56,20 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 
 // fetchNodes obtains the nodes denoted by the given NodeFetch structs, and
 // returns them after some validation checks.
-func fetchNodes(ctx context.Context, tx storage.NodeReader, fetches []merkle.NodeFetch) ([]tree.Node, error) {
+func fetchNodes(ctx context.Context, tx storage.NodeReader, pn proof.Nodes) ([]tree.Node, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodes")
 	defer spanEnd()
-	ids := make([]compact.NodeID, 0, len(fetches))
-	for _, fetch := range fetches {
-		ids = append(ids, fetch.ID)
-	}
 
-	nodes, err := tx.GetMerkleNodes(ctx, ids)
+	nodes, err := tx.GetMerkleNodes(ctx, pn.IDs)
 	if err != nil {
 		return nil, err
 	}
-	if got, want := len(nodes), len(ids); got != want {
+	if got, want := len(nodes), len(pn.IDs); got != want {
 		return nil, fmt.Errorf("expected %d nodes from storage but got %d", want, got)
 	}
 	for i, node := range nodes {
 		// Additional check that the correct node was returned.
-		if got, want := node.ID, ids[i]; got != want {
+		if got, want := node.ID, pn.IDs[i]; got != want {
 			return nil, fmt.Errorf("expected node %v at proof pos %d but got %v", want, i, got)
 		}
 	}

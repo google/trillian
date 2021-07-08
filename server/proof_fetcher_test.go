@@ -40,12 +40,12 @@ func TestTree813FetchAll(t *testing.T) {
 	})
 
 	for l := int64(271); l < ts; l++ {
-		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l)
+		pn, err := merkle.CalcInclusionProofNodeAddresses(ts, l)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		proof, err := fetchNodesAndBuildProof(ctx, r, hasher, int64(l), fetches)
+		proof, err := fetchNodesAndBuildProof(ctx, r, hasher, int64(l), pn)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,15 +57,15 @@ func TestTree813FetchAll(t *testing.T) {
 		refProof := mt.PathToRootAtSnapshot(l+1, ts)
 
 		if got, want := len(proof.Hashes), len(refProof); got != want {
-			for i, f := range fetches {
-				t.Errorf("Fetch: %d => %+v", i, f.ID)
+			for i, id := range pn.IDs {
+				t.Errorf("Fetch: %d => %+v", i, id)
 			}
-			t.Fatalf("(%d, %d): got proof len: %d, want: %d: %v\n%v", ts, l, got, want, fetches, refProof)
+			t.Fatalf("(%d, %d): got proof len: %d, want: %d: %v\n%v", ts, l, got, want, pn, refProof)
 		}
 
 		for i := 0; i < len(proof.Hashes); i++ {
 			if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
-				t.Fatalf("(%d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, l, i, got, want, len(proof.Hashes), fetches)
+				t.Fatalf("(%d, %d): %d got proof node: %s, want: %s l:%d nodes: %v", ts, l, i, got, want, len(proof.Hashes), pn)
 			}
 		}
 	}

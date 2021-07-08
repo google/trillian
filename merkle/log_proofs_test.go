@@ -21,6 +21,7 @@ import (
 	_ "github.com/golang/glog" // Logging flags for overarching "go test" runs.
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
+	"github.com/google/trillian/merkle/proof"
 	"github.com/google/trillian/merkle/rfc6962"
 )
 
@@ -46,16 +47,17 @@ import (
 // Our storage node layers are always populated from the bottom up, hence the
 // gap at level 1, index 3 in the above picture.
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
-	node := func(level uint, index uint64) NodeFetch {
-		return newNodeFetch(level, index, false)
+	id := compact.NewNodeID
+	nodes := func(ids ...compact.NodeID) proof.Nodes {
+		return proof.Nodes{IDs: ids}
 	}
-	rehash := func(level uint, index uint64) NodeFetch {
-		return newNodeFetch(level, index, true)
+	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) proof.Nodes {
+		return proof.Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
 	}
 	for _, tc := range []struct {
 		size    int64 // The requested past tree size.
 		index   int64 // Leaf index in the requested tree.
-		want    []NodeFetch
+		want    proof.Nodes
 		wantErr bool
 	}{
 		// Errors.
@@ -68,68 +70,50 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		{size: 7, index: 8, wantErr: true},
 
 		// Small trees.
-		{size: 1, index: 0, want: []NodeFetch{}},
-		{size: 2, index: 0, want: []NodeFetch{node(0, 1)}},             // b
-		{size: 2, index: 1, want: []NodeFetch{node(0, 0)}},             // a
-		{size: 3, index: 1, want: []NodeFetch{node(0, 0), node(0, 2)}}, // a c
+		{size: 1, index: 0, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size: 2, index: 0, want: nodes(id(0, 1))},           // b
+		{size: 2, index: 1, want: nodes(id(0, 0))},           // a
+		{size: 3, index: 1, want: nodes(id(0, 0), id(0, 2))}, // a c
 
 		// Tree of size 7.
-		{size: 7, index: 0, want: []NodeFetch{
-			node(0, 1), node(1, 1), rehash(0, 6), rehash(1, 2),
-		}}, // b h l=hash(i,j)
-		{size: 7, index: 1, want: []NodeFetch{
-			node(0, 0), node(1, 1), rehash(0, 6), rehash(1, 2),
-		}}, // a h l=hash(i,j)
-		{size: 7, index: 2, want: []NodeFetch{
-			node(0, 3), node(1, 0), rehash(0, 6), rehash(1, 2),
-		}}, // d g l=hash(i,j)
-		{size: 7, index: 3, want: []NodeFetch{
-			node(0, 2), node(1, 0), rehash(0, 6), rehash(1, 2),
-		}}, // c g l=hash(i,j)
-		{size: 7, index: 4, want: []NodeFetch{
-			node(0, 5), node(0, 6), node(2, 0),
-		}}, // f j k
-		{size: 7, index: 5, want: []NodeFetch{
-			node(0, 4), node(0, 6), node(2, 0),
-		}}, // e j k
-		{size: 7, index: 6, want: []NodeFetch{
-			node(1, 2), node(2, 0),
-		}}, // i k
+		{size: 7, index: 0, want: rehash(2, 4, id(2, 1), // l=hash(i,j)
+			id(0, 1), id(1, 1), id(0, 6), id(1, 2))}, // b h j i
+		{size: 7, index: 1, want: rehash(2, 4, id(2, 1), // l=hash(i,j)
+			id(0, 0), id(1, 1), id(0, 6), id(1, 2))}, // a h j i
+		{size: 7, index: 2, want: rehash(2, 4, id(2, 1), // l=hash(i,j)
+			id(0, 3), id(1, 0), id(0, 6), id(1, 2))}, // d g j i
+		{size: 7, index: 3, want: rehash(2, 4, id(2, 1), // l=hash(i,j)
+			id(0, 2), id(1, 0), id(0, 6), id(1, 2))}, // c g j i
+		{size: 7, index: 4, want: nodes(id(0, 5), id(0, 6), id(2, 0))}, // f j k
+		{size: 7, index: 5, want: nodes(id(0, 4), id(0, 6), id(2, 0))}, // e j k
+		{size: 7, index: 6, want: nodes(id(1, 2), id(2, 0))},           // i k
 
 		// Smaller trees within a bigger stored tree.
-		{size: 4, index: 2, want: []NodeFetch{
-			node(0, 3), node(1, 0),
-		}}, // d g
-		{size: 5, index: 3, want: []NodeFetch{
-			node(0, 2), node(1, 0), node(0, 4),
-		}}, // c g e
-		{size: 6, index: 3, want: []NodeFetch{
-			node(0, 2), node(1, 0), node(1, 2),
-		}}, // c g i
-		{size: 6, index: 4, want: []NodeFetch{
-			node(0, 5), node(2, 0),
-		}}, // f k
-		{size: 7, index: 1, want: []NodeFetch{
-			node(0, 0), node(1, 1), rehash(0, 6), rehash(1, 2),
-		}}, // a h l=hash(i,j)
-		{size: 7, index: 3, want: []NodeFetch{
-			node(0, 2), node(1, 0), rehash(0, 6), rehash(1, 2),
-		}}, // c g l=hash(i,j)
+		{size: 4, index: 2, want: nodes(id(0, 3), id(1, 0))},           // d g
+		{size: 5, index: 3, want: nodes(id(0, 2), id(1, 0), id(0, 4))}, // c g e
+		{size: 6, index: 3, want: nodes(id(0, 2), id(1, 0), id(1, 2))}, // c g i
+		{size: 6, index: 4, want: nodes(id(0, 5), id(2, 0))},           // f k
+		{size: 7, index: 1, want: rehash(2, 4, id(2, 1), // l=hash(i,j)
+			id(0, 0), id(1, 1), id(0, 6), id(1, 2))}, // a h j i
+		{size: 7, index: 3, want: rehash(2, 4, id(2, 1), // l=hash(i,j)
+			id(0, 2), id(1, 0), id(0, 6), id(1, 2))}, // c g j i
 
 		// Some rehashes in the middle of the returned list.
-		{size: 15, index: 10, want: []NodeFetch{
-			node(0, 11), node(1, 4), rehash(0, 14), rehash(1, 6), node(3, 0),
-		}},
-		{size: 31, index: 24, want: []NodeFetch{
-			node(0, 25), node(1, 13),
-			rehash(0, 30), rehash(1, 14),
-			node(3, 2), node(4, 0),
-		}},
-		{size: 95, index: 81, want: []NodeFetch{
-			node(0, 80), node(1, 41), node(2, 21),
-			rehash(0, 94), rehash(1, 46), rehash(2, 22),
-			node(4, 4), node(6, 0),
-		}},
+		{size: 15, index: 10, want: rehash(2, 4, id(2, 3),
+			id(0, 11), id(1, 4),
+			id(0, 14), id(1, 6),
+			id(3, 0),
+		)},
+		{size: 31, index: 24, want: rehash(2, 4, id(2, 7),
+			id(0, 25), id(1, 13),
+			id(0, 30), id(1, 14),
+			id(3, 2), id(4, 0),
+		)},
+		{size: 95, index: 81, want: rehash(3, 6, id(3, 11),
+			id(0, 80), id(1, 41), id(2, 21),
+			id(0, 94), id(1, 46), id(2, 22),
+			id(4, 4), id(6, 0),
+		)},
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
 			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index)
@@ -170,16 +154,17 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 // The consistency proof between tree size 5 and 7 consists of nodes e, f, j,
 // and k. The node j is taken instead of its missing parent.
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
-	node := func(level uint, index uint64) NodeFetch {
-		return newNodeFetch(level, index, false)
+	id := compact.NewNodeID
+	nodes := func(ids ...compact.NodeID) proof.Nodes {
+		return proof.Nodes{IDs: ids}
 	}
-	rehash := func(level uint, index uint64) NodeFetch {
-		return newNodeFetch(level, index, true)
+	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) proof.Nodes {
+		return proof.Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
 	}
 	for _, tc := range []struct {
 		size1   int64 // The smaller of the two tree sizes.
 		size2   int64 // The bigger of the two tree sizes.
-		want    []NodeFetch
+		want    proof.Nodes
 		wantErr bool
 	}{
 		// Errors.
@@ -189,79 +174,54 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: 0, size2: 0, wantErr: true},
 		{size1: 9, size2: 8, wantErr: true},
 
-		{size1: 1, size2: 2, want: []NodeFetch{node(0, 1)}},             // b
-		{size1: 1, size2: 4, want: []NodeFetch{node(0, 1), node(1, 1)}}, // b h
-		{size1: 1, size2: 6, want: []NodeFetch{
-			node(0, 1), // b
-			node(1, 1), // h
-			node(1, 2), // i
-		}},
-		{size1: 2, size2: 3, want: []NodeFetch{node(0, 2)}},             // c
-		{size1: 2, size2: 8, want: []NodeFetch{node(1, 1), node(2, 1)}}, // h l
-		{size1: 3, size2: 7, want: []NodeFetch{
-			node(0, 2),                 // c
-			node(0, 3),                 // d
-			node(1, 0),                 // g
-			rehash(0, 6), rehash(1, 2), // l=hash(i,j)
-		}},
-		{size1: 4, size2: 7, want: []NodeFetch{rehash(0, 6), rehash(1, 2)}}, // l=hash(i,j)
-		{size1: 5, size2: 7, want: []NodeFetch{
-			node(0, 4), // e
-			node(0, 5), // f
-			node(0, 6), // j
-			node(2, 0), // k
-		}},
-		{size1: 6, size2: 7, want: []NodeFetch{
-			node(1, 2), // i
-			node(0, 6), // j
-			node(2, 0), // k
-		}},
-		{size1: 7, size2: 8, want: []NodeFetch{
-			node(0, 6), // j
-			node(0, 7), // leaf #7
-			node(1, 2), // i
-			node(2, 0), // k
-		}},
+		{size1: 1, size2: 2, want: nodes(id(0, 1))},                     // b
+		{size1: 1, size2: 4, want: nodes(id(0, 1), id(1, 1))},           // b h
+		{size1: 1, size2: 6, want: nodes(id(0, 1), id(1, 1), id(1, 2))}, // b h i
+		{size1: 2, size2: 3, want: nodes(id(0, 2))},                     // c
+		{size1: 2, size2: 8, want: nodes(id(1, 1), id(2, 1))},           // h l
+		{size1: 3, size2: 7, want: rehash(3, 5, id(2, 1), // l=hash(i,j)
+			id(0, 2), id(0, 3), id(1, 0), id(0, 6), id(1, 2))}, // c d g j i
+		{size1: 4, size2: 7, want: rehash(0, 2, id(2, 1), // l=hash(i,j)
+			id(0, 6), id(1, 2))}, // j i
+		{size1: 5, size2: 7, want: nodes(
+			id(0, 4), id(0, 5), id(0, 6), id(2, 0))}, // e f j k
+		{size1: 6, size2: 7, want: nodes(
+			id(1, 2), id(0, 6), id(2, 0))}, // i j k
+		{size1: 7, size2: 8, want: nodes(
+			id(0, 6), id(0, 7), id(1, 2), id(2, 0))}, // j leaf#7 i k
 
 		// Same tree size.
-		{size1: 1, size2: 1, want: []NodeFetch{}},
-		{size1: 2, size2: 2, want: []NodeFetch{}},
-		{size1: 3, size2: 3, want: []NodeFetch{}},
-		{size1: 4, size2: 4, want: []NodeFetch{}},
-		{size1: 5, size2: 5, want: []NodeFetch{}},
-		{size1: 7, size2: 7, want: []NodeFetch{}},
-		{size1: 8, size2: 8, want: []NodeFetch{}},
+		{size1: 1, size2: 1, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size1: 2, size2: 2, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size1: 3, size2: 3, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size1: 4, size2: 4, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size1: 5, size2: 5, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size1: 7, size2: 7, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size1: 8, size2: 8, want: proof.Nodes{IDs: []compact.NodeID{}}},
 
 		// Smaller trees within a bigger stored tree.
-		{size1: 2, size2: 4, want: []NodeFetch{node(1, 1)}}, // h
-		{size1: 3, size2: 5, want: []NodeFetch{
-			node(0, 2), node(0, 3), node(1, 0), node(0, 4),
-		}}, // c d g e
-		{size1: 3, size2: 6, want: []NodeFetch{
-			node(0, 2), node(0, 3), node(1, 0), node(1, 2),
-		}}, // c d g i
-		{size1: 4, size2: 6, want: []NodeFetch{node(1, 2)}}, // i
-		{size1: 1, size2: 7, want: []NodeFetch{
-			node(0, 1), node(1, 1), rehash(0, 6), rehash(1, 2),
-		}}, // b h l=hash(i,j)
-		{size1: 3, size2: 7, want: []NodeFetch{
-			node(0, 2), node(0, 3), node(1, 0), rehash(0, 6), rehash(1, 2),
-		}}, // c d g l=hash(i,j)
+		{size1: 2, size2: 4, want: nodes(id(1, 1))}, // h
+		{size1: 3, size2: 5, want: nodes(
+			id(0, 2), id(0, 3), id(1, 0), id(0, 4))}, // c d g e
+		{size1: 3, size2: 6, want: nodes(
+			id(0, 2), id(0, 3), id(1, 0), id(1, 2))}, // c d g i
+		{size1: 4, size2: 6, want: nodes(id(1, 2))}, // i
+		{size1: 1, size2: 7, want: rehash(2, 4, id(2, 1), // l=hash(i,j)
+			id(0, 1), id(1, 1), id(0, 6), id(1, 2))}, // b h j i
 
 		// Some rehashes in the middle of the returned list.
-		{size1: 10, size2: 15, want: []NodeFetch{
-			node(1, 4), node(1, 5), rehash(0, 14), rehash(1, 6), node(3, 0),
-		}},
-		{size1: 24, size2: 31, want: []NodeFetch{
-			node(3, 2),
-			rehash(0, 30), rehash(1, 14), rehash(2, 6),
-			node(4, 0),
-		}},
-		{size1: 81, size2: 95, want: []NodeFetch{
-			node(0, 80), node(0, 81), node(1, 41), node(2, 21),
-			rehash(0, 94), rehash(1, 46), rehash(2, 22),
-			node(4, 4), node(6, 0),
-		}},
+		{size1: 10, size2: 15, want: rehash(2, 4, id(2, 3),
+			id(1, 4), id(1, 5), id(0, 14), id(1, 6), id(3, 0))},
+		{size1: 24, size2: 31, want: rehash(1, 4, id(3, 3),
+			id(3, 2),
+			id(0, 30), id(1, 14), id(2, 6),
+			id(4, 0),
+		)},
+		{size1: 81, size2: 95, want: rehash(4, 7, id(3, 11),
+			id(0, 80), id(0, 81), id(1, 41), id(2, 21),
+			id(0, 94), id(1, 46), id(2, 22),
+			id(4, 4), id(6, 0),
+		)},
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
 			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2)
@@ -315,59 +275,37 @@ func TestRehasher(t *testing.T) {
 	for _, tc := range []struct {
 		desc   string
 		hashes [][]byte
-		rehash []bool
+		nodes  proof.Nodes
 		want   [][]byte
 	}{
 		{
-			desc:   "no rehash",
+			desc:   "no-rehash",
 			hashes: h[:3],
-			rehash: []bool{false, false, false},
+			nodes:  proof.Inclusion(3, 8),
 			want:   h[:3],
 		},
 		{
-			desc:   "single rehash",
+			desc:   "rehash",
 			hashes: h[:5],
-			rehash: []bool{false, true, true, false, false},
-			want:   [][]byte{h[0], th.HashChildren(h[2], h[1]), h[3], h[4]},
+			nodes:  proof.Inclusion(9, 15),
+			want:   [][]byte{h[0], h[1], th.HashChildren(h[3], h[2]), h[4]},
 		},
 		{
-			desc:   "single rehash at end",
-			hashes: h[:3],
-			rehash: []bool{false, true, true},
-			want:   [][]byte{h[0], th.HashChildren(h[2], h[1])},
-		},
-		{
-			desc:   "single rehash multiple nodes",
-			hashes: h[:5],
-			rehash: []bool{false, true, true, true, false},
-			want:   [][]byte{h[0], th.HashChildren(h[3], th.HashChildren(h[2], h[1])), h[4]},
-		},
-		{
-			// TODO(pavelkalinnikov): This will never happen in our use-case. Design
-			// the type to not allow multi-rehash by design.
-			desc:   "multiple rehash",
-			hashes: h[:5],
-			rehash: []bool{true, true, false, true, true},
-			want:   [][]byte{th.HashChildren(h[1], h[0]), h[2], th.HashChildren(h[4], h[3])},
+			desc:   "rehash-at-the-end",
+			hashes: h[:4],
+			nodes:  proof.Inclusion(2, 7),
+			want:   [][]byte{h[0], h[1], th.HashChildren(h[3], h[2])},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			nf := make([]NodeFetch, len(tc.rehash))
-			for i, r := range tc.rehash {
-				nf[i].Rehash = r
-			}
 			h := append([][]byte{}, tc.hashes...)
-			got, err := Rehash(h, nf, th.HashChildren)
+			got, err := Rehash(h, tc.nodes, th.HashChildren)
 			if err != nil {
-				t.Errorf("Rehash: %v", err)
+				t.Fatalf("Rehash: %v", err)
 			}
 			if want := tc.want; !cmp.Equal(got, want) {
 				t.Errorf("proofs mismatch:\ngot: %x\nwant: %x", got, want)
 			}
 		})
 	}
-}
-
-func newNodeFetch(level uint, index uint64, rehash bool) NodeFetch {
-	return NodeFetch{ID: compact.NewNodeID(level, index), Rehash: rehash}
 }
