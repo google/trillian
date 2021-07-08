@@ -16,7 +16,6 @@ package merkle
 
 import (
 	"errors"
-	"fmt"
 	"math/bits"
 
 	"github.com/google/trillian/merkle/compact"
@@ -31,26 +30,14 @@ type NodeFetch struct {
 	Rehash bool
 }
 
-// checkSize performs a couple of simple sanity checks on size and storedSize
-// and returns an error if there's a problem.
-func checkSize(desc string, size, storedSize int64) error {
-	if size < 1 {
-		return fmt.Errorf("%s %d < 1", desc, size)
-	}
-	if size > storedSize {
-		return fmt.Errorf("%s %d > storedSize %d", desc, size, storedSize)
-	}
-	return nil
-}
-
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to build an
 // inclusion proof for a specified tree size and leaf index. All the returned
 // nodes represent complete subtrees in the tree of this size or above.
 //
 // Use Rehash function to compose the proof after the node hashes are fetched.
 func CalcInclusionProofNodeAddresses(size, index int64) ([]NodeFetch, error) {
-	if err := checkSize("size", size, size); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
+	if size < 1 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: size %d < 1", size)
 	}
 	if index >= size {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is >= size %d", index, size)
@@ -67,11 +54,11 @@ func CalcInclusionProofNodeAddresses(size, index int64) ([]NodeFetch, error) {
 //
 // Use Rehash function to compose the proof after the node hashes are fetched.
 func CalcConsistencyProofNodeAddresses(size1, size2 int64) ([]NodeFetch, error) {
-	if err := checkSize("size1", size1, size2); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+	if size1 < 1 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d < 1", size1)
 	}
-	if err := checkSize("size2", size2, size2); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+	if size2 < 1 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size2 %d < 1", size2)
 	}
 	if size1 > size2 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d > size2 %d", size1, size2)
