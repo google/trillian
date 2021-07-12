@@ -111,6 +111,8 @@ func proofNodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch 
 	// are special, because their hashes are collapsed into a single "ephemeral"
 	// hash. This hash is already known if rehash==false, otherwise the caller
 	// needs to compute it based on the hashes of compact range [end+l, size).
+	//
+	// TODO(pavelkalinnikov): Always assume rehash = true.
 	var right []compact.NodeID
 	if r != 0 {
 		if rehash {
