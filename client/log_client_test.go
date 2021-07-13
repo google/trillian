@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/trillian"
 	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/server"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/types"
 	"google.golang.org/protobuf/proto"
@@ -130,9 +131,11 @@ func TestWaitForInclusion(t *testing.T) {
 
 			if !test.skipPreCheck {
 				cctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+				server.CancelInTheMiddleOfTx = true
 				if err := client.WaitForInclusion(cctx, test.leaf); err == nil {
 					t.Error("WaitForInclusion before sequencing succeeded, want error")
 				}
+				server.CancelInTheMiddleOfTx = false
 				cancel()
 			}
 
