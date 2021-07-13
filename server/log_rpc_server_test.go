@@ -752,7 +752,7 @@ func TestGetProofByHash(t *testing.T) {
 				Hashes: [][]byte{
 					[]byte("nodehash0"),
 					[]byte("nodehash1"),
-					[]byte("c\x8any\xbb\xac\xfd\x9c\xaanc\x82\xc3W\xa7vXEȦ\xf6\xfb\xd2=\x88ɽ\xa1C\x95\xa4\x95"),
+					th.HashChildren([]byte("nodehash3"), []byte("nodehash2")),
 				},
 			}
 
@@ -909,7 +909,7 @@ func TestGetProofByIndex(t *testing.T) {
 					Hashes: [][]byte{
 						[]byte("nodehash0"),
 						[]byte("nodehash1"),
-						[]byte("c\x8any\xbb\xac\xfd\x9c\xaanc\x82\xc3W\xa7vXEȦ\xf6\xfb\xd2=\x88ɽ\xa1C\x95\xa4\x95"),
+						th.HashChildren([]byte("nodehash3"), []byte("nodehash2")),
 					},
 				},
 			},
@@ -1099,7 +1099,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					Hashes: [][]byte{
 						[]byte("nodehash0"),
 						[]byte("nodehash1"),
-						[]byte("c\x8any\xbb\xac\xfd\x9c\xaanc\x82\xc3W\xa7vXEȦ\xf6\xfb\xd2=\x88ɽ\xa1C\x95\xa4\x95"),
+						th.HashChildren([]byte("nodehash3"), []byte("nodehash2")),
 					},
 				},
 				Leaf: leaf1,
@@ -1143,7 +1143,7 @@ func TestGetEntryAndProof(t *testing.T) {
 					Hashes: [][]byte{
 						[]byte("nodehash0"),
 						[]byte("nodehash1"),
-						[]byte("c\x8any\xbb\xac\xfd\x9c\xaanc\x82\xc3W\xa7vXEȦ\xf6\xfb\xd2=\x88ɽ\xa1C\x95\xa4\x95"),
+						th.HashChildren([]byte("nodehash3"), []byte("nodehash2")),
 					},
 				},
 				Leaf: leaf1,
@@ -1273,7 +1273,7 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// A normal request which should succeed.
 			req:        &getConsistencyProofRequest7,
-			wantHashes: [][]byte{[]byte("\xdeOm%ճ\xf0\xd10:˨φ\xe6\xaa\x12\x80\xba\xbf\xe3\x11XD\xea \xaf\xb2>5\x9b\xe7")},
+			wantHashes: [][]byte{th.HashChildren([]byte("nodehash2"), []byte("nodehash1"))},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
 			nodes: []tree.Node{
 				{ID: compact.NewNodeID(0, 6), Hash: []byte("nodehash1")},
