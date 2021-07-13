@@ -55,20 +55,17 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	for _, tc := range []struct {
 		size    int64 // The requested past tree size.
 		index   int64 // Leaf index in the requested tree.
-		bigSize int64 // The current tree size.
 		want    []NodeFetch
 		wantErr bool
 	}{
 		// Errors.
-		{size: 0, index: 0, bigSize: 0, wantErr: true},
-		{size: 0, index: 1, bigSize: 0, wantErr: true},
-		{size: 1, index: 0, bigSize: 0, wantErr: true},
-		{size: 1, index: 2, bigSize: 1, wantErr: true},
-		{size: 0, index: 3, bigSize: 0, wantErr: true},
-		{size: -1, index: 3, bigSize: -1, wantErr: true},
-		{size: 7, index: -1, bigSize: 7, wantErr: true},
-		{size: 7, index: 8, bigSize: 7, wantErr: true},
-		{size: 7, index: 3, bigSize: -7, wantErr: true},
+		{size: 0, index: 0, wantErr: true},
+		{size: 0, index: 1, wantErr: true},
+		{size: 1, index: 2, wantErr: true},
+		{size: 0, index: 3, wantErr: true},
+		{size: -1, index: 3, wantErr: true},
+		{size: 7, index: -1, wantErr: true},
+		{size: 7, index: 8, wantErr: true},
 
 		// Small trees.
 		{size: 1, index: 0, want: []NodeFetch{}},
@@ -78,17 +75,17 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 
 		// Tree of size 7.
 		{size: 7, index: 0, want: []NodeFetch{
-			node(0, 1), node(1, 1), node(2, 1),
-		}}, // b h l
+			node(0, 1), node(1, 1), rehash(0, 6), rehash(1, 2),
+		}}, // b h l=hash(i,j)
 		{size: 7, index: 1, want: []NodeFetch{
-			node(0, 0), node(1, 1), node(2, 1),
-		}}, // a h l
+			node(0, 0), node(1, 1), rehash(0, 6), rehash(1, 2),
+		}}, // a h l=hash(i,j)
 		{size: 7, index: 2, want: []NodeFetch{
-			node(0, 3), node(1, 0), node(2, 1),
-		}}, // d g l
+			node(0, 3), node(1, 0), rehash(0, 6), rehash(1, 2),
+		}}, // d g l=hash(i,j)
 		{size: 7, index: 3, want: []NodeFetch{
-			node(0, 2), node(1, 0), node(2, 1),
-		}}, // c g l
+			node(0, 2), node(1, 0), rehash(0, 6), rehash(1, 2),
+		}}, // c g l=hash(i,j)
 		{size: 7, index: 4, want: []NodeFetch{
 			node(0, 5), node(0, 6), node(2, 0),
 		}}, // f j k
@@ -100,47 +97,42 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		}}, // i k
 
 		// Smaller trees within a bigger stored tree.
-		{size: 4, index: 2, bigSize: 7, want: []NodeFetch{
+		{size: 4, index: 2, want: []NodeFetch{
 			node(0, 3), node(1, 0),
 		}}, // d g
-		{size: 5, index: 3, bigSize: 7, want: []NodeFetch{
+		{size: 5, index: 3, want: []NodeFetch{
 			node(0, 2), node(1, 0), node(0, 4),
 		}}, // c g e
-		{size: 6, index: 3, bigSize: 7, want: []NodeFetch{
+		{size: 6, index: 3, want: []NodeFetch{
 			node(0, 2), node(1, 0), node(1, 2),
 		}}, // c g i
-		{size: 6, index: 4, bigSize: 8, want: []NodeFetch{
+		{size: 6, index: 4, want: []NodeFetch{
 			node(0, 5), node(2, 0),
 		}}, // f k
-		{size: 7, index: 1, bigSize: 8, want: []NodeFetch{
+		{size: 7, index: 1, want: []NodeFetch{
 			node(0, 0), node(1, 1), rehash(0, 6), rehash(1, 2),
 		}}, // a h l=hash(i,j)
-		{size: 7, index: 3, bigSize: 8, want: []NodeFetch{
+		{size: 7, index: 3, want: []NodeFetch{
 			node(0, 2), node(1, 0), rehash(0, 6), rehash(1, 2),
 		}}, // c g l=hash(i,j)
 
 		// Some rehashes in the middle of the returned list.
-		{size: 15, index: 10, bigSize: 21, want: []NodeFetch{
+		{size: 15, index: 10, want: []NodeFetch{
 			node(0, 11), node(1, 4), rehash(0, 14), rehash(1, 6), node(3, 0),
 		}},
-		{size: 31, index: 24, bigSize: 41, want: []NodeFetch{
+		{size: 31, index: 24, want: []NodeFetch{
 			node(0, 25), node(1, 13),
 			rehash(0, 30), rehash(1, 14),
 			node(3, 2), node(4, 0),
 		}},
-		{size: 95, index: 81, bigSize: 111, want: []NodeFetch{
+		{size: 95, index: 81, want: []NodeFetch{
 			node(0, 80), node(1, 41), node(2, 21),
 			rehash(0, 94), rehash(1, 46), rehash(2, 22),
 			node(4, 4), node(6, 0),
 		}},
 	} {
-		bigSize := tc.bigSize
-		// Use the same tree size by default.
-		if bigSize == 0 && !tc.wantErr {
-			bigSize = tc.size
-		}
-		t.Run(fmt.Sprintf("%d:%d:%d", tc.size, tc.index, bigSize), func(t *testing.T) {
-			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index, bigSize)
+		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
+			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("accepted bad params")
@@ -187,7 +179,6 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	for _, tc := range []struct {
 		size1   int64 // The smaller of the two tree sizes.
 		size2   int64 // The bigger of the two tree sizes.
-		bigSize int64 // The current tree size.
 		want    []NodeFetch
 		wantErr bool
 	}{
@@ -196,9 +187,7 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: -10, size2: 0, wantErr: true},
 		{size1: -1, size2: -1, wantErr: true},
 		{size1: 0, size2: 0, wantErr: true},
-		{size1: 5, size2: 9, bigSize: 7, wantErr: true},
 		{size1: 9, size2: 8, wantErr: true},
-		{size1: 9, size2: 8, bigSize: 20, wantErr: true},
 
 		{size1: 1, size2: 2, want: []NodeFetch{node(0, 1)}},             // b
 		{size1: 1, size2: 4, want: []NodeFetch{node(0, 1), node(1, 1)}}, // b h
@@ -210,12 +199,12 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: 2, size2: 3, want: []NodeFetch{node(0, 2)}},             // c
 		{size1: 2, size2: 8, want: []NodeFetch{node(1, 1), node(2, 1)}}, // h l
 		{size1: 3, size2: 7, want: []NodeFetch{
-			node(0, 2), // c
-			node(0, 3), // d
-			node(1, 0), // g
-			node(2, 1), // l
+			node(0, 2),                 // c
+			node(0, 3),                 // d
+			node(1, 0),                 // g
+			rehash(0, 6), rehash(1, 2), // l=hash(i,j)
 		}},
-		{size1: 4, size2: 7, want: []NodeFetch{node(2, 1)}}, // l
+		{size1: 4, size2: 7, want: []NodeFetch{rehash(0, 6), rehash(1, 2)}}, // l=hash(i,j)
 		{size1: 5, size2: 7, want: []NodeFetch{
 			node(0, 4), // e
 			node(0, 5), // f
@@ -244,43 +233,38 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		{size1: 8, size2: 8, want: []NodeFetch{}},
 
 		// Smaller trees within a bigger stored tree.
-		{size1: 2, size2: 4, bigSize: 7, want: []NodeFetch{node(1, 1)}}, // h
-		{size1: 3, size2: 5, bigSize: 7, want: []NodeFetch{
+		{size1: 2, size2: 4, want: []NodeFetch{node(1, 1)}}, // h
+		{size1: 3, size2: 5, want: []NodeFetch{
 			node(0, 2), node(0, 3), node(1, 0), node(0, 4),
 		}}, // c d g e
-		{size1: 3, size2: 6, bigSize: 7, want: []NodeFetch{
+		{size1: 3, size2: 6, want: []NodeFetch{
 			node(0, 2), node(0, 3), node(1, 0), node(1, 2),
 		}}, // c d g i
-		{size1: 4, size2: 6, bigSize: 8, want: []NodeFetch{node(1, 2)}}, // i
-		{size1: 1, size2: 7, bigSize: 8, want: []NodeFetch{
+		{size1: 4, size2: 6, want: []NodeFetch{node(1, 2)}}, // i
+		{size1: 1, size2: 7, want: []NodeFetch{
 			node(0, 1), node(1, 1), rehash(0, 6), rehash(1, 2),
 		}}, // b h l=hash(i,j)
-		{size1: 3, size2: 7, bigSize: 8, want: []NodeFetch{
+		{size1: 3, size2: 7, want: []NodeFetch{
 			node(0, 2), node(0, 3), node(1, 0), rehash(0, 6), rehash(1, 2),
 		}}, // c d g l=hash(i,j)
 
 		// Some rehashes in the middle of the returned list.
-		{size1: 10, size2: 15, bigSize: 21, want: []NodeFetch{
+		{size1: 10, size2: 15, want: []NodeFetch{
 			node(1, 4), node(1, 5), rehash(0, 14), rehash(1, 6), node(3, 0),
 		}},
-		{size1: 24, size2: 31, bigSize: 41, want: []NodeFetch{
+		{size1: 24, size2: 31, want: []NodeFetch{
 			node(3, 2),
 			rehash(0, 30), rehash(1, 14), rehash(2, 6),
 			node(4, 0),
 		}},
-		{size1: 81, size2: 95, bigSize: 111, want: []NodeFetch{
+		{size1: 81, size2: 95, want: []NodeFetch{
 			node(0, 80), node(0, 81), node(1, 41), node(2, 21),
 			rehash(0, 94), rehash(1, 46), rehash(2, 22),
 			node(4, 4), node(6, 0),
 		}},
 	} {
-		bigSize := tc.bigSize
-		// Use the same tree size by default.
-		if bigSize == 0 && !tc.wantErr {
-			bigSize = tc.size2
-		}
-		t.Run(fmt.Sprintf("%d:%d:%d", tc.size1, tc.size2, bigSize), func(t *testing.T) {
-			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2, bigSize)
+		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
+			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("accepted bad params")
@@ -300,7 +284,7 @@ func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 	const maxSize = 555
 	for ts := 1; ts <= maxSize; ts++ {
 		for i := ts; i < ts; i++ {
-			if _, err := CalcInclusionProofNodeAddresses(int64(ts), int64(i), int64(ts)); err != nil {
+			if _, err := CalcInclusionProofNodeAddresses(int64(ts), int64(i)); err != nil {
 				t.Errorf("CalcInclusionProofNodeAddresses(ts:%d, i:%d) = %v", ts, i, err)
 			}
 		}
@@ -311,7 +295,7 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 	const maxSize = 100
 	for s1 := 1; s1 < maxSize; s1++ {
 		for s2 := s1 + 1; s2 <= maxSize; s2++ {
-			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2), int64(s2)); err != nil {
+			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2)); err != nil {
 				t.Errorf("CalcConsistencyProofNodeAddresses(%d, %d) = %v", s1, s2, err)
 			}
 		}

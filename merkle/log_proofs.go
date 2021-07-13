@@ -16,7 +16,6 @@ package merkle
 
 import (
 	"errors"
-	"fmt"
 	"math/bits"
 
 	"github.com/google/trillian/merkle/compact"
@@ -31,27 +30,14 @@ type NodeFetch struct {
 	Rehash bool
 }
 
-// checkSize performs a couple of simple sanity checks on size and storedSize
-// and returns an error if there's a problem.
-func checkSize(desc string, size, storedSize int64) error {
-	if size < 1 {
-		return fmt.Errorf("%s %d < 1", desc, size)
-	}
-	if size > storedSize {
-		return fmt.Errorf("%s %d > storedSize %d", desc, size, storedSize)
-	}
-	return nil
-}
-
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to build an
-// inclusion proof for a specified tree size and leaf index. The size parameter
-// is the tree size being queried for, storedSize is the actual size of the
-// tree at the revision we are using to fetch nodes (this can be > size).
+// inclusion proof for a specified tree size and leaf index. All the returned
+// nodes represent complete subtrees in the tree of this size or above.
 //
 // Use Rehash function to compose the proof after the node hashes are fetched.
-func CalcInclusionProofNodeAddresses(size, index, storedSize int64) ([]NodeFetch, error) {
-	if err := checkSize("size", size, storedSize); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
+func CalcInclusionProofNodeAddresses(size, index int64) ([]NodeFetch, error) {
+	if size < 1 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: size %d < 1", size)
 	}
 	if index >= size {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is >= size %d", index, size)
@@ -59,40 +45,31 @@ func CalcInclusionProofNodeAddresses(size, index, storedSize int64) ([]NodeFetch
 	if index < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
 	}
-	// Note: If size < storedSize, the storage might not contain the
-	// "ephemeral" node of this proof, so rehashing is needed.
-	return proofNodes(uint64(index), 0, uint64(size), size < storedSize), nil
+	return proofNodes(uint64(index), 0, uint64(size), true), nil
 }
 
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to build
-// a consistency proof between two specified tree sizes. size1 and size2
-// represent the two tree sizes for which consistency should be proved,
-// storedSize is the actual size of the tree at the revision we are using to
-// fetch nodes (this can be > size2).
-//
-// The caller is responsible for checking that the input tree sizes correspond
-// to valid tree heads. All returned NodeIDs are tree coordinates within the
-// new tree. It is assumed that they will be fetched from storage at a revision
-// corresponding to the STH associated with the storedSize parameter.
+// a consistency proof between two specified tree sizes. All the returned nodes
+// represent complete subtrees in the tree of size2 or above.
 //
 // Use Rehash function to compose the proof after the node hashes are fetched.
-func CalcConsistencyProofNodeAddresses(size1, size2, storedSize int64) ([]NodeFetch, error) {
-	if err := checkSize("size1", size1, storedSize); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+func CalcConsistencyProofNodeAddresses(size1, size2 int64) ([]NodeFetch, error) {
+	if size1 < 1 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d < 1", size1)
 	}
-	if err := checkSize("size2", size2, storedSize); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+	if size2 < 1 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size2 %d < 1", size2)
 	}
 	if size1 > size2 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d > size2 %d", size1, size2)
 	}
 
-	return consistencyNodes(size1, size2, storedSize)
+	return consistencyNodes(size1, size2)
 }
 
-// consistencyNodes does the calculation of consistency proof node addresses
-// between two tree sizes in a bigger tree of the given storedSize.
-func consistencyNodes(size1, size2, storedSize int64) ([]NodeFetch, error) {
+// consistencyNodes returns node addresses for the consistency proof between
+// the given tree sizes.
+func consistencyNodes(size1, size2 int64) ([]NodeFetch, error) {
 	if size1 == size2 {
 		return []NodeFetch{}, nil
 	}
@@ -110,7 +87,7 @@ func consistencyNodes(size1, size2, storedSize int64) ([]NodeFetch, error) {
 	}
 
 	// Now append the path from this node to the root of size2.
-	p := proofNodes(index, level, uint64(size2), size2 < storedSize)
+	p := proofNodes(index, level, uint64(size2), true)
 	return append(proof, p...), nil
 }
 
@@ -134,6 +111,8 @@ func proofNodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch 
 	// are special, because their hashes are collapsed into a single "ephemeral"
 	// hash. This hash is already known if rehash==false, otherwise the caller
 	// needs to compute it based on the hashes of compact range [end+l, size).
+	//
+	// TODO(pavelkalinnikov): Always assume rehash = true.
 	var right []compact.NodeID
 	if r != 0 {
 		if rehash {
