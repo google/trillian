@@ -22,7 +22,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/proof"
 	"github.com/google/trillian/merkle/rfc6962"
@@ -329,7 +328,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return r, nil
 	}
 	// Try to get consistency proof
-	proof, err := tryGetConsistencyProof(ctx, req.FirstTreeSize, req.SecondTreeSize, tx, hasher)
+	proof, err := tryGetConsistencyProof(ctx, uint64(req.FirstTreeSize), uint64(req.SecondTreeSize), tx, hasher)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +387,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, err
 	}
 	// Try to get consistency proof
-	proof, err := tryGetConsistencyProof(ctx, reqProof.FirstTreeSize, reqProof.SecondTreeSize, tx, hasher)
+	proof, err := tryGetConsistencyProof(ctx, uint64(reqProof.FirstTreeSize), uint64(reqProof.SecondTreeSize), tx, hasher)
 	if err != nil {
 		return nil, err
 	}
@@ -400,8 +399,8 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	return r, nil
 }
 
-func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize int64, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher) (*trillian.Proof, error) {
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize)
+func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize uint64, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher) (*trillian.Proof, error) {
+	nodeFetches, err := proof.Consistency(firstTreeSize, secondTreeSize)
 	if err != nil {
 		return nil, err
 	}

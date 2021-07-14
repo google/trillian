@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/trillian/internal/merkle/inmemory"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/proof"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/testonly"
@@ -164,19 +163,19 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
-		for s1 := int64(2); s1 < int64(ts); s1++ {
-			for s2 := int64(s1 + 1); s2 < int64(ts); s2++ {
-				fetches, err := merkle.CalcConsistencyProofNodeAddresses(s1, s2)
+		for s1 := uint64(2); s1 < uint64(ts); s1++ {
+			for s2 := s1 + 1; s2 < uint64(ts); s2++ {
+				fetches, err := proof.Consistency(s1, s2)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, uint64(s1), fetches)
+				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, s1, fetches)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				refProof := mt.SnapshotConsistency(s1, s2)
+				refProof := mt.SnapshotConsistency(int64(s1), int64(s2))
 
 				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s1, s2, got, want, fetches, refProof)

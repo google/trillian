@@ -129,8 +129,8 @@ func TestInclusion(t *testing.T) {
 	}
 }
 
-// TestCalcConsistencyProofNodeAddresses contains consistency proof tests. For
-// reference, consider the following example:
+// TestConsistency contains consistency proof tests. For reference, consider
+// the following example:
 //
 //                hash5                         hash7
 //               /    \                        /    \
@@ -150,7 +150,7 @@ func TestInclusion(t *testing.T) {
 //
 // The consistency proof between tree size 5 and 7 consists of nodes e, f, j,
 // and k. The node j is taken instead of its missing parent.
-func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
+func TestConsistency(t *testing.T) {
 	id := compact.NewNodeID
 	nodes := func(ids ...compact.NodeID) proof.Nodes {
 		return proof.Nodes{IDs: ids}
@@ -159,16 +159,13 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		return proof.Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
 	}
 	for _, tc := range []struct {
-		size1   int64 // The smaller of the two tree sizes.
-		size2   int64 // The bigger of the two tree sizes.
+		size1   uint64 // The smaller of the two tree sizes.
+		size2   uint64 // The bigger of the two tree sizes.
 		want    proof.Nodes
 		wantErr bool
 	}{
 		// Errors.
-		{size1: 0, size2: -1, wantErr: true},
-		{size1: -10, size2: 0, wantErr: true},
-		{size1: -1, size2: -1, wantErr: true},
-		{size1: 0, size2: 0, wantErr: true},
+		{size1: 5, size2: 0, wantErr: true},
 		{size1: 9, size2: 8, wantErr: true},
 
 		{size1: 1, size2: 2, want: nodes(id(0, 1))},                     // b
@@ -188,6 +185,7 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 			id(0, 6), id(0, 7), id(1, 2), id(2, 0))}, // j leaf#7 i k
 
 		// Same tree size.
+		{size1: 0, size2: 0, want: proof.Nodes{IDs: []compact.NodeID{}}},
 		{size1: 1, size2: 1, want: proof.Nodes{IDs: []compact.NodeID{}}},
 		{size1: 2, size2: 2, want: proof.Nodes{IDs: []compact.NodeID{}}},
 		{size1: 3, size2: 3, want: proof.Nodes{IDs: []compact.NodeID{}}},
@@ -221,14 +219,14 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		)},
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
-			proof, err := CalcConsistencyProofNodeAddresses(tc.size1, tc.size2)
+			proof, err := proof.Consistency(tc.size1, tc.size2)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("accepted bad params")
 				}
 				return
 			} else if err != nil {
-				t.Fatalf("CalcConsistencyProofNodeAddresses: %v", err)
+				t.Fatalf("proof.Consistency: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
@@ -249,11 +247,11 @@ func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 }
 
 func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
-	const maxSize = 100
-	for s1 := 1; s1 < maxSize; s1++ {
+	const maxSize = uint64(100)
+	for s1 := uint64(1); s1 < maxSize; s1++ {
 		for s2 := s1 + 1; s2 <= maxSize; s2++ {
-			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2)); err != nil {
-				t.Errorf("CalcConsistencyProofNodeAddresses(%d, %d) = %v", s1, s2, err)
+			if _, err := proof.Consistency(s1, s2); err != nil {
+				t.Errorf("proof.Consistency(%d, %d) = %v", s1, s2, err)
 			}
 		}
 	}
