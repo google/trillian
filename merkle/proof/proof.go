@@ -17,6 +17,7 @@ package proof
 
 import (
 	"errors"
+	"fmt"
 	"math/bits"
 
 	"github.com/google/trillian/merkle/compact"
@@ -40,8 +41,11 @@ type Nodes struct {
 
 // Inclusion returns the information on how to fetch and construct an inclusion
 // proof for the given leaf index in a log Merkle tree of the given size.
-func Inclusion(index, size uint64) Nodes {
-	return nodes(index, 0, size)
+func Inclusion(index, size uint64) (Nodes, error) {
+	if index >= size {
+		return Nodes{}, fmt.Errorf("index %d out of bounds for tree size %d", index, size)
+	}
+	return nodes(index, 0, size), nil
 }
 
 // Consistency returns the information on how to fetch and construct a

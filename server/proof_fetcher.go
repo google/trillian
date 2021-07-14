@@ -30,7 +30,9 @@ import (
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, leafIndex int64, pn proof.Nodes) (*trillian.Proof, error) {
+//
+// TODO(pavelkalinnikov): Delete leafIndex, it's only for inclusion proofs.
+func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, leafIndex uint64, pn proof.Nodes) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
 	proofNodes, err := fetchNodes(ctx, tx, pn)
@@ -48,7 +50,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 	}
 
 	return &trillian.Proof{
-		LeafIndex: leafIndex,
+		LeafIndex: int64(leafIndex),
 		Hashes:    proof,
 	}, nil
 }

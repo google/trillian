@@ -20,26 +20,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// CalcInclusionProofNodeAddresses returns the tree node IDs needed to build an
-// inclusion proof for a specified tree size and leaf index. All the returned
-// nodes represent complete subtrees in the tree of this size or above.
-//
-// Use Rehash function to compose the proof after the node hashes are fetched.
-//
-// TODO(pavelkalinnikov): Deprecate this file, use proof/proof.go directly.
-func CalcInclusionProofNodeAddresses(size, index int64) (proof.Nodes, error) {
-	if size < 1 {
-		return proof.Nodes{}, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: size %d < 1", size)
-	}
-	if index >= size {
-		return proof.Nodes{}, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is >= size %d", index, size)
-	}
-	if index < 0 {
-		return proof.Nodes{}, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
-	}
-	return proof.Inclusion(uint64(index), uint64(size)), nil
-}
-
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to build
 // a consistency proof between two specified tree sizes. All the returned nodes
 // represent complete subtrees in the tree of size2 or above.

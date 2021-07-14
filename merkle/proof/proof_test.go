@@ -41,19 +41,19 @@ func TestRehash(t *testing.T) {
 		{
 			desc:   "no-rehash",
 			hashes: h[:3],
-			nodes:  Inclusion(3, 8),
+			nodes:  inclusion(t, 3, 8),
 			want:   h[:3],
 		},
 		{
 			desc:   "rehash",
 			hashes: h[:5],
-			nodes:  Inclusion(9, 15),
+			nodes:  inclusion(t, 9, 15),
 			want:   [][]byte{h[0], h[1], th.HashChildren(h[3], h[2]), h[4]},
 		},
 		{
 			desc:   "rehash-at-the-end",
 			hashes: h[:4],
-			nodes:  Inclusion(2, 7),
+			nodes:  inclusion(t, 2, 7),
 			want:   [][]byte{h[0], h[1], th.HashChildren(h[3], h[2])},
 		},
 	} {
@@ -68,4 +68,13 @@ func TestRehash(t *testing.T) {
 			}
 		})
 	}
+}
+
+func inclusion(t *testing.T, index, size uint64) Nodes {
+	t.Helper()
+	n, err := Inclusion(index, size)
+	if err != nil {
+		t.Fatalf("Inclusion: %v", err)
+	}
+	return n
 }

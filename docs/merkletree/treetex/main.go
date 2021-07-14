@@ -29,8 +29,8 @@ import (
 	"math/bits"
 	"strings"
 
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/compact"
+	"github.com/google/trillian/merkle/proof"
 )
 
 const (
@@ -380,7 +380,7 @@ func main() {
 		leafID := compact.NewNodeID(0, uint64(*inclusion))
 		modifyNodeInfo(leafID, func(n *nodeInfo) { n.incPath = true })
 		// TODO(pavelkalinnikov): Highlight the "ephemeral" node too.
-		pn, err := merkle.CalcInclusionProofNodeAddresses(int64(*treeSize), *inclusion)
+		pn, err := proof.Inclusion(*treeSize, uint64(*inclusion))
 		if err != nil {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}

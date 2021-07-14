@@ -24,8 +24,8 @@ import (
 	"github.com/google/trillian/merkle/proof"
 )
 
-// TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For
-// reference, consider the following example of a tree from RFC 6962:
+// TestInclusion contains inclusion proof tests. For reference, consider the
+// following example of a tree from RFC 6962:
 //
 //                hash              <== Level 3
 //               /    \
@@ -45,7 +45,7 @@ import (
 //
 // Our storage node layers are always populated from the bottom up, hence the
 // gap at level 1, index 3 in the above picture.
-func TestCalcInclusionProofNodeAddresses(t *testing.T) {
+func TestInclusion(t *testing.T) {
 	id := compact.NewNodeID
 	nodes := func(ids ...compact.NodeID) proof.Nodes {
 		return proof.Nodes{IDs: ids}
@@ -54,8 +54,8 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		return proof.Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
 	}
 	for _, tc := range []struct {
-		size    int64 // The requested past tree size.
-		index   int64 // Leaf index in the requested tree.
+		size    uint64 // The requested past tree size.
+		index   uint64 // Leaf index in the requested tree.
 		want    proof.Nodes
 		wantErr bool
 	}{
@@ -64,8 +64,6 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		{size: 0, index: 1, wantErr: true},
 		{size: 1, index: 2, wantErr: true},
 		{size: 0, index: 3, wantErr: true},
-		{size: -1, index: 3, wantErr: true},
-		{size: 7, index: -1, wantErr: true},
 		{size: 7, index: 8, wantErr: true},
 
 		// Small trees.
@@ -115,14 +113,14 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 		)},
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
-			proof, err := CalcInclusionProofNodeAddresses(tc.size, tc.index)
+			proof, err := proof.Inclusion(tc.index, tc.size)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("accepted bad params")
 				}
 				return
 			} else if err != nil {
-				t.Fatalf("CalcInclusionProofNodeAddresses: %v", err)
+				t.Fatalf("proof.Inclusion: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
@@ -240,11 +238,11 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 }
 
 func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
-	const maxSize = 555
-	for ts := 1; ts <= maxSize; ts++ {
+	const maxSize = uint64(555)
+	for ts := uint64(1); ts <= maxSize; ts++ {
 		for i := ts; i < ts; i++ {
-			if _, err := CalcInclusionProofNodeAddresses(int64(ts), int64(i)); err != nil {
-				t.Errorf("CalcInclusionProofNodeAddresses(ts:%d, i:%d) = %v", ts, i, err)
+			if _, err := proof.Inclusion(ts, i); err != nil {
+				t.Errorf("proof.Inclusion(ts:%d, i:%d) = %v", ts, i, err)
 			}
 		}
 	}
