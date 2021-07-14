@@ -21,40 +21,59 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-// NodeFetch bundles a node ID with additional information on how to use the
-// node to construct a proof.
-type NodeFetch struct {
-	ID     compact.NodeID
-	Rehash bool
+// Nodes contains information on how to construct a log Merkle tree proof.
+type Nodes struct {
+	// IDs contains the IDs of non-ephemeral nodes sufficient to build the proof.
+	IDs []compact.NodeID
+	// Ephem is the ID of the ephemeal node in the proof. There is always at most
+	// one in an inclusion or a consistency proof. The ephemeral node's hash is
+	// computed from the hashes of IDs[Begin:End] nodes.
+	Ephem compact.NodeID
+	// Begin is the beginning index (inclusive) into the IDs[Begin:End] subslice
+	// of the nodes comprising the ephemeral node.
+	Begin int
+	// End is the ending (exclusive) index into the IDs[Begin:End] subslice of
+	// the nodes comprising the ephemeral node.
+	End int
 }
 
-// Consistency returns node addresses for the consistency proof between the
-// given tree sizes.
-func Consistency(size1, size2 uint64) []NodeFetch {
+// Inclusion returns the information on how to fetch and construct an inclusion
+// proof for the given leaf index in a log Merkle tree of the given size.
+func Inclusion(index, size uint64) Nodes {
+	return nodes(index, 0, size)
+}
+
+// Consistency returns the information on how to fetch and construct a
+// consistency proof between the two given tree sizes of a log Merkle tree.
+func Consistency(size1, size2 uint64) Nodes {
 	if size1 == size2 {
-		return []NodeFetch{}
+		return Nodes{IDs: []compact.NodeID{}}
 	}
 
 	// TODO(pavelkalinnikov): Make the capacity estimate accurate.
-	proof := make([]NodeFetch, 0, bits.Len64(size2)+1)
+	proof := make([]compact.NodeID, 0, bits.Len64(size2)+1)
 
 	// Find the biggest perfect subtree that ends at size1.
 	level := uint(bits.TrailingZeros64(size1))
 	index := (size1 - 1) >> level
 	// If it does not cover the whole size1 tree, add this node to the proof.
 	if index != 0 {
-		n := compact.NewNodeID(level, index)
-		proof = append(proof, NodeFetch{ID: n})
+		proof = append(proof, compact.NewNodeID(level, index))
 	}
 
 	// Now append the path from this node to the root of size2.
-	p := Nodes(index, level, size2, true)
-	return append(proof, p...)
+	p := nodes(index, level, size2)
+	p.IDs = append(proof, p.IDs...)
+	if len(proof) == 1 && p.Begin < p.End {
+		p.Begin++
+		p.End++
+	}
+	return p
 }
 
-// Nodes returns the node IDs necessary to prove that the (level, index) node
+// nodes returns the node IDs necessary to prove that the (level, index) node
 // is included in the Merkle tree of the given size.
-func Nodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch {
+func nodes(index uint64, level uint, size uint64) Nodes {
 	// [begin, end) is the leaves range covered by the (level, index) node.
 	begin, end := index<<level, (index+1)<<level
 	// To prove inclusion of range [begin, end), we only need nodes of compact
@@ -67,28 +86,18 @@ func Nodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch {
 	// below) contains all the nodes that don't have a right sibling.
 	l, r := compact.Decompose(end, size)
 	middle := compact.RangeNodes(end, end+l)
-
 	// Nodes that don't have a right sibling (i.e. the right border of the tree)
 	// are special, because their hashes are collapsed into a single "ephemeral"
-	// hash. This hash is already known if rehash==false, otherwise the caller
-	// needs to compute it based on the hashes of compact range [end+l, size).
-	//
-	// TODO(pavelkalinnikov): Always assume rehash = true.
-	var right []compact.NodeID
-	if r != 0 {
-		if rehash {
-			right = reverse(compact.RangeNodes(end+l, size))
-			rehash = len(right) > 1
-		} else {
-			// The parent of the highest node in [end+l, size) is "ephemeral".
-			lvl := uint(bits.Len64(r))
-			// Except when [end+l, size) is a perfect subtree, in which case we just
-			// take the root node.
-			if r&(r-1) == 0 {
-				lvl--
-			}
-			right = []compact.NodeID{compact.NewNodeID(lvl, (end+l)>>lvl)}
-		}
+	// hash. It can be derived from the hashes of compact range [end+l, size).
+	right := reverse(compact.RangeNodes(end+l, size))
+
+	var res Nodes
+	// The parent of the highest node in [end+l, size) is "ephemeral". Take it
+	// unless [end+l, size) is a perfect subtree, in which case we have already
+	// taken its root node as part of the `right` slice.
+	if r != 0 && r&(r-1) != 0 {
+		lvl := uint(bits.Len64(r))
+		res.Ephem = compact.NewNodeID(lvl, (end+l)>>lvl)
 	}
 
 	// The level in the ordered list of nodes where the rehashed nodes appear in
@@ -98,24 +107,27 @@ func Nodes(index uint64, level uint, size uint64, rehash bool) []NodeFetch {
 
 	// Merge the three compact ranges into a single proof ordered by node level
 	// from leaves towards the root, i.e. the format specified in RFC 6962.
-	proof := make([]NodeFetch, 0, len(left)+len(middle)+len(right))
+	proof := make([]compact.NodeID, 0, len(left)+len(middle)+len(right))
 	i, j := 0, 0
 	for l, levels := level, uint(bits.Len64(size-1)); l < levels; l++ {
 		if i < len(left) && left[i].Level == l {
-			proof = append(proof, NodeFetch{ID: left[i]})
+			proof = append(proof, left[i])
 			i++
 		} else if j < len(middle) && middle[j].Level == l {
-			proof = append(proof, NodeFetch{ID: middle[j]})
+			proof = append(proof, middle[j])
 			j++
 		}
 		if l == rehashLevel {
-			for _, id := range right {
-				proof = append(proof, NodeFetch{ID: id, Rehash: rehash})
+			proof = append(proof, right...)
+			if len(right) > 1 {
+				res.Begin = len(proof) - len(right)
+				res.End = len(proof)
 			}
 		}
 	}
+	res.IDs = proof
 
-	return proof
+	return res
 }
 
 func reverse(ids []compact.NodeID) []compact.NodeID {

@@ -17,6 +17,7 @@ package merkle
 import (
 	"errors"
 
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/proof"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,7 +25,10 @@ import (
 
 // NodeFetch bundles a node ID with additional information on how to use the
 // node to construct a proof.
-type NodeFetch = proof.NodeFetch
+type NodeFetch struct {
+	ID     compact.NodeID
+	Rehash bool
+}
 
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to build an
 // inclusion proof for a specified tree size and leaf index. All the returned
@@ -41,7 +45,7 @@ func CalcInclusionProofNodeAddresses(size, index int64) ([]NodeFetch, error) {
 	if index < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
 	}
-	return proof.Nodes(uint64(index), 0, uint64(size), true), nil
+	return convert(proof.Inclusion(uint64(index), uint64(size))), nil
 }
 
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to build
@@ -59,8 +63,7 @@ func CalcConsistencyProofNodeAddresses(size1, size2 int64) ([]NodeFetch, error) 
 	if size1 > size2 {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: size1 %d > size2 %d", size1, size2)
 	}
-
-	return proof.Consistency(uint64(size1), uint64(size2)), nil
+	return convert(proof.Consistency(uint64(size1), uint64(size2))), nil
 }
 
 // Rehash computes the proof based on the slice of NodeFetch structs, and the
@@ -88,4 +91,16 @@ func Rehash(h [][]byte, nf []NodeFetch, hc func(left, right []byte) []byte) ([][
 		h[cursor] = hash
 	}
 	return h[:cursor], nil
+}
+
+// convert converts proof.Nodes into the legacy []NodeFetch format.
+//
+// TODO(pavelkalinnikov): Both are getting removed in a follow-up.
+func convert(pn proof.Nodes) []NodeFetch {
+	nodes := make([]NodeFetch, 0, len(pn.IDs))
+	for i, id := range pn.IDs {
+		rehash := i >= pn.Begin && i < pn.End && pn.End-pn.Begin > 1
+		nodes = append(nodes, NodeFetch{ID: id, Rehash: rehash})
+	}
+	return nodes
 }
