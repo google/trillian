@@ -30,6 +30,8 @@ type Nodes struct {
 	// Ephem is the ID of the ephemeal node in the proof. There is always at most
 	// one in an inclusion or a consistency proof. The ephemeral node's hash is
 	// computed from the hashes of IDs[begin:end] nodes.
+	//
+	// TODO(pavelkalinnikov): Remove this field, generate only when needed.
 	Ephem compact.NodeID
 	// begin is the beginning index (inclusive) into the IDs[begin:end] subslice
 	// of the nodes comprising the ephemeral node.
