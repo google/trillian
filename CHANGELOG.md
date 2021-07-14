@@ -21,6 +21,8 @@
  * Removed the incomplete Postgres storage backend (#1298).
  * Deprecated `LogRootV1.Revision` field.
  * Moved `rfc6962` hasher one directory up to eliminate empty leftover package.
+ * Simplified proof generation functions, and moved them to `merkle/proof`
+   package.
 
 ### Storage refactoring
  * `NodeReader.GetMerkleNodes` does not accept revisions anymore. The
