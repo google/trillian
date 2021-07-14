@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/proof"
 	"github.com/google/trillian/storage"
@@ -43,7 +42,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 	for i, node := range proofNodes {
 		h[i] = node.Hash
 	}
-	proof, err := merkle.Rehash(h, pn, th.HashChildren)
+	proof, err := pn.Rehash(h, th.HashChildren)
 	if err != nil {
 		return nil, err
 	}

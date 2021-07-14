@@ -16,6 +16,7 @@
 package proof
 
 import (
+	"errors"
 	"math/bits"
 
 	"github.com/google/trillian/merkle/compact"
@@ -128,6 +129,33 @@ func nodes(index uint64, level uint, size uint64) Nodes {
 	res.IDs = proof
 
 	return res
+}
+
+// Rehash computes the proof based on the slice of node hashes corresponding to
+// their IDs in the n.IDs field. The slices must be of the same length. The hc
+// parameter computes a node's hash based on hashes of its children.
+//
+// Warning: The passed-in slice of hashes can be modified in-place.
+func (n Nodes) Rehash(h [][]byte, hc func(left, right []byte) []byte) ([][]byte, error) {
+	if len(h) != len(n.IDs) {
+		return nil, errors.New("slice lengths mismatch")
+	}
+	cursor := 0
+	// Scan the list of node hashes, and store the rehashed list in-place.
+	// Invariant: cursor <= i, and h[:cursor] contains all the hashes of the
+	// rehashed list after scanning h up to index i-1.
+	for i, ln := 0, len(h); i < ln; i, cursor = i+1, cursor+1 {
+		hash := h[i]
+		if i >= n.Begin && i < n.End {
+			// Scan the block of node hashes that need rehashing.
+			for i++; i < n.End; i++ {
+				hash = hc(h[i], hash)
+			}
+			i--
+		}
+		h[cursor] = hash
+	}
+	return h[:cursor], nil
 }
 
 func reverse(ids []compact.NodeID) []compact.NodeID {

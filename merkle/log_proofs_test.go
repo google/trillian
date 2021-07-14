@@ -22,7 +22,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/proof"
-	"github.com/google/trillian/merkle/rfc6962"
 )
 
 // TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For
@@ -259,53 +258,5 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 				t.Errorf("CalcConsistencyProofNodeAddresses(%d, %d) = %v", s1, s2, err)
 			}
 		}
-	}
-}
-
-func TestRehasher(t *testing.T) {
-	th := rfc6962.DefaultHasher
-	h := [][]byte{
-		th.HashLeaf([]byte("Hash 1")),
-		th.HashLeaf([]byte("Hash 2")),
-		th.HashLeaf([]byte("Hash 3")),
-		th.HashLeaf([]byte("Hash 4")),
-		th.HashLeaf([]byte("Hash 5")),
-	}
-
-	for _, tc := range []struct {
-		desc   string
-		hashes [][]byte
-		nodes  proof.Nodes
-		want   [][]byte
-	}{
-		{
-			desc:   "no-rehash",
-			hashes: h[:3],
-			nodes:  proof.Inclusion(3, 8),
-			want:   h[:3],
-		},
-		{
-			desc:   "rehash",
-			hashes: h[:5],
-			nodes:  proof.Inclusion(9, 15),
-			want:   [][]byte{h[0], h[1], th.HashChildren(h[3], h[2]), h[4]},
-		},
-		{
-			desc:   "rehash-at-the-end",
-			hashes: h[:4],
-			nodes:  proof.Inclusion(2, 7),
-			want:   [][]byte{h[0], h[1], th.HashChildren(h[3], h[2])},
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			h := append([][]byte{}, tc.hashes...)
-			got, err := Rehash(h, tc.nodes, th.HashChildren)
-			if err != nil {
-				t.Fatalf("Rehash: %v", err)
-			}
-			if want := tc.want; !cmp.Equal(got, want) {
-				t.Errorf("proofs mismatch:\ngot: %x\nwant: %x", got, want)
-			}
-		})
 	}
 }
