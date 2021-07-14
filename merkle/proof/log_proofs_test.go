@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package merkle
+package proof
 
 import (
 	"fmt"
@@ -21,7 +21,6 @@ import (
 	_ "github.com/golang/glog" // Logging flags for overarching "go test" runs.
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/proof"
 )
 
 // TestInclusion contains inclusion proof tests. For reference, consider the
@@ -47,16 +46,16 @@ import (
 // gap at level 1, index 3 in the above picture.
 func TestInclusion(t *testing.T) {
 	id := compact.NewNodeID
-	nodes := func(ids ...compact.NodeID) proof.Nodes {
-		return proof.Nodes{IDs: ids}
+	nodes := func(ids ...compact.NodeID) Nodes {
+		return Nodes{IDs: ids}
 	}
-	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) proof.Nodes {
-		return proof.Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
+	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) Nodes {
+		return Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
 	}
 	for _, tc := range []struct {
 		size    uint64 // The requested past tree size.
 		index   uint64 // Leaf index in the requested tree.
-		want    proof.Nodes
+		want    Nodes
 		wantErr bool
 	}{
 		// Errors.
@@ -67,7 +66,7 @@ func TestInclusion(t *testing.T) {
 		{size: 7, index: 8, wantErr: true},
 
 		// Small trees.
-		{size: 1, index: 0, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size: 1, index: 0, want: Nodes{IDs: []compact.NodeID{}}},
 		{size: 2, index: 0, want: nodes(id(0, 1))},           // b
 		{size: 2, index: 1, want: nodes(id(0, 0))},           // a
 		{size: 3, index: 1, want: nodes(id(0, 0), id(0, 2))}, // a c
@@ -113,14 +112,14 @@ func TestInclusion(t *testing.T) {
 		)},
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size, tc.index), func(t *testing.T) {
-			proof, err := proof.Inclusion(tc.index, tc.size)
+			proof, err := Inclusion(tc.index, tc.size)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("accepted bad params")
 				}
 				return
 			} else if err != nil {
-				t.Fatalf("proof.Inclusion: %v", err)
+				t.Fatalf("Inclusion: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
@@ -152,16 +151,16 @@ func TestInclusion(t *testing.T) {
 // and k. The node j is taken instead of its missing parent.
 func TestConsistency(t *testing.T) {
 	id := compact.NewNodeID
-	nodes := func(ids ...compact.NodeID) proof.Nodes {
-		return proof.Nodes{IDs: ids}
+	nodes := func(ids ...compact.NodeID) Nodes {
+		return Nodes{IDs: ids}
 	}
-	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) proof.Nodes {
-		return proof.Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
+	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) Nodes {
+		return Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
 	}
 	for _, tc := range []struct {
 		size1   uint64 // The smaller of the two tree sizes.
 		size2   uint64 // The bigger of the two tree sizes.
-		want    proof.Nodes
+		want    Nodes
 		wantErr bool
 	}{
 		// Errors.
@@ -185,14 +184,14 @@ func TestConsistency(t *testing.T) {
 			id(0, 6), id(0, 7), id(1, 2), id(2, 0))}, // j leaf#7 i k
 
 		// Same tree size.
-		{size1: 0, size2: 0, want: proof.Nodes{IDs: []compact.NodeID{}}},
-		{size1: 1, size2: 1, want: proof.Nodes{IDs: []compact.NodeID{}}},
-		{size1: 2, size2: 2, want: proof.Nodes{IDs: []compact.NodeID{}}},
-		{size1: 3, size2: 3, want: proof.Nodes{IDs: []compact.NodeID{}}},
-		{size1: 4, size2: 4, want: proof.Nodes{IDs: []compact.NodeID{}}},
-		{size1: 5, size2: 5, want: proof.Nodes{IDs: []compact.NodeID{}}},
-		{size1: 7, size2: 7, want: proof.Nodes{IDs: []compact.NodeID{}}},
-		{size1: 8, size2: 8, want: proof.Nodes{IDs: []compact.NodeID{}}},
+		{size1: 0, size2: 0, want: Nodes{IDs: []compact.NodeID{}}},
+		{size1: 1, size2: 1, want: Nodes{IDs: []compact.NodeID{}}},
+		{size1: 2, size2: 2, want: Nodes{IDs: []compact.NodeID{}}},
+		{size1: 3, size2: 3, want: Nodes{IDs: []compact.NodeID{}}},
+		{size1: 4, size2: 4, want: Nodes{IDs: []compact.NodeID{}}},
+		{size1: 5, size2: 5, want: Nodes{IDs: []compact.NodeID{}}},
+		{size1: 7, size2: 7, want: Nodes{IDs: []compact.NodeID{}}},
+		{size1: 8, size2: 8, want: Nodes{IDs: []compact.NodeID{}}},
 
 		// Smaller trees within a bigger stored tree.
 		{size1: 2, size2: 4, want: nodes(id(1, 1))}, // h
@@ -219,14 +218,14 @@ func TestConsistency(t *testing.T) {
 		)},
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
-			proof, err := proof.Consistency(tc.size1, tc.size2)
+			proof, err := Consistency(tc.size1, tc.size2)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("accepted bad params")
 				}
 				return
 			} else if err != nil {
-				t.Fatalf("proof.Consistency: %v", err)
+				t.Fatalf("Consistency: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, proof); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
@@ -239,8 +238,8 @@ func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 	const maxSize = uint64(555)
 	for ts := uint64(1); ts <= maxSize; ts++ {
 		for i := ts; i < ts; i++ {
-			if _, err := proof.Inclusion(ts, i); err != nil {
-				t.Errorf("proof.Inclusion(ts:%d, i:%d) = %v", ts, i, err)
+			if _, err := Inclusion(ts, i); err != nil {
+				t.Errorf("Inclusion(ts:%d, i:%d) = %v", ts, i, err)
 			}
 		}
 	}
@@ -250,8 +249,8 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 	const maxSize = uint64(100)
 	for s1 := uint64(1); s1 < maxSize; s1++ {
 		for s2 := s1 + 1; s2 <= maxSize; s2++ {
-			if _, err := proof.Consistency(s1, s2); err != nil {
-				t.Errorf("proof.Consistency(%d, %d) = %v", s1, s2, err)
+			if _, err := Consistency(s1, s2); err != nil {
+				t.Errorf("Consistency(%d, %d) = %v", s1, s2, err)
 			}
 		}
 	}
