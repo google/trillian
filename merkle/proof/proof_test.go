@@ -51,7 +51,7 @@ func TestInclusion(t *testing.T) {
 		return Nodes{IDs: ids}
 	}
 	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) Nodes {
-		return Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
+		return Nodes{IDs: ids, Ephem: ephem, begin: begin, end: end}
 	}
 	for _, tc := range []struct {
 		size    uint64 // The requested past tree size.
@@ -122,7 +122,7 @@ func TestInclusion(t *testing.T) {
 			} else if err != nil {
 				t.Fatalf("Inclusion: %v", err)
 			}
-			if diff := cmp.Diff(tc.want, proof); diff != "" {
+			if diff := cmp.Diff(tc.want, proof, cmp.AllowUnexported(Nodes{})); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
 			}
 		})
@@ -156,7 +156,7 @@ func TestConsistency(t *testing.T) {
 		return Nodes{IDs: ids}
 	}
 	rehash := func(begin, end int, ephem compact.NodeID, ids ...compact.NodeID) Nodes {
-		return Nodes{IDs: ids, Ephem: ephem, Begin: begin, End: end}
+		return Nodes{IDs: ids, Ephem: ephem, begin: begin, end: end}
 	}
 	for _, tc := range []struct {
 		size1   uint64 // The smaller of the two tree sizes.
@@ -228,7 +228,7 @@ func TestConsistency(t *testing.T) {
 			} else if err != nil {
 				t.Fatalf("Consistency: %v", err)
 			}
-			if diff := cmp.Diff(tc.want, proof); diff != "" {
+			if diff := cmp.Diff(tc.want, proof, cmp.AllowUnexported(Nodes{})); diff != "" {
 				t.Errorf("paths mismatch:\n%v", diff)
 			}
 		})
