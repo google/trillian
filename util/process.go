@@ -16,36 +16,12 @@ package util
 
 import (
 	"context"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/golang/glog"
 )
-
-// StartHTTPServer starts an HTTP server on the given address.
-func StartHTTPServer(addr, certFile, keyFile string) error {
-	sock, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	go func() {
-		glog.Info("HTTP server starting")
-		// Let http.ServeTLS handle the error case when only one of the flags is set.
-		if certFile != "" || keyFile != "" {
-			err = http.ServeTLS(sock, nil, certFile, keyFile)
-		} else {
-			err = http.Serve(sock, nil)
-		}
-		if err != nil {
-			glog.Errorf("HTTP server stopped: %v", err)
-		}
-	}()
-
-	return nil
-}
 
 // AwaitSignal waits for standard termination signals, then runs the given
 // function. Can early return if the passed in context is canceled, in which
