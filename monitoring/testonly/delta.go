@@ -14,9 +14,7 @@
 
 package testonly
 
-import (
-	"github.com/google/trillian/monitoring"
-)
+import "github.com/google/trillian/monitoring"
 
 // CounterSnapshot records the latest value from a time series in a counter.
 // This value can then be compared with future values. Note that a counter can

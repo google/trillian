@@ -14,9 +14,7 @@
 
 package monitoring
 
-import (
-	"context"
-)
+import "context"
 
 // startSpanFunc is the signature of a function which can start tracing spans.
 type startSpanFunc func(context.Context, string) (context.Context, func())

@@ -14,9 +14,7 @@
 
 package logverifier
 
-import (
-	"github.com/google/trillian/merkle/hashers"
-)
+import "github.com/google/trillian/merkle/hashers"
 
 // hashChainer provides convenience methods for hashing subranges of Merkle
 // Tree proofs to obtain (sub-)tree hashes. Depending on how the path to a tree

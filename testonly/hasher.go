@@ -17,9 +17,7 @@ package testonly
 // This file implements the hashing functions that are part of a Trillian
 // personality.
 
-import (
-	"crypto/sha256"
-)
+import "crypto/sha256"
 
 // HashKey converts a map key into a map index using SHA256.
 // This preserves tests that precomputed indexes based on SHA256.
