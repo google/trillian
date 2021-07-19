@@ -17,7 +17,6 @@ package rfc6962
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	_ "github.com/golang/glog"
@@ -100,32 +99,11 @@ func TestRFC6962HasherCollisions(t *testing.T) {
 	}
 }
 
-// TODO(al): Remove me.
-func BenchmarkHashChildrenOld(b *testing.B) {
-	h := DefaultHasher
-	l := h.HashLeaf([]byte("one"))
-	r := h.HashLeaf([]byte("or other"))
-	for i := 0; i < b.N; i++ {
-		_ = h.hashChildrenOld(l, r)
-	}
-}
-
 func BenchmarkHashChildren(b *testing.B) {
 	h := DefaultHasher
 	l := h.HashLeaf([]byte("one"))
 	r := h.HashLeaf([]byte("or other"))
 	for i := 0; i < b.N; i++ {
 		_ = h.HashChildren(l, r)
-	}
-}
-
-func TestHashChildrenEquivToOld(t *testing.T) {
-	h := DefaultHasher
-	for i := 0; i < 1000; i++ {
-		l := h.HashLeaf([]byte(fmt.Sprintf("leaf left %d", i)))
-		r := h.HashLeaf([]byte(fmt.Sprintf("leaf right %d", i)))
-		if oldHash, newHash := h.hashChildrenOld(l, r), h.HashChildren(l, r); !bytes.Equal(oldHash, newHash) {
-			t.Errorf("%d different hashes: %x vs %x", i, oldHash, newHash)
-		}
 	}
 }
