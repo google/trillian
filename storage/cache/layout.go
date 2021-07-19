@@ -43,7 +43,7 @@ func getTileID(id compact.NodeID) []byte {
 // of this node within this tile.
 func splitID(id compact.NodeID) ([]byte, *Suffix) {
 	if id.Level >= 64 {
-		return []byte{}, EmptySuffix
+		return []byte{}, emptySuffix
 	}
 	tileID := getTileID(id)
 

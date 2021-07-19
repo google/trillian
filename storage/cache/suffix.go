@@ -29,10 +29,10 @@ type key struct {
 }
 
 var (
-	// EmptySuffix is a reusable suffix of zero bits. To avoid special cases
+	// emptySuffix is a reusable suffix of zero bits. To avoid special cases
 	// there is a single byte path attached to it and there is no way to create
 	// a Suffix with a nil or empty path.
-	EmptySuffix = NewSuffix(0, []byte{0})
+	emptySuffix = NewSuffix(0, []byte{0})
 	// fromRaw maps a bit length and single byte path to a Suffix.
 	fromRaw = make(map[key]*Suffix)
 	// fromString maps a base64 encoded string representation to a Suffix.
