@@ -120,7 +120,7 @@ func TestSuffixKey(t *testing.T) {
 }
 
 // makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and InternalNodes maps.
-// This function documents existing log storage behavior. Any new code that emits Suffix objects must
+// This function documents existing log storage behavior. Any new code that emits suffix objects must
 // produce the exact same outputs as this function would for Logs.
 func makeSuffixKey(depth int, index int64) (string, error) {
 	if depth < 0 {

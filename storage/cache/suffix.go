@@ -31,7 +31,7 @@ type key struct {
 var (
 	// emptySuffix is a reusable suffix of zero bits. To avoid special cases
 	// there is a single byte path attached to it and there is no way to create
-	// a Suffix with a nil or empty path.
+	// a suffix with a nil or empty path.
 	emptySuffix = newSuffix(0, []byte{0})
 	// fromRaw maps a bit length and single byte path to a suffix.
 	fromRaw = make(map[key]*suffix)
