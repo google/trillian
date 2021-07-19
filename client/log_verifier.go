@@ -21,7 +21,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/logverifier"
-	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/types"
 )
 

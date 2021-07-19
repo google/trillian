@@ -21,7 +21,7 @@ import (
 	_ "github.com/golang/glog" // Logging flags for overarching "go test" runs.
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian/merkle/compact"
-	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 // TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For
