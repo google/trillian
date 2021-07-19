@@ -50,7 +50,7 @@ func splitID(id compact.NodeID) ([]byte, *suffix) {
 	var bytes [8]byte
 	bits := 64 - id.Level - uint(len(tileID)*8)
 	binary.BigEndian.PutUint64(bytes[:], id.Index<<(64-bits))
-	suffix := NewSuffix(uint8(bits), bytes[:])
+	suffix := newSuffix(uint8(bits), bytes[:])
 
 	return tileID, suffix
 }

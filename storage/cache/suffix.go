@@ -32,7 +32,7 @@ var (
 	// emptySuffix is a reusable suffix of zero bits. To avoid special cases
 	// there is a single byte path attached to it and there is no way to create
 	// a Suffix with a nil or empty path.
-	emptySuffix = NewSuffix(0, []byte{0})
+	emptySuffix = newSuffix(0, []byte{0})
 	// fromRaw maps a bit length and single byte path to a suffix.
 	fromRaw = make(map[key]*suffix)
 	// fromString maps a base64 encoded string representation to a suffix.
@@ -55,11 +55,11 @@ type suffix struct {
 	asString string
 }
 
-// NewSuffix creates a new suffix. The primary use for them is to get their
+// newSuffix creates a new suffix. The primary use for them is to get their
 // String value to use as a key so we compute that once up front.
 //
 // TODO(pavelkalinnikov): Mask the last byte of path.
-func NewSuffix(bits uint8, path []byte) *suffix {
+func newSuffix(bits uint8, path []byte) *suffix {
 	// Use a shared value for a short suffix if we have one, they're immutable.
 	if bits <= 8 {
 		if sfx, ok := fromRaw[key{depth: bits, value: path[0]}]; ok {
@@ -111,7 +111,7 @@ func parseSuffix(s string) (*suffix, error) {
 		return nil, fmt.Errorf("unexpected length %d, need %d", got, want)
 	}
 
-	return NewSuffix(bits, b), nil
+	return newSuffix(bits, b), nil
 }
 
 // bytesForBits returns the number of bytes required to store numBits bits.
@@ -131,7 +131,7 @@ func init() {
 			// Don't need to mask off lower bits outside the valid ones because we
 			// know they're already zero.
 			path[0] = byte(i << uint(8-d))
-			sfx := NewSuffix(byte(d), path)
+			sfx := newSuffix(byte(d), path)
 			// As an extra check there should be no collisions in the suffix values
 			// that we build so map entries should not be overwritten.
 			k := key{depth: uint8(d), value: path[0]}

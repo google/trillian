@@ -128,7 +128,7 @@ func toSuffix(id compact.NodeID) string {
 	depth := logStrataDepth - int(id.Level)
 	var index [8]byte
 	binary.BigEndian.PutUint64(index[:], id.Index<<(maxLogDepth-depth))
-	return NewSuffix(uint8(depth), index[:]).String()
+	return newSuffix(uint8(depth), index[:]).String()
 }
 
 // newEmptyTile creates an empty log tile for the passed-in ID.
