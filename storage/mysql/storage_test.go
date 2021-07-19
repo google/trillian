@@ -177,10 +177,6 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]stree.Node, err
 			return nil, err
 		}
 	}
-	// Store the ephemeral nodes as well.
-	if _, err := cr.GetRootHash(store); err != nil {
-		return nil, err
-	}
 
 	// Unroll the map, which has deduped the updates for us and retained the latest
 	nodes := make([]stree.Node, 0, len(nodeMap))

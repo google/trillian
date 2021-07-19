@@ -126,7 +126,7 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 			}
 		}
 		// TODO(pavelkalinnikov): Use testing.T.Fatalf instead of panics.
-		root, err := cr.GetRootHash(store) // Store the ephemeral nodes as well.
+		root, err := cr.GetRootHash(nil)
 		if err != nil {
 			panic(fmt.Errorf("GetRootHash: %v", err))
 		}

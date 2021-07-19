@@ -83,10 +83,6 @@ func PopulateLogTile(st *storagepb.SubtreeProto, hasher hashers.LogHasher) error
 			return err
 		}
 	}
-	_, err := cr.GetRootHash(store)
-	if err != nil {
-		return fmt.Errorf("failed to compute root hash: %v", err)
-	}
 
 	// Additional check - after population we should have the same number of internal nodes
 	// as before the subtree was written to storage. Either because they were loaded from
