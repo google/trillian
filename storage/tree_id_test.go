@@ -14,9 +14,7 @@
 
 package storage
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestNewTreeID(t *testing.T) {
 	// Grab a few IDs, check that they're not zero and not repeating.
