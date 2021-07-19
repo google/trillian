@@ -84,7 +84,7 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 	// Figure out the set of subtrees we need.
 	want := make(map[string]bool)
 	for _, id := range ids {
-		subID := string(GetTileID(id))
+		subID := string(getTileID(id))
 		if _, ok := want[subID]; ok {
 			// No need to check s.subtrees map twice.
 			continue
@@ -221,7 +221,7 @@ func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
 
 // getNodeHash returns a single node hash from the cache.
 func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
-	subID, sx := Split(id)
+	subID, sx := splitID(id)
 	c := s.getCachedSubtree(subID)
 	if c == nil {
 		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", subID)
@@ -268,7 +268,7 @@ func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc)
 
 // SetNodeHash sets a node hash in the cache.
 func (s *SubtreeCache) SetNodeHash(id compact.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
-	subID, sx := Split(id)
+	subID, sx := splitID(id)
 	c := s.getCachedSubtree(subID)
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,

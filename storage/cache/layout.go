@@ -20,13 +20,13 @@ import (
 	"github.com/google/trillian/merkle/compact"
 )
 
-// GetTileID returns the path from the "virtual" root at level 64 to the root
+// getTileID returns the path from the "virtual" root at level 64 to the root
 // of the tile that the given node belongs to. All the bits of the returned
 // slice are significant because all tile heights are 8.
 //
 // Note that a root of a tile belongs to a tile above it (as its leaf node).
 // The exception is the "virtual" root which belongs to its own "pseudo" tile.
-func GetTileID(id compact.NodeID) []byte {
+func getTileID(id compact.NodeID) []byte {
 	if id.Level >= 64 {
 		return []byte{} // Note: Not nil, so that storage/SQL doesn't use NULL.
 	}
@@ -38,14 +38,14 @@ func GetTileID(id compact.NodeID) []byte {
 	return bytes[8-bytesCount:]
 }
 
-// Split returns the path from the "virtual" root at level 64 to the root of
+// splitID returns the path from the "virtual" root at level 64 to the root of
 // the tile that the given node belongs to, and the corresponding local address
 // of this node within this tile.
-func Split(id compact.NodeID) ([]byte, *Suffix) {
+func splitID(id compact.NodeID) ([]byte, *Suffix) {
 	if id.Level >= 64 {
 		return []byte{}, EmptySuffix
 	}
-	tileID := GetTileID(id)
+	tileID := getTileID(id)
 
 	var bytes [8]byte
 	bits := 64 - id.Level - uint(len(tileID)*8)

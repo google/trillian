@@ -213,7 +213,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		store := func(id compact.NodeID, hash []byte) {
 			// Don't store leaves or the subtree root in InternalNodes
 			if id.Level > 0 && id.Level < 8 {
-				_, sfx := Split(id)
+				_, sfx := splitID(id)
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}
