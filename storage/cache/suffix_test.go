@@ -135,7 +135,7 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 
 func TestSuffixSerialize(t *testing.T) {
 	for _, tc := range []struct {
-		s    *Suffix
+		s    *suffix
 		want string
 	}{
 		// Pre-existing format. This test vector must NOT change or existing data will be inaccessible.
