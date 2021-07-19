@@ -21,7 +21,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/storage/tree"
 )
 
 const (
@@ -129,7 +128,7 @@ func toSuffix(id compact.NodeID) string {
 	depth := logStrataDepth - int(id.Level)
 	var index [8]byte
 	binary.BigEndian.PutUint64(index[:], id.Index<<(maxLogDepth-depth))
-	return tree.NewSuffix(uint8(depth), index[:]).String()
+	return NewSuffix(uint8(depth), index[:]).String()
 }
 
 // newEmptyTile creates an empty log tile for the passed-in ID.
