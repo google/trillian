@@ -60,17 +60,17 @@ func TestParseSuffix(t *testing.T) {
 		{str: "----", wantErr: true},
 	} {
 		t.Run("", func(t *testing.T) {
-			sfx, err := ParseSuffix(tc.str)
+			sfx, err := parseSuffix(tc.str)
 			if got, want := err != nil, tc.wantErr; got != want {
-				t.Fatalf("ParseSuffix: %v, wantErr: %v", err, want)
+				t.Fatalf("parseSuffix: %v, wantErr: %v", err, want)
 			} else if err != nil {
 				return
 			}
 			if got, want := sfx.Bits(), tc.bits; got != want {
-				t.Errorf("ParseSuffix: got %d bits, want %d", got, want)
+				t.Errorf("parseSuffix: got %d bits, want %d", got, want)
 			}
 			if got, want := sfx.Path(), tc.path; !bytes.Equal(got, want) {
-				t.Errorf("ParseSuffix: got path %x, want %x", got, want)
+				t.Errorf("parseSuffix: got path %x, want %x", got, want)
 			}
 		})
 	}
@@ -203,12 +203,12 @@ func Test8BitSuffixCache(t *testing.T) {
 
 		// Test the other direction as well by parsing it and we should get the
 		// same instance again.
-		s3, err := ParseSuffix(s1.String())
+		s3, err := parseSuffix(s1.String())
 		if err != nil {
 			t.Fatalf("failed to parse our own suffix: %v", err)
 		}
 		if s1 == s3 != tc.wantCache {
-			t.Errorf("ParseSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s3)
+			t.Errorf("parseSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s3)
 		}
 	}
 }

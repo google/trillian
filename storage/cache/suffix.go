@@ -92,8 +92,8 @@ func (s suffix) String() string {
 	return s.asString
 }
 
-// ParseSuffix converts a suffix string back into a suffix.
-func ParseSuffix(s string) (*suffix, error) {
+// parseSuffix converts a suffix string back into a suffix.
+func parseSuffix(s string) (*suffix, error) {
 	if sfx, ok := fromString[s]; ok {
 		// Matches a precalculated value, use that.
 		return sfx, nil
