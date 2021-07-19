@@ -25,7 +25,7 @@ import (
 	"github.com/google/btree"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
-	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"

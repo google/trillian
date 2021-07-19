@@ -23,7 +23,7 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 var base64Flag = flag.Bool("base64", false, "If true output in base64 instead of hex")

@@ -25,7 +25,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
@@ -100,7 +100,7 @@ func InitMetrics(mf monitoring.MetricFactory) {
 // initCompactRangeFromStorage builds a compact range that matches the latest
 // data in the database. Ensures that the root hash matches the passed in root.
 func initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
-	fact := compact.RangeFactory{Hash: hasher.DefaultHasher.HashChildren}
+	fact := compact.RangeFactory{Hash: rfc6962.DefaultHasher.HashChildren}
 	if root.TreeSize == 0 {
 		return fact.NewEmptyRange(0), nil
 	}
@@ -378,7 +378,7 @@ func IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWi
 		// Create the log root ready for signing.
 		if cr.End() == 0 {
 			// Override the nil root hash returned by the compact range.
-			newRoot = hasher.DefaultHasher.EmptyRoot()
+			newRoot = rfc6962.DefaultHasher.EmptyRoot()
 		}
 		newLogRoot = &types.LogRootV1{
 			RootHash:       newRoot,

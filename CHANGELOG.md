@@ -20,6 +20,7 @@
    - `TrillianLog.QueueLeaves`
  * Removed the incomplete Postgres storage backend (#1298).
  * Deprecated `LogRootV1.Revision` field.
+ * Moved `rfc6962` hasher one directory up to eliminate empty leftover package.
 
 ### Storage refactoring
  * `NodeReader.GetMerkleNodes` does not accept revisions anymore. The

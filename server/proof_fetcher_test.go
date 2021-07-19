@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/trillian/internal/merkle/inmemory"
 	"github.com/google/trillian/merkle"
-	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/testonly"
 )
 

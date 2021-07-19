@@ -23,7 +23,7 @@ import (
 
 	_ "github.com/golang/glog"
 	"github.com/google/trillian/internal/merkle/inmemory"
-	rfc6962 "github.com/google/trillian/merkle/rfc6962/hasher"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 type inclusionProofTestVector struct {
