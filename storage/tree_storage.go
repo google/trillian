@@ -29,7 +29,8 @@ var ErrTreeNeedsInit = status.Error(codes.FailedPrecondition, "tree needs initia
 // ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
 // A ReadOnlyTreeTX can only modify the tree specified in its creation.
 type ReadOnlyTreeTX interface {
-	NodeReader
+	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
+	GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error)
 
 	// Commit applies the operations performed to the underlying storage. It must
 	// be called before any reads from storage are considered consistent.
@@ -64,11 +65,4 @@ type TreeWriter interface {
 type DatabaseChecker interface {
 	// CheckDatabaseAccessible returns nil if the database is accessible, error otherwise.
 	CheckDatabaseAccessible(context.Context) error
-}
-
-// NodeReader provides read-only access to the stored tree nodes, as an
-// interface to allow easier testing of node manipulation.
-type NodeReader interface {
-	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
-	GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error)
 }
