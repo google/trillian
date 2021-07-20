@@ -21,7 +21,12 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage/tree"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// ErrTreeNeedsInit is returned when calling methods on an uninitialised tree.
+var ErrTreeNeedsInit = status.Error(codes.FailedPrecondition, "tree needs initialising")
 
 // ReadOnlyLogTreeTX provides a read-only view into the Log data.
 // A ReadOnlyLogTreeTX can only read from the tree specified in its creation.
