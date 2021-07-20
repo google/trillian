@@ -56,9 +56,3 @@ type TreeTX interface {
 	// TODO(pavelkalinnikov): Use tiles instead, here and in GetMerkleNodes.
 	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
 }
-
-// DatabaseChecker performs connectivity checks on the database.
-type DatabaseChecker interface {
-	// CheckDatabaseAccessible returns nil if the database is accessible, error otherwise.
-	CheckDatabaseAccessible(context.Context) error
-}

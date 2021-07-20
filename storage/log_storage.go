@@ -92,7 +92,9 @@ type LogTreeTX interface {
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
 type ReadOnlyLogStorage interface {
-	DatabaseChecker
+	// CheckDatabaseAccessible returns nil if the database is accessible, or an
+	// error otherwise.
+	CheckDatabaseAccessible(context.Context) error
 
 	// GetActiveLogIDs returns a list of the IDs of all the logs that are
 	// configured in storage and are eligible to have entries sequenced.
