@@ -19,14 +19,24 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/storage/tree"
 )
 
 // ReadOnlyLogTreeTX provides a read-only view into the Log data.
 // A ReadOnlyLogTreeTX can only read from the tree specified in its creation.
 type ReadOnlyLogTreeTX interface {
-	ReadOnlyTreeTX
+	// Commit applies the operations performed to the underlying storage. It must
+	// be called before any reads from storage are considered consistent.
+	Commit(context.Context) error
 
+	// Close rolls back the transaction if it wasn't committed or closed
+	// previously. Resources are cleaned up regardless of the success, and the
+	// transaction should not be used after it.
+	Close() error
+
+	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
+	GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error)
 	// GetLeavesByRange returns leaf data for a range of indexes. The returned
 	// slice is a contiguous prefix of leaves in [start, start+count) ordered by
 	// LeafIndex. It will be shorter than `count` if the requested range has

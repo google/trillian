@@ -15,29 +15,9 @@
 package storage
 
 import (
-	"context"
-
-	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/storage/tree"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // ErrTreeNeedsInit is returned when calling methods on an uninitialised tree.
 var ErrTreeNeedsInit = status.Error(codes.FailedPrecondition, "tree needs initialising")
-
-// ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
-// A ReadOnlyTreeTX can only modify the tree specified in its creation.
-type ReadOnlyTreeTX interface {
-	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
-	GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error)
-
-	// Commit applies the operations performed to the underlying storage. It must
-	// be called before any reads from storage are considered consistent.
-	Commit(context.Context) error
-
-	// Close rolls back the transaction if it wasn't committed or closed
-	// previously. Resources are cleaned up regardless of the success, and the
-	// transaction should not be used after it.
-	Close() error
-}
