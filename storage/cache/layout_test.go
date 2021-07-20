@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tree
+package cache
 
 import (
 	"bytes"
@@ -45,14 +45,14 @@ func TestGetTileID(t *testing.T) {
 		{id: nID(64, 0), want: []byte{}},
 	} {
 		t.Run(fmt.Sprintf("%d:%d", tc.id.Level, tc.id.Index), func(t *testing.T) {
-			if got, want := GetTileID(tc.id), tc.want; !bytes.Equal(got, want) {
-				t.Errorf("GetTileID: got %x, want %x", got, want)
+			if got, want := getTileID(tc.id), tc.want; !bytes.Equal(got, want) {
+				t.Errorf("getTileID: got %x, want %x", got, want)
 			}
 		})
 	}
 }
 
-func TestSplitNodeID(t *testing.T) {
+func TestSplitID(t *testing.T) {
 	for _, tc := range []struct {
 		id            compact.NodeID
 		outPrefix     []byte
@@ -75,7 +75,7 @@ func TestSplitNodeID(t *testing.T) {
 		{nID(49, 0x0003>>1), []byte{0x00}, 7, []byte{0x02}},
 	} {
 		t.Run(fmt.Sprintf("%v", tc.id), func(t *testing.T) {
-			p, s := Split(tc.id)
+			p, s := splitID(tc.id)
 			if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
 				t.Errorf("prefix %x, want %x", got, want)
 			}

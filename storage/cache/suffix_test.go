@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tree
+package cache
 
 import (
 	"bytes"
@@ -46,7 +46,7 @@ func TestParseSuffix(t *testing.T) {
 		wantErr bool
 	}{
 		{str: h2b6(""), wantErr: true},
-		// TODO(pavelkalinnikov): Parse "00" without a segfault in NewSuffix.
+		// TODO(pavelkalinnikov): Parse "00" without a segfault in newSuffix.
 		{str: h2b6("0100"), bits: 1, path: h2b("00")},
 		// TODO(pavelkalinnikov): The last byte must be masked.
 		{str: h2b6("01FC"), bits: 1, path: h2b("FC")},
@@ -60,17 +60,17 @@ func TestParseSuffix(t *testing.T) {
 		{str: "----", wantErr: true},
 	} {
 		t.Run("", func(t *testing.T) {
-			sfx, err := ParseSuffix(tc.str)
+			sfx, err := parseSuffix(tc.str)
 			if got, want := err != nil, tc.wantErr; got != want {
-				t.Fatalf("ParseSuffix: %v, wantErr: %v", err, want)
+				t.Fatalf("parseSuffix: %v, wantErr: %v", err, want)
 			} else if err != nil {
 				return
 			}
 			if got, want := sfx.Bits(), tc.bits; got != want {
-				t.Errorf("ParseSuffix: got %d bits, want %d", got, want)
+				t.Errorf("parseSuffix: got %d bits, want %d", got, want)
 			}
 			if got, want := sfx.Path(), tc.path; !bytes.Equal(got, want) {
-				t.Errorf("ParseSuffix: got path %x, want %x", got, want)
+				t.Errorf("parseSuffix: got path %x, want %x", got, want)
 			}
 		})
 	}
@@ -120,7 +120,7 @@ func TestSuffixKey(t *testing.T) {
 }
 
 // makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and InternalNodes maps.
-// This function documents existing log storage behavior. Any new code that emits Suffix objects must
+// This function documents existing log storage behavior. Any new code that emits suffix objects must
 // produce the exact same outputs as this function would for Logs.
 func makeSuffixKey(depth int, index int64) (string, error) {
 	if depth < 0 {
@@ -129,22 +129,22 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 	if index < 0 {
 		return "", fmt.Errorf("invalid negative index %d", index)
 	}
-	sfx := NewSuffix(byte(depth), []byte{byte(index)})
+	sfx := newSuffix(byte(depth), []byte{byte(index)})
 	return sfx.String(), nil
 }
 
 func TestSuffixSerialize(t *testing.T) {
 	for _, tc := range []struct {
-		s    *Suffix
+		s    *suffix
 		want string
 	}{
 		// Pre-existing format. This test vector must NOT change or existing data will be inaccessible.
-		{s: NewSuffix(1, []byte{0xae}), want: "Aa4="},
-		{s: NewSuffix(5, []byte{0xae}), want: "Ba4="},
-		{s: NewSuffix(8, []byte{0xae}), want: "CK4="},
-		{s: NewSuffix(15, []byte{0xae, 0x27}), want: "D64n"},
-		{s: NewSuffix(16, []byte{0xae, 0x27}), want: "EK4n"},
-		{s: NewSuffix(23, []byte{0xae, 0x27, 0x49}), want: "F64nSQ=="},
+		{s: newSuffix(1, []byte{0xae}), want: "Aa4="},
+		{s: newSuffix(5, []byte{0xae}), want: "Ba4="},
+		{s: newSuffix(8, []byte{0xae}), want: "CK4="},
+		{s: newSuffix(15, []byte{0xae, 0x27}), want: "D64n"},
+		{s: newSuffix(16, []byte{0xae, 0x27}), want: "EK4n"},
+		{s: newSuffix(23, []byte{0xae, 0x27, 0x49}), want: "F64nSQ=="},
 	} {
 		if got, want := tc.s.String(), tc.want; got != want {
 			t.Errorf("%v.serialize(): %v, want %v", tc.s, got, want)
@@ -153,8 +153,8 @@ func TestSuffixSerialize(t *testing.T) {
 }
 
 func TestSuffixPathImmutable(t *testing.T) {
-	s1 := NewSuffix(8, []byte{0x97})
-	s2 := NewSuffix(8, []byte{0x97})
+	s1 := newSuffix(8, []byte{0x97})
+	s2 := newSuffix(8, []byte{0x97})
 
 	p1 := s1.Path()
 	p2 := s2.Path()
@@ -194,21 +194,21 @@ func Test8BitSuffixCache(t *testing.T) {
 		{b: 24, path: []byte{0x40, 0xf0, 0xaa}, wantCache: false},
 		{b: 32, path: []byte{0x40, 0xf0, 0xaa, 0xed}, wantCache: false},
 	} {
-		s1 := NewSuffix(tc.b, tc.path)
-		s2 := NewSuffix(tc.b, tc.path)
+		s1 := newSuffix(tc.b, tc.path)
+		s2 := newSuffix(tc.b, tc.path)
 
 		if s1 == s2 != tc.wantCache {
-			t.Errorf("NewSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s2)
+			t.Errorf("newSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s2)
 		}
 
 		// Test the other direction as well by parsing it and we should get the
 		// same instance again.
-		s3, err := ParseSuffix(s1.String())
+		s3, err := parseSuffix(s1.String())
 		if err != nil {
 			t.Fatalf("failed to parse our own suffix: %v", err)
 		}
 		if s1 == s3 != tc.wantCache {
-			t.Errorf("ParseSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s3)
+			t.Errorf("parseSuffix(): %v: cache / non cache mismatch: %v", tc, s1 == s3)
 		}
 	}
 }
@@ -216,12 +216,12 @@ func Test8BitSuffixCache(t *testing.T) {
 // TestCacheIsolation ensures that users can't corrupt the cache by modifying
 // values.
 func TestCacheIsolation(t *testing.T) {
-	s1 := NewSuffix(8, []byte{0x80})
+	s1 := newSuffix(8, []byte{0x80})
 	s1.Path()[0] ^= 0xff
-	s2 := NewSuffix(8, []byte{0x80})
+	s2 := newSuffix(8, []byte{0x80})
 
 	if s1 != s2 {
-		t.Fatalf("did not get same instance back from NewSuffix(8, ...)")
+		t.Fatalf("did not get same instance back from newSuffix(8, ...)")
 	}
 	if s2.Path()[0] != 0x80 {
 		t.Fatalf("cache instances are not immutable")

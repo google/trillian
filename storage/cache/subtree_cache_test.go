@@ -25,7 +25,6 @@ import (
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/storage/tree"
 
 	"github.com/golang/mock/gomock"
 )
@@ -214,7 +213,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		store := func(id compact.NodeID, hash []byte) {
 			// Don't store leaves or the subtree root in InternalNodes
 			if id.Level > 0 && id.Level < 8 {
-				_, sfx := tree.Split(id)
+				_, sfx := splitID(id)
 				cmtStorage.InternalNodes[sfx.String()] = hash
 			}
 		}

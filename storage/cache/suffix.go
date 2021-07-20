@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tree
+package cache
 
 import (
 	"encoding/base64"
@@ -29,24 +29,24 @@ type key struct {
 }
 
 var (
-	// EmptySuffix is a reusable suffix of zero bits. To avoid special cases
+	// emptySuffix is a reusable suffix of zero bits. To avoid special cases
 	// there is a single byte path attached to it and there is no way to create
-	// a Suffix with a nil or empty path.
-	EmptySuffix = NewSuffix(0, []byte{0})
-	// fromRaw maps a bit length and single byte path to a Suffix.
-	fromRaw = make(map[key]*Suffix)
-	// fromString maps a base64 encoded string representation to a Suffix.
-	fromString = make(map[string]*Suffix)
+	// a suffix with a nil or empty path.
+	emptySuffix = newSuffix(0, []byte{0})
+	// fromRaw maps a bit length and single byte path to a suffix.
+	fromRaw = make(map[key]*suffix)
+	// fromString maps a base64 encoded string representation to a suffix.
+	fromString = make(map[string]*suffix)
 )
 
-// Suffix represents the tail of a NodeID. It is the path within the subtree.
+// suffix represents the tail of a NodeID. It is the path within the subtree.
 // The portion of the path that extends beyond the subtree is not part of this suffix.
-// We keep a cache of the Suffix values use by log trees, which will have a
+// We keep a cache of the suffix values use by log trees, which will have a
 // depth between 1 and 8 bits. These are reused to avoid constant reallocation
 // and base64 conversion overhead.
 //
 // TODO(pavelkalinnikov, v2): This type is specific to SubtreeProto. Move it.
-type Suffix struct {
+type suffix struct {
 	// bits is the number of bits in the node ID suffix.
 	bits uint8
 	// path is the suffix itself.
@@ -55,11 +55,11 @@ type Suffix struct {
 	asString string
 }
 
-// NewSuffix creates a new Suffix. The primary use for them is to get their
+// newSuffix creates a new suffix. The primary use for them is to get their
 // String value to use as a key so we compute that once up front.
 //
 // TODO(pavelkalinnikov): Mask the last byte of path.
-func NewSuffix(bits uint8, path []byte) *Suffix {
+func newSuffix(bits uint8, path []byte) *suffix {
 	// Use a shared value for a short suffix if we have one, they're immutable.
 	if bits <= 8 {
 		if sfx, ok := fromRaw[key{depth: bits, value: path[0]}]; ok {
@@ -72,28 +72,28 @@ func NewSuffix(bits uint8, path []byte) *Suffix {
 	r = append(r, path...)
 	s := base64.StdEncoding.EncodeToString(r)
 
-	return &Suffix{bits: bits, path: r[1:], asString: s}
+	return &suffix{bits: bits, path: r[1:], asString: s}
 }
 
-// Bits returns the number of significant bits in the Suffix path.
-func (s Suffix) Bits() uint8 {
+// Bits returns the number of significant bits in the suffix path.
+func (s suffix) Bits() uint8 {
 	return s.bits
 }
 
-// Path returns a copy of the Suffix path.
-func (s Suffix) Path() []byte {
+// Path returns a copy of the suffix path.
+func (s suffix) Path() []byte {
 	return append(make([]byte, 0, len(s.path)), s.path...)
 }
 
-// String returns a string that represents Suffix.
+// String returns a string that represents suffix.
 // This is a base64 encoding of the following format:
 // [ 1 byte for depth || path bytes ]
-func (s Suffix) String() string {
+func (s suffix) String() string {
 	return s.asString
 }
 
-// ParseSuffix converts a suffix string back into a Suffix.
-func ParseSuffix(s string) (*Suffix, error) {
+// parseSuffix converts a suffix string back into a suffix.
+func parseSuffix(s string) (*suffix, error) {
 	if sfx, ok := fromString[s]; ok {
 		// Matches a precalculated value, use that.
 		return sfx, nil
@@ -111,7 +111,7 @@ func ParseSuffix(s string) (*Suffix, error) {
 		return nil, fmt.Errorf("unexpected length %d, need %d", got, want)
 	}
 
-	return NewSuffix(bits, b), nil
+	return newSuffix(bits, b), nil
 }
 
 // bytesForBits returns the number of bytes required to store numBits bits.
@@ -131,8 +131,8 @@ func init() {
 			// Don't need to mask off lower bits outside the valid ones because we
 			// know they're already zero.
 			path[0] = byte(i << uint(8-d))
-			sfx := NewSuffix(byte(d), path)
-			// As an extra check there should be no collisions in the Suffix values
+			sfx := newSuffix(byte(d), path)
+			// As an extra check there should be no collisions in the suffix values
 			// that we build so map entries should not be overwritten.
 			k := key{depth: uint8(d), value: path[0]}
 			if _, ok := fromRaw[k]; ok {
