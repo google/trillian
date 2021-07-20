@@ -45,17 +45,15 @@ type ReadOnlyLogTreeTX interface {
 }
 
 // LogTreeTX is the transactional interface for reading/updating a Log.
-// It extends the basic TreeTX interface with Log specific methods.
 // After a call to Commit or Close implementations must be in a clean state and have
-// released any resources owned by the LogTX.
+// released any resources owned by the LogTreeTX.
 // A LogTreeTX can only modify the tree specified in its creation.
 type LogTreeTX interface {
 	ReadOnlyLogTreeTX
 
 	// SetMerkleNodes writes the nodes, at the write revision.
 	//
-	// TODO(pavelkalinnikov): This duplicates TreeTX.SetMerkleNodes. Remove it
-	// when the interfaces are merged.
+	// TODO(pavelkalinnikov): Use tiles instead, here and in GetMerkleNodes.
 	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
 
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.

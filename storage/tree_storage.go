@@ -41,18 +41,3 @@ type ReadOnlyTreeTX interface {
 	// transaction should not be used after it.
 	Close() error
 }
-
-// TreeTX represents an in-process tree-modifying transaction.
-// The transaction must end with a call to Commit or Close.
-// After a call to Commit or Close, all operations on the transaction will fail.
-// After a call to Commit or Close implementations must be in a clean state and have
-// released any resources owned by the TreeTX.
-// A TreeTX can only modify the tree specified in its creation.
-type TreeTX interface {
-	ReadOnlyTreeTX
-
-	// SetMerkleNodes writes the nodes, at the write revision.
-	//
-	// TODO(pavelkalinnikov): Use tiles instead, here and in GetMerkleNodes.
-	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
-}

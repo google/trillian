@@ -99,7 +99,7 @@ func InitMetrics(mf monitoring.MetricFactory) {
 
 // initCompactRangeFromStorage builds a compact range that matches the latest
 // data in the database. Ensures that the root hash matches the passed in root.
-func initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.TreeTX) (*compact.Range, error) {
+func initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx storage.LogTreeTX) (*compact.Range, error) {
 	fact := compact.RangeFactory{Hash: rfc6962.DefaultHasher.HashChildren}
 	if root.TreeSize == 0 {
 		return fact.NewEmptyRange(0), nil

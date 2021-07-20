@@ -172,8 +172,8 @@ func (t *treeTX) getLatestRoot(ctx context.Context) error {
 	return t._currentSTHErr
 }
 
-// treeTX is a concrete implementation of the Trillian
-// storage.TreeTX interface.
+// treeTX is a concrete implementation of the part of storage.LogTreeTX
+// interface formerly known as storage.TreeTX.
 type treeTX struct {
 	treeID   int64
 	treeType trillian.TreeType
