@@ -83,14 +83,16 @@ func TestDBFormatNoChange(t *testing.T) {
 	}
 }
 
-func parseTiles(t *testing.T, text string) []storagepb.SubtreeProto {
+func parseTiles(t *testing.T, text string) []*storagepb.SubtreeProto {
 	t.Helper()
 	parts := strings.Split(text, "\n\n")
-	tiles := make([]storagepb.SubtreeProto, len(parts))
+	tiles := make([]*storagepb.SubtreeProto, len(parts))
 	for i, part := range parts {
-		if err := prototext.Unmarshal([]byte(part), &tiles[i]); err != nil {
+		var tile storagepb.SubtreeProto
+		if err := prototext.Unmarshal([]byte(part), &tile); err != nil {
 			t.Fatalf("Failed to unmarshal part %d: %v", i, err)
 		}
+		tiles[i] = &tile
 	}
 	return tiles
 }
