@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian/storage/storagepb"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 // TestDBFormatNoChange ensures that the prefix, suffix, and protos stored in the database do not change.
@@ -77,7 +77,7 @@ func TestDBFormatNoChange(t *testing.T) {
 		}
 		got := parseTiles(t, out)
 		want := parseTiles(t, string(saved))
-		if d := cmp.Diff(want, got, cmpopts.IgnoreUnexported(storagepb.SubtreeProto{})); d != "" {
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
 			t.Errorf("Diff(-want,+got):\n%s", d)
 		}
 	}
