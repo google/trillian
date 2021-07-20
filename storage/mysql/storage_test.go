@@ -141,7 +141,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 }
 
-func forceWriteRevision(rev int64, tx storage.TreeTX) {
+func forceWriteRevision(rev int64, tx storage.LogTreeTX) {
 	mtx, ok := tx.(*logTreeTX)
 	if !ok {
 		panic(nil)

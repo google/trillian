@@ -19,13 +19,29 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/compact"
+	"github.com/google/trillian/storage/tree"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// ErrTreeNeedsInit is returned when calling methods on an uninitialised tree.
+var ErrTreeNeedsInit = status.Error(codes.FailedPrecondition, "tree needs initialising")
 
 // ReadOnlyLogTreeTX provides a read-only view into the Log data.
 // A ReadOnlyLogTreeTX can only read from the tree specified in its creation.
 type ReadOnlyLogTreeTX interface {
-	ReadOnlyTreeTX
+	// Commit applies the operations performed to the underlying storage. It must
+	// be called before any reads from storage are considered consistent.
+	Commit(context.Context) error
 
+	// Close rolls back the transaction if it wasn't committed or closed
+	// previously. Resources are cleaned up regardless of the success, and the
+	// transaction should not be used after it.
+	Close() error
+
+	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
+	GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error)
 	// GetLeavesByRange returns leaf data for a range of indexes. The returned
 	// slice is a contiguous prefix of leaves in [start, start+count) ordered by
 	// LeafIndex. It will be shorter than `count` if the requested range has
@@ -44,13 +60,16 @@ type ReadOnlyLogTreeTX interface {
 }
 
 // LogTreeTX is the transactional interface for reading/updating a Log.
-// It extends the basic TreeTX interface with Log specific methods.
 // After a call to Commit or Close implementations must be in a clean state and have
-// released any resources owned by the LogTX.
+// released any resources owned by the LogTreeTX.
 // A LogTreeTX can only modify the tree specified in its creation.
 type LogTreeTX interface {
 	ReadOnlyLogTreeTX
-	TreeWriter
+
+	// SetMerkleNodes writes the nodes, at the write revision.
+	//
+	// TODO(pavelkalinnikov): Use tiles instead, here and in GetMerkleNodes.
+	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
 
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
 	StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error
@@ -86,7 +105,9 @@ type LogTreeTX interface {
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
 type ReadOnlyLogStorage interface {
-	DatabaseChecker
+	// CheckDatabaseAccessible returns nil if the database is accessible, or an
+	// error otherwise.
+	CheckDatabaseAccessible(context.Context) error
 
 	// GetActiveLogIDs returns a list of the IDs of all the logs that are
 	// configured in storage and are eligible to have entries sequenced.

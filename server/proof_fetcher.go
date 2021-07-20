@@ -22,19 +22,24 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/tree"
 )
+
+// nodeReader provides read-only access to the tree nodes.
+type nodeReader interface {
+	// GetMerkleNodes returns tree nodes by their IDs, in the requested order.
+	GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error)
+}
 
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
 // from storage and converts them into the proof proto that will be returned to the client.
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
-// revisions. This code only relies on the NodeReader interface so can be tested without
+// revisions. This code only relies on the nodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th hashers.LogHasher, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
-	proofNodes, err := fetchNodes(ctx, tx, proofNodeFetches)
+	proofNodes, err := fetchNodes(ctx, nr, proofNodeFetches)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +61,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hash
 
 // fetchNodes obtains the nodes denoted by the given NodeFetch structs, and
 // returns them after some validation checks.
-func fetchNodes(ctx context.Context, tx storage.NodeReader, fetches []merkle.NodeFetch) ([]tree.Node, error) {
+func fetchNodes(ctx context.Context, nr nodeReader, fetches []merkle.NodeFetch) ([]tree.Node, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodes")
 	defer spanEnd()
 	ids := make([]compact.NodeID, 0, len(fetches))
@@ -64,7 +69,7 @@ func fetchNodes(ctx context.Context, tx storage.NodeReader, fetches []merkle.Nod
 		ids = append(ids, fetch.ID)
 	}
 
-	nodes, err := tx.GetMerkleNodes(ctx, ids)
+	nodes, err := nr.GetMerkleNodes(ctx, ids)
 	if err != nil {
 		return nil, err
 	}

@@ -36,6 +36,7 @@
  * Removed the `ReadOnlyLogTX` interface, and put its only used
    `GetActiveLogIDs` method to `LogStorage`.
  * Inlined the `LogMetadata` interface to `ReadOnlyLogStorage`.
+ * Inlined the `TreeStorage` interfaces to `LogStorage`.
  * Removed the need for the storage layer to return ephemeral node hashes. The
    application layer always requests for complete subtree nodes comprising the
    compact ranges corresponding to the requests.
