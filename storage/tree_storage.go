@@ -50,11 +50,7 @@ type ReadOnlyTreeTX interface {
 // A TreeTX can only modify the tree specified in its creation.
 type TreeTX interface {
 	ReadOnlyTreeTX
-	TreeWriter
-}
 
-// TreeWriter represents additional transaction methods that modify the tree.
-type TreeWriter interface {
 	// SetMerkleNodes writes the nodes, at the write revision.
 	//
 	// TODO(pavelkalinnikov): Use tiles instead, here and in GetMerkleNodes.

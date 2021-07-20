@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage/tree"
 )
 
 // ReadOnlyLogTreeTX provides a read-only view into the Log data.
@@ -50,7 +51,12 @@ type ReadOnlyLogTreeTX interface {
 // A LogTreeTX can only modify the tree specified in its creation.
 type LogTreeTX interface {
 	ReadOnlyLogTreeTX
-	TreeWriter
+
+	// SetMerkleNodes writes the nodes, at the write revision.
+	//
+	// TODO(pavelkalinnikov): This duplicates TreeTX.SetMerkleNodes. Remove it
+	// when the interfaces are merged.
+	SetMerkleNodes(ctx context.Context, nodes []tree.Node) error
 
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
 	StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error
