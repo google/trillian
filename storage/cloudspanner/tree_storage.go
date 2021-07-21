@@ -366,41 +366,44 @@ func (t *treeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tr
 	if err != nil {
 		return nil, fmt.Errorf("failed to get read revision: %v", err)
 	}
+	return t.cache.GetNodes(ids, t.getSubtreesAtRev(ctx, rev))
+}
 
-	return t.cache.GetNodes(ids,
-		func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
-			// Request the various subtrees in parallel.
-			// c will carry any retrieved subtrees
-			c := make(chan *storagepb.SubtreeProto, len(ids))
+// getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
+func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
+	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
+		// Request the various subtrees in parallel.
+		// c will carry any retrieved subtrees
+		c := make(chan *storagepb.SubtreeProto, len(ids))
 
-			// Spawn goroutines for each request
-			g, gctx := errgroup.WithContext(ctx)
-			for _, id := range ids {
-				id := id
-				g.Go(func() error {
-					st, err := t.getSubtree(gctx, rev, id)
-					if err != nil {
-						return err
-					}
-					c <- st
-					return nil
-				})
-			}
-			if err := g.Wait(); err != nil {
-				return nil, err
-			}
-			close(c)
-
-			// Now wait for the goroutines to signal their completion, and collect
-			// the results.
-			ret := make([]*storagepb.SubtreeProto, 0, len(ids))
-			for st := range c {
-				if st != nil {
-					ret = append(ret, st)
+		// Spawn goroutines for each request
+		g, gctx := errgroup.WithContext(ctx)
+		for _, id := range ids {
+			id := id
+			g.Go(func() error {
+				st, err := t.getSubtree(gctx, rev, id)
+				if err != nil {
+					return err
 				}
+				c <- st
+				return nil
+			})
+		}
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
+		close(c)
+
+		// Now wait for the goroutines to signal their completion, and collect
+		// the results.
+		ret := make([]*storagepb.SubtreeProto, 0, len(ids))
+		for st := range c {
+			if st != nil {
+				ret = append(ret, st)
 			}
-			return ret, nil
-		})
+		}
+		return ret, nil
+	}
 }
 
 // SetMerkleNodes stores the provided merkle nodes at the writeRevision of the
@@ -411,24 +414,11 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	if t.stx == nil {
 		return ErrTransactionClosed
 	}
-
 	writeRev, err := t.writeRev(ctx)
 	if err != nil {
 		return err
 	}
-
-	for _, n := range nodes {
-		err := t.cache.SetNodeHash(
-			n.ID,
-			n.Hash,
-			func(id []byte) (*storagepb.SubtreeProto, error) {
-				return t.getSubtree(ctx, writeRev-1, id)
-			})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return t.cache.SetNodes(nodes, t.getSubtreesAtRev(ctx, writeRev-1))
 }
 
 func checkDatabaseAccessible(ctx context.Context, client *spanner.Client) error {
