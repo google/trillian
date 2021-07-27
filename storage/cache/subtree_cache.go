@@ -144,7 +144,7 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 		}
 		delete(want, string(t.Prefix))
 	}
-	notFound := make([]string, len(want))
+	notFound := make([]string, 0, len(want))
 	for id := range want {
 		notFound = append(notFound, id)
 	}
