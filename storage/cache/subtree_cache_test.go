@@ -43,7 +43,7 @@ func toPrefix(t *testing.T, id compact.NodeID) []byte {
 	return bytes[:8-id.Level/8]
 }
 
-func getSubtrees(ns NodeStorage) GetSubtreesFunc {
+func getSubtrees(ns *MockNodeStorage) GetSubtreesFunc {
 	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 		ret := make([]*storagepb.SubtreeProto, 0, len(ids))
 		for _, id := range ids {
