@@ -40,6 +40,8 @@
  * Removed the need for the storage layer to return ephemeral node hashes. The
    application layer always requests for complete subtree nodes comprising the
    compact ranges corresponding to the requests.
+ * Removed the single-tile callback from `SubtreeCache`, it uses only
+   `GetSubtreesFunc` now.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
