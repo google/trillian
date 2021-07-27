@@ -172,8 +172,14 @@ func TestCacheFlush(t *testing.T) {
 		t.Fatalf("SetNodes: %v", err)
 	}
 
-	if err := c.Flush(ctx, m.SetSubtrees); err != nil {
+	tiles, err := c.Flush()
+	if err != nil {
 		t.Fatalf("failed to flush cache: %v", err)
+	}
+	if len(tiles) > 0 {
+		if err := m.SetSubtrees(ctx, tiles); err != nil {
+			t.Fatalf("SetSubtrees: %v", err)
+		}
 	}
 
 	for k, v := range expectedSetIDs {
@@ -316,8 +322,14 @@ func TestIdempotentWrites(t *testing.T) {
 		if err := c.SetNodes(nodes, getSubtrees(m)); err != nil {
 			t.Fatalf("%d: failed to set node hash: %v", i, err)
 		}
-		if err := c.Flush(ctx, m.SetSubtrees); err != nil {
+		tiles, err := c.Flush()
+		if err != nil {
 			t.Fatalf("%d: failed to flush cache: %v", i, err)
+		}
+		if len(tiles) > 0 {
+			if err := m.SetSubtrees(ctx, tiles); err != nil {
+				t.Fatalf("%d: SetSubtrees: %v", i, err)
+			}
 		}
 	}
 
