@@ -175,7 +175,7 @@ func (s *SubtreeCache) GetNodes(ids []compact.NodeID, getSubtrees GetSubtreesFun
 	ret := make([]tree.Node, 0, len(ids))
 	for _, id := range ids {
 		if h, err := s.getNodeHash(id); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("getNodeHash(%+v): %v", id, err)
 		} else if h != nil {
 			ret = append(ret, tree.Node{ID: id, Hash: h})
 		}
