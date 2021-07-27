@@ -212,11 +212,10 @@ func (s *SubtreeCache) getNodeHash(id compact.NodeID) ([]byte, error) {
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
-	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
-		return c.Leaves[sfxKey], nil
+		return c.Leaves[sx.String()], nil
 	}
-	return c.InternalNodes[sfxKey], nil
+	return c.InternalNodes[sx.String()], nil
 }
 
 // SetNodes sets hashes for the given nodes in the cache.
@@ -241,19 +240,19 @@ func (s *SubtreeCache) SetNodes(nodes []tree.Node, getSubtrees GetSubtreesFunc) 
 			return fmt.Errorf("tile %x not found", subID)
 		}
 
-		// Determine whether we're being asked to store a leaf node, or an internal
-		// node, and store it accordingly. If the value being set is identical to
-		// the one we read from storage, then leave the cache state alone. This
-		// will prevent a write (and subtree revision bump) for identical data.
+		// Store the hash to the containing tile, and mark it as dirty if the hash
+		// differs from the previously stored one.
 		sfxKey := sx.String()
-		if int32(sx.Bits()) == c.Depth {
+		if int32(sx.Bits()) == c.Depth { // This is a leaf node.
 			if !bytes.Equal(c.Leaves[sfxKey], n.Hash) {
 				c.Leaves[sfxKey] = n.Hash
 				s.dirtyPrefixes.Store(string(subID), nil)
 			}
-		} else if !bytes.Equal(c.InternalNodes[sfxKey], n.Hash) {
-			c.InternalNodes[sfxKey] = n.Hash
-			s.dirtyPrefixes.Store(string(subID), nil)
+		} else { // This is an internal node.
+			if !bytes.Equal(c.InternalNodes[sfxKey], n.Hash) {
+				c.InternalNodes[sfxKey] = n.Hash
+				s.dirtyPrefixes.Store(string(subID), nil)
+			}
 		}
 	}
 
