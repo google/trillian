@@ -173,21 +173,6 @@ type treeTX struct {
 	writeRevision int64
 }
 
-func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, id []byte) (*storagepb.SubtreeProto, error) {
-	s, err := t.getSubtrees(ctx, treeRevision, [][]byte{id})
-	if err != nil {
-		return nil, err
-	}
-	switch len(s) {
-	case 0:
-		return nil, nil
-	case 1:
-		return s[0], nil
-	default:
-		return nil, fmt.Errorf("got %d subtrees, but expected 1", len(s))
-	}
-}
-
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 	glog.V(2).Infof("getSubtrees(len(ids)=%d)", len(ids))
 	glog.V(4).Infof("getSubtrees(")
@@ -350,17 +335,8 @@ func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtr
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
-	for _, n := range nodes {
-		err := t.subtreeCache.SetNodeHash(n.ID, n.Hash,
-			func(id []byte) (*storagepb.SubtreeProto, error) {
-				return t.getSubtree(ctx, t.writeRevision, id)
-			})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	rev := t.writeRevision - 1
+	return t.subtreeCache.SetNodes(nodes, t.getSubtreesAtRev(ctx, rev))
 }
 
 func (t *treeTX) Commit(ctx context.Context) error {

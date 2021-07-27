@@ -17,7 +17,6 @@ package cache
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/tree"
 
 	"github.com/golang/mock/gomock"
 )
@@ -41,6 +41,20 @@ func toPrefix(t *testing.T, id compact.NodeID) []byte {
 	var bytes [8]byte
 	binary.BigEndian.PutUint64(bytes[:], id.Index<<id.Level)
 	return bytes[:8-id.Level/8]
+}
+
+func getSubtrees(ns NodeStorage) GetSubtreesFunc {
+	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
+		ret := make([]*storagepb.SubtreeProto, 0, len(ids))
+		for _, id := range ids {
+			if s, err := ns.GetSubtree(id); err != nil {
+				return nil, err
+			} else if s != nil {
+				ret = append(ret, s)
+			}
+		}
+		return ret, nil
+	}
 }
 
 func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
@@ -61,10 +75,12 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 		}, nil)
 	}
 
+	var ids []compact.NodeID
 	for id := id; id.Level < 64; id = ancestor(id, 1) {
-		if _, err := c.getNodeHash(id, m.GetSubtree); err != nil {
-			t.Fatalf("failed to get node hash: %v", err)
-		}
+		ids = append(ids, id)
+	}
+	if _, err := c.GetNodes(ids, getSubtrees(m)); err != nil {
+		t.Errorf("GetNodes: %v", err)
 	}
 }
 
@@ -101,31 +117,10 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 		}, nil)
 	}
 
-	// Now request the nodes:
-	_, err := c.GetNodes(
-		ids,
-		// Glue function to convert a call requesting multiple subtrees into a
-		// sequence of calls to our mock storage:
-		func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
-			ret := make([]*storagepb.SubtreeProto, 0)
-			for _, id := range ids {
-				r, err := m.GetSubtree(id)
-				if err != nil {
-					return nil, err
-				}
-				if r != nil {
-					ret = append(ret, r)
-				}
-			}
-			return ret, nil
-		})
-	if err != nil {
-		t.Errorf("getNodeHash(_, _) = _, %v", err)
+	// Now request the nodes.
+	if _, err := c.GetNodes(ids, getSubtrees(m)); err != nil {
+		t.Errorf("GetNodes: %v", err)
 	}
-}
-
-func noFetch(_ []byte) (*storagepb.SubtreeProto, error) {
-	return nil, errors.New("not supposed to read anything")
 }
 
 func TestCacheFlush(t *testing.T) {
@@ -169,11 +164,12 @@ func TestCacheFlush(t *testing.T) {
 	}).Return(nil)
 
 	// Write nodes.
+	var nodes []tree.Node
 	for id := id; id.Level < 64; id = ancestor(id, 1) {
-		err := c.SetNodeHash(id, []byte(fmt.Sprintf("hash-%v", id)), m.GetSubtree)
-		if err != nil {
-			t.Fatalf("failed to set node hash: %v", err)
-		}
+		nodes = append(nodes, tree.Node{ID: id, Hash: []byte(fmt.Sprintf("hash-%v", id))})
+	}
+	if err := c.SetNodes(nodes, getSubtrees(m)); err != nil {
+		t.Fatalf("SetNodes: %v", err)
 	}
 
 	if err := c.Flush(ctx, m.SetSubtrees); err != nil {
@@ -285,7 +281,7 @@ func TestIdempotentWrites(t *testing.T) {
 		t.Logf("read %x", id)
 	}).Return((*storagepb.SubtreeProto)(nil), nil)
 
-	// We should only see a single write attempt
+	// We should only see a single write attempt.
 	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			state, ok := expectedSetIDs[string(s.Prefix)]
@@ -316,10 +312,8 @@ func TestIdempotentWrites(t *testing.T) {
 	// result in an actual write being flushed through to storage.
 	for i := 0; i < 10; i++ {
 		c := NewLogSubtreeCache(rfc6962.DefaultHasher)
-		if _, err := c.getNodeHash(id, m.GetSubtree); err != nil {
-			t.Fatalf("%d: failed to get node hash: %v", i, err)
-		}
-		if err := c.SetNodeHash(id, []byte("noodled"), noFetch); err != nil {
+		nodes := []tree.Node{{ID: id, Hash: []byte("noodled")}}
+		if err := c.SetNodes(nodes, getSubtrees(m)); err != nil {
 			t.Fatalf("%d: failed to set node hash: %v", i, err)
 		}
 		if err := c.Flush(ctx, m.SetSubtrees); err != nil {

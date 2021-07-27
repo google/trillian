@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
@@ -33,9 +32,6 @@ import (
 var populateConcurrency = flag.Int("populate_subtree_concurrency", 256, "Max number of concurrent workers concurrently populating subtrees")
 
 // TODO(pavelkalinnikov): Rename subtrees to tiles.
-
-// GetSubtreeFunc describes a function which can return a Subtree from storage.
-type GetSubtreeFunc func(id []byte) (*storagepb.SubtreeProto, error)
 
 // GetSubtreesFunc describes a function which can return a number of Subtrees from storage.
 type GetSubtreesFunc func(ids [][]byte) ([]*storagepb.SubtreeProto, error)
@@ -55,7 +51,7 @@ type SubtreeCache struct {
 	hasher hashers.LogHasher
 
 	// subtrees contains the Subtree data read from storage, and is updated by
-	// calls to SetNodeHash.
+	// calls to SetNodes.
 	subtrees sync.Map
 	// dirtyPrefixes keeps track of all Subtrees which need to be written back
 	// to storage.
@@ -79,8 +75,8 @@ func NewLogSubtreeCache(hasher hashers.LogHasher) *SubtreeCache {
 
 // preload calculates the set of subtrees required to know the hashes of the
 // passed in node IDs, uses getSubtrees to retrieve them, and finally populates
-// the cache structures with the data.
-func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc) error {
+// the cache structures with the data. Returns the list of tile IDs not found.
+func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc) ([]string, error) {
 	// Figure out the set of subtrees we need.
 	want := make(map[string]bool)
 	for _, id := range ids {
@@ -99,7 +95,7 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 
 	// Don't make a read request for zero subtrees.
 	if len(want) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	list := make([][]byte, 0, len(want))
@@ -108,10 +104,10 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 	}
 	subtrees, err := getSubtrees(list)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if got, max := len(subtrees), len(want); got > max {
-		return fmt.Errorf("too many subtrees: %d, want <= %d", got, max)
+		return nil, fmt.Errorf("too many subtrees: %d, want <= %d", got, max)
 	}
 
 	ch := make(chan *storagepb.SubtreeProto, len(subtrees))
@@ -144,14 +140,15 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 
 	for t := range ch {
 		if err := s.cacheSubtree(t); err != nil {
-			return err
+			return nil, err
 		}
 		delete(want, string(t.Prefix))
 	}
-	if r := len(want); r != 0 {
-		return fmt.Errorf("preload did not get all tiles: %d not found", r)
+	notFound := make([]string, len(want))
+	for id := range want {
+		notFound = append(notFound, id)
 	}
-	return nil
+	return notFound, nil
 }
 
 func (s *SubtreeCache) cacheSubtree(t *storagepb.SubtreeProto) error {
@@ -169,36 +166,18 @@ func (s *SubtreeCache) cacheSubtree(t *storagepb.SubtreeProto) error {
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
 func (s *SubtreeCache) GetNodes(ids []compact.NodeID, getSubtrees GetSubtreesFunc) ([]tree.Node, error) {
-	if err := s.preload(ids, getSubtrees); err != nil {
+	if notFound, err := s.preload(ids, getSubtrees); err != nil {
 		return nil, err
+	} else if r := len(notFound); r != 0 {
+		return nil, fmt.Errorf("preload did not get all tiles: %d not found", r)
 	}
 
 	ret := make([]tree.Node, 0, len(ids))
 	for _, id := range ids {
-		h, err := s.getNodeHash(
-			id,
-			func(id []byte) (*storagepb.SubtreeProto, error) {
-				// This should never happen - we should've already read all the data we
-				// need above, in Preload()
-				glog.Warningf("Unexpectedly reading from within getNodeHash(): %x", id)
-				ret, err := getSubtrees([][]byte{id})
-				if err != nil || len(ret) == 0 {
-					return nil, err
-				}
-				if n := len(ret); n > 1 {
-					return nil, fmt.Errorf("got %d trees, want: 1", n)
-				}
-				return ret[0], nil
-			})
-		if err != nil {
-			return nil, err
-		}
-
-		if h != nil {
-			ret = append(ret, tree.Node{
-				ID:   id,
-				Hash: h,
-			})
+		if h, err := s.getNodeHash(id); err != nil {
+			return nil, fmt.Errorf("getNodeHash(%+v): %v", id, err)
+		} else if h != nil {
+			ret = append(ret, tree.Node{ID: id, Hash: h})
 		}
 	}
 	return ret, nil
@@ -220,36 +199,12 @@ func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
 }
 
 // getNodeHash returns a single node hash from the cache.
-func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
+func (s *SubtreeCache) getNodeHash(id compact.NodeID) ([]byte, error) {
 	subID, sx := splitID(id)
 	c := s.getCachedSubtree(subID)
 	if c == nil {
-		glog.V(2).Infof("Cache miss for %x so we'll try to fetch from storage", subID)
-		// Cache miss, so we'll try to fetch from storage.
-		var err error
-		if c, err = getSubtree(subID); err != nil {
-			return nil, err
-		}
-		if c == nil {
-			// Storage didn't have one for us, so we'll store an empty tile here in
-			// case we try to update it later on (we won't flush it back to storage
-			// unless it's been written to).
-			c = newEmptyTile(subID)
-		} else {
-			if err := PopulateLogTile(c, s.hasher); err != nil {
-				return nil, err
-			}
-		}
-		if c.Prefix == nil {
-			return nil, fmt.Errorf("getNodeHash nil prefix on %v for id %+v with px %x", c, id, subID)
-		}
-
-		s.subtrees.Store(string(subID), c)
+		return nil, fmt.Errorf("tile %x not found", subID)
 	}
-
-	// finally look for the particular node within the subtree so we can return
-	// the hash & revision.
-	var nh []byte
 
 	// Look up the hash in the appropriate map.
 	// The leaf hashes are stored in a separate map to the internal nodes so that
@@ -257,57 +212,50 @@ func (s *SubtreeCache) getNodeHash(id compact.NodeID, getSubtree GetSubtreeFunc)
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
-	sfxKey := sx.String()
 	if int32(sx.Bits()) == c.Depth {
-		nh = c.Leaves[sfxKey]
-	} else {
-		nh = c.InternalNodes[sfxKey]
+		return c.Leaves[sx.String()], nil
 	}
-	return nh, nil
+	return c.InternalNodes[sx.String()], nil
 }
 
-// SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id compact.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
-	subID, sx := splitID(id)
-	c := s.getCachedSubtree(subID)
-	if c == nil {
-		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
-		// verify that this is the case when it happens.
-		// For now, just read from storage if we don't already have it.
-		glog.V(1).Infof("attempting to write to unread subtree for %+v, reading now", id)
-		if _, err := s.getNodeHash(id, getSubtree); err != nil {
-			return err
-		}
-		// There must be a subtree present in the cache now, even if storage didn't have anything for us.
-		c = s.getCachedSubtree(subID)
+// SetNodes sets hashes for the given nodes in the cache.
+func (s *SubtreeCache) SetNodes(nodes []tree.Node, getSubtrees GetSubtreesFunc) error {
+	ids := make([]compact.NodeID, len(nodes))
+	for i, n := range nodes {
+		ids[i] = n.ID
+	}
+	notFound, err := s.preload(ids, getSubtrees)
+	if err != nil {
+		return err
+	}
+	for _, id := range notFound {
+		c := newEmptyTile([]byte(id))
+		s.subtrees.Store(string(id), c)
+	}
+
+	for _, n := range nodes {
+		subID, sx := splitID(n.ID)
+		c := s.getCachedSubtree(subID)
 		if c == nil {
-			return fmt.Errorf("internal error, subtree cache for %+v is nil after a read attempt", id)
+			return fmt.Errorf("tile %x not found", subID)
+		}
+
+		// Store the hash to the containing tile, and mark it as dirty if the hash
+		// differs from the previously stored one.
+		sfxKey := sx.String()
+		if int32(sx.Bits()) == c.Depth { // This is a leaf node.
+			if !bytes.Equal(c.Leaves[sfxKey], n.Hash) {
+				c.Leaves[sfxKey] = n.Hash
+				s.dirtyPrefixes.Store(string(subID), nil)
+			}
+		} else { // This is an internal node.
+			if !bytes.Equal(c.InternalNodes[sfxKey], n.Hash) {
+				c.InternalNodes[sfxKey] = n.Hash
+				s.dirtyPrefixes.Store(string(subID), nil)
+			}
 		}
 	}
-	if c.Prefix == nil {
-		return fmt.Errorf("nil prefix for %+v (key %v)", id, subID)
-	}
-	// Determine whether we're being asked to store a leaf node, or an internal
-	// node, and store it accordingly.
-	sfxKey := sx.String()
-	if int32(sx.Bits()) == c.Depth {
-		// If the value being set is identical to the one we read from storage, then
-		// leave the cache state alone, and return.  This will prevent a write (and
-		// subtree revision bump) for identical data.
-		if bytes.Equal(c.Leaves[sfxKey], h) {
-			return nil
-		}
-		c.Leaves[sfxKey] = h
-	} else {
-		// If the value being set is identical to the one we read from storage, then
-		// leave the cache state alone, and return.  This will prevent a write (and
-		// subtree revision bump) for identical data.
-		if bytes.Equal(c.InternalNodes[sfxKey], h) {
-			return nil
-		}
-		c.InternalNodes[sfxKey] = h
-	}
-	s.dirtyPrefixes.Store(string(subID), nil)
+
 	return nil
 }
 
