@@ -15,7 +15,6 @@
 package cache
 
 import (
-	"context"
 	"encoding/binary"
 	"fmt"
 	"testing"
@@ -124,7 +123,6 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 }
 
 func TestCacheFlush(t *testing.T) {
-	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -142,7 +140,7 @@ func TestCacheFlush(t *testing.T) {
 			t.Logf("read %x", id)
 		}).Return((*storagepb.SubtreeProto)(nil), nil)
 	}
-	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
+	store := func(trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			if got, want := s.Depth, int32(8); got != want {
 				t.Errorf("Got subtree with depth %d, expected %d for prefix %x", got, want, s.Prefix)
@@ -161,7 +159,7 @@ func TestCacheFlush(t *testing.T) {
 			}
 			t.Logf("write %x -> (%d leaves)", s.Prefix, len(s.Leaves))
 		}
-	}).Return(nil)
+	}
 
 	// Write nodes.
 	var nodes []tree.Node
@@ -176,11 +174,7 @@ func TestCacheFlush(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to flush cache: %v", err)
 	}
-	if len(tiles) > 0 {
-		if err := m.SetSubtrees(ctx, tiles); err != nil {
-			t.Fatalf("SetSubtrees: %v", err)
-		}
-	}
+	store(tiles)
 
 	for k, v := range expectedSetIDs {
 		switch v {
@@ -269,7 +263,6 @@ func BenchmarkRepopulateLogSubtree(b *testing.B) {
 }
 
 func TestIdempotentWrites(t *testing.T) {
-	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -287,8 +280,7 @@ func TestIdempotentWrites(t *testing.T) {
 		t.Logf("read %x", id)
 	}).Return((*storagepb.SubtreeProto)(nil), nil)
 
-	// We should only see a single write attempt.
-	m.EXPECT().SetSubtrees(gomock.Any(), gomock.Any()).Times(1).Do(func(ctx context.Context, trees []*storagepb.SubtreeProto) {
+	store := func(trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			state, ok := expectedSetIDs[string(s.Prefix)]
 			if !ok {
@@ -311,7 +303,7 @@ func TestIdempotentWrites(t *testing.T) {
 
 			t.Logf("write %x -> %#v", s.Prefix, s)
 		}
-	}).Return(nil)
+	}
 
 	// Now write the same value to the same node multiple times.
 	// We should see many reads, but only the first call to SetNodeHash should
@@ -326,11 +318,10 @@ func TestIdempotentWrites(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%d: failed to flush cache: %v", i, err)
 		}
-		if len(tiles) > 0 {
-			if err := m.SetSubtrees(ctx, tiles); err != nil {
-				t.Fatalf("%d: SetSubtrees: %v", i, err)
-			}
+		if i > 0 && len(tiles) > 0 {
+			t.Fatalf("unexpected dirty tiles on write attempt %d", i)
 		}
+		store(tiles)
 	}
 
 	for k, v := range expectedSetIDs {
