@@ -122,7 +122,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	}
 }
 
-func TestCacheFlush(t *testing.T) {
+func TestCacheDirty(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -170,9 +170,9 @@ func TestCacheFlush(t *testing.T) {
 		t.Fatalf("SetNodes: %v", err)
 	}
 
-	tiles, err := c.Flush()
+	tiles, err := c.UpdatedTiles()
 	if err != nil {
-		t.Fatalf("failed to flush cache: %v", err)
+		t.Fatalf("failed to get updated tiles: %v", err)
 	}
 	store(tiles)
 
@@ -314,12 +314,12 @@ func TestIdempotentWrites(t *testing.T) {
 		if err := c.SetNodes(nodes, getSubtrees(m)); err != nil {
 			t.Fatalf("%d: failed to set node hash: %v", i, err)
 		}
-		tiles, err := c.Flush()
+		tiles, err := c.UpdatedTiles()
 		if err != nil {
-			t.Fatalf("%d: failed to flush cache: %v", i, err)
+			t.Fatalf("%d: failed to get updated tiles: %v", i, err)
 		}
 		if i > 0 && len(tiles) > 0 {
-			t.Fatalf("unexpected dirty tiles on write attempt %d", i)
+			t.Fatalf("unexpected updated tiles on write attempt %d", i)
 		}
 		store(tiles)
 	}

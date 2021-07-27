@@ -231,8 +231,8 @@ func (s *SubtreeCache) SetNodes(nodes []tree.Node, getSubtrees GetSubtreesFunc) 
 	return nil
 }
 
-// Flush returns all dirty Subtrees that need to be written back to storage.
-func (s *SubtreeCache) Flush() ([]*storagepb.SubtreeProto, error) {
+// UpdatedTiles returns all updated tiles that need to be written to storage.
+func (s *SubtreeCache) UpdatedTiles() ([]*storagepb.SubtreeProto, error) {
 	var toWrite []*storagepb.SubtreeProto
 	for k, v := range s.subtrees {
 		if !s.dirtyPrefixes[k] {
