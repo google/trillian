@@ -44,18 +44,17 @@ type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) erro
 // of depth 8. It is not possible to just change the constants above and have things still
 // work. This is because of issues like byte packing of node IDs.
 //
-// The cache is optimized for the following use-cases (see sync.Map type for more details):
-//  1. Parallel readers/writers working on non-intersecting subsets of subtrees/nodes.
-//  2. Subtrees/nodes are rarely written, and mostly read.
+// SubtreeCache is not thread-safe: GetNodes, SetNodes and Flush methods must
+// be called sequentially.
 type SubtreeCache struct {
 	hasher hashers.LogHasher
 
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodes.
-	subtrees sync.Map
+	subtrees map[string]*storagepb.SubtreeProto
 	// dirtyPrefixes keeps track of all Subtrees which need to be written back
 	// to storage.
-	dirtyPrefixes sync.Map
+	dirtyPrefixes map[string]bool
 
 	// populateConcurrency sets the amount of concurrency when repopulating subtrees.
 	populateConcurrency int
@@ -69,6 +68,8 @@ func NewLogSubtreeCache(hasher hashers.LogHasher) *SubtreeCache {
 	}
 	return &SubtreeCache{
 		hasher:              hasher,
+		subtrees:            make(map[string]*storagepb.SubtreeProto),
+		dirtyPrefixes:       make(map[string]bool),
 		populateConcurrency: *populateConcurrency,
 	}
 }
@@ -81,18 +82,10 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 	want := make(map[string]bool)
 	for _, id := range ids {
 		subID := string(getTileID(id))
-		if _, ok := want[subID]; ok {
-			// No need to check s.subtrees map twice.
-			continue
-		}
-		if _, ok := s.subtrees.Load(subID); !ok {
+		if _, ok := s.subtrees[subID]; !ok {
 			want[subID] = true
 		}
 	}
-	// Note: At this point multiple parallel preload invocations can happen to
-	// getSubtrees with overlapping sets of IDs. It's okay because we collapse
-	// results further below.
-
 	// Don't make a read request for zero subtrees.
 	if len(want) == 0 {
 		return nil, nil
@@ -152,14 +145,13 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 }
 
 func (s *SubtreeCache) cacheSubtree(t *storagepb.SubtreeProto) error {
-	raw, loaded := s.subtrees.LoadOrStore(string(t.Prefix), t)
-	if loaded { // There is already something with this key.
-		if subtree, ok := raw.(*storagepb.SubtreeProto); !ok {
-			return fmt.Errorf("at %x: not a subtree: %T", t.Prefix, raw)
-		} else if !proto.Equal(t, subtree) {
+	if subtree, ok := s.subtrees[string(t.Prefix)]; ok {
+		if !proto.Equal(t, subtree) {
 			return fmt.Errorf("at %x: subtree mismatch", t.Prefix)
 		}
+		return nil
 	}
+	s.subtrees[string(t.Prefix)] = t
 	return nil
 }
 
@@ -183,25 +175,10 @@ func (s *SubtreeCache) GetNodes(ids []compact.NodeID, getSubtrees GetSubtreesFun
 	return ret, nil
 }
 
-func (s *SubtreeCache) getCachedSubtree(id []byte) *storagepb.SubtreeProto {
-	raw, found := s.subtrees.Load(string(id))
-	if !found || raw == nil {
-		return nil
-	}
-	// Note: If type assertion fails, nil is returned. Should not happen though.
-	res, _ := raw.(*storagepb.SubtreeProto)
-	return res
-}
-
-func (s *SubtreeCache) prefixIsDirty(prefixKey string) bool {
-	_, found := s.dirtyPrefixes.Load(prefixKey)
-	return found
-}
-
 // getNodeHash returns a single node hash from the cache.
 func (s *SubtreeCache) getNodeHash(id compact.NodeID) ([]byte, error) {
 	subID, sx := splitID(id)
-	c := s.getCachedSubtree(subID)
+	c := s.subtrees[string(subID)]
 	if c == nil {
 		return nil, fmt.Errorf("tile %x not found", subID)
 	}
@@ -229,13 +206,12 @@ func (s *SubtreeCache) SetNodes(nodes []tree.Node, getSubtrees GetSubtreesFunc) 
 		return err
 	}
 	for _, id := range notFound {
-		c := newEmptyTile([]byte(id))
-		s.subtrees.Store(string(id), c)
+		s.subtrees[id] = newEmptyTile([]byte(id))
 	}
 
 	for _, n := range nodes {
 		subID, sx := splitID(n.ID)
-		c := s.getCachedSubtree(subID)
+		c := s.subtrees[string(subID)]
 		if c == nil {
 			return fmt.Errorf("tile %x not found", subID)
 		}
@@ -246,12 +222,12 @@ func (s *SubtreeCache) SetNodes(nodes []tree.Node, getSubtrees GetSubtreesFunc) 
 		if int32(sx.Bits()) == c.Depth { // This is a leaf node.
 			if !bytes.Equal(c.Leaves[sfxKey], n.Hash) {
 				c.Leaves[sfxKey] = n.Hash
-				s.dirtyPrefixes.Store(string(subID), nil)
+				s.dirtyPrefixes[string(subID)] = true
 			}
 		} else { // This is an internal node.
 			if !bytes.Equal(c.InternalNodes[sfxKey], n.Hash) {
 				c.InternalNodes[sfxKey] = n.Hash
-				s.dirtyPrefixes.Store(string(subID), nil)
+				s.dirtyPrefixes[string(subID)] = true
 			}
 		}
 	}
@@ -262,41 +238,22 @@ func (s *SubtreeCache) SetNodes(nodes []tree.Node, getSubtrees GetSubtreesFunc) 
 // Flush causes the cache to write all dirty Subtrees back to storage.
 func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) error {
 	treesToWrite := make([]*storagepb.SubtreeProto, 0)
-	var rangeErr error
-	s.subtrees.Range(func(rawK, rawV interface{}) bool {
-		k, ok := rawK.(string)
-		if !ok {
-			rangeErr = fmt.Errorf("unknown key type: %t", rawV)
-			return false
+	for k, v := range s.subtrees {
+		if !s.dirtyPrefixes[k] {
+			continue
 		}
-		v, ok := rawV.(*storagepb.SubtreeProto)
-		if !ok {
-			rangeErr = fmt.Errorf("unknown value type: %t", rawV)
-			return false
+		if !bytes.Equal([]byte(k), v.Prefix) {
+			return fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", k, v.Prefix)
 		}
-		if s.prefixIsDirty(k) {
-			bk := []byte(k)
-			if !bytes.Equal(bk, v.Prefix) {
-				rangeErr = fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", bk, v.Prefix)
-				return false
+		if len(v.Leaves) > 0 {
+			if err := prepareLogTile(v); err != nil {
+				return err
 			}
-
-			if len(v.Leaves) > 0 {
-				if err := prepareLogTile(v); err != nil {
-					rangeErr = err
-					return false
-				}
-				treesToWrite = append(treesToWrite, v)
-			}
+			treesToWrite = append(treesToWrite, v)
 		}
-		return true
-	})
-	if rangeErr != nil {
-		return rangeErr
 	}
 	if len(treesToWrite) == 0 {
 		return nil
 	}
-	err := setSubtrees(ctx, treesToWrite)
-	return err
+	return setSubtrees(ctx, treesToWrite)
 }
