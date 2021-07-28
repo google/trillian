@@ -42,6 +42,8 @@
    compact ranges corresponding to the requests.
  * Removed the single-tile callback from `SubtreeCache`, it uses only
    `GetSubtreesFunc` now.
+ * Removed `SetSubtreesFunc` callback from `SubtreeCache`. The tiles should be
+   written by the caller now, i.e. the caller must invoke the callback.
  * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
