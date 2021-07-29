@@ -247,7 +247,11 @@ func (t *treeTX) storeSubtrees(ctx context.Context, sts []*storagepb.SubtreeProt
 }
 
 func (t *treeTX) flushSubtrees(ctx context.Context) error {
-	return t.cache.Flush(ctx, t.storeSubtrees)
+	tiles, err := t.cache.UpdatedTiles()
+	if err != nil {
+		return err
+	}
+	return t.storeSubtrees(ctx, tiles)
 }
 
 // Commit attempts to apply all actions perfomed to the underlying Spanner

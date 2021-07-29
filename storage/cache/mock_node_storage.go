@@ -5,7 +5,6 @@
 package cache
 
 import (
-	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -48,18 +47,4 @@ func (m *MockNodeStorage) GetSubtree(arg0 []byte) (*storagepb.SubtreeProto, erro
 func (mr *MockNodeStorageMockRecorder) GetSubtree(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubtree", reflect.TypeOf((*MockNodeStorage)(nil).GetSubtree), arg0)
-}
-
-// SetSubtrees mocks base method.
-func (m *MockNodeStorage) SetSubtrees(arg0 context.Context, arg1 []*storagepb.SubtreeProto) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetSubtrees", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SetSubtrees indicates an expected call of SetSubtrees.
-func (mr *MockNodeStorageMockRecorder) SetSubtrees(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSubtrees", reflect.TypeOf((*MockNodeStorage)(nil).SetSubtrees), arg0, arg1)
 }

@@ -223,9 +223,12 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	defer t.unlock()
 
 	if t.writeRevision > -1 {
-		if err := t.subtreeCache.Flush(ctx, func(ctx context.Context, st []*storagepb.SubtreeProto) error {
-			return t.storeSubtrees(ctx, st)
-		}); err != nil {
+		tiles, err := t.subtreeCache.UpdatedTiles()
+		if err != nil {
+			glog.Warningf("SubtreeCache updated tiles error: %v", err)
+			return err
+		}
+		if err := t.storeSubtrees(ctx, tiles); err != nil {
 			glog.Warningf("TX commit flush error: %v", err)
 			return err
 		}

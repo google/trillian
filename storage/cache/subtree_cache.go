@@ -16,7 +16,6 @@ package cache
 
 import (
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
 	"sync"
@@ -35,9 +34,6 @@ var populateConcurrency = flag.Int("populate_subtree_concurrency", 256, "Max num
 
 // GetSubtreesFunc describes a function which can return a number of Subtrees from storage.
 type GetSubtreesFunc func(ids [][]byte) ([]*storagepb.SubtreeProto, error)
-
-// SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
-type SetSubtreesFunc func(ctx context.Context, s []*storagepb.SubtreeProto) error
 
 // SubtreeCache provides a caching access to Subtree storage. Currently there are assumptions
 // in the code that all subtrees are multiple of 8 in depth and that log subtrees are always
@@ -235,25 +231,22 @@ func (s *SubtreeCache) SetNodes(nodes []tree.Node, getSubtrees GetSubtreesFunc) 
 	return nil
 }
 
-// Flush causes the cache to write all dirty Subtrees back to storage.
-func (s *SubtreeCache) Flush(ctx context.Context, setSubtrees SetSubtreesFunc) error {
-	treesToWrite := make([]*storagepb.SubtreeProto, 0)
+// UpdatedTiles returns all updated tiles that need to be written to storage.
+func (s *SubtreeCache) UpdatedTiles() ([]*storagepb.SubtreeProto, error) {
+	var toWrite []*storagepb.SubtreeProto
 	for k, v := range s.subtrees {
 		if !s.dirtyPrefixes[k] {
 			continue
 		}
 		if !bytes.Equal([]byte(k), v.Prefix) {
-			return fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", k, v.Prefix)
+			return nil, fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", k, v.Prefix)
 		}
 		if len(v.Leaves) > 0 {
 			if err := prepareLogTile(v); err != nil {
-				return err
+				return nil, err
 			}
-			treesToWrite = append(treesToWrite, v)
+			toWrite = append(toWrite, v)
 		}
 	}
-	if len(treesToWrite) == 0 {
-		return nil
-	}
-	return setSubtrees(ctx, treesToWrite)
+	return toWrite, nil
 }
