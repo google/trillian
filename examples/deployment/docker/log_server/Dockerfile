@@ -1,4 +1,4 @@
-FROM golang:buster as build
+FROM golang:1.16-buster as build
 
 WORKDIR /trillian
 
