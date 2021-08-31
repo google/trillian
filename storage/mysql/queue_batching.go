@@ -1,3 +1,4 @@
+//go:build batched_queue
 // +build batched_queue
 
 // Copyright 2017 Google LLC. All Rights Reserved.

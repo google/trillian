@@ -1,3 +1,4 @@
+//go:build !pkcs11
 // +build !pkcs11
 
 // Copyright 2017 Google LLC. All Rights Reserved.

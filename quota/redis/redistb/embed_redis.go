@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 // Copyright 2017 Google LLC. All Rights Reserved.
