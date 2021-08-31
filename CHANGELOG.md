@@ -2,6 +2,10 @@
 
 ## HEAD
 
+* Recommended go version for development: 1.16x
+  * This is the version used by the cloudbuild presubmits. Using a
+    different version can lead to presubmits failing due to unexpected
+    diffs.
 * GCP terraform script updated. GKE 1.19 and updated CPU type to E2
 
 ### Dependency updates
