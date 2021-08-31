@@ -1,5 +1,5 @@
 # This Dockerfile builds a base image for Trillan integration tests.
-FROM golang:buster
+FROM golang:1.16-buster
 
 WORKDIR /testbase
 
