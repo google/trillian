@@ -2,20 +2,27 @@
 
 ## HEAD
 
-* Recommended go version for development: 1.17x
+## v1.4.0
+
+* Recommended go version for development: 1.17
   * This is the version used by the cloudbuild presubmits. Using a
     different version can lead to presubmits failing due to unexpected
     diffs.
 * GCP terraform script updated. GKE 1.19 and updated CPU type to E2
 
 ### Dependency updates
+Many dep updates, including:
  * Upgraded to etcd v3 in order to allow grpc to be upgraded (#2195)
-   * etcd was `v0.5.0-alpha.5`, now `v3.5.0-alpha.0`
- * grpc upgraded from `v1.29.1` to `v1.36.0`
+   * etcd was `v0.5.0-alpha.5`, now `v3.5.0`
+ * grpc upgraded from `v1.29.1` to `v1.40.0`
  * certificate-transparency-go from `v1.0.21` to
    `v1.1.2-0.20210512142713-bed466244fa6`
+ * protobuf upgraded from `v1` to `v2`
+ * MySQL driver from `1.5.0` to `1.6.0`
 
 ### Cleanup
+ * **Removed signatures from LogRoot and EntryTimestamps returned by RPCs** (reflecting that
+   there should not be a trust boundary between Trillian and the personality.)
  * Removed the deprecated crypto.NewSHA256Signer function.
  * Finish removing the `LogMetadata.GetUnsequencedCounts()` method.
  * Removed the following APIs:
@@ -25,6 +32,9 @@
  * Removed the incomplete Postgres storage backend (#1298).
  * Deprecated `LogRootV1.Revision` field.
  * Moved `rfc6962` hasher one directory up to eliminate empty leftover package.
+ * Removed unused `log_client` tool.
+ * Various tidyups and improvements to merke & proof generation code.
+ * Remove some remnants of experimental map.
 
 ### Storage refactoring
  * `NodeReader.GetMerkleNodes` does not accept revisions anymore. The
@@ -48,7 +58,6 @@
    `GetSubtreesFunc` now.
  * Removed `SetSubtreesFunc` callback from `SubtreeCache`. The tiles should be
    written by the caller now, i.e. the caller must invoke the callback.
- * TODO(pavelkalinnikov): More changes are coming, and will be added here.
 
 ## v1.3.13
 [Published 2021-02-16](https://github.com/google/trillian/releases/tag/v1.3.13)
