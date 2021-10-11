@@ -9,7 +9,7 @@ require (
 	cloud.google.com/go/trace v0.1.0 // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.8
 	github.com/apache/beam v2.32.0+incompatible
-	github.com/fullstorydev/grpcurl v1.8.2
+	github.com/fullstorydev/grpcurl v1.8.5
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
