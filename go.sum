@@ -111,6 +111,8 @@ github.com/aokoli/goutils v1.0.1/go.mod h1:SijmP0QR8LtwsmDs8Yii5Z/S4trXFGFC2oO5g
 github.com/apache/beam v2.28.0+incompatible/go.mod h1:/8NX3Qi8vGstDLLaeaU7+lzVEu/ACaQhYjeefzQ0y1o=
 github.com/apache/beam v2.33.0+incompatible h1:NZNYcZ3rtPBrUpsd3RkGdBEa8XvHQbKdO63UKSp+h60=
 github.com/apache/beam v2.33.0+incompatible/go.mod h1:/8NX3Qi8vGstDLLaeaU7+lzVEu/ACaQhYjeefzQ0y1o=
+github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94 h1:xWFFfgvHC9Mqhi2PaPZmnREENd58OpNv5LTtsksa7fA=
+github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94/go.mod h1:/kOom7hCyHVzAC/Z7HbZywkZZv6ywF+wb4CvgDVdcB8=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apex/log v1.1.4/go.mod h1:AlpoD9aScyQfJDVHmLMEcx4oU6LqzkWp4Mg9GdAcEvQ=
