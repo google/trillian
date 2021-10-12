@@ -52,15 +52,15 @@ func init() {
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*leafShardFn)(nil)).Elem(), wrapMakerLeafShardFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*tileHashFn)(nil)).Elem(), wrapMakerTileHashFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*tileUpdateFn)(nil)).Elem(), wrapMakerTileUpdateFn)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []byte, func(*nodeHash) bool) (*Tile, error))(nil)).Elem(), funcMakerContext۰ContextSliceOfByteIterNodeHashГᏘTileError)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context, []byte, func(**Tile) bool, func(*nodeHash) bool) (*Tile, error))(nil)).Elem(), funcMakerContext۰ContextSliceOfByteIterᏘTileIterNodeHashГᏘTileError)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(nodeHash) ([]byte, nodeHash))(nil)).Elem(), funcMakerNodeHashГSliceOfByteNodeHash)
-	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), funcMakerГ)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(*Entry) nodeHash)(nil)).Elem(), funcMakerᏘEntryГNodeHash)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(*Tile) int)(nil)).Elem(), funcMakerᏘTileГInt)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(*Tile) nodeHash)(nil)).Elem(), funcMakerᏘTileГNodeHash)
-	exec.RegisterInput(reflect.TypeOf((*func(*nodeHash) bool)(nil)).Elem(), iterMakerNodeHash)
-	exec.RegisterInput(reflect.TypeOf((*func(**Tile) bool)(nil)).Elem(), iterMakerᏘTile)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context,[]byte,func(*nodeHash) bool) (*Tile,error))(nil)).Elem(), funcMakerContext۰ContextSliceOfByteIterNodeHashГᏘTileError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(context.Context,[]byte,func(**Tile) bool,func(*nodeHash) bool) (*Tile,error))(nil)).Elem(), funcMakerContext۰ContextSliceOfByteIterᏘTileIterNodeHashГᏘTileError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(nodeHash) ([]byte,nodeHash))(nil)).Elem(), funcMakerNodeHashГSliceOfByteNodeHash)
+	reflectx.RegisterFunc(reflect.TypeOf((*func() ())(nil)).Elem(), funcMakerГ)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(*Entry) (nodeHash))(nil)).Elem(), funcMakerᏘEntryГNodeHash)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(*Tile) (int))(nil)).Elem(), funcMakerᏘTileГInt)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(*Tile) (nodeHash))(nil)).Elem(), funcMakerᏘTileГNodeHash)
+	exec.RegisterInput(reflect.TypeOf((*func(*nodeHash) (bool))(nil)).Elem(), iterMakerNodeHash)
+	exec.RegisterInput(reflect.TypeOf((*func(**Tile) (bool))(nil)).Elem(), iterMakerᏘTile)
 }
 
 func wrapMakerLeafShardFn(fn interface{}) map[string]reflectx.Func {
@@ -73,9 +73,7 @@ func wrapMakerLeafShardFn(fn interface{}) map[string]reflectx.Func {
 func wrapMakerTileHashFn(fn interface{}) map[string]reflectx.Func {
 	dfn := fn.(*tileHashFn)
 	return map[string]reflectx.Func{
-		"ProcessElement": reflectx.MakeFunc(func(a0 context.Context, a1 []byte, a2 func(*nodeHash) bool) (*Tile, error) {
-			return dfn.ProcessElement(a0, a1, a2)
-		}),
+		"ProcessElement": reflectx.MakeFunc(func(a0 context.Context, a1 []byte, a2 func(*nodeHash) bool) (*Tile, error) { return dfn.ProcessElement(a0, a1, a2) }),
 		"Setup": reflectx.MakeFunc(func() { dfn.Setup() }),
 	}
 }
@@ -83,19 +81,17 @@ func wrapMakerTileHashFn(fn interface{}) map[string]reflectx.Func {
 func wrapMakerTileUpdateFn(fn interface{}) map[string]reflectx.Func {
 	dfn := fn.(*tileUpdateFn)
 	return map[string]reflectx.Func{
-		"ProcessElement": reflectx.MakeFunc(func(a0 context.Context, a1 []byte, a2 func(**Tile) bool, a3 func(*nodeHash) bool) (*Tile, error) {
-			return dfn.ProcessElement(a0, a1, a2, a3)
-		}),
+		"ProcessElement": reflectx.MakeFunc(func(a0 context.Context, a1 []byte, a2 func(**Tile) bool, a3 func(*nodeHash) bool) (*Tile, error) { return dfn.ProcessElement(a0, a1, a2, a3) }),
 		"Setup": reflectx.MakeFunc(func() { dfn.Setup() }),
 	}
 }
 
 type callerContext۰ContextSliceOfByteIterNodeHashГᏘTileError struct {
-	fn func(context.Context, []byte, func(*nodeHash) bool) (*Tile, error)
+	fn func(context.Context,[]byte,func(*nodeHash) bool) (*Tile,error)
 }
 
 func funcMakerContext۰ContextSliceOfByteIterNodeHashГᏘTileError(fn interface{}) reflectx.Func {
-	f := fn.(func(context.Context, []byte, func(*nodeHash) bool) (*Tile, error))
+	f := fn.(func(context.Context,[]byte,func(*nodeHash) bool) (*Tile,error))
 	return &callerContext۰ContextSliceOfByteIterNodeHashГᏘTileError{fn: f}
 }
 
@@ -117,11 +113,11 @@ func (c *callerContext۰ContextSliceOfByteIterNodeHashГᏘTileError) Call3x2(ar
 }
 
 type callerContext۰ContextSliceOfByteIterᏘTileIterNodeHashГᏘTileError struct {
-	fn func(context.Context, []byte, func(**Tile) bool, func(*nodeHash) bool) (*Tile, error)
+	fn func(context.Context,[]byte,func(**Tile) bool,func(*nodeHash) bool) (*Tile,error)
 }
 
 func funcMakerContext۰ContextSliceOfByteIterᏘTileIterNodeHashГᏘTileError(fn interface{}) reflectx.Func {
-	f := fn.(func(context.Context, []byte, func(**Tile) bool, func(*nodeHash) bool) (*Tile, error))
+	f := fn.(func(context.Context,[]byte,func(**Tile) bool,func(*nodeHash) bool) (*Tile,error))
 	return &callerContext۰ContextSliceOfByteIterᏘTileIterNodeHashГᏘTileError{fn: f}
 }
 
@@ -143,11 +139,11 @@ func (c *callerContext۰ContextSliceOfByteIterᏘTileIterNodeHashГᏘTileError)
 }
 
 type callerNodeHashГSliceOfByteNodeHash struct {
-	fn func(nodeHash) ([]byte, nodeHash)
+	fn func(nodeHash) ([]byte,nodeHash)
 }
 
 func funcMakerNodeHashГSliceOfByteNodeHash(fn interface{}) reflectx.Func {
-	f := fn.(func(nodeHash) ([]byte, nodeHash))
+	f := fn.(func(nodeHash) ([]byte,nodeHash))
 	return &callerNodeHashГSliceOfByteNodeHash{fn: f}
 }
 
@@ -169,11 +165,11 @@ func (c *callerNodeHashГSliceOfByteNodeHash) Call1x2(arg0 interface{}) (interfa
 }
 
 type callerГ struct {
-	fn func()
+	fn func() ()
 }
 
 func funcMakerГ(fn interface{}) reflectx.Func {
-	f := fn.(func())
+	f := fn.(func() ())
 	return &callerГ{fn: f}
 }
 
@@ -190,16 +186,16 @@ func (c *callerГ) Call(args []interface{}) []interface{} {
 	return []interface{}{}
 }
 
-func (c *callerГ) Call0x0() {
+func (c *callerГ) Call0x0() () {
 	c.fn()
 }
 
 type callerᏘEntryГNodeHash struct {
-	fn func(*Entry) nodeHash
+	fn func(*Entry) (nodeHash)
 }
 
 func funcMakerᏘEntryГNodeHash(fn interface{}) reflectx.Func {
-	f := fn.(func(*Entry) nodeHash)
+	f := fn.(func(*Entry) (nodeHash))
 	return &callerᏘEntryГNodeHash{fn: f}
 }
 
@@ -216,16 +212,16 @@ func (c *callerᏘEntryГNodeHash) Call(args []interface{}) []interface{} {
 	return []interface{}{out0}
 }
 
-func (c *callerᏘEntryГNodeHash) Call1x1(arg0 interface{}) interface{} {
+func (c *callerᏘEntryГNodeHash) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.(*Entry))
 }
 
 type callerᏘTileГInt struct {
-	fn func(*Tile) int
+	fn func(*Tile) (int)
 }
 
 func funcMakerᏘTileГInt(fn interface{}) reflectx.Func {
-	f := fn.(func(*Tile) int)
+	f := fn.(func(*Tile) (int))
 	return &callerᏘTileГInt{fn: f}
 }
 
@@ -242,16 +238,16 @@ func (c *callerᏘTileГInt) Call(args []interface{}) []interface{} {
 	return []interface{}{out0}
 }
 
-func (c *callerᏘTileГInt) Call1x1(arg0 interface{}) interface{} {
+func (c *callerᏘTileГInt) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.(*Tile))
 }
 
 type callerᏘTileГNodeHash struct {
-	fn func(*Tile) nodeHash
+	fn func(*Tile) (nodeHash)
 }
 
 func funcMakerᏘTileГNodeHash(fn interface{}) reflectx.Func {
-	f := fn.(func(*Tile) nodeHash)
+	f := fn.(func(*Tile) (nodeHash))
 	return &callerᏘTileГNodeHash{fn: f}
 }
 
@@ -268,13 +264,13 @@ func (c *callerᏘTileГNodeHash) Call(args []interface{}) []interface{} {
 	return []interface{}{out0}
 }
 
-func (c *callerᏘTileГNodeHash) Call1x1(arg0 interface{}) interface{} {
+func (c *callerᏘTileГNodeHash) Call1x1(arg0 interface{}) (interface{}) {
 	return c.fn(arg0.(*Tile))
 }
 
 type iterNative struct {
-	s  exec.ReStream
-	fn interface{}
+	s     exec.ReStream
+	fn    interface{}
 
 	// cur is the "current" stream, if any.
 	cur exec.Stream
@@ -336,5 +332,6 @@ func (v *iterNative) readᏘTile(value **Tile) bool {
 	*value = elm.Elm.(*Tile)
 	return true
 }
+
 
 // DO NOT MODIFY: GENERATED CODE

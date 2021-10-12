@@ -16,7 +16,7 @@
 // verifiable data structures.
 package batchmap
 
-//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
 //go:generate starcgen --package=batchmap --identifiers=entryToNodeHashFn,partitionByPrefixLenFn,tileHashFn,leafShardFn,tileToNodeHashFn,tileUpdateFn
 
 import (
