@@ -68,7 +68,8 @@ an *identity hash* associated with a data item: items with the same identity
 hash are assumed equal, even if the full Merkle leaf structure differs
 (e.g. because it has a different timestamp attached).
 
-This means that a personality that wants to prevent duplicate entries can
+This means that a personality that wants to 
+duplicate entries can
 do so by setting the `LeafIdentityHash` value on new Merkle tree leaves
 appropriately. The personality code also needs to cope with duplicates: the
 Merkle tree leaf in a successful `QueueLeaves` response may not be the same
@@ -219,7 +220,7 @@ In terms of [practical responsibilities](#practical-responsibilities):
 ### Gossip Hub
 
 Users of individual transparent Logs are theoretically susceptible to a
-*split-view* attack, where a Log prevents a different view of its Merkle tree
+*split-view* attack, where a Log presents a different view of its Merkle tree
 to different users – each user's view of the tree is internally consistent, but
 differs between users.
 
