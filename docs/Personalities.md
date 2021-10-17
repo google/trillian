@@ -68,8 +68,7 @@ an *identity hash* associated with a data item: items with the same identity
 hash are assumed equal, even if the full Merkle leaf structure differs
 (e.g. because it has a different timestamp attached).
 
-This means that a personality that wants to 
-duplicate entries can
+This means that a personality that wants to duplicate entries can
 do so by setting the `LeafIdentityHash` value on new Merkle tree leaves
 appropriately. The personality code also needs to cope with duplicates: the
 Merkle tree leaf in a successful `QueueLeaves` response may not be the same
