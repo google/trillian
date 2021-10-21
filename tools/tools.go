@@ -20,6 +20,7 @@
 package tools
 
 import (
+	_ "github.com/apache/beam/sdks/v2/go/cmd/starcgen"
 	_ "github.com/fullstorydev/grpcurl/cmd/grpcurl"
 	_ "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen"
