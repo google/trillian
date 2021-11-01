@@ -4,10 +4,8 @@ go 1.13
 
 require (
 	bitbucket.org/creachadair/shell v0.0.6
-	cloud.google.com/go/monitoring v0.1.0 // indirect
 	cloud.google.com/go/spanner v1.27.0
-	cloud.google.com/go/trace v0.1.0 // indirect
-	contrib.go.opencensus.io/exporter/stackdriver v0.13.8
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
 	github.com/fullstorydev/grpcurl v1.8.5
 	github.com/go-redis/redis v6.15.9+incompatible
