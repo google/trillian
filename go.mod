@@ -29,10 +29,10 @@ require (
 	go.opencensus.io v0.23.0
 	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
+	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359
 	golang.org/x/tools v0.1.7
-	google.golang.org/api v0.59.0
-	google.golang.org/genproto v0.0.0-20211019152133-63b7e35f4404
+	google.golang.org/api v0.60.0
+	google.golang.org/genproto v0.0.0-20211021150943-2b146023228c
 	google.golang.org/grpc v1.41.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0
 	google.golang.org/protobuf v1.27.1
