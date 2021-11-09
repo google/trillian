@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/google/trillian/merkle/compact"
+	"github.com/transparency-dev/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"

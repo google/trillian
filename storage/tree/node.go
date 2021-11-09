@@ -15,7 +15,7 @@
 // Package tree defines types that help navigating a tree in storage.
 package tree
 
-import "github.com/google/trillian/merkle/compact"
+import "github.com/transparency-dev/merkle/compact"
 
 // Node represents a single node in a Merkle tree.
 type Node struct {

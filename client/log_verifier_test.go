@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/google/trillian/types"
 )
 

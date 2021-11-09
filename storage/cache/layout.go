@@ -17,7 +17,7 @@ package cache
 import (
 	"encoding/binary"
 
-	"github.com/google/trillian/merkle/compact"
+	"github.com/transparency-dev/merkle/compact"
 )
 
 // getTileID returns the path from the "virtual" root at level 64 to the root

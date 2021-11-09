@@ -18,7 +18,7 @@ import (
 	"errors"
 	"math/bits"
 
-	"github.com/google/trillian/merkle/compact"
+	"github.com/transparency-dev/merkle/compact"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
