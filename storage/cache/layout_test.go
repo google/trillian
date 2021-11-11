@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/trillian/merkle/compact"
+	"github.com/transparency-dev/merkle/compact"
 )
 
 func TestGetTileID(t *testing.T) {

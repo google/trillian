@@ -19,10 +19,9 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
+	"github.com/transparency-dev/merkle"
+	"github.com/transparency-dev/merkle/compact"
 )
 
 // nodeReader provides read-only access to the tree nodes.
@@ -36,7 +35,7 @@ type nodeReader interface {
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the nodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th hashers.LogHasher, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th merkle.LogHasher, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
 	proofNodes, err := fetchNodes(ctx, nr, proofNodeFetches)

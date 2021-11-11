@@ -24,14 +24,14 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

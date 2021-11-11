@@ -28,13 +28,13 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/rfc6962"
 )
 
 func TestNodeRoundTrip(t *testing.T) {

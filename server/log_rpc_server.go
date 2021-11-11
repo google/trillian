@@ -22,14 +22,13 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"github.com/transparency-dev/merkle"
+	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -120,7 +119,7 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 	return &trillian.QueueLeafResponse{QueuedLeaf: ret[0]}, nil
 }
 
-func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) {
+func hashLeaves(leaves []*trillian.LogLeaf, hasher merkle.LogHasher) {
 	for _, leaf := range leaves {
 		leaf.MerkleLeafHash = hasher.HashLeaf(leaf.LeafValue)
 		if len(leaf.LeafIdentityHash) == 0 {
@@ -398,7 +397,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	return r, nil
 }
 
-func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize int64, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher) (*trillian.Proof, error) {
+func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize int64, tx storage.ReadOnlyLogTreeTX, hasher merkle.LogHasher) (*trillian.Proof, error) {
 	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize)
 	if err != nil {
 		return nil, err
@@ -545,7 +544,7 @@ func (t *TrillianLogRPCServer) closeAndLog(ctx context.Context, logID int64, tx 
 // getInclusionProofForLeafIndex is used by multiple handlers. It does the storage fetching
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
-func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTreeTX, hasher hashers.LogHasher, size, leafIndex int64) (*trillian.Proof, error) {
+func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTreeTX, hasher merkle.LogHasher, size, leafIndex int64) (*trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(size, leafIndex)
 	if err != nil {
@@ -554,7 +553,7 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 	return fetchNodesAndBuildProof(ctx, tx, hasher, leafIndex, proofNodeIDs)
 }
 
-func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, hashers.LogHasher, error) {
+func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, merkle.LogHasher, error) {
 	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
 	if err != nil {
 		return nil, nil, err

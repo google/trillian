@@ -28,10 +28,10 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/internal/merkle/inmemory"
-	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/logverifier"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle"
+	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/rfc6962"
 )
 
 // TestParameters bundles up all the settings for a test run
@@ -466,7 +466,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Merkle
 
 		// Verify inclusion proof.
 		root := tree.RootAtSnapshot(treeSize).Hash()
-		verifier := logverifier.New(rfc6962.DefaultHasher)
+		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
 		if err := verifier.VerifyInclusionProof(index, treeSize, resp.Proof.Hashes, root, merkleLeafHash); err != nil {
@@ -503,7 +503,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		return fmt.Errorf("requested tree size %d > available tree size %d", req.SecondTreeSize, root.TreeSize)
 	}
 
-	verifier := logverifier.New(rfc6962.DefaultHasher)
+	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
 	return verifier.VerifyConsistencyProof(req.FirstTreeSize, req.SecondTreeSize,

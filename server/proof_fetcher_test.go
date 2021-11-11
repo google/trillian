@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/google/trillian/internal/merkle/inmemory"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/transparency-dev/merkle"
+	"github.com/transparency-dev/merkle/rfc6962"
 )
 
 // An arbitrary tree revision to be used in tests.

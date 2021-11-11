@@ -24,13 +24,13 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/compact"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/rfc6962"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/storage/tree"

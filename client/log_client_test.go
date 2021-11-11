@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/google/trillian/storage/testdb"
