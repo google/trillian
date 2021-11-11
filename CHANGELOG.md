@@ -2,6 +2,11 @@
 
 ## HEAD
 
+* Start using `github.com/transparency-dev/merkle` as a replacement to the
+  `merkle` libraries in this repository. This is not a breaking change, but
+  we recommend clients also migrate over to this library at the earliest
+  convenient time; the long term plan is to remove `merkle` from this repo.
+
 ## v1.4.0
 
 * Recommended go version for development: 1.17
