@@ -26,8 +26,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/google/trillian/merkle/testonly"
+	"github.com/transparency-dev/merkle/rfc6962"
 
 	_ "github.com/golang/glog" // Required for flag handling
 )

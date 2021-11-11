@@ -21,8 +21,8 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/logverifier"
-	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle/rfc6962"
 )
 
 // LogVerifier allows verification of output from Trillian Logs, both regular

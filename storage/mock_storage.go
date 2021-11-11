@@ -11,8 +11,8 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
-	compact "github.com/transparency-dev/merkle/compact"
 	tree "github.com/google/trillian/storage/tree"
+	compact "github.com/transparency-dev/merkle/compact"
 )
 
 // MockAdminStorage is a mock of AdminStorage interface.

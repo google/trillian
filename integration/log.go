@@ -28,10 +28,10 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/internal/merkle/inmemory"
-	"github.com/transparency-dev/merkle/compact"
 	"github.com/google/trillian/merkle/logverifier"
-	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/rfc6962"
 )
 
 // TestParameters bundles up all the settings for a test run

@@ -24,13 +24,13 @@ import (
 
 	"github.com/google/btree"
 	"github.com/google/trillian"
-	"github.com/transparency-dev/merkle/compact"
-	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

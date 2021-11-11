@@ -20,9 +20,9 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
-	"github.com/transparency-dev/merkle/compact"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/tree"
+	"github.com/transparency-dev/merkle/compact"
 )
 
 // nodeReader provides read-only access to the tree nodes.

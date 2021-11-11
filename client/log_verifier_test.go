@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle/rfc6962"
 )
 
 func TestVerifyRootErrors(t *testing.T) {
