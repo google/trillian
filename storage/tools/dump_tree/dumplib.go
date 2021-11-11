@@ -30,7 +30,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/log"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
@@ -39,6 +38,7 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
+	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -221,7 +221,7 @@ func Main(args Options) string {
 	return allRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild, args.HexKeys)
 }
 
-func allRevisions(ls storage.LogStorage, treeID int64, hasher hashers.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func allRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		if rebuildInternal {
@@ -235,7 +235,7 @@ func allRevisions(ls storage.LogStorage, treeID int64, hasher hashers.LogHasher,
 	return out.String()
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, hasher hashers.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)

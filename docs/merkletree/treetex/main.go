@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/google/trillian/merkle"
-	"github.com/transparency-dev/merkle/compact"
+	"github.com/google/trillian/merkle/compact"
 )
 
 const (

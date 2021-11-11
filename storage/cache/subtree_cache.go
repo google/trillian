@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
+	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
 	"google.golang.org/protobuf/proto"
 )
@@ -43,7 +43,7 @@ type GetSubtreesFunc func(ids [][]byte) ([]*storagepb.SubtreeProto, error)
 // SubtreeCache is not thread-safe: GetNodes, SetNodes and Flush methods must
 // be called sequentially.
 type SubtreeCache struct {
-	hasher hashers.LogHasher
+	hasher merkle.LogHasher
 
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodes.
@@ -58,7 +58,7 @@ type SubtreeCache struct {
 
 // NewLogSubtreeCache creates and returns a SubtreeCache appropriate for use with a log
 // tree. The caller must supply a suitable LogHasher.
-func NewLogSubtreeCache(hasher hashers.LogHasher) *SubtreeCache {
+func NewLogSubtreeCache(hasher merkle.LogHasher) *SubtreeCache {
 	if *populateConcurrency <= 0 {
 		panic(fmt.Errorf("populate_subtree_concurrency must be set to >= 1"))
 	}

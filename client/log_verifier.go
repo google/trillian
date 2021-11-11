@@ -19,9 +19,8 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/logverifier"
 	"github.com/google/trillian/types"
+	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/rfc6962"
 )
 
@@ -30,15 +29,15 @@ import (
 // after construction).
 type LogVerifier struct {
 	// hasher is the hash strategy used to compute nodes in the Merkle tree.
-	hasher hashers.LogHasher
-	v      logverifier.LogVerifier
+	hasher merkle.LogHasher
+	v      merkle.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
-func NewLogVerifier(hasher hashers.LogHasher) *LogVerifier {
+func NewLogVerifier(hasher merkle.LogHasher) *LogVerifier {
 	return &LogVerifier{
 		hasher: hasher,
-		v:      logverifier.New(hasher),
+		v:      merkle.NewLogVerifier(hasher),
 	}
 }
 

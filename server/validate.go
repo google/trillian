@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/transparency-dev/merkle"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -36,7 +36,7 @@ func validateGetInclusionProofRequest(req *trillian.GetInclusionProofRequest) er
 	return nil
 }
 
-func validateGetInclusionProofByHashRequest(req *trillian.GetInclusionProofByHashRequest, hasher hashers.LogHasher) error {
+func validateGetInclusionProofByHashRequest(req *trillian.GetInclusionProofByHashRequest, hasher merkle.LogHasher) error {
 	if req.TreeSize <= 0 {
 		return status.Errorf(codes.InvalidArgument, "GetInclusionProofByHashRequest.TreeSize: %v, want > 0", req.TreeSize)
 	}
@@ -124,7 +124,7 @@ func validateLogLeaf(leaf *trillian.LogLeaf, errPrefix string) error {
 	return nil
 }
 
-func validateLeafHash(hash []byte, hasher hashers.LogHasher) error {
+func validateLeafHash(hash []byte, hasher merkle.LogHasher) error {
 	if got, want := len(hash), hasher.Size(); got != want {
 		return fmt.Errorf("%d bytes, want %d", got, want)
 	}

@@ -18,8 +18,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
 )
 
@@ -38,7 +38,7 @@ const (
 // below for prepareLogTile.
 //
 // TODO(pavelkalinnikov): Unexport it after the refactoring.
-func PopulateLogTile(st *storagepb.SubtreeProto, hasher hashers.LogHasher) error {
+func PopulateLogTile(st *storagepb.SubtreeProto, hasher merkle.LogHasher) error {
 	if st.Depth < 1 {
 		return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
 	}

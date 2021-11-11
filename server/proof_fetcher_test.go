@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/google/trillian/internal/merkle/inmemory"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/rfc6962"
 )
 
