@@ -32,7 +32,7 @@ import (
 var (
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 	logID           = flag.Int64("log_id", 0, "Trillian LogID to delete")
-	undeleteTree	= flag.Bool("undelete_tree", false, "Undelete the specified Trillian LogID (bool)")
+	undeleteTree    = flag.Bool("undelete_tree", false, "Undelete the specified Trillian LogID (bool)")
 )
 
 func main() {
@@ -51,7 +51,7 @@ func main() {
 	defer conn.Close()
 
 	a := trillian.NewTrillianAdminClient(conn)
-	if *undeleteTree == false {
+	if !*undeleteTree {
 		_, err = a.DeleteTree(context.Background(), &trillian.DeleteTreeRequest{TreeId: *logID})
 		if err != nil {
 			glog.Exitf("Delete failed: %v", err)
