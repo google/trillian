@@ -3,7 +3,7 @@ module github.com/google/trillian
 go 1.13
 
 require (
-	bitbucket.org/creachadair/shell v0.0.6
+	bitbucket.org/creachadair/shell v0.0.7
 	cloud.google.com/go/spanner v1.27.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
