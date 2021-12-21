@@ -41,6 +41,7 @@ import (
 	"github.com/google/trillian/util/clock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -240,8 +241,7 @@ func newTestServer(registry extension.Registry) (*testServer, error) {
 		s.close()
 		return nil, err
 	}
-
-	s.conn, err = grpc.Dial(s.lis.Addr().String(), grpc.WithInsecure())
+	s.conn, err = grpc.Dial(s.lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		s.close()
 		return nil, err

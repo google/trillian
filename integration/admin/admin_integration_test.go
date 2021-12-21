@@ -32,6 +32,7 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -604,7 +605,7 @@ func setupAdminServer(ctx context.Context, t *testing.T) (*testServer, error) {
 		}
 	}()
 
-	ts.conn, err = grpc.Dial(ts.lis.Addr().String(), grpc.WithInsecure())
+	ts.conn, err = grpc.Dial(ts.lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		ts.closeAll()
 		return nil, err

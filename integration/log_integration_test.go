@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
@@ -80,7 +81,7 @@ func TestLiveLogIntegration(t *testing.T) {
 	defer cancel()
 
 	// TODO: Other options apart from insecure connections
-	conn, err := grpc.DialContext(ctx, *serverFlag, grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, *serverFlag, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to connect to log server: %v", err)
 	}
