@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -68,7 +69,7 @@ func innerMain(ctx context.Context) error {
 		}()
 	}
 
-	dialOpts := []grpc.DialOption{grpc.WithInsecure()}
+	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	c, err := grpc.Dial(*rpcServer, dialOpts...)
 	if err != nil {
 		glog.Exitf("Failed to create log client conn: %v", err)

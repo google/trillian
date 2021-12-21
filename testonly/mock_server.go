@@ -21,6 +21,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly/tmock"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // MockServer implements the TrillianAdminServer, and TrillianLogServer.
@@ -49,7 +50,7 @@ func NewMockServer(ctrl *gomock.Controller) (*MockServer, func(), error) {
 	}
 	go grpcServer.Serve(lis)
 
-	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
+	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		grpcServer.Stop()
 		lis.Close()

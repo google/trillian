@@ -36,6 +36,7 @@ import (
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -805,7 +806,7 @@ func startServer(etcdClient *clientv3.Client) (quotapb.QuotaClient, func(), erro
 	quotapb.RegisterQuotaServer(s, NewServer(etcdClient))
 	go s.Serve(lis)
 
-	conn, err = grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
+	conn, err = grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		cleanup()
 		return nil, nil, err

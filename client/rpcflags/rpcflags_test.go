@@ -27,13 +27,14 @@ import (
 	"github.com/google/trillian/testonly/setup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestNewClientDialOptionsFromFlagsWithTLSCertFileNotSet(t *testing.T) {
 	// Set up Trillian servers
 	const numSequencers = 2
 	serverOpts := []grpc.ServerOption{}
-	clientOpts := []grpc.DialOption{grpc.WithInsecure()}
+	clientOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	logEnv, err := integration.NewLogEnvWithGRPCOptions(context.Background(), numSequencers, serverOpts, clientOpts)
 	if err != nil {
 		t.Fatal(err)

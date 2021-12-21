@@ -29,6 +29,7 @@ import (
 	"cloud.google.com/go/spanner/spannertest"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -94,7 +95,7 @@ func inMemClient(ctx context.Context, t testing.TB, dbName string, statements []
 	srv.SetLogger(t.Logf)
 	dialCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(dialCtx, srv.Addr, grpc.WithInsecure())
+	conn, err := grpc.DialContext(dialCtx, srv.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Dialing in-memory fake: %v", err)
 	}

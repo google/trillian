@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
@@ -164,7 +165,7 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 
 	// Connect to the server.
 	if clientOpts == nil {
-		clientOpts = []grpc.DialOption{grpc.WithInsecure()}
+		clientOpts = []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	}
 
 	cc, err := grpc.Dial(addr, clientOpts...)
