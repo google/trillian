@@ -32,20 +32,20 @@ const testTreeRevision int64 = 3
 func TestTree813FetchAll(t *testing.T) {
 	ctx := context.Background()
 	hasher := rfc6962.DefaultHasher
-	const ts int64 = 813
+	const ts uint64 = 813
 
-	mt := treeAtSize(int(ts))
+	mt := treeAtSize(ts)
 	r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, int(ts-1)), ExpectedRoot: expectedRootAtSize(mt)},
+		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 	})
 
-	for l := int64(271); l < ts; l++ {
+	for l := uint64(271); l < ts; l++ {
 		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		proof, err := fetchNodesAndBuildProof(ctx, r, hasher, int64(l), fetches)
+		proof, err := fetchNodesAndBuildProof(ctx, r, hasher, l, fetches)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -54,7 +54,7 @@ func TestTree813FetchAll(t *testing.T) {
 		}
 
 		// We use +1 here because of the 1 based leaf indexing of this implementation
-		refProof := mt.PathToRootAtSnapshot(l+1, ts)
+		refProof := mt.PathToRootAtSnapshot(int64(l+1), int64(ts))
 
 		if got, want := len(proof.Hashes), len(refProof); got != want {
 			for i, f := range fetches {
@@ -74,20 +74,20 @@ func TestTree813FetchAll(t *testing.T) {
 func TestTree32InclusionProofFetchAll(t *testing.T) {
 	ctx := context.Background()
 	hasher := rfc6962.DefaultHasher
-	for ts := 2; ts <= 32; ts++ {
+	for ts := uint64(2); ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
 			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
-		for s := int64(2); s <= int64(ts); s++ {
-			for l := int64(0); l < s; l++ {
+		for s := uint64(2); s <= ts; s++ {
+			for l := uint64(0); l < s; l++ {
 				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, int64(l), fetches)
+				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, l, fetches)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -96,7 +96,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 				}
 
 				// We use +1 here because of the 1 based leaf indexing of this implementation
-				refProof := mt.PathToRootAtSnapshot(l+1, s)
+				refProof := mt.PathToRootAtSnapshot(int64(l+1), int64(s))
 
 				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s, l, got, want, fetches, refProof)
@@ -125,8 +125,8 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 		{TreeRevision: testTreeRevision + 3, Leaves: expandLeaves(24, 31), ExpectedRoot: expectedRootAtSize(mt)},
 	})
 
-	for s := int64(2); s <= 32; s++ {
-		for l := int64(0); l < s; l++ {
+	for s := uint64(2); s <= 32; s++ {
+		for l := uint64(0); l < s; l++ {
 			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l)
 			if err != nil {
 				t.Fatal(err)
@@ -139,7 +139,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 			}
 
 			// We use +1 here because of the 1 based leaf indexing of this implementation
-			refProof := mt.PathToRootAtSnapshot(l+1, s)
+			refProof := mt.PathToRootAtSnapshot(int64(l+1), int64(s))
 
 			if got, want := len(proof.Hashes), len(refProof); got != want {
 				t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", 32, s, l, got, want, fetches, refProof)
@@ -157,25 +157,25 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	ctx := context.Background()
 	hasher := rfc6962.DefaultHasher
-	for ts := 2; ts <= 32; ts++ {
+	for ts := uint64(2); ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
 			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
-		for s1 := int64(2); s1 < int64(ts); s1++ {
-			for s2 := int64(s1 + 1); s2 < int64(ts); s2++ {
+		for s1 := uint64(2); s1 < ts; s1++ {
+			for s2 := uint64(s1 + 1); s2 < ts; s2++ {
 				fetches, err := merkle.CalcConsistencyProofNodeAddresses(s1, s2)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, int64(s1), fetches)
+				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, s1, fetches)
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				refProof := mt.SnapshotConsistency(s1, s2)
+				refProof := mt.SnapshotConsistency(int64(s1), int64(s2))
 
 				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s1, s2, got, want, fetches, refProof)
@@ -191,7 +191,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	}
 }
 
-func expandLeaves(n, m int) []string {
+func expandLeaves(n, m uint64) []string {
 	leaves := make([]string, 0, m-n+1)
 	for l := n; l <= m; l++ {
 		leaves = append(leaves, fmt.Sprintf("Leaf %d", l))
@@ -205,7 +205,7 @@ func expectedRootAtSize(mt *inmemory.MerkleTree) []byte {
 	return mt.CurrentRoot().Hash()
 }
 
-func treeAtSize(n int) *inmemory.MerkleTree {
+func treeAtSize(n uint64) *inmemory.MerkleTree {
 	leaves := expandLeaves(0, n-1)
 	mt := inmemory.NewMerkleTree(rfc6962.DefaultHasher)
 	for _, leaf := range leaves {
