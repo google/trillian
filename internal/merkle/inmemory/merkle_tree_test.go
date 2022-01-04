@@ -23,8 +23,8 @@ import (
 	"testing"
 
 	_ "github.com/golang/glog"
-	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/transparency-dev/merkle"
+	"github.com/transparency-dev/merkle/rfc6962"
 )
 
 // Note test inputs came from the values used by the C++ code. The original
@@ -191,7 +191,7 @@ func downToPowerOfTwo(i int64) int64 {
 }
 
 // Reference implementation of Merkle hash, for cross-checking.
-func referenceMerkleTreeHash(inputs [][]byte, treehasher hashers.LogHasher) ([]byte, error) {
+func referenceMerkleTreeHash(inputs [][]byte, treehasher merkle.LogHasher) ([]byte, error) {
 	if len(inputs) == 0 {
 		return treehasher.EmptyRoot(), nil
 	}
@@ -214,7 +214,7 @@ func referenceMerkleTreeHash(inputs [][]byte, treehasher hashers.LogHasher) ([]b
 
 // Reference implementation of Merkle paths. Path from leaf to root,
 // excluding the leaf and root themselves.
-func referenceMerklePath(inputs [][]byte, leaf int64, treehasher hashers.LogHasher) ([][]byte, error) {
+func referenceMerklePath(inputs [][]byte, leaf int64, treehasher merkle.LogHasher) ([][]byte, error) {
 	var path [][]byte
 
 	inputLen := int64(len(inputs))
@@ -262,7 +262,7 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher hashers.LogHash
 // Reference implementation of snapshot consistency.
 // Call with haveRoot1 = true.
 func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
-	snapshot1 int64, treehasher hashers.LogHasher, haveRoot1 bool) ([][]byte, error) {
+	snapshot1 int64, treehasher merkle.LogHasher, haveRoot1 bool) ([][]byte, error) {
 	var proof [][]byte
 
 	if snapshot1 == 0 || snapshot1 > snapshot2 {

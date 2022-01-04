@@ -34,7 +34,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/transparency-dev/merkle"
 )
 
 // TreeEntry is used for nodes in the tree for better readability. Just holds a hash but could be extended
@@ -102,7 +102,7 @@ type MerkleTree struct {
 	tree            [][]TreeEntry
 	leavesProcessed int64
 	levelCount      int64
-	hasher          hashers.LogHasher
+	hasher          merkle.LogHasher
 }
 
 // isPowerOfTwoPlusOne tests whether a number is (2^x)-1 for some x. From MerkleTreeMath in C++
@@ -128,7 +128,7 @@ func sibling(leaf int64) int64 {
 }
 
 // NewMerkleTree creates a new empty Merkle Tree using the specified Hasher.
-func NewMerkleTree(hasher hashers.LogHasher) *MerkleTree {
+func NewMerkleTree(hasher merkle.LogHasher) *MerkleTree {
 	return &MerkleTree{hasher: hasher}
 }
 
