@@ -380,7 +380,7 @@ func main() {
 		leafID := compact.NewNodeID(0, uint64(*inclusion))
 		modifyNodeInfo(leafID, func(n *nodeInfo) { n.incPath = true })
 		// TODO(pavelkalinnikov): Highlight the "ephemeral" node too.
-		nf, err := merkle.CalcInclusionProofNodeAddresses(int64(*treeSize), *inclusion)
+		nf, err := merkle.CalcInclusionProofNodeAddresses(*treeSize, uint64(*inclusion))
 		if err != nil {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}
