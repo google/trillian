@@ -154,6 +154,10 @@ func (m *Main) Run(ctx context.Context) error {
 	}
 	go util.AwaitSignal(ctx, srv.Stop)
 
+	// stop grpc server when context is closed
+	cancel := util.AwaitContext(ctx, srv.Stop)
+	defer cancel()
+
 	if m.TreeGCEnabled {
 		go func() {
 			glog.Info("Deleted tree GC started")
@@ -208,11 +212,11 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 }
 
 // AnnounceSelf announces this binary's presence to etcd.  Returns a function that
-// should be called on process exit.
+// should be called on process exit, and a Context to notify the lease expired.
 // AnnounceSelf does nothing if client is nil.
-func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, endpoint string) func() {
+func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, endpoint string) (func(), context.Context) {
 	if client == nil {
-		return func() {}
+		return func() {}, nil
 	}
 
 	// Get a lease so our entry self-destructs.
@@ -220,7 +224,11 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 	if err != nil {
 		glog.Exitf("Failed to get lease from etcd: %v", err)
 	}
-	client.KeepAlive(ctx, leaseRsp.ID)
+
+	keepAliveRspCh, err := client.KeepAlive(ctx, leaseRsp.ID)
+	if err != nil {
+		glog.Exitf("Failed to keep lease alive from etcd: %v", err)
+	}
 
 	em, err := endpoints.NewManager(client, etcdService)
 	if err != nil {
@@ -236,5 +244,29 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 		ctx := context.Background()
 		em.DeleteEndpoint(ctx, fullEndpoint)
 		client.Revoke(ctx, leaseRsp.ID)
-	}
+	}, ListenKeepAliveRsp(ctx, keepAliveRspCh)
+}
+
+// ListenKeepAliveRsp listen "LeaseKeepAliveResponse" channel until the lease expired
+// return a Context to notify the lease expired
+func ListenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.LeaseKeepAliveResponse) context.Context {
+	expiredCTX, notify := context.WithCancel(ctx)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				glog.Infof("ListenLeaseExpired canceled: %v", ctx.Err())
+				return
+			case _, ok := <-keepAliveRspCh:
+				if !ok {
+					// lease expired
+					notify()
+					glog.Errorf("ListenLeaseExpired canceled: unexpected lease expired")
+					return
+				}
+			}
+		}
+	}()
+
+	return expiredCTX
 }
