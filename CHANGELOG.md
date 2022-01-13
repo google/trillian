@@ -6,6 +6,7 @@
   `merkle` libraries in this repository. This is not a breaking change, but
   we recommend clients also migrate over to this library at the earliest
   convenient time; the long term plan is to remove `merkle` from this repo.
+* `countFromInformationSchema` function to add support for MySQL 8.
 
 ## v1.4.0
 
