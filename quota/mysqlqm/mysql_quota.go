@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/trillian/quota"
 )
@@ -97,6 +98,10 @@ func (m *QuotaManager) countUnsequenced(ctx context.Context) (int, error) {
 }
 
 func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
+	// turn off statistics caching for MySQL 8
+	if err := turnOffInformationSchemaCache(ctx, db); err != nil {
+		return 0, err
+	}
 	// information_schema.tables doesn't have an explicit PK, so let's play it safe and ensure
 	// the cursor returns a single row.
 	rows, err := db.QueryContext(ctx, countFromInformationSchemaQuery, "Unsequenced", "BASE TABLE")
@@ -123,4 +128,32 @@ func countFromTable(ctx context.Context, db *sql.DB) (int, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+// turnOffInformationSchemaCache turn off statistics caching for MySQL 8
+// To always retrieve the latest statistics directly from the storage engine and bypass cached values, set information_schema_stats_expiry to 0.
+// See https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_information_schema_stats_expiry
+// MySQL versions prior to 8 will fail safely.
+func turnOffInformationSchemaCache(ctx context.Context, db *sql.DB) error {
+	opt := "information_schema_stats_expiry"
+	res := db.QueryRowContext(ctx, "SHOW VARIABLES LIKE '"+opt+"'")
+	var none string
+	var expiry int
+
+	if err := res.Scan(&none, &expiry); err != nil {
+		// fail safely for all versions of MySQL prior to 8
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+
+		return fmt.Errorf("failed to get variable %q: %v", opt, err)
+	}
+
+	if expiry != 0 {
+		if _, err := db.ExecContext(ctx, "SET SESSION "+opt+"=0"); err != nil {
+			return fmt.Errorf("failed to set variable %q: %v", opt, err)
+		}
+	}
+
+	return nil
 }
