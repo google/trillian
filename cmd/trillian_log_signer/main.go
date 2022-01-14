@@ -150,12 +150,8 @@ func main() {
 	// Start HTTP server (optional)
 	if *httpEndpoint != "" {
 		// Announce our endpoint to etcd if so configured.
-		unannounceHTTP, expiredCTX := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint, cancel)
 		defer unannounceHTTP()
-
-		// cancel main context when lease expired
-		cancelAwait := util.AwaitContext(expiredCTX, cancel)
-		defer cancelAwait()
 	}
 
 	// Start the sequencing loop, which will run until we terminate the process. This controls
