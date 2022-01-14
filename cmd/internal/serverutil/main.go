@@ -211,8 +211,9 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	return s, nil
 }
 
-// AnnounceSelf announces this binary's presence to etcd.  Returns a function that
-// should be called on process exit, and a Context to notify the lease expired.
+// AnnounceSelf announces this binary's presence to etcd. This calls the cancel
+// function if the keepalive lease with etcd expires.  Returns a function that
+// should be called on process exit.
 // AnnounceSelf does nothing if client is nil.
 func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, endpoint string, cancel func()) func() {
 	if client == nil {
