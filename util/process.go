@@ -42,21 +42,3 @@ func AwaitSignal(ctx context.Context, doneFn func()) {
 		glog.Infof("AwaitSignal canceled: %v", ctx.Err())
 	}
 }
-
-// AwaitContext waits for context done, then runs the given function.
-func AwaitContext(ctx context.Context, doneFn func()) func() {
-	if ctx == nil {
-		return func() {}
-	}
-	stopAwait, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		select {
-		case <-ctx.Done():
-			doneFn()
-		case <-stopAwait.Done():
-		}
-	}()
-
-	return cancel
-}

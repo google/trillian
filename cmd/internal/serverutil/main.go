@@ -214,9 +214,9 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 // AnnounceSelf announces this binary's presence to etcd.  Returns a function that
 // should be called on process exit, and a Context to notify the lease expired.
 // AnnounceSelf does nothing if client is nil.
-func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, endpoint string) (func(), context.Context) {
+func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, endpoint string, cancel func()) func() {
 	if client == nil {
-		return func() {}, nil
+		return func() {}
 	}
 
 	// Get a lease so our entry self-destructs.
@@ -229,6 +229,7 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 	if err != nil {
 		glog.Exitf("Failed to keep lease alive from etcd: %v", err)
 	}
+	listenKeepAliveRsp(ctx, keepAliveRspCh, cancel)
 
 	em, err := endpoints.NewManager(client, etcdService)
 	if err != nil {
@@ -244,29 +245,25 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 		ctx := context.Background()
 		em.DeleteEndpoint(ctx, fullEndpoint)
 		client.Revoke(ctx, leaseRsp.ID)
-	}, ListenKeepAliveRsp(ctx, keepAliveRspCh)
+	}
 }
 
-// ListenKeepAliveRsp listen "LeaseKeepAliveResponse" channel until the lease expired
-// return a Context to notify the lease expired
-func ListenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.LeaseKeepAliveResponse) context.Context {
-	expiredCTX, notify := context.WithCancel(ctx)
+// listenKeepAliveRsp listens to `keepAliveRspCh` channel, and calls the cancel function
+// to notify the lease expired.
+func listenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.LeaseKeepAliveResponse, cancel func()) {
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
-				glog.Infof("ListenLeaseExpired canceled: %v", ctx.Err())
+				glog.Infof("listenKeepAliveRsp canceled: %v", ctx.Err())
 				return
 			case _, ok := <-keepAliveRspCh:
 				if !ok {
-					// lease expired
-					notify()
-					glog.Errorf("ListenLeaseExpired canceled: unexpected lease expired")
+					cancel()
+					glog.Errorf("listenKeepAliveRsp canceled: unexpected lease expired")
 					return
 				}
 			}
 		}
 	}()
-
-	return expiredCTX
 }
