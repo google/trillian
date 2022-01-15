@@ -260,8 +260,8 @@ func listenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.Lea
 				return
 			case _, ok := <-keepAliveRspCh:
 				if !ok {
-					cancel()
 					glog.Errorf("listenKeepAliveRsp canceled: unexpected lease expired")
+					cancel()
 					return
 				}
 			}
