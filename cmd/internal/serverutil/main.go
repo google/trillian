@@ -155,7 +155,7 @@ func (m *Main) Run(ctx context.Context) error {
 	// stop the RPC server when the context has been cancelled
 	go func() {
 		<-ctx.Done()
-		srv.Stop()
+		srv.GracefulStop()
 	}()
 
 	if m.TreeGCEnabled {
