@@ -17,6 +17,7 @@ package serverutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -31,6 +32,7 @@ import (
 	"github.com/google/trillian/util/clock"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.etcd.io/etcd/client/v3/naming/endpoints"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -125,25 +127,54 @@ func (m *Main) Run(ctx context.Context) error {
 	trillian.RegisterTrillianAdminServer(srv, admin.New(m.Registry, m.AllowedTreeTypes))
 	reflection.Register(srv)
 
+	g, ctx := errgroup.WithContext(ctx)
+
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
 		http.Handle("/metrics", promhttp.Handler())
 		http.HandleFunc("/healthz", m.healthz)
 
-		go func() {
+		s := &http.Server{
+			Addr: endpoint,
+		}
+
+		run := func() error {
 			glog.Infof("HTTP server starting on %v", endpoint)
 
 			var err error
 			// Let http.ListenAndServeTLS handle the error case when only one of the flags is set.
 			if m.TLSCertFile != "" || m.TLSKeyFile != "" {
-				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, nil)
+				err = s.ListenAndServeTLS(m.TLSCertFile, m.TLSKeyFile)
 			} else {
-				err = http.ListenAndServe(endpoint, nil)
+				err = s.ListenAndServe()
 			}
 
 			if err != nil {
-				glog.Errorf("HTTP server stopped: %v", err)
+				if errors.Is(err, http.ErrServerClosed) {
+					return nil
+				}
+
+				err = fmt.Errorf("HTTP server stopped: %v", err)
 			}
-		}()
+
+			return err
+		}
+
+		shutdown := func() {
+			glog.Infof("Stopping HTTP server...")
+			glog.Flush()
+
+			// 15 second exit time limit
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+
+			if err := s.Shutdown(ctx); err != nil {
+				glog.Errorf("Failed to http server shutdown: %v", err)
+			}
+		}
+
+		g.Go(func() error {
+			return srvRun(ctx, run, shutdown)
+		})
 	}
 
 	glog.Infof("RPC server starting on %v", m.RPCEndpoint)
@@ -152,14 +183,8 @@ func (m *Main) Run(ctx context.Context) error {
 		return err
 	}
 
-	// stop the RPC server when the context has been cancelled
-	go func() {
-		<-ctx.Done()
-		srv.GracefulStop()
-	}()
-
 	if m.TreeGCEnabled {
-		go func() {
+		g.Go(func() error {
 			glog.Info("Deleted tree GC started")
 			gc := admin.NewDeletedTreeGC(
 				m.Registry.AdminStorage,
@@ -167,20 +192,36 @@ func (m *Main) Run(ctx context.Context) error {
 				m.TreeDeleteMinInterval,
 				m.Registry.MetricFactory)
 			gc.Run(ctx)
-		}()
+			return nil
+		})
 	}
 
-	if err := srv.Serve(lis); err != nil {
-		glog.Errorf("RPC server terminated: %v", err)
+	run := func() error {
+		if err := srv.Serve(lis); err != nil {
+			return fmt.Errorf("RPC server terminated: %v", err)
+		}
+
+		return nil
 	}
 
-	glog.Infof("Stopping server, about to exit")
-	glog.Flush()
+	shutdown := func() {
+		glog.Infof("Stopping RPC server...")
+		glog.Flush()
+
+		srv.GracefulStop()
+	}
+
+	g.Go(func() error {
+		return srvRun(ctx, run, shutdown)
+	})
+
+	// wait for all jobs to exit gracefully
+	err = g.Wait()
 
 	// Give things a few seconds to tidy up
 	time.Sleep(time.Second * 5)
 
-	return nil
+	return err
 }
 
 // newGRPCServer starts a new Trillian gRPC server.
@@ -265,4 +306,24 @@ func listenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.Lea
 			}
 		}
 	}
+}
+
+// srvRun .
+func srvRun(ctx context.Context, run func() error, shutdown func()) error {
+	exit := make(chan struct{})
+	var err error
+	go func() {
+		defer close(exit)
+		err = run()
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdown()
+		// wait for run to return
+		<-exit
+	case <-exit:
+	}
+
+	return err
 }
