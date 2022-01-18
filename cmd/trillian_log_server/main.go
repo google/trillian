@@ -40,6 +40,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -93,6 +94,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go util.AwaitSignal(ctx, cancel)
 
 	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}

@@ -28,7 +28,6 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
-	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.etcd.io/etcd/client/v3/naming/endpoints"
@@ -152,11 +151,12 @@ func (m *Main) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	go util.AwaitSignal(ctx, srv.Stop)
 
-	// stop grpc server when context is closed
-	cancel := util.AwaitContext(ctx, srv.Stop)
-	defer cancel()
+	// stop the RPC server when the context has been cancelled
+	go func() {
+		<-ctx.Done()
+		srv.Stop()
+	}()
 
 	if m.TreeGCEnabled {
 		go func() {
