@@ -308,7 +308,7 @@ func listenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.Lea
 	}
 }
 
-// srvRun .
+// srvRun run the server and call `shutdown` when the context has been cancelled
 func srvRun(ctx context.Context, run func() error, shutdown func()) error {
 	exit := make(chan struct{})
 	var err error
