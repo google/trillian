@@ -230,7 +230,7 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 	if err != nil {
 		glog.Exitf("Failed to keep lease alive from etcd: %v", err)
 	}
-	listenKeepAliveRsp(ctx, keepAliveRspCh, cancel)
+	go listenKeepAliveRsp(ctx, keepAliveRspCh, cancel)
 
 	em, err := endpoints.NewManager(client, etcdService)
 	if err != nil {
@@ -252,19 +252,17 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 // listenKeepAliveRsp listens to `keepAliveRspCh` channel, and calls the cancel function
 // to notify the lease expired.
 func listenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.LeaseKeepAliveResponse, cancel func()) {
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				glog.Infof("listenKeepAliveRsp canceled: %v", ctx.Err())
+	for {
+		select {
+		case <-ctx.Done():
+			glog.Infof("listenKeepAliveRsp canceled: %v", ctx.Err())
+			return
+		case _, ok := <-keepAliveRspCh:
+			if !ok {
+				glog.Errorf("listenKeepAliveRsp canceled: unexpected lease expired")
+				cancel()
 				return
-			case _, ok := <-keepAliveRspCh:
-				if !ok {
-					glog.Errorf("listenKeepAliveRsp canceled: unexpected lease expired")
-					cancel()
-					return
-				}
 			}
 		}
-	}()
+	}
 }
