@@ -150,7 +150,7 @@ func main() {
 	// Start HTTP server (optional)
 	if *httpEndpoint != "" {
 		// Announce our endpoint to etcd if so configured.
-		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint, cancel)
 		defer unannounceHTTP()
 	}
 

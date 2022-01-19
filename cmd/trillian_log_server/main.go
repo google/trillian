@@ -40,6 +40,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -91,7 +92,9 @@ func main() {
 		}
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go util.AwaitSignal(ctx, cancel)
 
 	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}
@@ -124,10 +127,11 @@ func main() {
 	}
 
 	// Announce our endpoints to etcd if so configured.
-	unannounce := serverutil.AnnounceSelf(ctx, client, *etcdService, *rpcEndpoint)
+	unannounce := serverutil.AnnounceSelf(ctx, client, *etcdService, *rpcEndpoint, cancel)
 	defer unannounce()
+
 	if *httpEndpoint != "" {
-		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		unannounceHTTP := serverutil.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint, cancel)
 		defer unannounceHTTP()
 	}
 
