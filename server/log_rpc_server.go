@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 	"github.com/transparency-dev/merkle"
+	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -398,11 +399,11 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 }
 
 func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize uint64, tx storage.ReadOnlyLogTreeTX, hasher merkle.LogHasher) (*trillian.Proof, error) {
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(firstTreeSize, secondTreeSize)
+	nodes, err := proof.Consistency(firstTreeSize, secondTreeSize)
 	if err != nil {
 		return nil, err
 	}
-	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, 0, nodeFetches)
+	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, 0, nodes)
 	if err != nil {
 		return nil, err
 	}
@@ -545,12 +546,11 @@ func (t *TrillianLogRPCServer) closeAndLog(ctx context.Context, logID int64, tx 
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
 func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTreeTX, hasher merkle.LogHasher, size, leafIndex uint64) (*trillian.Proof, error) {
-	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
-	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(size, leafIndex)
+	nodes, err := proof.Inclusion(leafIndex, size)
 	if err != nil {
 		return nil, err
 	}
-	return fetchNodesAndBuildProof(ctx, tx, hasher, leafIndex, proofNodeIDs)
+	return fetchNodesAndBuildProof(ctx, tx, hasher, leafIndex, nodes)
 }
 
 func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, merkle.LogHasher, error) {

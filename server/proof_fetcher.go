@@ -22,6 +22,7 @@ import (
 	"github.com/google/trillian/storage/tree"
 	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/proof"
 )
 
 // nodeReader provides read-only access to the tree nodes.
@@ -35,19 +36,19 @@ type nodeReader interface {
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the nodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th merkle.LogHasher, leafIndex uint64, proofNodeFetches []merkle.NodeFetch) (*trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th merkle.LogHasher, leafIndex uint64, pn proof.Nodes) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
-	proofNodes, err := fetchNodes(ctx, nr, proofNodeFetches)
+	nodes, err := fetchNodes(ctx, nr, pn.IDs)
 	if err != nil {
 		return nil, err
 	}
 
-	h := make([][]byte, len(proofNodes))
-	for i, node := range proofNodes {
+	h := make([][]byte, len(nodes))
+	for i, node := range nodes {
 		h[i] = node.Hash
 	}
-	proof, err := merkle.Rehash(h, proofNodeFetches, th.HashChildren)
+	proof, err := pn.Rehash(h, th.HashChildren)
 	if err != nil {
 		return nil, err
 	}
@@ -60,13 +61,9 @@ func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th merkle.LogHa
 
 // fetchNodes obtains the nodes denoted by the given NodeFetch structs, and
 // returns them after some validation checks.
-func fetchNodes(ctx context.Context, nr nodeReader, fetches []merkle.NodeFetch) ([]tree.Node, error) {
+func fetchNodes(ctx context.Context, nr nodeReader, ids []compact.NodeID) ([]tree.Node, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodes")
 	defer spanEnd()
-	ids := make([]compact.NodeID, 0, len(fetches))
-	for _, fetch := range fetches {
-		ids = append(ids, fetch.ID)
-	}
 
 	nodes, err := nr.GetMerkleNodes(ctx, ids)
 	if err != nil {
