@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/tree"
-	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/proof"
 )
@@ -36,7 +35,7 @@ type nodeReader interface {
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the nodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th merkle.LogHasher, leafIndex uint64, pn proof.Nodes) (*trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, hasher compact.HashFn, leafIndex uint64, pn proof.Nodes) (*trillian.Proof, error) {
 	ctx, spanEnd := spanFor(ctx, "fetchNodesAndBuildProof")
 	defer spanEnd()
 	nodes, err := fetchNodes(ctx, nr, pn.IDs)
@@ -48,7 +47,7 @@ func fetchNodesAndBuildProof(ctx context.Context, nr nodeReader, th merkle.LogHa
 	for i, node := range nodes {
 		h[i] = node.Hash
 	}
-	proof, err := pn.Rehash(h, th.HashChildren)
+	proof, err := pn.Rehash(h, hasher)
 	if err != nil {
 		return nil, err
 	}
