@@ -29,8 +29,8 @@ import (
 	"math/bits"
 	"strings"
 
-	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/proof"
 )
 
 const (
@@ -380,12 +380,12 @@ func main() {
 		leafID := compact.NewNodeID(0, uint64(*inclusion))
 		modifyNodeInfo(leafID, func(n *nodeInfo) { n.incPath = true })
 		// TODO(pavelkalinnikov): Highlight the "ephemeral" node too.
-		nf, err := merkle.CalcInclusionProofNodeAddresses(*treeSize, uint64(*inclusion))
+		nodes, err := proof.Inclusion(uint64(*inclusion), *treeSize)
 		if err != nil {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}
-		for _, n := range nf {
-			modifyNodeInfo(n.ID, func(n *nodeInfo) { n.proof = true })
+		for _, id := range nodes.IDs {
+			modifyNodeInfo(id, func(n *nodeInfo) { n.proof = true })
 		}
 		for h, i := uint(0), leafID.Index; h < height; h, i = h+1, i>>1 {
 			id := compact.NewNodeID(h, i)
