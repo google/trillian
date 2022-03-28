@@ -7,6 +7,9 @@
   we recommend clients also migrate over to this library at the earliest
   convenient time; the long term plan is to remove `merkle` from this repo.
 * `countFromInformationSchema` function to add support for MySQL 8.
+* The mysql and cloudspanner storage schemas now require that the
+  LeafIdentityHash column is unique. This prevents multiple SequencedLeafData
+  rows from referencing the same LeafData row via foreign key.
 
 ## v1.4.0
 
