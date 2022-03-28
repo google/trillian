@@ -58,6 +58,9 @@ CREATE INDEX SequenceByMerkleHash
   ON SequencedLeafData(TreeID, MerkleLeafHash)
   STORING(LeafIdentityHash);
 
+CREATE UNIQUE INDEX SequenceByIdentityHash
+  ON SequencedLeafData(TreeID, LeafIdentityHash);
+
 CREATE TABLE Unsequenced(
   TreeID                 INT64 NOT NULL,
   Bucket                 INT64 NOT NULL,

@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   MerkleLeafHash       VARBINARY(255) NOT NULL,
   IntegrateTimestampNanos BIGINT NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
+  UNIQUE KEY(TreeId, LeafIdentityHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
   FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE
 );
