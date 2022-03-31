@@ -73,7 +73,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	// Implicitly trust the first root we get.
 	if trusted.TreeSize != 0 {
 		// Verify consistency proof.
-		if err := c.v.VerifyConsistencyProof(int64(trusted.TreeSize), int64(r.TreeSize), trusted.RootHash, r.RootHash, consistency); err != nil {
+		if err := c.v.VerifyConsistency(trusted.TreeSize, r.TreeSize, trusted.RootHash, r.RootHash, consistency); err != nil {
 			return nil, fmt.Errorf("failed to verify consistency proof from %d->%d %x->%x: %v", trusted.TreeSize, r.TreeSize, trusted.RootHash, r.RootHash, err)
 		}
 	}
@@ -90,8 +90,7 @@ func (c *LogVerifier) VerifyInclusionByHash(trusted *types.LogRootV1, leafHash [
 		return fmt.Errorf("VerifyInclusionByHash() error: proof == nil")
 	}
 
-	return c.v.VerifyInclusionProof(proof.LeafIndex, int64(trusted.TreeSize), proof.Hashes,
-		trusted.RootHash, leafHash)
+	return c.v.VerifyInclusion(uint64(proof.LeafIndex), trusted.TreeSize, leafHash, proof.Hashes, trusted.RootHash)
 }
 
 // BuildLeaf runs the leaf hasher over data and builds a leaf.

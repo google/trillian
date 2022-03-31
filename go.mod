@@ -23,7 +23,7 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/pseudomuto/protoc-gen-doc v1.5.0
-	github.com/transparency-dev/merkle v0.0.0-20220119214824-02a3e2029520
+	github.com/transparency-dev/merkle v0.0.0-20220331122146-fd7bbd80f70a
 	go.etcd.io/etcd/client/v3 v3.5.2
 	go.etcd.io/etcd/etcdctl/v3 v3.5.2
 	go.etcd.io/etcd/server/v3 v3.5.2
