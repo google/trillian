@@ -16,6 +16,7 @@ package logverifier
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math/bits"
@@ -30,7 +31,9 @@ type RootMismatchError struct {
 }
 
 func (e RootMismatchError) Error() string {
-	return fmt.Sprintf("calculated root:\n%v\n does not match expected root:\n%v", e.CalculatedRoot, e.ExpectedRoot)
+	return fmt.Sprintf("calculated root %s does not match expected root %s",
+		base64.StdEncoding.EncodeToString(e.CalculatedRoot),
+		base64.StdEncoding.EncodeToString(e.ExpectedRoot))
 }
 
 // LogVerifier verifies inclusion and consistency proofs for append only logs.
