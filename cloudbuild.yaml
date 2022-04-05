@@ -64,7 +64,7 @@ steps:
 
 # Run Bazel check.
 - id: bazel
-  name: 'gcr.io/cloud-marketplace-containers/google/bazel:1.1.0'
+  name: 'gcr.io/cloud-marketplace-containers/google/bazel:1.2.0'
   entrypoint: bazel
   args: ['build', '//:*']
   waitFor:
