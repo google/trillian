@@ -395,8 +395,8 @@ func main() {
 		if begin+1 < end {
 			modifyNodeInfo(nodes.IDs[end-1].Parent(), func(n *nodeInfo) { n.proof = true })
 		}
-		for h, i := uint(0), leafID.Index; h < height; h, i = h+1, i>>1 {
-			id := compact.NewNodeID(h, i)
+
+		for id := leafID; id.Level < height; id = id.Parent() {
 			modifyNodeInfo(id, func(n *nodeInfo) { n.incPath = true })
 		}
 	}
