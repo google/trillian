@@ -250,30 +250,18 @@ func perfectInner(prefix string, level uint, index uint64, top bool, nodeText no
 }
 
 // renderTree renders a tree node and recurses if necessary.
-func renderTree(prefix string, treeSize, index uint64, nodeText, dataText nodeTextFunc) {
-	if treeSize == 0 {
-		return
+func renderTree(prefix string, size uint64, nodeText, dataText nodeTextFunc) {
+	// Get root IDs of all perfect subtrees.
+	ids := compact.RangeNodes(0, size)
+	for i, id := range ids {
+		if i+1 < len(ids) {
+			ephem := id.Parent()
+			modifyNodeInfo(ephem, func(n *nodeInfo) { n.ephemeral = true })
+			defer openInnerNode(prefix, ephem, nodeText)()
+		}
+		prefix += " "
+		perfect(prefix, id.Level, id.Index, nodeText, dataText)
 	}
-
-	// Look at the bit of the treeSize corresponding to the current level:
-	height := uint(bits.Len64(treeSize) - 1)
-	b := uint64(1) << height
-	rest := treeSize - b
-	// left child is a perfect subtree.
-
-	// if there's a right-hand child, then we'll emit this node to be the
-	// parent. (Otherwise we'll just keep quiet, and recurse down - this is how
-	// we arrange for leaves to always be on the bottom level.)
-	if rest > 0 {
-		childHeight := height + 1
-		id := compact.NewNodeID(childHeight, index>>childHeight)
-		modifyNodeInfo(id, func(n *nodeInfo) { n.ephemeral = true })
-		c := openInnerNode(prefix, id, nodeText)
-		defer c()
-	}
-	perfect(prefix+" ", height, index>>height, nodeText, dataText)
-	index += b
-	renderTree(prefix+" ", rest, index, nodeText, dataText)
 }
 
 // parseRanges parses and validates a string of comma-separates open-closed
@@ -410,6 +398,6 @@ func main() {
 	// TODO(al): structify this into a util, and add ability to output to an
 	// arbitrary stream.
 	fmt.Print(preamble)
-	renderTree("", *treeSize, 0, nodeText, dataFormat)
+	renderTree("", *treeSize, nodeText, dataFormat)
 	fmt.Print(postfix)
 }
