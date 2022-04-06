@@ -194,8 +194,8 @@ func perfectMega(prefix string, height uint, leafIndex uint64) {
 }
 
 // perfect renders a perfect subtree.
-func perfect(prefix string, height uint, index uint64, nodeText, dataText nodeTextFunc) {
-	perfectInner(prefix, height, index, true, nodeText, dataText)
+func perfect(prefix string, id compact.NodeID, nodeText, dataText nodeTextFunc) {
+	perfectInner(prefix, id, true, nodeText, dataText)
 }
 
 // drawLeaf emits TeX code to render a leaf.
@@ -228,25 +228,24 @@ func openInnerNode(prefix string, id compact.NodeID, nodeText nodeTextFunc) func
 }
 
 // perfectInner renders the nodes of a perfect internal subtree.
-func perfectInner(prefix string, level uint, index uint64, top bool, nodeText nodeTextFunc, dataText nodeTextFunc) {
-	id := compact.NewNodeID(level, index)
+func perfectInner(prefix string, id compact.NodeID, top bool, nodeText nodeTextFunc, dataText nodeTextFunc) {
 	modifyNodeInfo(id, func(n *nodeInfo) {
 		n.perfectRoot = top
 	})
 
-	if level == 0 {
-		drawLeaf(prefix, index, nodeText, dataText)
+	if id.Level == 0 {
+		drawLeaf(prefix, id.Index, nodeText, dataText)
 		return
 	}
-	c := openInnerNode(prefix, id, nodeText)
-	childIndex := index << 1
-	if level > *megaMode {
-		perfectMega(prefix, level, index<<level)
+	defer openInnerNode(prefix, id, nodeText)()
+
+	if id.Level > *megaMode {
+		perfectMega(prefix, id.Level, id.Index<<id.Level)
 	} else {
-		perfectInner(prefix+" ", level-1, childIndex, false, nodeText, dataText)
-		perfectInner(prefix+" ", level-1, childIndex+1, false, nodeText, dataText)
+		left := compact.NewNodeID(id.Level-1, id.Index*2)
+		perfectInner(prefix+" ", left, false, nodeText, dataText)
+		perfectInner(prefix+" ", left.Sibling(), false, nodeText, dataText)
 	}
-	c()
 }
 
 // renderTree renders a tree node and recurses if necessary.
@@ -260,7 +259,7 @@ func renderTree(prefix string, size uint64, nodeText, dataText nodeTextFunc) {
 			defer openInnerNode(prefix, ephem, nodeText)()
 		}
 		prefix += " "
-		perfect(prefix, id.Level, id.Index, nodeText, dataText)
+		perfect(prefix, id, nodeText, dataText)
 	}
 }
 
