@@ -451,7 +451,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Merkle
 		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
 			LogId:     logID,
 			LeafIndex: index,
-			TreeSize:  int64(treeSize),
+			TreeSize:  treeSize,
 		})
 		cancel()
 
@@ -469,7 +469,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Merkle
 		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
-		if err := verifier.VerifyInclusionProof(index, treeSize, resp.Proof.Hashes, root, merkleLeafHash); err != nil {
+		if err := verifier.VerifyInclusion(uint64(index), uint64(treeSize), merkleLeafHash, resp.Proof.Hashes, root); err != nil {
 			return err
 		}
 	}
@@ -506,7 +506,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
-	return verifier.VerifyConsistencyProof(req.FirstTreeSize, req.SecondTreeSize,
+	return verifier.VerifyConsistency(uint64(req.FirstTreeSize), uint64(req.SecondTreeSize),
 		root1, root2, resp.Proof.Hashes)
 }
 
