@@ -379,13 +379,21 @@ func main() {
 	if *inclusion > 0 {
 		leafID := compact.NewNodeID(0, uint64(*inclusion))
 		modifyNodeInfo(leafID, func(n *nodeInfo) { n.incPath = true })
-		// TODO(pavelkalinnikov): Highlight the "ephemeral" node too.
 		nodes, err := proof.Inclusion(uint64(*inclusion), *treeSize)
 		if err != nil {
 			log.Fatalf("Failed to calculate inclusion proof addresses: %s", err)
 		}
-		for _, id := range nodes.IDs {
+		_, begin, end := nodes.Ephem()
+		for i, id := range nodes.IDs {
+			// Skip children of the ephemeral node.
+			if i >= begin && i < end && begin+1 < end {
+				continue
+			}
 			modifyNodeInfo(id, func(n *nodeInfo) { n.proof = true })
+		}
+		// If the ephemeral node exists in the proof, make it a parent of the biggest subtree.
+		if begin+1 < end {
+			modifyNodeInfo(nodes.IDs[end-1].Parent(), func(n *nodeInfo) { n.proof = true })
 		}
 		for h, i := uint(0), leafID.Index; h < height; h, i = h+1, i>>1 {
 			id := compact.NewNodeID(h, i)
