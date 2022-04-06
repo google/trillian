@@ -180,14 +180,16 @@ func modifyNodeInfo(id compact.NodeID, f func(*nodeInfo)) {
 }
 
 // perfectMega renders a large perfect subtree as a single entity.
-func perfectMega(prefix string, height uint, leafIndex uint64) {
-	stLeaves := uint64(1) << height
-	stWidth := float32(stLeaves) / float32(*treeSize)
-	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, leafIndex, leafIndex+stLeaves, stLeaves, stWidth)
+func perfectMega(prefix string, id compact.NodeID) {
+	begin, end := id.Coverage()
+	size := end - begin
+
+	stWidth := float32(size) / float32(*treeSize)
+	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, begin, end, size, stWidth)
 
 	// Create some hidden nodes to preseve the tier spacings:
 	fmt.Printf("%s", prefix)
-	for i := int(height - 2); i > 0; i-- {
+	for i := int(id.Level) - 2; i > 0; i-- {
 		fmt.Printf(" [, no edge, tier=%d ", i)
 		defer fmt.Printf(" ] ")
 	}
@@ -240,7 +242,7 @@ func perfectInner(prefix string, id compact.NodeID, top bool, nodeText nodeTextF
 	defer openInnerNode(prefix, id, nodeText)()
 
 	if id.Level > *megaMode {
-		perfectMega(prefix, id.Level, id.Index<<id.Level)
+		perfectMega(prefix, id)
 	} else {
 		left := compact.NewNodeID(id.Level-1, id.Index*2)
 		perfectInner(prefix+" ", left, false, nodeText, dataText)
