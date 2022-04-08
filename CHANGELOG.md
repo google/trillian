@@ -2,6 +2,13 @@
 
 ## HEAD
 
+### Storage
+
+* #2568: Ephemeral nodes of the Merkle tree are no longer written to storage.
+  This is backwards compatible with versions >= v1.4.0. The leftover ephemeral
+  nodes may continue being stored, but since they are not used by reads, the API
+  remains operating correctly.
+
 ## v1.4.1
 
 * `countFromInformationSchema` function to add support for MySQL 8.
