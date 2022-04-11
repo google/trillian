@@ -6,7 +6,7 @@ require (
 	bitbucket.org/creachadair/shell v0.0.7
 	cloud.google.com/go/iam v0.1.1 // indirect
 	cloud.google.com/go/spanner v1.31.0
-	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.11
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
 	github.com/fullstorydev/grpcurl v1.8.6
 	github.com/go-redis/redis v6.15.9+incompatible
