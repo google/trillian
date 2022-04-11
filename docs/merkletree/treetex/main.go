@@ -180,22 +180,24 @@ func modifyNodeInfo(id compact.NodeID, f func(*nodeInfo)) {
 }
 
 // perfectMega renders a large perfect subtree as a single entity.
-func perfectMega(prefix string, height uint, leafIndex uint64) {
-	stLeaves := uint64(1) << height
-	stWidth := float32(stLeaves) / float32(*treeSize)
-	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, leafIndex, leafIndex+stLeaves, stLeaves, stWidth)
+func perfectMega(prefix string, id compact.NodeID) {
+	begin, end := id.Coverage()
+	size := end - begin
+
+	stWidth := float32(size) / float32(*treeSize)
+	fmt.Printf("%s [%d\\dots%d, edge label={node[midway, above]{%d}}, perfect, tier=leaf, minimum width=%f\\linewidth ]\n", prefix, begin, end, size, stWidth)
 
 	// Create some hidden nodes to preseve the tier spacings:
 	fmt.Printf("%s", prefix)
-	for i := int(height - 2); i > 0; i-- {
+	for i := int(id.Level) - 2; i > 0; i-- {
 		fmt.Printf(" [, no edge, tier=%d ", i)
 		defer fmt.Printf(" ] ")
 	}
 }
 
 // perfect renders a perfect subtree.
-func perfect(prefix string, height uint, index uint64, nodeText, dataText nodeTextFunc) {
-	perfectInner(prefix, height, index, true, nodeText, dataText)
+func perfect(prefix string, id compact.NodeID, nodeText, dataText nodeTextFunc) {
+	perfectInner(prefix, id, true, nodeText, dataText)
 }
 
 // drawLeaf emits TeX code to render a leaf.
@@ -228,52 +230,39 @@ func openInnerNode(prefix string, id compact.NodeID, nodeText nodeTextFunc) func
 }
 
 // perfectInner renders the nodes of a perfect internal subtree.
-func perfectInner(prefix string, level uint, index uint64, top bool, nodeText nodeTextFunc, dataText nodeTextFunc) {
-	id := compact.NewNodeID(level, index)
+func perfectInner(prefix string, id compact.NodeID, top bool, nodeText nodeTextFunc, dataText nodeTextFunc) {
 	modifyNodeInfo(id, func(n *nodeInfo) {
 		n.perfectRoot = top
 	})
 
-	if level == 0 {
-		drawLeaf(prefix, index, nodeText, dataText)
+	if id.Level == 0 {
+		drawLeaf(prefix, id.Index, nodeText, dataText)
 		return
 	}
-	c := openInnerNode(prefix, id, nodeText)
-	childIndex := index << 1
-	if level > *megaMode {
-		perfectMega(prefix, level, index<<level)
+	defer openInnerNode(prefix, id, nodeText)()
+
+	if id.Level > *megaMode {
+		perfectMega(prefix, id)
 	} else {
-		perfectInner(prefix+" ", level-1, childIndex, false, nodeText, dataText)
-		perfectInner(prefix+" ", level-1, childIndex+1, false, nodeText, dataText)
+		left := compact.NewNodeID(id.Level-1, id.Index*2)
+		perfectInner(prefix+" ", left, false, nodeText, dataText)
+		perfectInner(prefix+" ", left.Sibling(), false, nodeText, dataText)
 	}
-	c()
 }
 
 // renderTree renders a tree node and recurses if necessary.
-func renderTree(prefix string, treeSize, index uint64, nodeText, dataText nodeTextFunc) {
-	if treeSize == 0 {
-		return
+func renderTree(prefix string, size uint64, nodeText, dataText nodeTextFunc) {
+	// Get root IDs of all perfect subtrees.
+	ids := compact.RangeNodes(0, size)
+	for i, id := range ids {
+		if i+1 < len(ids) {
+			ephem := id.Parent()
+			modifyNodeInfo(ephem, func(n *nodeInfo) { n.ephemeral = true })
+			defer openInnerNode(prefix, ephem, nodeText)()
+		}
+		prefix += " "
+		perfect(prefix, id, nodeText, dataText)
 	}
-
-	// Look at the bit of the treeSize corresponding to the current level:
-	height := uint(bits.Len64(treeSize) - 1)
-	b := uint64(1) << height
-	rest := treeSize - b
-	// left child is a perfect subtree.
-
-	// if there's a right-hand child, then we'll emit this node to be the
-	// parent. (Otherwise we'll just keep quiet, and recurse down - this is how
-	// we arrange for leaves to always be on the bottom level.)
-	if rest > 0 {
-		childHeight := height + 1
-		id := compact.NewNodeID(childHeight, index>>childHeight)
-		modifyNodeInfo(id, func(n *nodeInfo) { n.ephemeral = true })
-		c := openInnerNode(prefix, id, nodeText)
-		defer c()
-	}
-	perfect(prefix+" ", height, index>>height, nodeText, dataText)
-	index += b
-	renderTree(prefix+" ", rest, index, nodeText, dataText)
 }
 
 // parseRanges parses and validates a string of comma-separates open-closed
@@ -410,6 +399,6 @@ func main() {
 	// TODO(al): structify this into a util, and add ability to output to an
 	// arbitrary stream.
 	fmt.Print(preamble)
-	renderTree("", *treeSize, 0, nodeText, dataFormat)
+	renderTree("", *treeSize, nodeText, dataFormat)
 	fmt.Print(postfix)
 }
