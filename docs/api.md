@@ -3,64 +3,64 @@
 
 ## Table of Contents
 
-- [trillian_log_api.proto](#trillian_log_api.proto)
-    - [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest)
-    - [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse)
-    - [ChargeTo](#trillian.ChargeTo)
-    - [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest)
-    - [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse)
-    - [GetEntryAndProofRequest](#trillian.GetEntryAndProofRequest)
-    - [GetEntryAndProofResponse](#trillian.GetEntryAndProofResponse)
-    - [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest)
-    - [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse)
-    - [GetInclusionProofRequest](#trillian.GetInclusionProofRequest)
-    - [GetInclusionProofResponse](#trillian.GetInclusionProofResponse)
-    - [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest)
-    - [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse)
-    - [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest)
-    - [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse)
-    - [InitLogRequest](#trillian.InitLogRequest)
-    - [InitLogResponse](#trillian.InitLogResponse)
-    - [LogLeaf](#trillian.LogLeaf)
-    - [QueueLeafRequest](#trillian.QueueLeafRequest)
-    - [QueueLeafResponse](#trillian.QueueLeafResponse)
-    - [QueuedLogLeaf](#trillian.QueuedLogLeaf)
+- [trillian_log_api.proto](#trillian_log_api-proto)
+    - [AddSequencedLeavesRequest](#trillian-AddSequencedLeavesRequest)
+    - [AddSequencedLeavesResponse](#trillian-AddSequencedLeavesResponse)
+    - [ChargeTo](#trillian-ChargeTo)
+    - [GetConsistencyProofRequest](#trillian-GetConsistencyProofRequest)
+    - [GetConsistencyProofResponse](#trillian-GetConsistencyProofResponse)
+    - [GetEntryAndProofRequest](#trillian-GetEntryAndProofRequest)
+    - [GetEntryAndProofResponse](#trillian-GetEntryAndProofResponse)
+    - [GetInclusionProofByHashRequest](#trillian-GetInclusionProofByHashRequest)
+    - [GetInclusionProofByHashResponse](#trillian-GetInclusionProofByHashResponse)
+    - [GetInclusionProofRequest](#trillian-GetInclusionProofRequest)
+    - [GetInclusionProofResponse](#trillian-GetInclusionProofResponse)
+    - [GetLatestSignedLogRootRequest](#trillian-GetLatestSignedLogRootRequest)
+    - [GetLatestSignedLogRootResponse](#trillian-GetLatestSignedLogRootResponse)
+    - [GetLeavesByRangeRequest](#trillian-GetLeavesByRangeRequest)
+    - [GetLeavesByRangeResponse](#trillian-GetLeavesByRangeResponse)
+    - [InitLogRequest](#trillian-InitLogRequest)
+    - [InitLogResponse](#trillian-InitLogResponse)
+    - [LogLeaf](#trillian-LogLeaf)
+    - [QueueLeafRequest](#trillian-QueueLeafRequest)
+    - [QueueLeafResponse](#trillian-QueueLeafResponse)
+    - [QueuedLogLeaf](#trillian-QueuedLogLeaf)
   
-    - [TrillianLog](#trillian.TrillianLog)
+    - [TrillianLog](#trillian-TrillianLog)
   
-- [trillian_admin_api.proto](#trillian_admin_api.proto)
-    - [CreateTreeRequest](#trillian.CreateTreeRequest)
-    - [DeleteTreeRequest](#trillian.DeleteTreeRequest)
-    - [GetTreeRequest](#trillian.GetTreeRequest)
-    - [ListTreesRequest](#trillian.ListTreesRequest)
-    - [ListTreesResponse](#trillian.ListTreesResponse)
-    - [UndeleteTreeRequest](#trillian.UndeleteTreeRequest)
-    - [UpdateTreeRequest](#trillian.UpdateTreeRequest)
+- [trillian_admin_api.proto](#trillian_admin_api-proto)
+    - [CreateTreeRequest](#trillian-CreateTreeRequest)
+    - [DeleteTreeRequest](#trillian-DeleteTreeRequest)
+    - [GetTreeRequest](#trillian-GetTreeRequest)
+    - [ListTreesRequest](#trillian-ListTreesRequest)
+    - [ListTreesResponse](#trillian-ListTreesResponse)
+    - [UndeleteTreeRequest](#trillian-UndeleteTreeRequest)
+    - [UpdateTreeRequest](#trillian-UpdateTreeRequest)
   
-    - [TrillianAdmin](#trillian.TrillianAdmin)
+    - [TrillianAdmin](#trillian-TrillianAdmin)
   
-- [trillian.proto](#trillian.proto)
-    - [Proof](#trillian.Proof)
-    - [SignedLogRoot](#trillian.SignedLogRoot)
-    - [Tree](#trillian.Tree)
+- [trillian.proto](#trillian-proto)
+    - [Proof](#trillian-Proof)
+    - [SignedLogRoot](#trillian-SignedLogRoot)
+    - [Tree](#trillian-Tree)
   
-    - [HashStrategy](#trillian.HashStrategy)
-    - [LogRootFormat](#trillian.LogRootFormat)
-    - [TreeState](#trillian.TreeState)
-    - [TreeType](#trillian.TreeType)
+    - [HashStrategy](#trillian-HashStrategy)
+    - [LogRootFormat](#trillian-LogRootFormat)
+    - [TreeState](#trillian-TreeState)
+    - [TreeType](#trillian-TreeType)
   
 - [Scalar Value Types](#scalar-value-types)
 
 
 
-<a name="trillian_log_api.proto"></a>
+<a name="trillian_log_api-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## trillian_log_api.proto
 
 
 
-<a name="trillian.AddSequencedLeavesRequest"></a>
+<a name="trillian-AddSequencedLeavesRequest"></a>
 
 ### AddSequencedLeavesRequest
 
@@ -69,15 +69,15 @@
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
-| leaves | [LogLeaf](#trillian.LogLeaf) | repeated |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| leaves | [LogLeaf](#trillian-LogLeaf) | repeated |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.AddSequencedLeavesResponse"></a>
+<a name="trillian-AddSequencedLeavesResponse"></a>
 
 ### AddSequencedLeavesResponse
 
@@ -85,14 +85,14 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| results | [QueuedLogLeaf](#trillian.QueuedLogLeaf) | repeated | Same number and order as in the corresponding request. |
+| results | [QueuedLogLeaf](#trillian-QueuedLogLeaf) | repeated | Same number and order as in the corresponding request. |
 
 
 
 
 
 
-<a name="trillian.ChargeTo"></a>
+<a name="trillian-ChargeTo"></a>
 
 ### ChargeTo
 ChargeTo describes the user(s) associated with the request whose quota should
@@ -110,7 +110,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 
 
-<a name="trillian.GetConsistencyProofRequest"></a>
+<a name="trillian-GetConsistencyProofRequest"></a>
 
 ### GetConsistencyProofRequest
 
@@ -121,14 +121,14 @@ As an example, a Certificate Transparency frontend might set the following user 
 | log_id | [int64](#int64) |  |  |
 | first_tree_size | [int64](#int64) |  |  |
 | second_tree_size | [int64](#int64) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetConsistencyProofResponse"></a>
+<a name="trillian-GetConsistencyProofResponse"></a>
 
 ### GetConsistencyProofResponse
 
@@ -136,15 +136,15 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian-Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
+| signed_log_root | [SignedLogRoot](#trillian-SignedLogRoot) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetEntryAndProofRequest"></a>
+<a name="trillian-GetEntryAndProofRequest"></a>
 
 ### GetEntryAndProofRequest
 
@@ -155,14 +155,14 @@ As an example, a Certificate Transparency frontend might set the following user 
 | log_id | [int64](#int64) |  |  |
 | leaf_index | [int64](#int64) |  |  |
 | tree_size | [int64](#int64) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetEntryAndProofResponse"></a>
+<a name="trillian-GetEntryAndProofResponse"></a>
 
 ### GetEntryAndProofResponse
 
@@ -170,16 +170,16 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) |  |  |
-| leaf | [LogLeaf](#trillian.LogLeaf) |  |  |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian-Proof) |  |  |
+| leaf | [LogLeaf](#trillian-LogLeaf) |  |  |
+| signed_log_root | [SignedLogRoot](#trillian-SignedLogRoot) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetInclusionProofByHashRequest"></a>
+<a name="trillian-GetInclusionProofByHashRequest"></a>
 
 ### GetInclusionProofByHashRequest
 
@@ -191,14 +191,14 @@ As an example, a Certificate Transparency frontend might set the following user 
 | leaf_hash | [bytes](#bytes) |  | The leaf hash field provides the Merkle tree hash of the leaf entry to be retrieved. |
 | tree_size | [int64](#int64) |  |  |
 | order_by_sequence | [bool](#bool) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetInclusionProofByHashResponse"></a>
+<a name="trillian-GetInclusionProofByHashResponse"></a>
 
 ### GetInclusionProofByHashResponse
 
@@ -206,15 +206,15 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) | repeated | Logs can potentially contain leaves with duplicate hashes so it&#39;s possible for this to return multiple proofs. If the leaf index for a particular instance of the requested Merkle leaf hash is beyond the requested tree size, the corresponding proof entry will be missing. |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian-Proof) | repeated | Logs can potentially contain leaves with duplicate hashes so it&#39;s possible for this to return multiple proofs. If the leaf index for a particular instance of the requested Merkle leaf hash is beyond the requested tree size, the corresponding proof entry will be missing. |
+| signed_log_root | [SignedLogRoot](#trillian-SignedLogRoot) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetInclusionProofRequest"></a>
+<a name="trillian-GetInclusionProofRequest"></a>
 
 ### GetInclusionProofRequest
 
@@ -225,14 +225,14 @@ As an example, a Certificate Transparency frontend might set the following user 
 | log_id | [int64](#int64) |  |  |
 | leaf_index | [int64](#int64) |  |  |
 | tree_size | [int64](#int64) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetInclusionProofResponse"></a>
+<a name="trillian-GetInclusionProofResponse"></a>
 
 ### GetInclusionProofResponse
 
@@ -240,15 +240,15 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| proof | [Proof](#trillian.Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| proof | [Proof](#trillian-Proof) |  | The proof field may be empty if the requested tree_size was larger than that available at the server (e.g. because there is skew between server instances, and an earlier client request was processed by a more up-to-date instance). In this case, the signed_log_root field will indicate the tree size that the server is aware of, and the proof field will be empty. |
+| signed_log_root | [SignedLogRoot](#trillian-SignedLogRoot) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetLatestSignedLogRootRequest"></a>
+<a name="trillian-GetLatestSignedLogRootRequest"></a>
 
 ### GetLatestSignedLogRootRequest
 
@@ -257,7 +257,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 | first_tree_size | [int64](#int64) |  | If first_tree_size is non-zero, the response will include a consistency proof between first_tree_size and the new tree size (if not smaller). |
 
 
@@ -265,7 +265,7 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 
 
-<a name="trillian.GetLatestSignedLogRootResponse"></a>
+<a name="trillian-GetLatestSignedLogRootResponse"></a>
 
 ### GetLatestSignedLogRootResponse
 
@@ -273,15 +273,15 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
-| proof | [Proof](#trillian.Proof) |  | proof is filled in with a consistency proof if first_tree_size in GetLatestSignedLogRootRequest is non-zero (and within the tree size available at the server). |
+| signed_log_root | [SignedLogRoot](#trillian-SignedLogRoot) |  |  |
+| proof | [Proof](#trillian-Proof) |  | proof is filled in with a consistency proof if first_tree_size in GetLatestSignedLogRootRequest is non-zero (and within the tree size available at the server). |
 
 
 
 
 
 
-<a name="trillian.GetLeavesByRangeRequest"></a>
+<a name="trillian-GetLeavesByRangeRequest"></a>
 
 ### GetLeavesByRangeRequest
 
@@ -292,14 +292,14 @@ As an example, a Certificate Transparency frontend might set the following user 
 | log_id | [int64](#int64) |  |  |
 | start_index | [int64](#int64) |  |  |
 | count | [int64](#int64) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.GetLeavesByRangeResponse"></a>
+<a name="trillian-GetLeavesByRangeResponse"></a>
 
 ### GetLeavesByRangeResponse
 
@@ -307,15 +307,15 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| leaves | [LogLeaf](#trillian.LogLeaf) | repeated | Returned log leaves starting from the `start_index` of the request, in order. There may be fewer than `request.count` leaves returned, if the requested range extended beyond the size of the tree or if the server opted to return fewer leaves than requested. |
-| signed_log_root | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| leaves | [LogLeaf](#trillian-LogLeaf) | repeated | Returned log leaves starting from the `start_index` of the request, in order. There may be fewer than `request.count` leaves returned, if the requested range extended beyond the size of the tree or if the server opted to return fewer leaves than requested. |
+| signed_log_root | [SignedLogRoot](#trillian-SignedLogRoot) |  |  |
 
 
 
 
 
 
-<a name="trillian.InitLogRequest"></a>
+<a name="trillian-InitLogRequest"></a>
 
 ### InitLogRequest
 
@@ -324,14 +324,14 @@ As an example, a Certificate Transparency frontend might set the following user 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.InitLogResponse"></a>
+<a name="trillian-InitLogResponse"></a>
 
 ### InitLogResponse
 
@@ -339,14 +339,14 @@ As an example, a Certificate Transparency frontend might set the following user 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| created | [SignedLogRoot](#trillian.SignedLogRoot) |  |  |
+| created | [SignedLogRoot](#trillian-SignedLogRoot) |  |  |
 
 
 
 
 
 
-<a name="trillian.LogLeaf"></a>
+<a name="trillian-LogLeaf"></a>
 
 ### LogLeaf
 LogLeaf describes a leaf in the Log&#39;s Merkle tree, corresponding to a single log entry.
@@ -375,15 +375,15 @@ For example, in Certificate Transparency each certificate submission is associat
 Continuing the CT example, for a CT mirror personality (which must allow dupes since the source log could contain them), the part of the personality which fetches and submits the entries might set `leaf_identity_hash` to `H(leaf_index||cert)`.
 
 TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing identity hash dupes in `PREORDERED_LOG` mode, for it can later be upgraded to `LOG` which will need to correctly detect duplicates with older entries when new ones get queued. |
-| queue_timestamp | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | queue_timestamp holds the time at which this leaf was queued for inclusion in the Log, or zero if the entry was submitted without queuing. Clients should not set this field on submissions. |
-| integrate_timestamp | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | integrate_timestamp holds the time at which this leaf was integrated into the tree. Clients should not set this field on submissions. |
+| queue_timestamp | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | queue_timestamp holds the time at which this leaf was queued for inclusion in the Log, or zero if the entry was submitted without queuing. Clients should not set this field on submissions. |
+| integrate_timestamp | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | integrate_timestamp holds the time at which this leaf was integrated into the tree. Clients should not set this field on submissions. |
 
 
 
 
 
 
-<a name="trillian.QueueLeafRequest"></a>
+<a name="trillian-QueueLeafRequest"></a>
 
 ### QueueLeafRequest
 
@@ -392,15 +392,15 @@ TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing identity ha
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | log_id | [int64](#int64) |  |  |
-| leaf | [LogLeaf](#trillian.LogLeaf) |  |  |
-| charge_to | [ChargeTo](#trillian.ChargeTo) |  |  |
+| leaf | [LogLeaf](#trillian-LogLeaf) |  |  |
+| charge_to | [ChargeTo](#trillian-ChargeTo) |  |  |
 
 
 
 
 
 
-<a name="trillian.QueueLeafResponse"></a>
+<a name="trillian-QueueLeafResponse"></a>
 
 ### QueueLeafResponse
 
@@ -408,14 +408,14 @@ TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing identity ha
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| queued_leaf | [QueuedLogLeaf](#trillian.QueuedLogLeaf) |  | queued_leaf describes the leaf which is or will be incorporated into the Log. If the submitted leaf was already present in the Log (as indicated by its leaf identity hash), then the returned leaf will be the pre-existing leaf entry rather than the submitted leaf. |
+| queued_leaf | [QueuedLogLeaf](#trillian-QueuedLogLeaf) |  | queued_leaf describes the leaf which is or will be incorporated into the Log. If the submitted leaf was already present in the Log (as indicated by its leaf identity hash), then the returned leaf will be the pre-existing leaf entry rather than the submitted leaf. |
 
 
 
 
 
 
-<a name="trillian.QueuedLogLeaf"></a>
+<a name="trillian-QueuedLogLeaf"></a>
 
 ### QueuedLogLeaf
 QueuedLogLeaf provides the result of submitting an entry to the log.
@@ -424,8 +424,8 @@ TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| leaf | [LogLeaf](#trillian.LogLeaf) |  | The leaf as it was stored by Trillian. Empty unless `status.code` is: - `google.rpc.OK`: the `leaf` data is the same as in the request. - `google.rpc.ALREADY_EXISTS` or &#39;google.rpc.FAILED_PRECONDITION`: the `leaf` is the conflicting one already in the log. |
-| status | [google.rpc.Status](#google.rpc.Status) |  | The status of adding the leaf. - `google.rpc.OK`: successfully added. - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already existing one. Either `leaf_identity_hash` is the same in the `LOG` mode, or `leaf_index` in the `PREORDERED_LOG`. - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already present in the log, e.g., same `leaf_index` but different `leaf_data`. |
+| leaf | [LogLeaf](#trillian-LogLeaf) |  | The leaf as it was stored by Trillian. Empty unless `status.code` is: - `google.rpc.OK`: the `leaf` data is the same as in the request. - `google.rpc.ALREADY_EXISTS` or &#39;google.rpc.FAILED_PRECONDITION`: the `leaf` is the conflicting one already in the log. |
+| status | [google.rpc.Status](#google-rpc-Status) |  | The status of adding the leaf. - `google.rpc.OK`: successfully added. - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already existing one. Either `leaf_identity_hash` is the same in the `LOG` mode, or `leaf_index` in the `PREORDERED_LOG`. - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already present in the log, e.g., same `leaf_index` but different `leaf_data`. |
 
 
 
@@ -438,7 +438,7 @@ TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
  
 
 
-<a name="trillian.TrillianLog"></a>
+<a name="trillian-TrillianLog"></a>
 
 ### TrillianLog
 The TrillianLog service provides access to an append-only Log data structure
@@ -472,38 +472,38 @@ in this case the server will typically return an OK response that contains:
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| QueueLeaf | [QueueLeafRequest](#trillian.QueueLeafRequest) | [QueueLeafResponse](#trillian.QueueLeafResponse) | QueueLeaf adds a single leaf to the queue of pending leaves for a normal log. |
-| GetInclusionProof | [GetInclusionProofRequest](#trillian.GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian.GetInclusionProofResponse) | GetInclusionProof returns an inclusion proof for a leaf with a given index in a particular tree.
+| QueueLeaf | [QueueLeafRequest](#trillian-QueueLeafRequest) | [QueueLeafResponse](#trillian-QueueLeafResponse) | QueueLeaf adds a single leaf to the queue of pending leaves for a normal log. |
+| GetInclusionProof | [GetInclusionProofRequest](#trillian-GetInclusionProofRequest) | [GetInclusionProofResponse](#trillian-GetInclusionProofResponse) | GetInclusionProof returns an inclusion proof for a leaf with a given index in a particular tree.
 
 If the requested tree_size is larger than the server is aware of, the response will include the latest known log root and an empty proof. |
-| GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian.GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian.GetInclusionProofByHashResponse) | GetInclusionProofByHash returns an inclusion proof for any leaves that have the given Merkle hash in a particular tree.
+| GetInclusionProofByHash | [GetInclusionProofByHashRequest](#trillian-GetInclusionProofByHashRequest) | [GetInclusionProofByHashResponse](#trillian-GetInclusionProofByHashResponse) | GetInclusionProofByHash returns an inclusion proof for any leaves that have the given Merkle hash in a particular tree.
 
 If any of the leaves that match the given Merkle has have a leaf index that is beyond the requested tree size, the corresponding proof entry will be empty. |
-| GetConsistencyProof | [GetConsistencyProofRequest](#trillian.GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian.GetConsistencyProofResponse) | GetConsistencyProof returns a consistency proof between different sizes of a particular tree.
+| GetConsistencyProof | [GetConsistencyProofRequest](#trillian-GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian-GetConsistencyProofResponse) | GetConsistencyProof returns a consistency proof between different sizes of a particular tree.
 
 If the requested tree size is larger than the server is aware of, the response will include the latest known log root and an empty proof. |
-| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian.GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian.GetLatestSignedLogRootResponse) | GetLatestSignedLogRoot returns the latest signed log root for a given tree, and optionally also includes a consistency proof from an earlier tree size to the new size of the tree.
+| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian-GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian-GetLatestSignedLogRootResponse) | GetLatestSignedLogRoot returns the latest signed log root for a given tree, and optionally also includes a consistency proof from an earlier tree size to the new size of the tree.
 
 If the earlier tree size is larger than the server is aware of, an InvalidArgument error is returned. |
-| GetEntryAndProof | [GetEntryAndProofRequest](#trillian.GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian.GetEntryAndProofResponse) | GetEntryAndProof returns a log leaf and the corresponding inclusion proof to a specified tree size, for a given leaf index in a particular tree.
+| GetEntryAndProof | [GetEntryAndProofRequest](#trillian-GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian-GetEntryAndProofResponse) | GetEntryAndProof returns a log leaf and the corresponding inclusion proof to a specified tree size, for a given leaf index in a particular tree.
 
 If the requested tree size is unavailable but the leaf is in scope for the current tree, the returned proof will be for the current tree size rather than the requested tree size. |
-| InitLog | [InitLogRequest](#trillian.InitLogRequest) | [InitLogResponse](#trillian.InitLogResponse) | InitLog initializes a particular tree, creating the initial signed log root (which will be of size 0). |
-| AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian.AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian.AddSequencedLeavesResponse) | AddSequencedLeaves adds a batch of leaves with assigned sequence numbers to a pre-ordered log. The indices of the provided leaves must be contiguous. |
-| GetLeavesByRange | [GetLeavesByRangeRequest](#trillian.GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian.GetLeavesByRangeResponse) | GetLeavesByRange returns a batch of leaves whose leaf indices are in a sequential range. |
+| InitLog | [InitLogRequest](#trillian-InitLogRequest) | [InitLogResponse](#trillian-InitLogResponse) | InitLog initializes a particular tree, creating the initial signed log root (which will be of size 0). |
+| AddSequencedLeaves | [AddSequencedLeavesRequest](#trillian-AddSequencedLeavesRequest) | [AddSequencedLeavesResponse](#trillian-AddSequencedLeavesResponse) | AddSequencedLeaves adds a batch of leaves with assigned sequence numbers to a pre-ordered log. The indices of the provided leaves must be contiguous. |
+| GetLeavesByRange | [GetLeavesByRangeRequest](#trillian-GetLeavesByRangeRequest) | [GetLeavesByRangeResponse](#trillian-GetLeavesByRangeResponse) | GetLeavesByRange returns a batch of leaves whose leaf indices are in a sequential range. |
 
  
 
 
 
-<a name="trillian_admin_api.proto"></a>
+<a name="trillian_admin_api-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## trillian_admin_api.proto
 
 
 
-<a name="trillian.CreateTreeRequest"></a>
+<a name="trillian-CreateTreeRequest"></a>
 
 ### CreateTreeRequest
 CreateTree request.
@@ -511,14 +511,14 @@ CreateTree request.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| tree | [Tree](#trillian.Tree) |  | Tree to be created. See Tree and CreateTree for more details. |
+| tree | [Tree](#trillian-Tree) |  | Tree to be created. See Tree and CreateTree for more details. |
 
 
 
 
 
 
-<a name="trillian.DeleteTreeRequest"></a>
+<a name="trillian-DeleteTreeRequest"></a>
 
 ### DeleteTreeRequest
 DeleteTree request.
@@ -533,7 +533,7 @@ DeleteTree request.
 
 
 
-<a name="trillian.GetTreeRequest"></a>
+<a name="trillian-GetTreeRequest"></a>
 
 ### GetTreeRequest
 GetTree request.
@@ -548,7 +548,7 @@ GetTree request.
 
 
 
-<a name="trillian.ListTreesRequest"></a>
+<a name="trillian-ListTreesRequest"></a>
 
 ### ListTreesRequest
 ListTrees request.
@@ -564,7 +564,7 @@ No filters or pagination options are provided.
 
 
 
-<a name="trillian.ListTreesResponse"></a>
+<a name="trillian-ListTreesResponse"></a>
 
 ### ListTreesResponse
 ListTrees response.
@@ -574,14 +574,14 @@ returned.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| tree | [Tree](#trillian.Tree) | repeated | Trees matching the list request filters. |
+| tree | [Tree](#trillian-Tree) | repeated | Trees matching the list request filters. |
 
 
 
 
 
 
-<a name="trillian.UndeleteTreeRequest"></a>
+<a name="trillian-UndeleteTreeRequest"></a>
 
 ### UndeleteTreeRequest
 UndeleteTree request.
@@ -596,7 +596,7 @@ UndeleteTree request.
 
 
 
-<a name="trillian.UpdateTreeRequest"></a>
+<a name="trillian-UpdateTreeRequest"></a>
 
 ### UpdateTreeRequest
 UpdateTree request.
@@ -604,8 +604,8 @@ UpdateTree request.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| tree | [Tree](#trillian.Tree) |  | Tree to be updated. |
-| update_mask | [google.protobuf.FieldMask](#google.protobuf.FieldMask) |  | Fields modified by the update request. For example: &#34;tree_state&#34;, &#34;display_name&#34;, &#34;description&#34;. |
+| tree | [Tree](#trillian-Tree) |  | Tree to be updated. |
+| update_mask | [google.protobuf.FieldMask](#google-protobuf-FieldMask) |  | Fields modified by the update request. For example: &#34;tree_state&#34;, &#34;display_name&#34;, &#34;description&#34;. |
 
 
 
@@ -618,7 +618,7 @@ UpdateTree request.
  
 
 
-<a name="trillian.TrillianAdmin"></a>
+<a name="trillian-TrillianAdmin"></a>
 
 ### TrillianAdmin
 Trillian Administrative interface.
@@ -626,25 +626,25 @@ Allows creation and management of Trillian trees.
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| ListTrees | [ListTreesRequest](#trillian.ListTreesRequest) | [ListTreesResponse](#trillian.ListTreesResponse) | Lists all trees the requester has access to. |
-| GetTree | [GetTreeRequest](#trillian.GetTreeRequest) | [Tree](#trillian.Tree) | Retrieves a tree by ID. |
-| CreateTree | [CreateTreeRequest](#trillian.CreateTreeRequest) | [Tree](#trillian.Tree) | Creates a new tree. System-generated fields are not required and will be ignored if present, e.g.: tree_id, create_time and update_time. Returns the created tree, with all system-generated fields assigned. |
-| UpdateTree | [UpdateTreeRequest](#trillian.UpdateTreeRequest) | [Tree](#trillian.Tree) | Updates a tree. See Tree for details. Readonly fields cannot be updated. |
-| DeleteTree | [DeleteTreeRequest](#trillian.DeleteTreeRequest) | [Tree](#trillian.Tree) | Soft-deletes a tree. A soft-deleted tree may be undeleted for a certain period, after which it&#39;ll be permanently deleted. |
-| UndeleteTree | [UndeleteTreeRequest](#trillian.UndeleteTreeRequest) | [Tree](#trillian.Tree) | Undeletes a soft-deleted a tree. A soft-deleted tree may be undeleted for a certain period, after which it&#39;ll be permanently deleted. |
+| ListTrees | [ListTreesRequest](#trillian-ListTreesRequest) | [ListTreesResponse](#trillian-ListTreesResponse) | Lists all trees the requester has access to. |
+| GetTree | [GetTreeRequest](#trillian-GetTreeRequest) | [Tree](#trillian-Tree) | Retrieves a tree by ID. |
+| CreateTree | [CreateTreeRequest](#trillian-CreateTreeRequest) | [Tree](#trillian-Tree) | Creates a new tree. System-generated fields are not required and will be ignored if present, e.g.: tree_id, create_time and update_time. Returns the created tree, with all system-generated fields assigned. |
+| UpdateTree | [UpdateTreeRequest](#trillian-UpdateTreeRequest) | [Tree](#trillian-Tree) | Updates a tree. See Tree for details. Readonly fields cannot be updated. |
+| DeleteTree | [DeleteTreeRequest](#trillian-DeleteTreeRequest) | [Tree](#trillian-Tree) | Soft-deletes a tree. A soft-deleted tree may be undeleted for a certain period, after which it&#39;ll be permanently deleted. |
+| UndeleteTree | [UndeleteTreeRequest](#trillian-UndeleteTreeRequest) | [Tree](#trillian-Tree) | Undeletes a soft-deleted a tree. A soft-deleted tree may be undeleted for a certain period, after which it&#39;ll be permanently deleted. |
 
  
 
 
 
-<a name="trillian.proto"></a>
+<a name="trillian-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## trillian.proto
 
 
 
-<a name="trillian.Proof"></a>
+<a name="trillian-Proof"></a>
 
 ### Proof
 Proof holds a consistency or inclusion proof for a Merkle tree, as returned
@@ -661,7 +661,7 @@ by the API.
 
 
 
-<a name="trillian.SignedLogRoot"></a>
+<a name="trillian-SignedLogRoot"></a>
 
 ### SignedLogRoot
 SignedLogRoot represents a commitment by a Log to a particular tree.
@@ -688,7 +688,7 @@ A serialized v1 log root will therefore be laid out as:
 
 
 
-<a name="trillian.Tree"></a>
+<a name="trillian-Tree"></a>
 
 ### Tree
 Represents a tree.
@@ -703,16 +703,16 @@ not created dynamically.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | tree_id | [int64](#int64) |  | ID of the tree. Readonly. |
-| tree_state | [TreeState](#trillian.TreeState) |  | State of the tree. Trees are ACTIVE after creation. At any point the tree may transition between ACTIVE, DRAINING and FROZEN states. |
-| tree_type | [TreeType](#trillian.TreeType) |  | Type of the tree. Readonly after Tree creation. Exception: Can be switched from PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state. |
+| tree_state | [TreeState](#trillian-TreeState) |  | State of the tree. Trees are ACTIVE after creation. At any point the tree may transition between ACTIVE, DRAINING and FROZEN states. |
+| tree_type | [TreeType](#trillian-TreeType) |  | Type of the tree. Readonly after Tree creation. Exception: Can be switched from PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state. |
 | display_name | [string](#string) |  | Display name of the tree. Optional. |
 | description | [string](#string) |  | Description of the tree, Optional. |
-| storage_settings | [google.protobuf.Any](#google.protobuf.Any) |  | Storage-specific settings. Varies according to the storage implementation backing Trillian. |
-| max_root_duration | [google.protobuf.Duration](#google.protobuf.Duration) |  | Interval after which a new signed root is produced even if there have been no submission. If zero, this behavior is disabled. |
-| create_time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Time of tree creation. Readonly. |
-| update_time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Time of last tree update. Readonly (automatically assigned on updates). |
+| storage_settings | [google.protobuf.Any](#google-protobuf-Any) |  | Storage-specific settings. Varies according to the storage implementation backing Trillian. |
+| max_root_duration | [google.protobuf.Duration](#google-protobuf-Duration) |  | Interval after which a new signed root is produced even if there have been no submission. If zero, this behavior is disabled. |
+| create_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | Time of tree creation. Readonly. |
+| update_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | Time of last tree update. Readonly (automatically assigned on updates). |
 | deleted | [bool](#bool) |  | If true, the tree has been deleted. Deleted trees may be undeleted during a certain time window, after which they&#39;re permanently deleted (and unrecoverable). Readonly. |
-| delete_time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Time of tree deletion, if any. Readonly. |
+| delete_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | Time of tree deletion, if any. Readonly. |
 
 
 
@@ -721,7 +721,7 @@ not created dynamically.
  
 
 
-<a name="trillian.HashStrategy"></a>
+<a name="trillian-HashStrategy"></a>
 
 ### HashStrategy
 Defines the way empty / node / leaf hashes are constructed incorporating
@@ -738,7 +738,7 @@ preimage protection, which can be application specific.
 
 
 
-<a name="trillian.LogRootFormat"></a>
+<a name="trillian-LogRootFormat"></a>
 
 ### LogRootFormat
 LogRootFormat specifies the fields that are covered by the
@@ -751,7 +751,7 @@ SignedLogRoot signature, as well as their ordering and formats.
 
 
 
-<a name="trillian.TreeState"></a>
+<a name="trillian-TreeState"></a>
 
 ### TreeState
 State of the tree.
@@ -767,7 +767,7 @@ State of the tree.
 
 
 
-<a name="trillian.TreeType"></a>
+<a name="trillian-TreeType"></a>
 
 ### TreeType
 Type of the tree.
