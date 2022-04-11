@@ -180,9 +180,7 @@ func updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label str
 		if size := cr.End(); idx < 0 || idx != int64(size) {
 			return nil, nil, fmt.Errorf("leaf index mismatch: got %d, want %d", idx, size)
 		}
-		// Store the leaf hash in the Merkle tree.
-		store(compact.NewNodeID(0, uint64(idx)), leaf.MerkleLeafHash)
-		// Store all the new internal nodes.
+		// Store all the new internal nodes, including the added leaf.
 		if err := cr.Append(leaf.MerkleLeafHash, store); err != nil {
 			return nil, nil, err
 		}
