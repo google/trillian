@@ -31,7 +31,7 @@ const testTreeRevision int64 = 3
 
 func TestTree813FetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.DefaultHasher.HashChildren
 	const ts uint64 = 813
 
 	mt := treeAtSize(ts)
@@ -73,7 +73,7 @@ func TestTree813FetchAll(t *testing.T) {
 
 func TestTree32InclusionProofFetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.DefaultHasher.HashChildren
 	for ts := uint64(2); ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -114,7 +114,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 
 func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.DefaultHasher.HashChildren
 
 	mt := treeAtSize(32)
 	// The reader is built up with multiple batches, 4 batches x 8 leaves each
@@ -156,7 +156,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 
 func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.DefaultHasher
+	hasher := rfc6962.DefaultHasher.HashChildren
 	for ts := uint64(2); ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{

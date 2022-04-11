@@ -403,7 +403,7 @@ func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize u
 	if err != nil {
 		return nil, err
 	}
-	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher, 0, nodes)
+	proof, err := fetchNodesAndBuildProof(ctx, tx, hasher.HashChildren, 0, nodes)
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +550,7 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 	if err != nil {
 		return nil, err
 	}
-	return fetchNodesAndBuildProof(ctx, tx, hasher, leafIndex, nodes)
+	return fetchNodesAndBuildProof(ctx, tx, hasher.HashChildren, leafIndex, nodes)
 }
 
 func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, merkle.LogHasher, error) {
