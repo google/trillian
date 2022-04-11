@@ -171,8 +171,6 @@ func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]stree.Node, err
 	for l := 0; l < int(ts); l++ {
 		hash := hasher.HashLeaf([]byte(fmt.Sprintf("Leaf %d", l)))
 		// Store the new leaf node, and all new perfect nodes.
-		// TODO(pavelkalinnikov): Visit leaf hash in cr.Append.
-		store(compact.NewNodeID(0, cr.End()), hash)
 		if err := cr.Append(hash, store); err != nil {
 			return nil, err
 		}
