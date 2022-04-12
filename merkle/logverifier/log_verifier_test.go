@@ -335,7 +335,7 @@ func TestVerifyInclusionProofGenerated(t *testing.T) {
 	tree, v := createTree(0)
 	for _, size := range sizes {
 		growTree(tree, size)
-		root := tree.CurrentRoot().Hash()
+		root := tree.CurrentRoot()
 		for i := int64(0); i < size; i++ {
 			t.Run(fmt.Sprintf("size:%d:index:%d", size, i), func(t *testing.T) {
 				leaf, proof := getLeafAndProof(tree, i)
@@ -408,12 +408,12 @@ func TestVerifyConsistencyProofGenerated(t *testing.T) {
 	tree, v := createTree(size)
 	roots := make([][]byte, size+1)
 	for i := int64(0); i <= size; i++ {
-		roots[i] = tree.RootAtSnapshot(i).Hash()
+		roots[i] = tree.RootAtSnapshot(i)
 	}
 
 	for i := int64(0); i <= size; i++ {
 		for j := i; j <= size; j++ {
-			proof := rawProof(tree.SnapshotConsistency(i, j))
+			proof := tree.SnapshotConsistency(i, j)
 			t.Run(fmt.Sprintf("size:%d:consistency:%d-%d", size, i, j), func(t *testing.T) {
 				if err := verifierConsistencyCheck(&v, i, j, roots[i], roots[j], proof); err != nil {
 					t.Errorf("verifierConsistencyCheck(): %v", err)
@@ -433,7 +433,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 	tree, v := createTree(0)
 	for _, size := range sizes {
 		growTree(tree, size)
-		root := tree.CurrentRoot().Hash()
+		root := tree.CurrentRoot()
 
 		for i := int64(1); i <= size; i++ {
 			t.Run(fmt.Sprintf("size:%d:prefix:%d", size, i), func(t *testing.T) {
@@ -442,7 +442,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 				if err != nil {
 					t.Fatalf("VerifiedPrefixHashFromInclusionProof(): %v", err)
 				}
-				exp := tree.RootAtSnapshot(i).Hash()
+				exp := tree.RootAtSnapshot(i)
 				if !bytes.Equal(pRoot, exp) {
 					t.Fatalf("wrong prefix hash: %s, want %s", shortHash(pRoot), shortHash(exp))
 				}
@@ -454,7 +454,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 	size := int64(307)
 	tree, v := createTree(size)
-	root := tree.CurrentRoot().Hash()
+	root := tree.CurrentRoot()
 
 	leaf2, proof2 := getLeafAndProof(tree, 2)
 	_, proof3 := getLeafAndProof(tree, 3)
@@ -544,15 +544,7 @@ func growTree(tree *inmemory.MerkleTree, upTo int64) {
 
 func getLeafAndProof(tree *inmemory.MerkleTree, index int64) ([]byte, [][]byte) {
 	// Note: inmemory.MerkleTree counts leaves from 1.
-	proof := rawProof(tree.PathToCurrentRoot(index + 1))
+	proof := tree.PathToCurrentRoot(index + 1)
 	leafHash := tree.LeafHash(index + 1)
 	return leafHash, proof
-}
-
-func rawProof(desc []inmemory.TreeEntryDescriptor) [][]byte {
-	proof := make([][]byte, len(desc))
-	for i, d := range desc {
-		proof[i] = d.Value.Hash()
-	}
-	return proof
 }

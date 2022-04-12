@@ -156,15 +156,15 @@ func makeFuzzTestData() [][]byte {
 }
 
 func getRootAsString(mt MerkleTree, leaf int64) string {
-	node := mt.RootAtSnapshot(leaf)
+	hash := mt.RootAtSnapshot(leaf)
 
-	if node.hash == nil {
+	if hash == nil {
 		// Doesn't matter what this is as long as it could never be a valid
 		// hex encoding of a hash
 		return "<nil>"
 	}
 
-	return hex.EncodeToString(node.hash)
+	return hex.EncodeToString(hash)
 }
 
 // REFERENCE IMPLEMENTATIONS
@@ -330,7 +330,7 @@ func TestEmptyTreeIsEmpty(t *testing.T) {
 }
 
 func TestEmptyTreeHash(t *testing.T) {
-	actual := makeEmptyTree().CurrentRoot().hash
+	actual := makeEmptyTree().CurrentRoot()
 	actualStr := hex.EncodeToString(actual)
 
 	if actualStr != emptyTreeHashValue {
@@ -464,7 +464,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 			// A snapshot in the range 0...tree_size.
 			snapshot := rand.Int63n(treeSize + 1)
 
-			h1 := mt.RootAtSnapshot(snapshot).hash
+			h1 := mt.RootAtSnapshot(snapshot)
 			h2, err := referenceMerkleTreeHash(data[:snapshot], mt.impl.h)
 			if err != nil {
 				t.Fatalf("referenceMerkleTreeHash(): %v", err)
@@ -512,9 +512,9 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 				t.Errorf("Different path lengths %v, %v", p1, p2)
 			} else {
 				for i := 0; i < len(p1); i++ {
-					if !bytes.Equal(p1[i].Value.hash, p2[i]) {
+					if !bytes.Equal(p1[i], p2[i]) {
 						t.Errorf("Mismatched hash %d %d %d: %v, %v", snapshot, leaf, i,
-							p1[i].Value.hash, p2[i])
+							p1[i], p2[i])
 					}
 				}
 			}
@@ -553,9 +553,9 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 			}
 
 			for i := 0; i < len(c1); i++ {
-				if !bytes.Equal(c1[i].Value.hash, c2[i]) {
+				if !bytes.Equal(c1[i], c2[i]) {
 					t.Errorf("Different proof: %d %d %d %d, %s, %s", treeSize,
-						snapshot2, snapshot1, i, hex.EncodeToString(c1[i].Value.hash),
+						snapshot2, snapshot1, i, hex.EncodeToString(c1[i]),
 						hex.EncodeToString(c2[i]))
 				}
 			}
@@ -575,9 +575,9 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 		t.Fatalf("8 leaves added but tree size is %d", mt.LeafCount())
 	}
 
-	if !bytes.Equal(mt.CurrentRoot().hash, decodeHexStringOrPanic(rootsAtSize[7])) {
+	if !bytes.Equal(mt.CurrentRoot(), decodeHexStringOrPanic(rootsAtSize[7])) {
 		t.Fatalf("Got unexpected root hash: %s %s",
-			hex.EncodeToString(mt.CurrentRoot().hash), rootsAtSize[7])
+			hex.EncodeToString(mt.CurrentRoot()), rootsAtSize[7])
 	}
 
 	if len(mt.PathToCurrentRoot(9)) > 0 {
@@ -599,7 +599,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 		}
 
 		for j := range p2 {
-			if got, want := p1[j].Value.hash, decodeHexStringOrPanic(testPaths[i].testVector[j]); !bytes.Equal(got, want) {
+			if got, want := p1[j], decodeHexStringOrPanic(testPaths[i].testVector[j]); !bytes.Equal(got, want) {
 				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
@@ -638,9 +638,9 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 			}
 
 			for j := 0; j < len(p2); j++ {
-				if !bytes.Equal(p1[j].Value.hash, p2[j].Value.hash) {
-					t.Errorf("Path mismatch: %s %s", hex.EncodeToString(p1[j].Value.hash),
-						hex.EncodeToString(p2[j].Value.hash))
+				if !bytes.Equal(p1[j], p2[j]) {
+					t.Errorf("Path mismatch: %s %s", hex.EncodeToString(p1[j]),
+						hex.EncodeToString(p2[j]))
 				}
 			}
 		}
@@ -666,9 +666,9 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		t.FailNow()
 	}
 
-	if !bytes.Equal(mt.CurrentRoot().hash, decodeHexStringOrPanic(rootsAtSize[7])) {
+	if !bytes.Equal(mt.CurrentRoot(), decodeHexStringOrPanic(rootsAtSize[7])) {
 		t.Errorf("Got unexpected root hash: %s %s",
-			hex.EncodeToString(mt.CurrentRoot().hash), rootsAtSize[7])
+			hex.EncodeToString(mt.CurrentRoot()), rootsAtSize[7])
 		t.FailNow()
 	}
 
@@ -686,7 +686,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		}
 
 		for j := 0; j < len(p2); j++ {
-			if got, want := p1[j].Value.hash, decodeHexStringOrPanic(testProofs[i].proof[j]); !bytes.Equal(got, want) {
+			if got, want := p1[j], decodeHexStringOrPanic(testProofs[i].proof[j]); !bytes.Equal(got, want) {
 				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
@@ -697,56 +697,13 @@ func TestAddLeafHash(t *testing.T) {
 	mt := makeEmptyTree()
 	hash := "0123456789abcdef0123456789abcdef"
 
-	index, treeEntry := mt.addLeafHash(decodeHexStringOrPanic(hash))
+	index, leafHash := mt.addLeafHash(decodeHexStringOrPanic(hash))
 
 	if index != 1 {
 		t.Errorf("Expected 1 for first leaf sequence number but got: %d", index)
 	}
 
-	if !bytes.Equal(decodeHexStringOrPanic(hash), treeEntry.hash) {
-		t.Error("Hash value was not copied into leaf correctly")
-	}
-}
-
-func TestHashAccessor(t *testing.T) {
-	mt := makeEmptyTree()
-	hash := "0123456789abcdef0123456789abcdef"
-
-	index, treeEntry := mt.addLeafHash(decodeHexStringOrPanic(hash))
-
-	if index != 1 {
-		t.Errorf("Expected 1 for first leaf sequence number but got: %d", index)
-	}
-
-	if !bytes.Equal(decodeHexStringOrPanic(hash), treeEntry.Hash()) {
-		t.Error("Hash value was not copied into leaf correctly")
-	}
-}
-
-func TestHashIntoAccessor(t *testing.T) {
-	mt := makeEmptyTree()
-	hash := "0123456789abcdef0123456789abcdef"
-
-	index, treeEntry := mt.addLeafHash(decodeHexStringOrPanic(hash))
-
-	if index != 1 {
-		t.Errorf("Expected 1 for first leaf sequence number but got: %d", index)
-	}
-
-	var dest []byte
-	dest = treeEntry.HashInto(dest)
-
-	if !bytes.Equal(decodeHexStringOrPanic(hash), dest) {
-		t.Error("Hash value was not copied into leaf correctly")
-	}
-
-	if len(dest) != len(decodeHexStringOrPanic(hash)) {
-		t.Errorf("Did not get correct length hash: %d", len(dest))
-	}
-
-	dest[0] = dest[0] + 1 // Make the hash invalid
-
-	if !bytes.Equal(decodeHexStringOrPanic(hash), treeEntry.HashInto(dest)) {
+	if !bytes.Equal(decodeHexStringOrPanic(hash), leafHash) {
 		t.Error("Hash value was not copied into leaf correctly")
 	}
 }

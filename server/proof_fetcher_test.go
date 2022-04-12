@@ -64,7 +64,7 @@ func TestTree813FetchAll(t *testing.T) {
 		}
 
 		for i := 0; i < len(proof.Hashes); i++ {
-			if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+			if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i]); got != want {
 				t.Fatalf("(%d, %d): %d got proof node: %s, want: %s l:%d nodes: %v", ts, l, i, got, want, len(proof.Hashes), nodes)
 			}
 		}
@@ -103,7 +103,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 				}
 
 				for i := 0; i < len(proof.Hashes); i++ {
-					if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+					if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i]); got != want {
 						t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d nodes: %v", ts, s, l, i, got, want, len(proof.Hashes), nodes)
 					}
 				}
@@ -146,7 +146,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 			}
 
 			for i := 0; i < len(proof.Hashes); i++ {
-				if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+				if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i]); got != want {
 					t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d nodes: %v", 32, s, l, i, got, want, len(proof.Hashes), nodes)
 				}
 			}
@@ -182,7 +182,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 				}
 
 				for i := 0; i < len(proof.Hashes); i++ {
-					if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+					if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i]); got != want {
 						t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d nodes: %v", ts, s1, s2, i, got, want, len(proof.Hashes), nodes)
 					}
 				}
@@ -202,7 +202,7 @@ func expandLeaves(n, m uint64) []string {
 // expectedRootAtSize uses the in memory tree, the tree built with Compact Merkle Tree should
 // have the same root.
 func expectedRootAtSize(mt *inmemory.MerkleTree) []byte {
-	return mt.CurrentRoot().Hash()
+	return mt.CurrentRoot()
 }
 
 func treeAtSize(n uint64) *inmemory.MerkleTree {

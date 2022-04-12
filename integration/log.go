@@ -382,7 +382,7 @@ func checkLogRootHashMatches(tree *inmemory.MerkleTree, client trillian.Trillian
 	}
 
 	// Hash must not be empty and must match the one we built ourselves
-	if got, want := root.RootHash, tree.CurrentRoot().Hash(); !bytes.Equal(got, want) {
+	if got, want := root.RootHash, tree.CurrentRoot(); !bytes.Equal(got, want) {
 		return fmt.Errorf("root hash mismatch expected got: %x want: %x", got, want)
 	}
 
@@ -465,7 +465,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Merkle
 		}
 
 		// Verify inclusion proof.
-		root := tree.RootAtSnapshot(treeSize).Hash()
+		root := tree.RootAtSnapshot(treeSize)
 		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
@@ -504,8 +504,8 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	}
 
 	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
-	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
-	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
+	root1 := tree.RootAtSnapshot(req.FirstTreeSize)
+	root2 := tree.RootAtSnapshot(req.SecondTreeSize)
 	return verifier.VerifyConsistency(uint64(req.FirstTreeSize), uint64(req.SecondTreeSize),
 		root1, root2, resp.Proof.Hashes)
 }
@@ -538,7 +538,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		// TODO(pavelkalinnikov): Handle empty hash case in compact.Range.
 		root = hasher.EmptyRoot()
 	}
-	if !bytes.Equal(root, merkleTree.CurrentRoot().Hash()) {
+	if !bytes.Equal(root, merkleTree.CurrentRoot()) {
 		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, merkleTree.CurrentRoot())
 	}
 

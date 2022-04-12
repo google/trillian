@@ -32,37 +32,7 @@ package inmemory
 
 import (
 	"github.com/transparency-dev/merkle"
-	"github.com/transparency-dev/merkle/proof"
 )
-
-// TreeEntry is used for nodes in the tree for better readability. Just holds a hash but could be extended
-type TreeEntry struct {
-	hash []byte
-}
-
-// Hash returns the current hash in a newly created byte slice that the caller owns and may modify.
-func (t TreeEntry) Hash() []byte {
-	var newSlice []byte
-
-	return t.HashInto(newSlice)
-}
-
-// HashInto returns the current hash in a provided byte slice that the caller
-// may use to make multiple calls to obtain hashes without reallocating memory.
-func (t TreeEntry) HashInto(dest []byte) []byte {
-	dest = dest[:0] // reuse the existing space
-
-	dest = append(dest, t.hash...)
-	return dest
-}
-
-// TreeEntryDescriptor wraps a node and is used to describe tree paths, which are useful to have
-// access to when testing the code and examining how it works
-type TreeEntryDescriptor struct {
-	Value  TreeEntry
-	XCoord int64 // The horizontal node coordinate
-	YCoord int64 // The vertical node coordinate
-}
 
 // MerkleTree holds a Merkle Tree in memory.
 type MerkleTree struct {
@@ -94,14 +64,14 @@ func (mt *MerkleTree) LeafCount() int64 {
 //
 // Returns the position of the leaf in the tree. Indexing starts at 1,
 // so position = number of leaves in the tree after this update.
-func (mt *MerkleTree) AddLeaf(leafData []byte) (int64, TreeEntry) {
+func (mt *MerkleTree) AddLeaf(leafData []byte) (int64, []byte) {
 	leafHash := mt.impl.h.HashLeaf(leafData)
 	return mt.addLeafHash(leafHash)
 }
 
-func (mt *MerkleTree) addLeafHash(hash []byte) (int64, TreeEntry) {
+func (mt *MerkleTree) addLeafHash(hash []byte) (int64, []byte) {
 	mt.impl.Append(hash)
-	return int64(mt.impl.Size()), TreeEntry{hash: hash}
+	return int64(mt.impl.Size()), hash
 }
 
 // CurrentRoot set the current root of the tree.
@@ -109,7 +79,7 @@ func (mt *MerkleTree) addLeafHash(hash []byte) (int64, TreeEntry) {
 //
 // Returns the hash of an empty string if the tree has no leaves
 // (and hence, no root).
-func (mt *MerkleTree) CurrentRoot() TreeEntry {
+func (mt *MerkleTree) CurrentRoot() []byte {
 	return mt.RootAtSnapshot(mt.LeafCount())
 }
 
@@ -119,15 +89,15 @@ func (mt *MerkleTree) CurrentRoot() TreeEntry {
 //
 // Returns an empty string if the snapshot requested is in the future
 // (i.e., the tree is not large enough).
-func (mt *MerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
+func (mt *MerkleTree) RootAtSnapshot(snapshot int64) []byte {
 	if uint64(snapshot) > mt.impl.Size() {
-		return TreeEntry{}
+		return nil
 	}
 	hash, err := mt.impl.HashAt(uint64(snapshot))
 	if err != nil {
 		panic(err)
 	}
-	return TreeEntry{hash: hash}
+	return hash
 }
 
 // PathToCurrentRoot get the Merkle path from leaf to root for a given leaf.
@@ -137,7 +107,7 @@ func (mt *MerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
 // is one below the root.
 // Returns an empty slice if the tree is not large enough
 // or the leaf index is 0.
-func (mt *MerkleTree) PathToCurrentRoot(leaf int64) []TreeEntryDescriptor {
+func (mt *MerkleTree) PathToCurrentRoot(leaf int64) [][]byte {
 	return mt.PathToRootAtSnapshot(leaf, mt.LeafCount())
 }
 
@@ -148,59 +118,28 @@ func (mt *MerkleTree) PathToCurrentRoot(leaf int64) []TreeEntryDescriptor {
 // last element is one below the root.  Returns an empty slice if
 // the leaf index is 0, the snapshot requested is in the future or
 // the snapshot tree is not large enough.
-func (mt *MerkleTree) PathToRootAtSnapshot(leaf int64, snapshot int64) []TreeEntryDescriptor {
+func (mt *MerkleTree) PathToRootAtSnapshot(leaf int64, snapshot int64) [][]byte {
 	if leaf > snapshot || snapshot > mt.LeafCount() || leaf == 0 {
-		return []TreeEntryDescriptor{}
-	}
-
-	nodes, err := proof.Inclusion(uint64(leaf-1), uint64(snapshot))
-	if err != nil {
-		panic(err)
+		return nil
 	}
 	hashes, err := mt.impl.InclusionProof(uint64(leaf-1), uint64(snapshot))
 	if err != nil {
 		panic(err)
 	}
-	return mt.mojo(nodes, hashes)
+	return hashes
 }
 
 // SnapshotConsistency gets the Merkle consistency proof between two snapshots.
 // Returns a slice of node hashes, ordered according to levels.
 // Returns an empty slice if snapshot1 is 0, snapshot1 >= snapshot2,
 // or one of the snapshots requested is in the future.
-func (mt *MerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int64) []TreeEntryDescriptor {
+func (mt *MerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int64) [][]byte {
 	if snapshot1 == 0 || snapshot1 >= snapshot2 || snapshot2 > mt.LeafCount() {
 		return nil
-	}
-
-	nodes, err := proof.Consistency(uint64(snapshot1), uint64(snapshot2))
-	if err != nil {
-		panic(err)
 	}
 	hashes, err := mt.impl.ConsistencyProof(uint64(snapshot1), uint64(snapshot2))
 	if err != nil {
 		panic(err)
 	}
-	return mt.mojo(nodes, hashes)
-}
-
-func (mt *MerkleTree) mojo(nodes proof.Nodes, hashes [][]byte) []TreeEntryDescriptor {
-	ephem, begin, end := nodes.Ephem()
-	res := make([]TreeEntryDescriptor, len(hashes))
-	idx := 0
-	for i, h := range hashes {
-		id := nodes.IDs[idx]
-		if idx >= begin && idx < end && begin+1 < end {
-			id = ephem
-			idx = end - 1
-		}
-		idx++
-
-		res[i] = TreeEntryDescriptor{
-			Value:  TreeEntry{hash: h},
-			YCoord: int64(id.Level),
-			XCoord: int64(id.Index),
-		}
-	}
-	return res
+	return hashes
 }
