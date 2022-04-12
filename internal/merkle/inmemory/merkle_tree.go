@@ -20,14 +20,6 @@
 // Note: this implementation evaluates the root lazily in the same way as the C++ code so
 // some methods that appear to be accessors can cause mutations to update the structure
 // to the necessary point required to obtain the result.
-//
-// -------------------------------------------------------------------------------------------
-// IMPORTANT NOTE: This code uses 1-based leaf indexing as this is how the original C++
-// works. There is scope for confusion if it is mixed with the Trillian specific trees in
-// this package, which index leaves starting from zero. This code is primarily meant for use in
-// cross checks of the new implementation and it is advantageous to be able to compare it
-// directly with the C++ code.
-// -------------------------------------------------------------------------------------------
 package inmemory
 
 import (
@@ -46,10 +38,10 @@ func NewMerkleTree(hasher merkle.LogHasher) *MerkleTree {
 
 // LeafHash returns the hash of the requested leaf, or nil if it doesn't exist.
 func (mt *MerkleTree) LeafHash(leaf int64) []byte {
-	if leaf == 0 || leaf > mt.LeafCount() {
+	if leaf >= mt.LeafCount() {
 		return nil
 	}
-	return mt.impl.n[0][leaf-1]
+	return mt.impl.n[0][leaf]
 }
 
 // LeafCount returns the number of leaves in the tree.
@@ -71,7 +63,7 @@ func (mt *MerkleTree) AddLeaf(leafData []byte) (int64, []byte) {
 
 func (mt *MerkleTree) addLeafHash(hash []byte) (int64, []byte) {
 	mt.impl.Append(hash)
-	return int64(mt.impl.Size()), hash
+	return int64(mt.impl.Size() - 1), hash
 }
 
 // CurrentRoot set the current root of the tree.
@@ -119,10 +111,10 @@ func (mt *MerkleTree) PathToCurrentRoot(leaf int64) [][]byte {
 // the leaf index is 0, the snapshot requested is in the future or
 // the snapshot tree is not large enough.
 func (mt *MerkleTree) PathToRootAtSnapshot(leaf int64, snapshot int64) [][]byte {
-	if leaf > snapshot || snapshot > mt.LeafCount() || leaf == 0 {
+	if leaf >= snapshot || snapshot > mt.LeafCount() {
 		return nil
 	}
-	hashes, err := mt.impl.InclusionProof(uint64(leaf-1), uint64(snapshot))
+	hashes, err := mt.impl.InclusionProof(uint64(leaf), uint64(snapshot))
 	if err != nil {
 		panic(err)
 	}

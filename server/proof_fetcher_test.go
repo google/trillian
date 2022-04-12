@@ -53,8 +53,7 @@ func TestTree813FetchAll(t *testing.T) {
 			t.Errorf("leaf index mismatch: got %d, want %d", got, want)
 		}
 
-		// We use +1 here because of the 1 based leaf indexing of this implementation
-		refProof := mt.PathToRootAtSnapshot(int64(l+1), int64(ts))
+		refProof := mt.PathToRootAtSnapshot(int64(l), int64(ts))
 
 		if got, want := len(proof.Hashes), len(refProof); got != want {
 			for i, id := range nodes.IDs {
@@ -95,8 +94,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 					t.Errorf("leaf index mismatch: got %d, want %d", got, want)
 				}
 
-				// We use +1 here because of the 1 based leaf indexing of this implementation
-				refProof := mt.PathToRootAtSnapshot(int64(l+1), int64(s))
+				refProof := mt.PathToRootAtSnapshot(int64(l), int64(s))
 
 				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s, l, got, want, nodes, refProof)
@@ -138,8 +136,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// We use +1 here because of the 1 based leaf indexing of this implementation
-			refProof := mt.PathToRootAtSnapshot(int64(l+1), int64(s))
+			refProof := mt.PathToRootAtSnapshot(int64(l), int64(s))
 
 			if got, want := len(proof.Hashes), len(refProof); got != want {
 				t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", 32, s, l, got, want, nodes, refProof)

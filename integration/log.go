@@ -467,8 +467,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Merkle
 		// Verify inclusion proof.
 		root := tree.RootAtSnapshot(treeSize)
 		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
-		// Offset by 1 to make up for C++ / Go implementation differences.
-		merkleLeafHash := tree.LeafHash(index + 1)
+		merkleLeafHash := tree.LeafHash(index)
 		if err := verifier.VerifyInclusion(uint64(index), uint64(treeSize), merkleLeafHash, resp.Proof.Hashes, root); err != nil {
 			return err
 		}

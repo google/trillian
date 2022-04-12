@@ -544,7 +544,7 @@ func growTree(tree *inmemory.MerkleTree, upTo int64) {
 
 func getLeafAndProof(tree *inmemory.MerkleTree, index int64) ([]byte, [][]byte) {
 	// Note: inmemory.MerkleTree counts leaves from 1.
-	proof := tree.PathToCurrentRoot(index + 1)
-	leafHash := tree.LeafHash(index + 1)
+	proof := tree.PathToCurrentRoot(index)
+	leafHash := tree.LeafHash(index)
 	return leafHash, proof
 }

@@ -65,10 +65,10 @@ type pathTestVector struct {
 // Generated from C++ ReferenceMerklePath, not the Go one so we can verify
 // that they are both producing the same paths in a sanity test.
 var testPaths = []pathTestVector{
-	{0, 0, 0, []string{""}},
+	{0, 1, 0, []string{""}},
 	{1, 1, 0, []string{""}},
 	{
-		1,
+		0,
 		8,
 		3,
 		[]string{
@@ -78,7 +78,7 @@ var testPaths = []pathTestVector{
 		},
 	},
 	{
-		6,
+		5,
 		8,
 		3,
 		[]string{
@@ -88,13 +88,13 @@ var testPaths = []pathTestVector{
 		},
 	},
 	{
-		3,
+		2,
 		3,
 		1,
 		[]string{"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"},
 	},
 	{
-		2,
+		1,
 		5,
 		3,
 		[]string{
@@ -215,7 +215,7 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher merkle.LogHashe
 	var path [][]byte
 
 	inputLen := int64(len(inputs))
-	if leaf > inputLen || leaf == 0 {
+	if leaf >= inputLen {
 		return path, nil
 	}
 
@@ -227,7 +227,7 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher merkle.LogHashe
 
 	var subpath [][]byte
 
-	if leaf <= split {
+	if leaf < split {
 		s, err := referenceMerklePath(inputs[:split], leaf, treehasher)
 		if err != nil {
 			return nil, err
@@ -492,10 +492,10 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
 		for j := 0; j < 8; j++ {
-			// A snapshot in the range 0... length.
-			snapshot := rand.Int63n(treeSize + 1)
-			// A leaf in the range 0... snapshot.
-			leaf := rand.Int63n(snapshot + 1)
+			// A snapshot in the range 1..treeSize.
+			snapshot := rand.Int63n(treeSize) + 1
+			// A leaf in the range 0..snapshot-1.
+			leaf := rand.Int63n(snapshot)
 
 			p1 := mt.PathToRootAtSnapshot(leaf, snapshot)
 
@@ -580,7 +580,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 			hex.EncodeToString(mt.CurrentRoot()), rootsAtSize[7])
 	}
 
-	if len(mt.PathToCurrentRoot(9)) > 0 {
+	if len(mt.PathToCurrentRoot(8)) > 0 {
 		t.Fatalf("Obtained a path for non existent leaf 9: %v", mt.PathToCurrentRoot(9))
 	}
 
@@ -699,8 +699,8 @@ func TestAddLeafHash(t *testing.T) {
 
 	index, leafHash := mt.addLeafHash(decodeHexStringOrPanic(hash))
 
-	if index != 1 {
-		t.Errorf("Expected 1 for first leaf sequence number but got: %d", index)
+	if index != 0 {
+		t.Errorf("Expected 0 for first leaf sequence number but got: %d", index)
 	}
 
 	if !bytes.Equal(decodeHexStringOrPanic(hash), leafHash) {
