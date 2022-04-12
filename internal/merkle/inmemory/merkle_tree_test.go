@@ -441,7 +441,7 @@ func TestReferenceMerklePathSanity(t *testing.T) {
 	}
 
 	for _, path := range testPaths {
-		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf, mt.hasher)
+		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf, mt.impl.h)
 		if err != nil {
 			t.Fatalf("referenceMerklePath(): %v", err)
 		}
@@ -477,7 +477,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 			snapshot := rand.Int63n(treeSize + 1)
 
 			h1 := mt.RootAtSnapshot(snapshot).hash
-			h2, err := referenceMerkleTreeHash(data[:snapshot], mt.hasher)
+			h2, err := referenceMerkleTreeHash(data[:snapshot], mt.impl.h)
 			if err != nil {
 				t.Fatalf("referenceMerkleTreeHash(): %v", err)
 			}
@@ -515,7 +515,7 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 			//	t.Logf("P %d: %d %d %v", i, p.xCoord, p.yCoord, p.value)
 			//}
 
-			p2, err := referenceMerklePath(data[:snapshot], leaf, mt.hasher)
+			p2, err := referenceMerklePath(data[:snapshot], leaf, mt.impl.h)
 			if err != nil {
 				t.Fatalf("referenceMerklePath(): %v", err)
 			}
@@ -554,7 +554,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 			snapshot1 := rand.Int63n(snapshot2 + 1)
 
 			c1 := mt.SnapshotConsistency(snapshot1, snapshot2)
-			c2, err := referenceSnapshotConsistency(data[:snapshot2], snapshot2, snapshot1, mt.hasher, true)
+			c2, err := referenceSnapshotConsistency(data[:snapshot2], snapshot2, snapshot1, mt.impl.h, true)
 			if err != nil {
 				t.Fatalf("referenceSnapshotConsistency(): %v", err)
 			}
