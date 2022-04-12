@@ -53,7 +53,10 @@ func TestTree813FetchAll(t *testing.T) {
 			t.Errorf("leaf index mismatch: got %d, want %d", got, want)
 		}
 
-		refProof := mt.PathToRootAtSnapshot(int64(l), int64(ts))
+		refProof, err := mt.InclusionProof(l, ts)
+		if err != nil {
+			t.Fatalf("InclusionProof: %v", err)
+		}
 
 		if got, want := len(proof.Hashes), len(refProof); got != want {
 			for i, id := range nodes.IDs {
@@ -94,7 +97,10 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 					t.Errorf("leaf index mismatch: got %d, want %d", got, want)
 				}
 
-				refProof := mt.PathToRootAtSnapshot(int64(l), int64(s))
+				refProof, err := mt.InclusionProof(l, s)
+				if err != nil {
+					t.Fatalf("InclusionProof: %v", err)
+				}
 
 				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s, l, got, want, nodes, refProof)
@@ -136,7 +142,10 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			refProof := mt.PathToRootAtSnapshot(int64(l), int64(s))
+			refProof, err := mt.InclusionProof(l, s)
+			if err != nil {
+				t.Fatalf("InclusionProof: %v", err)
+			}
 
 			if got, want := len(proof.Hashes), len(refProof); got != want {
 				t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", 32, s, l, got, want, nodes, refProof)
@@ -172,7 +181,10 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				refProof := mt.SnapshotConsistency(int64(s1), int64(s2))
+				refProof, err := mt.ConsistencyProof(s1, s2)
+				if err != nil {
+					t.Fatalf("ConsistencyProof: %v", err)
+				}
 
 				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s1, s2, got, want, nodes, refProof)
@@ -198,15 +210,19 @@ func expandLeaves(n, m uint64) []string {
 
 // expectedRootAtSize uses the in memory tree, the tree built with Compact Merkle Tree should
 // have the same root.
-func expectedRootAtSize(mt *inmemory.MerkleTree) []byte {
-	return mt.CurrentRoot()
+func expectedRootAtSize(mt *inmemory.Tree) []byte {
+	hash, err := mt.Hash()
+	if err != nil {
+		panic(err)
+	}
+	return hash
 }
 
-func treeAtSize(n uint64) *inmemory.MerkleTree {
+func treeAtSize(n uint64) *inmemory.Tree {
 	leaves := expandLeaves(0, n-1)
-	mt := inmemory.NewMerkleTree(rfc6962.DefaultHasher)
+	mt := inmemory.New(rfc6962.DefaultHasher)
 	for _, leaf := range leaves {
-		mt.AddLeaf([]byte(leaf))
+		mt.AppendData([]byte(leaf))
 	}
 	return mt
 }

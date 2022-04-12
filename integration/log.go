@@ -370,7 +370,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 	return leafMap, nil
 }
 
-func checkLogRootHashMatches(tree *inmemory.MerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
+func checkLogRootHashMatches(tree *inmemory.Tree, client trillian.TrillianLogClient, params TestParameters) error {
 	// Check the STH against the hash we got from our tree
 	resp, err := getLatestSignedLogRoot(client, params)
 	if err != nil {
@@ -381,8 +381,12 @@ func checkLogRootHashMatches(tree *inmemory.MerkleTree, client trillian.Trillian
 		return err
 	}
 
+	want, err := tree.Hash()
+	if err != nil {
+		return err
+	}
 	// Hash must not be empty and must match the one we built ourselves
-	if got, want := root.RootHash, tree.CurrentRoot(); !bytes.Equal(got, want) {
+	if got := root.RootHash; !bytes.Equal(got, want) {
 		return fmt.Errorf("root hash mismatch expected got: %x want: %x", got, want)
 	}
 
@@ -445,7 +449,7 @@ func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.Trillian
 // at least as big as the index where STHs where the index is a multiple of the sequencer batch size. All
 // proofs returned should match ones computed by the alternate Merkle Tree implementation, which differs
 // from what the log uses.
-func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.MerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
+func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Tree, client trillian.TrillianLogClient, params TestParameters) error {
 	for treeSize := int64(0); treeSize < min(params.LeafCount, int64(2*params.SequencerBatchSize)); treeSize++ {
 		ctx, cancel := getRPCDeadlineContext(params)
 		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
@@ -465,9 +469,12 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Merkle
 		}
 
 		// Verify inclusion proof.
-		root := tree.RootAtSnapshot(treeSize)
+		root, err := tree.HashAt(uint64(treeSize))
+		if err != nil {
+			return err
+		}
 		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
-		merkleLeafHash := tree.LeafHash(index)
+		merkleLeafHash := tree.LeafHash(uint64(index))
 		if err := verifier.VerifyInclusion(uint64(index), uint64(treeSize), merkleLeafHash, resp.Proof.Hashes, root); err != nil {
 			return err
 		}
@@ -476,7 +483,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Merkle
 	return nil
 }
 
-func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *inmemory.MerkleTree, client trillian.TrillianLogClient, params TestParameters, batchSize int64) error {
+func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *inmemory.Tree, client trillian.TrillianLogClient, params TestParameters, batchSize int64) error {
 	// We expect the proof request to succeed
 	ctx, cancel := getRPCDeadlineContext(params)
 	req := &trillian.GetConsistencyProofRequest{
@@ -503,28 +510,36 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	}
 
 	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
-	root1 := tree.RootAtSnapshot(req.FirstTreeSize)
-	root2 := tree.RootAtSnapshot(req.SecondTreeSize)
+	root1, err := tree.HashAt(uint64(req.FirstTreeSize))
+	if err != nil {
+		return err
+	}
+	root2, err := tree.HashAt(uint64(req.SecondTreeSize))
+	if err != nil {
+		return err
+	}
 	return verifier.VerifyConsistency(uint64(req.FirstTreeSize), uint64(req.SecondTreeSize),
 		root1, root2, resp.Proof.Hashes)
 }
 
-func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*inmemory.MerkleTree, error) {
+func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*inmemory.Tree, error) {
 	// Build the same tree with two different Merkle tree implementations as an
 	// additional check. We don't just rely on the compact range as the server
 	// uses the same code so bugs could be masked.
+	//
+	// TODO(pavelkalinnikov): Don't do this, just test the impl extensively.
 	hasher := rfc6962.DefaultHasher
 	fact := compact.RangeFactory{Hash: hasher.HashChildren}
 	cr := fact.NewEmptyRange(0)
 
-	merkleTree := inmemory.NewMerkleTree(hasher)
+	merkleTree := inmemory.New(hasher)
 
 	// We don't simply iterate the map, as we need to preserve the leaves order.
 	for l := params.StartLeaf; l < params.LeafCount; l++ {
 		if err := cr.Append(hasher.HashLeaf(leafMap[l].LeafValue), nil); err != nil {
 			return nil, err
 		}
-		merkleTree.AddLeaf(leafMap[l].LeafValue)
+		merkleTree.AppendData(leafMap[l].LeafValue)
 	}
 
 	// If the two reference results disagree there's no point in continuing the
@@ -537,8 +552,12 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		// TODO(pavelkalinnikov): Handle empty hash case in compact.Range.
 		root = hasher.EmptyRoot()
 	}
-	if !bytes.Equal(root, merkleTree.CurrentRoot()) {
-		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, merkleTree.CurrentRoot())
+	treeRoot, err := merkleTree.Hash()
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(root, treeRoot) {
+		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, treeRoot)
 	}
 
 	return merkleTree, nil

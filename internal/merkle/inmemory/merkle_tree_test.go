@@ -27,8 +27,7 @@ import (
 	"github.com/transparency-dev/merkle/rfc6962"
 )
 
-// Note test inputs came from the values used by the C++ code. The original
-// is in the main certificate transparency repo at cpp/merkletree/merkletree_test.cc
+// TODO(pavelkalinnikov): Rewrite this file entirely.
 
 var fuzzTestSize = int64(256)
 
@@ -56,21 +55,19 @@ var rootsAtSize = []string{
 
 // Some paths for the reference tree.
 type pathTestVector struct {
-	leaf       int64
-	snapshot   int64
-	pathLength int64
+	leaf       uint64
+	snapshot   uint64
 	testVector []string
 }
 
 // Generated from C++ ReferenceMerklePath, not the Go one so we can verify
 // that they are both producing the same paths in a sanity test.
 var testPaths = []pathTestVector{
-	{0, 1, 0, []string{""}},
-	{1, 1, 0, []string{""}},
+	{0, 1, []string{}},
+	{1, 2, []string{"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"}},
 	{
 		0,
 		8,
-		3,
 		[]string{
 			"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
 			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
@@ -80,7 +77,6 @@ var testPaths = []pathTestVector{
 	{
 		5,
 		8,
-		3,
 		[]string{
 			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
 			"ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
@@ -90,13 +86,11 @@ var testPaths = []pathTestVector{
 	{
 		2,
 		3,
-		1,
 		[]string{"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"},
 	},
 	{
 		1,
 		5,
-		3,
 		[]string{
 			"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
 			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
@@ -106,26 +100,25 @@ var testPaths = []pathTestVector{
 }
 
 type proofTestVector struct {
-	snapshot1   int64
-	snapshot2   int64
-	proofLength int64
-	proof       []string
+	snapshot1 uint64
+	snapshot2 uint64
+	proof     []string
 }
 
 // Generated from ReferenceSnapshotConsistency in C++ version.
 var testProofs = []proofTestVector{
-	{1, 1, 0, []string{""}},
-	{1, 8, 3, []string{
+	{1, 1, []string{}},
+	{1, 8, []string{
 		"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
 		"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
 		"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
 	}},
-	{6, 8, 3, []string{
+	{6, 8, []string{
 		"0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
 		"ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
 		"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
 	}},
-	{2, 5, 2, []string{
+	{2, 5, []string{
 		"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
 		"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
 	}},
@@ -140,8 +133,8 @@ func decodeHexStringOrPanic(hs string) []byte {
 	return data
 }
 
-func makeEmptyTree() *MerkleTree {
-	return NewMerkleTree(rfc6962.DefaultHasher)
+func makeEmptyTree() *Tree {
+	return New(rfc6962.DefaultHasher)
 }
 
 func makeFuzzTestData() [][]byte {
@@ -155,29 +148,27 @@ func makeFuzzTestData() [][]byte {
 	return data
 }
 
-func getRootAsString(mt MerkleTree, leaf int64) string {
-	hash := mt.RootAtSnapshot(leaf)
-
-	if hash == nil {
+func getRootAsString(mt *Tree, size uint64) string {
+	hash, err := mt.HashAt(size)
+	if err != nil || hash == nil {
 		// Doesn't matter what this is as long as it could never be a valid
 		// hex encoding of a hash
 		return "<nil>"
 	}
-
 	return hex.EncodeToString(hash)
 }
 
 // REFERENCE IMPLEMENTATIONS
 
 // Get the largest power of two smaller than i.
-func downToPowerOfTwo(i int64) int64 {
+func downToPowerOfTwo(i uint64) uint64 {
 	if i < 2 {
 		panic(errors.New("requested downToPowerOf2 for value < 2"))
 	}
 
 	// Find the smallest power of two greater than or equal to i. We
 	// know i > 2
-	split := int64(2)
+	split := uint64(2)
 
 	for split < i {
 		split <<= 1
@@ -196,7 +187,7 @@ func referenceMerkleTreeHash(inputs [][]byte, treehasher merkle.LogHasher) ([]by
 		return treehasher.HashLeaf(inputs[0]), nil
 	}
 
-	split := downToPowerOfTwo(int64(len(inputs)))
+	split := downToPowerOfTwo(uint64(len(inputs)))
 
 	lhs, err := referenceMerkleTreeHash(inputs[:split], treehasher)
 	if err != nil {
@@ -211,10 +202,10 @@ func referenceMerkleTreeHash(inputs [][]byte, treehasher merkle.LogHasher) ([]by
 
 // Reference implementation of Merkle paths. Path from leaf to root,
 // excluding the leaf and root themselves.
-func referenceMerklePath(inputs [][]byte, leaf int64, treehasher merkle.LogHasher) ([][]byte, error) {
+func referenceMerklePath(inputs [][]byte, leaf uint64, treehasher merkle.LogHasher) ([][]byte, error) {
 	var path [][]byte
 
-	inputLen := int64(len(inputs))
+	inputLen := uint64(len(inputs))
 	if leaf >= inputLen {
 		return path, nil
 	}
@@ -258,8 +249,8 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher merkle.LogHashe
 
 // Reference implementation of snapshot consistency.
 // Call with haveRoot1 = true.
-func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
-	snapshot1 int64, treehasher merkle.LogHasher, haveRoot1 bool) ([][]byte, error) {
+func referenceSnapshotConsistency(inputs [][]byte, snapshot2 uint64,
+	snapshot1 uint64, treehasher merkle.LogHasher, haveRoot1 bool) ([][]byte, error) {
 	var proof [][]byte
 
 	if snapshot1 == 0 || snapshot1 > snapshot2 {
@@ -324,13 +315,16 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
 func TestEmptyTreeIsEmpty(t *testing.T) {
 	mt := makeEmptyTree()
 
-	if mt.LeafCount() != 0 {
-		t.Errorf("Empty tree had leaves: %d", mt.LeafCount())
+	if size := mt.Size(); size != 0 {
+		t.Errorf("Empty tree had leaves: %d", size)
 	}
 }
 
 func TestEmptyTreeHash(t *testing.T) {
-	actual := makeEmptyTree().CurrentRoot()
+	actual, err := makeEmptyTree().Hash()
+	if err != nil {
+		t.Fatalf("Hash: %v", err)
+	}
 	actualStr := hex.EncodeToString(actual)
 
 	if actualStr != emptyTreeHashValue {
@@ -338,29 +332,28 @@ func TestEmptyTreeHash(t *testing.T) {
 	}
 }
 
-func validateTree(mt *MerkleTree, l int64, t *testing.T) {
-	if mt.LeafCount() != l+1 {
-		t.Errorf("Incorrect leaf count %d, expecting %d", mt.LeafCount(), l+1)
+func validateTree(mt *Tree, l uint64, t *testing.T) {
+	if got, want := mt.Size(), l+1; got != want {
+		t.Errorf("Incorrect leaf count %d, expecting %d", got, want)
 	}
 
-	if getRootAsString(*mt, l+1) != rootsAtSize[l] {
-		t.Errorf("Incorrect root %d, got %s", l, getRootAsString(*mt, l+1))
+	if got, want := getRootAsString(mt, l+1), rootsAtSize[l]; got != want {
+		t.Errorf("Incorrect root %d, got %s", l, got)
 	}
 
-	if getRootAsString(*mt, 0) != emptyTreeHashValue {
-		t.Errorf("Incorrect root(0) %d, got %s", l, getRootAsString(*mt, 0))
+	if got, want := getRootAsString(mt, 0), emptyTreeHashValue; got != want {
+		t.Errorf("Incorrect root(0) %d, got %s", l, got)
 	}
 
-	for j := int64(0); j <= l; j++ {
-		if getRootAsString(*mt, j+1) != rootsAtSize[j] {
-			t.Errorf("Incorrect root %d, %d, got %s", l, j, getRootAsString(*mt, j+1))
+	for j := uint64(0); j <= l; j++ {
+		if got, want := getRootAsString(mt, j+1), rootsAtSize[j]; got != want {
+			t.Errorf("Incorrect root %d, %d, got %s", l, j, got)
 		}
 	}
 
 	for k := l + 1; k <= 8; k++ {
-		if getRootAsString(*mt, k+1) != "<nil>" {
-			t.Errorf("Got root for missing leaf %d, %d, %s", l, k,
-				getRootAsString(*mt, k+1))
+		if got, want := getRootAsString(mt, k+1), "<nil>"; got != want {
+			t.Errorf("Got root for missing leaf %d, %d, %s", l, k, got)
 		}
 	}
 }
@@ -369,8 +362,10 @@ func TestBuildTreeBuildOneAtATime(t *testing.T) {
 	mt := makeEmptyTree()
 
 	// Add to the tree, checking after each leaf
-	for l := int64(0); l < 8; l++ {
-		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
+	for l := uint64(0); l < 8; l++ {
+		if err := mt.AppendData(decodeHexStringOrPanic(leafInputs[l])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 		validateTree(mt, l, t)
 	}
 }
@@ -379,14 +374,18 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for l := 0; l < 3; l++ {
-		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
+		if err := mt.AppendData(decodeHexStringOrPanic(leafInputs[l])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 	}
 
 	// Check the intermediate state
 	validateTree(mt, 2, t)
 
 	for l := 3; l < 8; l++ {
-		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
+		if err := mt.AppendData(decodeHexStringOrPanic(leafInputs[l])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 	}
 
 	// Check the final state
@@ -398,7 +397,9 @@ func TestBuildTreeBuildTwoChunks(t *testing.T) {
 
 	// Add to the tree, checking after each leaf
 	for l := 0; l < 8; l++ {
-		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
+		if err := mt.AppendData(decodeHexStringOrPanic(leafInputs[l])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 	}
 
 	validateTree(mt, 7, t)
@@ -429,17 +430,17 @@ func TestReferenceMerklePathSanity(t *testing.T) {
 	}
 
 	for _, path := range testPaths {
-		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf, mt.impl.h)
+		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf, mt.h)
 		if err != nil {
 			t.Fatalf("referenceMerklePath(): %v", err)
 		}
 
-		if int64(len(referencePath)) != path.pathLength {
+		if len(referencePath) != len(path.testVector) {
 			t.Errorf("Mismatched path length: %d, %d: %v %v",
-				len(referencePath), path.pathLength, path, referencePath)
+				len(referencePath), len(path.testVector), path, referencePath)
 		}
 
-		for i := int64(0); i < path.pathLength; i++ {
+		for i := 0; i < len(path.testVector); i++ {
 			if !bytes.Equal(referencePath[i], decodeHexStringOrPanic(path.testVector[i])) {
 				t.Errorf("Path mismatch: %s, %s", hex.EncodeToString(referencePath[i]),
 					path.testVector[i])
@@ -455,17 +456,22 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			mt.AddLeaf(data[l])
+			if err := mt.AppendData(data[l]); err != nil {
+				t.Fatalf("AppendData: %v", err)
+			}
 		}
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
 		for j := int64(0); j < 8; j++ {
 			// A snapshot in the range 0...tree_size.
-			snapshot := rand.Int63n(treeSize + 1)
+			snapshot := uint64(rand.Int63n(treeSize + 1))
 
-			h1 := mt.RootAtSnapshot(snapshot)
-			h2, err := referenceMerkleTreeHash(data[:snapshot], mt.impl.h)
+			h1, err := mt.HashAt(snapshot)
+			if err != nil {
+				t.Fatalf("HashAt: %v", err)
+			}
+			h2, err := referenceMerkleTreeHash(data[:snapshot], mt.h)
 			if err != nil {
 				t.Fatalf("referenceMerkleTreeHash(): %v", err)
 			}
@@ -486,24 +492,25 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			mt.AddLeaf(data[l])
+			if err := mt.AppendData(data[l]); err != nil {
+				t.Fatalf("AppendData: %v", err)
+			}
 		}
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
 		for j := 0; j < 8; j++ {
 			// A snapshot in the range 1..treeSize.
-			snapshot := rand.Int63n(treeSize) + 1
+			snapshot := uint64(rand.Int63n(treeSize)) + 1
 			// A leaf in the range 0..snapshot-1.
-			leaf := rand.Int63n(snapshot)
+			leaf := uint64(rand.Int63n(int64(snapshot)))
 
-			p1 := mt.PathToRootAtSnapshot(leaf, snapshot)
+			p1, err := mt.InclusionProof(leaf, snapshot)
+			if err != nil {
+				t.Fatalf("InclusionProof: %v", err)
+			}
 
-			//for i, p := range p1 {
-			//	t.Logf("P %d: %d %d %v", i, p.xCoord, p.yCoord, p.value)
-			//}
-
-			p2, err := referenceMerklePath(data[:snapshot], leaf, mt.impl.h)
+			p2, err := referenceMerklePath(data[:snapshot], leaf, mt.h)
 			if err != nil {
 				t.Fatalf("referenceMerklePath(): %v", err)
 			}
@@ -530,19 +537,24 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			mt.AddLeaf(data[l])
+			if err := mt.AppendData(data[l]); err != nil {
+				t.Fatalf("AppendData: %v", err)
+			}
 		}
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
 		for j := 0; j < 8; j++ {
 			// A snapshot in the range 0... length.
-			snapshot2 := rand.Int63n(treeSize + 1)
+			snapshot2 := uint64(rand.Int63n(treeSize + 1))
 			// A snapshot in the range 0... snapshot.
-			snapshot1 := rand.Int63n(snapshot2 + 1)
+			snapshot1 := uint64(rand.Int63n(int64(snapshot2) + 1))
 
-			c1 := mt.SnapshotConsistency(snapshot1, snapshot2)
-			c2, err := referenceSnapshotConsistency(data[:snapshot2], snapshot2, snapshot1, mt.impl.h, true)
+			c1, err := mt.ConsistencyProof(snapshot1, snapshot2)
+			if err != nil {
+				t.Fatalf("ConsistencyProof: %v", err)
+			}
+			c2, err := referenceSnapshotConsistency(data[:snapshot2], snapshot2, snapshot1, mt.h, true)
 			if err != nil {
 				t.Fatalf("referenceSnapshotConsistency(): %v", err)
 			}
@@ -568,30 +580,34 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
+		if err := mt.AppendData(decodeHexStringOrPanic(leafInputs[i])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 	}
 
-	if mt.LeafCount() != 8 {
-		t.Fatalf("8 leaves added but tree size is %d", mt.LeafCount())
+	if size := mt.Size(); size != 8 {
+		t.Fatalf("8 leaves added but tree size is %d", size)
 	}
 
-	if !bytes.Equal(mt.CurrentRoot(), decodeHexStringOrPanic(rootsAtSize[7])) {
-		t.Fatalf("Got unexpected root hash: %s %s",
-			hex.EncodeToString(mt.CurrentRoot()), rootsAtSize[7])
+	hash, err := mt.Hash()
+	if err != nil {
+		t.Fatalf("Hash: %v", err)
+	}
+	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
+		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}
 
-	if len(mt.PathToCurrentRoot(8)) > 0 {
-		t.Fatalf("Obtained a path for non existent leaf 9: %v", mt.PathToCurrentRoot(9))
+	if proof, err := mt.InclusionProof(8, 8); err == nil {
+		t.Fatalf("Obtained a path for non existent leaf 9: %v", proof)
 	}
 
 	for i := 0; i < 6; i++ {
-		p1 := mt.PathToRootAtSnapshot(testPaths[i].leaf, testPaths[i].snapshot)
-
-		var p2 []string
-
-		for j := int64(0); j < testPaths[i].pathLength; j++ {
-			p2 = append(p2, testPaths[i].testVector[j])
+		p1, err := mt.InclusionProof(testPaths[i].leaf, testPaths[i].snapshot)
+		if err != nil {
+			t.Fatalf("InclusionProof: %v", err)
 		}
+
+		p2 := append([]string{}, testPaths[i].testVector...)
 
 		if len(p1) != len(p2) {
 			t.Errorf("Different path lengths %d %d", len(p1), len(p2))
@@ -612,25 +628,27 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
+		if err := mt.AppendData(decodeHexStringOrPanic(leafInputs[i])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 	}
 
 	mt2 := makeEmptyTree()
 
-	p1 := mt2.PathToCurrentRoot(0)
-	p2 := mt.PathToRootAtSnapshot(0, 0)
+	for i := uint64(0); i < 8; i++ {
+		if err := mt2.AppendData(decodeHexStringOrPanic(leafInputs[i])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 
-	if len(p1) != 0 || len(p2) != 0 {
-		t.Errorf("Path mismatch at root for snapshot 0: %d %d", len(p1), len(p2))
-		t.FailNow()
-	}
-
-	for i := int64(0); i < 8; i++ {
-		mt2.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
-
-		for j := int64(0); j <= i+1; j++ {
-			p1 := mt.PathToRootAtSnapshot(j, i+1)
-			p2 := mt2.PathToCurrentRoot(j)
+		for j := uint64(0); j < i+1; j++ {
+			p1, err := mt.InclusionProof(j, i+1)
+			if err != nil {
+				t.Fatalf("InclusionProof: %v", err)
+			}
+			p2, err := mt2.InclusionProof(j, mt2.Size())
+			if err != nil {
+				t.Fatalf("InclusionProof: %v", err)
+			}
 
 			if len(p1) != len(p2) {
 				t.Errorf("Different path lengths %d %d", len(p1), len(p2))
@@ -646,9 +664,8 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 		}
 
 		for k := i + 2; k <= 9; k++ {
-			if len(mt.PathToRootAtSnapshot(k, i+1)) != 0 {
-				t.Errorf("Got non empty path unexpectedly: %d %d %d", i, k,
-					len(mt.PathToRootAtSnapshot(k, i+1)))
+			if proof, err := mt.InclusionProof(k, i+1); err == nil {
+				t.Errorf("Got non empty path unexpectedly: %d %d %d", i, k, len(proof))
 			}
 		}
 	}
@@ -658,27 +675,30 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
+		if err := mt.AppendData(decodeHexStringOrPanic(leafInputs[i])); err != nil {
+			t.Fatalf("AppendData: %v", err)
+		}
 	}
 
-	if mt.LeafCount() != 8 {
-		t.Errorf("8 leaves added but tree size is %d", mt.LeafCount())
-		t.FailNow()
+	if size := mt.Size(); size != 8 {
+		t.Fatalf("8 leaves added but tree size is %d", size)
 	}
 
-	if !bytes.Equal(mt.CurrentRoot(), decodeHexStringOrPanic(rootsAtSize[7])) {
-		t.Errorf("Got unexpected root hash: %s %s",
-			hex.EncodeToString(mt.CurrentRoot()), rootsAtSize[7])
-		t.FailNow()
+	hash, err := mt.Hash()
+	if err != nil {
+		t.Fatalf("Hash: %v", err)
+	}
+	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
+		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}
 
 	for i := 0; i < 4; i++ {
-		p1 := mt.SnapshotConsistency(testProofs[i].snapshot1, testProofs[i].snapshot2)
-
-		var p2 []string
-		for j := int64(0); j < testProofs[i].proofLength; j++ {
-			p2 = append(p2, testProofs[i].proof[j])
+		p1, err := mt.ConsistencyProof(testProofs[i].snapshot1, testProofs[i].snapshot2)
+		if err != nil {
+			t.Fatalf("ConsistencyProof: %v", err)
 		}
+
+		p2 := append([]string{}, testProofs[i].proof...)
 
 		if len(p1) != len(p2) {
 			t.Errorf("Different proof lengths %d %d", len(p1), len(p2))
