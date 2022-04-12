@@ -31,8 +31,6 @@
 package inmemory
 
 import (
-	"fmt"
-
 	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/proof"
 )
@@ -82,25 +80,6 @@ func (mt *MerkleTree) LeafHash(leaf int64) []byte {
 		return nil
 	}
 	return mt.impl.n[0][leaf-1]
-}
-
-// NodeCount gets the current node count (of the lazily evaluated tree).
-// Caller is responsible for keeping track of the lazy evaluation status. This will not
-// update the tree.
-func (mt *MerkleTree) NodeCount(level int64) int64 {
-	if levels := mt.LevelCount(); levels <= level {
-		panic(fmt.Errorf("LevelCount <= level in nodeCount: %d", levels))
-	}
-	return int64(len(mt.impl.n[level]))
-}
-
-// LevelCount returns the number of levels in the Merkle tree.
-func (mt *MerkleTree) LevelCount() int64 {
-	cnt := int64(len(mt.impl.n))
-	if leaves := mt.LeafCount(); leaves&(leaves-1) != 0 {
-		cnt++
-	}
-	return cnt
 }
 
 // LeafCount returns the number of leaves in the tree.

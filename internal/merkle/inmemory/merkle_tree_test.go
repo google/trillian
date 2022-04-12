@@ -41,9 +41,6 @@ var leafInputs = []string{
 	"5051525354555657", "606162636465666768696a6b6c6d6e6f",
 }
 
-// Level counts for number of leaves in trees from [1, 8]
-var levelCounts = []int64{1, 2, 3, 3, 4, 4, 4, 4}
-
 // Incremental roots from building the reference tree from inputs leaf-by-leaf.
 // Generated from ReferenceMerkleTreeHash in C++.
 var rootsAtSize = []string{
@@ -327,10 +324,6 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
 func TestEmptyTreeIsEmpty(t *testing.T) {
 	mt := makeEmptyTree()
 
-	if mt.LevelCount() != 0 {
-		t.Errorf("Empty tree had levels: %d", mt.LevelCount())
-	}
-
 	if mt.LeafCount() != 0 {
 		t.Errorf("Empty tree had leaves: %d", mt.LeafCount())
 	}
@@ -348,11 +341,6 @@ func TestEmptyTreeHash(t *testing.T) {
 func validateTree(mt *MerkleTree, l int64, t *testing.T) {
 	if mt.LeafCount() != l+1 {
 		t.Errorf("Incorrect leaf count %d, expecting %d", mt.LeafCount(), l+1)
-	}
-
-	if mt.LevelCount() != levelCounts[l] {
-		t.Errorf("Incorrect leaf count %d, expecting %d", mt.LevelCount(),
-			levelCounts[l])
 	}
 
 	if getRootAsString(*mt, l+1) != rootsAtSize[l] {
