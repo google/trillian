@@ -22,9 +22,7 @@
 // to the necessary point required to obtain the result.
 package inmemory
 
-import (
-	"github.com/transparency-dev/merkle"
-)
+import "github.com/transparency-dev/merkle"
 
 // MerkleTree holds a Merkle Tree in memory.
 type MerkleTree struct {
@@ -56,14 +54,10 @@ func (mt *MerkleTree) LeafCount() int64 {
 //
 // Returns the position of the leaf in the tree. Indexing starts at 1,
 // so position = number of leaves in the tree after this update.
-func (mt *MerkleTree) AddLeaf(leafData []byte) (int64, []byte) {
+func (mt *MerkleTree) AddLeaf(leafData []byte) []byte {
 	leafHash := mt.impl.h.HashLeaf(leafData)
-	return mt.addLeafHash(leafHash)
-}
-
-func (mt *MerkleTree) addLeafHash(hash []byte) (int64, []byte) {
-	mt.impl.Append(hash)
-	return int64(mt.impl.Size() - 1), hash
+	mt.impl.Append(leafHash)
+	return leafHash
 }
 
 // CurrentRoot set the current root of the tree.

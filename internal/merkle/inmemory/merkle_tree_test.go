@@ -692,18 +692,3 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		}
 	}
 }
-
-func TestAddLeafHash(t *testing.T) {
-	mt := makeEmptyTree()
-	hash := "0123456789abcdef0123456789abcdef"
-
-	index, leafHash := mt.addLeafHash(decodeHexStringOrPanic(hash))
-
-	if index != 0 {
-		t.Errorf("Expected 0 for first leaf sequence number but got: %d", index)
-	}
-
-	if !bytes.Equal(decodeHexStringOrPanic(hash), leafHash) {
-		t.Error("Hash value was not copied into leaf correctly")
-	}
-}
