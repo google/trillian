@@ -334,7 +334,7 @@ func TestVerifyInclusionProofGenerated(t *testing.T) {
 
 	tree, v := createTree(0)
 	for _, size := range sizes {
-		growTree(tree, size)
+		tree = growTree(tree, size)
 		root := tree.Hash()
 		for i := int64(0); i < size; i++ {
 			t.Run(fmt.Sprintf("size:%d:index:%d", size, i), func(t *testing.T) {
@@ -435,7 +435,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 
 	tree, v := createTree(0)
 	for _, size := range sizes {
-		growTree(tree, size)
+		tree = growTree(tree, size)
 		root := tree.Hash()
 
 		for i := int64(1); i <= size; i++ {
@@ -532,21 +532,19 @@ func shortHash(hash []byte) string {
 	return fmt.Sprintf("%x...", hash[:4])
 }
 
-func createTree(size int64) (*inmemory.Tree, LogVerifier) {
+func createTree(size int64) (inmemory.Tree, LogVerifier) {
 	tree := inmemory.New(rfc6962.DefaultHasher)
-	growTree(tree, size)
-	return tree, New(rfc6962.DefaultHasher)
+	return growTree(tree, size), New(rfc6962.DefaultHasher)
 }
 
-func growTree(tree *inmemory.Tree, upTo int64) {
+func growTree(tree inmemory.Tree, upTo int64) inmemory.Tree {
 	for i := int64(tree.Size()); i < upTo; i++ {
-		data := []byte(fmt.Sprintf("data:%d", i))
-		tree.AppendData(data)
+		tree = tree.AppendData([]byte(fmt.Sprintf("data:%d", i)))
 	}
+	return tree
 }
 
-func getLeafAndProof(tree *inmemory.Tree, index int64) ([]byte, [][]byte) {
-	// Note: inmemory.MerkleTree counts leaves from 1.
+func getLeafAndProof(tree inmemory.Tree, index int64) ([]byte, [][]byte) {
 	proof, err := tree.InclusionProof(uint64(index), tree.Size())
 	if err != nil {
 		panic(err)

@@ -208,11 +208,11 @@ func expandLeaves(n, m uint64) []string {
 	return leaves
 }
 
-func treeAtSize(n uint64) *inmemory.Tree {
+func treeAtSize(n uint64) inmemory.Tree {
 	leaves := expandLeaves(0, n-1)
 	mt := inmemory.New(rfc6962.DefaultHasher)
 	for _, leaf := range leaves {
-		mt.AppendData([]byte(leaf))
+		mt = mt.AppendData([]byte(leaf))
 	}
 	return mt
 }

@@ -526,7 +526,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		if err := cr.Append(hasher.HashLeaf(leafMap[l].LeafValue), nil); err != nil {
 			return nil, err
 		}
-		merkleTree.AppendData(leafMap[l].LeafValue)
+		merkleTree = merkleTree.AppendData(leafMap[l].LeafValue)
 	}
 
 	// If the two reference results disagree there's no point in continuing the
@@ -543,7 +543,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", got, want)
 	}
 
-	return merkleTree, nil
+	return &merkleTree, nil
 }
 
 func getLatestSignedLogRoot(client trillian.TrillianLogClient, params TestParameters) (*trillian.GetLatestSignedLogRootResponse, error) {
