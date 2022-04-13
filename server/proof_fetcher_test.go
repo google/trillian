@@ -36,7 +36,7 @@ func TestTree813FetchAll(t *testing.T) {
 
 	mt := treeAtSize(ts)
 	r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
+		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: mt.Hash()},
 	})
 
 	for l := uint64(271); l < ts; l++ {
@@ -79,7 +79,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 	for ts := uint64(2); ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: mt.Hash()},
 		})
 
 		for s := uint64(2); s <= ts; s++ {
@@ -123,10 +123,10 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 	mt := treeAtSize(32)
 	// The reader is built up with multiple batches, 4 batches x 8 leaves each
 	r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, 7), ExpectedRoot: expectedRootAtSize(treeAtSize(8))},
-		{TreeRevision: testTreeRevision + 1, Leaves: expandLeaves(8, 15), ExpectedRoot: expectedRootAtSize(treeAtSize(16))},
-		{TreeRevision: testTreeRevision + 2, Leaves: expandLeaves(16, 23), ExpectedRoot: expectedRootAtSize(treeAtSize(24))},
-		{TreeRevision: testTreeRevision + 3, Leaves: expandLeaves(24, 31), ExpectedRoot: expectedRootAtSize(mt)},
+		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, 7), ExpectedRoot: treeAtSize(8).Hash()},
+		{TreeRevision: testTreeRevision + 1, Leaves: expandLeaves(8, 15), ExpectedRoot: treeAtSize(16).Hash()},
+		{TreeRevision: testTreeRevision + 2, Leaves: expandLeaves(16, 23), ExpectedRoot: treeAtSize(24).Hash()},
+		{TreeRevision: testTreeRevision + 3, Leaves: expandLeaves(24, 31), ExpectedRoot: mt.Hash()},
 	})
 
 	for s := uint64(2); s <= 32; s++ {
@@ -166,7 +166,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	for ts := uint64(2); ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: mt.Hash()},
 		})
 
 		for s1 := uint64(2); s1 < ts; s1++ {
@@ -206,16 +206,6 @@ func expandLeaves(n, m uint64) []string {
 		leaves = append(leaves, fmt.Sprintf("Leaf %d", l))
 	}
 	return leaves
-}
-
-// expectedRootAtSize uses the in memory tree, the tree built with Compact Merkle Tree should
-// have the same root.
-func expectedRootAtSize(mt *inmemory.Tree) []byte {
-	hash, err := mt.Hash()
-	if err != nil {
-		panic(err)
-	}
-	return hash
 }
 
 func treeAtSize(n uint64) *inmemory.Tree {

@@ -149,13 +149,12 @@ func makeFuzzTestData() [][]byte {
 }
 
 func getRootAsString(mt *Tree, size uint64) string {
-	hash, err := mt.HashAt(size)
-	if err != nil || hash == nil {
+	if size > mt.Size() {
 		// Doesn't matter what this is as long as it could never be a valid
 		// hex encoding of a hash
 		return "<nil>"
 	}
-	return hex.EncodeToString(hash)
+	return hex.EncodeToString(mt.HashAt(size))
 }
 
 // REFERENCE IMPLEMENTATIONS
@@ -321,10 +320,7 @@ func TestEmptyTreeIsEmpty(t *testing.T) {
 }
 
 func TestEmptyTreeHash(t *testing.T) {
-	actual, err := makeEmptyTree().Hash()
-	if err != nil {
-		t.Fatalf("Hash: %v", err)
-	}
+	actual := makeEmptyTree().Hash()
 	actualStr := hex.EncodeToString(actual)
 
 	if actualStr != emptyTreeHashValue {
@@ -457,10 +453,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 			// A snapshot in the range 0...tree_size.
 			snapshot := uint64(rand.Int63n(treeSize + 1))
 
-			h1, err := mt.HashAt(snapshot)
-			if err != nil {
-				t.Fatalf("HashAt: %v", err)
-			}
+			h1 := mt.HashAt(snapshot)
 			h2, err := referenceMerkleTreeHash(data[:snapshot], mt.h)
 			if err != nil {
 				t.Fatalf("referenceMerkleTreeHash(): %v", err)
@@ -573,10 +566,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 		t.Fatalf("8 leaves added but tree size is %d", size)
 	}
 
-	hash, err := mt.Hash()
-	if err != nil {
-		t.Fatalf("Hash: %v", err)
-	}
+	hash := mt.Hash()
 	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
 		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}
@@ -662,10 +652,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		t.Fatalf("8 leaves added but tree size is %d", size)
 	}
 
-	hash, err := mt.Hash()
-	if err != nil {
-		t.Fatalf("Hash: %v", err)
-	}
+	hash := mt.Hash()
 	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
 		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}

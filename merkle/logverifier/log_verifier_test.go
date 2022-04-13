@@ -335,10 +335,7 @@ func TestVerifyInclusionProofGenerated(t *testing.T) {
 	tree, v := createTree(0)
 	for _, size := range sizes {
 		growTree(tree, size)
-		root, err := tree.Hash()
-		if err != nil {
-			t.Fatalf("Hash: %v", err)
-		}
+		root := tree.Hash()
 		for i := int64(0); i < size; i++ {
 			t.Run(fmt.Sprintf("size:%d:index:%d", size, i), func(t *testing.T) {
 				leaf, proof := getLeafAndProof(tree, i)
@@ -411,10 +408,7 @@ func TestVerifyConsistencyProofGenerated(t *testing.T) {
 	tree, v := createTree(size)
 	roots := make([][]byte, size+1)
 	for i := int64(0); i <= size; i++ {
-		var err error
-		if roots[i], err = tree.HashAt(uint64(i)); err != nil {
-			t.Fatalf("HashAt: %v", err)
-		}
+		roots[i] = tree.HashAt(uint64(i))
 	}
 
 	for i := int64(0); i <= size; i++ {
@@ -442,10 +436,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 	tree, v := createTree(0)
 	for _, size := range sizes {
 		growTree(tree, size)
-		root, err := tree.Hash()
-		if err != nil {
-			t.Fatalf("Hash: %v", err)
-		}
+		root := tree.Hash()
 
 		for i := int64(1); i <= size; i++ {
 			t.Run(fmt.Sprintf("size:%d:prefix:%d", size, i), func(t *testing.T) {
@@ -454,10 +445,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 				if err != nil {
 					t.Fatalf("VerifiedPrefixHashFromInclusionProof(): %v", err)
 				}
-				exp, err := tree.HashAt(uint64(i))
-				if err != nil {
-					t.Fatalf("HashAt: %v", err)
-				}
+				exp := tree.HashAt(uint64(i))
 				if !bytes.Equal(pRoot, exp) {
 					t.Fatalf("wrong prefix hash: %s, want %s", shortHash(pRoot), shortHash(exp))
 				}
@@ -469,10 +457,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 	size := int64(307)
 	tree, v := createTree(size)
-	root, err := tree.Hash()
-	if err != nil {
-		t.Fatalf("Hash: %v", err)
-	}
+	root := tree.Hash()
 
 	leaf2, proof2 := getLeafAndProof(tree, 2)
 	_, proof3 := getLeafAndProof(tree, 3)

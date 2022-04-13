@@ -381,12 +381,8 @@ func checkLogRootHashMatches(tree *inmemory.Tree, client trillian.TrillianLogCli
 		return err
 	}
 
-	want, err := tree.Hash()
-	if err != nil {
-		return err
-	}
 	// Hash must not be empty and must match the one we built ourselves
-	if got := root.RootHash; !bytes.Equal(got, want) {
+	if got, want := root.RootHash, tree.Hash(); !bytes.Equal(got, want) {
 		return fmt.Errorf("root hash mismatch expected got: %x want: %x", got, want)
 	}
 
@@ -469,10 +465,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Tree, 
 		}
 
 		// Verify inclusion proof.
-		root, err := tree.HashAt(uint64(treeSize))
-		if err != nil {
-			return err
-		}
+		root := tree.HashAt(uint64(treeSize))
 		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 		merkleLeafHash := tree.LeafHash(uint64(index))
 		if err := verifier.VerifyInclusion(uint64(index), uint64(treeSize), merkleLeafHash, resp.Proof.Hashes, root); err != nil {
@@ -510,14 +503,8 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	}
 
 	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
-	root1, err := tree.HashAt(uint64(req.FirstTreeSize))
-	if err != nil {
-		return err
-	}
-	root2, err := tree.HashAt(uint64(req.SecondTreeSize))
-	if err != nil {
-		return err
-	}
+	root1 := tree.HashAt(uint64(req.FirstTreeSize))
+	root2 := tree.HashAt(uint64(req.SecondTreeSize))
 	return verifier.VerifyConsistency(uint64(req.FirstTreeSize), uint64(req.SecondTreeSize),
 		root1, root2, resp.Proof.Hashes)
 }
@@ -552,12 +539,8 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		// TODO(pavelkalinnikov): Handle empty hash case in compact.Range.
 		root = hasher.EmptyRoot()
 	}
-	treeRoot, err := merkleTree.Hash()
-	if err != nil {
-		return nil, err
-	}
-	if !bytes.Equal(root, treeRoot) {
-		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", root, treeRoot)
+	if got, want := root, merkleTree.Hash(); !bytes.Equal(got, want) {
+		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", got, want)
 	}
 
 	return merkleTree, nil
