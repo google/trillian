@@ -25,40 +25,42 @@ import (
 
 // Tree implements an append-only Merkle tree. For testing.
 type Tree struct {
-	h  merkle.LogHasher
-	rf *compact.RangeFactory
-	cr *compact.Range // The compact range [0, size).
-	n  [][][]byte     // Node hashes, indexed by node (level, index).
+	h    merkle.LogHasher
+	size uint64
+	n    [][][]byte // Node hashes, indexed by node (level, index).
 }
 
 // New returns a new empty Merkle tree.
 func New(hasher merkle.LogHasher) *Tree {
-	rf := &compact.RangeFactory{Hash: hasher.HashChildren}
-	return &Tree{h: hasher, rf: rf, cr: rf.NewEmptyRange(0)}
+	return &Tree{h: hasher}
 }
 
 // AppendData adds the leaf hash of the given entry to the end of the tree.
-func (t *Tree) AppendData(data []byte) error {
-	return t.Append(t.h.HashLeaf(data))
+func (t *Tree) AppendData(data []byte) {
+	t.Append(t.h.HashLeaf(data))
 }
 
 // Append adds the given leaf hash to the end of the tree.
-func (t *Tree) Append(hash []byte) error {
-	var storeErr error
-	err := t.cr.Append(hash, func(id compact.NodeID, hash []byte) {
-		if err := t.store(id, hash); err != nil {
-			storeErr = err
-		}
-	})
-	if storeErr != nil {
-		return storeErr
+func (t *Tree) Append(hash []byte) {
+	level := 0
+	for ; (t.size>>level)&1 == 1; level++ {
+		row := append(t.n[level], hash)
+		hash = t.h.HashChildren(row[len(row)-2], hash)
+		t.n[level] = row
 	}
-	return err
+	if level > len(t.n) {
+		panic("gap in tree appends")
+	} else if level == len(t.n) {
+		t.n = append(t.n, nil)
+	}
+
+	t.n[level] = append(t.n[level], hash)
+	t.size++
 }
 
 // Size returns the current number of leaves in the tree.
 func (t *Tree) Size() uint64 {
-	return t.cr.End()
+	return t.size
 }
 
 // LeafHash returns the leaf hash at the specified index.
@@ -68,10 +70,7 @@ func (t *Tree) LeafHash(index uint64) []byte {
 
 // Hash returns the current root hash of the tree.
 func (t *Tree) Hash() ([]byte, error) {
-	if t.Size() == 0 {
-		return t.h.EmptyRoot(), nil
-	}
-	return t.cr.GetRootHash(nil)
+	return t.HashAt(t.size)
 }
 
 // HashAt returns the root hash at the given size. The size must not exceed the
@@ -84,11 +83,12 @@ func (t *Tree) HashAt(size uint64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	cr, err := t.rf.NewRange(0, size, hashes)
-	if err != nil {
-		return nil, err
+
+	hash := hashes[len(hashes)-1]
+	for i := len(hashes) - 2; i >= 0; i-- {
+		hash = t.h.HashChildren(hashes[i], hash)
 	}
-	return cr.GetRootHash(nil)
+	return hash, nil
 }
 
 // InclusionProof returns the inclusion proof for the given leaf index in the
@@ -111,26 +111,12 @@ func (t *Tree) ConsistencyProof(size1, size2 uint64) ([][]byte, error) {
 	return t.getProof(nodes)
 }
 
-func (t *Tree) store(id compact.NodeID, hash []byte) error {
-	if level, next := id.Level, uint(len(t.n)); level > next {
-		return fmt.Errorf("tree level %d skipped next %d", level, next)
-	} else if level == next {
-		t.n = append(t.n, nil) // Add new tree level.
-	}
-
-	if index, next := id.Index, uint64(len(t.n[id.Level])); index != next {
-		return fmt.Errorf("storing node %+v out of order", id)
-	}
-	t.n[id.Level] = append(t.n[id.Level], hash)
-	return nil
-}
-
 func (t *Tree) getProof(nodes proof.Nodes) ([][]byte, error) {
 	hashes, err := t.getNodes(nodes.IDs)
 	if err != nil {
 		return nil, err
 	}
-	return nodes.Rehash(hashes, t.rf.Hash)
+	return nodes.Rehash(hashes, t.h.HashChildren)
 }
 
 func (t *Tree) getNodes(ids []compact.NodeID) ([][]byte, error) {
