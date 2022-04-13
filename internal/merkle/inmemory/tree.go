@@ -23,36 +23,36 @@ import (
 
 // Tree implements an append-only Merkle tree. For testing.
 type Tree struct {
-	h    merkle.LogHasher
-	size uint64
-	n    [][][]byte // Node hashes, indexed by node (level, index).
+	hasher merkle.LogHasher
+	size   uint64
+	hashes [][][]byte // Node hashes, indexed by node (level, index).
 }
 
 // New returns a new empty Merkle tree.
 func New(hasher merkle.LogHasher) *Tree {
-	return &Tree{h: hasher}
+	return &Tree{hasher: hasher}
 }
 
 // AppendData adds the leaf hash of the given entry to the end of the tree.
 func (t *Tree) AppendData(data []byte) {
-	t.Append(t.h.HashLeaf(data))
+	t.Append(t.hasher.HashLeaf(data))
 }
 
 // Append adds the given leaf hash to the end of the tree.
 func (t *Tree) Append(hash []byte) {
 	level := 0
 	for ; (t.size>>level)&1 == 1; level++ {
-		row := append(t.n[level], hash)
-		hash = t.h.HashChildren(row[len(row)-2], hash)
-		t.n[level] = row
+		row := append(t.hashes[level], hash)
+		hash = t.hasher.HashChildren(row[len(row)-2], hash)
+		t.hashes[level] = row
 	}
-	if level > len(t.n) {
+	if level > len(t.hashes) {
 		panic("gap in tree appends")
-	} else if level == len(t.n) {
-		t.n = append(t.n, nil)
+	} else if level == len(t.hashes) {
+		t.hashes = append(t.hashes, nil)
 	}
 
-	t.n[level] = append(t.n[level], hash)
+	t.hashes[level] = append(t.hashes[level], hash)
 	t.size++
 }
 
@@ -64,7 +64,7 @@ func (t *Tree) Size() uint64 {
 // LeafHash returns the leaf hash at the given index.
 // Requires 0 <= index < Size(), otherwise panics.
 func (t *Tree) LeafHash(index uint64) []byte {
-	return t.n[0][index]
+	return t.hashes[0][index]
 }
 
 // Hash returns the current root hash of the tree.
@@ -76,13 +76,13 @@ func (t *Tree) Hash() []byte {
 // Requires 0 <= size <= Size(), otherwise panics.
 func (t *Tree) HashAt(size uint64) []byte {
 	if size == 0 {
-		return t.h.EmptyRoot()
+		return t.hasher.EmptyRoot()
 	}
 	hashes := t.getNodes(compact.RangeNodes(0, size))
 
 	hash := hashes[len(hashes)-1]
 	for i := len(hashes) - 2; i >= 0; i-- {
-		hash = t.h.HashChildren(hashes[i], hash)
+		hash = t.hasher.HashChildren(hashes[i], hash)
 	}
 	return hash
 }
@@ -110,13 +110,13 @@ func (t *Tree) ConsistencyProof(size1, size2 uint64) ([][]byte, error) {
 
 func (t *Tree) getProof(nodes proof.Nodes) ([][]byte, error) {
 	hashes := t.getNodes(nodes.IDs)
-	return nodes.Rehash(hashes, t.h.HashChildren)
+	return nodes.Rehash(hashes, t.hasher.HashChildren)
 }
 
 func (t *Tree) getNodes(ids []compact.NodeID) [][]byte {
 	hashes := make([][]byte, len(ids))
 	for i, id := range ids {
-		hashes[i] = t.n[id.Level][id.Index]
+		hashes[i] = t.hashes[id.Level][id.Index]
 	}
 	return hashes
 }
