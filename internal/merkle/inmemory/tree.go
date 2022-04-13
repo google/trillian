@@ -29,22 +29,21 @@ type Tree struct {
 }
 
 // New returns a new empty Merkle tree.
-func New(hasher merkle.LogHasher) *Tree {
-	return &Tree{hasher: hasher}
+func New(hasher merkle.LogHasher) Tree {
+	return Tree{hasher: hasher}
 }
 
 // AppendData adds the leaf hash of the given entry to the end of the tree.
-func (t *Tree) AppendData(data []byte) {
-	t.Append(t.hasher.HashLeaf(data))
+func (t Tree) AppendData(data []byte) Tree {
+	return t.Append(t.hasher.HashLeaf(data))
 }
 
 // Append adds the given leaf hash to the end of the tree.
-func (t *Tree) Append(hash []byte) {
-	level := 0
-	for ; (t.size>>level)&1 == 1; level++ {
-		row := append(t.hashes[level], hash)
-		hash = t.hasher.HashChildren(row[len(row)-2], hash)
-		t.hashes[level] = row
+func (t Tree) Append(hash []byte) Tree {
+	level, width := 0, t.size
+	for ; width&1 == 1; width, level = width/2, level+1 {
+		t.hashes[level] = append(t.hashes[level][:width], hash)
+		hash = t.hasher.HashChildren(t.hashes[level][width-1], hash)
 	}
 	if level > len(t.hashes) {
 		panic("gap in tree appends")
@@ -52,29 +51,30 @@ func (t *Tree) Append(hash []byte) {
 		t.hashes = append(t.hashes, nil)
 	}
 
-	t.hashes[level] = append(t.hashes[level], hash)
+	t.hashes[level] = append(t.hashes[level][:width], hash)
 	t.size++
+	return t
 }
 
 // Size returns the current number of leaves in the tree.
-func (t *Tree) Size() uint64 {
+func (t Tree) Size() uint64 {
 	return t.size
 }
 
 // LeafHash returns the leaf hash at the given index.
 // Requires 0 <= index < Size(), otherwise panics.
-func (t *Tree) LeafHash(index uint64) []byte {
+func (t Tree) LeafHash(index uint64) []byte {
 	return t.hashes[0][index]
 }
 
 // Hash returns the current root hash of the tree.
-func (t *Tree) Hash() []byte {
+func (t Tree) Hash() []byte {
 	return t.HashAt(t.size)
 }
 
 // HashAt returns the root hash at the given size.
 // Requires 0 <= size <= Size(), otherwise panics.
-func (t *Tree) HashAt(size uint64) []byte {
+func (t Tree) HashAt(size uint64) []byte {
 	if size == 0 {
 		return t.hasher.EmptyRoot()
 	}
@@ -90,7 +90,7 @@ func (t *Tree) HashAt(size uint64) []byte {
 // InclusionProof returns the inclusion proof for the given leaf index in the
 // tree of the given size. Requires 0 <= index < size <= Size(), otherwise may
 // panic.
-func (t *Tree) InclusionProof(index, size uint64) ([][]byte, error) {
+func (t Tree) InclusionProof(index, size uint64) ([][]byte, error) {
 	nodes, err := proof.Inclusion(index, size)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (t *Tree) InclusionProof(index, size uint64) ([][]byte, error) {
 
 // ConsistencyProof returns the consistency proof between the two given tree
 // sizes. Requires 0 <= size1 <= size2 <= Size(), otherwise may panic.
-func (t *Tree) ConsistencyProof(size1, size2 uint64) ([][]byte, error) {
+func (t Tree) ConsistencyProof(size1, size2 uint64) ([][]byte, error) {
 	nodes, err := proof.Consistency(size1, size2)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (t *Tree) ConsistencyProof(size1, size2 uint64) ([][]byte, error) {
 	return nodes.Rehash(t.getNodes(nodes.IDs), t.hasher.HashChildren)
 }
 
-func (t *Tree) getNodes(ids []compact.NodeID) [][]byte {
+func (t Tree) getNodes(ids []compact.NodeID) [][]byte {
 	hashes := make([][]byte, len(ids))
 	for i, id := range ids {
 		hashes[i] = t.hashes[id.Level][id.Index]
