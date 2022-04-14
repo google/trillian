@@ -95,7 +95,7 @@ func (t *Tree) InclusionProof(index, size uint64) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return t.getProof(nodes)
+	return nodes.Rehash(t.getNodes(nodes.IDs), t.hasher.HashChildren)
 }
 
 // ConsistencyProof returns the consistency proof between the two given tree
@@ -105,12 +105,7 @@ func (t *Tree) ConsistencyProof(size1, size2 uint64) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return t.getProof(nodes)
-}
-
-func (t *Tree) getProof(nodes proof.Nodes) ([][]byte, error) {
-	hashes := t.getNodes(nodes.IDs)
-	return nodes.Rehash(hashes, t.hasher.HashChildren)
+	return nodes.Rehash(t.getNodes(nodes.IDs), t.hasher.HashChildren)
 }
 
 func (t *Tree) getNodes(ids []compact.NodeID) [][]byte {
