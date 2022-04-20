@@ -24,9 +24,6 @@
 //
 // Print the latest revision of each subtree proto for a tree of size 127 with hex keys:
 // dump_tree -tree_size 127
-//
-// Print out the nodes by level using the NodeReader API for a tree of size 11:
-// dump_tree -tree_size 11 -traverse
 package main
 
 import (
@@ -42,7 +39,6 @@ var (
 	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 	latestRevisionFlag  = flag.Bool("latest_version", true, "If true outputs only the latest revision per subtree")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
-	traverseFlag        = flag.Bool("traverse", false, "If true dumps a tree traversal via coord space, else raw subtrees")
 )
 
 func main() {
@@ -55,6 +51,5 @@ func main() {
 		LeafFormat:     *leafDataFormatFlag,
 		LatestRevision: *latestRevisionFlag,
 		Rebuild:        *rebuildInternalFlag,
-		Traverse:       *traverseFlag,
 	}))
 }

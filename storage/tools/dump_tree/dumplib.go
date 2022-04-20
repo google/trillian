@@ -37,7 +37,6 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util/clock"
 	"github.com/transparency-dev/merkle"
-	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -102,7 +101,7 @@ type Options struct {
 	TreeSize, BatchSize int
 	LeafFormat          string
 	LatestRevision      bool
-	Rebuild, Traverse   bool
+	Rebuild             bool
 }
 
 // Main runs the dump_tree tool
@@ -144,10 +143,6 @@ func Main(args Options) string {
 
 	// All leaves are now sequenced into the tree. The current state is what we need.
 	glog.Info("Producing output")
-
-	if args.Traverse {
-		return traverseTreeStorage(ctx, ls, tree, args.TreeSize)
-	}
 
 	formatter := fullProto
 
@@ -240,62 +235,4 @@ func sequenceLeaves(ls storage.LogStorage, tree *trillian.Tree, treeSize, batchS
 	}
 	sequence(tree, ls, left, batchSize)
 	glog.Info("Finished sequencing")
-}
-
-func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillian.Tree, ts int) string {
-	out := new(bytes.Buffer)
-	nodesAtLevel := uint64(ts)
-
-	tx, err := ls.SnapshotForTree(context.TODO(), tt)
-	if err != nil {
-		glog.Fatalf("SnapshotForTree: %v", err)
-	}
-	defer func() {
-		if err := tx.Commit(ctx); err != nil {
-			glog.Fatalf("TX Commit(): %v", err)
-		}
-	}()
-
-	levels := uint(0)
-	n := nodesAtLevel
-	for n > 0 {
-		levels++
-		n = n >> 1
-	}
-
-	// Because of the way we store subtrees omitting internal RHS nodes with one sibling there
-	// is an extra level stored for trees that don't have a number of leaves that is a power
-	// of 2. We account for this here and in the loop below.
-	if !isPerfectTree(int64(ts)) {
-		levels++
-	}
-
-	for level := uint(0); level < levels; level++ {
-		for node := uint64(0); node < nodesAtLevel; node++ {
-			// We're going to request one node at a time, which would normally be slow but we have
-			// the tree in RAM so it's not a real problem.
-			nodeID := compact.NewNodeID(level, node)
-			nodes, err := tx.GetMerkleNodes(context.TODO(), []compact.NodeID{nodeID})
-			if err != nil {
-				glog.Fatalf("GetMerkleNodes: %+v: %v", nodeID, err)
-			}
-			if len(nodes) != 1 {
-				glog.Fatalf("GetMerkleNodes: %+v: want 1 node got: %v", nodeID, nodes)
-			}
-
-			fmt.Fprintf(out, "%6d %6d -> %s\n", level, node, hex.EncodeToString(nodes[0].Hash))
-		}
-
-		nodesAtLevel = nodesAtLevel >> 1
-		fmt.Println()
-		// This handles the extra level in non-perfect trees
-		if nodesAtLevel == 0 {
-			nodesAtLevel = 1
-		}
-	}
-	return out.String()
-}
-
-func isPerfectTree(x int64) bool {
-	return x != 0 && (x&(x-1) == 0)
 }
