@@ -118,44 +118,6 @@ func TestTreeHashAt(t *testing.T) {
 	test("generated", makeFuzzTestData())
 }
 
-// Make random path queries and check against the reference implementation.
-func TestMerkleTreePathFuzz(t *testing.T) {
-	data := makeFuzzTestData()
-
-	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
-		// mt := makeLoggingEmptyTree(t)
-		mt := makeEmptyTree()
-		mt.AppendData(data[:treeSize]...)
-
-		// Since the tree is evaluated lazily, the order of queries is significant.
-		// Generate a random sequence of 8 queries for each tree.
-		for j := 0; j < 8; j++ {
-			// A snapshot in the range 1..treeSize.
-			snapshot := uint64(rand.Int63n(treeSize)) + 1
-			// A leaf in the range 0..snapshot-1.
-			leaf := uint64(rand.Int63n(int64(snapshot)))
-
-			p1, err := mt.InclusionProof(leaf, snapshot)
-			if err != nil {
-				t.Fatalf("InclusionProof: %v", err)
-			}
-
-			p2 := refInclusionProof(data[:snapshot], leaf, mt.hasher)
-
-			if len(p1) != len(p2) {
-				t.Errorf("Different path lengths %v, %v", p1, p2)
-			} else {
-				for i := 0; i < len(p1); i++ {
-					if !bytes.Equal(p1[i], p2[i]) {
-						t.Errorf("Mismatched hash %d %d %d: %v, %v", snapshot, leaf, i,
-							p1[i], p2[i])
-					}
-				}
-			}
-		}
-	}
-}
-
 // Make random proof queries and check against the reference implementation.
 func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 	data := makeFuzzTestData()
@@ -194,29 +156,28 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 	}
 }
 
-func TestTreeInslucionProof(t *testing.T) {
-	entries := to.LeafInputs()
-	mt := makeEmptyTree()
-	mt.AppendData(entries...)
-	validateTree(t, mt, 8)
-
-	if _, err := mt.InclusionProof(8, 8); err == nil {
-		t.Error("InclusionProof(8, 8) succeeded unexpectedly")
-	}
-
-	for size := uint64(1); size <= 8; size++ {
-		for index := uint64(0); index < size; index++ {
-			t.Run(fmt.Sprintf("%d:%d", index, size), func(t *testing.T) {
+func TestTreeInclusionProof(t *testing.T) {
+	test := func(desc string, entries [][]byte) {
+		t.Run(desc, func(t *testing.T) {
+			mt := makeEmptyTree()
+			mt.AppendData(entries...)
+			for index, size := uint64(0), uint64(len(entries)); index < size; index++ {
 				got, err := mt.InclusionProof(index, size)
 				if err != nil {
-					t.Fatalf("InclusionProof: %v", err)
+					t.Fatalf("InclusionProof(%d, %d): %v", index, size, err)
 				}
 				want := refInclusionProof(entries[:size], index, mt.hasher)
 				if diff := cmp.Diff(got, want, cmpopts.EquateEmpty()); diff != "" {
-					t.Errorf("InclusionProof: diff (-got +want)\n%s", diff)
+					t.Fatalf("InclusionProof(%d, %d): diff (-got +want)\n%s", index, size, diff)
 				}
-			})
-		}
+			}
+		})
+	}
+
+	test("generated", makeFuzzTestData())
+	entries := to.LeafInputs()
+	for size := 0; size < len(entries); size++ {
+		test(fmt.Sprintf("golden:%d", size), entries[:size])
 	}
 }
 
