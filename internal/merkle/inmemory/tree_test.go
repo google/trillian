@@ -16,7 +16,6 @@ package inmemory
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -90,43 +89,6 @@ func TestTreeHashAt(t *testing.T) {
 	test("generated", genEntries(256))
 }
 
-// Make random proof queries and check against the reference implementation.
-func TestMerkleTreeConsistencyFuzz(t *testing.T) {
-	data := genEntries(256)
-
-	for treeSize := int64(1); treeSize <= 256; treeSize++ {
-		mt := newTree(data[:treeSize])
-
-		// Since the tree is evaluated lazily, the order of queries is significant.
-		// Generate a random sequence of 8 queries for each tree.
-		for j := 0; j < 8; j++ {
-			// A snapshot in the range 0... length.
-			snapshot2 := uint64(rand.Int63n(treeSize + 1))
-			// A snapshot in the range 0... snapshot.
-			snapshot1 := uint64(rand.Int63n(int64(snapshot2) + 1))
-
-			c1, err := mt.ConsistencyProof(snapshot1, snapshot2)
-			if err != nil {
-				t.Fatalf("ConsistencyProof: %v", err)
-			}
-			c2 := refConsistencyProof(data[:snapshot2], snapshot2, snapshot1, mt.hasher, true)
-
-			if len(c1) != len(c2) {
-				t.Errorf("Different proof lengths: %d %d %d", treeSize, snapshot2,
-					snapshot1)
-			}
-
-			for i := 0; i < len(c1); i++ {
-				if !bytes.Equal(c1[i], c2[i]) {
-					t.Errorf("Different proof: %d %d %d %d, %s, %s", treeSize,
-						snapshot2, snapshot1, i, hex.EncodeToString(c1[i]),
-						hex.EncodeToString(c2[i]))
-				}
-			}
-		}
-	}
-}
-
 func TestTreeInclusionProof(t *testing.T) {
 	test := func(desc string, entries [][]byte) {
 		t.Run(desc, func(t *testing.T) {
@@ -172,6 +134,28 @@ func TestTreeConsistencyProof(t *testing.T) {
 					t.Errorf("ConsistencyProof: diff (-got +want)\n%s", diff)
 				}
 			})
+		}
+	}
+}
+
+// Make random proof queries and check against the reference implementation.
+func TestTreeConsistencyProofFuzz(t *testing.T) {
+	entries := genEntries(256)
+
+	for treeSize := int64(1); treeSize <= 256; treeSize++ {
+		mt := newTree(entries[:treeSize])
+		for i := 0; i < 8; i++ {
+			size2 := uint64(rand.Int63n(treeSize + 1))
+			size1 := uint64(rand.Int63n(int64(size2) + 1))
+
+			got, err := mt.ConsistencyProof(size1, size2)
+			if err != nil {
+				t.Fatalf("ConsistencyProof: %v", err)
+			}
+			want := refConsistencyProof(entries[:size2], size2, size1, mt.hasher, true)
+			if diff := cmp.Diff(got, want, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("ConsistencyProof: diff (-got +want)\n%s", diff)
+			}
 		}
 	}
 }
