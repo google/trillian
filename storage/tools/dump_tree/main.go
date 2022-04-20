@@ -19,9 +19,6 @@
 //
 // Examples of some usages:
 //
-// Print all versions of all raw subtree protos for a tree of size 58:
-// dump_tree -tree_size 58 -latest_version=false
-//
 // Print the latest revision of each subtree proto for a tree of size 127 with hex keys:
 // dump_tree -tree_size 127
 package main
@@ -37,7 +34,6 @@ var (
 	treeSizeFlag        = flag.Int("tree_size", 871, "The number of leaves to be added to the tree")
 	batchSizeFlag       = flag.Int("batch_size", 50, "The batch size for sequencing")
 	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
-	latestRevisionFlag  = flag.Bool("latest_version", true, "If true outputs only the latest revision per subtree")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 )
 
@@ -46,10 +42,9 @@ func main() {
 	defer glog.Flush()
 
 	fmt.Print(Main(Options{
-		TreeSize:       *treeSizeFlag,
-		BatchSize:      *batchSizeFlag,
-		LeafFormat:     *leafDataFormatFlag,
-		LatestRevision: *latestRevisionFlag,
-		Rebuild:        *rebuildInternalFlag,
+		TreeSize:   *treeSizeFlag,
+		BatchSize:  *batchSizeFlag,
+		LeafFormat: *leafDataFormatFlag,
+		Rebuild:    *rebuildInternalFlag,
 	}))
 }

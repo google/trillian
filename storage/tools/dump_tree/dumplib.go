@@ -100,7 +100,6 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 type Options struct {
 	TreeSize, BatchSize int
 	LeafFormat          string
-	LatestRevision      bool
 	Rebuild             bool
 }
 
@@ -146,21 +145,7 @@ func Main(args Options) string {
 
 	formatter := fullProto
 
-	if args.LatestRevision {
-		return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild)
-	}
-	return allRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild)
-}
-
-func allRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal bool) string {
-	out := new(bytes.Buffer)
-	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
-		if rebuildInternal {
-			cache.PopulateLogTile(v, hasher)
-		}
-		fmt.Fprint(out, of(v))
-	})
-	return out.String()
+	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild)
 }
 
 func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal bool) string {
