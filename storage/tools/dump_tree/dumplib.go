@@ -19,7 +19,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -42,12 +41,8 @@ import (
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
-
-// A 32 bit magic number that is written at the start of record io files to identify the format.
-const recordIOMagic int32 = 0x3ed7230a
 
 type treeAndRev struct {
 	fullKey  string
@@ -81,27 +76,6 @@ func summarizeProto(leafHashesFlag bool) func(s *storagepb.SubtreeProto) string 
 // fullProto is an output formatter function that produces a single line in proto text format.
 func fullProto(s *storagepb.SubtreeProto) string {
 	return fmt.Sprintf("%s\n", prototext.Format(s))
-}
-
-// recordIOProto is an output formatter that produces binary recordio format
-func recordIOProto(s *storagepb.SubtreeProto) string {
-	buf := new(bytes.Buffer)
-	data, err := proto.Marshal(s)
-	if err != nil {
-		glog.Fatalf("Failed to marshal subtree proto: %v", err)
-	}
-	dataLen := int64(len(data))
-	if err = binary.Write(buf, binary.BigEndian, dataLen); err != nil {
-		glog.Fatalf("binary.Write failed: %v", err)
-	}
-	var compLen int64
-	if err = binary.Write(buf, binary.BigEndian, compLen); err != nil {
-		glog.Fatalf("binary.Write failed: %v", err)
-	}
-	// buffer.Write() always returns a nil error
-	buf.Write(data)
-
-	return buf.String()
 }
 
 func sequence(tree *trillian.Tree, logStorage storage.LogStorage, count, batchSize int) {
@@ -152,13 +126,12 @@ type Options struct {
 	TreeSize, BatchSize                          int
 	LeafFormat                                   string
 	LatestRevision, Summary, HexKeys, LeafHashes bool
-	RecordIO, Rebuild, Traverse, DumpLeaves      bool
+	Rebuild, Traverse, DumpLeaves                bool
 }
 
 // Main runs the dump_tree tool
 func Main(args Options) string {
 	ctx := context.Background()
-	validateFlagsOrDie(args.Summary, args.RecordIO)
 
 	glog.Info("Initializing memory log storage")
 	ts := memory.NewTreeStorage()
@@ -208,9 +181,6 @@ func Main(args Options) string {
 	switch {
 	case args.Summary:
 		formatter = summarizeProto(args.LeafHashes)
-	case args.RecordIO:
-		formatter = recordIOProto
-		recordIOHdr()
 	default:
 		formatter = fullProto
 	}
@@ -282,12 +252,6 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 		fmt.Fprint(out, of(v.subtree))
 	}
 	return out.String()
-}
-
-func validateFlagsOrDie(summary, recordIO bool) {
-	if summary && recordIO {
-		glog.Fatal("-summary and -recordio are mutually exclusive flags")
-	}
 }
 
 func sequenceLeaves(ls storage.LogStorage, tree *trillian.Tree, treeSize, batchSize int, leafDataFormat string) {
@@ -416,13 +380,4 @@ func hexKeys(s *storagepb.SubtreeProto) {
 
 func isPerfectTree(x int64) bool {
 	return x != 0 && (x&(x-1) == 0)
-}
-
-func recordIOHdr() {
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.BigEndian, recordIOMagic)
-	if err != nil {
-		glog.Fatalf("binary.Write failed: %v", err)
-	}
-	fmt.Print(buf.String())
 }

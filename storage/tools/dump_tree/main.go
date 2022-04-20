@@ -30,10 +30,6 @@
 //
 // Print out the nodes by level using the NodeReader API for a tree of size 11:
 // dump_tree -tree_size 11 -traverse
-//
-// The format for recordio output is as defined in:
-// https://github.com/google/or-tools/blob/master/ortools/base/recordio.h
-// This program always outputs uncompressed records.
 package main
 
 import (
@@ -51,7 +47,6 @@ var (
 	summaryFlag         = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
 	hexKeysFlag         = flag.Bool("hex_keys", false, "If true shows proto keys as hex rather than base64")
 	leafHashesFlag      = flag.Bool("leaf_hashes", false, "If true the summary output includes leaf hashes")
-	recordIOFlag        = flag.Bool("recordio", false, "If true outputs in recordio format")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 	traverseFlag        = flag.Bool("traverse", false, "If true dumps a tree traversal via coord space, else raw subtrees")
 	dumpLeavesFlag      = flag.Bool("dump_leaves", false, "If true dumps the leaf data from the tree via the API")
@@ -69,7 +64,6 @@ func main() {
 		Summary:        *summaryFlag,
 		HexKeys:        *hexKeysFlag,
 		LeafHashes:     *leafHashesFlag,
-		RecordIO:       *recordIOFlag,
 		Rebuild:        *rebuildInternalFlag,
 		Traverse:       *traverseFlag,
 		DumpLeaves:     *dumpLeavesFlag,
