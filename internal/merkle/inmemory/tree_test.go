@@ -96,27 +96,26 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	validateTree(t, mt, 8)
 }
 
-func TestMerkleTreeRootFuzz(t *testing.T) {
-	data := makeFuzzTestData()
-
-	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
-		mt := makeEmptyTree()
-		mt.AppendData(data[:treeSize]...)
-
-		// Since the tree is evaluated lazily, the order of queries is significant.
-		// Generate a random sequence of 8 queries for each tree.
-		for j := int64(0); j < 8; j++ {
-			// A snapshot in the range 0...tree_size.
-			snapshot := uint64(rand.Int63n(treeSize + 1))
-
-			h1 := mt.HashAt(snapshot)
-			h2 := refRootHash(data[:snapshot], mt.hasher)
-
-			if !bytes.Equal(h1, h2) {
-				t.Errorf("Mismatched hash: %x, %x", h1, h2)
+func TestTreeHashAt(t *testing.T) {
+	test := func(desc string, entries [][]byte) {
+		t.Run(desc, func(t *testing.T) {
+			mt := makeEmptyTree()
+			mt.AppendData(entries...)
+			for size := 0; size <= len(entries); size++ {
+				got := mt.HashAt(uint64(size))
+				want := refRootHash(entries[:size], mt.hasher)
+				if !bytes.Equal(got, want) {
+					t.Errorf("HashAt(%d): %x, want %x", size, got, want)
+				}
 			}
-		}
+		})
 	}
+
+	entries := to.LeafInputs()
+	for size := 0; size <= len(entries); size++ {
+		test(fmt.Sprintf("size:%d", size), entries[:size])
+	}
+	test("generated", makeFuzzTestData())
 }
 
 // Make random path queries and check against the reference implementation.
