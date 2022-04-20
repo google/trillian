@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -102,7 +101,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 type Options struct {
 	TreeSize, BatchSize           int
 	LeafFormat                    string
-	LatestRevision, HexKeys       bool
+	LatestRevision                bool
 	Rebuild, Traverse, DumpLeaves bool
 }
 
@@ -157,26 +156,23 @@ func Main(args Options) string {
 	formatter := fullProto
 
 	if args.LatestRevision {
-		return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild, args.HexKeys)
+		return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild)
 	}
-	return allRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild, args.HexKeys)
+	return allRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild)
 }
 
-func allRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func allRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal bool) string {
 	out := new(bytes.Buffer)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		if rebuildInternal {
 			cache.PopulateLogTile(v, hasher)
-		}
-		if hexKeysFlag {
-			hexKeys(v)
 		}
 		fmt.Fprint(out, of(v))
 	})
 	return out.String()
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal bool) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
@@ -216,10 +212,6 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 		if rebuildInternal {
 			cache.PopulateLogTile(v.subtree, hasher)
 		}
-		if hexKeysFlag {
-			hexKeys(v.subtree)
-		}
-
 		fmt.Fprint(out, of(v.subtree))
 	}
 	return out.String()
@@ -328,25 +320,6 @@ func dumpLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree,
 		fmt.Fprintf(out, "%6d:%s\n", l, leaves[0].LeafValue)
 	}
 	return out.String()
-}
-
-func hexMap(in map[string][]byte) map[string][]byte {
-	m := make(map[string][]byte)
-
-	for k, v := range in {
-		unb64, err := base64.StdEncoding.DecodeString(k)
-		if err != nil {
-			glog.Fatalf("Could not decode key as base 64: %s got: %v", k, err)
-		}
-		m[hex.EncodeToString(unb64)] = v
-	}
-
-	return m
-}
-
-func hexKeys(s *storagepb.SubtreeProto) {
-	s.Leaves = hexMap(s.Leaves)
-	s.InternalNodes = hexMap(s.InternalNodes)
 }
 
 func isPerfectTree(x int64) bool {

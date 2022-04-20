@@ -41,7 +41,6 @@ var (
 	batchSizeFlag       = flag.Int("batch_size", 50, "The batch size for sequencing")
 	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 	latestRevisionFlag  = flag.Bool("latest_version", true, "If true outputs only the latest revision per subtree")
-	hexKeysFlag         = flag.Bool("hex_keys", false, "If true shows proto keys as hex rather than base64")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 	traverseFlag        = flag.Bool("traverse", false, "If true dumps a tree traversal via coord space, else raw subtrees")
 	dumpLeavesFlag      = flag.Bool("dump_leaves", false, "If true dumps the leaf data from the tree via the API")
@@ -56,7 +55,6 @@ func main() {
 		BatchSize:      *batchSizeFlag,
 		LeafFormat:     *leafDataFormatFlag,
 		LatestRevision: *latestRevisionFlag,
-		HexKeys:        *hexKeysFlag,
 		Rebuild:        *rebuildInternalFlag,
 		Traverse:       *traverseFlag,
 		DumpLeaves:     *dumpLeavesFlag,
