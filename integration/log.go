@@ -28,7 +28,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/types"
-	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
 	inmemory "github.com/transparency-dev/merkle/testonly"
@@ -137,10 +136,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	// Step 4 - Cross validation between log and memory tree root hashes
 	glog.Infof("Checking log STH with our constructed in-memory tree ...")
-	tree, err := buildMemoryMerkleTree(leafMap, params)
-	if err != nil {
-		return err
-	}
+	tree := buildMerkleTree(leafMap, params)
 	if err := checkLogRootHashMatches(tree, client, params); err != nil {
 		return fmt.Errorf("log consistency check failed: %v", err)
 	}
@@ -507,41 +503,14 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		resp.Proof.Hashes, root1, root2)
 }
 
-func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*inmemory.Tree, error) {
-	// Build the same tree with two different Merkle tree implementations as an
-	// additional check. We don't just rely on the compact range as the server
-	// uses the same code so bugs could be masked.
-	//
-	// TODO(pavelkalinnikov): Don't do this, just test the impl extensively.
-	hasher := rfc6962.DefaultHasher
-	fact := compact.RangeFactory{Hash: hasher.HashChildren}
-	cr := fact.NewEmptyRange(0)
-
-	merkleTree := inmemory.New(hasher)
-
-	// We don't simply iterate the map, as we need to preserve the leaves order.
+// buildMerkleTree returns an in-memory Merkle tree built on the given leaves.
+func buildMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) *inmemory.Tree {
+	merkleTree := inmemory.New(rfc6962.DefaultHasher)
+	// Note: Can't simply iterate the map, as the leaves order must be preserved.
 	for l := params.StartLeaf; l < params.LeafCount; l++ {
-		if err := cr.Append(hasher.HashLeaf(leafMap[l].LeafValue), nil); err != nil {
-			return nil, err
-		}
 		merkleTree.AppendData(leafMap[l].LeafValue)
 	}
-
-	// If the two reference results disagree there's no point in continuing the
-	// checks. This is a "can't happen" situation.
-	root, err := cr.GetRootHash(nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compute compact range root: %v", err)
-	}
-	if cr.End() == 0 {
-		// TODO(pavelkalinnikov): Handle empty hash case in compact.Range.
-		root = hasher.EmptyRoot()
-	}
-	if got, want := root, merkleTree.Hash(); !bytes.Equal(got, want) {
-		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", got, want)
-	}
-
-	return merkleTree, nil
+	return merkleTree
 }
 
 func getLatestSignedLogRoot(client trillian.TrillianLogClient, params TestParameters) (*trillian.GetLatestSignedLogRootResponse, error) {
