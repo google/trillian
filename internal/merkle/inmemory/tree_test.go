@@ -171,54 +171,41 @@ func refInclusionProof(entries [][]byte, index uint64, hasher merkle.LogHasher) 
 		refRootHash(entries[:split], hasher))
 }
 
-// Reference implementation of snapshot consistency.
-// Call with haveRoot1 = true.
-func referenceSnapshotConsistency(inputs [][]byte, snapshot2 uint64,
-	snapshot1 uint64, treehasher merkle.LogHasher, haveRoot1 bool) [][]byte {
-	var proof [][]byte
-
-	if snapshot1 == 0 || snapshot1 > snapshot2 {
-		return proof
+// refConsistencyProof returns the consistency proof for the two tree sizes, in
+// a Merkle tree with the given entries. This is a reference implementation for
+// cross-checking.
+func refConsistencyProof(entries [][]byte, size2, size1 uint64, hasher merkle.LogHasher, haveRoot1 bool) [][]byte {
+	if size1 == 0 || size1 > size2 {
+		return nil
 	}
-
-	if snapshot1 == snapshot2 {
-		// Consistency proof for two equal subtrees is empty.
+	// Consistency proof for two equal sizes is empty.
+	if size1 == size2 {
+		// Record the hash of this subtree if it's not the root for which the proof
+		// was originally requested (which happens when size1 is a power of 2).
 		if !haveRoot1 {
-			// Record the hash of this subtree unless it's the root for which
-			// the proof was originally requested. (This happens when the snapshot1
-			// tree is balanced.)
-			refHash := refRootHash(inputs[:snapshot1], treehasher)
-			proof = append(proof, refHash)
+			return [][]byte{refRootHash(entries[:size1], hasher)}
 		}
-		return proof
+		return nil
 	}
 
-	// 0 < snapshot1 < snapshot2
-	split := downToPowerOfTwo(snapshot2)
-
-	var subproof [][]byte
-	if snapshot1 <= split {
-		// Root of snapshot1 is in the left subtree of snapshot2.
-		// Prove that the left subtrees are consistent.
-		s := referenceSnapshotConsistency(inputs[:split], split, snapshot1, treehasher, haveRoot1)
-		subproof = s
-		proof = append(proof, subproof...)
-		// Record the hash of the right subtree (only present in snapshot2).
-		h := refRootHash(inputs[split:], treehasher)
-		proof = append(proof, h)
-	} else {
-		// Snapshot1 root is at the same level as snapshot2 root.
-		// Prove that the right subtrees are consistent. The right subtree
-		// doesn't contain the root of snapshot1, so set haveRoot1 = false.
-		s := referenceSnapshotConsistency(inputs[split:], snapshot2-split, snapshot1-split, treehasher, false)
-		subproof = s
-
-		proof = append(proof, subproof...)
-		// Record the hash of the left subtree (equal in both trees).
-		refHash := refRootHash(inputs[:split], treehasher)
-		proof = append(proof, refHash)
+	// At this point: 0 < size1 < size2.
+	split := downToPowerOfTwo(size2)
+	if size1 <= split {
+		// Root of size1 is in the left subtree of size2. Prove that the left
+		// subtrees are consistent, and record the hash of the right subtree (only
+		// present in size2).
+		return append(
+			refConsistencyProof(entries[:split], split, size1, hasher, haveRoot1),
+			refRootHash(entries[split:], hasher))
 	}
-	return proof
+
+	// Root of size1 is at the same level as size2 root. Prove that the right
+	// subtrees are consistent. The right subtree doesn't contain the root of
+	// size1, so set haveRoot1 = false. Record the hash of the left subtree
+	// (equal in both trees).
+	return append(
+		refConsistencyProof(entries[split:], size2-split, size1-split, hasher, false),
+		refRootHash(entries[:split], hasher))
 }
 
 func validateTree(t *testing.T, mt *Tree, size uint64) {
@@ -373,7 +360,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConsistencyProof: %v", err)
 			}
-			c2 := referenceSnapshotConsistency(data[:snapshot2], snapshot2, snapshot1, mt.hasher, true)
+			c2 := refConsistencyProof(data[:snapshot2], snapshot2, snapshot1, mt.hasher, true)
 
 			if len(c1) != len(c2) {
 				t.Errorf("Different proof lengths: %d %d %d", treeSize, snapshot2,
