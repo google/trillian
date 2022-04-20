@@ -32,13 +32,6 @@ import (
 
 var fuzzTestSize = int64(256)
 
-// Some paths for the reference tree.
-type pathTestVector struct {
-	leaf       uint64
-	snapshot   uint64
-	testVector []string
-}
-
 type proofTestVector struct {
 	snapshot1 uint64
 	snapshot2 uint64

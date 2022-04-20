@@ -15,54 +15,15 @@
 package inmemory
 
 import (
-	"bytes"
-	"encoding/hex"
+	"fmt"
 	"math/bits"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/rfc6962"
 	to "github.com/transparency-dev/merkle/testonly"
 )
-
-// Generated from C++ ReferenceMerklePath, not the Go one so we can verify
-// that they are both producing the same paths in a sanity test.
-var testPaths = []pathTestVector{
-	{0, 1, []string{}},
-	{1, 2, []string{"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"}},
-	{
-		0,
-		8,
-		[]string{
-			"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
-			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-			"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
-		},
-	},
-	{
-		5,
-		8,
-		[]string{
-			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
-			"ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
-			"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
-		},
-	},
-	{
-		2,
-		3,
-		[]string{"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"},
-	},
-	{
-		1,
-		5,
-		[]string{
-			"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
-			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
-		},
-	},
-}
 
 // refRootHash returns the root hash of a Merkle tree with the given entries.
 // This is a reference implementation for cross-checking.
@@ -154,21 +115,43 @@ func TestDownToPowerOfTwo(t *testing.T) {
 }
 
 func TestRefInclusionProof(t *testing.T) {
-	data := to.LeafInputs()
-
-	for _, path := range testPaths {
-		referencePath := refInclusionProof(data[:path.snapshot], path.leaf, rfc6962.DefaultHasher)
-
-		if len(referencePath) != len(path.testVector) {
-			t.Errorf("Mismatched path length: %d, %d: %v %v",
-				len(referencePath), len(path.testVector), path, referencePath)
-		}
-
-		for i := 0; i < len(path.testVector); i++ {
-			if !bytes.Equal(referencePath[i], hx(path.testVector[i])) {
-				t.Errorf("Path mismatch: %s, %s", hex.EncodeToString(referencePath[i]),
-					path.testVector[i])
+	for _, tc := range []struct {
+		index uint64
+		size  uint64
+		want  [][]byte
+	}{
+		{index: 0, size: 1, want: nil},
+		{index: 0, size: 2, want: [][]byte{
+			hx("96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7"),
+		}},
+		{index: 1, size: 2, want: [][]byte{
+			hx("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"),
+		}},
+		{index: 2, size: 3, want: [][]byte{
+			hx("fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"),
+		}},
+		{index: 1, size: 5, want: [][]byte{
+			hx("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"),
+			hx("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"),
+			hx("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"),
+		}},
+		{index: 0, size: 8, want: [][]byte{
+			hx("96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7"),
+			hx("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"),
+			hx("6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"),
+		}},
+		{index: 5, size: 8, want: [][]byte{
+			hx("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"),
+			hx("ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0"),
+			hx("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"),
+		}},
+	} {
+		t.Run(fmt.Sprintf("%d:%d", tc.index, tc.size), func(t *testing.T) {
+			entries := to.LeafInputs()
+			got := refInclusionProof(entries[:tc.size], tc.index, rfc6962.DefaultHasher)
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Errorf("refInclusionProof: diff (-got +want)\n%s", diff)
 			}
-		}
+		})
 	}
 }
