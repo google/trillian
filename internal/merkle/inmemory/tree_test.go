@@ -153,39 +153,23 @@ func referenceMerkleTreeHash(inputs [][]byte, treehasher merkle.LogHasher) []byt
 	return treehasher.HashChildren(lhs, rhs)
 }
 
-// Reference implementation of Merkle paths. Path from leaf to root,
-// excluding the leaf and root themselves.
-func referenceMerklePath(inputs [][]byte, leaf uint64, treehasher merkle.LogHasher) [][]byte {
-	var path [][]byte
-
-	inputLen := uint64(len(inputs))
-	if leaf >= inputLen {
-		return path
+// refInclusionProof is a reference implementation returning an inclusion proof
+// in a Merkle tree built using the given leaves, for the given leaf index.
+func refInclusionProof(leaves [][]byte, index uint64, hasher merkle.LogHasher) [][]byte {
+	size := uint64(len(leaves))
+	if size == 1 || index >= size {
+		return nil
 	}
+	split := downToPowerOfTwo(size)
 
-	if inputLen == 1 {
-		return path
+	if index < split {
+		return append(
+			refInclusionProof(leaves[:split], index, hasher),
+			referenceMerkleTreeHash(leaves[split:], hasher))
 	}
-
-	split := downToPowerOfTwo(inputLen)
-
-	var subpath [][]byte
-
-	if leaf < split {
-		s := referenceMerklePath(inputs[:split], leaf, treehasher)
-		subpath = s
-		path = append(path, subpath...)
-		refHash := referenceMerkleTreeHash(inputs[split:], treehasher)
-		path = append(path, refHash)
-	} else {
-		s := referenceMerklePath(inputs[split:], leaf-split, treehasher)
-		subpath = s
-		path = append(path, subpath...)
-		refHash := referenceMerkleTreeHash(inputs[:split], treehasher)
-		path = append(path, refHash)
-	}
-
-	return path
+	return append(
+		refInclusionProof(leaves[split:], index-split, hasher),
+		referenceMerkleTreeHash(leaves[:split], hasher))
 }
 
 // Reference implementation of snapshot consistency.
@@ -293,7 +277,7 @@ func TestReferenceMerklePathSanity(t *testing.T) {
 	data := to.LeafInputs()
 
 	for _, path := range testPaths {
-		referencePath := referenceMerklePath(data[:path.snapshot], path.leaf, mt.hasher)
+		referencePath := refInclusionProof(data[:path.snapshot], path.leaf, mt.hasher)
 
 		if len(referencePath) != len(path.testVector) {
 			t.Errorf("Mismatched path length: %d, %d: %v %v",
@@ -354,7 +338,7 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 				t.Fatalf("InclusionProof: %v", err)
 			}
 
-			p2 := referenceMerklePath(data[:snapshot], leaf, mt.hasher)
+			p2 := refInclusionProof(data[:snapshot], leaf, mt.hasher)
 
 			if len(p1) != len(p2) {
 				t.Errorf("Different path lengths %v, %v", p1, p2)
