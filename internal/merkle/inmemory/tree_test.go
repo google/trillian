@@ -32,19 +32,6 @@ import (
 
 var fuzzTestSize = int64(256)
 
-// Incremental roots from building the reference tree from inputs leaf-by-leaf.
-// Generated from ReferenceMerkleTreeHash in C++.
-var rootsAtSize = []string{
-	"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
-	"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
-	"aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
-	"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
-	"4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
-	"76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
-	"ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
-	"5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
-}
-
 // Some paths for the reference tree.
 type pathTestVector struct {
 	leaf       uint64
@@ -308,13 +295,13 @@ func validateTree(t *testing.T, mt *Tree, size uint64) {
 	if got, want := mt.Size(), size; got != want {
 		t.Errorf("Size: %d, want %d", got, want)
 	}
-
-	if got, want := mt.HashAt(0), to.EmptyRootHash(); !bytes.Equal(got, want) {
-		t.Errorf("HashAt(0/%d): %s, want %s", size, got, want)
+	roots := to.RootHashes()
+	if got, want := mt.Hash(), roots[size]; !bytes.Equal(got, want) {
+		t.Errorf("Hash(%d): %x, want %x", size, got, want)
 	}
-	for s := uint64(1); s <= size; s++ {
-		if got, want := hex.EncodeToString(mt.HashAt(s)), rootsAtSize[s-1]; got != want {
-			t.Errorf("HashAt(%d/%d): %s, want %s", s, size, got, want)
+	for s := uint64(0); s <= size; s++ {
+		if got, want := mt.HashAt(s), roots[s]; !bytes.Equal(got, want) {
+			t.Errorf("HashAt(%d/%d): %x, want %x", s, size, got, want)
 		}
 	}
 }
@@ -493,15 +480,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 	// First tree: build in one go.
 	mt := makeEmptyTree()
 	mt.AppendData(to.LeafInputs()...)
-
-	if size := mt.Size(); size != 8 {
-		t.Fatalf("8 leaves added but tree size is %d", size)
-	}
-
-	hash := mt.Hash()
-	if got, want := hash, hx(rootsAtSize[7]); !bytes.Equal(got, want) {
-		t.Fatalf("Got unexpected root hash: %x %x", got, want)
-	}
+	validateTree(t, mt, 8)
 
 	if proof, err := mt.InclusionProof(8, 8); err == nil {
 		t.Fatalf("Obtained a path for non existent leaf 9: %v", proof)
@@ -574,15 +553,7 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 func TestProofConsistencyTestVectors(t *testing.T) {
 	mt := makeEmptyTree()
 	mt.AppendData(to.LeafInputs()...)
-
-	if size := mt.Size(); size != 8 {
-		t.Fatalf("8 leaves added but tree size is %d", size)
-	}
-
-	hash := mt.Hash()
-	if got, want := hash, hx(rootsAtSize[7]); !bytes.Equal(got, want) {
-		t.Fatalf("Got unexpected root hash: %x %x", got, want)
-	}
+	validateTree(t, mt, 8)
 
 	for i := 0; i < 4; i++ {
 		p1, err := mt.ConsistencyProof(testProofs[i].snapshot1, testProofs[i].snapshot2)
