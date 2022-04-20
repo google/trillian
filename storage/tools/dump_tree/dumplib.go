@@ -53,18 +53,6 @@ func fullProto(s *storagepb.SubtreeProto) string {
 	return fmt.Sprintf("%s\n", prototext.Format(s))
 }
 
-func sequence(tree *trillian.Tree, logStorage storage.LogStorage, count, batchSize int) {
-	glog.Infof("Sequencing batch of size %d", count)
-	sequenced, err := log.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System, logStorage, quota.Noop())
-	if err != nil {
-		glog.Fatalf("IntegrateBatch got: %v, want: no err", err)
-	}
-
-	if got, want := sequenced, count; got != want {
-		glog.Fatalf("IntegrateBatch got: %d sequenced, want: %d", got, want)
-	}
-}
-
 func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 	ctx := context.TODO()
 	tree := &trillian.Tree{
@@ -98,8 +86,9 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 
 // Options are the commandline arguments one can pass to Main
 type Options struct {
-	TreeSize, BatchSize int
-	LeafFormat          string
+	TreeSize   int
+	BatchSize  int
+	LeafFormat string
 }
 
 // Main runs the dump_tree tool
@@ -114,9 +103,8 @@ func Main(args Options) string {
 
 	log.InitMetrics(nil)
 
-	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
-	sequence(tree, ls, 0, args.BatchSize)
-	sequenceLeaves(ls, tree, args.TreeSize, args.BatchSize, args.LeafFormat)
+	leaves := generateLeaves(args.TreeSize, args.LeafFormat)
+	sequenceLeaves(ls, tree, leaves, args.BatchSize)
 
 	// Read the latest STH back
 	var root types.LogRootV1
@@ -190,31 +178,33 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 	return out.String()
 }
 
-func sequenceLeaves(ls storage.LogStorage, tree *trillian.Tree, treeSize, batchSize int, leafDataFormat string) {
-	glog.Info("Queuing work")
-	for l := 0; l < treeSize; l++ {
-		glog.V(1).Infof("Queuing leaf %d", l)
-
-		leafData := []byte(fmt.Sprintf(leafDataFormat, l))
-		hash := sha256.Sum256(leafData)
-		lh := hash[:]
-		leaf := trillian.LogLeaf{LeafValue: leafData, LeafIdentityHash: lh, MerkleLeafHash: lh}
-		leaves := []*trillian.LogLeaf{&leaf}
-
-		if _, err := ls.QueueLeaves(context.TODO(), tree, leaves, time.Now()); err != nil {
-			glog.Fatalf("QueueLeaves got: %v, want: no err", err)
+func sequenceLeaves(ls storage.LogStorage, tree *trillian.Tree, leaves []*trillian.LogLeaf, batchSize int) {
+	for i, size := 0, len(leaves); i < size; i += batchSize {
+		if left := size - i; left < batchSize {
+			batchSize = left
+		}
+		if _, err := ls.QueueLeaves(context.TODO(), tree, leaves[i:i+batchSize], time.Now()); err != nil {
+			glog.Fatalf("QueueLeaves: %v", err)
 		}
 
-		if l > 0 && l%batchSize == 0 {
-			sequence(tree, ls, batchSize, batchSize)
+		sequenced, err := log.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System, ls, quota.Noop())
+		if err != nil {
+			glog.Fatalf("IntegrateBatch: %v", err)
+		}
+		if got, want := sequenced, batchSize; got != want {
+			glog.Fatalf("IntegrateBatch: got %d, want %d", got, want)
 		}
 	}
-	glog.Info("Finished queueing")
-	// Handle anything left over
-	left := treeSize % batchSize
-	if left == 0 {
-		left = batchSize
+}
+
+func generateLeaves(count int, format string) []*trillian.LogLeaf {
+	leaves := make([]*trillian.LogLeaf, 0, count)
+	for i := 0; i < count; i++ {
+		data := []byte(fmt.Sprintf(format, i))
+		hash := sha256.Sum256(data)
+		leaves = append(leaves, &trillian.LogLeaf{
+			LeafValue: data, LeafIdentityHash: hash[:], MerkleLeafHash: hash[:],
+		})
 	}
-	sequence(tree, ls, left, batchSize)
-	glog.Info("Finished sequencing")
+	return leaves
 }
