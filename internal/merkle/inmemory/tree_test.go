@@ -300,17 +300,13 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 uint64,
 	return proof, nil
 }
 
-func TestEmptyTreeIsEmpty(t *testing.T) {
+func TestEmptyTree(t *testing.T) {
 	mt := makeEmptyTree()
-
 	if size := mt.Size(); size != 0 {
-		t.Errorf("Empty tree had leaves: %d", size)
+		t.Errorf("Size: %d, want 0", size)
 	}
-}
-
-func TestEmptyTreeHash(t *testing.T) {
-	if got, want := makeEmptyTree().Hash(), to.EmptyRootHash(); !bytes.Equal(got, want) {
-		t.Errorf("empty tree hash mismatch: %x, want %x", got, want)
+	if got, want := mt.Hash(), to.EmptyRootHash(); !bytes.Equal(got, want) {
+		t.Errorf("Hash: %x, want %x", got, want)
 	}
 }
 
