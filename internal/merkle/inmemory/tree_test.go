@@ -32,12 +32,6 @@ import (
 
 var fuzzTestSize = int64(256)
 
-// Inputs to the reference tree, which has eight leaves.
-var leafInputs = [][]byte{
-	hx(""), hx("00"), hx("10"), hx("2021"), hx("3031"), hx("40414243"),
-	hx("5051525354555657"), hx("606162636465666768696a6b6c6d6e6f"),
-}
-
 // Incremental roots from building the reference tree from inputs leaf-by-leaf.
 // Generated from ReferenceMerkleTreeHash in C++.
 var rootsAtSize = []string{
@@ -332,33 +326,24 @@ func validateTree(mt *Tree, l uint64, t *testing.T) {
 
 func TestBuildTreeBuildOneAtATime(t *testing.T) {
 	mt := makeEmptyTree()
-
-	// Add to the tree, checking after each leaf
-	for l := uint64(0); l < 8; l++ {
-		mt.AppendData(leafInputs[l])
-		validateTree(mt, l, t)
+	for i, entry := range to.LeafInputs() {
+		mt.AppendData(entry)
+		validateTree(mt, uint64(i), t)
 	}
+}
+
+func TestBuildTreeBuildTwoChunks(t *testing.T) {
+	entries := to.LeafInputs()
+	mt := makeEmptyTree()
+	mt.AppendData(entries[:3]...)
+	validateTree(mt, 2, t)
+	mt.AppendData(entries[3:8]...)
+	validateTree(mt, 7, t)
 }
 
 func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	mt := makeEmptyTree()
-	mt.AppendData(leafInputs[:3]...)
-
-	// Check the intermediate state
-	validateTree(mt, 2, t)
-
-	mt.AppendData(leafInputs[3:8]...)
-
-	// Check the final state
-	validateTree(mt, 7, t)
-}
-
-func TestBuildTreeBuildTwoChunks(t *testing.T) {
-	mt := makeEmptyTree()
-
-	// Add to the tree, checking after each leaf
-	mt.AppendData(leafInputs[:8]...)
-
+	mt.AppendData(to.LeafInputs()...)
 	validateTree(mt, 7, t)
 }
 
@@ -379,7 +364,7 @@ func TestDownToPowerOfTwoSanity(t *testing.T) {
 
 func TestReferenceMerklePathSanity(t *testing.T) {
 	mt := makeEmptyTree()
-	data := append([][]byte{}, leafInputs[:8]...)
+	data := to.LeafInputs()
 
 	for _, path := range testPaths {
 		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf, mt.hasher)
@@ -512,7 +497,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 func TestMerkleTreePathBuildOnce(t *testing.T) {
 	// First tree: build in one go.
 	mt := makeEmptyTree()
-	mt.AppendData(leafInputs[:8]...)
+	mt.AppendData(to.LeafInputs()...)
 
 	if size := mt.Size(); size != 8 {
 		t.Fatalf("8 leaves added but tree size is %d", size)
@@ -549,15 +534,16 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 }
 
 func TestMerkleTreePathBuildIncrementally(t *testing.T) {
+	entries := to.LeafInputs()
 	// Second tree: build incrementally.
 	// First tree: build in one go.
 	mt := makeEmptyTree()
-	mt.AppendData(leafInputs[:8]...)
+	mt.AppendData(entries...)
 
 	mt2 := makeEmptyTree()
 
 	for i := uint64(0); i < 8; i++ {
-		mt2.AppendData(leafInputs[i])
+		mt2.AppendData(entries[i])
 
 		for j := uint64(0); j < i+1; j++ {
 			p1, err := mt.InclusionProof(j, i+1)
@@ -592,7 +578,7 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 
 func TestProofConsistencyTestVectors(t *testing.T) {
 	mt := makeEmptyTree()
-	mt.AppendData(leafInputs[:8]...)
+	mt.AppendData(to.LeafInputs()...)
 
 	if size := mt.Size(); size != 8 {
 		t.Fatalf("8 leaves added but tree size is %d", size)
