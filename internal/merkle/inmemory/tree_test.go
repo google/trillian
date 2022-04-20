@@ -31,15 +31,6 @@ import (
 
 // TODO(pavelkalinnikov): Rewrite this file entirely.
 
-// hx decodes a hex string or panics.
-func hx(hs string) []byte {
-	data, err := hex.DecodeString(hs)
-	if err != nil {
-		panic(fmt.Errorf("failed to decode test data: %s", hs))
-	}
-	return data
-}
-
 func makeEmptyTree() *Tree {
 	return New(rfc6962.DefaultHasher)
 }
