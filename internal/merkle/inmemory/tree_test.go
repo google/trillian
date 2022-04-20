@@ -304,7 +304,7 @@ func TestEmptyTree(t *testing.T) {
 	}
 }
 
-func validateTree(mt *Tree, l uint64, t *testing.T) {
+func validateTree(t *testing.T, mt *Tree, l uint64) {
 	if got, want := mt.Size(), l+1; got != want {
 		t.Errorf("Incorrect leaf count %d, expecting %d", got, want)
 	}
@@ -328,7 +328,7 @@ func TestBuildTreeBuildOneAtATime(t *testing.T) {
 	mt := makeEmptyTree()
 	for i, entry := range to.LeafInputs() {
 		mt.AppendData(entry)
-		validateTree(mt, uint64(i), t)
+		validateTree(t, mt, uint64(i))
 	}
 }
 
@@ -336,15 +336,15 @@ func TestBuildTreeBuildTwoChunks(t *testing.T) {
 	entries := to.LeafInputs()
 	mt := makeEmptyTree()
 	mt.AppendData(entries[:3]...)
-	validateTree(mt, 2, t)
+	validateTree(t, mt, 2)
 	mt.AppendData(entries[3:8]...)
-	validateTree(mt, 7, t)
+	validateTree(t, mt, 7)
 }
 
 func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	mt := makeEmptyTree()
 	mt.AppendData(to.LeafInputs()...)
-	validateTree(mt, 7, t)
+	validateTree(t, mt, 7)
 }
 
 func TestDownToPowerOfTwoSanity(t *testing.T) {
