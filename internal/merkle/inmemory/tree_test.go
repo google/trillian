@@ -281,16 +281,6 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 uint64,
 	return proof, nil
 }
 
-func TestEmptyTree(t *testing.T) {
-	mt := makeEmptyTree()
-	if size := mt.Size(); size != 0 {
-		t.Errorf("Size: %d, want 0", size)
-	}
-	if got, want := mt.Hash(), to.EmptyRootHash(); !bytes.Equal(got, want) {
-		t.Errorf("Hash: %x, want %x", got, want)
-	}
-}
-
 func validateTree(t *testing.T, mt *Tree, size uint64) {
 	t.Helper()
 	if got, want := mt.Size(), size; got != want {
@@ -309,6 +299,7 @@ func validateTree(t *testing.T, mt *Tree, size uint64) {
 
 func TestBuildTreeBuildOneAtATime(t *testing.T) {
 	mt := makeEmptyTree()
+	validateTree(t, mt, 0)
 	for i, entry := range to.LeafInputs() {
 		mt.AppendData(entry)
 		validateTree(t, mt, uint64(i+1))
