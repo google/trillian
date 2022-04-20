@@ -22,6 +22,16 @@ import (
 )
 
 // Tree implements an append-only Merkle tree. For testing.
+//
+// This type is immutable, but, if Append* methods are not used carefully, the
+// hashes can be corrupted. The semantics of memory reuse and reallocation is
+// similar to that of the append built-in for Go slices: overlapping Trees can
+// share memory.
+//
+// It is recommended to reuse old versions of Tree only for read operations, or
+// making sure that the newer Trees are no longer used before writing to an
+// older Tree. One scenario when rolling back to an older Tree can be useful is
+// implementing transaction semantics, rollbacks, and snapshots.
 type Tree struct {
 	hasher merkle.LogHasher
 	size   uint64
@@ -33,7 +43,10 @@ func New(hasher merkle.LogHasher) Tree {
 	return Tree{hasher: hasher}
 }
 
-// AppendData adds the leaf hashes of the given entries to the end of the tree.
+// AppendData returns a new Tree which is the result of appending the hashes of
+// the given entries and the dependent Merkle tree nodes to the current tree.
+//
+// See Append method comment for details on safety.
 func (t Tree) AppendData(entries ...[]byte) Tree {
 	for _, entry := range entries {
 		t.appendImpl(t.hasher.HashLeaf(entry))
@@ -41,7 +54,13 @@ func (t Tree) AppendData(entries ...[]byte) Tree {
 	return t
 }
 
-// Append adds the given leaf hashes to the end of the tree.
+// Append returns a new Tree which is the result of appending the given leaf
+// hashes and the dependent Merkle tree nodes to the current tree.
+//
+// The new Tree likely shares data with the old Tree, but in such a way that
+// both objects are valid. It is safe to reuse / roll back to the older Tree
+// objects, but Append should be called on them with caution because it may
+// corrupt hashes in the newer Tree objects.
 func (t Tree) Append(hashes ...[]byte) Tree {
 	for _, hash := range hashes {
 		t.appendImpl(hash)
