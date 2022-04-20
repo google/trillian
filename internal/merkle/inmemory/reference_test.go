@@ -155,3 +155,35 @@ func TestRefInclusionProof(t *testing.T) {
 		})
 	}
 }
+
+func TestRefConsistencyProof(t *testing.T) {
+	for _, tc := range []struct {
+		size1 uint64
+		size2 uint64
+		want  [][]byte
+	}{
+		{size1: 1, size2: 1, want: nil},
+		{size1: 1, size2: 8, want: [][]byte{
+			hx("96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7"),
+			hx("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"),
+			hx("6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4"),
+		}},
+		{size1: 2, size2: 5, want: [][]byte{
+			hx("5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e"),
+			hx("bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b"),
+		}},
+		{size1: 6, size2: 8, want: [][]byte{
+			hx("0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a"),
+			hx("ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0"),
+			hx("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"),
+		}},
+	} {
+		t.Run(fmt.Sprintf("%d:%d", tc.size1, tc.size2), func(t *testing.T) {
+			entries := to.LeafInputs()
+			got := refConsistencyProof(entries[:tc.size2], tc.size2, tc.size1, rfc6962.DefaultHasher, true)
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Errorf("refConsistencyProof: diff (-got +want)\n%s", diff)
+			}
+		})
+	}
+}

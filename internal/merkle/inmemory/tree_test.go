@@ -32,31 +32,6 @@ import (
 
 var fuzzTestSize = int64(256)
 
-type proofTestVector struct {
-	snapshot1 uint64
-	snapshot2 uint64
-	proof     []string
-}
-
-// Generated from ReferenceSnapshotConsistency in C++ version.
-var testProofs = []proofTestVector{
-	{1, 1, []string{}},
-	{1, 8, []string{
-		"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
-		"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-		"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
-	}},
-	{6, 8, []string{
-		"0ebc5d3437fbe2db158b9f126a1d118e308181031d0a949f8dededebc558ef6a",
-		"ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
-		"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
-	}},
-	{2, 5, []string{
-		"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-		"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
-	}},
-}
-
 // hx decodes a hex string or panics.
 func hx(hs string) []byte {
 	data, err := hex.DecodeString(hs)
