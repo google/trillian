@@ -146,15 +146,6 @@ func makeFuzzTestData() [][]byte {
 	return data
 }
 
-func getRootAsString(mt *Tree, size uint64) string {
-	if size > mt.Size() {
-		// Doesn't matter what this is as long as it could never be a valid
-		// hex encoding of a hash
-		return "<nil>"
-	}
-	return hex.EncodeToString(mt.HashAt(size))
-}
-
 // REFERENCE IMPLEMENTATIONS
 
 // Get the largest power of two smaller than i.
@@ -328,23 +319,17 @@ func validateTree(mt *Tree, l uint64, t *testing.T) {
 		t.Errorf("Incorrect leaf count %d, expecting %d", got, want)
 	}
 
-	if got, want := getRootAsString(mt, l+1), rootsAtSize[l]; got != want {
+	if got, want := hex.EncodeToString(mt.HashAt(l+1)), rootsAtSize[l]; got != want {
 		t.Errorf("Incorrect root %d, got %s", l, got)
 	}
 
-	if got, want := getRootAsString(mt, 0), hex.EncodeToString(to.EmptyRootHash()); got != want {
-		t.Errorf("Incorrect root(0) %d, got %s", l, got)
+	if got, want := mt.HashAt(0), to.EmptyRootHash(); !bytes.Equal(got, want) {
+		t.Errorf("Incorrect root(0) %d, got %x", l, got)
 	}
 
 	for j := uint64(0); j <= l; j++ {
-		if got, want := getRootAsString(mt, j+1), rootsAtSize[j]; got != want {
+		if got, want := hex.EncodeToString(mt.HashAt(j+1)), rootsAtSize[j]; got != want {
 			t.Errorf("Incorrect root %d, %d, got %s", l, j, got)
-		}
-	}
-
-	for k := l + 1; k <= 8; k++ {
-		if got, want := getRootAsString(mt, k+1), "<nil>"; got != want {
-			t.Errorf("Got root for missing leaf %d, %d, %s", l, k, got)
 		}
 	}
 }
