@@ -19,9 +19,6 @@
 //
 // Examples of some usages:
 //
-// Print a summary of the storage protos in a tree of size 1044, rebuilding internal nodes:
-// dump_tree -tree_size 1044 -summary
-//
 // Print all versions of all raw subtree protos for a tree of size 58:
 // dump_tree -tree_size 58 -latest_version=false
 //
@@ -44,9 +41,7 @@ var (
 	batchSizeFlag       = flag.Int("batch_size", 50, "The batch size for sequencing")
 	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 	latestRevisionFlag  = flag.Bool("latest_version", true, "If true outputs only the latest revision per subtree")
-	summaryFlag         = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
 	hexKeysFlag         = flag.Bool("hex_keys", false, "If true shows proto keys as hex rather than base64")
-	leafHashesFlag      = flag.Bool("leaf_hashes", false, "If true the summary output includes leaf hashes")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 	traverseFlag        = flag.Bool("traverse", false, "If true dumps a tree traversal via coord space, else raw subtrees")
 	dumpLeavesFlag      = flag.Bool("dump_leaves", false, "If true dumps the leaf data from the tree via the API")
@@ -61,9 +56,7 @@ func main() {
 		BatchSize:      *batchSizeFlag,
 		LeafFormat:     *leafDataFormatFlag,
 		LatestRevision: *latestRevisionFlag,
-		Summary:        *summaryFlag,
 		HexKeys:        *hexKeysFlag,
-		LeafHashes:     *leafHashesFlag,
 		Rebuild:        *rebuildInternalFlag,
 		Traverse:       *traverseFlag,
 		DumpLeaves:     *dumpLeavesFlag,

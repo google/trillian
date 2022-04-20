@@ -50,29 +50,6 @@ type treeAndRev struct {
 	revision int
 }
 
-// summarizeProto is an output formatter function that produces a single line summary.
-func summarizeProto(leafHashesFlag bool) func(s *storagepb.SubtreeProto) string {
-	return func(s *storagepb.SubtreeProto) string {
-		summary := fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d\n",
-			hex.EncodeToString(s.Prefix),
-			s.Depth,
-			len(s.Leaves),
-			s.InternalNodeCount)
-
-		if leafHashesFlag {
-			for prefix, hash := range s.Leaves {
-				dp, err := base64.StdEncoding.DecodeString(prefix)
-				if err != nil {
-					glog.Fatalf("Failed to decode leaf prefix: %v", err)
-				}
-				summary += fmt.Sprintf("%s -> %s\n", hex.EncodeToString(dp), hex.EncodeToString(hash))
-			}
-		}
-
-		return summary
-	}
-}
-
 // fullProto is an output formatter function that produces a single line in proto text format.
 func fullProto(s *storagepb.SubtreeProto) string {
 	return fmt.Sprintf("%s\n", prototext.Format(s))
@@ -123,10 +100,10 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 
 // Options are the commandline arguments one can pass to Main
 type Options struct {
-	TreeSize, BatchSize                          int
-	LeafFormat                                   string
-	LatestRevision, Summary, HexKeys, LeafHashes bool
-	Rebuild, Traverse, DumpLeaves                bool
+	TreeSize, BatchSize           int
+	LeafFormat                    string
+	LatestRevision, HexKeys       bool
+	Rebuild, Traverse, DumpLeaves bool
 }
 
 // Main runs the dump_tree tool
@@ -177,13 +154,7 @@ func Main(args Options) string {
 		return dumpLeaves(ctx, ls, tree, args.TreeSize)
 	}
 
-	var formatter func(*storagepb.SubtreeProto) string
-	switch {
-	case args.Summary:
-		formatter = summarizeProto(args.LeafHashes)
-	default:
-		formatter = fullProto
-	}
+	formatter := fullProto
 
 	if args.LatestRevision {
 		return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild, args.HexKeys)

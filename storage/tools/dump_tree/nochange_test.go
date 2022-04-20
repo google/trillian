@@ -39,7 +39,7 @@ func TestDBFormatNoChange(t *testing.T) {
 			opts: Options{
 				96, 50,
 				"Leaf %d",
-				true, false, false, false, true, false, false,
+				true, false, true, false, false,
 			},
 		},
 		{
@@ -48,7 +48,7 @@ func TestDBFormatNoChange(t *testing.T) {
 			opts: Options{
 				871, 50,
 				"Leaf %d",
-				true, false, false, false, true, false, false,
+				true, false, true, false, false,
 			},
 		},
 		{
@@ -57,7 +57,7 @@ func TestDBFormatNoChange(t *testing.T) {
 			opts: Options{
 				1000, 50,
 				"Leaf %d",
-				true, false, false, false, true, false, false,
+				true, false, true, false, false,
 			},
 		},
 		{
@@ -66,7 +66,7 @@ func TestDBFormatNoChange(t *testing.T) {
 			opts: Options{
 				1024, 50,
 				"Leaf %d",
-				true, false, false, false, true, false, false,
+				true, false, true, false, false,
 			},
 		},
 	} {
