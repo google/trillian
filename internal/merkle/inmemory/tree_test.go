@@ -304,22 +304,17 @@ func TestEmptyTree(t *testing.T) {
 	}
 }
 
-func validateTree(t *testing.T, mt *Tree, l uint64) {
-	if got, want := mt.Size(), l+1; got != want {
-		t.Errorf("Incorrect leaf count %d, expecting %d", got, want)
-	}
-
-	if got, want := hex.EncodeToString(mt.HashAt(l+1)), rootsAtSize[l]; got != want {
-		t.Errorf("Incorrect root %d, got %s", l, got)
+func validateTree(t *testing.T, mt *Tree, size uint64) {
+	if got, want := mt.Size(), size; got != want {
+		t.Errorf("Size: %d, want %d", got, want)
 	}
 
 	if got, want := mt.HashAt(0), to.EmptyRootHash(); !bytes.Equal(got, want) {
-		t.Errorf("Incorrect root(0) %d, got %x", l, got)
+		t.Errorf("HashAt(0/%d): %s, want %s", size, got, want)
 	}
-
-	for j := uint64(0); j <= l; j++ {
-		if got, want := hex.EncodeToString(mt.HashAt(j+1)), rootsAtSize[j]; got != want {
-			t.Errorf("Incorrect root %d, %d, got %s", l, j, got)
+	for s := uint64(1); s <= size; s++ {
+		if got, want := hex.EncodeToString(mt.HashAt(s)), rootsAtSize[s-1]; got != want {
+			t.Errorf("HashAt(%d/%d): %s, want %s", s, size, got, want)
 		}
 	}
 }
@@ -328,7 +323,7 @@ func TestBuildTreeBuildOneAtATime(t *testing.T) {
 	mt := makeEmptyTree()
 	for i, entry := range to.LeafInputs() {
 		mt.AppendData(entry)
-		validateTree(t, mt, uint64(i))
+		validateTree(t, mt, uint64(i+1))
 	}
 }
 
@@ -336,15 +331,15 @@ func TestBuildTreeBuildTwoChunks(t *testing.T) {
 	entries := to.LeafInputs()
 	mt := makeEmptyTree()
 	mt.AppendData(entries[:3]...)
-	validateTree(t, mt, 2)
+	validateTree(t, mt, 3)
 	mt.AppendData(entries[3:8]...)
-	validateTree(t, mt, 7)
+	validateTree(t, mt, 8)
 }
 
 func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	mt := makeEmptyTree()
 	mt.AppendData(to.LeafInputs()...)
-	validateTree(t, mt, 7)
+	validateTree(t, mt, 8)
 }
 
 func TestDownToPowerOfTwoSanity(t *testing.T) {
