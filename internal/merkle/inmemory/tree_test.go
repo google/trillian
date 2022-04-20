@@ -292,6 +292,7 @@ func TestEmptyTree(t *testing.T) {
 }
 
 func validateTree(t *testing.T, mt *Tree, size uint64) {
+	t.Helper()
 	if got, want := mt.Size(), size; got != want {
 		t.Errorf("Size: %d, want %d", got, want)
 	}
