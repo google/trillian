@@ -181,49 +181,6 @@ func TestTreeInclusionProof(t *testing.T) {
 	}
 }
 
-func TestMerkleTreePathBuildIncrementally(t *testing.T) {
-	entries := to.LeafInputs()
-	// Second tree: build incrementally.
-	// First tree: build in one go.
-	mt := makeEmptyTree()
-	mt.AppendData(entries...)
-
-	mt2 := makeEmptyTree()
-
-	for i := uint64(0); i < 8; i++ {
-		mt2.AppendData(entries[i])
-
-		for j := uint64(0); j < i+1; j++ {
-			p1, err := mt.InclusionProof(j, i+1)
-			if err != nil {
-				t.Fatalf("InclusionProof: %v", err)
-			}
-			p2, err := mt2.InclusionProof(j, mt2.Size())
-			if err != nil {
-				t.Fatalf("InclusionProof: %v", err)
-			}
-
-			if len(p1) != len(p2) {
-				t.Errorf("Different path lengths %d %d", len(p1), len(p2))
-				t.FailNow()
-			}
-
-			for j := 0; j < len(p2); j++ {
-				if !bytes.Equal(p1[j], p2[j]) {
-					t.Errorf("Path mismatch: %s %s", hex.EncodeToString(p1[j]),
-						hex.EncodeToString(p2[j]))
-				}
-			}
-		}
-
-		for k := i + 2; k <= 9; k++ {
-			if proof, err := mt.InclusionProof(k, i+1); err == nil {
-				t.Errorf("Got non empty path unexpectedly: %d %d %d", i, k, len(proof))
-			}
-		}
-	}
-}
-
 func TestTreeConsistencyProof(t *testing.T) {
 	entries := to.LeafInputs()
 	mt := makeEmptyTree()
@@ -247,5 +204,20 @@ func TestTreeConsistencyProof(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestTreeAppendAssociativity(t *testing.T) {
+	entries := makeFuzzTestData()
+	mt1 := makeEmptyTree()
+	mt1.AppendData(entries...)
+
+	mt2 := makeEmptyTree()
+	for _, entry := range entries {
+		mt2.AppendData(entry)
+	}
+
+	if diff := cmp.Diff(mt1, mt2, cmp.AllowUnexported(Tree{})); diff != "" {
+		t.Errorf("AppendData is not associative: diff (-mt1 +mt2)\n%s", diff)
 	}
 }
