@@ -100,7 +100,6 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 type Options struct {
 	TreeSize, BatchSize int
 	LeafFormat          string
-	Rebuild             bool
 }
 
 // Main runs the dump_tree tool
@@ -145,10 +144,10 @@ func Main(args Options) string {
 
 	formatter := fullProto
 
-	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter, args.Rebuild)
+	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter)
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string, rebuildInternal bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
@@ -185,9 +184,7 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 	// The map should now contain the latest revisions per subtree
 	for _, k := range sKeys {
 		v := vMap[k]
-		if rebuildInternal {
-			cache.PopulateLogTile(v.subtree, hasher)
-		}
+		cache.PopulateLogTile(v.subtree, hasher)
 		fmt.Fprint(out, of(v.subtree))
 	}
 	return out.String()

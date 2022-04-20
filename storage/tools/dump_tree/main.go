@@ -31,10 +31,9 @@ import (
 )
 
 var (
-	treeSizeFlag        = flag.Int("tree_size", 871, "The number of leaves to be added to the tree")
-	batchSizeFlag       = flag.Int("batch_size", 50, "The batch size for sequencing")
-	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
-	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
+	treeSizeFlag       = flag.Int("tree_size", 871, "The number of leaves to be added to the tree")
+	batchSizeFlag      = flag.Int("batch_size", 50, "The batch size for sequencing")
+	leafDataFormatFlag = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 )
 
 func main() {
@@ -45,6 +44,5 @@ func main() {
 		TreeSize:   *treeSizeFlag,
 		BatchSize:  *batchSizeFlag,
 		LeafFormat: *leafDataFormatFlag,
-		Rebuild:    *rebuildInternalFlag,
 	}))
 }
