@@ -25,14 +25,12 @@ import (
 	_ "github.com/golang/glog"
 	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/rfc6962"
+	to "github.com/transparency-dev/merkle/testonly"
 )
 
 // TODO(pavelkalinnikov): Rewrite this file entirely.
 
 var fuzzTestSize = int64(256)
-
-// This is the hash of an empty string
-var emptyTreeHashValue = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 // Inputs to the reference tree, which has eight leaves.
 var leafInputs = [][]byte{
@@ -320,11 +318,8 @@ func TestEmptyTreeIsEmpty(t *testing.T) {
 }
 
 func TestEmptyTreeHash(t *testing.T) {
-	actual := makeEmptyTree().Hash()
-	actualStr := hex.EncodeToString(actual)
-
-	if actualStr != emptyTreeHashValue {
-		t.Errorf("Unexpected empty tree hash: %s", actualStr)
+	if got, want := makeEmptyTree().Hash(), to.EmptyRootHash(); !bytes.Equal(got, want) {
+		t.Errorf("empty tree hash mismatch: %x, want %x", got, want)
 	}
 }
 
@@ -337,7 +332,7 @@ func validateTree(mt *Tree, l uint64, t *testing.T) {
 		t.Errorf("Incorrect root %d, got %s", l, got)
 	}
 
-	if got, want := getRootAsString(mt, 0), emptyTreeHashValue; got != want {
+	if got, want := getRootAsString(mt, 0), hex.EncodeToString(to.EmptyRootHash()); got != want {
 		t.Errorf("Incorrect root(0) %d, got %s", l, got)
 	}
 
