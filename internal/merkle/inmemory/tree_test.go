@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	_ "github.com/golang/glog"
@@ -29,8 +30,6 @@ import (
 )
 
 // TODO(pavelkalinnikov): Rewrite this file entirely.
-
-var fuzzTestSize = int64(256)
 
 // hx decodes a hex string or panics.
 func hx(hs string) []byte {
@@ -45,15 +44,13 @@ func makeEmptyTree() *Tree {
 	return New(rfc6962.DefaultHasher)
 }
 
-func makeFuzzTestData() [][]byte {
-	var data [][]byte
-
-	for s := int64(0); s < fuzzTestSize; s++ {
-		data = append(data, make([]byte, 1))
-		data[s][0] = byte(s)
+// genEntries a slice of entries of the given size.
+func genEntries(size uint64) [][]byte {
+	entries := make([][]byte, size)
+	for i := range entries {
+		entries[i] = []byte(strconv.Itoa(i))
 	}
-
-	return data
+	return entries
 }
 
 func validateTree(t *testing.T, mt *Tree, size uint64) {
@@ -115,14 +112,14 @@ func TestTreeHashAt(t *testing.T) {
 	for size := 0; size <= len(entries); size++ {
 		test(fmt.Sprintf("size:%d", size), entries[:size])
 	}
-	test("generated", makeFuzzTestData())
+	test("generated", genEntries(256))
 }
 
 // Make random proof queries and check against the reference implementation.
 func TestMerkleTreeConsistencyFuzz(t *testing.T) {
-	data := makeFuzzTestData()
+	data := genEntries(256)
 
-	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
+	for treeSize := int64(1); treeSize <= 256; treeSize++ {
 		mt := makeEmptyTree()
 		mt.AppendData(data[:treeSize]...)
 
@@ -174,7 +171,7 @@ func TestTreeInclusionProof(t *testing.T) {
 		})
 	}
 
-	test("generated", makeFuzzTestData())
+	test("generated", genEntries(256))
 	entries := to.LeafInputs()
 	for size := 0; size < len(entries); size++ {
 		test(fmt.Sprintf("golden:%d", size), entries[:size])
@@ -208,7 +205,7 @@ func TestTreeConsistencyProof(t *testing.T) {
 }
 
 func TestTreeAppendAssociativity(t *testing.T) {
-	entries := makeFuzzTestData()
+	entries := genEntries(256)
 	mt1 := makeEmptyTree()
 	mt1.AppendData(entries...)
 
