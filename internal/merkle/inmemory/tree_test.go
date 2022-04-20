@@ -31,19 +31,6 @@ import (
 
 // TODO(pavelkalinnikov): Rewrite this file entirely.
 
-func makeEmptyTree() *Tree {
-	return New(rfc6962.DefaultHasher)
-}
-
-// genEntries a slice of entries of the given size.
-func genEntries(size uint64) [][]byte {
-	entries := make([][]byte, size)
-	for i := range entries {
-		entries[i] = []byte(strconv.Itoa(i))
-	}
-	return entries
-}
-
 func validateTree(t *testing.T, mt *Tree, size uint64) {
 	t.Helper()
 	if got, want := mt.Size(), size; got != want {
@@ -61,7 +48,7 @@ func validateTree(t *testing.T, mt *Tree, size uint64) {
 }
 
 func TestBuildTreeBuildOneAtATime(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := newTree(nil)
 	validateTree(t, mt, 0)
 	for i, entry := range to.LeafInputs() {
 		mt.AppendData(entry)
@@ -71,7 +58,7 @@ func TestBuildTreeBuildOneAtATime(t *testing.T) {
 
 func TestBuildTreeBuildTwoChunks(t *testing.T) {
 	entries := to.LeafInputs()
-	mt := makeEmptyTree()
+	mt := newTree(nil)
 	mt.AppendData(entries[:3]...)
 	validateTree(t, mt, 3)
 	mt.AppendData(entries[3:8]...)
@@ -79,7 +66,7 @@ func TestBuildTreeBuildTwoChunks(t *testing.T) {
 }
 
 func TestBuildTreeBuildAllAtOnce(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := newTree(nil)
 	mt.AppendData(to.LeafInputs()...)
 	validateTree(t, mt, 8)
 }
@@ -87,8 +74,7 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 func TestTreeHashAt(t *testing.T) {
 	test := func(desc string, entries [][]byte) {
 		t.Run(desc, func(t *testing.T) {
-			mt := makeEmptyTree()
-			mt.AppendData(entries...)
+			mt := newTree(entries)
 			for size := 0; size <= len(entries); size++ {
 				got := mt.HashAt(uint64(size))
 				want := refRootHash(entries[:size], mt.hasher)
@@ -111,8 +97,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 	data := genEntries(256)
 
 	for treeSize := int64(1); treeSize <= 256; treeSize++ {
-		mt := makeEmptyTree()
-		mt.AppendData(data[:treeSize]...)
+		mt := newTree(data[:treeSize])
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
@@ -147,8 +132,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 func TestTreeInclusionProof(t *testing.T) {
 	test := func(desc string, entries [][]byte) {
 		t.Run(desc, func(t *testing.T) {
-			mt := makeEmptyTree()
-			mt.AppendData(entries...)
+			mt := newTree(entries)
 			for index, size := uint64(0), uint64(len(entries)); index < size; index++ {
 				got, err := mt.InclusionProof(index, size)
 				if err != nil {
@@ -171,8 +155,7 @@ func TestTreeInclusionProof(t *testing.T) {
 
 func TestTreeConsistencyProof(t *testing.T) {
 	entries := to.LeafInputs()
-	mt := makeEmptyTree()
-	mt.AppendData(entries...)
+	mt := newTree(entries)
 	validateTree(t, mt, 8)
 
 	if _, err := mt.ConsistencyProof(6, 3); err == nil {
@@ -197,10 +180,9 @@ func TestTreeConsistencyProof(t *testing.T) {
 
 func TestTreeAppend(t *testing.T) {
 	entries := genEntries(256)
-	mt1 := makeEmptyTree()
-	mt1.AppendData(entries...)
+	mt1 := newTree(entries)
 
-	mt2 := makeEmptyTree()
+	mt2 := newTree(nil)
 	for _, entry := range entries {
 		mt2.Append(rfc6962.DefaultHasher.HashLeaf(entry))
 	}
@@ -212,10 +194,10 @@ func TestTreeAppend(t *testing.T) {
 
 func TestTreeAppendAssociativity(t *testing.T) {
 	entries := genEntries(256)
-	mt1 := makeEmptyTree()
+	mt1 := newTree(nil)
 	mt1.AppendData(entries...)
 
-	mt2 := makeEmptyTree()
+	mt2 := newTree(nil)
 	for _, entry := range entries {
 		mt2.AppendData(entry)
 	}
@@ -223,4 +205,19 @@ func TestTreeAppendAssociativity(t *testing.T) {
 	if diff := cmp.Diff(mt1, mt2, cmp.AllowUnexported(Tree{})); diff != "" {
 		t.Errorf("AppendData is not associative: diff (-mt1 +mt2)\n%s", diff)
 	}
+}
+
+func newTree(entries [][]byte) *Tree {
+	tree := New(rfc6962.DefaultHasher)
+	tree.AppendData(entries...)
+	return tree
+}
+
+// genEntries a slice of entries of the given size.
+func genEntries(size uint64) [][]byte {
+	entries := make([][]byte, size)
+	for i := range entries {
+		entries[i] = []byte(strconv.Itoa(i))
+	}
+	return entries
 }
