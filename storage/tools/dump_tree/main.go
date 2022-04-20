@@ -43,7 +43,6 @@ var (
 	latestRevisionFlag  = flag.Bool("latest_version", true, "If true outputs only the latest revision per subtree")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 	traverseFlag        = flag.Bool("traverse", false, "If true dumps a tree traversal via coord space, else raw subtrees")
-	dumpLeavesFlag      = flag.Bool("dump_leaves", false, "If true dumps the leaf data from the tree via the API")
 )
 
 func main() {
@@ -57,6 +56,5 @@ func main() {
 		LatestRevision: *latestRevisionFlag,
 		Rebuild:        *rebuildInternalFlag,
 		Traverse:       *traverseFlag,
-		DumpLeaves:     *dumpLeavesFlag,
 	}))
 }

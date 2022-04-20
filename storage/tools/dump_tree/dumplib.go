@@ -99,10 +99,10 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
 
 // Options are the commandline arguments one can pass to Main
 type Options struct {
-	TreeSize, BatchSize           int
-	LeafFormat                    string
-	LatestRevision                bool
-	Rebuild, Traverse, DumpLeaves bool
+	TreeSize, BatchSize int
+	LeafFormat          string
+	LatestRevision      bool
+	Rebuild, Traverse   bool
 }
 
 // Main runs the dump_tree tool
@@ -147,10 +147,6 @@ func Main(args Options) string {
 
 	if args.Traverse {
 		return traverseTreeStorage(ctx, ls, tree, args.TreeSize)
-	}
-
-	if args.DumpLeaves {
-		return dumpLeaves(ctx, ls, tree, args.TreeSize)
 	}
 
 	formatter := fullProto
@@ -296,28 +292,6 @@ func traverseTreeStorage(ctx context.Context, ls storage.LogStorage, tt *trillia
 		if nodesAtLevel == 0 {
 			nodesAtLevel = 1
 		}
-	}
-	return out.String()
-}
-
-func dumpLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, ts int) string {
-	out := new(bytes.Buffer)
-	tx, err := ls.SnapshotForTree(ctx, tree)
-	if err != nil {
-		glog.Fatalf("SnapshotForTree: %v", err)
-	}
-	defer func() {
-		if err := tx.Commit(ctx); err != nil {
-			glog.Fatalf("TX Commit(): got: %v", err)
-		}
-	}()
-
-	for l := int64(0); l < int64(ts); l++ {
-		leaves, err := tx.GetLeavesByRange(ctx, l, 1)
-		if err != nil {
-			glog.Fatalf("GetLeavesByRange for index %d got: %v", l, err)
-		}
-		fmt.Fprintf(out, "%6d:%s\n", l, leaves[0].LeafValue)
 	}
 	return out.String()
 }
