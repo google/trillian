@@ -29,9 +29,6 @@ import (
 
 // TODO(pavelkalinnikov): Rewrite this file entirely.
 
-// FIXME
-var hx = decodeHexStringOrPanic
-
 var fuzzTestSize = int64(256)
 
 // This is the hash of an empty string
@@ -127,12 +124,12 @@ var testProofs = []proofTestVector{
 	}},
 }
 
-func decodeHexStringOrPanic(hs string) []byte {
+// hx decodes a hex string or panics.
+func hx(hs string) []byte {
 	data, err := hex.DecodeString(hs)
 	if err != nil {
 		panic(fmt.Errorf("failed to decode test data: %s", hs))
 	}
-
 	return data
 }
 
@@ -420,7 +417,7 @@ func TestReferenceMerklePathSanity(t *testing.T) {
 		}
 
 		for i := 0; i < len(path.testVector); i++ {
-			if !bytes.Equal(referencePath[i], decodeHexStringOrPanic(path.testVector[i])) {
+			if !bytes.Equal(referencePath[i], hx(path.testVector[i])) {
 				t.Errorf("Path mismatch: %s, %s", hex.EncodeToString(referencePath[i]),
 					path.testVector[i])
 			}
@@ -555,7 +552,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 	}
 
 	hash := mt.Hash()
-	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
+	if got, want := hash, hx(rootsAtSize[7]); !bytes.Equal(got, want) {
 		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}
 
@@ -577,7 +574,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 		}
 
 		for j := range p2 {
-			if got, want := p1[j], decodeHexStringOrPanic(testPaths[i].testVector[j]); !bytes.Equal(got, want) {
+			if got, want := p1[j], hx(testPaths[i].testVector[j]); !bytes.Equal(got, want) {
 				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
@@ -635,7 +632,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 	}
 
 	hash := mt.Hash()
-	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
+	if got, want := hash, hx(rootsAtSize[7]); !bytes.Equal(got, want) {
 		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}
 
@@ -653,7 +650,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		}
 
 		for j := 0; j < len(p2); j++ {
-			if got, want := p1[j], decodeHexStringOrPanic(testProofs[i].proof[j]); !bytes.Equal(got, want) {
+			if got, want := p1[j], hx(testProofs[i].proof[j]); !bytes.Equal(got, want) {
 				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
