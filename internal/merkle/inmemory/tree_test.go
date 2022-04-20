@@ -137,39 +137,38 @@ func downToPowerOfTwo(x uint64) uint64 {
 	return uint64(1) << (bits.Len64(x-1) - 1)
 }
 
-// Reference implementation of Merkle hash, for cross-checking.
-func referenceMerkleTreeHash(inputs [][]byte, treehasher merkle.LogHasher) []byte {
-	if len(inputs) == 0 {
-		return treehasher.EmptyRoot()
+// refRootHash returns the root hash of a Merkle tree with the given entries.
+// This is a reference implementation for cross-checking.
+func refRootHash(entries [][]byte, hasher merkle.LogHasher) []byte {
+	if len(entries) == 0 {
+		return hasher.EmptyRoot()
 	}
-	if len(inputs) == 1 {
-		return treehasher.HashLeaf(inputs[0])
+	if len(entries) == 1 {
+		return hasher.HashLeaf(entries[0])
 	}
-
-	split := downToPowerOfTwo(uint64(len(inputs)))
-
-	lhs := referenceMerkleTreeHash(inputs[:split], treehasher)
-	rhs := referenceMerkleTreeHash(inputs[split:], treehasher)
-	return treehasher.HashChildren(lhs, rhs)
+	split := downToPowerOfTwo(uint64(len(entries)))
+	return hasher.HashChildren(
+		refRootHash(entries[:split], hasher),
+		refRootHash(entries[split:], hasher))
 }
 
-// refInclusionProof is a reference implementation returning an inclusion proof
-// in a Merkle tree built using the given leaves, for the given leaf index.
-func refInclusionProof(leaves [][]byte, index uint64, hasher merkle.LogHasher) [][]byte {
-	size := uint64(len(leaves))
+// refInclusionProof returns the inclusion proof for the given leaf index in a
+// Merkle tree with the given entries. This is a reference implementation for
+// cross-checking.
+func refInclusionProof(entries [][]byte, index uint64, hasher merkle.LogHasher) [][]byte {
+	size := uint64(len(entries))
 	if size == 1 || index >= size {
 		return nil
 	}
 	split := downToPowerOfTwo(size)
-
 	if index < split {
 		return append(
-			refInclusionProof(leaves[:split], index, hasher),
-			referenceMerkleTreeHash(leaves[split:], hasher))
+			refInclusionProof(entries[:split], index, hasher),
+			refRootHash(entries[split:], hasher))
 	}
 	return append(
-		refInclusionProof(leaves[split:], index-split, hasher),
-		referenceMerkleTreeHash(leaves[:split], hasher))
+		refInclusionProof(entries[split:], index-split, hasher),
+		refRootHash(entries[:split], hasher))
 }
 
 // Reference implementation of snapshot consistency.
@@ -188,7 +187,7 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 uint64,
 			// Record the hash of this subtree unless it's the root for which
 			// the proof was originally requested. (This happens when the snapshot1
 			// tree is balanced.)
-			refHash := referenceMerkleTreeHash(inputs[:snapshot1], treehasher)
+			refHash := refRootHash(inputs[:snapshot1], treehasher)
 			proof = append(proof, refHash)
 		}
 		return proof
@@ -205,7 +204,7 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 uint64,
 		subproof = s
 		proof = append(proof, subproof...)
 		// Record the hash of the right subtree (only present in snapshot2).
-		h := referenceMerkleTreeHash(inputs[split:], treehasher)
+		h := refRootHash(inputs[split:], treehasher)
 		proof = append(proof, h)
 	} else {
 		// Snapshot1 root is at the same level as snapshot2 root.
@@ -216,7 +215,7 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 uint64,
 
 		proof = append(proof, subproof...)
 		// Record the hash of the left subtree (equal in both trees).
-		refHash := referenceMerkleTreeHash(inputs[:split], treehasher)
+		refHash := refRootHash(inputs[:split], treehasher)
 		proof = append(proof, refHash)
 	}
 	return proof
@@ -307,7 +306,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 			snapshot := uint64(rand.Int63n(treeSize + 1))
 
 			h1 := mt.HashAt(snapshot)
-			h2 := referenceMerkleTreeHash(data[:snapshot], mt.hasher)
+			h2 := refRootHash(data[:snapshot], mt.hasher)
 
 			if !bytes.Equal(h1, h2) {
 				t.Errorf("Mismatched hash: %x, %x", h1, h2)
