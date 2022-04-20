@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	_ "github.com/golang/glog"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/transparency-dev/merkle/rfc6962"
 	to "github.com/transparency-dev/merkle/testonly"
 )
@@ -35,45 +37,6 @@ type pathTestVector struct {
 	leaf       uint64
 	snapshot   uint64
 	testVector []string
-}
-
-// Generated from C++ ReferenceMerklePath, not the Go one so we can verify
-// that they are both producing the same paths in a sanity test.
-var testPaths = []pathTestVector{
-	{0, 1, []string{}},
-	{1, 2, []string{"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"}},
-	{
-		0,
-		8,
-		[]string{
-			"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
-			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-			"6b47aaf29ee3c2af9af889bc1fb9254dabd31177f16232dd6aab035ca39bf6e4",
-		},
-	},
-	{
-		5,
-		8,
-		[]string{
-			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
-			"ca854ea128ed050b41b35ffc1b87b8eb2bde461e9e3b5596ece6b9d5975a0ae0",
-			"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
-		},
-	},
-	{
-		2,
-		3,
-		[]string{"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"},
-	},
-	{
-		1,
-		5,
-		[]string{
-			"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
-			"5f083f0a1a33ca076a95279832580db3e0ef4584bdff1f54c8a360f50de3031e",
-			"bc1a0643b12e4d2d7c77918f44e0f4f79a838b6cf9ec5b5c283e1f4d88599e6b",
-		},
-	},
 }
 
 type proofTestVector struct {
@@ -264,33 +227,28 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 	}
 }
 
-func TestMerkleTreePathBuildOnce(t *testing.T) {
-	// First tree: build in one go.
+func TestTreeInslucionProof(t *testing.T) {
+	entries := to.LeafInputs()
 	mt := makeEmptyTree()
-	mt.AppendData(to.LeafInputs()...)
+	mt.AppendData(entries...)
 	validateTree(t, mt, 8)
 
-	if proof, err := mt.InclusionProof(8, 8); err == nil {
-		t.Fatalf("Obtained a path for non existent leaf 9: %v", proof)
+	if _, err := mt.InclusionProof(8, 8); err == nil {
+		t.Error("InclusionProof(8, 8) succeeded unexpectedly")
 	}
 
-	for i := 0; i < 6; i++ {
-		p1, err := mt.InclusionProof(testPaths[i].leaf, testPaths[i].snapshot)
-		if err != nil {
-			t.Fatalf("InclusionProof: %v", err)
-		}
-
-		p2 := append([]string{}, testPaths[i].testVector...)
-
-		if len(p1) != len(p2) {
-			t.Errorf("Different path lengths %d %d", len(p1), len(p2))
-			t.FailNow()
-		}
-
-		for j := range p2 {
-			if got, want := p1[j], hx(testPaths[i].testVector[j]); !bytes.Equal(got, want) {
-				t.Errorf("Path mismatch: got: %v want: %v", got, want)
-			}
+	for size := uint64(1); size <= 8; size++ {
+		for index := uint64(0); index < size; index++ {
+			t.Run(fmt.Sprintf("%d:%d", index, size), func(t *testing.T) {
+				got, err := mt.InclusionProof(index, size)
+				if err != nil {
+					t.Fatalf("InclusionProof: %v", err)
+				}
+				want := refInclusionProof(entries[:size], index, mt.hasher)
+				if diff := cmp.Diff(got, want, cmpopts.EquateEmpty()); diff != "" {
+					t.Errorf("InclusionProof: diff (-got +want)\n%s", diff)
+				}
+			})
 		}
 	}
 }
