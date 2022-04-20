@@ -17,8 +17,8 @@ package inmemory
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"math/bits"
 	"math/rand"
 	"testing"
 
@@ -129,22 +129,12 @@ func makeFuzzTestData() [][]byte {
 
 // REFERENCE IMPLEMENTATIONS
 
-// Get the largest power of two smaller than i.
-func downToPowerOfTwo(i uint64) uint64 {
-	if i < 2 {
-		panic(errors.New("requested downToPowerOf2 for value < 2"))
+// downToPowerOfTwo returns the largest power of two smaller than x.
+func downToPowerOfTwo(x uint64) uint64 {
+	if x < 2 {
+		panic("downToPowerOfTwo requires value >= 2")
 	}
-
-	// Find the smallest power of two greater than or equal to i. We
-	// know i > 2
-	split := uint64(2)
-
-	for split < i {
-		split <<= 1
-	}
-
-	// Get the largest power of two smaller than i.
-	return split >> 1
+	return uint64(1) << (bits.Len64(x-1) - 1)
 }
 
 // Reference implementation of Merkle hash, for cross-checking.
@@ -289,17 +279,12 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 }
 
 func TestDownToPowerOfTwoSanity(t *testing.T) {
-	if downToPowerOfTwo(7) != 4 {
-		t.Errorf("Down to power of 2 returned 7 -> %d", downToPowerOfTwo(7))
-	}
-	if downToPowerOfTwo(8) != 4 {
-		t.Errorf("Down to power of 2 returned 8 -> %d", downToPowerOfTwo(8))
-	}
-	if downToPowerOfTwo(63) != 32 {
-		t.Errorf("Down to power of 2 returned 63 -> %d", downToPowerOfTwo(63))
-	}
-	if downToPowerOfTwo(28973) != 16384 {
-		t.Errorf("Down to power of 2 returned 63 -> %d", downToPowerOfTwo(28973))
+	for _, inOut := range [][2]uint64{
+		{2, 1}, {7, 4}, {8, 4}, {63, 32}, {28937, 16384},
+	} {
+		if got, want := downToPowerOfTwo(inOut[0]), inOut[1]; got != want {
+			t.Errorf("downToPowerOfTwo(%d): got %d, want %d", inOut[0], got, want)
+		}
 	}
 }
 
