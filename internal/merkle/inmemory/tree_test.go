@@ -204,6 +204,21 @@ func TestTreeConsistencyProof(t *testing.T) {
 	}
 }
 
+func TestTreeAppend(t *testing.T) {
+	entries := genEntries(256)
+	mt1 := makeEmptyTree()
+	mt1.AppendData(entries...)
+
+	mt2 := makeEmptyTree()
+	for _, entry := range entries {
+		mt2.Append(rfc6962.DefaultHasher.HashLeaf(entry))
+	}
+
+	if diff := cmp.Diff(mt1, mt2, cmp.AllowUnexported(Tree{})); diff != "" {
+		t.Errorf("Trees built with AppendData and Append mismatch: diff (-mt1 +mt2)\n%s", diff)
+	}
+}
+
 func TestTreeAppendAssociativity(t *testing.T) {
 	entries := genEntries(256)
 	mt1 := makeEmptyTree()
