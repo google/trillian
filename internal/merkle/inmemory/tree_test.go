@@ -289,28 +289,28 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	}
 }
 
-func TestProofConsistencyTestVectors(t *testing.T) {
+func TestTreeConsistencyProof(t *testing.T) {
+	entries := to.LeafInputs()
 	mt := makeEmptyTree()
-	mt.AppendData(to.LeafInputs()...)
+	mt.AppendData(entries...)
 	validateTree(t, mt, 8)
 
-	for i := 0; i < 4; i++ {
-		p1, err := mt.ConsistencyProof(testProofs[i].snapshot1, testProofs[i].snapshot2)
-		if err != nil {
-			t.Fatalf("ConsistencyProof: %v", err)
-		}
+	if _, err := mt.ConsistencyProof(6, 3); err == nil {
+		t.Error("ConsistencyProof(6, 3) succeeded unexpectedly")
+	}
 
-		p2 := append([]string{}, testProofs[i].proof...)
-
-		if len(p1) != len(p2) {
-			t.Errorf("Different proof lengths %d %d", len(p1), len(p2))
-			t.FailNow()
-		}
-
-		for j := 0; j < len(p2); j++ {
-			if got, want := p1[j], hx(testProofs[i].proof[j]); !bytes.Equal(got, want) {
-				t.Errorf("Path mismatch: got: %v want: %v", got, want)
-			}
+	for size1 := uint64(0); size1 <= 8; size1++ {
+		for size2 := size1; size2 <= 8; size2++ {
+			t.Run(fmt.Sprintf("%d:%d", size1, size2), func(t *testing.T) {
+				got, err := mt.ConsistencyProof(size1, size2)
+				if err != nil {
+					t.Fatalf("ConsistencyProof: %v", err)
+				}
+				want := refConsistencyProof(entries[:size2], size2, size1, mt.hasher, true)
+				if diff := cmp.Diff(got, want, cmpopts.EquateEmpty()); diff != "" {
+					t.Errorf("ConsistencyProof: diff (-got +want)\n%s", diff)
+				}
+			})
 		}
 	}
 }
