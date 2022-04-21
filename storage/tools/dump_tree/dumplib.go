@@ -41,12 +41,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-type treeAndRev struct {
-	subtree  *storagepb.SubtreeProto
-	revision int
-}
-
-// Options are the commandline arguments one can pass to Main
+// Options are the commandline arguments one can pass to Main.
 type Options struct {
 	TreeSize   int
 	BatchSize  int
@@ -105,46 +100,16 @@ func createTree(ctx context.Context, as storage.AdminStorage, ls storage.LogStor
 	return tree
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher) string {
-	out := new(bytes.Buffer)
-	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
-	vMap := make(map[string]treeAndRev)
-	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
-		// Relies on the btree key space for subtrees being /tree_id/subtree/<id>/<revision>
-		pieces := strings.Split(k, "/")
-		if got, want := len(pieces), 5; got != want {
-			glog.Fatalf("Wrong no of Btree subtree key segments. Got: %d, want: %d", got, want)
-		}
-
-		subID := pieces[3]
-		subtree := vMap[subID]
-		rev, err := strconv.Atoi(pieces[4])
-		if err != nil {
-			glog.Fatalf("Bad subtree key: %v", k)
-		}
-
-		if rev > subtree.revision {
-			vMap[subID] = treeAndRev{
-				subtree:  v,
-				revision: rev,
-			}
-		}
-	})
-
-	// Store the keys in sorted order
-	var sKeys []string
-	for k := range vMap {
-		sKeys = append(sKeys, k)
+func generateLeaves(count int, format string) []*trillian.LogLeaf {
+	leaves := make([]*trillian.LogLeaf, 0, count)
+	for i := 0; i < count; i++ {
+		data := []byte(fmt.Sprintf(format, i))
+		hash := sha256.Sum256(data)
+		leaves = append(leaves, &trillian.LogLeaf{
+			LeafValue: data, LeafIdentityHash: hash[:], MerkleLeafHash: hash[:],
+		})
 	}
-	sort.Strings(sKeys)
-
-	// The map should now contain the latest revisions per subtree
-	for _, k := range sKeys {
-		v := vMap[k]
-		cache.PopulateLogTile(v.subtree, hasher)
-		fmt.Fprintf(out, "%s\n", prototext.Format(v.subtree))
-	}
-	return out.String()
+	return leaves
 }
 
 func sequenceLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, leaves []*trillian.LogLeaf, batchSize int) {
@@ -166,14 +131,48 @@ func sequenceLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.T
 	}
 }
 
-func generateLeaves(count int, format string) []*trillian.LogLeaf {
-	leaves := make([]*trillian.LogLeaf, 0, count)
-	for i := 0; i < count; i++ {
-		data := []byte(fmt.Sprintf(format, i))
-		hash := sha256.Sum256(data)
-		leaves = append(leaves, &trillian.LogLeaf{
-			LeafValue: data, LeafIdentityHash: hash[:], MerkleLeafHash: hash[:],
-		})
+type treeAndRev struct {
+	subtree  *storagepb.SubtreeProto
+	revision int
+}
+
+func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher) string {
+	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
+	vMap := make(map[string]treeAndRev)
+	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
+		// Relies on the btree key space for subtrees being /tree_id/subtree/id/revision.
+		pieces := strings.Split(k, "/")
+		if got, want := len(pieces), 5; got != want {
+			glog.Fatalf("Wrong no of Btree subtree key segments: got %d, want %d", got, want)
+		}
+
+		subID := pieces[3]
+		rev, err := strconv.Atoi(pieces[4])
+		if err != nil {
+			glog.Fatalf("Bad subtree key: %v", k)
+		}
+
+		if rev > vMap[subID].revision {
+			vMap[subID] = treeAndRev{
+				subtree:  v,
+				revision: rev,
+			}
+		}
+	})
+
+	// Store the keys in sorted order.
+	keys := make([]string, 0, len(vMap))
+	for k := range vMap {
+		keys = append(keys, k)
 	}
-	return leaves
+	sort.Strings(keys)
+
+	// The map should now contain the latest revisions per subtree.
+	out := new(bytes.Buffer)
+	for _, k := range keys {
+		subtree := vMap[k].subtree
+		cache.PopulateLogTile(subtree, hasher)
+		fmt.Fprintf(out, "%s\n", prototext.Format(subtree))
+	}
+	return out.String()
 }
