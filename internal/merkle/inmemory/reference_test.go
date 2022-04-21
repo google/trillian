@@ -26,6 +26,13 @@ import (
 	to "github.com/transparency-dev/merkle/testonly"
 )
 
+// The reference Merkle tree hashing and proof algorithms in this file directly
+// implement the definitions from RFC 6962 [1]. We use this implementation only
+// for testing correctness of other more flexible and performant algorithms,
+// such as the in-memory Tree type and compact ranges.
+//
+// [1] https://datatracker.ietf.org/doc/html/rfc6962#section-2
+
 // refRootHash returns the root hash of a Merkle tree with the given entries.
 // This is a reference implementation for cross-checking.
 func refRootHash(entries [][]byte, hasher merkle.LogHasher) []byte {
