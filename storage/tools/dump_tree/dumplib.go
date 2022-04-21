@@ -47,11 +47,6 @@ type treeAndRev struct {
 	revision int
 }
 
-// fullProto is an output formatter function that produces a single line in proto text format.
-func fullProto(s *storagepb.SubtreeProto) string {
-	return fmt.Sprintf("%s\n", prototext.Format(s))
-}
-
 // Options are the commandline arguments one can pass to Main
 type Options struct {
 	TreeSize   int
@@ -84,7 +79,7 @@ func Main(args Options) string {
 		glog.Fatalf("ReadWriteTransaction: %v", err)
 	}
 
-	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, fullProto)
+	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher)
 }
 
 func createTree(ctx context.Context, as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
@@ -111,7 +106,7 @@ func createTree(ctx context.Context, as storage.AdminStorage, ls storage.LogStor
 	return tree
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
@@ -149,7 +144,7 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 	for _, k := range sKeys {
 		v := vMap[k]
 		cache.PopulateLogTile(v.subtree, hasher)
-		fmt.Fprint(out, of(v.subtree))
+		fmt.Fprintf(out, "%s\n", prototext.Format(v.subtree))
 	}
 	return out.String()
 }
