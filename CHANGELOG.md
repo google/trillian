@@ -8,6 +8,9 @@
   convenient time; the long term plan is to remove `merkle` from this repo.
 * `countFromInformationSchema` function to add support for MySQL 8.
 
+### Removals
+ * #2711: Unused `storage/tools/hasher` removed.
+
 ## v1.4.0
 
 * Recommended go version for development: 1.17
