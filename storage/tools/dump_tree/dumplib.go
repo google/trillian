@@ -42,7 +42,6 @@ import (
 )
 
 type treeAndRev struct {
-	fullKey  string
 	subtree  *storagepb.SubtreeProto
 	revision int
 }
@@ -126,7 +125,6 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 
 		if rev > subtree.revision {
 			vMap[subID] = treeAndRev{
-				fullKey:  k,
 				subtree:  v,
 				revision: rev,
 			}
