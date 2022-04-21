@@ -41,15 +41,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-// Options are the commandline arguments one can pass to Main.
-type Options struct {
-	TreeSize   int
-	BatchSize  int
-	LeafFormat string
-}
-
-// Main runs the dump_tree tool
-func Main(args Options) string {
+func run(treeSize, batchSize int, leafFormat string) string {
 	ctx := context.Background()
 
 	ts := memory.NewTreeStorage()
@@ -58,8 +50,8 @@ func Main(args Options) string {
 	tree := createTree(ctx, as, ls)
 	log.InitMetrics(nil)
 
-	leaves := generateLeaves(args.TreeSize, args.LeafFormat)
-	sequenceLeaves(ctx, ls, tree, leaves, args.BatchSize)
+	leaves := generateLeaves(treeSize, leafFormat)
+	sequenceLeaves(ctx, ls, tree, leaves, batchSize)
 
 	// Read the latest LogRoot back.
 	var root types.LogRootV1
