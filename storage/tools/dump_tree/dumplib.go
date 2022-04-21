@@ -53,37 +53,6 @@ func fullProto(s *storagepb.SubtreeProto) string {
 	return fmt.Sprintf("%s\n", prototext.Format(s))
 }
 
-func createTree(as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
-	ctx := context.TODO()
-	tree := &trillian.Tree{
-		TreeType:        trillian.TreeType_LOG,
-		TreeState:       trillian.TreeState_ACTIVE,
-		MaxRootDuration: durationpb.New(0 * time.Millisecond),
-	}
-	createdTree, err := storage.CreateTree(ctx, as, tree)
-	if err != nil {
-		glog.Fatalf("Create tree: %v", err)
-	}
-
-	logRoot, err := (&types.LogRootV1{RootHash: rfc6962.DefaultHasher.EmptyRoot()}).MarshalBinary()
-	if err != nil {
-		glog.Fatalf("MarshalBinary: %v", err)
-	}
-	sthZero := &trillian.SignedLogRoot{LogRoot: logRoot}
-
-	err = ls.ReadWriteTransaction(ctx, createdTree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, sthZero); err != nil {
-			glog.Fatalf("StoreSignedLogRoot: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		glog.Fatalf("ReadWriteTransaction: %v", err)
-	}
-
-	return createdTree
-}
-
 // Options are the commandline arguments one can pass to Main
 type Options struct {
 	TreeSize   int
@@ -95,11 +64,10 @@ type Options struct {
 func Main(args Options) string {
 	ctx := context.Background()
 
-	glog.Info("Initializing memory log storage")
 	ts := memory.NewTreeStorage()
 	ls := memory.NewLogStorage(ts, monitoring.InertMetricFactory{})
 	as := memory.NewAdminStorage(ts)
-	tree := createTree(as, ls)
+	tree := createTree(ctx, as, ls)
 
 	log.InitMetrics(nil)
 
@@ -133,6 +101,30 @@ func Main(args Options) string {
 	formatter := fullProto
 
 	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter)
+}
+
+func createTree(ctx context.Context, as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
+	tree, err := storage.CreateTree(ctx, as, &trillian.Tree{
+		TreeType:        trillian.TreeType_LOG,
+		TreeState:       trillian.TreeState_ACTIVE,
+		MaxRootDuration: durationpb.New(0 * time.Millisecond),
+	})
+	if err != nil {
+		glog.Fatalf("CreateTree: %v", err)
+	}
+
+	logRoot, err := (&types.LogRootV1{RootHash: rfc6962.DefaultHasher.EmptyRoot()}).MarshalBinary()
+	if err != nil {
+		glog.Fatalf("MarshalBinary: %v", err)
+	}
+
+	if err = ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		return tx.StoreSignedLogRoot(ctx, &trillian.SignedLogRoot{LogRoot: logRoot})
+	}); err != nil {
+		glog.Fatalf("ReadWriteTransaction: %v", err)
+	}
+
+	return tree
 }
 
 func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher, of func(*storagepb.SubtreeProto) string) string {
