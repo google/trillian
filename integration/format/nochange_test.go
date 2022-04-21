@@ -40,16 +40,21 @@ func TestDBFormatNoChange(t *testing.T) {
 		{name: "dump_tree_output_1000", size: 1000},
 		{name: "dump_tree_output_1024", size: 1024},
 	} {
-		out := run(tc.size, 50, "Leaf %d")
-		saved, err := ioutil.ReadFile("testdata/" + tc.name)
-		if err != nil {
-			t.Fatalf("ReadFile(%v): %v", tc.name, err)
-		}
-		got := parseTiles(t, out)
-		want := parseTiles(t, string(saved))
-		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-			t.Errorf("Diff(-want,+got):\n%s", d)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := run(tc.size, 50, "Leaf %d")
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			saved, err := ioutil.ReadFile("testdata/" + tc.name)
+			if err != nil {
+				t.Fatalf("ReadFile(%v): %v", tc.name, err)
+			}
+			got := parseTiles(t, out)
+			want := parseTiles(t, string(saved))
+			if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+				t.Errorf("Diff(-want,+got):\n%s", d)
+			}
+		})
 	}
 }
 

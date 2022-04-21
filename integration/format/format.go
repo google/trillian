@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring"
@@ -41,17 +40,22 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-func run(treeSize, batchSize int, leafFormat string) string {
+func run(treeSize, batchSize int, leafFormat string) (string, error) {
 	ctx := context.Background()
 
 	ts := memory.NewTreeStorage()
 	ls := memory.NewLogStorage(ts, monitoring.InertMetricFactory{})
 	as := memory.NewAdminStorage(ts)
-	tree := createTree(ctx, as, ls)
+	tree, err := createTree(ctx, as, ls)
+	if err != nil {
+		return "", err
+	}
 	log.InitMetrics(nil)
 
 	leaves := generateLeaves(treeSize, leafFormat)
-	sequenceLeaves(ctx, ls, tree, leaves, batchSize)
+	if err := sequenceLeaves(ctx, ls, tree, leaves, batchSize); err != nil {
+		return "", err
+	}
 
 	// Read the latest LogRoot back.
 	var root types.LogRootV1
@@ -62,34 +66,34 @@ func run(treeSize, batchSize int, leafFormat string) string {
 		}
 		return root.UnmarshalBinary(latest.LogRoot)
 	}); err != nil {
-		glog.Fatalf("ReadWriteTransaction: %v", err)
+		return "", fmt.Errorf("ReadWriteTransaction: %v", err)
 	}
 
 	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher)
 }
 
-func createTree(ctx context.Context, as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
+func createTree(ctx context.Context, as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree, error) {
 	tree, err := storage.CreateTree(ctx, as, &trillian.Tree{
 		TreeType:        trillian.TreeType_LOG,
 		TreeState:       trillian.TreeState_ACTIVE,
 		MaxRootDuration: durationpb.New(0 * time.Millisecond),
 	})
 	if err != nil {
-		glog.Fatalf("CreateTree: %v", err)
+		return nil, fmt.Errorf("CreateTree: %v", err)
 	}
 
 	logRoot, err := (&types.LogRootV1{RootHash: rfc6962.DefaultHasher.EmptyRoot()}).MarshalBinary()
 	if err != nil {
-		glog.Fatalf("MarshalBinary: %v", err)
+		return nil, fmt.Errorf("MarshalBinary: %v", err)
 	}
 
 	if err = ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		return tx.StoreSignedLogRoot(ctx, &trillian.SignedLogRoot{LogRoot: logRoot})
 	}); err != nil {
-		glog.Fatalf("ReadWriteTransaction: %v", err)
+		return nil, fmt.Errorf("ReadWriteTransaction: %v", err)
 	}
 
-	return tree
+	return tree, nil
 }
 
 func generateLeaves(count int, format string) []*trillian.LogLeaf {
@@ -104,23 +108,24 @@ func generateLeaves(count int, format string) []*trillian.LogLeaf {
 	return leaves
 }
 
-func sequenceLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, leaves []*trillian.LogLeaf, batchSize int) {
+func sequenceLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, leaves []*trillian.LogLeaf, batchSize int) error {
 	for i, size := 0, len(leaves); i < size; i += batchSize {
 		if left := size - i; left < batchSize {
 			batchSize = left
 		}
 		if _, err := ls.QueueLeaves(ctx, tree, leaves[i:i+batchSize], time.Now()); err != nil {
-			glog.Fatalf("QueueLeaves: %v", err)
+			return fmt.Errorf("QueueLeaves: %v", err)
 		}
 
 		sequenced, err := log.IntegrateBatch(ctx, tree, batchSize, 0, 24*time.Hour, clock.System, ls, quota.Noop())
 		if err != nil {
-			glog.Fatalf("IntegrateBatch: %v", err)
+			return fmt.Errorf("IntegrateBatch: %v", err)
 		}
 		if got, want := sequenced, batchSize; got != want {
-			glog.Fatalf("IntegrateBatch: got %d, want %d", got, want)
+			return fmt.Errorf("IntegrateBatch: got %d, want %d", got, want)
 		}
 	}
+	return nil
 }
 
 type treeAndRev struct {
@@ -128,20 +133,20 @@ type treeAndRev struct {
 	revision int
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHasher) (string, error) {
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		// Relies on the btree key space for subtrees being /tree_id/subtree/id/revision.
 		pieces := strings.Split(k, "/")
 		if got, want := len(pieces), 5; got != want {
-			glog.Fatalf("Wrong no of Btree subtree key segments: got %d, want %d", got, want)
+			panic(fmt.Sprintf("Btree subtree key segments: got %d, want %d", got, want))
 		}
 
 		subID := pieces[3]
 		rev, err := strconv.Atoi(pieces[4])
 		if err != nil {
-			glog.Fatalf("Bad subtree key: %v", k)
+			panic(fmt.Sprintf("Bad subtree key: %v: %v", k, err))
 		}
 
 		if rev > vMap[subID].revision {
@@ -166,5 +171,5 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 		cache.PopulateLogTile(subtree, hasher)
 		fmt.Fprintf(out, "%s\n", prototext.Format(subtree))
 	}
-	return out.String()
+	return out.String(), nil
 }
