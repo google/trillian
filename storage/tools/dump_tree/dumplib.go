@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
@@ -68,39 +67,24 @@ func Main(args Options) string {
 	ls := memory.NewLogStorage(ts, monitoring.InertMetricFactory{})
 	as := memory.NewAdminStorage(ts)
 	tree := createTree(ctx, as, ls)
-
 	log.InitMetrics(nil)
 
 	leaves := generateLeaves(args.TreeSize, args.LeafFormat)
 	sequenceLeaves(ls, tree, leaves, args.BatchSize)
 
-	// Read the latest STH back
+	// Read the latest LogRoot back.
 	var root types.LogRootV1
-	err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		var err error
-		sth, err := tx.LatestSignedLogRoot(ctx)
+	if err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		latest, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil {
-			glog.Fatalf("LatestSignedLogRoot: %v", err)
+			return err
 		}
-		if err := root.UnmarshalBinary(sth.LogRoot); err != nil {
-			return fmt.Errorf("could not parse current log root: %v", err)
-		}
-
-		glog.Infof("STH at size %d has hash %s",
-			root.TreeSize,
-			hex.EncodeToString(root.RootHash))
-		return nil
-	})
-	if err != nil {
+		return root.UnmarshalBinary(latest.LogRoot)
+	}); err != nil {
 		glog.Fatalf("ReadWriteTransaction: %v", err)
 	}
 
-	// All leaves are now sequenced into the tree. The current state is what we need.
-	glog.Info("Producing output")
-
-	formatter := fullProto
-
-	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, formatter)
+	return latestRevisions(ls, tree.TreeId, rfc6962.DefaultHasher, fullProto)
 }
 
 func createTree(ctx context.Context, as storage.AdminStorage, ls storage.LogStorage) *trillian.Tree {
