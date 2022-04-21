@@ -11,6 +11,10 @@
 ### Removals
  * #2711: Unused `storage/tools/hasher` removed.
 
+### Misc improvements
+
+ * #2712: Fix MySQL world-writable config warning.
+
 ## v1.4.0
 
 * Recommended go version for development: 1.17
