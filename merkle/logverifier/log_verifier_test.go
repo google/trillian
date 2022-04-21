@@ -540,8 +540,7 @@ func createTree(size int64) (*inmemory.Tree, LogVerifier) {
 
 func growTree(tree *inmemory.Tree, upTo int64) {
 	for i := int64(tree.Size()); i < upTo; i++ {
-		data := []byte(fmt.Sprintf("data:%d", i))
-		tree.AppendData(data)
+		tree.AppendData([]byte(fmt.Sprintf("data:%d", i)))
 	}
 }
 

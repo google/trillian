@@ -33,13 +33,21 @@ func New(hasher merkle.LogHasher) *Tree {
 	return &Tree{hasher: hasher}
 }
 
-// AppendData adds the leaf hash of the given entry to the end of the tree.
-func (t *Tree) AppendData(data []byte) {
-	t.Append(t.hasher.HashLeaf(data))
+// AppendData adds the leaf hashes of the given entries to the end of the tree.
+func (t *Tree) AppendData(entries ...[]byte) {
+	for _, data := range entries {
+		t.appendImpl(t.hasher.HashLeaf(data))
+	}
 }
 
-// Append adds the given leaf hash to the end of the tree.
-func (t *Tree) Append(hash []byte) {
+// Append adds the given leaf hashes to the end of the tree.
+func (t *Tree) Append(hashes ...[]byte) {
+	for _, hash := range hashes {
+		t.appendImpl(hash)
+	}
+}
+
+func (t *Tree) appendImpl(hash []byte) {
 	level := 0
 	for ; (t.size>>level)&1 == 1; level++ {
 		row := append(t.hashes[level], hash)

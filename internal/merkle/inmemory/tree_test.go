@@ -35,9 +35,9 @@ var fuzzTestSize = int64(256)
 var emptyTreeHashValue = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 // Inputs to the reference tree, which has eight leaves.
-var leafInputs = []string{
-	"", "00", "10", "2021", "3031", "40414243",
-	"5051525354555657", "606162636465666768696a6b6c6d6e6f",
+var leafInputs = [][]byte{
+	hx(""), hx("00"), hx("10"), hx("2021"), hx("3031"), hx("40414243"),
+	hx("5051525354555657"), hx("606162636465666768696a6b6c6d6e6f"),
 }
 
 // Incremental roots from building the reference tree from inputs leaf-by-leaf.
@@ -124,12 +124,12 @@ var testProofs = []proofTestVector{
 	}},
 }
 
-func decodeHexStringOrPanic(hs string) []byte {
+// hx decodes a hex string or panics.
+func hx(hs string) []byte {
 	data, err := hex.DecodeString(hs)
 	if err != nil {
 		panic(fmt.Errorf("failed to decode test data: %s", hs))
 	}
-
 	return data
 }
 
@@ -359,24 +359,19 @@ func TestBuildTreeBuildOneAtATime(t *testing.T) {
 
 	// Add to the tree, checking after each leaf
 	for l := uint64(0); l < 8; l++ {
-		mt.AppendData(decodeHexStringOrPanic(leafInputs[l]))
+		mt.AppendData(leafInputs[l])
 		validateTree(mt, l, t)
 	}
 }
 
 func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	mt := makeEmptyTree()
-
-	for l := 0; l < 3; l++ {
-		mt.AppendData(decodeHexStringOrPanic(leafInputs[l]))
-	}
+	mt.AppendData(leafInputs[:3]...)
 
 	// Check the intermediate state
 	validateTree(mt, 2, t)
 
-	for l := 3; l < 8; l++ {
-		mt.AppendData(decodeHexStringOrPanic(leafInputs[l]))
-	}
+	mt.AppendData(leafInputs[3:8]...)
 
 	// Check the final state
 	validateTree(mt, 7, t)
@@ -386,9 +381,7 @@ func TestBuildTreeBuildTwoChunks(t *testing.T) {
 	mt := makeEmptyTree()
 
 	// Add to the tree, checking after each leaf
-	for l := 0; l < 8; l++ {
-		mt.AppendData(decodeHexStringOrPanic(leafInputs[l]))
-	}
+	mt.AppendData(leafInputs[:8]...)
 
 	validateTree(mt, 7, t)
 }
@@ -409,13 +402,8 @@ func TestDownToPowerOfTwoSanity(t *testing.T) {
 }
 
 func TestReferenceMerklePathSanity(t *testing.T) {
-	var data [][]byte
-
 	mt := makeEmptyTree()
-
-	for s := 0; s < 8; s++ {
-		data = append(data, decodeHexStringOrPanic(leafInputs[s]))
-	}
+	data := append([][]byte{}, leafInputs[:8]...)
 
 	for _, path := range testPaths {
 		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf, mt.hasher)
@@ -429,7 +417,7 @@ func TestReferenceMerklePathSanity(t *testing.T) {
 		}
 
 		for i := 0; i < len(path.testVector); i++ {
-			if !bytes.Equal(referencePath[i], decodeHexStringOrPanic(path.testVector[i])) {
+			if !bytes.Equal(referencePath[i], hx(path.testVector[i])) {
 				t.Errorf("Path mismatch: %s, %s", hex.EncodeToString(referencePath[i]),
 					path.testVector[i])
 			}
@@ -442,10 +430,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 
 	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
 		mt := makeEmptyTree()
-
-		for l := int64(0); l < treeSize; l++ {
-			mt.AppendData(data[l])
-		}
+		mt.AppendData(data[:treeSize]...)
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
@@ -473,10 +458,7 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
 		// mt := makeLoggingEmptyTree(t)
 		mt := makeEmptyTree()
-
-		for l := int64(0); l < treeSize; l++ {
-			mt.AppendData(data[l])
-		}
+		mt.AppendData(data[:treeSize]...)
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
@@ -516,10 +498,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 
 	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
 		mt := makeEmptyTree()
-
-		for l := int64(0); l < treeSize; l++ {
-			mt.AppendData(data[l])
-		}
+		mt.AppendData(data[:treeSize]...)
 
 		// Since the tree is evaluated lazily, the order of queries is significant.
 		// Generate a random sequence of 8 queries for each tree.
@@ -557,17 +536,14 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 func TestMerkleTreePathBuildOnce(t *testing.T) {
 	// First tree: build in one go.
 	mt := makeEmptyTree()
-
-	for i := 0; i < 8; i++ {
-		mt.AppendData(decodeHexStringOrPanic(leafInputs[i]))
-	}
+	mt.AppendData(leafInputs[:8]...)
 
 	if size := mt.Size(); size != 8 {
 		t.Fatalf("8 leaves added but tree size is %d", size)
 	}
 
 	hash := mt.Hash()
-	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
+	if got, want := hash, hx(rootsAtSize[7]); !bytes.Equal(got, want) {
 		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}
 
@@ -589,7 +565,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 		}
 
 		for j := range p2 {
-			if got, want := p1[j], decodeHexStringOrPanic(testPaths[i].testVector[j]); !bytes.Equal(got, want) {
+			if got, want := p1[j], hx(testPaths[i].testVector[j]); !bytes.Equal(got, want) {
 				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
@@ -600,15 +576,12 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	// Second tree: build incrementally.
 	// First tree: build in one go.
 	mt := makeEmptyTree()
-
-	for i := 0; i < 8; i++ {
-		mt.AppendData(decodeHexStringOrPanic(leafInputs[i]))
-	}
+	mt.AppendData(leafInputs[:8]...)
 
 	mt2 := makeEmptyTree()
 
 	for i := uint64(0); i < 8; i++ {
-		mt2.AppendData(decodeHexStringOrPanic(leafInputs[i]))
+		mt2.AppendData(leafInputs[i])
 
 		for j := uint64(0); j < i+1; j++ {
 			p1, err := mt.InclusionProof(j, i+1)
@@ -643,17 +616,14 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 
 func TestProofConsistencyTestVectors(t *testing.T) {
 	mt := makeEmptyTree()
-
-	for i := 0; i < 8; i++ {
-		mt.AppendData(decodeHexStringOrPanic(leafInputs[i]))
-	}
+	mt.AppendData(leafInputs[:8]...)
 
 	if size := mt.Size(); size != 8 {
 		t.Fatalf("8 leaves added but tree size is %d", size)
 	}
 
 	hash := mt.Hash()
-	if got, want := hash, decodeHexStringOrPanic(rootsAtSize[7]); !bytes.Equal(got, want) {
+	if got, want := hash, hx(rootsAtSize[7]); !bytes.Equal(got, want) {
 		t.Fatalf("Got unexpected root hash: %x %x", got, want)
 	}
 
@@ -671,7 +641,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		}
 
 		for j := 0; j < len(p2); j++ {
-			if got, want := p1[j], decodeHexStringOrPanic(testProofs[i].proof[j]); !bytes.Equal(got, want) {
+			if got, want := p1[j], hx(testProofs[i].proof[j]); !bytes.Equal(got, want) {
 				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
