@@ -70,7 +70,7 @@ func Main(args Options) string {
 	log.InitMetrics(nil)
 
 	leaves := generateLeaves(args.TreeSize, args.LeafFormat)
-	sequenceLeaves(ls, tree, leaves, args.BatchSize)
+	sequenceLeaves(ctx, ls, tree, leaves, args.BatchSize)
 
 	// Read the latest LogRoot back.
 	var root types.LogRootV1
@@ -154,16 +154,16 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 	return out.String()
 }
 
-func sequenceLeaves(ls storage.LogStorage, tree *trillian.Tree, leaves []*trillian.LogLeaf, batchSize int) {
+func sequenceLeaves(ctx context.Context, ls storage.LogStorage, tree *trillian.Tree, leaves []*trillian.LogLeaf, batchSize int) {
 	for i, size := 0, len(leaves); i < size; i += batchSize {
 		if left := size - i; left < batchSize {
 			batchSize = left
 		}
-		if _, err := ls.QueueLeaves(context.TODO(), tree, leaves[i:i+batchSize], time.Now()); err != nil {
+		if _, err := ls.QueueLeaves(ctx, tree, leaves[i:i+batchSize], time.Now()); err != nil {
 			glog.Fatalf("QueueLeaves: %v", err)
 		}
 
-		sequenced, err := log.IntegrateBatch(context.TODO(), tree, batchSize, 0, 24*time.Hour, clock.System, ls, quota.Noop())
+		sequenced, err := log.IntegrateBatch(ctx, tree, batchSize, 0, 24*time.Hour, clock.System, ls, quota.Noop())
 		if err != nil {
 			glog.Fatalf("IntegrateBatch: %v", err)
 		}
