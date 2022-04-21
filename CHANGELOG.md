@@ -8,6 +8,10 @@
   convenient time; the long term plan is to remove `merkle` from this repo.
 * `countFromInformationSchema` function to add support for MySQL 8.
 
+### Removals
+* #2710: Unused `storage/tools/dumplib` was removed. The useful storage format
+  regression test moved to `integration/format`.
+
 ## v1.4.0
 
 * Recommended go version for development: 1.17
