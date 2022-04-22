@@ -13,6 +13,10 @@
 // limitations under the License.
 
 // Package compact provides compact Merkle tree data structures.
+//
+// Deprecated: This package is superseded by the corresponding functionality in
+// https://github.com/transparency-dev/merkle/compact. It will be removed in
+// future releases of Trillian.
 package compact
 
 import (

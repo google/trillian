@@ -13,4 +13,8 @@
 // limitations under the License.
 
 // Package merkle provides Merkle tree manipulation functions.
+//
+// Deprecated: This package is superseded by the corresponding functionality in
+// https://github.com/transparency-dev/merkle. It will be removed in future
+// releases of Trillian.
 package merkle

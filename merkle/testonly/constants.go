@@ -13,6 +13,10 @@
 // limitations under the License.
 
 // Package testonly contains code and data for testing Merkle trees.
+//
+// Deprecated: This package is superseded by the corresponding functionality in
+// https://github.com/transparency-dev/merkle/testonly. It will be removed in
+// future releases of Trillian.
 package testonly
 
 import "github.com/google/trillian/testonly"
