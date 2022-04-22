@@ -26,8 +26,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/merkle/testonly"
+	"github.com/google/trillian/merkle/rfc6962"  // nolint:staticcheck
+	"github.com/google/trillian/merkle/testonly" // nolint:staticcheck
 
 	_ "github.com/golang/glog" // Required for flag handling
 )

@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers" // nolint:staticcheck
 )
 
 // RootMismatchError occurs when an inclusion proof fails.
