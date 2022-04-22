@@ -15,8 +15,8 @@
 // Package rfc6962 provides hashing functionality according to RFC6962.
 //
 // Deprecated: This package is superseded by the corresponding functionality in
-// https://github.com/transparency-dev/merkle/rfc6962. It will be removed in
-// future releases of Trillian.
+// https://github.com/transparency-dev/merkle. It will be removed in future
+// releases of Trillian.
 package rfc6962
 
 import (
