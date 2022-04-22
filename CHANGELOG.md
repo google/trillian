@@ -9,8 +9,14 @@
 * `countFromInformationSchema` function to add support for MySQL 8.
 
 ### Removals
-* #2710: Unused `storage/tools/dumplib` was removed. The useful storage format
+
+ * #2710: Unused `storage/tools/dumplib` was removed. The useful storage format
   regression test moved to `integration/format`.
+ * #2711: Unused `storage/tools/hasher` removed.
+
+### Misc improvements
+
+ * #2712: Fix MySQL world-writable config warning.
 
 ## v1.4.0
 
