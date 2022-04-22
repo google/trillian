@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package hashers provides an interface for log hashers.
+//
+// Deprecated: This package is superseded by the corresponding functionality in
+// https://github.com/transparency-dev/merkle. It will be removed in future
+// releases of Trillian.
 package hashers
 
 // LogHasher provides the hash functions needed to compute dense merkle trees.

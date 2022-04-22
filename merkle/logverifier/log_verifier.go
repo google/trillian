@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package logverifier implements proof verificaion helpers for Merkle trees.
+//
+// Deprecated: This package is superseded by the corresponding functionality in
+// https://github.com/transparency-dev/merkle. It will be removed in future
+// releases of Trillian.
 package logverifier
 
 import (
@@ -20,7 +25,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/hashers" // nolint:staticcheck
 )
 
 // RootMismatchError occurs when an inclusion proof fails.

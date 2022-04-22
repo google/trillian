@@ -2,14 +2,12 @@
 
 ## HEAD
 
-* Start using `github.com/transparency-dev/merkle` as a replacement to the
-  `merkle` libraries in this repository. This is not a breaking change, but
-  we recommend clients also migrate over to this library at the earliest
-  convenient time; the long term plan is to remove `merkle` from this repo.
 * `countFromInformationSchema` function to add support for MySQL 8.
 
 ### Removals
  * #2711: Unused `storage/tools/hasher` removed.
+ * #2715: Packages under `merkle` are deprecated and to be removed. Use
+   https://github.com/transparency-dev/merkle instead.
 
 ### Misc improvements
 
