@@ -10,6 +10,7 @@
 
 ### Removals
  * #2711: Unused `storage/tools/hasher` removed.
+ * #2715: Packages under `merkle` are deprecated and to be removed.
 
 ### Misc improvements
 
