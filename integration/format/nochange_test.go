@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// Package format contains an integration test which builds a log using an
+// in-memory storage end-to-end, and makes sure the SubtreeProto storage format
+// has no regressions.
+package format
 
 import (
 	"io/ioutil"
@@ -25,61 +28,33 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-// TestDBFormatNoChange ensures that the prefix, suffix, and protos stored in the database do not change.
-// This test compares the output from dump_tree against a previously saved output.
+// TestDBFormatNoChange ensures that SubtreeProto tiles stored in the database
+// do not change. This test compares against a previously saved output.
 func TestDBFormatNoChange(t *testing.T) {
 	for _, tc := range []struct {
-		desc string
-		file string
-		opts Options
+		name string
+		size int
 	}{
-		{
-			desc: "tree_size: 96",
-			file: "testdata/dump_tree_output_96",
-			opts: Options{
-				96, 50,
-				"Leaf %d",
-				true, false, false, false, false, true, false, false,
-			},
-		},
-		{
-			desc: "tree_size: 871",
-			file: "testdata/dump_tree_output_871",
-			opts: Options{
-				871, 50,
-				"Leaf %d",
-				true, false, false, false, false, true, false, false,
-			},
-		},
-		{
-			desc: "tree_size: 1000",
-			file: "testdata/dump_tree_output_1000",
-			opts: Options{
-				1000, 50,
-				"Leaf %d",
-				true, false, false, false, false, true, false, false,
-			},
-		},
-		{
-			desc: "tree_size: 1024",
-			file: "testdata/dump_tree_output_1024",
-			opts: Options{
-				1024, 50,
-				"Leaf %d",
-				true, false, false, false, false, true, false, false,
-			},
-		},
+		{name: "dump_tree_output_96", size: 96},
+		{name: "dump_tree_output_871", size: 871},
+		{name: "dump_tree_output_1000", size: 1000},
+		{name: "dump_tree_output_1024", size: 1024},
 	} {
-		out := Main(tc.opts)
-		saved, err := ioutil.ReadFile(tc.file)
-		if err != nil {
-			t.Fatalf("ReadFile(%v): %v", tc.file, err)
-		}
-		got := parseTiles(t, out)
-		want := parseTiles(t, string(saved))
-		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-			t.Errorf("Diff(-want,+got):\n%s", d)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := run(tc.size, 50, "Leaf %d")
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			saved, err := ioutil.ReadFile("testdata/" + tc.name)
+			if err != nil {
+				t.Fatalf("ReadFile(%v): %v", tc.name, err)
+			}
+			got := parseTiles(t, out)
+			want := parseTiles(t, string(saved))
+			if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+				t.Errorf("Diff(-want,+got):\n%s", d)
+			}
+		})
 	}
 }
 

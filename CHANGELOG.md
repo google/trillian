@@ -5,6 +5,9 @@
 * `countFromInformationSchema` function to add support for MySQL 8.
 
 ### Removals
+
+ * #2710: Unused `storage/tools/dumplib` was removed. The useful storage format
+  regression test moved to `integration/format`.
  * #2711: Unused `storage/tools/hasher` removed.
  * #2715: Packages under `merkle` are deprecated and to be removed. Use
    https://github.com/transparency-dev/merkle instead.
