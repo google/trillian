@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/spanner v1.31.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.11
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
+	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
 	github.com/fullstorydev/grpcurl v1.8.6
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
@@ -19,23 +20,35 @@ require (
 	github.com/google/go-cmp v0.5.7
 	github.com/google/go-licenses v0.0.0-20210329231322-ce1d9163b77d
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/common v0.34.0 // indirect
 	github.com/pseudomuto/protoc-gen-doc v1.5.1
+	github.com/spf13/cobra v1.4.0 // indirect
+	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/transparency-dev/merkle v0.0.0-20220425113829-c120179f55ad
+	github.com/urfave/cli v1.22.7 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.4
 	go.etcd.io/etcd/etcdctl/v3 v3.5.4
 	go.etcd.io/etcd/server/v3 v3.5.4
 	go.etcd.io/etcd/v3 v3.5.4
 	go.opencensus.io v0.23.0
-	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
+	go.opentelemetry.io/contrib v1.6.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.8.0 // indirect
+	go.uber.org/zap v1.21.0 // indirect
+	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
+	golang.org/x/net v0.0.0-20220421235706-1d1ef9303861 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886
+	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
+	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	golang.org/x/tools v0.1.10
 	google.golang.org/api v0.74.0
-	google.golang.org/genproto v0.0.0-20220324131243-acbaeb5b85eb
-	google.golang.org/grpc v1.45.0
+	google.golang.org/genproto v0.0.0-20220422154200-b37d22cd5731
+	google.golang.org/grpc v1.46.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.0
 )
