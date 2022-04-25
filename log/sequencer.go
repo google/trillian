@@ -105,7 +105,7 @@ func initCompactRangeFromStorage(ctx context.Context, root *types.LogRootV1, tx 
 		return fact.NewEmptyRange(0), nil
 	}
 
-	ids := compact.RangeNodes(0, root.TreeSize)
+	ids := compact.RangeNodes(0, root.TreeSize, nil)
 	nodes, err := tx.GetMerkleNodes(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read tree nodes: %v", err)

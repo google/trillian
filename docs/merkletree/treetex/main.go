@@ -253,7 +253,7 @@ func perfectInner(prefix string, id compact.NodeID, top bool, nodeText nodeTextF
 // renderTree renders a tree node and recurses if necessary.
 func renderTree(prefix string, size uint64, nodeText, dataText nodeTextFunc) {
 	// Get root IDs of all perfect subtrees.
-	ids := compact.RangeNodes(0, size)
+	ids := compact.RangeNodes(0, size, nil)
 	for i, id := range ids {
 		if i+1 < len(ids) {
 			ephem := id.Parent()
@@ -314,7 +314,7 @@ func modifyRangeNodeInfo() error {
 			})
 		}
 
-		for _, id := range compact.RangeNodes(l, r) {
+		for _, id := range compact.RangeNodes(l, r, nil) {
 			modifyNodeInfo(id, func(n *nodeInfo) {
 				n.rangeIndices = append(n.rangeIndices, ri)
 			})

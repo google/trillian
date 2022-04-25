@@ -86,7 +86,7 @@ func (t *Tree) HashAt(size uint64) []byte {
 	if size == 0 {
 		return t.hasher.EmptyRoot()
 	}
-	hashes := t.getNodes(compact.RangeNodes(0, size))
+	hashes := t.getNodes(compact.RangeNodes(0, size, nil))
 
 	hash := hashes[len(hashes)-1]
 	for i := len(hashes) - 2; i >= 0; i-- {
