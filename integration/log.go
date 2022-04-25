@@ -29,8 +29,8 @@ import (
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/internal/merkle/inmemory"
 	"github.com/google/trillian/types"
-	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
+	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
 )
 
@@ -466,9 +466,8 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *inmemory.Tree, 
 
 		// Verify inclusion proof.
 		root := tree.HashAt(uint64(treeSize))
-		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 		merkleLeafHash := tree.LeafHash(uint64(index))
-		if err := verifier.VerifyInclusion(uint64(index), uint64(treeSize), merkleLeafHash, resp.Proof.Hashes, root); err != nil {
+		if err := proof.VerifyInclusion(rfc6962.DefaultHasher, uint64(index), uint64(treeSize), merkleLeafHash, resp.Proof.Hashes, root); err != nil {
 			return err
 		}
 	}
@@ -502,11 +501,10 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		return fmt.Errorf("requested tree size %d > available tree size %d", req.SecondTreeSize, root.TreeSize)
 	}
 
-	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 	root1 := tree.HashAt(uint64(req.FirstTreeSize))
 	root2 := tree.HashAt(uint64(req.SecondTreeSize))
-	return verifier.VerifyConsistency(uint64(req.FirstTreeSize), uint64(req.SecondTreeSize),
-		root1, root2, resp.Proof.Hashes)
+	return proof.VerifyConsistency(rfc6962.DefaultHasher, uint64(req.FirstTreeSize), uint64(req.SecondTreeSize),
+		resp.Proof.Hashes, root1, root2)
 }
 
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*inmemory.Tree, error) {
