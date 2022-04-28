@@ -89,14 +89,3 @@ func (c *LogVerifier) VerifyInclusionByHash(trusted *types.LogRootV1, leafHash [
 
 	return proof.VerifyInclusion(c.hasher, uint64(pf.LeafIndex), trusted.TreeSize, leafHash, pf.Hashes, trusted.RootHash)
 }
-
-// BuildLeaf runs the leaf hasher over data and builds a leaf.
-// TODO(pavelkalinnikov): This can be misleading as it creates a partially
-// filled LogLeaf. Consider returning a pair instead, or leafHash only.
-func (c *LogVerifier) BuildLeaf(data []byte) *trillian.LogLeaf {
-	leafHash := c.hasher.HashLeaf(data)
-	return &trillian.LogLeaf{
-		LeafValue:      data,
-		MerkleLeafHash: leafHash,
-	}
-}
