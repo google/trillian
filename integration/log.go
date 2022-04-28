@@ -20,10 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/types"
@@ -128,14 +128,17 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
 	glog.Infof("Reading back leaves from log ...")
-	leaves, err := readbackLogEntries(params.TreeID, client, params, leafCounts)
+	entries, err := readEntries(params.TreeID, client, params)
 	if err != nil {
 		return fmt.Errorf("could not read back log entries: %v", err)
+	}
+	if err := verifyEntries(entries, leafCounts); err != nil {
+		return fmt.Errorf("leaf counts mismatch: %v", err)
 	}
 
 	// Step 4 - Cross validation between log and memory tree root hashes
 	glog.Infof("Checking log STH with our constructed in-memory tree ...")
-	tree := buildMerkleTree(leaves, params)
+	tree := buildMerkleTree(entries, params)
 	if err := checkLogRootHashMatches(tree, client, params); err != nil {
 		return fmt.Errorf("log consistency check failed: %v", err)
 	}
@@ -290,20 +293,10 @@ func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params T
 	return errors.New("wait time expired")
 }
 
-func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params TestParameters, expect map[string]int) ([]*trillian.LogLeaf, error) {
+func readEntries(logID int64, client trillian.TrillianLogClient, params TestParameters) ([]*trillian.LogLeaf, error) {
 	if start := params.StartLeaf; start != 0 {
 		return nil, fmt.Errorf("non-zero StartLeaf is not supported: %d", start)
 	}
-
-	// Take a copy of the expect map, since we'll be modifying it:
-	expect = func(m map[string]int) map[string]int {
-		r := make(map[string]int)
-		for k, v := range m {
-			r[k] = v
-		}
-		return r
-	}(expect)
-	glog.Infof("Expecting %d unique leaves", len(expect))
 
 	leaves := make([]*trillian.LogLeaf, 0, params.LeafCount)
 	for index, end := params.StartLeaf, params.StartLeaf+params.LeafCount; index < end; {
@@ -326,39 +319,36 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 			return nil, fmt.Errorf("expected %d leaves, got %d", want, got)
 		}
 
-		for _, leaf := range response.Leaves {
-			leaves = append(leaves, leaf)
-
-			// Check that the leaf values are returned in the same counts. Can't rely
-			// on the ordering because they can be inserted in a different order.
-			value := string(leaf.LeafValue)
-			expect[value]--
-			if expect[value] == 0 {
-				delete(expect, value)
-			}
-
-			// Check that the MerkleLeafHash field is computed correctly.
-			hash := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
-			if got, want := leaf.MerkleLeafHash, hash; !bytes.Equal(got, want) {
-				return nil, fmt.Errorf("leaf %d hash mismatch: got %x want %x", leaf.LeafIndex, got, want)
-			}
-
-			// Ensure that the ExtraData in the leaf made it through the roundtrip.
-			// This was set up when we queued the leaves.
-			if got, want := leaf.ExtraData, []byte(strings.Replace(value, "Leaf", "Extra", 1)); !bytes.Equal(got, want) {
-				return nil, fmt.Errorf("leaf %d ExtraData: got %x, want %x: %v", leaf.LeafIndex, got, want, leaf)
-			}
-		}
-
+		leaves = append(leaves, response.Leaves...)
 		index += int64(len(response.Leaves))
 	}
 
-	// We expect to have seen all the leaves so the map should be empty.
-	if len(expect) != 0 {
-		return nil, fmt.Errorf("incorrect leaves read back (+missing, -extra): %v", expect)
+	return leaves, nil
+}
+
+func verifyEntries(entries []*trillian.LogLeaf, expect map[string]int) error {
+	glog.Infof("Expecting %d unique leaves", len(expect))
+
+	counts := make(map[string]int, len(expect))
+	for _, e := range entries {
+		counts[string(e.LeafValue)]++
+
+		// Check that the MerkleLeafHash field is computed correctly.
+		hash := rfc6962.DefaultHasher.HashLeaf(e.LeafValue)
+		if got, want := e.MerkleLeafHash, hash; !bytes.Equal(got, want) {
+			return fmt.Errorf("leaf %d hash mismatch: got %x want %x", e.LeafIndex, got, want)
+		}
+		// Ensure that the ExtraData in the leaf made it through the roundtrip.
+		// This was set up when we queued the leaves.
+		if got, want := e.ExtraData, bytes.Replace(e.LeafValue, []byte("Leaf"), []byte("Extra"), 1); !bytes.Equal(got, want) {
+			return fmt.Errorf("leaf %d ExtraData: got %x, want %xv", e.LeafIndex, got, want)
+		}
 	}
 
-	return leaves, nil
+	if diff := cmp.Diff(counts, expect); diff != "" {
+		return fmt.Errorf("entry leaf values don't match the expected: diff (-got +expect)\n%s", diff)
+	}
+	return nil
 }
 
 func checkLogRootHashMatches(tree *inmemory.Tree, client trillian.TrillianLogClient, params TestParameters) error {
