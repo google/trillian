@@ -305,9 +305,8 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 	}(expect)
 	glog.Infof("Expecting %d unique leaves", len(expect))
 
-	var leaves []*trillian.LogLeaf
+	leaves := make([]*trillian.LogLeaf, 0, params.LeafCount)
 	for index, end := params.StartLeaf, params.StartLeaf+params.LeafCount; index < end; {
-		// We have to allow for the last batch potentially being a short one.
 		count := end - index
 		if max := params.ReadBatchSize; count > max {
 			count = max
