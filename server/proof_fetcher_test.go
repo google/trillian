@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/trillian/internal/merkle/inmemory"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
+	inmemory "github.com/transparency-dev/merkle/testonly"
 )
 
 // An arbitrary tree revision to be used in tests.

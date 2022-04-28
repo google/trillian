@@ -27,11 +27,11 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
-	"github.com/google/trillian/internal/merkle/inmemory"
 	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
+	inmemory "github.com/transparency-dev/merkle/testonly"
 )
 
 // TestParameters bundles up all the settings for a test run

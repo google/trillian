@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	_ "github.com/golang/glog"
-	"github.com/google/trillian/internal/merkle/inmemory"
 	"github.com/google/trillian/merkle/rfc6962" // nolint:staticcheck
+	inmemory "github.com/transparency-dev/merkle/testonly"
 )
 
 type inclusionProofTestVector struct {
