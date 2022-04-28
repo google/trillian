@@ -17,18 +17,15 @@ package integration
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/types"
-	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
 	inmemory "github.com/transparency-dev/merkle/testonly"
@@ -111,11 +108,10 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 		}
 	}
 
-	var leafCounts map[string]int
-	var err error
+	preEntries := genEntries(params)
 	if params.QueueLeaves {
 		glog.Infof("Queueing %d leaves to log server ...", params.LeafCount)
-		if leafCounts, err = queueLeaves(client, params); err != nil {
+		if err := queueLeaves(client, params, preEntries); err != nil {
 			return fmt.Errorf("failed to queue leaves: %v", err)
 		}
 	}
@@ -130,17 +126,17 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
 	glog.Infof("Reading back leaves from log ...")
-	leafMap, err := readbackLogEntries(params.TreeID, client, params, leafCounts)
+	entries, err := readEntries(params.TreeID, client, params)
 	if err != nil {
 		return fmt.Errorf("could not read back log entries: %v", err)
+	}
+	if err := verifyEntries(preEntries, entries); err != nil {
+		return fmt.Errorf("written and read entries mismatch: %v", err)
 	}
 
 	// Step 4 - Cross validation between log and memory tree root hashes
 	glog.Infof("Checking log STH with our constructed in-memory tree ...")
-	tree, err := buildMemoryMerkleTree(leafMap, params)
-	if err != nil {
-		return err
-	}
+	tree := buildMerkleTree(entries, params)
 	if err := checkLogRootHashMatches(tree, client, params); err != nil {
 		return fmt.Errorf("log consistency check failed: %v", err)
 	}
@@ -197,68 +193,59 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	return nil
 }
 
-func queueLeaves(client trillian.TrillianLogClient, params TestParameters) (map[string]int, error) {
+func genEntries(params TestParameters) []*trillian.LogLeaf {
 	if params.UniqueLeaves == 0 {
 		params.UniqueLeaves = params.LeafCount
 	}
 
-	leaves := []*trillian.LogLeaf{}
-
 	uniqueLeaves := make([]*trillian.LogLeaf, 0, params.UniqueLeaves)
 	for i := int64(0); i < params.UniqueLeaves; i++ {
-		leafNumber := params.StartLeaf + i
-		data := []byte(fmt.Sprintf("%sLeaf %d", params.CustomLeafPrefix, leafNumber))
+		index := params.StartLeaf + i
 		leaf := &trillian.LogLeaf{
-			LeafValue: data,
-			ExtraData: []byte(fmt.Sprintf("%sExtra %d", params.CustomLeafPrefix, leafNumber)),
+			LeafValue: []byte(fmt.Sprintf("%sLeaf %d", params.CustomLeafPrefix, index)),
+			ExtraData: []byte(fmt.Sprintf("%sExtra %d", params.CustomLeafPrefix, index)),
 		}
 		uniqueLeaves = append(uniqueLeaves, leaf)
 	}
 
-	// We'll shuffle the sent leaves around a bit to see if that breaks things,
-	// but record and log the seed we use so we can reproduce failures.
+	// Shuffle the leaves to see if that breaks things, but record the rand seed
+	// so we can reproduce failures.
 	seed := time.Now().UnixNano()
 	rand.Seed(seed)
 	perm := rand.Perm(int(params.LeafCount))
-	glog.Infof("Queueing %d leaves total, built from %d unique leaves, using permutation seed %d", params.LeafCount, len(uniqueLeaves), seed)
+	glog.Infof("Generating %d leaves, %d unique, using permutation seed %d", params.LeafCount, params.UniqueLeaves, seed)
 
-	counts := make(map[string]int)
+	leaves := make([]*trillian.LogLeaf, 0, params.LeafCount)
 	for l := int64(0); l < params.LeafCount; l++ {
-		leaf := uniqueLeaves[int64(perm[l])%params.UniqueLeaves]
-		leaves = append(leaves, leaf)
-		counts[string(leaf.LeafValue)]++
+		leaves = append(leaves, uniqueLeaves[int64(perm[l])%params.UniqueLeaves])
+	}
+	return leaves
+}
 
-		if len(leaves) >= params.QueueBatchSize || (l+1) == params.LeafCount {
-			glog.Infof("Queueing %d leaves...", len(leaves))
+func queueLeaves(client trillian.TrillianLogClient, params TestParameters, entries []*trillian.LogLeaf) error {
+	glog.Infof("Queueing %d leaves...", len(entries))
 
-			for _, leaf := range leaves {
-				ctx, cancel := getRPCDeadlineContext(params)
-				b := &backoff.Backoff{
-					Min:    100 * time.Millisecond,
-					Max:    10 * time.Second,
-					Factor: 2,
-					Jitter: true,
-				}
-
-				err := b.Retry(ctx, func() error {
-					_, err := client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
-						LogId: params.TreeID,
-						Leaf:  leaf,
-					})
-					return err
-				})
-				cancel()
-
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			leaves = leaves[:0] // starting new batch
+	for _, leaf := range entries {
+		ctx, cancel := getRPCDeadlineContext(params)
+		b := &backoff.Backoff{
+			Min:    100 * time.Millisecond,
+			Max:    10 * time.Second,
+			Factor: 2,
+			Jitter: true,
+		}
+		err := b.Retry(ctx, func() error {
+			_, err := client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
+				LogId: params.TreeID,
+				Leaf:  leaf,
+			})
+			return err
+		})
+		cancel()
+		if err != nil {
+			return err
 		}
 	}
-
-	return counts, nil
+	return nil
 }
 
 func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params TestParameters) error {
@@ -295,79 +282,68 @@ func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params T
 	return errors.New("wait time expired")
 }
 
-func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params TestParameters, expect map[string]int) (map[int64]*trillian.LogLeaf, error) {
-	// Take a copy of the expect map, since we'll be modifying it:
-	expect = func(m map[string]int) map[string]int {
-		r := make(map[string]int)
-		for k, v := range m {
-			r[k] = v
-		}
-		return r
-	}(expect)
+func readEntries(logID int64, client trillian.TrillianLogClient, params TestParameters) ([]*trillian.LogLeaf, error) {
+	if start := params.StartLeaf; start != 0 {
+		return nil, fmt.Errorf("non-zero StartLeaf is not supported: %d", start)
+	}
 
-	currentLeaf := int64(0)
-	leafMap := make(map[int64]*trillian.LogLeaf)
-	glog.Infof("Expecting %d unique leaves", len(expect))
-
-	for currentLeaf < params.LeafCount {
-		// We have to allow for the last batch potentially being a short one
-		numLeaves := params.LeafCount - currentLeaf
-
-		if numLeaves > params.ReadBatchSize {
-			numLeaves = params.ReadBatchSize
+	leaves := make([]*trillian.LogLeaf, 0, params.LeafCount)
+	for index, end := params.StartLeaf, params.StartLeaf+params.LeafCount; index < end; {
+		count := end - index
+		if max := params.ReadBatchSize; count > max {
+			count = max
 		}
 
-		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf+params.StartLeaf)
-		req := &trillian.GetLeavesByRangeRequest{LogId: logID, StartIndex: currentLeaf + params.StartLeaf, Count: numLeaves}
+		glog.Infof("Reading %d leaves from %d ...", count, index)
+		req := &trillian.GetLeavesByRangeRequest{LogId: logID, StartIndex: index, Count: count}
 		ctx, cancel := getRPCDeadlineContext(params)
 		response, err := client.GetLeavesByRange(ctx, req)
 		cancel()
-
 		if err != nil {
 			return nil, err
 		}
 
-		// Check we got the right leaf count
-		if len(response.Leaves) == 0 {
-			return nil, fmt.Errorf("expected %d leaves log returned none", numLeaves)
+		// Check we got the right number of leaves.
+		if got, want := int64(len(response.Leaves)), count; got != want {
+			return nil, fmt.Errorf("expected %d leaves, got %d", want, got)
 		}
 
-		// Check the leaf contents make sense. Can't rely on exact ordering as queue timestamps will be
-		// close between batches and identical within batches.
-		for l := 0; l < len(response.Leaves); l++ {
-			// Check for duplicate leaf index in response data - should not happen
-			leaf := response.Leaves[l]
+		leaves = append(leaves, response.Leaves...)
+		index += int64(len(response.Leaves))
+	}
 
-			lk := string(leaf.LeafValue)
-			expect[lk]--
+	return leaves, nil
+}
 
-			if expect[lk] == 0 {
-				delete(expect, lk)
-			}
-			leafMap[leaf.LeafIndex] = leaf
+func verifyEntries(written, read []*trillian.LogLeaf) error {
+	counts := make(map[string]int, len(written))
 
-			hash := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
+	for _, e := range read {
+		counts[string(e.LeafValue)]++
 
-			if got, want := hex.EncodeToString(hash), hex.EncodeToString(leaf.MerkleLeafHash); got != want {
-				return nil, fmt.Errorf("leaf %d hash mismatch expected got: %s want: %s", leaf.LeafIndex, got, want)
-			}
-
-			// Ensure that the ExtraData in the leaf made it through the roundtrip. This was set up when
-			// we queued the leaves.
-			if got, want := hex.EncodeToString(leaf.ExtraData), hex.EncodeToString([]byte(strings.Replace(string(leaf.LeafValue), "Leaf", "Extra", 1))); got != want {
-				return nil, fmt.Errorf("leaf %d extra data got: %s, want:%s (%v)", leaf.LeafIndex, got, want, leaf)
-			}
+		// Check that the MerkleLeafHash field is computed correctly.
+		hash := rfc6962.DefaultHasher.HashLeaf(e.LeafValue)
+		if got, want := e.MerkleLeafHash, hash; !bytes.Equal(got, want) {
+			return fmt.Errorf("leaf %d hash mismatch: got %x want %x", e.LeafIndex, got, want)
 		}
-
-		currentLeaf += int64(len(response.Leaves))
+		// Ensure that the ExtraData in the leaf made it through the roundtrip.
+		// This was set up when we queued the leaves.
+		if got, want := e.ExtraData, bytes.Replace(e.LeafValue, []byte("Leaf"), []byte("Extra"), 1); !bytes.Equal(got, want) {
+			return fmt.Errorf("leaf %d ExtraData: got %x, want %xv", e.LeafIndex, got, want)
+		}
 	}
 
-	// By this point we expect to have seen all the leaves so there should be nothing in the map
-	if len(expect) != 0 {
-		return nil, fmt.Errorf("incorrect leaves read back (+missing, -extra): %v", expect)
+	for _, e := range written {
+		counts[string(e.LeafValue)]--
+		if counts[string(e.LeafValue)] == 0 {
+			delete(counts, string(e.LeafValue))
+		}
 	}
 
-	return leafMap, nil
+	if len(counts) != 0 {
+		return fmt.Errorf("entry leaf values don't match: diff (-expected +got)\n%v", counts)
+	}
+	return nil
 }
 
 func checkLogRootHashMatches(tree *inmemory.Tree, client trillian.TrillianLogClient, params TestParameters) error {
@@ -507,41 +483,13 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		resp.Proof.Hashes, root1, root2)
 }
 
-func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*inmemory.Tree, error) {
-	// Build the same tree with two different Merkle tree implementations as an
-	// additional check. We don't just rely on the compact range as the server
-	// uses the same code so bugs could be masked.
-	//
-	// TODO(pavelkalinnikov): Don't do this, just test the impl extensively.
-	hasher := rfc6962.DefaultHasher
-	fact := compact.RangeFactory{Hash: hasher.HashChildren}
-	cr := fact.NewEmptyRange(0)
-
-	merkleTree := inmemory.New(hasher)
-
-	// We don't simply iterate the map, as we need to preserve the leaves order.
-	for l := params.StartLeaf; l < params.LeafCount; l++ {
-		if err := cr.Append(hasher.HashLeaf(leafMap[l].LeafValue), nil); err != nil {
-			return nil, err
-		}
-		merkleTree.AppendData(leafMap[l].LeafValue)
+// buildMerkleTree returns an in-memory Merkle tree built on the given leaves.
+func buildMerkleTree(leaves []*trillian.LogLeaf, params TestParameters) *inmemory.Tree {
+	merkleTree := inmemory.New(rfc6962.DefaultHasher)
+	for _, leaf := range leaves {
+		merkleTree.AppendData(leaf.LeafValue)
 	}
-
-	// If the two reference results disagree there's no point in continuing the
-	// checks. This is a "can't happen" situation.
-	root, err := cr.GetRootHash(nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compute compact range root: %v", err)
-	}
-	if cr.End() == 0 {
-		// TODO(pavelkalinnikov): Handle empty hash case in compact.Range.
-		root = hasher.EmptyRoot()
-	}
-	if got, want := root, merkleTree.Hash(); !bytes.Equal(got, want) {
-		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", got, want)
-	}
-
-	return merkleTree, nil
+	return merkleTree
 }
 
 func getLatestSignedLogRoot(client trillian.TrillianLogClient, params TestParameters) (*trillian.GetLatestSignedLogRootResponse, error) {
