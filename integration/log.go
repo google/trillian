@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/types"
@@ -109,11 +108,10 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 		}
 	}
 
-	var leafCounts map[string]int
-	var err error
+	preEntries := genEntries(params)
 	if params.QueueLeaves {
 		glog.Infof("Queueing %d leaves to log server ...", params.LeafCount)
-		if leafCounts, err = queueLeaves(client, params); err != nil {
+		if err := queueLeaves(client, params, preEntries); err != nil {
 			return fmt.Errorf("failed to queue leaves: %v", err)
 		}
 	}
@@ -132,8 +130,8 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	if err != nil {
 		return fmt.Errorf("could not read back log entries: %v", err)
 	}
-	if err := verifyEntries(entries, leafCounts); err != nil {
-		return fmt.Errorf("leaf counts mismatch: %v", err)
+	if err := verifyEntries(preEntries, entries); err != nil {
+		return fmt.Errorf("written and read entries mismatch: %v", err)
 	}
 
 	// Step 4 - Cross validation between log and memory tree root hashes
@@ -195,68 +193,59 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	return nil
 }
 
-func queueLeaves(client trillian.TrillianLogClient, params TestParameters) (map[string]int, error) {
+func genEntries(params TestParameters) []*trillian.LogLeaf {
 	if params.UniqueLeaves == 0 {
 		params.UniqueLeaves = params.LeafCount
 	}
 
-	leaves := []*trillian.LogLeaf{}
-
 	uniqueLeaves := make([]*trillian.LogLeaf, 0, params.UniqueLeaves)
 	for i := int64(0); i < params.UniqueLeaves; i++ {
-		leafNumber := params.StartLeaf + i
-		data := []byte(fmt.Sprintf("%sLeaf %d", params.CustomLeafPrefix, leafNumber))
+		index := params.StartLeaf + i
 		leaf := &trillian.LogLeaf{
-			LeafValue: data,
-			ExtraData: []byte(fmt.Sprintf("%sExtra %d", params.CustomLeafPrefix, leafNumber)),
+			LeafValue: []byte(fmt.Sprintf("%sLeaf %d", params.CustomLeafPrefix, index)),
+			ExtraData: []byte(fmt.Sprintf("%sExtra %d", params.CustomLeafPrefix, index)),
 		}
 		uniqueLeaves = append(uniqueLeaves, leaf)
 	}
 
-	// We'll shuffle the sent leaves around a bit to see if that breaks things,
-	// but record and log the seed we use so we can reproduce failures.
+	// Shuffle the leaves to see if that breaks things, but record the rand seed
+	// so we can reproduce failures.
 	seed := time.Now().UnixNano()
 	rand.Seed(seed)
 	perm := rand.Perm(int(params.LeafCount))
-	glog.Infof("Queueing %d leaves total, built from %d unique leaves, using permutation seed %d", params.LeafCount, len(uniqueLeaves), seed)
+	glog.Infof("Generating %d leaves, %d unique, using permutation seed %d", params.LeafCount, params.UniqueLeaves, seed)
 
-	counts := make(map[string]int)
+	leaves := make([]*trillian.LogLeaf, 0, params.LeafCount)
 	for l := int64(0); l < params.LeafCount; l++ {
-		leaf := uniqueLeaves[int64(perm[l])%params.UniqueLeaves]
-		leaves = append(leaves, leaf)
-		counts[string(leaf.LeafValue)]++
+		leaves = append(leaves, uniqueLeaves[int64(perm[l])%params.UniqueLeaves])
+	}
+	return leaves
+}
 
-		if len(leaves) >= params.QueueBatchSize || (l+1) == params.LeafCount {
-			glog.Infof("Queueing %d leaves...", len(leaves))
+func queueLeaves(client trillian.TrillianLogClient, params TestParameters, entries []*trillian.LogLeaf) error {
+	glog.Infof("Queueing %d leaves...", len(entries))
 
-			for _, leaf := range leaves {
-				ctx, cancel := getRPCDeadlineContext(params)
-				b := &backoff.Backoff{
-					Min:    100 * time.Millisecond,
-					Max:    10 * time.Second,
-					Factor: 2,
-					Jitter: true,
-				}
-
-				err := b.Retry(ctx, func() error {
-					_, err := client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
-						LogId: params.TreeID,
-						Leaf:  leaf,
-					})
-					return err
-				})
-				cancel()
-
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			leaves = leaves[:0] // starting new batch
+	for _, leaf := range entries {
+		ctx, cancel := getRPCDeadlineContext(params)
+		b := &backoff.Backoff{
+			Min:    100 * time.Millisecond,
+			Max:    10 * time.Second,
+			Factor: 2,
+			Jitter: true,
+		}
+		err := b.Retry(ctx, func() error {
+			_, err := client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
+				LogId: params.TreeID,
+				Leaf:  leaf,
+			})
+			return err
+		})
+		cancel()
+		if err != nil {
+			return err
 		}
 	}
-
-	return counts, nil
+	return nil
 }
 
 func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params TestParameters) error {
@@ -326,11 +315,10 @@ func readEntries(logID int64, client trillian.TrillianLogClient, params TestPara
 	return leaves, nil
 }
 
-func verifyEntries(entries []*trillian.LogLeaf, expect map[string]int) error {
-	glog.Infof("Expecting %d unique leaves", len(expect))
+func verifyEntries(written, read []*trillian.LogLeaf) error {
+	counts := make(map[string]int, len(written))
 
-	counts := make(map[string]int, len(expect))
-	for _, e := range entries {
+	for _, e := range read {
 		counts[string(e.LeafValue)]++
 
 		// Check that the MerkleLeafHash field is computed correctly.
@@ -345,8 +333,15 @@ func verifyEntries(entries []*trillian.LogLeaf, expect map[string]int) error {
 		}
 	}
 
-	if diff := cmp.Diff(counts, expect); diff != "" {
-		return fmt.Errorf("entry leaf values don't match the expected: diff (-got +expect)\n%s", diff)
+	for _, e := range written {
+		counts[string(e.LeafValue)]--
+		if counts[string(e.LeafValue)] == 0 {
+			delete(counts, string(e.LeafValue))
+		}
+	}
+
+	if len(counts) != 0 {
+		return fmt.Errorf("entry leaf values don't match: diff (-expected +got)\n%v", counts)
 	}
 	return nil
 }
