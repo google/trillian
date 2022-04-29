@@ -15,6 +15,7 @@
 ### Misc improvements
 
  * #2712: Fix MySQL world-writable config warning.
+ * #2726: Check the tile height invariant stricter. No changes required.
 
 ## v1.4.0
 
