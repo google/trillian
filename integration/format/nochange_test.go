@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package format contains an integration test which builds a log using an
-// in-memory storage end-to-end, and makes sure the SubtreeProto storage format
-// has no regressions.
 package format
 
 import (
