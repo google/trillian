@@ -26,7 +26,7 @@ RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/i
 
 RUN mkdir protoc && \
     (cd protoc && \
-    PROTOC_VERSION="3.12.4" && \
+    PROTOC_VERSION="3.20.1" && \
     PROTOC_ZIP="protoc-${PROTOC_VERSION}-linux-x86_64.zip" && \
     wget "https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}" && \
     unzip -o ${PROTOC_ZIP} -d /usr/local bin/protoc && \

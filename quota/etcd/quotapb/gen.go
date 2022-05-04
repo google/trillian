@@ -14,4 +14,4 @@
 
 package quotapb
 
-//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. --go-grpc_opt=require_unimplemented_servers=false quotapb.proto
+//go:generate protoc -I=. -I=$GOPATH/src/github.com/googleapis/googleapis --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. --go-grpc_opt=require_unimplemented_servers=false quotapb.proto
