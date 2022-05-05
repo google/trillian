@@ -28,7 +28,7 @@ require (
 	github.com/pseudomuto/protoc-gen-doc v1.5.1
 	github.com/spf13/cobra v1.4.0 // indirect
 	github.com/stretchr/testify v1.7.1 // indirect
-	github.com/transparency-dev/merkle v0.0.0-20220427153749-09877c5f5967
+	github.com/transparency-dev/merkle v0.0.1
 	github.com/urfave/cli v1.22.7 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.4
 	go.etcd.io/etcd/etcdctl/v3 v3.5.4
