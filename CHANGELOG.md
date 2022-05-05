@@ -17,6 +17,9 @@
  * #2712: Fix MySQL world-writable config warning.
  * #2726: Check the tile height invariant stricter. No changes required.
 
+### Dependency updates
+ * #2731: Update `protoc` from `v3.12.4` to `v3.20.1`
+
 ## v1.4.0
 
 * Recommended go version for development: 1.17
