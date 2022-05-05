@@ -57,6 +57,7 @@ For example:
 
 ```
 LOG_ID=987654321
+LOG_SERVER_RPC=localhost:8090
 METRICS_URI=http://signer-1:8091/metrics
 ```
 
@@ -64,7 +65,7 @@ METRICS_URI=http://signer-1:8091/metrics
 
 Use `updatetree` to set the log tree to a `DRAINING` state.
 
-`updatetree --tree_id=${LOG_ID} --tree-state=DRAINING`
+`updatetree --admin_server=${LOG_SERVER_RPC} --tree_id=${LOG_ID} --tree_state=DRAINING`
 
 Make sure the above command succeeds. At this point the log will not
 accept new entries but there may be some that have already been
@@ -146,6 +147,6 @@ exceeding its MMD.
 
 Use `updatetree` to set the log tree to a `FROZEN` state.
 
-`updatetree --tree_id=${LOG_ID} --tree-state=FROZEN`
+`updatetree --admin_server=${LOG_SERVER_RPC} --tree_id=${LOG_ID} --tree_state=FROZEN`
 
 Make sure the above command succeeds. The log is now frozen.
