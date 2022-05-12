@@ -64,8 +64,8 @@ cloud.google.com/go/pubsub v1.3.1/go.mod h1:i+ucay31+CNRpDW4Lu78I4xXG+O1r/MAHgjp
 cloud.google.com/go/pubsub v1.11.0-beta.schemas/go.mod h1:llNLsvx+RnsZJoY481TzC1XcdB2hWdR6gSWM5O4vgfs=
 cloud.google.com/go/spanner v1.17.0/go.mod h1:+17t2ixFwRG4lWRwE+5kipDR9Ef07Jkmc8z0IbMDKUs=
 cloud.google.com/go/spanner v1.18.0/go.mod h1:LvAjUXPeJRGNuGpikMULjhLj/t9cRvdc+fxRoLiugXA=
-cloud.google.com/go/spanner v1.31.0 h1:JTjuqgKkLEBEYT4JhHu4/GMTeDyRnNyzdFiv37J5fZI=
-cloud.google.com/go/spanner v1.31.0/go.mod h1:ztDJVUZgEA2xc7HjSNQG+d+2L0bOSsw876/5Hnr78U8=
+cloud.google.com/go/spanner v1.32.0 h1:KUiCc/dg+T38Rc0jHdF4dT/1ScSU3AViO5aa174mm9s=
+cloud.google.com/go/spanner v1.32.0/go.mod h1:Edfg13aIlc08ymvYRbY7JQxRGrVr9mlN5xyFBufTBVg=
 cloud.google.com/go/storage v1.0.0/go.mod h1:IhtSnM/ZTZV8YYJWCY8RULGVqBDmpoyjwiyrjsg+URw=
 cloud.google.com/go/storage v1.5.0/go.mod h1:tpKbwo567HUNpVclU5sGELwQWBDZ8gh0ZeosJ0Rtdos=
 cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohlUTyfDhBk=
