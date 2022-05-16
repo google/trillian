@@ -2,6 +2,8 @@
 
 ## HEAD
 
+## v1.4.1
+
 * `countFromInformationSchema` function to add support for MySQL 8.
 
 ### Removals
