@@ -2,12 +2,8 @@
 
 ## HEAD
 
-### Storage
-
-* #2568: Ephemeral nodes of the Merkle tree are no longer written to storage.
-  This is backwards compatible with versions >= v1.4.0. The leftover ephemeral
-  nodes may continue being stored, but since they are not used by reads, the API
-  remains operating correctly.
+* #2568: Allow disabling the writes of ephemeral nodes to storage via the
+  `--tree_ids_with_no_ephemeral_nodes` flag to the sequencer.
 
 ## v1.4.1
 

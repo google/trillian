@@ -154,6 +154,11 @@ var (
 	})
 )
 
+func init() {
+	// The tree ID used by TestIntegrateBatch.
+	idsWithNoEphemeralNodes["154035"] = true
+}
+
 func makeSLR(root *types.LogRootV1) *trillian.SignedLogRoot {
 	logRoot, _ := root.MarshalBinary()
 	return &trillian.SignedLogRoot{LogRoot: logRoot}
