@@ -99,10 +99,6 @@ var (
 			ID:   compact.NewNodeID(0, 16),
 			Hash: testonly.MustDecodeBase64("L5Iyd7aFOVewxiRm29xD+EU+jvEo4RfufBijKdflWMk="),
 		},
-		{
-			ID:   compact.NewNodeID(5, 0),
-			Hash: testonly.MustDecodeBase64("R57DrKTGuZdjCNXjv6InGrm4rABLOn9yWpdHmYOoLwU="),
-		},
 	}
 
 	testRoot = &types.LogRootV1{
@@ -128,14 +124,6 @@ var (
 	}
 	// Nodes that will be stored after updating the tree of size 21.
 	updatedNodes21 = []tree.Node{
-		{
-			ID:   compact.NewNodeID(5, 0),
-			Hash: testonly.MustDecodeBase64("1oUtLDlyOWXLHLAvL3NvWaO4D9kr0oQYScylDlgjey4="),
-		},
-		{
-			ID:   compact.NewNodeID(3, 2),
-			Hash: testonly.MustDecodeBase64("1yCvo/9xbNIileBAEjc+c00GxVQQV7h54Tdmkc48uRU="),
-		},
 		{
 			ID:   compact.NewNodeID(1, 10),
 			Hash: testonly.MustDecodeBase64("S55qEsQMx90/eq1fSb87pYCB9WIYL7hBgiTY+B9LmPw="),
@@ -165,6 +153,11 @@ var (
 		RootHash:       rfc6962.DefaultHasher.EmptyRoot(),
 	})
 )
+
+func init() {
+	// The tree ID used by TestIntegrateBatch.
+	idsWithNoEphemeralNodes["154035"] = true
+}
 
 func makeSLR(root *types.LogRootV1) *trillian.SignedLogRoot {
 	logRoot, _ := root.MarshalBinary()
