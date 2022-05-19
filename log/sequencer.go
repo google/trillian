@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -66,38 +65,8 @@ var (
 	QuotaIncreaseFactor = 1.1
 )
 
-// stringSet is a set of strings that can be parsed by flag package.
-type stringSet map[string]bool
-
-func (s *stringSet) String() string {
-	keys := make([]string, 0, len(*s))
-	for k, v := range *s {
-		if v {
-			keys = append(keys, k)
-		}
-	}
-	return strings.Join(keys, ",")
-}
-
-func (s *stringSet) Set(value string) error {
-	*s = make(stringSet)
-	for _, id := range strings.Split(value, ",") {
-		(*s)[id] = true
-	}
-	return nil
-}
-
-// The tree IDs for which sequencer does not store ephemeral node hashes.
-// Trillian releases up to v1.4.1 store the ephemeral hashes, which corresponds
-// to this slice being empty. Release v1.4.2 allows disabling this behaviour
-// for individual, or all trees (denoted by the "*" wildcard). The release
-// after v1.4.2 will switch to "*" behaviour unconditionally.
-var idsWithNoEphemeralNodes stringSet
-
 // TODO(pavelkalinnikov): Remove this flag in the next release.
-func init() {
-	flag.Var(&idsWithNoEphemeralNodes, "tree_ids_with_no_ephemeral_nodes", "Comma-separated list of tree IDs for which storing the ephemeral nodes is disabled, or * to disable it for all trees")
-}
+var _ = flag.String("tree_ids_with_no_ephemeral_nodes", "*", "[Deprecated] Comma-separated list of tree IDs for which storing the ephemeral nodes is disabled, or * to disable it for all trees")
 
 func quotaIncreaseFactor() float64 {
 	if QuotaIncreaseFactor < 1 {
@@ -220,19 +189,8 @@ func updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label str
 			return nil, nil, err
 		}
 	}
-
-	// Store or not store ephemeral nodes depending on the flag. This is a
-	// temporary safety measure, to test this on individual trees before fully
-	// disabling ephemeral nodes.
-	storeEphemeral := store
-	if idsWithNoEphemeralNodes[label] || idsWithNoEphemeralNodes["*"] {
-		storeEphemeral = nil
-		glog.Infof("%s: Not storing ephemeral nodes", label)
-	}
-
-	// TODO(pavelkalinnikov): Do not store the ephemeral node hashes
-	// unconditionally, because they are not used since v1.4.0.
-	hash, err := cr.GetRootHash(storeEphemeral)
+	// Note: Ephemeral nodes are not stored.
+	hash, err := cr.GetRootHash(nil)
 	if err != nil {
 		return nil, nil, err
 	}
