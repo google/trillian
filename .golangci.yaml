@@ -12,9 +12,6 @@ linters-settings:
     packages:
       - golang.org/x/net/context
       - github.com/gogo/protobuf/proto
-      - github.com/google/certificate-transparency-go/trillian
-      - github.com/google/certificate-transparency-go/x509
-      - github.com/google/certificate-transparency-go/asn1
 
 linters:
   disable-all: true
