@@ -8,7 +8,14 @@
 # the repo. Unless a later match takes precedence,
 # @google/trillian-team will be requested for
 # review when someone opens a pull request.
-*                                @google/trillian-team
+*                                 @google/trillian-team
 
-/*.proto                         @Martin2112 @AlCutter @pphaneuf
-/storage/storagepb/storage.proto @Martin2112 @AlCutter @pphaneuf
+/*.proto                          @mhutchinson @AlCutter @pphaneuf
+/storage/storagepb/storage.proto  @mhutchinson @AlCutter @pphaneuf
+
+# Changes to storage schemas is not to be done lightly.
+# Using OWNERS as a mechanism to make sure that if changes are
+# made, then backwards compatibility or migration steps are provided.
+# If this happens regularly, then reopen #1297.
+/storage/mysql/schema/storage.sql @mhutchinson @AlCutter @pphaneuf
+/storage/cloudspanner/spanner.sdl @mhutchinson @AlCutter @pphaneuf
