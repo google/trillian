@@ -217,7 +217,7 @@ and tests over the codebase.
 
 #### Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
 ```bash
-go install github.com/golangci/golangci-lint/cmd/golangci-lint
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
 ```
 
 #### Run code generation, build, test and linters

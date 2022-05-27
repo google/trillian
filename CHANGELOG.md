@@ -6,6 +6,8 @@
   `--tree_ids_with_no_ephemeral_nodes` flag to the sequencer.
 
 ### Dependency updates
+
+* Updated golangci-lint to v1.46.1 (developers should update to this version)
 * Removed dependency on certificate-transparency-go
 
 ## v1.4.1
