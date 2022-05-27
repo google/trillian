@@ -4,8 +4,12 @@
 
 * #2568: Allow disabling the writes of ephemeral nodes to storage via the
   `--tree_ids_with_no_ephemeral_nodes` flag to the sequencer.
+* #2748: `--cloudspanner_max_burst_sessions` deprecated (it hasn't had any
+  effect for a while, now it's more explicit)
 
 ### Dependency updates
+
+* Updated golangci-lint to v1.46.1 (developers should update to this version)
 * Removed dependency on certificate-transparency-go
 
 ## v1.4.1
