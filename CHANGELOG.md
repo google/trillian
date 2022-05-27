@@ -5,6 +5,9 @@
 * #2568: Allow disabling the writes of ephemeral nodes to storage via the
   `--tree_ids_with_no_ephemeral_nodes` flag to the sequencer.
 
+### Dependency updates
+* Removed dependency on certificate-transparency-go
+
 ## v1.4.1
 
 * `countFromInformationSchema` function to add support for MySQL 8.
