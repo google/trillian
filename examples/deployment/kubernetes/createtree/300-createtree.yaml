@@ -1,0 +1,18 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: createtree
+  namespace: createtree
+spec:
+  template:
+    spec:
+      serviceAccountName: createtree
+      restartPolicy: Never
+      containers:
+      - name: createtree
+        image: ko://github.com/google/trillian/cmd/createtree-k8s
+        args: [
+          "--namespace=createtree",
+          "--configmap=trillian-tree",
+          "--display_name=ctlogtree"
+        ]

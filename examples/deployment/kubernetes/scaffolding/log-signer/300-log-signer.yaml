@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trillian
+  namespace: trillian-system
+---
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  namespace: trillian-system
+  name: log-signer
+  labels:
+    networking.knative.dev/visibility: cluster-local
+spec:
+  template:
+    metadata:
+      annotations:
+        # LogSigner is stateful service because it gives promises to flush
+        # the SCT to persistent store.
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+    spec:
+      serviceAccountName: trillian
+      containers:
+      - name: log-signer
+        args: [
+          "--mysql_uri=$(MYSQL_USER):$(MYSQL_PASSWORD)@tcp($(DATABASE_HOSTNAME):3306)/$(DATABASE_NAME)",
+          "--storage_system=mysql",
+          # Either force the master, or use the etcd looks like are the only
+          # two options. For now, just use this until we sort etcd stuff out.
+          "--force_master",
+  #        "--etcd_servers=trillian-etcd-cluster-client.etcd-system.svc:2379",
+          "--quota_system=mysql",
+  #        "--etcd_http_service=trillian-logsigner-http",
+  #        "--http_endpoint=0.0.0.0:8091",
+          "--sequencer_guard_window=1s",
+          "--sequencer_interval=20ms",
+          "--num_sequencers=10",
+          "--batch_size=500",
+          # No idea what this is...
+          # "$(SIGNER_DEQUEUE_BUCKET_FRACTION)",
+          "--master_hold_jitter=7200s",
+          "--alsologtostderr"
+        ]
+        env:
+          - name: DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: database-name
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: username
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: password
+          - name: DATABASE_HOSTNAME
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: host
+        image:  gcr.io/trillian-opensource-ci/log_signer:latest
+        imagePullPolicy: Always
+        ports:
+        - name: h2c
+          containerPort: 8090

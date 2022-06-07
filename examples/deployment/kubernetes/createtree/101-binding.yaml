@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: createtree
+  name: cm-operator
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["configmaps"]
+  resourceNames: ["trillian-tree"]
+  verbs: ["get", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: role-cm-updater
+  namespace: createtree
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cm-operator
+subjects:
+- kind: ServiceAccount
+  name: createtree
+  namespace: createtree
