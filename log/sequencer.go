@@ -227,6 +227,7 @@ func updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label str
 	storeEphemeral := store
 	if idsWithNoEphemeralNodes[label] || idsWithNoEphemeralNodes["*"] {
 		storeEphemeral = nil
+		glog.Infof("%s: Not storing ephemeral nodes", label)
 	}
 
 	// TODO(pavelkalinnikov): Do not store the ephemeral node hashes
