@@ -66,20 +66,37 @@ var (
 	QuotaIncreaseFactor = 1.1
 )
 
+// stringSet is a set of strings that can be parsed by flag package.
+type stringSet map[string]bool
+
+func (s *stringSet) String() string {
+	keys := make([]string, 0, len(*s))
+	for k, v := range *s {
+		if v {
+			keys = append(keys, k)
+		}
+	}
+	return strings.Join(keys, ",")
+}
+
+func (s *stringSet) Set(value string) error {
+	*s = make(stringSet)
+	for _, id := range strings.Split(value, ",") {
+		(*s)[id] = true
+	}
+	return nil
+}
+
 // The tree IDs for which sequencer does not store ephemeral node hashes.
 // Trillian releases up to v1.4.1 store the ephemeral hashes, which corresponds
 // to this slice being empty. Release v1.4.2 allows disabling this behaviour
 // for individual, or all trees (denoted by the "*" wildcard). The release
 // after v1.4.2 will switch to "*" behaviour unconditionally.
-var idsWithNoEphemeralNodes = make(map[string]bool)
+var idsWithNoEphemeralNodes stringSet
 
 // TODO(pavelkalinnikov): Remove this flag in the next release.
 func init() {
-	var ids string
-	flag.StringVar(&ids, "tree_ids_with_no_ephemeral_nodes", "", "Comma-separated list of tree IDs for which storing the ephemeral nodes is disabled, or * to disable it for all trees")
-	for _, id := range strings.Split(ids, ",") {
-		idsWithNoEphemeralNodes[id] = true
-	}
+	flag.Var(&idsWithNoEphemeralNodes, "tree_ids_with_no_ephemeral_nodes", "Comma-separated list of tree IDs for which storing the ephemeral nodes is disabled, or * to disable it for all trees")
 }
 
 func quotaIncreaseFactor() float64 {
