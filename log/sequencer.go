@@ -66,12 +66,10 @@ var (
 	QuotaIncreaseFactor = 1.1
 )
 
+// stringSet is a set of strings that can be parsed by flag package.
 type stringSet map[string]bool
 
 func (s *stringSet) String() string {
-	if (*s)["*"] {
-		return "*"
-	}
 	keys := make([]string, 0, len(*s))
 	for k, v := range *s {
 		if v {
