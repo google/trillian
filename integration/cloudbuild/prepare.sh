@@ -5,13 +5,6 @@ set -ex
 # TODO(pavelkalinnikov): This script can be made a definitive "how to" for
 # setting up dev environment. Eliminate duplicating these steps in many places.
 
-# Install Google API definitions. Some APIs are used by the protoc tool when
-# [re-]generating Trillian API packages from protobufs.
-#
-# TODO(pavelkalinnikov): It doesn't have to be within $GOPATH. There is no Go
-# code/module in this repository, and we use it only for API proto definitions.
-git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
-
 # Install the tooling used for auto-generating code. Specifically, these are the
 # tools mentioned in //go:generate comments throughout this repository, and used
 # by the "go generate" command. In CI this is used for ensuring that developers

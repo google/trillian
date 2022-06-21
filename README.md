@@ -179,12 +179,6 @@ the original files; if you do, you'll need to install the prerequisites:
     go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc; \
     go install golang.org/x/tools/cmd/stringer
     ```
-  - protocol buffer definitions for standard Google APIs:
-    TODO(#2763): this doesn't need to be in `GOPATH/src`.
-
-    ```bash
-    git clone https://github.com/googleapis/googleapis.git $(go env GOPATH)/src/github.com/googleapis/googleapis
-    ```
 
 and run the following:
 
