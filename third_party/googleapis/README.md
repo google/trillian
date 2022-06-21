@@ -22,6 +22,5 @@ wget https://raw.githubusercontent.com/googleapis/googleapis/$GA_VERSION/google/
 wget https://raw.githubusercontent.com/googleapis/googleapis/$GA_VERSION/google/api/http.proto -O google/api/http.proto
 mkdir -p google/rpc
 wget https://raw.githubusercontent.com/googleapis/googleapis/$GA_VERSION/google/rpc/code.proto -O google/rpc/code.proto
-wget https://raw.githubusercontent.com/googleapis/googleapis/$GA_VERSION/google/rpc/error_details.proto -O google/rpc/error_details.proto
 wget https://raw.githubusercontent.com/googleapis/googleapis/$GA_VERSION/google/rpc/status.proto -O google/rpc/status.proto
 ```
