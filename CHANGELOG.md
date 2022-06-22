@@ -12,6 +12,13 @@
 * Updated golangci-lint to v1.46.1 (developers should update to this version)
 * Removed dependency on certificate-transparency-go
 
+### Developer updates
+
+* #2765 copies the required protos from `googleapis` into `third_party` in this
+  repository. This simplifies the preconditions in order to compile the proto
+  definitions, and removes a big dependency on `$GOPATH/src` which was archaic;
+  `$GOPATH/src/github.com/googleapis/googleapis` is no longer required.
+
 ## v1.4.1
 
 * `countFromInformationSchema` function to add support for MySQL 8.
