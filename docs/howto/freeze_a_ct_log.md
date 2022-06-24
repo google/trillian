@@ -44,14 +44,6 @@ config {
 
 ### Setup Environment
 
-Build the `updatetree` command if this hasn't already been done and ensure
-that it is on your `PATH`.
-
-```
-go install github.com/google/trillian/cmd/updatetree
-export PATH=${GOPATH}/bin:$PATH
-```
-
 Set environment variables to the correct log_id and metrics HTTP endpoint.
 For example:
 
@@ -65,7 +57,7 @@ METRICS_URI=http://signer-1:8091/metrics
 
 Use `updatetree` to set the log tree to a `DRAINING` state.
 
-`updatetree --admin_server=${LOG_SERVER_RPC} --tree_id=${LOG_ID} --tree_state=DRAINING`
+`go run github.com/google/trillian/cmd/updatetree@latest --admin_server=${LOG_SERVER_RPC} --tree_id=${LOG_ID} --tree_state=DRAINING`
 
 Make sure the above command succeeds. At this point the log will not
 accept new entries but there may be some that have already been
@@ -147,6 +139,6 @@ exceeding its MMD.
 
 Use `updatetree` to set the log tree to a `FROZEN` state.
 
-`updatetree --admin_server=${LOG_SERVER_RPC} --tree_id=${LOG_ID} --tree_state=FROZEN`
+`go run github.com/google/trillian/cmd/updatetree@latest --admin_server=${LOG_SERVER_RPC} --tree_id=${LOG_ID} --tree_state=FROZEN`
 
 Make sure the above command succeeds. The log is now frozen.
