@@ -6,6 +6,7 @@
   `--tree_ids_with_no_ephemeral_nodes` flag to the sequencer.
 * #2748: `--cloudspanner_max_burst_sessions` deprecated (it hasn't had any
   effect for a while, now it's more explicit)
+* #2768: update go.mod to use 1.17 compatibility from 1.13.
 
 ### Dependency updates
 
