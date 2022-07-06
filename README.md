@@ -83,8 +83,6 @@ and install them automatically upon build/test.
 To fetch the code, dependencies, and build Trillian, run the following:
 
 ```bash
-export GO111MODULE=auto
-
 git clone https://github.com/google/trillian.git
 cd trillian
 
