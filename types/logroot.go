@@ -20,7 +20,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/google/certificate-transparency-go/tls"
+	"github.com/google/trillian/types/internal/tls"
 
 	"github.com/google/trillian"
 )

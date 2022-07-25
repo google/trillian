@@ -27,6 +27,10 @@ import (
 
 // MetricFactory allows the creation of Prometheus-based metrics.
 type MetricFactory struct {
+	// Prefix is an identifier that will be used before local metric names that
+	// are reported. It is strongly recommended that this ends with a valid
+	// separator (e.g. "_") in order to improve readability; no separator is
+	// added by this library.
 	Prefix string
 }
 
