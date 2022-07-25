@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -66,21 +65,8 @@ var (
 	QuotaIncreaseFactor = 1.1
 )
 
-// The tree IDs for which sequencer does not store ephemeral node hashes.
-// Trillian releases up to v1.4.1 store the ephemeral hashes, which corresponds
-// to this slice being empty. Release v1.4.2 allows disabling this behaviour
-// for individual, or all trees (denoted by the "*" wildcard). The release
-// after v1.4.2 will switch to "*" behaviour unconditionally.
-var idsWithNoEphemeralNodes = make(map[string]bool)
-
 // TODO(pavelkalinnikov): Remove this flag in the next release.
-func init() {
-	var ids string
-	flag.StringVar(&ids, "tree_ids_with_no_ephemeral_nodes", "", "Comma-separated list of tree IDs for which storing the ephemeral nodes is disabled, or * to disable it for all trees")
-	for _, id := range strings.Split(ids, ",") {
-		idsWithNoEphemeralNodes[id] = true
-	}
-}
+var _ = flag.String("tree_ids_with_no_ephemeral_nodes", "*", "[Deprecated] Comma-separated list of tree IDs for which storing the ephemeral nodes is disabled, or * to disable it for all trees")
 
 func quotaIncreaseFactor() float64 {
 	if QuotaIncreaseFactor < 1 {
@@ -204,17 +190,8 @@ func updateCompactRange(cr *compact.Range, leaves []*trillian.LogLeaf, label str
 		}
 	}
 
-	// Store or not store ephemeral nodes depending on the flag. This is a
-	// temporary safety measure, to test this on individual trees before fully
-	// disabling ephemeral nodes.
-	storeEphemeral := store
-	if idsWithNoEphemeralNodes[label] || idsWithNoEphemeralNodes["*"] {
-		storeEphemeral = nil
-	}
-
-	// TODO(pavelkalinnikov): Do not store the ephemeral node hashes
-	// unconditionally, because they are not used since v1.4.0.
-	hash, err := cr.GetRootHash(storeEphemeral)
+	// Note: Ephemeral nodes are not stored.
+	hash, err := cr.GetRootHash(nil)
 	if err != nil {
 		return nil, nil, err
 	}
