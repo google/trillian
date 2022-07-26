@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	bitbucket.org/creachadair/shell v0.0.7
-	cloud.google.com/go/spanner v1.35.0
+	cloud.google.com/go/spanner v1.36.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.12
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
 	github.com/fullstorydev/grpcurl v1.8.6
