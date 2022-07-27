@@ -16,12 +16,12 @@
 // plugging in a custom underlying mechanism.
 //
 // There are two important abstractions in this package: instance and resource.
-// - An instance is a single client of the library. An instance is represented
-//   by an Election object (possibly multiple).
-// - A resource is something guarded by master election (e.g. a piece of data,
-//   or operation). Each resource has at most one (most of the time; see note
-//   below) master instance which is said to own this resource. A single
-//   instance may own multiple resources (one resource per Election object).
+//   - An instance is a single client of the library. An instance is represented
+//     by an Election object (possibly multiple).
+//   - A resource is something guarded by master election (e.g. a piece of data,
+//     or operation). Each resource has at most one (most of the time; see note
+//     below) master instance which is said to own this resource. A single
+//     instance may own multiple resources (one resource per Election object).
 //
 // Note: Sometimes there can be more than 1 instance "believing" to own a
 // resource. The reason is that the client code operates outside of the

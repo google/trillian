@@ -22,11 +22,11 @@ import "math/bits"
 // index is its horizontal position in this level ordered from left to right.
 // Consider an example below where nodes are labeled as [<level> <index>].
 //
-//           [2 0]
-//          /     \
-//       [1 0]     \
-//       /   \      \
-//   [0 0]  [0 1]  [0 2]
+//	        [2 0]
+//	       /     \
+//	    [1 0]     \
+//	    /   \      \
+//	[0 0]  [0 1]  [0 2]
 type NodeID struct {
 	Level uint
 	Index uint64

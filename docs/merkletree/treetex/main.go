@@ -19,7 +19,6 @@
 // Usage: go run main.go | xelatex
 // This should generate a PDF file called treetek.pdf containing a drawing of
 // the tree.
-//
 package main
 
 import (

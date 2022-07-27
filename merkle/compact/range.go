@@ -239,9 +239,9 @@ func getMergePath(begin, mid, end uint64) (uint, uint) {
 // some integers m, k >= 0.
 //
 // The sequence of sizes is returned encoded as bitmasks left and right, where:
-//  - a 1 bit in a bitmask denotes a sub-range of the corresponding size 2^k
-//  - left mask bits in LSB-to-MSB order encode the left part of the sequence
-//  - right mask bits in MSB-to-LSB order encode the right part
+//   - a 1 bit in a bitmask denotes a sub-range of the corresponding size 2^k
+//   - left mask bits in LSB-to-MSB order encode the left part of the sequence
+//   - right mask bits in MSB-to-LSB order encode the right part
 //
 // The corresponding values of m are not returned (they can be calculated from
 // begin and the sub-range sizes).

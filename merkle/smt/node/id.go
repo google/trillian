@@ -26,13 +26,13 @@ import "fmt"
 // Sibling.
 //
 // The internal structure of ID is driven by its use-cases:
-// - To make ID objects immutable and comparable, the Golang string type is
-//   used for storing the bit string bytes.
-// - To make Sibling and Prefix operations fast, the last byte is stored
-//   separately from the rest of the bytes, so that it can be "amended".
-// - To make ID objects comparable, there is only one (canonical) way to encode
-//   an ID. For example, if the last byte is used partially, its unused bits
-//   are always unset. See invariants next to field definitions below.
+//   - To make ID objects immutable and comparable, the Golang string type is
+//     used for storing the bit string bytes.
+//   - To make Sibling and Prefix operations fast, the last byte is stored
+//     separately from the rest of the bytes, so that it can be "amended".
+//   - To make ID objects comparable, there is only one (canonical) way to encode
+//     an ID. For example, if the last byte is used partially, its unused bits
+//     are always unset. See invariants next to field definitions below.
 //
 // Constructors and methods of ID make sure its invariants are always met.
 //

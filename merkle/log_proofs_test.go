@@ -27,21 +27,21 @@ import (
 // TestCalcInclusionProofNodeAddresses contains inclusion proof tests. For
 // reference, consider the following example of a tree from RFC 6962:
 //
-//                hash              <== Level 3
-//               /    \
-//              /      \
-//             /        \
-//            /          \
-//           /            \
-//          k              l        <== Level 2
-//         / \            / \
-//        /   \          /   \
-//       /     \        /     \
-//      g       h      i      [ ]   <== Level 1
-//     / \     / \    / \    /
-//     a b     c d    e f    j      <== Level 0
-//     | |     | |    | |    |
-//     d0 d1   d2 d3  d4 d5  d6
+//	           hash              <== Level 3
+//	          /    \
+//	         /      \
+//	        /        \
+//	       /          \
+//	      /            \
+//	     k              l        <== Level 2
+//	    / \            / \
+//	   /   \          /   \
+//	  /     \        /     \
+//	 g       h      i      [ ]   <== Level 1
+//	/ \     / \    / \    /
+//	a b     c d    e f    j      <== Level 0
+//	| |     | |    | |    |
+//	d0 d1   d2 d3  d4 d5  d6
 //
 // Our storage node layers are always populated from the bottom up, hence the
 // gap at level 1, index 3 in the above picture.
@@ -151,21 +151,21 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 // TestCalcConsistencyProofNodeAddresses contains consistency proof tests. For
 // reference, consider the following example:
 //
-//                hash5                         hash7
-//               /    \                        /    \
-//              /      \                      /      \
-//             /        \                    /        \
-//            /          \                  /          \
-//           /            \                /            \
-//          k             [ ]    -->      k              l
-//         / \            /              / \            / \
-//        /   \          /              /   \          /   \
-//       /     \        /              /     \        /     \
-//      g       h     [ ]             g       h      i      [ ]
-//     / \     / \    /              / \     / \    / \    /
-//     a b     c d    e              a b     c d    e f    j
-//     | |     | |    |              | |     | |    | |    |
-//     d0 d1   d2 d3  d4             d0 d1   d2 d3  d4 d5  d6
+//	           hash5                         hash7
+//	          /    \                        /    \
+//	         /      \                      /      \
+//	        /        \                    /        \
+//	       /          \                  /          \
+//	      /            \                /            \
+//	     k             [ ]    -->      k              l
+//	    / \            /              / \            / \
+//	   /   \          /              /   \          /   \
+//	  /     \        /              /     \        /     \
+//	 g       h     [ ]             g       h      i      [ ]
+//	/ \     / \    /              / \     / \    / \    /
+//	a b     c d    e              a b     c d    e f    j
+//	| |     | |    |              | |     | |    | |    |
+//	d0 d1   d2 d3  d4             d0 d1   d2 d3  d4 d5  d6
 //
 // The consistency proof between tree size 5 and 7 consists of nodes e, f, j,
 // and k. The node j is taken instead of its missing parent.

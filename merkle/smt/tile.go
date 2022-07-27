@@ -28,10 +28,10 @@ import (
 // all the remaining inner nodes of the tile.
 //
 // Invariants of this structure that must be preserved at all times:
-//  - ID is a prefix of Leaves' IDs, i.e. the nodes are in the same subtree.
-//  - IDs of Leaves have the same length, i.e. the nodes are at the same level.
-//  - Leaves are ordered by ID from left to right.
-//  - IDs of Leaves are unique.
+//   - ID is a prefix of Leaves' IDs, i.e. the nodes are in the same subtree.
+//   - IDs of Leaves have the same length, i.e. the nodes are at the same level.
+//   - Leaves are ordered by ID from left to right.
+//   - IDs of Leaves are unique.
 //
 // Algorithms that create Tile structures must ensure that these invariants
 // hold. Use NewNodesRow function for ordering nodes correctly.
