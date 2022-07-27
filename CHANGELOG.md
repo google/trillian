@@ -2,6 +2,9 @@
 
 ## HEAD
 
+* Deprecate `--tree_ids_with_no_ephemeral_nodes` flag by setting it to all trees
+  (`*`) by default.
+
 ## v1.4.2
 
 * #2568: Allow disabling the writes of ephemeral nodes to storage via the
