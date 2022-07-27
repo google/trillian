@@ -65,7 +65,7 @@ var (
 	QuotaIncreaseFactor = 1.1
 )
 
-// TODO(pavelkalinnikov): Remove this flag in the next release.
+// TODO(https://github.com/google/trillian/issues/2786): Remove this flag in the next release.
 var _ = flag.String("tree_ids_with_no_ephemeral_nodes", "*", "[Deprecated] Comma-separated list of tree IDs for which storing the ephemeral nodes is disabled, or * to disable it for all trees")
 
 func quotaIncreaseFactor() float64 {
