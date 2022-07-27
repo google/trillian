@@ -16,12 +16,15 @@
 // implementations.
 //
 // TODO(pavelkalinnikov, v2): SubtreeProto is used as:
-//  a) database storage unit in multiple storage implementations;
-//  b) data exchange format between storage and application layers;
-//  c) nodes index data structure.
+//
+//	a) database storage unit in multiple storage implementations;
+//	b) data exchange format between storage and application layers;
+//	c) nodes index data structure.
+//
 // We should change it so that:
-//  a) individual storage implementations define their own formats;
-//  b) data structures are defined in the application layer.
+//
+//	a) individual storage implementations define their own formats;
+//	b) data structures are defined in the application layer.
 package storagepb
 
 //go:generate protoc -I=. --go_out=paths=source_relative:. storage.proto

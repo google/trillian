@@ -16,10 +16,11 @@
 // TODO(RJPercival): Move this to its own GitHub project.
 //
 // Example:
-//   func TestFoo(t *testing.T) {
-//     defer flagsaver.Save().Restore()
-//     // Test code that changes flags
-//   } // flags are reset to their original values here.
+//
+//	func TestFoo(t *testing.T) {
+//	  defer flagsaver.Save().Restore()
+//	  // Test code that changes flags
+//	} // flags are reset to their original values here.
 package flagsaver
 
 import (

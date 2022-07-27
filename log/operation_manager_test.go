@@ -88,8 +88,9 @@ func (l logOpInfoMatcher) String() string {
 
 // Set up some log IDs in mock storage.
 // The following IDs have special behaviour:
-//  logIDThatFailsGetTreeOp: fail the GetTree() operation
-//  logIDWithNoDisplayName: return a tree with no DisplayName
+//
+//	logIDThatFailsGetTreeOp: fail the GetTree() operation
+//	logIDWithNoDisplayName: return a tree with no DisplayName
 func setupLogIDs(ctrl *gomock.Controller, logNames map[int64]string) (*storage.MockLogStorage, *storage.MockAdminStorage) {
 	ids := make([]int64, 0, len(logNames))
 	for id := range logNames {

@@ -967,8 +967,9 @@ func (tx *logTX) getUsingIndex(ctx context.Context, idx string, keys [][]byte, b
 // Any unknown hashes will simply be ignored, and the caller should inspect the
 // returned leaves to determine whether this has occurred.
 // TODO(al): Currently, this method does not populate the IntegrateTimestamp
-//   member of the returned leaves. We should convert this method to use SQL
-//   rather than denormalising IntegrateTimestampNanos into the index too.
+//
+//	member of the returned leaves. We should convert this method to use SQL
+//	rather than denormalising IntegrateTimestampNanos into the index too.
 func (tx *logTX) GetLeavesByHash(ctx context.Context, hashes [][]byte, bySeq bool) ([]*trillian.LogLeaf, error) {
 	return tx.getUsingIndex(ctx, seqDataByMerkleHashIdx, hashes, bySeq)
 }
