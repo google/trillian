@@ -18,10 +18,10 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 )
 
 // MutatingLogClient supports applying mutations to the return values of the TrillianLogClient
@@ -67,7 +67,7 @@ func (c *MutatingLogClient) GetInclusionProofByHash(ctx context.Context, in *tri
 	if c.mutateInclusionProof {
 		h := rand.Intn(len(resp.Proof))
 		if len(resp.Proof[h].Hashes) == 0 {
-			glog.Warningf("Inclusion proof not modified because treesize = 0")
+			klog.Warningf("Inclusion proof not modified because treesize = 0")
 			return resp, nil
 		}
 		i := rand.Intn(len(resp.Proof[h].Hashes))
@@ -85,7 +85,7 @@ func (c *MutatingLogClient) GetConsistencyProof(ctx context.Context, in *trillia
 	}
 	if c.mutateConsistencyProof {
 		if len(resp.Proof.Hashes) == 0 {
-			glog.Warningf("Consistency proof not modified because len(Hashes) = 0")
+			klog.Warningf("Consistency proof not modified because len(Hashes) = 0")
 			return resp, nil
 		}
 		i := rand.Intn(len(resp.Proof.Hashes))

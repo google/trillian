@@ -20,7 +20,7 @@ package pkcs11
 import (
 	"testing"
 
-	_ "github.com/golang/glog"
+	_ "k8s.io/klog/v2"
 )
 
 func TestPkcs11(t *testing.T) {

@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"google.golang.org/api/option"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -65,10 +65,10 @@ func warn() {
 		r, _ := gzip.NewReader(b)
 		if err := r.Close(); err != nil {
 			// No need to exit, it's an unlikely error and doesn't affect operation.
-			glog.Warningf("Close()=%v", err)
+			klog.Warningf("Close()=%v", err)
 		}
 		t, _ := ioutil.ReadAll(r)
-		glog.Warningf("WARNING\n%s\nCloudspanner is an experimental storage implementation, and only supports Logs currently.", string(t))
+		klog.Warningf("WARNING\n%s\nCloudspanner is an experimental storage implementation, and only supports Logs currently.", string(t))
 	})
 }
 

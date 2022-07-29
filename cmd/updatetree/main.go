@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/rpcflags"
 	"google.golang.org/genproto/protobuf/field_mask"
@@ -38,6 +37,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -113,7 +113,7 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 			return tree, nil
 		}
 		if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
-			glog.Errorf("Admin server unavailable, trying again: %v", err)
+			klog.Errorf("Admin server unavailable, trying again: %v", err)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
@@ -123,13 +123,13 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 
 func main() {
 	flag.Parse()
-	defer glog.Flush()
+	defer klog.Flush()
 
 	ctx, cancel := context.WithTimeout(context.Background(), *rpcDeadline)
 	defer cancel()
 	tree, err := updateTree(ctx)
 	if err != nil {
-		glog.Exitf("Failed to update tree: %v", err)
+		klog.Exitf("Failed to update tree: %v", err)
 	}
 
 	if *printTree {

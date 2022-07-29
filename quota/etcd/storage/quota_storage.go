@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/util/clock"
@@ -31,6 +30,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/klog/v2"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -51,15 +51,15 @@ func init() {
 	var err error
 	globalPattern, err = regexp.Compile("^quotas/global/(read|write)/config$")
 	if err != nil {
-		glog.Fatalf("bad global pattern: %v", err)
+		klog.Fatalf("bad global pattern: %v", err)
 	}
 	treesPattern, err = regexp.Compile(`^quotas/trees/\d+/(read|write)/config$`)
 	if err != nil {
-		glog.Fatalf("bad trees pattern: %v", err)
+		klog.Fatalf("bad trees pattern: %v", err)
 	}
 	usersPattern, err = regexp.Compile("^quotas/users/[^/]+/(read|write)/config$")
 	if err != nil {
-		glog.Fatalf("bad users pattern: %v", err)
+		klog.Fatalf("bad users pattern: %v", err)
 	}
 }
 

@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/golang/glog"
+	_ "k8s.io/klog/v2"
 )
 
 var (

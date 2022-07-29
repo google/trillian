@@ -17,7 +17,7 @@ package testdb
 import (
 	"testing"
 
-	_ "github.com/golang/glog"
+	_ "k8s.io/klog/v2"
 )
 
 func TestMySQLWarning(t *testing.T) {

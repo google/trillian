@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
@@ -37,6 +36,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -320,7 +320,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	start := time.Now()
 	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
 	if err != nil {
-		glog.Warningf("Failed to prepare dequeue select: %s", err)
+		klog.Warningf("Failed to prepare dequeue select: %s", err)
 		return nil, err
 	}
 	defer stx.Close()
@@ -328,7 +328,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	leaves := make([]*trillian.LogLeaf, 0, limit)
 	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
 	if err != nil {
-		glog.Warningf("Failed to select rows for work: %s", err)
+		klog.Warningf("Failed to select rows for work: %s", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -336,7 +336,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	for rows.Next() {
 		leaf, dqInfo, err := t.dequeueLeaf(rows)
 		if err != nil {
-			glog.Warningf("Error dequeuing leaf: %v", err)
+			klog.Warningf("Error dequeuing leaf: %v", err)
 			return nil, err
 		}
 
@@ -417,7 +417,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			continue
 		}
 		if err != nil {
-			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
+			klog.Warningf("Error inserting %d into LeafData: %s", i, err)
 			return nil, mysqlToGRPC(err)
 		}
 
@@ -434,7 +434,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			args...,
 		)
 		if err != nil {
-			glog.Warningf("Error inserting into Unsequenced: %s", err)
+			klog.Warningf("Error inserting into Unsequenced: %s", err)
 			return nil, mysqlToGRPC(err)
 		}
 		leafDuration := time.Since(leafStart)
@@ -499,7 +499,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	// a savepoint installed before the first insert of the two.
 	const savepoint = "SAVEPOINT AddSequencedLeaves"
 	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
-		glog.Errorf("Error adding savepoint: %s", err)
+		klog.Errorf("Error adding savepoint: %s", err)
 		return nil, mysqlToGRPC(err)
 	}
 	// TODO(pavelkalinnikov): Consider performance implication of executing this
@@ -520,7 +520,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		}
 
 		if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
-			glog.Errorf("Error updating savepoint: %s", err)
+			klog.Errorf("Error updating savepoint: %s", err)
 			return nil, mysqlToGRPC(err)
 		}
 
@@ -537,7 +537,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			// Note: No rolling back to savepoint because there is no side effect.
 			continue
 		} else if err != nil {
-			glog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
+			klog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
 			return nil, mysqlToGRPC(err)
 		}
 
@@ -548,11 +548,11 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		if isDuplicateErr(err) {
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
 			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
-				glog.Errorf("Error rolling back to savepoint: %s", err)
+				klog.Errorf("Error rolling back to savepoint: %s", err)
 				return nil, mysqlToGRPC(err)
 			}
 		} else if err != nil {
-			glog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
+			klog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
 			return nil, mysqlToGRPC(err)
 		}
 
@@ -560,7 +560,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	}
 
 	if _, err := t.tx.ExecContext(ctx, "RELEASE "+savepoint); err != nil {
-		glog.Errorf("Error releasing savepoint: %s", err)
+		klog.Errorf("Error releasing savepoint: %s", err)
 		return nil, mysqlToGRPC(err)
 	}
 
@@ -598,7 +598,7 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 	args := []interface{}{start, start + count, t.treeID}
 	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
 	if err != nil {
-		glog.Warningf("Failed to get leaves by range: %s", err)
+		klog.Warningf("Failed to get leaves by range: %s", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -615,7 +615,7 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 			&leaf.ExtraData,
 			&qTimestamp,
 			&iTimestamp); err != nil {
-			glog.Warningf("Failed to scan merkle leaves: %s", err)
+			klog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
 		if leaf.LeafIndex != wantIndex {
@@ -635,7 +635,7 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 		ret = append(ret, leaf)
 	}
 	if err := rows.Err(); err != nil {
-		glog.Warningf("Failed to read returned leaves: %s", err)
+		klog.Warningf("Failed to read returned leaves: %s", err)
 		return nil, err
 	}
 
@@ -707,7 +707,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
-		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
+		klog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
 	}
 	if len(logRoot.Metadata) != 0 {
@@ -724,7 +724,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 		t.treeTX.writeRevision,
 		[]byte{})
 	if err != nil {
-		glog.Warningf("Failed to store signed root: %s", err)
+		klog.Warningf("Failed to store signed root: %s", err)
 	}
 
 	return checkResultOkAndRowCountIs(res, err, 1)
@@ -741,7 +741,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 	args = append(args, t.treeID)
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
-		glog.Warningf("Query() %s hash = %v", desc, err)
+		klog.Warningf("Query() %s hash = %v", desc, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -759,7 +759,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		var queueTS int64
 
 		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafIdentityHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData, &queueTS, &integrateTS); err != nil {
-			glog.Warningf("LogID: %d Scan() %s = %s", t.treeID, desc, err)
+			klog.Warningf("LogID: %d Scan() %s = %s", t.treeID, desc, err)
 			return nil, err
 		}
 		leaf.QueueTimestamp = timestamppb.New(time.Unix(0, queueTS))
@@ -780,7 +780,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		ret = append(ret, leaf)
 	}
 	if err := rows.Err(); err != nil {
-		glog.Warningf("Failed to read returned leaves: %s", err)
+		klog.Warningf("Failed to read returned leaves: %s", err)
 		return nil, err
 	}
 

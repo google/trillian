@@ -33,13 +33,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/client/rpcflags"
 	"github.com/google/trillian/cmd"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -103,18 +103,18 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		Description:     *description,
 		MaxRootDuration: durationpb.New(*maxRootDuration),
 	}}
-	glog.Infof("Creating tree %+v", ctr.Tree)
+	klog.Infof("Creating tree %+v", ctr.Tree)
 
 	return ctr, nil
 }
 
 func main() {
 	flag.Parse()
-	defer glog.Flush()
+	defer klog.Flush()
 
 	if *configFile != "" {
 		if err := cmd.ParseFlagFile(*configFile); err != nil {
-			glog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
+			klog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
 		}
 	}
 
@@ -122,7 +122,7 @@ func main() {
 	defer cancel()
 	tree, err := createTree(ctx)
 	if err != nil {
-		glog.Exitf("Failed to create tree: %v", err)
+		klog.Exitf("Failed to create tree: %v", err)
 	}
 
 	// DO NOT change the output format, scripts are meant to depend on it.

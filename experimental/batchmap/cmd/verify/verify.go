@@ -25,11 +25,11 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/smt"
 	"github.com/google/trillian/merkle/smt/node"
+	"k8s.io/klog/v2"
 )
 
 const hash = crypto.SHA512_256
@@ -47,7 +47,7 @@ func main() {
 
 	mapDir := filepath.Clean(*mapDir)
 	if mapDir == "" {
-		glog.Fatal("No output provided")
+		klog.Fatal("No output provided")
 	}
 
 	// Determine the key/value we expect to find.
@@ -65,7 +65,7 @@ func main() {
 	// Read the tiles required for this check from disk.
 	tiles, err := getTilesForKey(mapDir, keyPath)
 	if err != nil {
-		glog.Exitf("couldn't load tiles: %v", err)
+		klog.Exitf("couldn't load tiles: %v", err)
 	}
 
 	// Perform the verification.
@@ -81,7 +81,7 @@ func main() {
 		tile := tiles[i]
 		// Check the prefix of what we are looking for matches the tile's path.
 		if got, want := tile.Path, needPath[:len(tile.Path)]; !bytes.Equal(got, want) {
-			glog.Fatalf("wrong tile found at index %d: got %x, want %x", i, got, want)
+			klog.Fatalf("wrong tile found at index %d: got %x, want %x", i, got, want)
 		}
 		// Leaf paths within a tile are within the scope of the tile, so we can
 		// drop the prefix from the expected path now we have verified it.
@@ -99,10 +99,10 @@ func main() {
 
 		// Confirm we found the leaf we needed, and that it had the value we expected.
 		if leaf == nil {
-			glog.Fatalf("couldn't find expected leaf %x in tile %x", needLeafPath, tile.Path)
+			klog.Fatalf("couldn't find expected leaf %x in tile %x", needLeafPath, tile.Path)
 		}
 		if !bytes.Equal(leaf.Hash, needValue) {
-			glog.Fatalf("wrong leaf value in tile %x, leaf %x: got %x, want %x", tile.Path, leaf.Path, leaf.Hash, needValue)
+			klog.Fatalf("wrong leaf value in tile %x, leaf %x: got %x, want %x", tile.Path, leaf.Path, leaf.Hash, needValue)
 		}
 
 		// Hash this tile given its leaf values, and confirm that the value we compute
@@ -110,16 +110,16 @@ func main() {
 		hs, err := smt.NewHStar3(nodes, coniks.Default.HashChildren,
 			uint(len(tile.Path)+len(leaf.Path))*8, uint(len(tile.Path))*8)
 		if err != nil {
-			glog.Fatalf("failed to create HStar3 for tile %x: %v", tile.Path, err)
+			klog.Fatalf("failed to create HStar3 for tile %x: %v", tile.Path, err)
 		}
 		res, err := hs.Update(et)
 		if err != nil {
-			glog.Fatalf("failed to hash tile %x: %v", tile.Path, err)
+			klog.Fatalf("failed to hash tile %x: %v", tile.Path, err)
 		} else if got, want := len(res), 1; got != want {
-			glog.Fatalf("wrong number of roots for tile %x: got %v, want %v", tile.Path, got, want)
+			klog.Fatalf("wrong number of roots for tile %x: got %v, want %v", tile.Path, got, want)
 		}
 		if got, want := res[0].Hash, tile.RootHash; !bytes.Equal(got, want) {
-			glog.Fatalf("wrong root hash for tile %x: got %x, calculated %x", tile.Path, want, got)
+			klog.Fatalf("wrong root hash for tile %x: got %x, calculated %x", tile.Path, want, got)
 		}
 		// Make the next iteration of the loop check that the tile above this has the
 		// root value of this tile stored as the value at the expected leaf index.
@@ -129,7 +129,7 @@ func main() {
 	// If we get here then we have proved that the value was correct and that the map
 	// root commits to this value. Any other user with the same map root must see the
 	// same value under the same key we have checked.
-	glog.Infof("key %d found at path %x, with value '%s' (%x) committed to by map root %x", *key, keyPath, expectedString, expectedValueHash, needValue)
+	klog.Infof("key %d found at path %x, with value '%s' (%x) committed to by map root %x", *key, keyPath, expectedString, expectedValueHash, needValue)
 }
 
 // getTilesForKey loads the tiles on the path from the root to the given leaf.

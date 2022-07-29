@@ -20,9 +20,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election2"
+	"k8s.io/klog/v2"
 )
 
 // Minimum values for configuration intervals.
@@ -106,28 +106,28 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 		return // The context has been canceled during the sleep.
 	}
 
-	glog.V(1).Infof("%s: start election-monitoring loop ", er.id)
+	klog.V(1).Infof("%s: start election-monitoring loop ", er.id)
 	defer func() {
-		glog.Infof("%s: shutdown election-monitoring loop", er.id)
+		klog.Infof("%s: shutdown election-monitoring loop", er.id)
 		if err := er.election.Close(ctx); err != nil {
-			glog.Warningf("%s: election.Close: %v", er.id, err)
+			klog.Warningf("%s: election.Close: %v", er.id, err)
 		}
 	}()
 
 	for {
 		if err := er.beMaster(ctx, pending); err != nil {
-			glog.Errorf("%s: %v", er.id, err)
+			klog.Errorf("%s: %v", er.id, err)
 			break
 		}
 	}
 }
 
 func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) error {
-	glog.V(1).Infof("%s: When I left you, I was but the learner", er.id)
+	klog.V(1).Infof("%s: When I left you, I was but the learner", er.id)
 	if err := er.election.Await(ctx); err != nil {
 		return fmt.Errorf("election.Await() failed: %v", err)
 	}
-	glog.Infof("%s: Now, I am the master", er.id)
+	klog.Infof("%s: Now, I am the master", er.id)
 	er.tracker.Set(er.id, true)
 	defer er.tracker.Set(er.id, false)
 
@@ -141,18 +141,18 @@ func (er *Runner) beMaster(ctx context.Context, pending chan<- Resignation) erro
 
 	select {
 	case <-mctx.Done(): // Mastership context is canceled.
-		glog.Errorf("%s: no longer the master!", er.id)
+		klog.Errorf("%s: no longer the master!", er.id)
 		return mctx.Err()
 
 	case <-timer.Chan():
-		glog.Infof("%s: queue up resignation of mastership", er.id)
+		klog.Infof("%s: queue up resignation of mastership", er.id)
 		done := make(chan struct{})
 		r := Resignation{ID: er.id, er: er, done: done}
 		select {
 		case pending <- r:
 			<-done // Block until acted on.
 		default:
-			glog.Warning("Dropping resignation because operation manager seems to be exiting")
+			klog.Warning("Dropping resignation because operation manager seems to be exiting")
 		}
 	}
 	return nil
@@ -169,8 +169,8 @@ type Resignation struct {
 // Execute performs the pending deliberate resignation for an election runner.
 func (r *Resignation) Execute(ctx context.Context) {
 	defer close(r.done)
-	glog.Infof("%s: deliberately resigning mastership", r.er.id)
+	klog.Infof("%s: deliberately resigning mastership", r.er.id)
 	if err := r.er.election.Resign(ctx); err != nil {
-		glog.Errorf("%s: failed to resign mastership: %v", r.er.id, err)
+		klog.Errorf("%s: failed to resign mastership: %v", r.er.id, err)
 	}
 }

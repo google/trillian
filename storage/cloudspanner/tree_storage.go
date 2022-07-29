@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -35,6 +34,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -120,7 +120,7 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 		return nil, err
 	}
 	if th == nil {
-		glog.Warningf("no head found for treeID %v", treeID)
+		klog.Warningf("no head found for treeID %v", treeID)
 		return nil, storage.ErrTreeNeedsInit
 	}
 	return th, nil
@@ -270,7 +270,7 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	}
 	switch stx := t.stx.(type) {
 	case *spanner.ReadOnlyTransaction:
-		glog.V(1).Infof("Closed readonly tx %p", stx)
+		klog.V(1).Infof("Closed readonly tx %p", stx)
 		stx.Close()
 		return nil
 	case *spanner.ReadWriteTransaction:
@@ -289,7 +289,7 @@ func (t *treeTX) Close() error {
 		return ErrTransactionClosed
 	}
 	if stx, ok := t.stx.(*spanner.ReadOnlyTransaction); ok {
-		glog.V(1).Infof("Closed snapshot %p", stx)
+		klog.V(1).Infof("Closed snapshot %p", stx)
 		stx.Close()
 	}
 	return nil

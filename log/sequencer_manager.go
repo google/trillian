@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/trees"
+	"k8s.io/klog/v2"
 )
 
 // SequencerManager provides sequencing operations for a collection of Logs.
@@ -56,7 +56,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *O
 
 	maxRootDuration := tree.MaxRootDuration.AsDuration()
 	if !tree.MaxRootDuration.IsValid() {
-		glog.Warning("failed to parse tree.MaxRootDuration, using zero")
+		klog.Warning("failed to parse tree.MaxRootDuration, using zero")
 		maxRootDuration = 0
 	}
 	leaves, err := IntegrateBatch(ctx, tree, info.BatchSize, s.guardWindow, maxRootDuration, info.TimeSource, s.registry.LogStorage, s.registry.QuotaManager)

@@ -25,13 +25,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 	"golang.org/x/sync/semaphore"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -167,7 +167,7 @@ func (o *OperationManager) logName(ctx context.Context, logID int64) string {
 
 	tree, err := storage.GetTree(ctx, o.info.Registry.AdminStorage, logID)
 	if err != nil {
-		glog.Errorf("%v: failed to get log info: %v", logID, err)
+		klog.Errorf("%v: failed to get log info: %v", logID, err)
 		return "<err>"
 	}
 
@@ -240,12 +240,12 @@ func (o *OperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int
 // TODO(pavelkalinnikov): Restart the whole log operation rather than just the
 // election, and have a metric for restarts.
 func (o *OperationManager) runElectionWithRestarts(ctx context.Context, logID string) context.CancelFunc {
-	glog.Infof("create master election goroutine for %v", logID)
+	klog.Infof("create master election goroutine for %v", logID)
 	cctx, cancel := context.WithCancel(ctx)
 	run := func(ctx context.Context) {
 		e, err := o.info.Registry.ElectionFactory.NewElection(ctx, logID)
 		if err != nil {
-			glog.Errorf("failed to create election for %v: %v", logID, err)
+			klog.Errorf("failed to create election for %v: %v", logID, err)
 			return
 		}
 		// Warning: NewRunner can attempt to modify the config. Make a separate
@@ -282,12 +282,12 @@ func (o *OperationManager) updateHeldIDs(ctx context.Context, logIDs, activeIDs 
 	if !reflect.DeepEqual(logIDs, o.lastHeld) {
 		o.lastHeld = make([]int64, len(logIDs))
 		copy(o.lastHeld, logIDs)
-		glog.Info(msg)
+		klog.Info(msg)
 		if o.info.Registry.SetProcessStatus != nil {
 			o.info.Registry.SetProcessStatus(heldInfo)
 		}
 	} else {
-		glog.V(1).Info(msg)
+		klog.V(1).Info(msg)
 	}
 }
 
@@ -318,19 +318,19 @@ func (o *OperationManager) getLogsAndExecutePass(ctx context.Context) error {
 // and is used only for testing.
 func (o *OperationManager) OperationSingle(ctx context.Context) {
 	if err := o.getLogsAndExecutePass(ctx); err != nil {
-		glog.Errorf("failed to perform operation: %v", err)
+		klog.Errorf("failed to perform operation: %v", err)
 	}
 }
 
 // OperationLoop starts the manager working. It continues until told to exit.
 // TODO(Martin2112): No mechanism for error reporting etc., this is OK for v1 but needs work
 func (o *OperationManager) OperationLoop(ctx context.Context) {
-	glog.Infof("Log operation manager starting")
+	klog.Infof("Log operation manager starting")
 
 	// Outer loop, runs until terminated.
 	for {
 		if err := o.operateOnce(ctx); err != nil {
-			glog.Infof("Log operation manager shutting down")
+			klog.Infof("Log operation manager shutting down")
 			break
 		}
 	}
@@ -338,7 +338,7 @@ func (o *OperationManager) OperationLoop(ctx context.Context) {
 	// Terminate all the election Runners.
 	for logID, cancel := range o.runnerCancels {
 		if cancel != nil {
-			glog.V(1).Infof("cancel election runner for %s", logID)
+			klog.V(1).Infof("cancel election runner for %s", logID)
 			cancel()
 		}
 	}
@@ -350,9 +350,9 @@ func (o *OperationManager) OperationLoop(ctx context.Context) {
 		r.Execute(ctx)
 	}
 
-	glog.Infof("wait for termination of election runners...")
+	klog.Infof("wait for termination of election runners...")
 	o.runnerWG.Wait()
-	glog.Infof("wait for termination of election runners...done")
+	klog.Infof("wait for termination of election runners...done")
 }
 
 // operateOnce runs a single round of operation for each of the active logs
@@ -364,10 +364,10 @@ func (o *OperationManager) operateOnce(ctx context.Context) error {
 	if err := o.getLogsAndExecutePass(ctx); err != nil {
 		// Suppress the error if ctx is done (ctx.Err != nil) as we're exiting.
 		if ctx.Err() != nil {
-			glog.Errorf("failed to execute operation on logs: %v", err)
+			klog.Errorf("failed to execute operation on logs: %v", err)
 		}
 	}
-	glog.V(1).Infof("Log operation manager pass complete")
+	klog.V(1).Infof("Log operation manager pass complete")
 
 	// Process any pending resignations while there's no activity.
 	doneResigning := false
@@ -392,12 +392,12 @@ func (o *OperationManager) operateOnce(ctx context.Context) error {
 	duration := o.info.TimeSource.Now().Sub(start)
 	wait := o.info.RunInterval - duration
 	if wait > 0 {
-		glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
+		klog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
 		if err := clock.SleepContext(ctx, wait); err != nil {
 			return err
 		}
 	} else {
-		glog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
+		klog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
 	}
 	return nil
 }
@@ -409,10 +409,10 @@ func executePassForAll(ctx context.Context, info *OperationInfo, op Operation, l
 
 	numWorkers := info.NumWorkers
 	if numWorkers <= 0 {
-		glog.Warning("Running executor with NumWorkers <= 0, assuming 1")
+		klog.Warning("Running executor with NumWorkers <= 0, assuming 1")
 		numWorkers = 1
 	}
-	glog.V(1).Infof("Running executor with %d worker(s)", numWorkers)
+	klog.V(1).Infof("Running executor with %d worker(s)", numWorkers)
 
 	sem := semaphore.NewWeighted(int64(numWorkers))
 	var wg sync.WaitGroup
@@ -425,7 +425,7 @@ func executePassForAll(ctx context.Context, info *OperationInfo, op Operation, l
 			defer wg.Done()
 			defer sem.Release(1)
 			if err := executePass(ctx, info, op, logID); err != nil {
-				glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
+				klog.Errorf("ExecutePass(%v) failed: %v", logID, err)
 			}
 		}(logID)
 	}
@@ -433,7 +433,7 @@ func executePassForAll(ctx context.Context, info *OperationInfo, op Operation, l
 	// Wait for the workers to consume all of the logIDs.
 	wg.Wait()
 	d := clock.SecondsSince(info.TimeSource, startBatch)
-	glog.V(1).Infof("Group run completed in %.2f seconds", d)
+	klog.V(1).Infof("Group run completed in %.2f seconds", d)
 }
 
 // executePass runs ExecutePass of the given operation for the passed-in log.
@@ -450,11 +450,11 @@ func executePass(ctx context.Context, info *OperationInfo, op Operation, logID i
 	signingRuns.Inc(label)
 	if count > 0 {
 		d := clock.SecondsSince(info.TimeSource, start)
-		glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
+		klog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
 		entriesAdded.Add(float64(count), label)
 		batchesAdded.Inc(label)
 	} else {
-		glog.V(1).Infof("%v: no items to process", logID)
+		klog.V(1).Infof("%v: no items to process", logID)
 	}
 	return nil
 }

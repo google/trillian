@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // MasterTracker tracks the current mastership state across multiple IDs.
@@ -48,7 +48,7 @@ func (mt *MasterTracker) Set(id string, isMaster bool) {
 	defer mt.mu.Unlock()
 	wasMaster, ok := mt.masterFor[id]
 	if ok && isMaster == wasMaster {
-		glog.Warningf("toggle masterFor[%s] from %v to %v!", id, wasMaster, isMaster)
+		klog.Warningf("toggle masterFor[%s] from %v to %v!", id, wasMaster, isMaster)
 	}
 	mt.masterFor[id] = isMaster
 	if isMaster && !wasMaster {

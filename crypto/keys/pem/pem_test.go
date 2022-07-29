@@ -25,7 +25,7 @@ import (
 	"github.com/google/trillian/testonly"
 	"google.golang.org/protobuf/proto"
 
-	_ "github.com/golang/glog"
+	_ "k8s.io/klog/v2"
 )
 
 const (

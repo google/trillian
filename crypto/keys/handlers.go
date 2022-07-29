@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/golang/glog"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"k8s.io/klog/v2"
 )
 
 // ProtoHandler uses the information in a protobuf message to obtain a crypto.Signer.
@@ -48,7 +48,7 @@ func RegisterHandler(keyProto proto.Message, handler ProtoHandler) {
 	keyProtoType := keyProto.ProtoReflect().Descriptor().FullName()
 
 	if _, alreadyExists := handlers[keyProtoType]; alreadyExists {
-		glog.Warningf("Overridding ProtoHandler for protobuf %q", keyProtoType)
+		klog.Warningf("Overridding ProtoHandler for protobuf %q", keyProtoType)
 	}
 
 	handlers[keyProtoType] = handler

@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 // CreateAndInitTree uses the adminClient and logClient to create the tree
@@ -47,17 +47,17 @@ func CreateAndInitTree(
 
 	var tree *trillian.Tree
 	err := b.Retry(ctx, func() error {
-		glog.Info("CreateTree...")
+		klog.Info("CreateTree...")
 		var err error
 		tree, err = adminClient.CreateTree(ctx, req)
 		switch code := status.Code(err); code {
 		case codes.Unavailable:
-			glog.Errorf("Admin server unavailable: %v", err)
+			klog.Errorf("Admin server unavailable: %v", err)
 			return err
 		case codes.OK:
 			return nil
 		default:
-			glog.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
+			klog.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
 			return err
 		}
 	})
@@ -92,22 +92,22 @@ func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.Trilli
 	}
 
 	err := b.Retry(ctx, func() error {
-		glog.Infof("Initialising Log %v...", tree.TreeId)
+		klog.Infof("Initialising Log %v...", tree.TreeId)
 		req := &trillian.InitLogRequest{LogId: tree.TreeId}
 		resp, err := logClient.InitLog(ctx, req)
 		switch code := status.Code(err); code {
 		case codes.Unavailable:
-			glog.Errorf("Log server unavailable: %v", err)
+			klog.Errorf("Log server unavailable: %v", err)
 			return err
 		case codes.AlreadyExists:
-			glog.Warningf("Bizarrely, the just-created Log (%v) is already initialised!: %v", tree.TreeId, err)
+			klog.Warningf("Bizarrely, the just-created Log (%v) is already initialised!: %v", tree.TreeId, err)
 			return err
 		case codes.OK:
-			glog.Infof("Initialised Log (%v) with new SignedTreeHead:\n%+v",
+			klog.Infof("Initialised Log (%v) with new SignedTreeHead:\n%+v",
 				tree.TreeId, resp.Created)
 			return nil
 		default:
-			glog.Errorf("failed to InitLog(%+v): %T %v", req, err, err)
+			klog.Errorf("failed to InitLog(%+v): %T %v", req, err, err)
 			return err
 		}
 	})

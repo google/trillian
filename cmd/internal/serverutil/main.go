@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
@@ -36,6 +35,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
+	"k8s.io/klog/v2"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -107,7 +107,7 @@ func (m *Main) healthz(rw http.ResponseWriter, req *http.Request) {
 
 // Run starts the configured server. Blocks until the server exits.
 func (m *Main) Run(ctx context.Context) error {
-	glog.CopyStandardLogTo("WARNING")
+	klog.CopyStandardLogTo("WARNING")
 
 	if m.HealthyDeadline == 0 {
 		m.HealthyDeadline = 5 * time.Second
@@ -115,7 +115,7 @@ func (m *Main) Run(ctx context.Context) error {
 
 	srv, err := m.newGRPCServer()
 	if err != nil {
-		glog.Exitf("Error creating gRPC server: %v", err)
+		klog.Exitf("Error creating gRPC server: %v", err)
 	}
 	defer srv.GracefulStop()
 
@@ -138,7 +138,7 @@ func (m *Main) Run(ctx context.Context) error {
 		}
 
 		run := func() error {
-			glog.Infof("HTTP server starting on %v", endpoint)
+			klog.Infof("HTTP server starting on %v", endpoint)
 
 			var err error
 			// Let http.ListenAndServeTLS handle the error case when only one of the flags is set.
@@ -160,15 +160,15 @@ func (m *Main) Run(ctx context.Context) error {
 		}
 
 		shutdown := func() {
-			glog.Infof("Stopping HTTP server...")
-			glog.Flush()
+			klog.Infof("Stopping HTTP server...")
+			klog.Flush()
 
 			// 15 second exit time limit
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
 			if err := s.Shutdown(ctx); err != nil {
-				glog.Errorf("Failed to http server shutdown: %v", err)
+				klog.Errorf("Failed to http server shutdown: %v", err)
 			}
 		}
 
@@ -177,7 +177,7 @@ func (m *Main) Run(ctx context.Context) error {
 		})
 	}
 
-	glog.Infof("RPC server starting on %v", m.RPCEndpoint)
+	klog.Infof("RPC server starting on %v", m.RPCEndpoint)
 	lis, err := net.Listen("tcp", m.RPCEndpoint)
 	if err != nil {
 		return err
@@ -185,7 +185,7 @@ func (m *Main) Run(ctx context.Context) error {
 
 	if m.TreeGCEnabled {
 		g.Go(func() error {
-			glog.Info("Deleted tree GC started")
+			klog.Info("Deleted tree GC started")
 			gc := admin.NewDeletedTreeGC(
 				m.Registry.AdminStorage,
 				m.TreeDeleteThreshold,
@@ -205,8 +205,8 @@ func (m *Main) Run(ctx context.Context) error {
 	}
 
 	shutdown := func() {
-		glog.Infof("Stopping RPC server...")
-		glog.Flush()
+		klog.Infof("Stopping RPC server...")
+		klog.Flush()
 
 		srv.GracefulStop()
 	}
@@ -264,26 +264,26 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 	// Get a lease so our entry self-destructs.
 	leaseRsp, err := client.Grant(ctx, 30)
 	if err != nil {
-		glog.Exitf("Failed to get lease from etcd: %v", err)
+		klog.Exitf("Failed to get lease from etcd: %v", err)
 	}
 
 	keepAliveRspCh, err := client.KeepAlive(ctx, leaseRsp.ID)
 	if err != nil {
-		glog.Exitf("Failed to keep lease alive from etcd: %v", err)
+		klog.Exitf("Failed to keep lease alive from etcd: %v", err)
 	}
 	go listenKeepAliveRsp(ctx, keepAliveRspCh, cancel)
 
 	em, err := endpoints.NewManager(client, etcdService)
 	if err != nil {
-		glog.Exitf("Failed to create etcd manager: %v", err)
+		klog.Exitf("Failed to create etcd manager: %v", err)
 	}
 	fullEndpoint := fmt.Sprintf("%s/%s", etcdService, endpoint)
 	em.AddEndpoint(ctx, fullEndpoint, endpoints.Endpoint{Addr: endpoint})
-	glog.Infof("Announcing our presence in %v", etcdService)
+	klog.Infof("Announcing our presence in %v", etcdService)
 
 	return func() {
 		// Use a background context because the original context may have been cancelled.
-		glog.Infof("Removing our presence in %v", etcdService)
+		klog.Infof("Removing our presence in %v", etcdService)
 		ctx := context.Background()
 		em.DeleteEndpoint(ctx, fullEndpoint)
 		client.Revoke(ctx, leaseRsp.ID)
@@ -296,11 +296,11 @@ func listenKeepAliveRsp(ctx context.Context, keepAliveRspCh <-chan *clientv3.Lea
 	for {
 		select {
 		case <-ctx.Done():
-			glog.Infof("listenKeepAliveRsp canceled: %v", ctx.Err())
+			klog.Infof("listenKeepAliveRsp canceled: %v", ctx.Err())
 			return
 		case _, ok := <-keepAliveRspCh:
 			if !ok {
-				glog.Errorf("listenKeepAliveRsp canceled: unexpected lease expired")
+				klog.Errorf("listenKeepAliveRsp canceled: unexpected lease expired")
 				cancel()
 				return
 			}

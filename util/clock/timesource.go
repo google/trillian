@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // System is a default TimeSource that provides system time.
@@ -128,6 +128,6 @@ func (p *PredefinedFake) Now() time.Time {
 
 // NewTimer creates a timer with the specified delay. Not implemented.
 func (p *PredefinedFake) NewTimer(d time.Duration) Timer {
-	glog.Exitf("PredefinedFake.NewTimer is not implemented")
+	klog.Exitf("PredefinedFake.NewTimer is not implemented")
 	return nil
 }

@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
@@ -32,6 +31,7 @@ import (
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify
@@ -530,7 +530,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyLogTreeTX, op string) error {
 	err := tx.Commit(ctx)
 	if err != nil {
-		glog.Warningf("%v: Commit failed for %v: %v", logID, op, err)
+		klog.Warningf("%v: Commit failed for %v: %v", logID, op, err)
 	}
 	return err
 }
@@ -538,7 +538,7 @@ func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, logID int64, tx
 func (t *TrillianLogRPCServer) closeAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyLogTreeTX, op string) {
 	err := tx.Close()
 	if err != nil {
-		glog.Warningf("%v: Close failed for %v: %v", logID, op, err)
+		klog.Warningf("%v: Close failed for %v: %v", logID, op, err)
 	}
 }
 

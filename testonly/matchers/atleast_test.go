@@ -17,7 +17,7 @@ package matchers
 import (
 	"testing"
 
-	_ "github.com/golang/glog"
+	_ "k8s.io/klog/v2"
 )
 
 func TestAtLeast(t *testing.T) {

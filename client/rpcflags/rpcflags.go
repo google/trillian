@@ -17,10 +17,10 @@ package rpcflags
 import (
 	"flag"
 
-	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/klog/v2"
 )
 
 // tlsCertFile is the flag-assigned value for the path to the Trillian server's TLS certificate.
@@ -32,7 +32,7 @@ func NewClientDialOptionsFromFlags() ([]grpc.DialOption, error) {
 	dialOpts := []grpc.DialOption{}
 
 	if *tlsCertFile == "" {
-		glog.Warning("Using an insecure gRPC connection to Trillian")
+		klog.Warning("Using an insecure gRPC connection to Trillian")
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
 		creds, err := credentials.NewClientTLSFromFile(*tlsCertFile, "")

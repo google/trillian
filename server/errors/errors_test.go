@@ -19,9 +19,9 @@ import (
 	"errors"
 	"testing"
 
-	_ "github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	_ "k8s.io/klog/v2"
 )
 
 func TestWrapError(t *testing.T) {
