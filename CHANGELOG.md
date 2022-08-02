@@ -4,6 +4,7 @@
 
 * Deprecate `--tree_ids_with_no_ephemeral_nodes` flag by setting it to all trees
   (`*`) by default.
+* Updated golangci-lint to v1.47.3 (developers should update to this version)
 
 ## v1.4.2
 
