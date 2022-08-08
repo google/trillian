@@ -166,14 +166,15 @@ func TestOperationManagerExecutePassError(t *testing.T) {
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher).Return(1, nil)
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher).Return(0, errors.New("test error"))
 
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp) // initialises counters
+
 	// Do not run this test in parallel with any other that affects the signingRuns or failedSigningRuns counters.
 	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
 	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
 	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
 	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
 
-	info := defaultOperationInfo(registry)
-	lom := NewOperationManager(info, mockLogOp)
 	lom.OperationSingle(ctx)
 
 	// Check that logID1 has 1 successful signing run, 0 failed.
@@ -318,14 +319,15 @@ func TestOperationManagerOperationLoopExecutePassError(t *testing.T) {
 		}
 	}).Return(0, errors.New("test error"))
 
+	info := defaultOperationInfo(registry)
+	lom := NewOperationManager(info, mockLogOp) // initialises counters
+
 	// Do not run this test in parallel with any other that affects the signingRuns or failedSigningRuns counters.
 	log1SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID1Label)
 	log1FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID1Label)
 	log2SigningRuns := testonly.NewCounterSnapshot(signingRuns, logID2Label)
 	log2FailedSigningRuns := testonly.NewCounterSnapshot(failedSigningRuns, logID2Label)
 
-	info := defaultOperationInfo(registry)
-	lom := NewOperationManager(info, mockLogOp)
 	lom.OperationLoop(ctx)
 
 	// Check that logID1 has 1 successful signing run, 0 failed.

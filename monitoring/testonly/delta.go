@@ -34,6 +34,9 @@ type CounterSnapshot struct {
 // by the given labels. This value can be compared to future values to determine
 // how it has changed over time.
 func NewCounterSnapshot(c monitoring.Counter, labels ...string) CounterSnapshot {
+	if c == nil {
+		panic("can't take snapshot of nil counter")
+	}
 	return CounterSnapshot{
 		c:      c,
 		labels: labels,
