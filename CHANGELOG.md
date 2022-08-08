@@ -6,6 +6,7 @@
   (`*`) by default.
 * Updated golangci-lint to v1.47.3 (developers should update to this version)
 * Delete merkle package, use [github.com/transparency-dev/merkle](https://pkg.go.dev/github.com/transparency-dev/merkle) instead.
+* #2792: Fixed order-dependent unit test.
 
 ## v1.4.2
 
