@@ -53,6 +53,7 @@ func init() {
 }
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
 	beam.Init()
 
