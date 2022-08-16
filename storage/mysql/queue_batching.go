@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/klog/v2"
 	"github.com/google/trillian"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 const (
