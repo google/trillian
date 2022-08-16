@@ -99,10 +99,10 @@ func main() {
 		}
 
 		// Confirm we found the leaf we needed, and that it had the value we expected.
-		if leaf == nil {
+		if leaf == nil { //nolint:staticcheck // Remove "related info" lint message for suppressed lint check below.
 			klog.Fatalf("couldn't find expected leaf %x in tile %x", needLeafPath, tile.Path)
 		}
-		if !bytes.Equal(leaf.Hash, needValue) {
+		if !bytes.Equal(leaf.Hash, needValue) { //nolint:staticcheck // Suppress false +ve due to linter not understanding that klog.Fatal() above will exit if leaf == nil
 			klog.Fatalf("wrong leaf value in tile %x, leaf %x: got %x, want %x", tile.Path, leaf.Path, leaf.Hash, needValue)
 		}
 
