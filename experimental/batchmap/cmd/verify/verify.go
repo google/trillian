@@ -43,6 +43,7 @@ var (
 )
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
 
 	mapDir := filepath.Clean(*mapDir)

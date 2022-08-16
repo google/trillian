@@ -122,6 +122,7 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 }
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
 	defer klog.Flush()
 

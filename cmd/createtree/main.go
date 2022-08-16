@@ -109,6 +109,7 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 }
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
 	defer klog.Flush()
 
