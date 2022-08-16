@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/klog/v2"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
@@ -158,8 +158,8 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 	go func(wg *sync.WaitGroup, grpcServer *grpc.Server, lis net.Listener) {
 		defer wg.Done()
 		if err := grpcServer.Serve(lis); err != nil {
-			glog.Errorf("gRPC server stopped: %v", err)
-			glog.Flush()
+			klog.Errorf("gRPC server stopped: %v", err)
+			klog.Flush()
 		}
 	}(&wg, grpcServer, lis)
 

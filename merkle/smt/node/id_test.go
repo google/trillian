@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"testing"
 
-	_ "github.com/golang/glog" // Add flags for the overarching test-all command.
+	_ "k8s.io/klog/v2" // Add flags for the overarching test-all command.
 )
 
 func TestNewIDWithLast(t *testing.T) {

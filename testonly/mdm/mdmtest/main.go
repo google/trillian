@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/monitoring"
@@ -33,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -52,7 +52,7 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 	if err := innerMain(ctx); err != nil {
-		glog.Exit(err)
+		klog.Exit(err)
 	}
 }
 
@@ -62,17 +62,17 @@ func innerMain(ctx context.Context) error {
 		mf = prometheus.MetricFactory{}
 		http.Handle("/metrics", promhttp.Handler())
 		server := http.Server{Addr: *metricsEndpoint, Handler: nil}
-		glog.Infof("Serving metrics at %v", *metricsEndpoint)
+		klog.Infof("Serving metrics at %v", *metricsEndpoint)
 		go func() {
 			err := server.ListenAndServe()
-			glog.Warningf("Metrics server exited: %v", err)
+			klog.Warningf("Metrics server exited: %v", err)
 		}()
 	}
 
 	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	c, err := grpc.Dial(*rpcServer, dialOpts...)
 	if err != nil {
-		glog.Exitf("Failed to create log client conn: %v", err)
+		klog.Exitf("Failed to create log client conn: %v", err)
 	}
 	cl := trillian.NewTrillianLogClient(c)
 
@@ -80,7 +80,7 @@ func innerMain(ctx context.Context) error {
 	if len(*adminServer) > 0 {
 		ac, err = grpc.Dial(*adminServer, dialOpts...)
 		if err != nil {
-			glog.Exitf("Failed to create admin client conn: %v", err)
+			klog.Exitf("Failed to create admin client conn: %v", err)
 		}
 	}
 	adminCl := trillian.NewTrillianAdminClient(ac)
@@ -98,15 +98,15 @@ func innerMain(ctx context.Context) error {
 		}
 		tree, err := client.CreateAndInitTree(ctx, &req, adminCl, cl)
 		if err != nil {
-			glog.Exitf("failed to create ephemeral tree: %v", err)
+			klog.Exitf("failed to create ephemeral tree: %v", err)
 		}
 		*logID = tree.TreeId
-		glog.Infof("testing against ephemeral tree %d", *logID)
+		klog.Infof("testing against ephemeral tree %d", *logID)
 		defer func() {
 			req := &trillian.DeleteTreeRequest{TreeId: *logID}
-			glog.Infof("Soft-delete transient Trillian Log with TreeID=%d", *logID)
+			klog.Infof("Soft-delete transient Trillian Log with TreeID=%d", *logID)
 			if _, err := adminCl.DeleteTree(ctx, req); err != nil {
-				glog.Errorf("failed to DeleteTree(%d): %v", *logID, err)
+				klog.Errorf("failed to DeleteTree(%d): %v", *logID, err)
 			}
 		}()
 	}

@@ -19,10 +19,10 @@ package prometheus
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"k8s.io/klog/v2"
 )
 
 // MetricFactory allows the creation of Prometheus-based metrics.
@@ -123,7 +123,7 @@ type Counter struct {
 func (m *Counter) Inc(labelVals ...string) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	if m.vec != nil {
@@ -137,7 +137,7 @@ func (m *Counter) Inc(labelVals ...string) {
 func (m *Counter) Add(val float64, labelVals ...string) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	if m.vec != nil {
@@ -151,7 +151,7 @@ func (m *Counter) Add(val float64, labelVals ...string) {
 func (m *Counter) Value(labelVals ...string) float64 {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return 0.0
 	}
 	var metric prometheus.Metric
@@ -162,11 +162,11 @@ func (m *Counter) Value(labelVals ...string) float64 {
 	}
 	var metricpb dto.Metric
 	if err := metric.Write(&metricpb); err != nil {
-		glog.Errorf("failed to Write metric: %v", err)
+		klog.Errorf("failed to Write metric: %v", err)
 		return 0.0
 	}
 	if metricpb.Counter == nil {
-		glog.Errorf("counter field missing")
+		klog.Errorf("counter field missing")
 		return 0.0
 	}
 	return metricpb.Counter.GetValue()
@@ -183,7 +183,7 @@ type Gauge struct {
 func (m *Gauge) Inc(labelVals ...string) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	if m.vec != nil {
@@ -197,7 +197,7 @@ func (m *Gauge) Inc(labelVals ...string) {
 func (m *Gauge) Dec(labelVals ...string) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	if m.vec != nil {
@@ -211,7 +211,7 @@ func (m *Gauge) Dec(labelVals ...string) {
 func (m *Gauge) Add(val float64, labelVals ...string) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	if m.vec != nil {
@@ -225,7 +225,7 @@ func (m *Gauge) Add(val float64, labelVals ...string) {
 func (m *Gauge) Set(val float64, labelVals ...string) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	if m.vec != nil {
@@ -239,7 +239,7 @@ func (m *Gauge) Set(val float64, labelVals ...string) {
 func (m *Gauge) Value(labelVals ...string) float64 {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return 0.0
 	}
 	var metric prometheus.Metric
@@ -250,11 +250,11 @@ func (m *Gauge) Value(labelVals ...string) float64 {
 	}
 	var metricpb dto.Metric
 	if err := metric.Write(&metricpb); err != nil {
-		glog.Errorf("failed to Write metric: %v", err)
+		klog.Errorf("failed to Write metric: %v", err)
 		return 0.0
 	}
 	if metricpb.Gauge == nil {
-		glog.Errorf("gauge field missing")
+		klog.Errorf("gauge field missing")
 		return 0.0
 	}
 	return metricpb.Gauge.GetValue()
@@ -271,7 +271,7 @@ type Histogram struct {
 func (m *Histogram) Observe(val float64, labelVals ...string) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	if m.vec != nil {
@@ -285,7 +285,7 @@ func (m *Histogram) Observe(val float64, labelVals ...string) {
 func (m *Histogram) Info(labelVals ...string) (uint64, float64) {
 	labels, err := labelsFor(m.labelNames, labelVals)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return 0, 0.0
 	}
 	var metric prometheus.Metric
@@ -296,12 +296,12 @@ func (m *Histogram) Info(labelVals ...string) (uint64, float64) {
 	}
 	var metricpb dto.Metric
 	if err := metric.Write(&metricpb); err != nil {
-		glog.Errorf("failed to Write metric: %v", err)
+		klog.Errorf("failed to Write metric: %v", err)
 		return 0, 0.0
 	}
 	histVal := metricpb.GetHistogram()
 	if histVal == nil {
-		glog.Errorf("histogram field missing")
+		klog.Errorf("histogram field missing")
 		return 0, 0.0
 	}
 	return histVal.GetSampleCount(), histVal.GetSampleSum()

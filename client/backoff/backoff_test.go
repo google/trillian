@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	_ "github.com/golang/glog"
+	_ "k8s.io/klog/v2"
 )
 
 func TestBackoff(t *testing.T) {

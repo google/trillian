@@ -22,13 +22,13 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
 	inmemory "github.com/transparency-dev/merkle/testonly"
+	"k8s.io/klog/v2"
 )
 
 // TestParameters bundles up all the settings for a test run
@@ -92,7 +92,7 @@ var consistencyProofBadTestParams = []consistencyProofParams{{0, 0}, {-1, 0}, {1
 func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters) error {
 	// Step 1 - Optionally check log starts empty then optionally queue leaves on server
 	if params.CheckLogEmpty {
-		glog.Infof("Checking log is empty before starting test")
+		klog.Infof("Checking log is empty before starting test")
 		resp, err := getLatestSignedLogRoot(client, params)
 		if err != nil {
 			return fmt.Errorf("failed to get latest log root: %v %v", resp, err)
@@ -110,7 +110,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	preEntries := genEntries(params)
 	if params.QueueLeaves {
-		glog.Infof("Queueing %d leaves to log server ...", params.LeafCount)
+		klog.Infof("Queueing %d leaves to log server ...", params.LeafCount)
 		if err := queueLeaves(client, params, preEntries); err != nil {
 			return fmt.Errorf("failed to queue leaves: %v", err)
 		}
@@ -118,14 +118,14 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen (optional)
 	if params.AwaitSequencing {
-		glog.Infof("Waiting for log to sequence ...")
+		klog.Infof("Waiting for log to sequence ...")
 		if err := waitForSequencing(params.TreeID, client, params); err != nil {
 			return fmt.Errorf("leaves were not sequenced: %v", err)
 		}
 	}
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
-	glog.Infof("Reading back leaves from log ...")
+	klog.Infof("Reading back leaves from log ...")
 	entries, err := readEntries(params.TreeID, client, params)
 	if err != nil {
 		return fmt.Errorf("could not read back log entries: %v", err)
@@ -135,7 +135,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	}
 
 	// Step 4 - Cross validation between log and memory tree root hashes
-	glog.Infof("Checking log STH with our constructed in-memory tree ...")
+	klog.Infof("Checking log STH with our constructed in-memory tree ...")
 	tree := buildMerkleTree(entries, params)
 	if err := checkLogRootHashMatches(tree, client, params); err != nil {
 		return fmt.Errorf("log consistency check failed: %v", err)
@@ -144,7 +144,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	// Now that the basic tree has passed validation we can start testing proofs
 
 	// Step 5 - Test some inclusion proofs
-	glog.Info("Testing inclusion proofs")
+	klog.Info("Testing inclusion proofs")
 
 	// Ensure log doesn't serve a proof for a leaf index outside the tree size
 	if err := checkInclusionProofLeafOutOfRange(params.TreeID, client, params); err != nil {
@@ -166,7 +166,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	// TODO(al): test some inclusion proofs by Merkle hash too.
 
 	// Step 6 - Test some consistency proofs
-	glog.Info("Testing consistency proofs")
+	klog.Info("Testing consistency proofs")
 
 	// Make some consistency proof requests that we know should not succeed
 	for _, consistParams := range consistencyProofBadTestParams {
@@ -213,7 +213,7 @@ func genEntries(params TestParameters) []*trillian.LogLeaf {
 	seed := time.Now().UnixNano()
 	rand.Seed(seed)
 	perm := rand.Perm(int(params.LeafCount))
-	glog.Infof("Generating %d leaves, %d unique, using permutation seed %d", params.LeafCount, params.UniqueLeaves, seed)
+	klog.Infof("Generating %d leaves, %d unique, using permutation seed %d", params.LeafCount, params.UniqueLeaves, seed)
 
 	leaves := make([]*trillian.LogLeaf, 0, params.LeafCount)
 	for l := int64(0); l < params.LeafCount; l++ {
@@ -223,7 +223,7 @@ func genEntries(params TestParameters) []*trillian.LogLeaf {
 }
 
 func queueLeaves(client trillian.TrillianLogClient, params TestParameters, entries []*trillian.LogLeaf) error {
-	glog.Infof("Queueing %d leaves...", len(entries))
+	klog.Infof("Queueing %d leaves...", len(entries))
 
 	for _, leaf := range entries {
 		ctx, cancel := getRPCDeadlineContext(params)
@@ -251,7 +251,7 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters, entri
 func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params TestParameters) error {
 	endTime := time.Now().Add(params.SequencingWaitTotal)
 
-	glog.Infof("Waiting for sequencing until: %v", endTime)
+	klog.Infof("Waiting for sequencing until: %v", endTime)
 
 	for endTime.After(time.Now()) {
 		req := trillian.GetLatestSignedLogRootRequest{LogId: treeID}
@@ -268,13 +268,13 @@ func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params T
 			return err
 		}
 
-		glog.Infof("Leaf count: %d", root.TreeSize)
+		klog.Infof("Leaf count: %d", root.TreeSize)
 
 		if root.TreeSize >= uint64(params.LeafCount+params.StartLeaf) {
 			return nil
 		}
 
-		glog.Infof("Leaves sequenced: %d. Still waiting ...", root.TreeSize)
+		klog.Infof("Leaves sequenced: %d. Still waiting ...", root.TreeSize)
 
 		time.Sleep(params.SequencingPollWait)
 	}
@@ -294,7 +294,7 @@ func readEntries(logID int64, client trillian.TrillianLogClient, params TestPara
 			count = max
 		}
 
-		glog.Infof("Reading %d leaves from %d ...", count, index)
+		klog.Infof("Reading %d leaves from %d ...", count, index)
 		req := &trillian.GetLeavesByRangeRequest{LogId: logID, StartIndex: index, Count: count}
 		ctx, cancel := getRPCDeadlineContext(params)
 		response, err := client.GetLeavesByRange(ctx, req)

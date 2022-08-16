@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -125,7 +125,7 @@ func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Sp
 		bucket, ok := m.cache[spec]
 		// Sanity check
 		if !ok || bucket.tokens < 0 || bucket.tokens < numTokens {
-			glog.Errorf("Bucket invariants failed for spec %+v: ok = %v, bucket = %+v", spec, ok, bucket)
+			klog.Errorf("Bucket invariants failed for spec %+v: ok = %v, bucket = %+v", spec, ok, bucket)
 			return nil // Something is wrong with the implementation, let requests go through.
 		}
 		bucket.tokens -= numTokens
@@ -158,14 +158,14 @@ func (m *manager) evict(ctx context.Context) {
 	evicts := len(m.cache) - m.maxEntries
 	for i := 0; i < evicts; i++ {
 		b := buckets[i]
-		glog.V(1).Infof("Too many tokens cached, returning least recently used (%v tokens for %+v)", b.tokens, b.spec)
+		klog.V(1).Infof("Too many tokens cached, returning least recently used (%v tokens for %+v)", b.tokens, b.spec)
 		delete(m.cache, b.spec)
 
 		// goroutines must not access the cache, the lock is released before they complete.
 		wg.Add(1)
 		go func() {
 			if err := m.Manager.PutTokens(ctx, b.tokens, []quota.Spec{b.spec}); err != nil {
-				glog.Warningf("Error replenishing tokens from evicted bucket (spec = %+v, bucket = %+v): %v", b.spec, b.bucket, err)
+				klog.Warningf("Error replenishing tokens from evicted bucket (spec = %+v, bucket = %+v): %v", b.spec, b.bucket, err)
 			}
 			wg.Done()
 		}()

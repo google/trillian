@@ -18,7 +18,6 @@ package quotaapi
 import (
 	"context"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
@@ -27,6 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"k8s.io/klog/v2"
 )
 
 // Server is a quotapb.QuotaServer implementation backed by etcd.
@@ -113,7 +113,7 @@ func (s *Server) getConfig(ctx context.Context, name string, cfgs *storagepb.Con
 	if err == nil {
 		cfg.CurrentTokens = tokens[cfg.Name]
 	} else {
-		glog.Warningf("Unexpected error peeking token count for %q: %v", cfg.Name, err)
+		klog.Warningf("Unexpected error peeking token count for %q: %v", cfg.Name, err)
 	}
 
 	return cfg, nil
@@ -153,7 +153,7 @@ func (s *Server) ListConfigs(ctx context.Context, req *quotapb.ListConfigsReques
 				cfg.CurrentTokens = tokens[cfg.Name]
 			}
 		} else {
-			glog.Infof("Error peeking token counts for %v: %v", names, err)
+			klog.Infof("Error peeking token counts for %v: %v", names, err)
 		}
 	}
 	return resp, nil

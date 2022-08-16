@@ -24,11 +24,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/types"
+	"k8s.io/klog/v2"
 )
 
 // MergeDelayMonitor submits leaves to a Log and measures merge delay.
@@ -83,7 +83,7 @@ func NewMonitor(ctx context.Context, logID int64, cl trillian.TrillianLogClient,
 
 // Monitor runs merge delay monitoring until its context is cancelled or an error occurs.
 func (m *MergeDelayMonitor) Monitor(ctx context.Context) error {
-	glog.Infof("starting %d parallel monitor instances", m.opts.ParallelAdds)
+	klog.Infof("starting %d parallel monitor instances", m.opts.ParallelAdds)
 	errs := make(chan error, m.opts.ParallelAdds)
 	var wg sync.WaitGroup
 	wg.Add(m.opts.ParallelAdds)
@@ -98,16 +98,16 @@ func (m *MergeDelayMonitor) Monitor(ctx context.Context) error {
 
 	ticker := time.NewTicker(m.opts.EmitInterval)
 	defer ticker.Stop()
-	glog.V(1).Infof("start stats ticker every %v", m.opts.EmitInterval)
+	klog.V(1).Infof("start stats ticker every %v", m.opts.EmitInterval)
 	go func(c <-chan time.Time) {
 		for range c {
 			countT, totalT := m.Stats(true)
 			if countT > 0 {
-				glog.Infof("new leaves: %d in %f secs, average %f secs", countT, totalT, totalT/float64(countT))
+				klog.Infof("new leaves: %d in %f secs, average %f secs", countT, totalT, totalT/float64(countT))
 			}
 			countF, totalF := m.Stats(false)
 			if countF > 0 {
-				glog.Infof("dup leaves: %d in %f secs, average %f secs", countF, totalF, totalF/float64(countF))
+				klog.Infof("dup leaves: %d in %f secs, average %f secs", countF, totalF, totalF/float64(countF))
 			}
 		}
 	}(ticker.C)
@@ -116,7 +116,7 @@ func (m *MergeDelayMonitor) Monitor(ctx context.Context) error {
 	close(errs)
 	var lastErr error
 	for err := range errs {
-		glog.Errorf("monitor failure: %v", err)
+		klog.Errorf("monitor failure: %v", err)
 		lastErr = err
 	}
 	return lastErr
@@ -135,7 +135,7 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 		}
 
 		// Add the leaf data and wait for its inclusion.
-		glog.V(1).Infof("[%d] submit new=%t leaf and wait for inclusion (within %v)", idx, createNew, m.opts.Deadline)
+		klog.V(1).Infof("[%d] submit new=%t leaf and wait for inclusion (within %v)", idx, createNew, m.opts.Deadline)
 		cctx, cancel := context.WithTimeout(ctx, m.opts.Deadline)
 		start := time.Now()
 		err := m.client[idx].AddLeaf(cctx, data)
@@ -145,7 +145,7 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 		}
 		mergeDelay := time.Since(start)
 		mergeDelayDist.Observe(mergeDelay.Seconds(), logIDLabel, newLeafLabel[createNew])
-		glog.V(1).Infof("[%d] merge delay for new=%t leaf = %v", idx, createNew, mergeDelay)
+		klog.V(1).Infof("[%d] merge delay for new=%t leaf = %v", idx, createNew, mergeDelay)
 
 		select {
 		case <-ctx.Done():

@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/server/interceptor"
@@ -36,6 +35,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 
 	sa "github.com/google/trillian/server/admin"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -553,7 +553,7 @@ type testServer struct {
 func (ts *testServer) closeAll() {
 	if ts.conn != nil {
 		if err := ts.conn.Close(); err != nil {
-			glog.Errorf("testServer: conn.Close()=%v", err)
+			klog.Errorf("testServer: conn.Close()=%v", err)
 		}
 	}
 	if ts.server != nil {
@@ -561,7 +561,7 @@ func (ts *testServer) closeAll() {
 	}
 	if ts.lis != nil {
 		if err := ts.lis.Close(); err != nil {
-			glog.Errorf("testServer: lis.Close()=%v", err)
+			klog.Errorf("testServer: lis.Close()=%v", err)
 		}
 	}
 	if ts.cleanup != nil {
@@ -601,7 +601,7 @@ func setupAdminServer(ctx context.Context, t *testing.T) (*testServer, error) {
 	trillian.RegisterTrillianAdminServer(ts.server, sa.New(registry, nil /* allowedTreeTypes */))
 	go func() {
 		if err := ts.server.Serve(ts.lis); err != nil {
-			glog.Errorf("server.Serve()=%v", err)
+			klog.Errorf("server.Serve()=%v", err)
 		}
 	}()
 

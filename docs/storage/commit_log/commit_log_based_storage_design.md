@@ -145,15 +145,15 @@ func SignerRun() {
   // Sanity check that the STH table has what we already know.
   ourSTH := kafka.Read("STHs/<treeID>", dbSTH.sthOffset)
   if ourSTH == nil {
-    glog.Errorf("should not happen - local DB has data ahead of STHs topic")
+    klog.Errorf("should not happen - local DB has data ahead of STHs topic")
     return
   }
   if ourSTH.expectedOffset != dbSTH.sthOffset {
-    glog.Errorf("should not happen - local DB committed to invalid STH from topic")
+    klog.Errorf("should not happen - local DB committed to invalid STH from topic")
     return
   }
   if ourSTH.timestamp != dbSTH.timestamp || ourSTH.tree_size != dbSTH.tree_size {
-    glog.Errorf("should not happen - local DB has different data than STHs topic")
+    klog.Errorf("should not happen - local DB has different data than STHs topic")
     return
   }
 
@@ -169,11 +169,11 @@ func SignerRun() {
     if nextSTH.expectedOffset != nextOffset {
       // Someone's been writing STHs when they weren't supposed to be, skip
       // this one until we find another which is in-sync.
-      glog.Warning("skipping unexpected STH")
+      klog.Warning("skipping unexpected STH")
       continue
     }
     if nextSTH.timestamp < ourSTH.timestamp || nextSTH.tree_size < ourSTH.tree_size {
-      glog.Fatal("should not happen - earlier STH with later offset")
+      klog.Fatal("should not happen - earlier STH with later offset")
       return
     }
   }
@@ -197,7 +197,7 @@ func SignerRun() {
     newSTH.expectedOffset = nextOffset
     actualOffset := kafka.Append("STHs/<treeID>", newSTH)
     if actualOffset != nextOffset {
-      glog.Warning("someone else wrote an STH while we were master")
+      klog.Warning("someone else wrote an STH while we were master")
       tx.Abort()
       return
     }
@@ -215,7 +215,7 @@ func SignerRun() {
     }
     newRoot := tx.UpdateMerkleTreeAndBufferNodes(batch, treeRevision+1)
     if newRoot != nextSTH.root {
-      glog.Warning("calculated root hash != expected root hash, corrupt DB?")
+      klog.Warning("calculated root hash != expected root hash, corrupt DB?")
       tx.Abort()
       return
     }
@@ -317,7 +317,7 @@ func (tx *splitTX) DequeueLeaves() (..., error) {
       if nextSTH.expectedOffset != nextOffset {
         // Someone's been writing STHs when they weren't supposed to be, skip
         // this one until we find another which is in-sync.
-        glog.Warning("skipping invalid STH")
+        klog.Warning("skipping invalid STH")
         continue
       }
       if nextSTH.timestamp < ourSTH.timestamp || nextSTH.tree_size < ourSTH.tree_size {

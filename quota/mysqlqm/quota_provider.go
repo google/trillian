@@ -17,9 +17,9 @@ package mysqlqm
 import (
 	"flag"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage/mysql"
+	"k8s.io/klog/v2"
 )
 
 // QuotaManagerName identifies the MySQL quota implementation.
@@ -30,7 +30,7 @@ var maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced,
 
 func init() {
 	if err := quota.RegisterProvider(QuotaManagerName, newMySQLQuotaManager); err != nil {
-		glog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
+		klog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
 	}
 }
 
@@ -43,6 +43,6 @@ func newMySQLQuotaManager() (quota.Manager, error) {
 		DB:                 db,
 		MaxUnsequencedRows: *maxUnsequencedRows,
 	}
-	glog.Info("Using MySQL QuotaManager")
+	klog.Info("Using MySQL QuotaManager")
 	return qm, nil
 }

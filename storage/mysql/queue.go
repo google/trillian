@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -58,7 +58,7 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 
 	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp)
 	if err != nil {
-		glog.Warningf("Error scanning work rows: %s", err)
+		klog.Warningf("Error scanning work rows: %s", err)
 		return nil, dequeuedLeaf{}, err
 	}
 
@@ -102,7 +102,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			leaf.LeafIndex,
 			iTimestamp.UnixNano())
 		if err != nil {
-			glog.Warningf("Failed to update sequenced leaves: %s", err)
+			klog.Warningf("Failed to update sequenced leaves: %s", err)
 			return err
 		}
 
@@ -125,7 +125,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeued
 	// QueueLeaves.
 	stx, err := t.tx.PrepareContext(ctx, deleteUnsequencedSQL)
 	if err != nil {
-		glog.Warningf("Failed to prep delete statement for sequenced work: %v", err)
+		klog.Warningf("Failed to prep delete statement for sequenced work: %v", err)
 		return err
 	}
 	defer stx.Close()

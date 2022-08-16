@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -38,6 +37,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -164,7 +164,7 @@ func (ls *logStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 		ids = append(ids, id)
 		return nil
 	}); err != nil {
-		glog.Warningf("GetActiveLogIDs: %v", err)
+		klog.Warningf("GetActiveLogIDs: %v", err)
 		return nil, fmt.Errorf("problem executing getActiveLogIDsSQL: %v", err)
 	}
 	return ids, nil
@@ -344,7 +344,7 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 			if err != nil {
 				// If failed because of a duplicate insert, set the status correspondingly.
 				if status.Code(err) == codes.AlreadyExists {
-					glog.Infof("Found already exists: index=%v, id=%v", l.LeafIndex, l.LeafIdentityHash)
+					klog.Infof("Found already exists: index=%v, id=%v", l.LeafIndex, l.LeafIdentityHash)
 					res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex or LeafIdentityHash").Proto()
 					return
 				}
@@ -390,7 +390,7 @@ func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map
 	if numDupes == 0 {
 		return nil
 	}
-	glog.V(2).Infof("dupe rowsToRead: %v", numDupes)
+	klog.V(2).Infof("dupe rowsToRead: %v", numDupes)
 
 	ids := make([][]byte, 0, numDupes)
 	for k := range dupes {
@@ -399,13 +399,13 @@ func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map
 	dupesRead := 0
 	tx := ls.ts.client.Single()
 	err := readLeaves(ctx, tx, logID, ids, func(l *trillian.LogLeaf) {
-		glog.V(2).Infof("Found already exists dupe: %v", l)
+		klog.V(2).Infof("Found already exists dupe: %v", l)
 		dupesRead++
 
 		indices := dupes[string(l.LeafIdentityHash)]
-		glog.V(2).Infof("Indices %v", indices)
+		klog.V(2).Infof("Indices %v", indices)
 		if len(indices) == 0 {
-			glog.Warningf("Logic error: Spanner returned a leaf %x, but it matched no requested index", l.LeafIdentityHash)
+			klog.Warningf("Logic error: Spanner returned a leaf %x, but it matched no requested index", l.LeafIdentityHash)
 			return
 		}
 		for _, i := range indices {
@@ -494,7 +494,7 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLo
 
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
-		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
+		klog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
 	}
 

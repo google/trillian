@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
@@ -44,6 +43,7 @@ import (
 	"github.com/google/trillian/util/clock"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 
 	// Register supported storage providers.
 	_ "github.com/google/trillian/storage/cloudspanner"
@@ -84,11 +84,11 @@ var (
 
 func main() {
 	flag.Parse()
-	defer glog.Flush()
+	defer klog.Flush()
 
 	if *configFile != "" {
 		if err := cmd.ParseFlagFile(*configFile); err != nil {
-			glog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
+			klog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
 		}
 	}
 
@@ -103,7 +103,7 @@ func main() {
 	if *tracing {
 		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID, *tracingPercent)
 		if err != nil {
-			glog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
+			klog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
 		}
 		// Enable the server request counter tracing etc.
 		options = append(options, opts...)
@@ -111,7 +111,7 @@ func main() {
 
 	sp, err := storage.NewProvider(*storageSystem, mf)
 	if err != nil {
-		glog.Exitf("Failed to get storage provider: %v", err)
+		klog.Exitf("Failed to get storage provider: %v", err)
 	}
 	defer sp.Close()
 
@@ -121,7 +121,7 @@ func main() {
 			Endpoints:   strings.Split(servers, ","),
 			DialTimeout: 5 * time.Second,
 		}); err != nil {
-			glog.Exitf("Failed to connect to etcd at %v: %v", servers, err)
+			klog.Exitf("Failed to connect to etcd at %v: %v", servers, err)
 		}
 		defer client.Close()
 	}
@@ -137,7 +137,7 @@ func main() {
 
 	qm, err := quota.NewManager(*quotaSystem)
 	if err != nil {
-		glog.Exitf("Error creating quota manager: %v", err)
+		klog.Exitf("Error creating quota manager: %v", err)
 	}
 
 	registry := extension.Registry{
@@ -187,7 +187,7 @@ func main() {
 	}
 
 	if err := m.Run(ctx); err != nil {
-		glog.Exitf("Server exited with error: %v", err)
+		klog.Exitf("Server exited with error: %v", err)
 	}
 
 	if *memProfile != "" {
@@ -199,7 +199,7 @@ func main() {
 func mustCreate(fileName string) *os.File {
 	f, err := os.Create(fileName)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 	return f
 }

@@ -18,13 +18,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 // Server is an implementation of trillian.TrillianAdminServer.
@@ -123,7 +123,7 @@ func (s *Server) UpdateTree(ctx context.Context, req *trillian.UpdateTreeRequest
 	updatedTree, err := storage.UpdateTree(ctx, s.registry.AdminStorage, tree.TreeId, func(other *trillian.Tree) {
 		if err := applyUpdateMask(tree, other, mask); err != nil {
 			// Should never happen (famous last words).
-			glog.Errorf("Error applying mask on tree update: %v", err)
+			klog.Errorf("Error applying mask on tree update: %v", err)
 		}
 	})
 	if err != nil {

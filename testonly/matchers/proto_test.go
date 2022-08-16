@@ -17,9 +17,9 @@ package matchers
 import (
 	"testing"
 
-	_ "github.com/golang/glog"
 	"github.com/google/trillian"
 	"google.golang.org/protobuf/proto"
+	_ "k8s.io/klog/v2"
 )
 
 func TestProtoEquals(t *testing.T) {

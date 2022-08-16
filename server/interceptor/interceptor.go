@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
@@ -33,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -161,7 +161,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 	defer spanEnd()
 	info, err := newRPCInfo(req)
 	if err != nil {
-		glog.Warningf("Failed to read tree info: %v", err)
+		klog.Warningf("Failed to read tree info: %v", err)
 		incRequestDeniedCounter(badInfoReason, 0, "")
 		return ctx, err
 	}
@@ -191,7 +191,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 				incRequestDeniedCounter(insufficientTokensReason, info.treeID, info.quotaUsers)
 				return ctx, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 			}
-			glog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
+			klog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
 		quota.Metrics.IncAcquired(info.tokens, info.specs, err == nil)
 		if err = innerCtx.Err(); err != nil {
@@ -211,7 +211,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 	defer spanEnd()
 	switch {
 	case tp.info == nil:
-		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
+		klog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
 		return
 	case tp.info.tokens == 0:
 		// After() currently only does quota processing
@@ -268,7 +268,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method
 			// in its impl).
 			err := tp.parent.qm.PutTokens(ctx, tokens, refunds)
 			if err != nil {
-				glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
+				klog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
 			}
 			quota.Metrics.IncReturned(tokens, refunds, err == nil)
 		}()
