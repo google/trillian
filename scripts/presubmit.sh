@@ -114,7 +114,7 @@ main() {
     fi
 
     echo "running go test ${TEST_FLAGS} ./..."
-    go test ${TEST_FLAGS} ./... -alsologtostderr
+    go test ${TEST_FLAGS} ./...
   fi
 
   if [[ "${run_lint}" -eq 1 ]]; then
