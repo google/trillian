@@ -4,14 +4,15 @@
 
 ## v.1.5.0
 
-* Deprecate `--tree_ids_with_no_ephemeral_nodes` flag by setting it to all trees
-  (`*`) by default by @jiggoha in https://github.com/google/trillian/pull/2782
+### Storage
+
+* Ephemeral nodes are no-longer written for any tree by default (and have not been read since the v1.4.0 release), the corresponding `--tree_ids_with_no_ephemeral_nodes` flag is now deprecated (and will be removed in a future release).
   
 ### Cleanup
 * Format code according to go1.19rc2 by @mhutchinson in https://github.com/google/trillian/pull/2785
 * Delete merkle package, use [github.com/transparency-dev/merkle](https://pkg.go.dev/github.com/transparency-dev/merkle) instead.
 
-## Misc
+### Misc
 * Fix order-dependent test by @hickford in https://github.com/google/trillian/pull/2792
 
 ### Dependency updates
