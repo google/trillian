@@ -2,11 +2,29 @@
 
 ## HEAD
 
+## v.1.5.0
+
 * Deprecate `--tree_ids_with_no_ephemeral_nodes` flag by setting it to all trees
-  (`*`) by default.
-* Updated golangci-lint to v1.47.3 (developers should update to this version)
+  (`*`) by default by @jiggoha in https://github.com/google/trillian/pull/2782
+  
+### Cleanup
+* Format code according to go1.19rc2 by @mhutchinson in https://github.com/google/trillian/pull/2785
 * Delete merkle package, use [github.com/transparency-dev/merkle](https://pkg.go.dev/github.com/transparency-dev/merkle) instead.
-* #2792: Fixed order-dependent unit test.
+
+## Misc
+* Fix order-dependent test by @hickford in https://github.com/google/trillian/pull/2792
+
+### Dependency updates
+* Updated golangci-lint to v1.47.3 (developers should update to this version) by @mhutchinson in https://github.com/google/trillian/pull/2791
+* Bump google.golang.org/api from 0.87.0 to 0.88.0 by @dependabot in https://github.com/google/trillian/pull/2783
+* Bump cloud.google.com/go/spanner from 1.35.0 to 1.36.0 by @dependabot in https://github.com/google/trillian/pull/2784
+* Bump google.golang.org/api from 0.88.0 to 0.90.0 by @dependabot in https://github.com/google/trillian/pull/2789
+* Bump golang.org/x/tools from 0.1.11 to 0.1.12 by @dependabot in https://github.com/google/trillian/pull/2790
+* Bump google.golang.org/protobuf from 1.28.0 to 1.28.1 by @dependabot in https://github.com/google/trillian/pull/2788
+* Bump google.golang.org/api from 0.90.0 to 0.91.0 by @dependabot in https://github.com/google/trillian/pull/2796
+* Bump github.com/prometheus/client_golang from 1.12.2 to 1.13.0 by @dependabot in https://github.com/google/trillian/pull/2795
+* Bump github.com/fullstorydev/grpcurl from 1.8.6 to 1.8.7 by @dependabot in https://github.com/google/trillian/pull/2794
+* Bump google.golang.org/api from 0.91.0 to 0.92.0 by @dependabot in https://github.com/google/trillian/pull/2798
 
 ## v1.4.2
 
