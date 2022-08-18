@@ -21,13 +21,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/google/btree"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
 	stree "github.com/google/trillian/storage/tree"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/klog/v2"
 )
 
 const degree = 8
@@ -191,7 +191,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
 	if len(subtrees) == 0 {
-		glog.Warning("attempted to store 0 subtrees...")
+		klog.Warning("attempted to store 0 subtrees...")
 		return nil
 	}
 
@@ -225,11 +225,11 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	if t.writeRevision > -1 {
 		tiles, err := t.subtreeCache.UpdatedTiles()
 		if err != nil {
-			glog.Warningf("SubtreeCache updated tiles error: %v", err)
+			klog.Warningf("SubtreeCache updated tiles error: %v", err)
 			return err
 		}
 		if err := t.storeSubtrees(ctx, tiles); err != nil {
-			glog.Warningf("TX commit flush error: %v", err)
+			klog.Warningf("TX commit flush error: %v", err)
 			return err
 		}
 	}

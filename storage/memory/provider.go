@@ -15,14 +15,14 @@
 package memory
 
 import (
-	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+	"k8s.io/klog/v2"
 )
 
 func init() {
 	if err := storage.RegisterProvider("memory", newMemoryStorageProvider); err != nil {
-		glog.Fatalf("Failed to register storage provider memory: %v", err)
+		klog.Fatalf("Failed to register storage provider memory: %v", err)
 	}
 }
 

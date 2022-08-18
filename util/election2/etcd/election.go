@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/util/election2"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
+	"k8s.io/klog/v2"
 )
 
 const resignID = "<resign>"
@@ -79,7 +79,7 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 	go func() {
 		defer func() {
 			cancel()
-			glog.Infof("%s: canceled mastership context", e.resourceID)
+			klog.Infof("%s: canceled mastership context", e.resourceID)
 		}()
 
 		for rsp := range ch {
@@ -88,10 +88,10 @@ func (e *Election) WithMastership(ctx context.Context) (context.Context, error) 
 				conquerorID := string(kv.Value)
 				// TODO(pavelkalinnikov): conquerorID can be resignID too. Serialize a
 				// protobuf with all mastership details instead of ID string.
-				glog.Warningf("%s: mastership overtaken by %s", e.resourceID, conquerorID)
+				klog.Warningf("%s: mastership overtaken by %s", e.resourceID, conquerorID)
 				break
 			} else if string(kv.Value) == resignID {
-				glog.Infof("%s: canceling context due to resignation", e.resourceID)
+				klog.Infof("%s: canceling context due to resignation", e.resourceID)
 				break
 			}
 		}
@@ -117,7 +117,7 @@ func (e *Election) Resign(ctx context.Context) error {
 // method should be called after Close.
 func (e *Election) Close(ctx context.Context) error {
 	if err := e.Resign(ctx); err != nil && err != concurrency.ErrElectionNotLeader {
-		glog.Errorf("%s: Resign(): %v", e.resourceID, err)
+		klog.Errorf("%s: Resign(): %v", e.resourceID, err)
 	}
 	// Session's Close revokes the underlying lease, which results in removing
 	// the election-related keys. This achieves the effect of resignation even if
@@ -161,7 +161,7 @@ func (f *Factory) NewElection(ctx context.Context, resourceID string) (election2
 		session:    session,
 		election:   election,
 	}
-	glog.Infof("Election created: %+v", el)
+	klog.Infof("Election created: %+v", el)
 
 	return &el, nil
 }

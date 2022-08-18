@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -93,10 +93,10 @@ func (gc *DeletedTreeGC) Run(ctx context.Context) {
 
 		count, err := gc.RunOnce(ctx)
 		if err != nil {
-			glog.Errorf("DeletedTreeGC.Run: %v", err)
+			klog.Errorf("DeletedTreeGC.Run: %v", err)
 		}
 		if count > 0 {
-			glog.Infof("DeletedTreeGC.Run: successfully deleted %v trees", count)
+			klog.Infof("DeletedTreeGC.Run: successfully deleted %v trees", count)
 		}
 
 		d := gc.minRunInterval + time.Duration(rand.Int63n(gc.minRunInterval.Nanoseconds()))
@@ -138,7 +138,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 			continue
 		}
 
-		glog.Infof("DeletedTreeGC.RunOnce: Hard-deleting tree %v after %v", tree.TreeId, durationSinceDelete)
+		klog.Infof("DeletedTreeGC.RunOnce: Hard-deleting tree %v after %v", tree.TreeId, durationSinceDelete)
 		if err := storage.HardDeleteTree(ctx, gc.admin, tree.TreeId); err != nil {
 			errs = append(errs, fmt.Errorf("error hard-deleting tree %v: %v", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, deleteErrReason)

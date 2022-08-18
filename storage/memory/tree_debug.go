@@ -15,10 +15,10 @@
 package memory
 
 import (
-	"github.com/golang/glog"
 	"github.com/google/btree"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	"k8s.io/klog/v2"
 )
 
 // This file contains utilities that are not part of the Storage API contracts but may
@@ -27,7 +27,7 @@ import (
 // Dump ascends the tree, logging the items contained.
 func Dump(t *btree.BTree) {
 	t.Ascend(func(i btree.Item) bool {
-		glog.Infof("%#v", i)
+		klog.Infof("%#v", i)
 		return true
 	})
 }

@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -57,7 +57,7 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 
 	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp, &queueID)
 	if err != nil {
-		glog.Warningf("Error scanning work rows: %s", err)
+		klog.Warningf("Error scanning work rows: %s", err)
 		return nil, nil, err
 	}
 
@@ -112,7 +112,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	}
 	result, err := t.tx.ExecContext(ctx, insertSequencedLeafSQL+strings.Join(querySuffix, ","), args...)
 	if err != nil {
-		glog.Warningf("Failed to update sequenced leaves: %s", err)
+		klog.Warningf("Failed to update sequenced leaves: %s", err)
 	}
 	if err := checkResultOkAndRowCountIs(result, err, int64(len(leaves))); err != nil {
 		return err
@@ -133,7 +133,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeu
 	// QueueLeaves.
 	tmpl, err := t.ls.getDeleteUnsequencedStmt(ctx, len(queueIDs))
 	if err != nil {
-		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
+		klog.Warningf("Failed to get delete statement for sequenced work: %s", err)
 		return err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
@@ -144,7 +144,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeu
 	result, err := stx.ExecContext(ctx, args...)
 	if err != nil {
 		// Error is handled by checkResultOkAndRowCountIs() below
-		glog.Warningf("Failed to delete sequenced work: %s", err)
+		klog.Warningf("Failed to delete sequenced work: %s", err)
 	}
 	return checkResultOkAndRowCountIs(result, err, int64(len(queueIDs)))
 }

@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
 	"github.com/google/trillian/extension"
@@ -43,6 +42,7 @@ import (
 	etcdelect "github.com/google/trillian/util/election2/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 
 	// Register supported storage providers.
 	_ "github.com/google/trillian/storage/cloudspanner"
@@ -85,24 +85,25 @@ var (
 )
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
-	defer glog.Flush()
+	defer klog.Flush()
 
 	if *configFile != "" {
 		if err := cmd.ParseFlagFile(*configFile); err != nil {
-			glog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
+			klog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
 		}
 	}
 
-	glog.CopyStandardLogTo("WARNING")
-	glog.Info("**** Log Signer Starting ****")
+	klog.CopyStandardLogTo("WARNING")
+	klog.Info("**** Log Signer Starting ****")
 
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)
 
 	sp, err := storage.NewProvider(*storageSystem, mf)
 	if err != nil {
-		glog.Exitf("Failed to get storage provider: %v", err)
+		klog.Exitf("Failed to get storage provider: %v", err)
 	}
 	defer sp.Close()
 
@@ -112,7 +113,7 @@ func main() {
 			Endpoints:   strings.Split(servers, ","),
 			DialTimeout: 5 * time.Second,
 		}); err != nil {
-			glog.Exitf("Failed to connect to etcd at %v: %v", servers, err)
+			klog.Exitf("Failed to connect to etcd at %v: %v", servers, err)
 		}
 		defer client.Close()
 	}
@@ -126,17 +127,17 @@ func main() {
 	var electionFactory election2.Factory
 	switch {
 	case *forceMaster:
-		glog.Warning("**** Acting as master for all logs ****")
+		klog.Warning("**** Acting as master for all logs ****")
 		electionFactory = election2.NoopFactory{}
 	case client != nil:
 		electionFactory = etcdelect.NewFactory(instanceID, client, *lockDir)
 	default:
-		glog.Exit("Either --force_master or --etcd_servers must be supplied")
+		klog.Exit("Either --force_master or --etcd_servers must be supplied")
 	}
 
 	qm, err := quota.NewManager(*quotaSystem)
 	if err != nil {
-		glog.Exitf("Error creating quota manager: %v", err)
+		klog.Exitf("Error creating quota manager: %v", err)
 	}
 
 	registry := extension.Registry{
@@ -196,7 +197,7 @@ func main() {
 	}
 
 	if err := m.Run(ctx); err != nil {
-		glog.Exitf("Server exited with error: %v", err)
+		klog.Exitf("Server exited with error: %v", err)
 	}
 
 	if *memProfile != "" {
@@ -205,14 +206,14 @@ func main() {
 	}
 
 	// Give things a few seconds to tidy up
-	glog.Infof("Stopping server, about to exit")
+	klog.Infof("Stopping server, about to exit")
 	time.Sleep(time.Second * 5)
 }
 
 func mustCreate(fileName string) *os.File {
 	f, err := os.Create(fileName)
 	if err != nil {
-		glog.Fatal(err)
+		klog.Fatal(err)
 	}
 	return f
 }

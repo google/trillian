@@ -19,10 +19,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/storage/tree"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
+	"k8s.io/klog/v2"
 )
 
 // This is a fake implementation of a NodeReader intended for use in testing Merkle path code.
@@ -47,7 +47,7 @@ func NewFakeNodeReader(nodes []tree.Node) *FakeNodeReader {
 		id := node.ID
 		if _, ok := nodeMap[id]; ok {
 			// Duplicate mapping - the test data is invalid so don't continue.
-			glog.Fatalf("NewFakeNodeReader duplicate mapping for: %+v in:\n%v", id, nodes)
+			klog.Fatalf("NewFakeNodeReader duplicate mapping for: %+v in:\n%v", id, nodes)
 		}
 		nodeMap[id] = node
 	}
@@ -110,7 +110,7 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 	lastBatchRevision := int64(0)
 	for _, batch := range batches {
 		if batch.TreeRevision <= lastBatchRevision {
-			glog.Fatalf("Batches out of order revision: %d, last: %d in:\n%v", batch.TreeRevision,
+			klog.Fatalf("Batches out of order revision: %d, last: %d in:\n%v", batch.TreeRevision,
 				lastBatchRevision, batches)
 		}
 

@@ -20,11 +20,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/etcdqm"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"k8s.io/klog/v2"
 )
 
 // QuotaManagerName identifies the etcd quota implementation.
@@ -42,7 +42,7 @@ var (
 
 func init() {
 	if err := quota.RegisterProvider(QuotaManagerName, newEtcdQuotaManager); err != nil {
-		glog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
+		klog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
 	}
 }
 
@@ -66,6 +66,6 @@ func newEtcdQuotaManager() (quota.Manager, error) {
 		}
 		qm = cachedQM
 	}
-	glog.Info("Using Etcd QuotaManager")
+	klog.Info("Using Etcd QuotaManager")
 	return qm, nil
 }

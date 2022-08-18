@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
@@ -31,6 +30,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -60,7 +60,7 @@ func reverseTreeStateMap(m map[trillian.TreeState]spannerpb.TreeState) map[spann
 	reverse := make(map[spannerpb.TreeState]trillian.TreeState)
 	for k, v := range m {
 		if x, ok := reverse[v]; ok {
-			glog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
+			klog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
 		}
 		reverse[v] = k
 	}
@@ -71,7 +71,7 @@ func reverseTreeTypeMap(m map[trillian.TreeType]spannerpb.TreeType) map[spannerp
 	reverse := make(map[spannerpb.TreeType]trillian.TreeType)
 	for k, v := range m {
 		if x, ok := reverse[v]; ok {
-			glog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
+			klog.Fatalf("Duplicate values for key %v: %v and %v", v, x, k)
 		}
 		reverse[v] = k
 	}
@@ -146,7 +146,7 @@ func (t *adminTX) Close() error {
 	}
 	// tx will be committed by ReadWriteTransaction(), so only close readonly tx here
 	if stx, ok := t.tx.(*spanner.ReadOnlyTransaction); ok {
-		glog.V(1).Infof("Closed admin %p", stx)
+		klog.V(1).Infof("Closed admin %p", stx)
 		stx.Close()
 	}
 	t.tx = nil

@@ -27,9 +27,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 
 	_ "github.com/go-sql-driver/mysql" // mysql driver
 )
@@ -121,7 +121,7 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	done := func(ctx context.Context) {
 		defer db.Close()
 		if _, err := db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE %v", name)); err != nil {
-			glog.Warningf("Failed to drop test database %q: %v", name, err)
+			klog.Warningf("Failed to drop test database %q: %v", name, err)
 		}
 	}
 

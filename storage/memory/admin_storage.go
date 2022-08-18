@@ -20,11 +20,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 // NewAdminStorage returns a storage.AdminStorage implementation backed by
@@ -131,7 +131,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tr *trillian.Tree) (*trillian.
 	defer t.ms.mu.Unlock()
 	t.ms.trees[id] = newTree(meta)
 
-	glog.V(1).Infof("trees: %v", t.ms.trees)
+	klog.V(1).Infof("trees: %v", t.ms.trees)
 
 	return meta, nil
 }

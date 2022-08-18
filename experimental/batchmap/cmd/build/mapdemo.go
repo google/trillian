@@ -29,8 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 
 	"github.com/google/trillian/experimental/batchmap"
 	"github.com/google/trillian/merkle/coniks"
@@ -54,18 +53,19 @@ func init() {
 }
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
 	beam.Init()
 
 	output := filepath.Clean(*output)
 	if output == "" {
-		glog.Exitf("No output provided")
+		klog.Exitf("No output provided")
 	}
 
 	// Create the directory if it doesn't exist
 	if _, err := os.Stat(output); os.IsNotExist(err) {
 		if err = os.Mkdir(output, 0o700); err != nil {
-			glog.Fatalf("couldn't find or create directory %s, %v", output, err)
+			klog.Fatalf("couldn't find or create directory %s, %v", output, err)
 		}
 	}
 
@@ -79,7 +79,7 @@ func main() {
 	// Create the map, which will be returned as a collection of Tiles.
 	allTiles, err := batchmap.Create(s, entries, *treeID, hash, *prefixStrata)
 	if err != nil {
-		glog.Fatalf("Failed to create pipeline: %v", err)
+		klog.Fatalf("Failed to create pipeline: %v", err)
 	}
 
 	// Write this collection of tiles to the output directory.
@@ -87,7 +87,7 @@ func main() {
 
 	// All of the above constructs the pipeline but doesn't run it. Now we run it.
 	if err := beamx.Run(context.Background(), p); err != nil {
-		glog.Fatalf("Failed to execute job: %v", err)
+		klog.Fatalf("Failed to execute job: %v", err)
 	}
 }
 

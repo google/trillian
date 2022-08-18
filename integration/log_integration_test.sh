@@ -34,8 +34,7 @@ go test \
   -timeout=${GO_TEST_TIMEOUT:-5m} \
   ./ \
   --log_rpc_server="${TRILLIAN_SERVER}" \
-  --treeid ${TEST_TREE_ID} \
-  --alsologtostderr
+  --treeid ${TEST_TREE_ID}
 RESULT=$?
 set -e
 popd

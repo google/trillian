@@ -21,7 +21,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // AwaitSignal waits for standard termination signals, then runs the given
@@ -36,9 +36,9 @@ func AwaitSignal(ctx context.Context, doneFn func()) {
 	// Wait for a signal or context cancellation.
 	select {
 	case sig := <-sigs:
-		glog.Warningf("Signal received: %v", sig)
+		klog.Warningf("Signal received: %v", sig)
 		doneFn()
 	case <-ctx.Done():
-		glog.Infof("AwaitSignal canceled: %v", ctx.Err())
+		klog.Infof("AwaitSignal canceled: %v", ctx.Err())
 	}
 }

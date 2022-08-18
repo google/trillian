@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // noopManagerName represents the noop quota implementation.
@@ -30,7 +30,7 @@ func init() {
 	if err := RegisterProvider(noopManagerName, func() (Manager, error) {
 		return Noop(), nil
 	}); err != nil {
-		glog.Fatalf("Failed to register %q: %v", noopManagerName, err)
+		klog.Fatalf("Failed to register %q: %v", noopManagerName, err)
 	}
 }
 

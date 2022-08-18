@@ -23,10 +23,10 @@ import (
 	"context"
 	"flag"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/rpcflags"
 	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -36,17 +36,18 @@ var (
 )
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
-	defer glog.Flush()
+	defer klog.Flush()
 
 	dialOpts, err := rpcflags.NewClientDialOptionsFromFlags()
 	if err != nil {
-		glog.Exitf("Failed to determine dial options: %v", err)
+		klog.Exitf("Failed to determine dial options: %v", err)
 	}
 
 	conn, err := grpc.Dial(*adminServerAddr, dialOpts...)
 	if err != nil {
-		glog.Exitf("Failed to dial %v: %v", *adminServerAddr, err)
+		klog.Exitf("Failed to dial %v: %v", *adminServerAddr, err)
 	}
 	defer conn.Close()
 
@@ -54,12 +55,12 @@ func main() {
 	if !*undeleteTree {
 		_, err = a.DeleteTree(context.Background(), &trillian.DeleteTreeRequest{TreeId: *logID})
 		if err != nil {
-			glog.Exitf("Delete failed: %v", err)
+			klog.Exitf("Delete failed: %v", err)
 		}
 	} else {
 		_, err = a.UndeleteTree(context.Background(), &trillian.UndeleteTreeRequest{TreeId: *logID})
 		if err != nil {
-			glog.Exitf("Undelete failed: %v", err)
+			klog.Exitf("Undelete failed: %v", err)
 		}
 	}
 }

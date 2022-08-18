@@ -27,7 +27,7 @@ import (
 	"flag"
 	"strings"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // Stash holds flag values so that they can be restored at the end of a test.
@@ -68,6 +68,6 @@ func Save() *Stash {
 // state that could cause subsequent tests to misbehave.
 func (s *Stash) MustRestore() {
 	if err := s.Restore(); err != nil {
-		glog.Fatalf("MustRestore(): failed to restore flags: %v %v", err, *s)
+		klog.Fatalf("MustRestore(): failed to restore flags: %v %v", err, *s)
 	}
 }

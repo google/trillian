@@ -26,7 +26,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
@@ -35,6 +34,7 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
+	"k8s.io/klog/v2"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
@@ -155,7 +155,7 @@ func createSomeNodes(count int) []stree.Node {
 		r[i].ID = compact.NewNodeID(0, uint64(i))
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
-		glog.V(3).Infof("Node to store: %v", r[i].ID)
+		klog.V(3).Infof("Node to store: %v", r[i].ID)
 	}
 	return r
 }
@@ -294,7 +294,7 @@ var DB *sql.DB
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if !testdb.MySQLAvailable() {
-		glog.Errorf("MySQL not available, skipping all MySQL storage tests")
+		klog.Errorf("MySQL not available, skipping all MySQL storage tests")
 		return
 	}
 
@@ -303,7 +303,7 @@ func TestMain(m *testing.M) {
 	DB, done = openTestDBOrDie()
 
 	if v, err := getVersion(DB); err == nil {
-		glog.Infof("MySQL version '%v'", v)
+		klog.Infof("MySQL version '%v'", v)
 	}
 	status := m.Run()
 	done(context.Background())

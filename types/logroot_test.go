@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	_ "github.com/golang/glog" // Don't crash when --logtostderr is supplied
+	_ "k8s.io/klog/v2" // Don't crash when --logtostderr is supplied
 )
 
 func TestLogRoot(t *testing.T) {

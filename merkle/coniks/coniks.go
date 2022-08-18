@@ -21,8 +21,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/smt/node"
+	"k8s.io/klog/v2"
 )
 
 // Domain separation prefixes
@@ -62,8 +62,8 @@ func (m *Hasher) HashEmpty(treeID int64, root node.ID) []byte {
 	binary.Write(buf, binary.BigEndian, uint32(depth))
 	h.Write(buf.Bytes())
 	r := h.Sum(nil)
-	if glog.V(5) {
-		glog.Infof("HashEmpty(%v): %x", root, r)
+	if klog.V(5).Enabled() {
+		klog.Infof("HashEmpty(%v): %x", root, r)
 	}
 	return r
 }
@@ -81,8 +81,8 @@ func (m *Hasher) HashLeaf(treeID int64, id node.ID, leaf []byte) []byte {
 	buf.Write(leaf)
 	h.Write(buf.Bytes())
 	p := h.Sum(nil)
-	if glog.V(5) {
-		glog.Infof("HashLeaf(%v, %s): %x", id, leaf, p)
+	if klog.V(5).Enabled() {
+		klog.Infof("HashLeaf(%v, %s): %x", id, leaf, p)
 	}
 	return p
 }
@@ -96,8 +96,8 @@ func (m *Hasher) HashChildren(l, r []byte) []byte {
 	buf.Write(r)
 	h.Write(buf.Bytes())
 	p := h.Sum(nil)
-	if glog.V(5) {
-		glog.Infof("HashChildren(%x, %x): %x", l, r, p)
+	if klog.V(5).Enabled() {
+		klog.Infof("HashChildren(%x, %x): %x", l, r, p)
 	}
 	return p
 }

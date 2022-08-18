@@ -10,7 +10,6 @@ require (
 	github.com/fullstorydev/grpcurl v1.8.7
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.5.8
@@ -35,6 +34,7 @@ require (
 	google.golang.org/grpc v1.48.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.1
+	k8s.io/klog/v2 v2.70.1
 )
 
 require (
@@ -64,7 +64,9 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v0.3.0-java // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
+	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/licenseclassifier v0.0.0-20210325184830-bb04aff29e72 // indirect

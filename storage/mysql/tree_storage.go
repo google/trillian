@@ -24,12 +24,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/klog/v2"
 )
 
 // These statements are fixed
@@ -73,12 +73,12 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 	db, err := sql.Open("mysql", dbURL)
 	if err != nil {
 		// Don't log uri as it could contain credentials
-		glog.Warningf("Could not open MySQL database, check config: %s", err)
+		klog.Warningf("Could not open MySQL database, check config: %s", err)
 		return nil, err
 	}
 
 	if _, err := db.ExecContext(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
-		glog.Warningf("Failed to set strict mode on mysql db: %s", err)
+		klog.Warningf("Failed to set strict mode on mysql db: %s", err)
 		return nil, err
 	}
 
@@ -124,7 +124,7 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 
 	s, err := m.db.PrepareContext(ctx, expandPlaceholderSQL(statement, num, first, rest))
 	if err != nil {
-		glog.Warningf("Failed to prepare statement %d: %s", num, err)
+		klog.Warningf("Failed to prepare statement %d: %s", num, err)
 		return nil, err
 	}
 
@@ -144,7 +144,7 @@ func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.St
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
-		glog.Warningf("Could not start tree TX: %s", err)
+		klog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
 	}
 	return treeTX{
@@ -173,8 +173,8 @@ type treeTX struct {
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
-	glog.V(2).Infof("getSubtrees(len(ids)=%d)", len(ids))
-	glog.V(4).Infof("getSubtrees(")
+	klog.V(2).Infof("getSubtrees(len(ids)=%d)", len(ids))
+	klog.V(4).Infof("getSubtrees(")
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -190,7 +190,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 
 	// populate args with ids.
 	for _, id := range ids {
-		glog.V(4).Infof("  id: %x", id)
+		klog.V(4).Infof("  id: %x", id)
 		args = append(args, id)
 	}
 
@@ -200,14 +200,14 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
-		glog.Warningf("Failed to get merkle subtrees: %s", err)
+		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
 	}
 	defer rows.Close()
 
 	if rows.Err() != nil {
 		// Nothing from the DB
-		glog.Warningf("Nothing from DB: %s", rows.Err())
+		klog.Warningf("Nothing from DB: %s", rows.Err())
 		return nil, rows.Err()
 	}
 
@@ -218,12 +218,12 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		var subtreeRev int64
 		var nodesRaw []byte
 		if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
-			glog.Warningf("Failed to scan merkle subtree: %s", err)
+			klog.Warningf("Failed to scan merkle subtree: %s", err)
 			return nil, err
 		}
 		var subtree storagepb.SubtreeProto
 		if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
-			glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
+			klog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
 			return nil, err
 		}
 		if subtree.Prefix == nil {
@@ -231,15 +231,15 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		}
 		ret = append(ret, &subtree)
 
-		if glog.V(4) {
-			glog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
+		if klog.V(4).Enabled() {
+			klog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
 				subtreeIDBytes, subtree.Prefix, subtree.Depth)
 			for k, v := range subtree.Leaves {
 				b, err := base64.StdEncoding.DecodeString(k)
 				if err != nil {
-					glog.Errorf("base64.DecodeString(%v): %v", k, err)
+					klog.Errorf("base64.DecodeString(%v): %v", k, err)
 				}
-				glog.Infof("     %x: %x", b, v)
+				klog.Infof("     %x: %x", b, v)
 			}
 		}
 	}
@@ -250,17 +250,17 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
-	glog.V(2).Infof("storeSubtrees(len(subtrees)=%d)", len(subtrees))
-	if glog.V(4) {
-		glog.Infof("storeSubtrees(")
+	klog.V(2).Infof("storeSubtrees(len(subtrees)=%d)", len(subtrees))
+	if klog.V(4).Enabled() {
+		klog.Infof("storeSubtrees(")
 		for _, s := range subtrees {
-			glog.Infof("  prefix: %x, depth: %d", s.Prefix, s.Depth)
+			klog.Infof("  prefix: %x, depth: %d", s.Prefix, s.Depth)
 			for k, v := range s.Leaves {
 				b, err := base64.StdEncoding.DecodeString(k)
 				if err != nil {
-					glog.Errorf("base64.DecodeString(%v): %v", k, err)
+					klog.Errorf("base64.DecodeString(%v): %v", k, err)
 				}
-				glog.Infof("     %x: %x", b, v)
+				klog.Infof("     %x: %x", b, v)
 			}
 		}
 	}
@@ -296,7 +296,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	r, err := stx.ExecContext(ctx, args...)
 	if err != nil {
-		glog.Warningf("Failed to set merkle subtrees: %s", err)
+		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}
 	_, _ = r.RowsAffected()
@@ -345,17 +345,17 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	if t.writeRevision > -1 {
 		tiles, err := t.subtreeCache.UpdatedTiles()
 		if err != nil {
-			glog.Warningf("SubtreeCache updated tiles error: %v", err)
+			klog.Warningf("SubtreeCache updated tiles error: %v", err)
 			return err
 		}
 		if err := t.storeSubtrees(ctx, tiles); err != nil {
-			glog.Warningf("TX commit flush error: %v", err)
+			klog.Warningf("TX commit flush error: %v", err)
 			return err
 		}
 	}
 	t.closed = true
 	if err := t.tx.Commit(); err != nil {
-		glog.Warningf("TX commit error: %s, stack:\n%s", err, string(debug.Stack()))
+		klog.Warningf("TX commit error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
 	}
 	return nil
@@ -364,7 +364,7 @@ func (t *treeTX) Commit(ctx context.Context) error {
 func (t *treeTX) rollbackInternal() error {
 	t.closed = true
 	if err := t.tx.Rollback(); err != nil {
-		glog.Warningf("TX rollback error: %s, stack:\n%s", err, string(debug.Stack()))
+		klog.Warningf("TX rollback error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
 	}
 	return nil
@@ -378,7 +378,7 @@ func (t *treeTX) Close() error {
 	}
 	err := t.rollbackInternal()
 	if err != nil {
-		glog.Warningf("Rollback error on Close(): %v", err)
+		klog.Warningf("Rollback error on Close(): %v", err)
 	}
 	return err
 }

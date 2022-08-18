@@ -19,7 +19,7 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/golang/glog"
+	_ "k8s.io/klog/v2"
 )
 
 func TestParseFlags(t *testing.T) {

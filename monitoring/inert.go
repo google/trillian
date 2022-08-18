@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // InertMetricFactory creates inert metrics for testing.
@@ -79,7 +79,7 @@ func (m *InertFloat) Add(val float64, labelVals ...string) {
 	defer m.mu.Unlock()
 	key, err := keyForLabels(labelVals, m.labelCount)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	m.vals[key] += val
@@ -91,7 +91,7 @@ func (m *InertFloat) Set(val float64, labelVals ...string) {
 	defer m.mu.Unlock()
 	key, err := keyForLabels(labelVals, m.labelCount)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	m.vals[key] = val
@@ -103,7 +103,7 @@ func (m *InertFloat) Value(labelVals ...string) float64 {
 	defer m.mu.Unlock()
 	key, err := keyForLabels(labelVals, m.labelCount)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return 0.0
 	}
 	return m.vals[key]
@@ -123,7 +123,7 @@ func (m *InertDistribution) Observe(val float64, labelVals ...string) {
 	defer m.mu.Unlock()
 	key, err := keyForLabels(labelVals, m.labelCount)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return
 	}
 	m.counts[key]++
@@ -136,7 +136,7 @@ func (m *InertDistribution) Info(labelVals ...string) (uint64, float64) {
 	defer m.mu.Unlock()
 	key, err := keyForLabels(labelVals, m.labelCount)
 	if err != nil {
-		glog.Error(err.Error())
+		klog.Error(err.Error())
 		return 0, 0.0
 	}
 	return m.counts[key], m.sums[key]

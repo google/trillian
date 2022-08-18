@@ -19,9 +19,9 @@ import (
 	"flag"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+	"k8s.io/klog/v2"
 
 	// Load MySQL driver
 	_ "github.com/go-sql-driver/mysql"
@@ -50,7 +50,7 @@ func GetDatabase() (*sql.DB, error) {
 
 func init() {
 	if err := storage.RegisterProvider("mysql", newMySQLStorageProvider); err != nil {
-		glog.Fatalf("Failed to register storage provider mysql: %v", err)
+		klog.Fatalf("Failed to register storage provider mysql: %v", err)
 	}
 }
 

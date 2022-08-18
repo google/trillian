@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"testing"
 
-	_ "github.com/golang/glog" // Enable glog flags.
+	_ "k8s.io/klog/v2" // Enable glog flags.
 )
 
 func h2b(h string) []byte {

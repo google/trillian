@@ -16,8 +16,8 @@
 // based signer, with a simulated Kafka-like interface and a simulated
 // master election package (which can be triggered to incorrectly report
 // multiple masters), and with the core algorithm in the signer code.
-// glog.Warning is used throughout for unexpected-but-recoverable situations,
-// whereas glog.Error is used for any situation that would indicate data
+// klog.Warning is used throughout for unexpected-but-recoverable situations,
+// whereas klog.Error is used for any situation that would indicate data
 // corruption.
 package main
 
@@ -28,10 +28,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/docs/storage/commit_log/signer"
 	"github.com/google/trillian/docs/storage/commit_log/simelection"
 	"github.com/google/trillian/docs/storage/commit_log/simkafka"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -89,7 +89,7 @@ func (ab *lockedBool) Set(v bool) {
 
 func main() {
 	flag.Parse()
-	defer glog.Flush()
+	defer klog.Flush()
 
 	epochMillis := time.Now().UnixNano() / int64(time.Millisecond)
 
@@ -134,7 +134,7 @@ func main() {
 		case choice < *masterChangePercent:
 			which := rand.Intn(len(signers))
 			who := signers[which].Name
-			glog.V(1).Infof("EVENT: Move mastership from %v to [%v]", election.Masters(), who)
+			klog.V(1).Infof("EVENT: Move mastership from %v to [%v]", election.Masters(), who)
 			election.SetMaster(who)
 		case choice < (*masterChangePercent + *dualMasterPercent):
 			if len(election.Masters()) > 1 {
@@ -146,11 +146,11 @@ func main() {
 			which2 := rand.Intn(len(signers))
 			who2 := signers[which2].Name
 			masters := []string{who1, who2}
-			glog.V(1).Infof("EVENT: Make multiple mastership, from %v to %v", election.Masters(), masters)
+			klog.V(1).Infof("EVENT: Make multiple mastership, from %v to %v", election.Masters(), masters)
 			election.SetMasters(masters)
 		case choice < (*masterChangePercent + *dualMasterPercent + *leafTogglePercent):
 			val := generateLeaves.Get()
-			glog.V(1).Infof("EVENT: Toggle leaf generation from %v to %v", val, !val)
+			klog.V(1).Infof("EVENT: Toggle leaf generation from %v to %v", val, !val)
 			generateLeaves.Set(!val)
 		}
 
