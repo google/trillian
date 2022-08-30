@@ -2,6 +2,9 @@
 
 ## HEAD
 
+### Misc
+* Fix log server not exiting properly on SIGINT
+
 ## v.1.5.0
 
 ### Storage

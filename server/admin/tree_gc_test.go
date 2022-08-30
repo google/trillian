@@ -40,7 +40,7 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	// * Sleep (ctx cancelled)
 	//
 	// DeletedTreeGC.Run() until ctx in cancelled. Since it always sleeps between iterations, we
-	// make "timeSleep" cancel ctx the second time around to break the loop.
+	// make "timeAfter" cancel ctx the second time around to break the loop.
 
 	tree1 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	tree1.TreeId = 1
@@ -74,10 +74,10 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	listTX2.EXPECT().Close().Return(nil)
 	listTX2.EXPECT().Commit().Return(nil)
 
-	defer func(now func() time.Time, sleep func(time.Duration)) {
+	defer func(now func() time.Time, after func(time.Duration) <-chan time.Time) {
 		timeNow = now
-		timeSleep = sleep
-	}(timeNow, timeSleep)
+		timeAfter = after
+	}(timeNow, timeAfter)
 
 	const deleteThreshold = 1 * time.Hour
 	const runInterval = 3 * time.Second
@@ -87,14 +87,20 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	timeNow = func() time.Time { return now }
 
 	calls := 0
-	timeSleep = func(d time.Duration) {
+	timeAfter = func(d time.Duration) <-chan time.Time {
 		calls++
 		if d < runInterval || d >= 2*runInterval {
 			t.Errorf("Called time.Sleep(%v), want %v", d, runInterval)
 		}
 		if calls >= 2 {
 			cancel()
+			// Block to make sure we're exiting because of the cancelled context and
+			// not because the timer elapsed.
+			return make(chan time.Time)
 		}
+		ch := make(chan time.Time, 1)
+		ch <- now
+		return ch
 	}
 
 	NewDeletedTreeGC(as, deleteThreshold, runInterval, nil /* mf */).Run(ctx)
