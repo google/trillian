@@ -98,7 +98,6 @@ func (gc *DeletedTreeGC) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-timeAfter(d):
-		default:
 		}
 
 	}
