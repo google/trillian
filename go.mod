@@ -34,7 +34,7 @@ require (
 	google.golang.org/grpc v1.49.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.1
-	k8s.io/klog/v2 v2.70.1
+	k8s.io/klog/v2 v2.80.0
 )
 
 require (
