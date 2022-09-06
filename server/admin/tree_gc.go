@@ -35,7 +35,7 @@ const (
 
 var (
 	timeNow   = time.Now
-	timeSleep = time.Sleep
+	timeAfter = time.After
 
 	hardDeleteCounter monitoring.Counter
 	metricsOnce       sync.Once
@@ -85,12 +85,6 @@ func NewDeletedTreeGC(admin storage.AdminStorage, threshold, minRunInterval time
 // Run starts the tree garbage collection process. It runs until ctx is cancelled.
 func (gc *DeletedTreeGC) Run(ctx context.Context) {
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
 		count, err := gc.RunOnce(ctx)
 		if err != nil {
 			klog.Errorf("DeletedTreeGC.Run: %v", err)
@@ -100,7 +94,12 @@ func (gc *DeletedTreeGC) Run(ctx context.Context) {
 		}
 
 		d := gc.minRunInterval + time.Duration(rand.Int63n(gc.minRunInterval.Nanoseconds()))
-		timeSleep(d)
+		select {
+		case <-ctx.Done():
+			return
+		case <-timeAfter(d):
+		}
+
 	}
 }
 
