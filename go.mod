@@ -12,7 +12,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.1.2
-	github.com/google/go-cmp v0.5.8
+	github.com/google/go-cmp v0.5.9
 	github.com/google/go-licenses v0.0.0-20210329231322-ce1d9163b77d
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
