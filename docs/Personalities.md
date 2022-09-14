@@ -76,26 +76,6 @@ as the tree leaf in the corresponding `QueueLeaves` request (it will have the
 same `LeafIdentityHash` but may differ in fields that are not covered by this
 hash, e.g. it may have an earlier timestamp).
 
-
-### Auditability
-
-If the personality and the Trillian core services are maintained by different
-operators, then there may be an implicit trust boundary between the two at the
-Trillian gRPC interface.
-
-If this is the case, then the personality may need to be responsible for
-storing data that allows auditing of that trust boundary.
-
-For example, if an external monitor detects that a signed tree head is not
-consistent with an earlier signed tree head, is there enough information
-available to determine whether this is a problem with the personality or with
-the Trillian service?
-
-If the personality maintains a store of the signed log roots provided by
-Trillian, it can then use this to audit failure cases and assign blame
-appropriately – effectively acting as a monitor for Trillian.
-
-
 ## Practical Responsibilities
 
 ### External API

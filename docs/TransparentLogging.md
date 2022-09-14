@@ -102,7 +102,7 @@ to be defined for each Log application.
 
 The first hash for a leaf in Log is the **Merkle Hash**; this is the hash value
 that percolates up the Merkle tree and is therefore incorporated into the
-(signed) root hash for the Log; the cryptographic guarantees of the Log's Merkle
+root hash for the Log; the cryptographic guarantees of the Log's Merkle
 tree only apply to data included in the Merkle hash.
 
 The default Merkle hash for a Trillian Log leaf is `SHA-256(0x00 |
