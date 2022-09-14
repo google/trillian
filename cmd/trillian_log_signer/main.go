@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The trillian_log_signer binary runs the log signing code.
+// The trillian_log_signer binary runs the process which sequences new entries,
+// integrates them into the corresponding log, and, finally, creates a new
+// LogRoot with updated root hash.
+//
+// The naming of this binary originally came from the fact that it would
+// also sign each of the new LogRoots, but that functionality was removed.
+// Renaming the binary would likely cause some surprise for existing log
+// operators and so the decision was taken to leave it as-is for now.
 package main
 
 import (
