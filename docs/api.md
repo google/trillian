@@ -482,7 +482,7 @@ If any of the leaves that match the given Merkle has have a leaf index that is b
 | GetConsistencyProof | [GetConsistencyProofRequest](#trillian-GetConsistencyProofRequest) | [GetConsistencyProofResponse](#trillian-GetConsistencyProofResponse) | GetConsistencyProof returns a consistency proof between different sizes of a particular tree.
 
 If the requested tree size is larger than the server is aware of, the response will include the latest known log root and an empty proof. |
-| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian-GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian-GetLatestSignedLogRootResponse) | GetLatestSignedLogRoot returns the latest signed log root for a given tree, and optionally also includes a consistency proof from an earlier tree size to the new size of the tree.
+| GetLatestSignedLogRoot | [GetLatestSignedLogRootRequest](#trillian-GetLatestSignedLogRootRequest) | [GetLatestSignedLogRootResponse](#trillian-GetLatestSignedLogRootResponse) | GetLatestSignedLogRoot returns the latest log root for a given tree, and optionally also includes a consistency proof from an earlier tree size to the new size of the tree.
 
 If the earlier tree size is larger than the server is aware of, an InvalidArgument error is returned. |
 | GetEntryAndProof | [GetEntryAndProofRequest](#trillian-GetEntryAndProofRequest) | [GetEntryAndProofResponse](#trillian-GetEntryAndProofResponse) | GetEntryAndProof returns a log leaf and the corresponding inclusion proof to a specified tree size, for a given leaf index in a particular tree.
@@ -665,6 +665,12 @@ by the API.
 
 ### SignedLogRoot
 SignedLogRoot represents a commitment by a Log to a particular tree.
+
+Note that the signature itself is no-longer provided by Trillian since
+https://github.com/google/trillian/pull/2452 .
+This functionality was intended to support a niche-use case but added
+significant complexity and was prone to causing confusion and
+misunderstanding for personality authors.
 
 
 | Field | Type | Label | Description |
