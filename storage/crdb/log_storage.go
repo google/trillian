@@ -1,4 +1,4 @@
-// Copyright 2016 Google LLC. All Rights Reserved.
+// Copyright 2022 <TBD>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package crdb
 
 import (
 	"bytes"
@@ -25,42 +25,45 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/trillian"
-	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/tree"
-	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/klog/v2"
+
+	"github.com/google/trillian"
+	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/storage/tree"
+	"github.com/google/trillian/types"
 )
 
 const (
-	valuesPlaceholder5 = "(?,?,?,?,?)"
+	valuesPlaceholder5 = "($1,$2,$3,$4,$5)"
 
 	insertLeafDataSQL      = "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES" + valuesPlaceholder5
 	insertSequencedLeafSQL = "INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"
 
 	selectNonDeletedTreeIDByTypeAndStateSQL = `
 		SELECT TreeId FROM Trees
-		  WHERE TreeType IN(?,?)
-		  AND TreeState IN(?,?)
+		  WHERE TreeType IN($1,$2)
+		  AND TreeState IN($3,$4)
 		  AND (Deleted IS NULL OR Deleted = 'false')`
 
 	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
-			FROM TreeHead WHERE TreeId=?
+			FROM TreeHead WHERE TreeId=$1
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 
 	selectLeavesByRangeSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
 			FROM LeafData l,SequencedLeafData s
 			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.SequenceNumber >= ? AND s.SequenceNumber < ? AND l.TreeId = ? AND s.TreeId = l.TreeId` + orderBySequenceNumberSQL
+			AND s.SequenceNumber >= $1 AND s.SequenceNumber < $2 AND l.TreeId = $3 AND s.TreeId = l.TreeId` + orderBySequenceNumberSQL
 
 	// These statements need to be expanded to provide the correct number of parameter placeholders.
+	// Note that this uses the MySQL-specific marker syntax here, but is eventually replaced with
+	// the postgres syntax in getStmt.
 	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
 			FROM LeafData l,SequencedLeafData s
 			WHERE l.LeafIdentityHash = s.LeafIdentityHash
@@ -70,6 +73,8 @@ const (
 	// This statement returns a dummy Merkle leaf hash value (which must be
 	// of the right size) so that its signature matches that of the other
 	// leaf-selection statements.
+	// Note that this uses the MySQL-specific marker syntax here, but is eventually replaced with
+	// the postgres syntax in getStmt.
 	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
 			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
 			WHERE l.LeafIdentityHash IN (` + placeholderSQL + `) AND l.TreeId = ?`
@@ -98,19 +103,19 @@ var (
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
-	queuedCounter = mf.NewCounter("mysql_queued_leaves", "Number of leaves queued", logIDLabel)
-	queuedDupCounter = mf.NewCounter("mysql_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
-	dequeuedCounter = mf.NewCounter("mysql_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
+	queuedCounter = mf.NewCounter("crdb_queued_leaves", "Number of leaves queued", logIDLabel)
+	queuedDupCounter = mf.NewCounter("crdb_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
+	dequeuedCounter = mf.NewCounter("crdb_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
 
-	queueLatency = mf.NewHistogram("mysql_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
-	queueInsertLatency = mf.NewHistogram("mysql_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)
-	queueReadLatency = mf.NewHistogram("mysql_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in seconds", logIDLabel)
-	queueInsertLeafLatency = mf.NewHistogram("mysql_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in seconds", logIDLabel)
-	queueInsertEntryLatency = mf.NewHistogram("mysql_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in seconds", logIDLabel)
+	queueLatency = mf.NewHistogram("crdb_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
+	queueInsertLatency = mf.NewHistogram("crdb_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)
+	queueReadLatency = mf.NewHistogram("crdb_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in seconds", logIDLabel)
+	queueInsertLeafLatency = mf.NewHistogram("crdb_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in seconds", logIDLabel)
+	queueInsertEntryLatency = mf.NewHistogram("crdb_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in seconds", logIDLabel)
 
-	dequeueLatency = mf.NewHistogram("mysql_dequeue_leaves_latency", "Latency of dequeue leaves operation in seconds", logIDLabel)
-	dequeueSelectLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in seconds", logIDLabel)
-	dequeueRemoveLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_remove", "Latency of removal part of dequeue leaves operation in seconds", logIDLabel)
+	dequeueLatency = mf.NewHistogram("crdb_dequeue_leaves_latency", "Latency of dequeue leaves operation in seconds", logIDLabel)
+	dequeueSelectLatency = mf.NewHistogram("crdb_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in seconds", logIDLabel)
+	dequeueRemoveLatency = mf.NewHistogram("crdb_dequeue_leaves_latency_remove", "Latency of removal part of dequeue leaves operation in seconds", logIDLabel)
 }
 
 func labelForTX(t *logTreeTX) string {
@@ -121,30 +126,30 @@ func observe(hist monitoring.Histogram, duration time.Duration, label string) {
 	hist.Observe(duration.Seconds(), label)
 }
 
-type mySQLLogStorage struct {
-	*mySQLTreeStorage
+type crdbLogStorage struct {
+	*crdbTreeStorage
 	admin         storage.AdminStorage
 	metricFactory monitoring.MetricFactory
 }
 
-// NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
-// It assumes storage.AdminStorage is backed by the same MySQL database as well.
+// NewLogStorage creates a storage.LogStorage instance for the specified CockroachDB URL.
+// It assumes storage.AdminStorage is backed by the same CockroachDB database as well.
 func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
-	return &mySQLLogStorage{
-		admin:            NewAdminStorage(db),
-		mySQLTreeStorage: newTreeStorage(db),
-		metricFactory:    mf,
+	return &crdbLogStorage{
+		admin:           NewSQLAdminStorage(db),
+		crdbTreeStorage: newTreeStorage(db),
+		metricFactory:   mf,
 	}
 }
 
-func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
+func (m *crdbLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
 }
 
-func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
+func (m *crdbLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
 		return m.getStmt(ctx, selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
 	}
@@ -152,11 +157,11 @@ func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int
 	return m.getStmt(ctx, selectLeavesByMerkleHashSQL, num, "?", "?")
 }
 
-func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+func (m *crdbLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
 	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
-func (m *mySQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+func (m *crdbLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	// Include logs that are DRAINING in the active list as we're still
 	// integrating leaves into them.
 	rows, err := m.db.QueryContext(
@@ -178,7 +183,7 @@ func (m *mySQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) 
 	return ids, rows.Err()
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (*logTreeTX, error) {
+func (m *crdbLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (*logTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
@@ -216,7 +221,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 // implementation can leak a specific sql.ErrTxDone all the way to the client,
 // if the transaction is rolled back as a result of a canceled context. It must
 // return "generic" errors, and only log the specific ones for debugging.
-func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
+func (m *crdbLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
@@ -228,7 +233,7 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	return tx.Commit(ctx)
 }
 
-func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (m *crdbLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
 	if tx != nil {
 		// Ensure we don't leak the transaction. For example if we get an
@@ -249,7 +254,7 @@ func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian
 	return res, nil
 }
 
-func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
+func (m *crdbLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
@@ -257,7 +262,7 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 	return tx, err
 }
 
-func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (m *crdbLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
 	if tx != nil {
 		// Ensure we don't leak the transaction. For example if we get an
@@ -293,7 +298,7 @@ func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, 
 
 type logTreeTX struct {
 	treeTX
-	ls       *mySQLLogStorage
+	ls       *crdbLogStorage
 	root     types.LogRootV1
 	readRev  int64
 	slr      *trillian.SignedLogRoot
@@ -398,6 +403,17 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	existingCount := 0
 	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
 
+	// CockroachDB/Postgres will cancel a transaction if an insert
+	// statement is run with a duplicate key. This is not ideal for
+	// QueueLeaves, as we want to detect these errors in-code
+	// and return them as AlreadyExists errors and add metrics.
+	// Thus, we use a SAVEPOINT and rollback on duplicates.
+	const savepoint = "SAVEPOINT QueueLeaves"
+	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+		klog.Errorf("Error adding savepoint: %s", err)
+		return nil, crdbToGRPC(err)
+	}
+
 	for _, ol := range ordLeaves {
 		i, leaf := ol.idx, ol.leaf
 
@@ -406,6 +422,12 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		qTimestamp := leaf.QueueTimestamp.AsTime()
+
+		if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+			klog.Errorf("Error updating savepoint: %s", err)
+			return nil, crdbToGRPC(err)
+		}
+
 		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
@@ -414,11 +436,17 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			existingLeaves[i] = leaf
 			existingCount++
 			queuedDupCounter.Inc(label)
+			// Note: one must roll back since there are side-effects in the transaction
+			// in crdb/postgres
+			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
+				klog.Errorf("Error rolling back to savepoint: %s", err)
+				return nil, crdbToGRPC(err)
+			}
 			continue
 		}
 		if err != nil {
 			klog.Warningf("Error inserting %d into LeafData: %s", i, err)
-			return nil, mysqlToGRPC(err)
+			return nil, crdbToGRPC(err)
 		}
 
 		// Create the work queue entry
@@ -435,7 +463,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		)
 		if err != nil {
 			klog.Warningf("Error inserting into Unsequenced: %s", err)
-			return nil, mysqlToGRPC(err)
+			return nil, crdbToGRPC(err)
 		}
 		leafDuration := time.Since(leafStart)
 		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)
@@ -443,6 +471,11 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	insertDuration := time.Since(start)
 	observe(queueInsertLatency, insertDuration, label)
 	queuedCounter.Add(float64(len(leaves)), label)
+
+	if _, err := t.tx.ExecContext(ctx, "RELEASE "+savepoint); err != nil {
+		klog.Errorf("Error releasing savepoint: %s", err)
+		return nil, crdbToGRPC(err)
+	}
 
 	if existingCount == 0 {
 		return existingLeaves, nil
@@ -500,7 +533,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	const savepoint = "SAVEPOINT AddSequencedLeaves"
 	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
 		klog.Errorf("Error adding savepoint: %s", err)
-		return nil, mysqlToGRPC(err)
+		return nil, crdbToGRPC(err)
 	}
 	// TODO(pavelkalinnikov): Consider performance implication of executing this
 	// extra SAVEPOINT, especially for 1-entry batches. Optimize if necessary.
@@ -521,7 +554,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 		if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
 			klog.Errorf("Error updating savepoint: %s", err)
-			return nil, mysqlToGRPC(err)
+			return nil, crdbToGRPC(err)
 		}
 
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
@@ -534,11 +567,16 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
 		if isDuplicateErr(err) {
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
-			// Note: No rolling back to savepoint because there is no side effect.
+			// Note: one must roll back since there are side-effects in the transaction
+			// in crdb/postgres
+			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
+				klog.Errorf("Error rolling back to savepoint: %s", err)
+				return nil, crdbToGRPC(err)
+			}
 			continue
 		} else if err != nil {
 			klog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
-			return nil, mysqlToGRPC(err)
+			return nil, crdbToGRPC(err)
 		}
 
 		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
@@ -549,11 +587,11 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
 			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
 				klog.Errorf("Error rolling back to savepoint: %s", err)
-				return nil, mysqlToGRPC(err)
+				return nil, crdbToGRPC(err)
 			}
 		} else if err != nil {
 			klog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
-			return nil, mysqlToGRPC(err)
+			return nil, crdbToGRPC(err)
 		}
 
 		// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
@@ -561,7 +599,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 	if _, err := t.tx.ExecContext(ctx, "RELEASE "+savepoint); err != nil {
 		klog.Errorf("Error releasing savepoint: %s", err)
-		return nil, mysqlToGRPC(err)
+		return nil, crdbToGRPC(err)
 	}
 
 	return res, nil
@@ -711,7 +749,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 		return err
 	}
 	if len(logRoot.Metadata) != 0 {
-		return fmt.Errorf("unimplemented: mysql storage does not support log root metadata")
+		return fmt.Errorf("unimplemented: crdb storage does not support log root metadata")
 	}
 
 	res, err := t.tx.ExecContext(

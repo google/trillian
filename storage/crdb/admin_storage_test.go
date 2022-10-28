@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package crdb
 
 import (
 	"context"
@@ -27,19 +27,19 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = ?"
+const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = $1"
 
-func TestMysqlAdminStorage(t *testing.T) {
+func TestCRDBAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
-		cleanTestDB(DB)
-		return NewAdminStorage(DB)
+		handle := openTestDBOrDie(t)
+		return NewSQLAdminStorage(handle.db)
 	}}
 	tester.RunAllTests(t)
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
 
 	tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
@@ -50,7 +50,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	// Check if TreeControl is correctly written.
 	var signingEnabled, sequencingEnabled bool
 	var sequenceIntervalSeconds int
-	if err := DB.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
+	if err := handle.db.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
 		t.Fatalf("Failed to read TreeControl: %v", err)
 	}
 	// We don't mind about specific values, defaults change, but let's check
@@ -61,8 +61,8 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestCreateTreeInvalidStates(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
 
 	states := []trillian.TreeState{trillian.TreeState_DRAINING, trillian.TreeState_FROZEN}
@@ -77,8 +77,8 @@ func TestCreateTreeInvalidStates(t *testing.T) {
 }
 
 func TestAdminTX_TreeWithNulls(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
 
 	// Setup: create a tree and set all nullable columns to null.
@@ -90,7 +90,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	}
 	treeID := tree.TreeId
 
-	if err := setNulls(ctx, DB, treeID); err != nil {
+	if err := setNulls(ctx, handle.db, treeID); err != nil {
 		t.Fatalf("setNulls() = %v, want = nil", err)
 	}
 
@@ -129,8 +129,8 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 }
 
 func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
 
 	settings, err := anypb.New(&trillian.Tree{})
@@ -173,8 +173,8 @@ func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
 }
 
 func TestAdminTX_HardDeleteTree(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
 
 	tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
@@ -195,7 +195,7 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 	// database and check that the rows are gone, so let's do just that.
 	// If there's no record on Trees, then there can be no record in any of the dependent tables.
 	var name string
-	if err := DB.QueryRowContext(ctx, "SELECT DisplayName FROM Trees WHERE TreeId = ?", tree.TreeId).Scan(&name); err != sql.ErrNoRows {
+	if err := handle.db.QueryRowContext(ctx, "SELECT DisplayName FROM Trees WHERE TreeId = $1", tree.TreeId).Scan(&name); err != sql.ErrNoRows {
 		t.Errorf("QueryRowContext() returned err = %v, want = %v", err, sql.ErrNoRows)
 	}
 }
@@ -204,10 +204,19 @@ func TestCheckDatabaseAccessible_Fails(t *testing.T) {
 	ctx := context.Background()
 
 	// Pass in a closed database to provoke a failure.
-	db, done := openTestDBOrDie()
-	cleanTestDB(db)
-	s := NewAdminStorage(db)
-	done(ctx)
+	handle := openTestDBOrDie(t)
+	// TODO(jaosorior): Should we clean the db too?
+	s := NewSQLAdminStorage(handle.db)
+	id := getDBID(t)
+	rawdbhandle, loaded := testDBs.LoadAndDelete(id)
+	if !loaded {
+		t.Fatalf("Failed to load test DB handle for id %v", id)
+	}
+	dbhandle, ok := rawdbhandle.(*testDBHandle)
+	if !ok {
+		t.Fatalf("Failed to cast test DB handle for id %v", id)
+	}
+	dbhandle.done(context.Background())
 
 	if err := s.CheckDatabaseAccessible(ctx); err == nil {
 		t.Error("TestCheckDatabaseAccessible_Fails got: nil, want: err")
@@ -215,8 +224,8 @@ func TestCheckDatabaseAccessible_Fails(t *testing.T) {
 }
 
 func TestCheckDatabaseAccessible_OK(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
 	if err := s.CheckDatabaseAccessible(ctx); err != nil {
 		t.Errorf("TestCheckDatabaseAccessible_OK got: %v, want: nil", err)
@@ -224,7 +233,7 @@ func TestCheckDatabaseAccessible_OK(t *testing.T) {
 }
 
 func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
-	stmt, err := db.PrepareContext(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = ?")
+	stmt, err := db.PrepareContext(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = $1")
 	if err != nil {
 		return err
 	}

@@ -1,4 +1,4 @@
-// Copyright 2016 Google LLC. All Rights Reserved.
+// Copyright 2022 <TBD>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mysql provides a MySQL-based storage layer implementation.
-package mysql
+// Package crdb provides a CockroachDB-based storage layer implementation.
+package crdb
 
 import (
 	"context"
@@ -35,8 +35,12 @@ import (
 // These statements are fixed
 const (
 	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
-	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
-		 VALUES(?,?,?,?,?,?)`
+	// NOTE(jaosorior): While using the `ON CONFLICT DO NOTHING` clause
+	// simplifies the StoreSignedLogRoot logic; it may lead to an
+	// unnintuitive error message when trying to insert a duplicate.
+	insertTreeHeadSQL = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
+		 VALUES($1,$2,$3,$4,$5,$6)
+		 ON CONFLICT DO NOTHING`
 
 	selectSubtreeSQL = `
  SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
@@ -55,9 +59,8 @@ const (
 	placeholderSQL = "<placeholder>"
 )
 
-// mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
-// Storage implementations, and contains functionality which is common to both,
-type mySQLTreeStorage struct {
+// crdbTreeStorage contains common functionality for log/map storage
+type crdbTreeStorage struct {
 	db *sql.DB
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
@@ -68,25 +71,27 @@ type mySQLTreeStorage struct {
 	statements     map[string]map[int]*sql.Stmt
 }
 
-// OpenDB opens a database connection for all MySQL-based storage implementations.
+// OpenDB opens a database connection to the specified database.
 func OpenDB(dbURL string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dbURL)
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		// Don't log uri as it could contain credentials
-		klog.Warningf("Could not open MySQL database, check config: %s", err)
+		klog.Warningf("Failed to open CRDB database: %v", err)
 		return nil, err
 	}
 
-	if _, err := db.ExecContext(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
-		klog.Warningf("Failed to set strict mode on mysql db: %s", err)
+	// TODO(jaosorior): Set up retry logic so we don't immediately fail
+	// if the database hasn't started yet. This is useful when deployed
+	// in Kubernetes
+	if err := db.Ping(); err != nil {
+		klog.Warningf("failed verifying database connection: %v", err)
 		return nil, err
 	}
 
 	return db, nil
 }
 
-func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
-	return &mySQLTreeStorage{
+func newTreeStorage(db *sql.DB) *crdbTreeStorage {
+	return &crdbTreeStorage{
 		db:         db,
 		statements: make(map[string]map[int]*sql.Stmt),
 	}
@@ -101,14 +106,14 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 
 	parameters := first + strings.Repeat(","+rest, num-1)
 
-	return strings.Replace(sql, placeholderSQL, parameters, 1)
+	return fromMySQLToPGPreparedStatement(strings.Replace(sql, placeholderSQL, parameters, 1))
 }
 
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
 // and number of bound arguments.
 // TODO(al,martin): consider pulling this all out as a separate unit for reuse
 // elsewhere.
-func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num int, first, rest string) (*sql.Stmt, error) {
+func (m *crdbTreeStorage) getStmt(ctx context.Context, statement string, num int, first, rest string) (*sql.Stmt, error) {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
@@ -133,15 +138,15 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 	return s, nil
 }
 
-func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+func (m *crdbTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
 	return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
 }
 
-func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+func (m *crdbTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
 	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
+func (m *crdbTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		klog.Warningf("Could not start tree TX: %s", err)
@@ -164,7 +169,7 @@ type treeTX struct {
 	mu            *sync.Mutex
 	closed        bool
 	tx            *sql.Tx
-	ts            *mySQLTreeStorage
+	ts            *crdbTreeStorage
 	treeID        int64
 	treeType      trillian.TreeType
 	hashSizeBytes int
@@ -306,14 +311,14 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	// The Exec() might have just failed
 	if err != nil {
-		return mysqlToGRPC(err)
+		return crdbToGRPC(err)
 	}
 
 	// Otherwise we have to look at the result of the operation
 	rowsAffected, rowsError := res.RowsAffected()
 
 	if rowsError != nil {
-		return mysqlToGRPC(rowsError)
+		return crdbToGRPC(rowsError)
 	}
 
 	if rowsAffected != count {

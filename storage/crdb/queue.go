@@ -1,7 +1,4 @@
-//go:build !batched_queue
-// +build !batched_queue
-
-// Copyright 2017 Google LLC. All Rights Reserved.
+// Copyright 2022 <TBD>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package crdb
 
 import (
 	"context"
@@ -33,13 +30,13 @@ const (
 	// If this statement ORDER BY clause is changed refer to the comment in removeSequencedLeaves
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos
 			FROM Unsequenced
-			WHERE TreeID=?
+			WHERE TreeID=$1
 			AND Bucket=0
-			AND QueueTimestampNanos<=?
-			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
+			AND QueueTimestampNanos<=$2
+			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT $3`
 	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos)
-			VALUES(?,0,?,?,?)`
-	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=? AND Bucket=0 AND QueueTimestampNanos=? AND LeafIdentityHash=?"
+			VALUES($1,0,$2,$3,$4)`
+	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=$1 AND Bucket=0 AND QueueTimestampNanos=$2 AND LeafIdentityHash=$3"
 )
 
 type dequeuedLeaf struct {

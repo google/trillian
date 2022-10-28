@@ -1,4 +1,4 @@
-// Copyright 2022 <TBD>
+// Copyright 2022 Equinix Inc, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,28 +15,16 @@
 package crdb
 
 import (
-	"github.com/lib/pq"
+	"fmt"
+	"strings"
 )
 
-var uniqueViolationErrorCode = pq.ErrorCode("23505")
-
-// crdbToGRPC converts some types of CockroachDB errors to GRPC errors. This gives
-// clients more signal when the operation can be retried.
-func crdbToGRPC(err error) error {
-	_, ok := err.(*pq.Error)
-	if !ok {
-		return err
+func fromMySQLToPGPreparedStatement(sql string) string {
+	counter := 1
+	for strings.Contains(sql, "?") {
+		pgmarker := fmt.Sprintf("$%d", counter)
+		sql = strings.Replace(sql, "?", pgmarker, 1)
+		counter++
 	}
-	// TODO(jaosorior): Do we have a crdb equivalent for a deadlock
-	// error code?
-	return err
-}
-
-func isDuplicateErr(err error) bool {
-	switch err := err.(type) {
-	case *pq.Error:
-		return err.Code == uniqueViolationErrorCode
-	default:
-		return false
-	}
+	return sql
 }

@@ -582,7 +582,8 @@ func setupAdminServer(ctx context.Context, t *testing.T) (*testServer, error) {
 		return nil, err
 	}
 
-	registry, done, err := integration.NewRegistryForTests(ctx)
+	// TODO(jaosorior): Make this configurable for Cockroach or MySQL
+	registry, done, err := integration.NewRegistryForTests(ctx, testdb.DriverMySQL)
 	if err != nil {
 		ts.closeAll()
 		return nil, err

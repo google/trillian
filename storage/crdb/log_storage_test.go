@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package crdb
 
 import (
 	"bytes"
@@ -33,10 +33,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq" // Register the Postgres driver.
 )
-
-var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees"}
 
 // Must be 32 bytes to match sha256 length if it was a real hash
 var (
@@ -70,8 +68,10 @@ func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash,
 	t.Helper()
 	queuedAtNanos := fakeQueueTime.UnixNano()
 	integratedAtNanos := fakeIntegrateTime.UnixNano()
-	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES(?,?,?,?,?)", logID, rawHash, data, extraData, queuedAtNanos)
-	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES(?,?,?,?,?)", logID, seq, rawHash, hash, integratedAtNanos)
+	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES($1,$2,$3,$4,$5)",
+		logID, rawHash, data, extraData, queuedAtNanos)
+	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES($1,$2,$3,$4,$5)",
+		logID, seq, rawHash, hash, integratedAtNanos)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
@@ -119,8 +119,8 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 
 func TestLogSuite(t *testing.T) {
 	storageFactory := func(context.Context, *testing.T) (storage.LogStorage, storage.AdminStorage) {
-		t.Cleanup(func() { cleanTestDB(DB) })
-		return NewLogStorage(DB, nil), NewAdminStorage(DB)
+		handle := openTestDBOrDie(t)
+		return NewLogStorage(handle.db, nil), NewSQLAdminStorage(handle.db)
 	}
 
 	storagetest.RunLogStorageTests(t, storageFactory)
@@ -128,10 +128,10 @@ func TestLogSuite(t *testing.T) {
 
 func TestQueueDuplicateLeaf(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	count := 15
@@ -192,11 +192,10 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 
 func TestQueueLeaves(t *testing.T) {
 	ctx := context.Background()
-
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	leaves := createTestLeaves(leavesToInsert, 20)
@@ -206,7 +205,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	// Should see the leaves in the database. There is no API to read from the unsequenced data.
 	var count int
-	if err := DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", tree.TreeId).Scan(&count); err != nil {
+	if err := handle.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=$1", tree.TreeId).Scan(&count); err != nil {
 		t.Fatalf("Could not query row count: %v", err)
 	}
 	if leavesToInsert != count {
@@ -215,7 +214,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	// Additional check on timestamp being set correctly in the database
 	var queueTimestamp int64
-	if err := DB.QueryRowContext(ctx, "SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=?", tree.TreeId).Scan(&queueTimestamp); err != nil {
+	if err := handle.db.QueryRowContext(ctx, "SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=$1", tree.TreeId).Scan(&queueTimestamp); err != nil {
 		t.Fatalf("Could not query timestamp: %v", err)
 	}
 	if got, want := queueTimestamp, fakeQueueTime.UnixNano(); got != want {
@@ -226,11 +225,10 @@ func TestQueueLeaves(t *testing.T) {
 func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 	t.Skip("Known Issue: https://github.com/google/trillian/issues/1845")
 	ctx := context.Background()
-
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	const leafCount = 999 + 1
@@ -246,7 +244,7 @@ func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 
 	// Should see the leaves in the database. There is no API to read from the unsequenced data.
 	var count int
-	if err := DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", tree.TreeId).Scan(&count); err != nil {
+	if err := handle.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=$1", tree.TreeId).Scan(&count); err != nil {
 		t.Fatalf("Could not query row count: %v", err)
 	}
 	if leafCount != count {
@@ -258,10 +256,10 @@ func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 
 func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	leaves := createTestLeaves(leavesToInsert, 20)
@@ -290,10 +288,10 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 // are returned.
 func TestDequeueLeavesGuardInterval(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	leaves := createTestLeaves(leavesToInsert, 20)
@@ -331,10 +329,10 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// transactions and make sure the returned leaves are respecting the time ordering of the
 	// queue.
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	mustSignAndStoreLogRoot(ctx, t, s, tree, 0)
 
 	batchSize := 2
@@ -400,10 +398,10 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		hashes := [][]byte{[]byte("thisdoesn'texist")}
@@ -422,13 +420,13 @@ func TestGetLeavesByHash(t *testing.T) {
 	ctx := context.Background()
 
 	// Create fake leaf as if it had been sequenced
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	data := []byte("some data")
-	createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	createFakeLeaf(ctx, handle.db, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		hashes := [][]byte{dummyHash}
@@ -449,10 +447,10 @@ func TestGetLeavesByHashBigBatch(t *testing.T) {
 	ctx := context.Background()
 
 	// Create fake leaf as if it had been sequenced
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	const leafCount = 999 + 1
 	hashes := make([][]byte, leafCount)
@@ -460,7 +458,7 @@ func TestGetLeavesByHashBigBatch(t *testing.T) {
 		data := []byte(fmt.Sprintf("data %d", i))
 		hash := sha256.Sum256(data)
 		hashes[i] = hash[:]
-		createFakeLeaf(ctx, DB, tree.TreeId, hash[:], hash[:], data, someExtraData, sequenceNumber+int64(i), t)
+		createFakeLeaf(ctx, handle.db, tree.TreeId, hash[:], hash[:], data, someExtraData, sequenceNumber+int64(i), t)
 	}
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -479,15 +477,15 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	ctx := context.Background()
 
 	// Create fake leaf as if it had been sequenced
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	data := []byte("some data")
-	leaf := createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	leaf := createFakeLeaf(ctx, handle.db, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 	leaf.LeafIndex = -1
 	leaf.MerkleLeafHash = []byte(dummyMerkleLeafHash)
-	leaf2 := createFakeLeaf(ctx, DB, tree.TreeId, dummyHash2, dummyHash2, data, someExtraData, sequenceNumber+1, t)
+	leaf2 := createFakeLeaf(ctx, handle.db, tree.TreeId, dummyHash2, dummyHash2, data, someExtraData, sequenceNumber+1, t)
 	leaf2.LeafIndex = -1
 	leaf2.MerkleLeafHash = []byte(dummyMerkleLeafHash)
 
@@ -553,10 +551,10 @@ func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
 func TestLatestSignedRootNoneWritten(t *testing.T) {
 	ctx := context.Background()
 
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	tx, err := s.SnapshotForTree(ctx, tree)
 	if err != storage.ErrTreeNeedsInit {
@@ -575,10 +573,10 @@ func SignLogRoot(root *types.LogRootV1) (*trillian.SignedLogRoot, error) {
 
 func TestLatestSignedLogRoot(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
@@ -612,10 +610,10 @@ func TestLatestSignedLogRoot(t *testing.T) {
 
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
@@ -641,10 +639,10 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 func TestLogRootUpdate(t *testing.T) {
 	ctx := context.Background()
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, testonly.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	root, err := SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
@@ -685,8 +683,8 @@ func TestLogRootUpdate(t *testing.T) {
 func TestGetActiveLogIDs(t *testing.T) {
 	ctx := context.Background()
 
-	cleanTestDB(DB)
-	admin := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	admin := NewSQLAdminStorage(handle.db)
 
 	// Create a few test trees
 	log1 := proto.Clone(testonly.LogTree).(*trillian.Tree)
@@ -717,7 +715,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	}
 
 	// Update deleted trees accordingly
-	updateDeletedStmt, err := DB.PrepareContext(ctx, "UPDATE Trees SET Deleted = ? WHERE TreeId = ?")
+	updateDeletedStmt, err := handle.db.PrepareContext(ctx, "UPDATE Trees SET Deleted = $1 WHERE TreeId = $2")
 	if err != nil {
 		t.Fatalf("PrepareContext() returned err = %v", err)
 	}
@@ -728,7 +726,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 		}
 	}
 
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 	got, err := s.GetActiveLogIDs(ctx)
 	if err != nil {
 		t.Fatalf("GetActiveLogIDs() returns err = %v", err)
@@ -745,8 +743,8 @@ func TestGetActiveLogIDs(t *testing.T) {
 func TestGetActiveLogIDsEmpty(t *testing.T) {
 	ctx := context.Background()
 
-	cleanTestDB(DB)
-	s := NewLogStorage(DB, nil)
+	handle := openTestDBOrDie(t)
+	s := NewLogStorage(handle.db, nil)
 
 	ids, err := s.GetActiveLogIDs(ctx)
 	if err != nil {

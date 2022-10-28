@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC. All Rights Reserved.
+// Copyright 2022 <TBD>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package crdb
 
 import (
 	"database/sql"
@@ -23,67 +23,70 @@ import (
 	"github.com/google/trillian/storage"
 	"k8s.io/klog/v2"
 
-	// Load MySQL driver
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx" // crdb retries and postgres interface
+	_ "github.com/lib/pq"                                   // Register the Postgres driver.
+)
+
+const (
+	// StorageProviderName is the name of the storage provider.
+	StorageProviderName = "crdb"
 )
 
 var (
-	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	maxConns = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
-	maxIdle  = flag.Int("mysql_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
+	crdbURI  = flag.String("crdb_uri", "postgresql://root@localhost:26257?sslmode=disable", "Connection URI for CockroachDB database")
+	maxConns = flag.Int("crdb_max_conns", 0, "Maximum connections to the database")
+	maxIdle  = flag.Int("crdb_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
 
-	mysqlMu              sync.Mutex
-	mysqlErr             error
-	mysqlDB              *sql.DB
-	mysqlStorageInstance *mysqlProvider
+	crdbErr             error
+	crdbHandle          *sql.DB
+	crdbStorageInstance *crdbProvider
+	dbConnMu            sync.Mutex
 )
 
-// GetDatabase returns an instance of MySQL database, or creates one.
-//
-// TODO(pavelkalinnikov): Make the dependency of MySQL quota provider from
-// MySQL storage provider explicit.
+// GetDatabase returns the database handle for the provider.
 func GetDatabase() (*sql.DB, error) {
-	mysqlMu.Lock()
-	defer mysqlMu.Unlock()
-	return getMySQLDatabaseLocked()
+	dbConnMu.Lock()
+	defer dbConnMu.Unlock()
+	return getCRDBDatabaseLocked()
 }
 
 func init() {
-	if err := storage.RegisterProvider("mysql", newMySQLStorageProvider); err != nil {
-		klog.Fatalf("Failed to register storage provider mysql: %v", err)
+	if err := storage.RegisterProvider(StorageProviderName, newCRDBStorageProvider); err != nil {
+		klog.Fatalf("Failed to register storage provider crdb: %v", err)
 	}
 }
 
-type mysqlProvider struct {
+type crdbProvider struct {
 	db *sql.DB
 	mf monitoring.MetricFactory
 }
 
-func newMySQLStorageProvider(mf monitoring.MetricFactory) (storage.Provider, error) {
-	mysqlMu.Lock()
-	defer mysqlMu.Unlock()
-	if mysqlStorageInstance == nil {
-		db, err := getMySQLDatabaseLocked()
+func newCRDBStorageProvider(mf monitoring.MetricFactory) (storage.Provider, error) {
+	dbConnMu.Lock()
+	defer dbConnMu.Unlock()
+	if crdbStorageInstance == nil {
+		db, err := getCRDBDatabaseLocked()
 		if err != nil {
 			return nil, err
 		}
-		mysqlStorageInstance = &mysqlProvider{
+		crdbStorageInstance = &crdbProvider{
 			db: db,
 			mf: mf,
 		}
 	}
-	return mysqlStorageInstance, nil
+
+	return crdbStorageInstance, nil
 }
 
-// getMySQLDatabaseLocked returns an instance of MySQL database, or creates
-// one. Requires mysqlMu to be locked.
-func getMySQLDatabaseLocked() (*sql.DB, error) {
-	if mysqlDB != nil || mysqlErr != nil {
-		return mysqlDB, mysqlErr
+// Lazy initializes the database connection handle and returns the instance.
+// Requires lock to be held.
+func getCRDBDatabaseLocked() (*sql.DB, error) {
+	if crdbHandle != nil || crdbErr != nil {
+		return crdbHandle, crdbErr
 	}
-	db, err := OpenDB(*mySQLURI)
+	db, err := OpenDB(*crdbURI)
 	if err != nil {
-		mysqlErr = err
+		crdbErr = err
 		return nil, err
 	}
 	if *maxConns > 0 {
@@ -92,18 +95,18 @@ func getMySQLDatabaseLocked() (*sql.DB, error) {
 	if *maxIdle >= 0 {
 		db.SetMaxIdleConns(*maxIdle)
 	}
-	mysqlDB, mysqlErr = db, nil
+	crdbHandle, crdbErr = db, nil
 	return db, nil
 }
 
-func (s *mysqlProvider) LogStorage() storage.LogStorage {
-	return NewLogStorage(s.db, s.mf)
+func (p *crdbProvider) Close() error {
+	return p.db.Close()
 }
 
-func (s *mysqlProvider) AdminStorage() storage.AdminStorage {
-	return NewAdminStorage(s.db)
+func (p *crdbProvider) LogStorage() storage.LogStorage {
+	return NewLogStorage(p.db, p.mf)
 }
 
-func (s *mysqlProvider) Close() error {
-	return s.db.Close()
+func (p *crdbProvider) AdminStorage() storage.AdminStorage {
+	return NewSQLAdminStorage(p.db)
 }

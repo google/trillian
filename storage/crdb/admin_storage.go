@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package crdb
 
 import (
 	"context"
@@ -53,28 +53,29 @@ const (
 			DeleteTimeMillis
 		FROM Trees`
 	selectNonDeletedTrees = selectTrees + nonDeletedWhere
-	selectTreeByID        = selectTrees + " WHERE TreeId = ?"
+	selectTreeByID        = selectTrees + " WHERE TreeId = $1"
 
 	updateTreeSQL = `UPDATE Trees
-		SET TreeState = ?, TreeType = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?, MaxRootDurationMillis = ?, PrivateKey = ?
-		WHERE TreeId = ?`
+		SET TreeState = $1, TreeType = $2, DisplayName = $3, Description = $4, UpdateTimeMillis = $5, MaxRootDurationMillis = $6, PrivateKey = $7
+		WHERE TreeId = $8`
 )
 
-// NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
-func NewAdminStorage(db *sql.DB) storage.AdminStorage {
-	return &mysqlAdminStorage{db}
+// NewSQLAdminStorage returns a SQL storage.AdminStorage implementation backed by DB.
+// Should work for MySQL and CockroachDB
+func NewSQLAdminStorage(db *sql.DB) storage.AdminStorage {
+	return &sqlAdminStorage{db}
 }
 
-// mysqlAdminStorage implements storage.AdminStorage
-type mysqlAdminStorage struct {
+// sqlAdminStorage implements storage.AdminStorage
+type sqlAdminStorage struct {
 	db *sql.DB
 }
 
-func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
+func (s *sqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
 	return s.beginInternal(ctx)
 }
 
-func (s *mysqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX, error) {
+func (s *sqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX, error) {
 	tx, err := s.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		return nil, err
@@ -82,7 +83,7 @@ func (s *mysqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX,
 	return &adminTX{tx: tx}, nil
 }
 
-func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
+func (s *sqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
 	tx, err := s.beginInternal(ctx)
 	if err != nil {
 		return err
@@ -94,7 +95,7 @@ func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.
 	return tx.Commit()
 }
 
-func (s *mysqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
+func (s *sqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return s.db.PingContext(ctx)
 }
 
@@ -222,7 +223,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			PrivateKey,
 			PublicKey,
 			MaxRootDurationMillis)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +265,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			SigningEnabled,
 			SequencingEnabled,
 			SequenceIntervalSeconds)
-		VALUES(?, ?, ?, ?)`)
+		VALUES($1, $2, $3, $4)`)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +352,7 @@ func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool,
 	}
 	if _, err := t.tx.ExecContext(
 		ctx,
-		"UPDATE Trees SET Deleted = ?, DeleteTimeMillis = ? WHERE TreeId = ?",
+		"UPDATE Trees SET Deleted = $1, DeleteTimeMillis = $2 WHERE TreeId = $3",
 		deleted, deleteTimeMillis, treeID); err != nil {
 		return nil, err
 	}
@@ -364,16 +365,16 @@ func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 	}
 
 	// TreeControl didn't have "ON DELETE CASCADE" on previous versions, so let's hit it explicitly
-	if _, err := t.tx.ExecContext(ctx, "DELETE FROM TreeControl WHERE TreeId = ?", treeID); err != nil {
+	if _, err := t.tx.ExecContext(ctx, "DELETE FROM TreeControl WHERE TreeId = $1", treeID); err != nil {
 		return err
 	}
-	_, err := t.tx.ExecContext(ctx, "DELETE FROM Trees WHERE TreeId = ?", treeID)
+	_, err := t.tx.ExecContext(ctx, "DELETE FROM Trees WHERE TreeId = $1", treeID)
 	return err
 }
 
 func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted bool) error {
 	var nullDeleted sql.NullBool
-	switch err := tx.QueryRowContext(ctx, "SELECT Deleted FROM Trees WHERE TreeId = ?", treeID).Scan(&nullDeleted); {
+	switch err := tx.QueryRowContext(ctx, "SELECT Deleted FROM Trees WHERE TreeId = $1", treeID).Scan(&nullDeleted); {
 	case err == sql.ErrNoRows:
 		return status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:

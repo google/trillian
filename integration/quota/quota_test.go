@@ -51,7 +51,8 @@ func TestEtcdRateLimiting(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
-	registry, done, err := integration.NewRegistryForTests(ctx)
+	// TODO(jaosorior): Make this configurable for Cockroach or MySQL
+	registry, done, err := integration.NewRegistryForTests(ctx, testdb.DriverMySQL)
 	if err != nil {
 		t.Fatalf("NewRegistryForTests() returned err = %v", err)
 	}
@@ -100,7 +101,7 @@ func TestEtcdRateLimiting(t *testing.T) {
 func TestMySQLRateLimiting(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	db, done, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
