@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/klog/v2"
 
 	_ "github.com/go-sql-driver/mysql" // mysql driver
+	_ "github.com/lib/pq"              // postgres driver
 )
 
 const (
@@ -41,9 +43,47 @@ const (
 
 	// Note: sql.Open requires the URI to end with a slash.
 	defaultTestMySQLURI = "root@tcp(127.0.0.1)/"
+
+	// CockroachDBURIEnv is the name of the ENV variable checked for the test CockroachDB
+	// instance URI to use. The value must have a trailing slash.
+	CockroachDBURIEnv = "TEST_COCKROACHDB_URI"
+
+	defaultTestCockroachDBURI = "postgres://root@localhost:26257/?sslmode=disable"
 )
 
-var trillianSQL = testonly.RelativeToPackage("../mysql/schema/storage.sql")
+type storageDriverInfo struct {
+	sqlDriverName string
+	schema        string
+	uriFunc       func(paths ...string) string
+}
+
+var (
+	trillianMySQLSchema = testonly.RelativeToPackage("../mysql/schema/storage.sql")
+	trillianCRDBSchema  = testonly.RelativeToPackage("../crdb/schema/storage.sql")
+)
+
+// TestDBDriverName is the name of a database driver.
+type TestDBDriverName string
+
+const (
+	// DriverMySQL is the identifier for the MySQL storage driver.
+	DriverMySQL TestDBDriverName = "mysql"
+	// DriverCockroachDB is the identifier for the CockroachDB storage driver.
+	DriverCockroachDB TestDBDriverName = "cockroachdb"
+)
+
+var driverMapping = map[TestDBDriverName]storageDriverInfo{
+	DriverMySQL: {
+		sqlDriverName: "mysql",
+		schema:        trillianMySQLSchema,
+		uriFunc:       mysqlURI,
+	},
+	DriverCockroachDB: {
+		sqlDriverName: "postgres",
+		schema:        trillianCRDBSchema,
+		uriFunc:       crdbURI,
+	},
+}
 
 // mysqlURI returns the MySQL connection URI to use for tests. It returns the
 // value in the ENV variable defined by MySQLURIEnv. If the value is empty,
@@ -53,16 +93,73 @@ var trillianSQL = testonly.RelativeToPackage("../mysql/schema/storage.sql")
 // of the tests in this repo require a database and import this package. With a
 // flag, it would be necessary to distinguish "go test" invocations that need a
 // database, and those that don't. ENV allows to "blanket apply" this setting.
-func mysqlURI() string {
+func mysqlURI(dbRef ...string) string {
+	var stringurl string
 	if e := os.Getenv(MySQLURIEnv); len(e) > 0 {
-		return e
+		stringurl = e
+	} else {
+		stringurl = defaultTestMySQLURI
 	}
-	return defaultTestMySQLURI
+
+	for _, ref := range dbRef {
+		separator := "/"
+		if strings.HasSuffix(stringurl, "/") {
+			separator = ""
+		}
+		stringurl = strings.Join([]string{stringurl, ref}, separator)
+	}
+
+	return stringurl
+}
+
+// crdbURI returns the CockroachDB connection URI to use for tests. It returns the
+// value in the ENV variable defined by CockroachDBURIEnv. If the value is empty,
+// returns defaultTestCockroachDBURI.
+func crdbURI(dbRef ...string) string {
+	var uri *url.URL
+	if e := os.Getenv(CockroachDBURIEnv); len(e) > 0 {
+		uri = getURL(e)
+	} else {
+		uri = getURL(defaultTestCockroachDBURI)
+	}
+
+	return addPathToURI(uri, dbRef...)
+}
+
+func addPathToURI(uri *url.URL, paths ...string) string {
+	if len(paths) > 0 {
+		for _, ref := range paths {
+			currentPaths := uri.Path
+			// If the path is the root path, we don't want to append a slash.
+			if currentPaths == "/" {
+				currentPaths = ""
+			}
+			uri.Path = strings.Join([]string{currentPaths, ref}, "/")
+		}
+	}
+	return uri.String()
+}
+
+func getURL(unparsedurl string) *url.URL {
+	//nolint:errcheck // We're not expecting an error here.
+	u, _ := url.Parse(unparsedurl)
+	return u
 }
 
 // MySQLAvailable indicates whether the configured MySQL database is available.
 func MySQLAvailable() bool {
-	db, err := sql.Open("mysql", mysqlURI())
+	return dbAvailable(DriverMySQL)
+}
+
+// CockroachDBAvailable indicates whether the configured CockroachDB database is available.
+func CockroachDBAvailable() bool {
+	return dbAvailable(DriverCockroachDB)
+}
+
+func dbAvailable(driver TestDBDriverName) bool {
+	driverName := driverMapping[driver].sqlDriverName
+	uri := driverMapping[driver].uriFunc()
+	db, err := sql.Open(driverName, uri)
 	if err != nil {
 		log.Printf("sql.Open(): %v", err)
 		return false
@@ -95,11 +192,17 @@ func SetFDLimit(uLimit uint64) error {
 // using the DB, the caller should not continue to use the returned DB after
 // calling this function as it may, for example, delete the underlying
 // instance.
-func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
+func newEmptyDB(ctx context.Context, driver TestDBDriverName) (*sql.DB, func(context.Context), error) {
 	if err := SetFDLimit(2048); err != nil {
 		return nil, nil, err
 	}
-	db, err := sql.Open("mysql", mysqlURI())
+
+	inf, gotinf := driverMapping[driver]
+	if !gotinf {
+		return nil, nil, fmt.Errorf("unknown driver %q", driver)
+	}
+
+	db, err := sql.Open(inf.sqlDriverName, inf.uriFunc())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -113,7 +216,8 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 	}
 
 	db.Close()
-	db, err = sql.Open("mysql", mysqlURI()+name)
+	uri := inf.uriFunc(name)
+	db, err = sql.Open(inf.sqlDriverName, uri)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -131,13 +235,15 @@ func newEmptyDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
 // NewTrillianDB creates an empty database with the Trillian schema. The database name is randomly
 // generated.
 // NewTrillianDB is equivalent to Default().NewTrillianDB(ctx).
-func NewTrillianDB(ctx context.Context) (*sql.DB, func(context.Context), error) {
-	db, done, err := newEmptyDB(ctx)
+func NewTrillianDB(ctx context.Context, driver TestDBDriverName) (*sql.DB, func(context.Context), error) {
+	db, done, err := newEmptyDB(ctx, driver)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	sqlBytes, err := ioutil.ReadFile(trillianSQL)
+	schema := driverMapping[driver].schema
+
+	sqlBytes, err := ioutil.ReadFile(schema)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -174,4 +280,12 @@ func SkipIfNoMySQL(t *testing.T) {
 		t.Skip("Skipping test as MySQL not available")
 	}
 	t.Logf("Test MySQL available at %q", mysqlURI())
+}
+
+func SkipIfNoCockroachDB(t *testing.T) {
+	t.Helper()
+	if !CockroachDBAvailable() {
+		t.Skip("Skipping test as CockroachDB not available")
+	}
+	t.Logf("Test CockroachDB available at %q", crdbURI())
 }
