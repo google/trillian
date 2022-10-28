@@ -53,6 +53,7 @@ import (
 
 	// Register supported storage providers.
 	_ "github.com/google/trillian/storage/cloudspanner"
+	_ "github.com/google/trillian/storage/crdb"
 	_ "github.com/google/trillian/storage/mysql"
 
 	// Load MySQL quota provider

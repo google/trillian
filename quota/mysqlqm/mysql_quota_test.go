@@ -37,7 +37,7 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
-	db, done, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
@@ -131,7 +131,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 	for _, test := range tests {
 		desc := fmt.Sprintf("useSelectCount = %v", test.useSelectCount)
 		t.Run(desc, func(t *testing.T) {
-			db, done, err := testdb.NewTrillianDB(ctx)
+			db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
 			if err != nil {
 				t.Fatalf("NewTrillianDB() returned err = %v", err)
 			}
@@ -182,7 +182,7 @@ func TestQuotaManager_Noops(t *testing.T) {
 	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
-	db, done, err := testdb.NewTrillianDB(ctx)
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}

@@ -85,7 +85,8 @@ func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error
 // if numSequencers is zero a manually-controlled test sequencer is used.
 // Additional grpc.ServerOption and grpc.DialOption values can be provided.
 func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
-	db, done, err := testdb.NewTrillianDB(ctx)
+	// TODO(jaosorior): Make this configurable for Cockroach or MySQL
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
 	if err != nil {
 		return nil, err
 	}

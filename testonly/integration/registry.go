@@ -26,8 +26,8 @@ import (
 // NewRegistryForTests returns an extension.Registry for integration tests.
 // Callers should call the returned cleanup function when they're finished
 // with the registry and its contents.
-func NewRegistryForTests(ctx context.Context) (extension.Registry, func(context.Context), error) {
-	db, done, err := testdb.NewTrillianDB(ctx)
+func NewRegistryForTests(ctx context.Context, driver testdb.TestDBDriverName) (extension.Registry, func(context.Context), error) {
+	db, done, err := testdb.NewTrillianDB(ctx, driver)
 	if err != nil {
 		return extension.Registry{}, nil, err
 	}
