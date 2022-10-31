@@ -26,11 +26,11 @@ require (
 	go.etcd.io/etcd/v3 v3.5.5
 	go.opencensus.io v0.23.0
 	golang.org/x/crypto v0.1.0
-	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
+	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.1.0
 	golang.org/x/tools v0.2.0
-	google.golang.org/api v0.100.0
-	google.golang.org/genproto v0.0.0-20221014213838-99cd37c6964a
+	google.golang.org/api v0.101.0
+	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55
 	google.golang.org/grpc v1.50.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.1
