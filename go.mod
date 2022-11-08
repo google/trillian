@@ -24,7 +24,7 @@ require (
 	go.etcd.io/etcd/etcdctl/v3 v3.5.5
 	go.etcd.io/etcd/server/v3 v3.5.5
 	go.etcd.io/etcd/v3 v3.5.5
-	go.opencensus.io v0.23.0
+	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.1.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.2.0
@@ -114,7 +114,6 @@ require (
 	github.com/spf13/cobra v1.4.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/src-d/gcfg v1.4.0 // indirect
-	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802 // indirect
 	github.com/urfave/cli v1.22.7 // indirect
 	github.com/xanzy/ssh-agent v0.2.1 // indirect
