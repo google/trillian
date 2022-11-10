@@ -23,6 +23,8 @@ import (
 )
 
 func TestCockroachDBStorageProviderErrorPersistence(t *testing.T) {
+	t.Parallel()
+
 	defer flagsaver.Save().MustRestore()
 	if err := flag.Set("crdb_uri", "&bogus*:::?"); err != nil {
 		t.Errorf("Failed to set flag: %v", err)

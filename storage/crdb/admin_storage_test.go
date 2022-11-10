@@ -30,6 +30,8 @@ import (
 const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = $1"
 
 func TestCRDBAdminStorage(t *testing.T) {
+	t.Parallel()
+
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
 		handle := openTestDBOrDie(t)
 		return NewSQLAdminStorage(handle.db)
@@ -38,6 +40,8 @@ func TestCRDBAdminStorage(t *testing.T) {
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
+	t.Parallel()
+
 	handle := openTestDBOrDie(t)
 	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
@@ -61,6 +65,8 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestCreateTreeInvalidStates(t *testing.T) {
+	t.Parallel()
+
 	handle := openTestDBOrDie(t)
 	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
@@ -77,6 +83,8 @@ func TestCreateTreeInvalidStates(t *testing.T) {
 }
 
 func TestAdminTX_TreeWithNulls(t *testing.T) {
+	t.Parallel()
+
 	handle := openTestDBOrDie(t)
 	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
@@ -129,6 +137,8 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 }
 
 func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
+	t.Parallel()
+
 	handle := openTestDBOrDie(t)
 	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
@@ -173,6 +183,8 @@ func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
 }
 
 func TestAdminTX_HardDeleteTree(t *testing.T) {
+	t.Parallel()
+
 	handle := openTestDBOrDie(t)
 	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
@@ -201,6 +213,8 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 }
 
 func TestCheckDatabaseAccessible_Fails(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Pass in a closed database to provoke a failure.
@@ -224,6 +238,8 @@ func TestCheckDatabaseAccessible_Fails(t *testing.T) {
 }
 
 func TestCheckDatabaseAccessible_OK(t *testing.T) {
+	t.Parallel()
+
 	handle := openTestDBOrDie(t)
 	s := NewSQLAdminStorage(handle.db)
 	ctx := context.Background()
