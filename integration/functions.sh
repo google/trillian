@@ -117,12 +117,17 @@ kill_pid() {
 #  - SOFTHSM_CONF    : location of the SoftHSM configuration file
 #
 log_prep_test() {
+  set -x
   # Default to one of each.
   local rpc_server_count=${1:-1}
   local log_signer_count=${2:-1}
 
   # Wipe the test database
-  yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
+  if [[ "${TEST_MYSQL_URI}" != "" ]]; then
+    yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
+  elif [[ "${TEST_COCKROACHDB_URI}" != "" ]]; then
+    yes | bash "${TRILLIAN_PATH}/scripts/resetcrdb.sh"
+  fi
 
   local logserver_opts=''
   local logsigner_opts=''
@@ -131,6 +136,9 @@ log_prep_test() {
   if [[ "${TEST_MYSQL_URI}" != "" ]]; then
     logserver_opts+=" --mysql_uri=${TEST_MYSQL_URI}"
     logsigner_opts+=" --mysql_uri=${TEST_MYSQL_URI}"
+  elif [[ "${TEST_COCKROACHDB_URI}" != "" ]]; then
+    logserver_opts+="--quota_system=crdb --storage_system=crdb --crdb_uri=${TEST_COCKROACHDB_URI}"
+    logsigner_opts+="--quota_system=crdb --storage_system=crdb --crdb_uri=${TEST_COCKROACHDB_URI}"
   fi
 
   # Start a local etcd instance (if configured).

@@ -94,6 +94,7 @@ func main() {
 			klog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
 		}
 	}
+	klog.Info("**** Log Server Starting ****")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
