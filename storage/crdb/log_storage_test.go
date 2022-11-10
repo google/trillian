@@ -118,6 +118,8 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 }
 
 func TestLogSuite(t *testing.T) {
+	t.Parallel()
+
 	storageFactory := func(context.Context, *testing.T) (storage.LogStorage, storage.AdminStorage) {
 		handle := openTestDBOrDie(t)
 		return NewLogStorage(handle.db, nil), NewSQLAdminStorage(handle.db)
@@ -127,6 +129,8 @@ func TestLogSuite(t *testing.T) {
 }
 
 func TestQueueDuplicateLeaf(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -163,6 +167,8 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		// NOTE(jaosorior): These tests can't be parallelized as they
+		// depend on each others' leaves.
 		t.Run(test.desc, func(t *testing.T) {
 			existing, err := s.QueueLeaves(ctx, tree, test.leaves, fakeQueueTime)
 			if err != nil {
@@ -191,6 +197,8 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 }
 
 func TestQueueLeaves(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -255,6 +263,8 @@ func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -287,6 +297,8 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 // return nothing. Then retry with an inclusive guard cutoff and ensure the leaves
 // are returned.
 func TestDequeueLeavesGuardInterval(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -325,6 +337,8 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 }
 
 func TestDequeueLeavesTimeOrdering(t *testing.T) {
+	t.Parallel()
+
 	// Queue two small batches of leaves at different timestamps. Do two separate dequeue
 	// transactions and make sure the returned leaves are respecting the time ordering of the
 	// queue.
@@ -397,6 +411,8 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 }
 
 func TestGetLeavesByHashNotPresent(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -417,6 +433,8 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 }
 
 func TestGetLeavesByHash(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Create fake leaf as if it had been sequenced
@@ -474,6 +492,8 @@ func TestGetLeavesByHashBigBatch(t *testing.T) {
 }
 
 func TestGetLeafDataByIdentityHash(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Create fake leaf as if it had been sequenced
@@ -512,7 +532,10 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
+		test := test
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			t.Parallel()
+
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 				leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(ctx, test.hashes)
 				if err != nil {
@@ -549,6 +572,8 @@ func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
 // -----------------------------------------------------------------------------
 
 func TestLatestSignedRootNoneWritten(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	handle := openTestDBOrDie(t)
@@ -572,6 +597,8 @@ func SignLogRoot(root *types.LogRootV1) (*trillian.SignedLogRoot, error) {
 }
 
 func TestLatestSignedLogRoot(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -609,6 +636,8 @@ func TestLatestSignedLogRoot(t *testing.T) {
 }
 
 func TestDuplicateSignedLogRoot(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -637,6 +666,8 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 }
 
 func TestLogRootUpdate(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	handle := openTestDBOrDie(t)
@@ -681,6 +712,8 @@ func TestLogRootUpdate(t *testing.T) {
 }
 
 func TestGetActiveLogIDs(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	handle := openTestDBOrDie(t)
@@ -741,6 +774,8 @@ func TestGetActiveLogIDs(t *testing.T) {
 }
 
 func TestGetActiveLogIDsEmpty(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	handle := openTestDBOrDie(t)

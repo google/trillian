@@ -33,6 +33,8 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	nodes := createSomeNodes(256)
 	nodeIDs := make([]compact.NodeID, len(nodes))
 	for i := range nodes {
@@ -53,7 +55,10 @@ func TestNodeRoundTrip(t *testing.T) {
 		{desc: "store-all-read-all", store: nodes, read: nodeIDs, want: nodes},
 		{desc: "store-all-read-none", store: nodes, read: nil, want: nil},
 	} {
+		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			handle := openTestDBOrDie(t)
 			as := NewSQLAdminStorage(handle.db)
@@ -88,6 +93,8 @@ func TestNodeRoundTrip(t *testing.T) {
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
