@@ -231,7 +231,8 @@ func TestQueueLeaves(t *testing.T) {
 }
 
 func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
-	t.Skip("Known Issue: https://github.com/google/trillian/issues/1845")
+	t.Parallel()
+
 	ctx := context.Background()
 	handle := openTestDBOrDie(t)
 	as := NewSQLAdminStorage(handle.db)
@@ -461,7 +462,8 @@ func TestGetLeavesByHash(t *testing.T) {
 }
 
 func TestGetLeavesByHashBigBatch(t *testing.T) {
-	t.Skip("Known Issue: https://github.com/google/trillian/issues/1845")
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Create fake leaf as if it had been sequenced
