@@ -19,6 +19,10 @@ Accepts environment variables:
   (default: zaphod).
 - CRDB_USER_HOST: The host that the Trillian user will connect from; use '%' as
   a wildcard (default: localhost).
+- CRDB_IN_CONTAINER: If set, the script will assume it is running in a Docker
+  container and will exec into the container to operate.
+- CRDB_CONTAINER_NAME: The name of the Docker container to exec into (default:
+  roach).
 EOF
 }
 
@@ -36,7 +40,9 @@ collect_vars() {
   [ -z ${CRDB_USER+x} ] && CRDB_USER="test"
   [ -z ${CRDB_PASSWORD+x} ] && CRDB_PASSWORD="zaphod"
   [ -z ${CRDB_USER_HOST+x} ] && CRDB_USER_HOST="localhost"
-  [ -z ${CRDB_INSECURE+x} ] && CRDB_INSECURE="true" 
+  [ -z ${CRDB_INSECURE+x} ] && CRDB_INSECURE="true"
+  [ -z ${CRDB_IN_CONTAINER+x} ] && CRDB_IN_CONTAINER="false"
+  [ -z ${CRDB_CONTAINER_NAME+x} ] && CRDB_CONTAINER_NAME="roach"
   FLAGS=()
 
   # handle flags
@@ -68,6 +74,12 @@ collect_vars() {
 
   # append password if supplied
   [ -z ${CRDB_ROOT_PASSWORD+x} ] || FLAGS+=(-p"${CRDB_ROOT_PASSWORD}")
+
+  if [[ ${CRDB_IN_CONTAINER} = 'true' ]]; then
+    CMD="docker exec -i ${CRDB_CONTAINER_NAME} cockroach"
+  else
+    CMD="cockroach"
+  fi
 }
 
 main() {
@@ -84,20 +96,20 @@ main() {
   then
       echo "Resetting DB..."
       set -eux
-      cockroach sql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${CRDB_DATABASE};" || \
+      $CMD sql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${CRDB_DATABASE};" || \
         die "Error: Failed to drop database '${CRDB_DATABASE}'."
-      cockroach sql "${FLAGS[@]}" -e "CREATE DATABASE ${CRDB_DATABASE};" || \
+      $CMD sql "${FLAGS[@]}" -e "CREATE DATABASE ${CRDB_DATABASE};" || \
         die "Error: Failed to create database '${CRDB_DATABASE}'."
       if [[ ${CRDB_INSECURE} = 'true' ]]; then
-        cockroach sql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${CRDB_USER};" || \
+        $CMD sql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${CRDB_USER};" || \
           die "Error: Failed to create user '${CRDB_USER}'."
       else
-        cockroach sql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${CRDB_USER} WITH PASSWORD '${CRDB_PASSWORD}';" || \
+        $CMD sql "${FLAGS[@]}" -e "CREATE USER IF NOT EXISTS ${CRDB_USER} WITH PASSWORD '${CRDB_PASSWORD}';" || \
           die "Error: Failed to create user '${CRDB_USER}'."
       fi
-      cockroach sql "${FLAGS[@]}" -e "GRANT ALL PRIVILEGES ON DATABASE ${CRDB_DATABASE} TO ${CRDB_USER} WITH GRANT OPTION" || \
+      $CMD sql "${FLAGS[@]}" -e "GRANT ALL PRIVILEGES ON DATABASE ${CRDB_DATABASE} TO ${CRDB_USER} WITH GRANT OPTION" || \
         die "Error: Failed to grant '${CRDB_USER}' user all privileges on '${CRDB_DATABASE}'."
-      cockroach sql "${FLAGS[@]}" -d ${CRDB_DATABASE} < ${TRILLIAN_PATH}/storage/crdb/schema/storage.sql || \
+      $CMD sql "${FLAGS[@]}" -d ${CRDB_DATABASE} < ${TRILLIAN_PATH}/storage/crdb/schema/storage.sql || \
         die "Error: Failed to create tables in '${CRDB_DATABASE}' database."
       echo "Reset Complete"
   fi
