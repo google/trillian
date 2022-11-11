@@ -69,4 +69,3 @@ jobs:
         TEST_COCKROACHDB_URI: postgresql://root@localhost:26257/defaultdb?sslmode=disable
         CRDB_IN_CONTAINER: true
         CRDB_CONTAINER_NAME: roach
-        LOGGING_OPTS: --alsologtostderr -v=5
