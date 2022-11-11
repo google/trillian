@@ -1,0 +1,36 @@
+---
+name: Test
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+
+    - uses: golangci/golangci-lint-action@v3
+      with:
+        args: ./storage/crdb
+
+  test-crdb:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-go@v3
+      with:
+        go-version: '1.19'
+        check-latest: true
+        cache: true
+
+    - name: Run tests
+      run: go test -v ./storage/crdb/...
