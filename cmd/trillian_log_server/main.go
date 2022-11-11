@@ -50,7 +50,8 @@ import (
 	_ "github.com/google/trillian/storage/crdb"
 	_ "github.com/google/trillian/storage/mysql"
 
-	// Load MySQL quota provider
+	// Load quota providers
+	_ "github.com/google/trillian/quota/crdbqm"
 	_ "github.com/google/trillian/quota/mysqlqm"
 )
 
