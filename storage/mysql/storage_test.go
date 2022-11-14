@@ -222,7 +222,7 @@ func diffNodes(got, want []stree.Node) ([]stree.Node, []stree.Node) {
 }
 
 func openTestDBOrDie() (*sql.DB, func(context.Context)) {
-	db, done, err := testdb.NewTrillianDB(context.TODO())
+	db, done, err := testdb.NewTrillianDB(context.TODO(), testdb.DriverMySQL)
 	if err != nil {
 		panic(err)
 	}
