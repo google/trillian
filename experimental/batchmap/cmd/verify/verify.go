@@ -154,6 +154,10 @@ func getTilesForKey(mapDir string, key []byte) ([]*batchmap.Tile, error) {
 
 // toNode converts a TileLeaf into the equivalent Node for HStar3.
 func toNode(prefix []byte, l *batchmap.TileLeaf) smt.Node {
+	// CodeQL mollification:
+	if pLen := len(prefix) + len(l.Path); pLen > 1*1024*1024 {
+		panic(fmt.Sprintf("absurd path length %d", pLen))
+	}
 	path := make([]byte, 0, len(prefix)+len(l.Path))
 	path = append(append(path, prefix...), l.Path...)
 	return smt.Node{
