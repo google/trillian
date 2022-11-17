@@ -62,17 +62,17 @@ var (
 	trillianCRDBSchema  = testonly.RelativeToPackage("../crdb/schema/storage.sql")
 )
 
-// TestDBDriverName is the name of a database driver.
-type TestDBDriverName string
+// DriverName is the name of a database driver.
+type DriverName string
 
 const (
 	// DriverMySQL is the identifier for the MySQL storage driver.
-	DriverMySQL TestDBDriverName = "mysql"
+	DriverMySQL DriverName = "mysql"
 	// DriverCockroachDB is the identifier for the CockroachDB storage driver.
-	DriverCockroachDB TestDBDriverName = "cockroachdb"
+	DriverCockroachDB DriverName = "cockroachdb"
 )
 
-var driverMapping = map[TestDBDriverName]storageDriverInfo{
+var driverMapping = map[DriverName]storageDriverInfo{
 	DriverMySQL: {
 		sqlDriverName: "mysql",
 		schema:        trillianMySQLSchema,
@@ -156,7 +156,7 @@ func CockroachDBAvailable() bool {
 	return dbAvailable(DriverCockroachDB)
 }
 
-func dbAvailable(driver TestDBDriverName) bool {
+func dbAvailable(driver DriverName) bool {
 	driverName := driverMapping[driver].sqlDriverName
 	uri := driverMapping[driver].uriFunc()
 	db, err := sql.Open(driverName, uri)
@@ -192,7 +192,7 @@ func SetFDLimit(uLimit uint64) error {
 // using the DB, the caller should not continue to use the returned DB after
 // calling this function as it may, for example, delete the underlying
 // instance.
-func newEmptyDB(ctx context.Context, driver TestDBDriverName) (*sql.DB, func(context.Context), error) {
+func newEmptyDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.Context), error) {
 	if err := SetFDLimit(2048); err != nil {
 		return nil, nil, err
 	}
@@ -235,7 +235,7 @@ func newEmptyDB(ctx context.Context, driver TestDBDriverName) (*sql.DB, func(con
 // NewTrillianDB creates an empty database with the Trillian schema. The database name is randomly
 // generated.
 // NewTrillianDB is equivalent to Default().NewTrillianDB(ctx).
-func NewTrillianDB(ctx context.Context, driver TestDBDriverName) (*sql.DB, func(context.Context), error) {
+func NewTrillianDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.Context), error) {
 	db, done, err := newEmptyDB(ctx, driver)
 	if err != nil {
 		return nil, nil, err
@@ -282,6 +282,7 @@ func SkipIfNoMySQL(t *testing.T) {
 	t.Logf("Test MySQL available at %q", mysqlURI())
 }
 
+// SkipIfNoCockroachDB is a test helper that skips tests that require a local CockroachDB.
 func SkipIfNoCockroachDB(t *testing.T) {
 	t.Helper()
 	if !CockroachDBAvailable() {
