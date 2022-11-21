@@ -1,4 +1,4 @@
-// Copyright 2016 Google LLC. All Rights Reserved.
+// Copyright 2016 Trillian Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package crdb
 
 import (
 	"bytes"
 	"context"
 	"crypto"
 	"crypto/sha256"
-	"database/sql"
-	"errors"
-	"flag"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
@@ -38,6 +33,8 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	nodes := createSomeNodes(256)
 	nodeIDs := make([]compact.NodeID, len(nodes))
 	for i := range nodes {
@@ -58,12 +55,15 @@ func TestNodeRoundTrip(t *testing.T) {
 		{desc: "store-all-read-all", store: nodes, read: nodeIDs, want: nodes},
 		{desc: "store-all-read-none", store: nodes, read: nil, want: nil},
 	} {
+		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
-			cleanTestDB(DB)
-			as := NewAdminStorage(DB)
+			handle := openTestDBOrDie(t)
+			as := NewSQLAdminStorage(handle.db)
 			tree := mustCreateTree(ctx, t, as, storageto.LogTree)
-			s := NewLogStorage(DB, nil)
+			s := NewLogStorage(handle.db, nil)
 
 			const writeRev = int64(100)
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -93,11 +93,13 @@ func TestNodeRoundTrip(t *testing.T) {
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
+	handle := openTestDBOrDie(t)
+	as := NewSQLAdminStorage(handle.db)
 	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(handle.db, nil)
 
 	const writeRev = int64(100)
 	const size = 871
@@ -221,42 +223,6 @@ func diffNodes(got, want []stree.Node) ([]stree.Node, []stree.Node) {
 	return missing, extra
 }
 
-func openTestDBOrDie() (*sql.DB, func(context.Context)) {
-	db, done, err := testdb.NewTrillianDB(context.TODO(), testdb.DriverMySQL)
-	if err != nil {
-		panic(err)
-	}
-	return db, done
-}
-
-// cleanTestDB deletes all the entries in the database.
-func cleanTestDB(db *sql.DB) {
-	for _, table := range allTables {
-		if _, err := db.ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
-			panic(fmt.Sprintf("Failed to delete rows in %s: %v", table, err))
-		}
-	}
-}
-
-func getVersion(db *sql.DB) (string, error) {
-	rows, err := db.QueryContext(context.TODO(), "SELECT @@GLOBAL.version")
-	if err != nil {
-		return "", fmt.Errorf("getVersion: failed to perform query: %v", err)
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return "", errors.New("getVersion: cursor has no rows")
-	}
-	var v string
-	if err := rows.Scan(&v); err != nil {
-		return "", err
-	}
-	if rows.Next() {
-		return "", errors.New("getVersion: too many rows returned")
-	}
-	return v, nil
-}
-
 func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
 	t.Helper()
 	if err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -286,26 +252,4 @@ func mustCreateTree(ctx context.Context, t *testing.T, s storage.AdminStorage, t
 		t.Fatalf("storage.CreateTree(): %v", err)
 	}
 	return tree
-}
-
-// DB is the database used for tests. It's initialized and closed by TestMain().
-var DB *sql.DB
-
-func TestMain(m *testing.M) {
-	flag.Parse()
-	if !testdb.MySQLAvailable() {
-		klog.Errorf("MySQL not available, skipping all MySQL storage tests")
-		return
-	}
-
-	var done func(context.Context)
-
-	DB, done = openTestDBOrDie()
-
-	if v, err := getVersion(DB); err == nil {
-		klog.Infof("MySQL version '%v'", v)
-	}
-	status := m.Run()
-	done(context.Background())
-	os.Exit(status)
 }

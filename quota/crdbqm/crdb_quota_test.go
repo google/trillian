@@ -1,4 +1,4 @@
-// Copyright 2017 Google LLC. All Rights Reserved.
+// Copyright 2022 Trillian Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysqlqm_test
+package crdbqm
 
 import (
 	"context"
@@ -24,9 +24,8 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
-	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/crdb"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/types"
 
@@ -34,10 +33,10 @@ import (
 )
 
 func TestQuotaManager_GetTokens(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
+	testdb.SkipIfNoCockroachDB(t)
 	ctx := context.Background()
 
-	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverCockroachDB)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
@@ -98,97 +97,33 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if err := setUnsequencedRows(ctx, db, tree, test.unsequencedRows); err != nil {
-			t.Errorf("setUnsequencedRows() returned err = %v", err)
-			continue
-		}
-
-		// Test general cases using select count(*) to avoid flakiness / allow for more
-		// precise assertions.
-		// See TestQuotaManager_GetTokens_InformationSchema for information schema tests.
-		qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows, UseSelectCount: true}
-		err := qm.GetTokens(ctx, test.numTokens, test.specs)
-		if hasErr := err == mysqlqm.ErrTooManyUnsequencedRows; hasErr != test.wantErr {
-			t.Errorf("%v: GetTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
-		}
-	}
-}
-
-func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
-	ctx := context.Background()
-
-	maxUnsequenced := 20
-	globalWriteSpec := []quota.Spec{{Group: quota.Global, Kind: quota.Write}}
-
-	// Make both variants go through the test.
-	tests := []struct {
-		useSelectCount bool
-	}{
-		{useSelectCount: true},
-		{useSelectCount: false},
-	}
-	for _, test := range tests {
-		desc := fmt.Sprintf("useSelectCount = %v", test.useSelectCount)
-		t.Run(desc, func(t *testing.T) {
-			db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
-			if err != nil {
-				t.Fatalf("NewTrillianDB() returned err = %v", err)
-			}
-			defer done(ctx)
-
-			tree, err := createTree(ctx, db)
-			if err != nil {
-				t.Fatalf("createTree() returned err = %v", err)
+		t.Run(test.desc, func(t *testing.T) {
+			if err := setUnsequencedRows(ctx, db, tree, test.unsequencedRows); err != nil {
+				t.Errorf("setUnsequencedRows() returned err = %v", err)
+				return
 			}
 
-			qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
+			qm := &QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows}
 
-			// All GetTokens() calls where leaves < maxUnsequenced should succeed:
-			// information_schema may be outdated, but it should refer to a valid point in the
-			// past.
-			for i := 0; i < maxUnsequenced-1; i++ {
-				if err := queueLeaves(ctx, db, tree, i /* firstID */, 1 /* num */); err != nil {
-					t.Fatalf("queueLeaves() returned err = %v", err)
-				}
-				if err := qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec); err != nil {
-					t.Errorf("GetTokens() returned err = %v (%v leaves)", err, i+1)
-				}
-			}
-
-			// Make leaves = maxUnsequenced
-			if err := queueLeaves(ctx, db, tree, maxUnsequenced-1 /* firstID */, 1 /* num */); err != nil {
-				t.Fatalf("queueLeaves() returned err = %v", err)
-			}
-
-			// Allow some time for information_schema to "catch up".
-			stop := false
-			timeout := time.After(1 * time.Second)
-			for !stop {
-				select {
-				case <-timeout:
-					t.Errorf("timed out")
-					stop = true
-				default:
-					// An error means that GetTokens is working correctly
-					stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == mysqlqm.ErrTooManyUnsequencedRows
-				}
+			err = qm.GetTokens(ctx, test.numTokens, test.specs)
+			if hasErr := err == ErrTooManyUnsequencedRows; hasErr != test.wantErr {
+				t.Errorf("%v: GetTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
 			}
 		})
 	}
 }
 
 func TestQuotaManager_Noops(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
+	testdb.SkipIfNoCockroachDB(t)
 	ctx := context.Background()
 
-	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverCockroachDB)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
 	defer done(ctx)
 
-	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: 1000}
+	qm := &QuotaManager{DB: db, MaxUnsequencedRows: 1000}
 	specs := allSpecs(ctx, qm, 10 /* treeID */)
 
 	tests := []struct {
@@ -238,7 +173,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	var tree *trillian.Tree
 
 	{
-		as := mysql.NewAdminStorage(db)
+		as := crdb.NewSQLAdminStorage(db)
 		err := as.ReadWriteTransaction(ctx, func(ctx context.Context, tx storage.AdminTX) error {
 			var err error
 			tree, err = tx.CreateTree(ctx, stestonly.LogTree)
@@ -250,7 +185,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	}
 
 	{
-		ls := mysql.NewLogStorage(db, nil)
+		ls := crdb.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 			logRoot, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
 			if err != nil {
@@ -286,7 +221,7 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 		})
 	}
 
-	ls := mysql.NewLogStorage(db, nil)
+	ls := crdb.NewLogStorage(db, nil)
 	_, err := ls.QueueLeaves(ctx, tree, leaves, time.Now())
 	return err
 }

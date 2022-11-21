@@ -1,0 +1,71 @@
+---
+name: Test CRDB
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+
+    - uses: golangci/golangci-lint-action@v3
+      with:
+        args: ./storage/crdb
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-go@v3
+      with:
+        go-version: '1.19'
+        check-latest: true
+        cache: true
+
+    - name: Run tests
+      run: go test -v ./storage/crdb/... ./quota/crdbqm/...
+
+  integration:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-go@v3
+      with:
+        go-version: '1.19'
+        check-latest: true
+        cache: true
+
+    - name: Build before tests
+      run: go mod download && go build ./...
+    
+    - name: Run CockroachDB
+      run: docker run --rm -d --name=roach -p 8080:8080 -p 26257:26257 -v "${PWD}/cockroach-data:/cockroach/cockroach-data"  cockroachdb/cockroach:latest start-single-node --insecure
+
+    - name: Wait for CockroachDB
+      uses: nick-fields/retry@v2
+      with:
+        timeout_seconds: 15
+        max_attempts: 3
+        retry_on: error
+        command: docker exec roach ./cockroach sql --insecure -e "SELECT 1"
+
+    - name: Get crdb logs
+      run: docker logs roach
+
+    - name: Run tests
+      run: ./integration/integration_test.sh
+      env:
+        TEST_COCKROACHDB_URI: postgresql://root@localhost:26257/defaultdb?sslmode=disable
+        CRDB_IN_CONTAINER: true
+        CRDB_CONTAINER_NAME: roach
