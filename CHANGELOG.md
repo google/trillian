@@ -2,6 +2,11 @@
 
 ## HEAD
 
+### Storage
+
+A new storage driver for CockroachDB has been added. It's currently in alpha stage
+with support provided by Equinix Metal.
+
 ### Misc
 * Fix log server not exiting properly on SIGINT
 
