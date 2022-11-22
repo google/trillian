@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
   xxd
 
 # Install golangci-lint. See docs at: https://golangci-lint.run/usage/install/.
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.47.3
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.50.1
 
 RUN mkdir protoc && \
     (cd protoc && \
