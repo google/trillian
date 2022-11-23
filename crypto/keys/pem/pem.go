@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package pem contains functions for marshaling and unmarshaling keys in PEM format.
 package pem
 
 import (

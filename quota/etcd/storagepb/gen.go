@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package storagepb contains the protobuf definitions for using etcd as a
+// Trillian quota backend.
 package storagepb
 
 //go:generate protoc -I=. --go_out=paths=source_relative:. storagepb.proto

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package etcd contains a helper to start an embedded etcd server.
 package etcd
 
 import (

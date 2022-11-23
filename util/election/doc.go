@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC. All Rights Reserved.
+// Copyright 2022 Trillian Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package spannerpb contains the generated protobuf code for the Spanner
-// storage implementation.
-package spannerpb
-
-//go:generate protoc -I=. -I=../../../third_party/googleapis --go_out=paths=source_relative:. spanner.proto
+// Package election provides a generic interface for election of a leader.
+package election
