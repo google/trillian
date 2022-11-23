@@ -30,7 +30,9 @@ const (
 
 	// TODO(jaosorior): Come up with a more optimal solution for CRDB, as this is
 	// linear and too costly.
-	countFromUnsequencedTable = "SELECT COUNT(*) FROM Unsequenced"
+	// Using a follower read here to reduce latency on the query. While this will
+	// slightly less accurate than a read from the leader, it should be good enough.
+	countFromUnsequencedTable = "SELECT COUNT(*) FROM Unsequenced AS OF SYSTEM TIME follower_read_timestamp()"
 )
 
 // ErrTooManyUnsequencedRows is returned when tokens are requested but Unsequenced has grown

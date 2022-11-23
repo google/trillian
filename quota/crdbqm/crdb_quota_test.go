@@ -36,6 +36,13 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 	testdb.SkipIfNoCockroachDB(t)
 	ctx := context.Background()
 
+	// This allows for CockroachDB to persist the transaction for the record.
+	// We're mostly just interested in testing that the quota is managed at all,
+	// but running this in production will need to tolerate that
+	// quota management won't be exact.
+	// The 5 second time was gotten from https://www.cockroachlabs.com/docs/stable/follower-reads.html#when-to-use-exact-staleness-reads
+	const transactionBackoff = 5 * time.Second
+
 	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverCockroachDB)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
@@ -102,6 +109,8 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 				t.Errorf("setUnsequencedRows() returned err = %v", err)
 				return
 			}
+
+			time.Sleep(transactionBackoff)
 
 			qm := &QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows}
 
