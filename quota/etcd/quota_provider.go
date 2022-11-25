@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package etcd provides the configuration and initialization of the etcd
+// quota manager.
 package etcd
 
 import (

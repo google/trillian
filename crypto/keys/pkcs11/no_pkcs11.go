@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package pkcs11 provides access to private keys using a PKCS#11 interface.
 package pkcs11
 
 import (
