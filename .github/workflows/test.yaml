@@ -11,22 +11,22 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
 
-    - uses: actions/setup-go@v3
+    - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f # v3.3.1
       with:
         go-version: 1.19
 
-    - uses: golangci/golangci-lint-action@v3
+    - uses: golangci/golangci-lint-action@07db5389c99593f11ad7b44463c2d4233066a9b1 # v3.3.0
       with:
         args: ./storage/crdb
 
   unit-test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
 
-    - uses: actions/setup-go@v3
+    - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f # v3.3.1
       with:
         go-version: '1.19'
         check-latest: true
@@ -38,9 +38,9 @@ jobs:
   integration:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
 
-    - uses: actions/setup-go@v3
+    - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f # v3.3.1
       with:
         go-version: '1.19'
         check-latest: true
@@ -53,7 +53,7 @@ jobs:
       run: docker run --rm -d --name=roach -p 8080:8080 -p 26257:26257 -v "${PWD}/cockroach-data:/cockroach/cockroach-data"  cockroachdb/cockroach:latest start-single-node --insecure
 
     - name: Wait for CockroachDB
-      uses: nick-fields/retry@v2
+      uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482 # v2.8.2
       with:
         timeout_seconds: 15
         max_attempts: 3
