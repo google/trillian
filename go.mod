@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	bitbucket.org/creachadair/shell v0.0.7
-	cloud.google.com/go/spanner v1.40.0
+	cloud.google.com/go/spanner v1.41.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.12
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
 	github.com/cockroachdb/cockroach-go/v2 v2.2.19
@@ -32,7 +32,7 @@ require (
 	golang.org/x/sys v0.2.0
 	golang.org/x/tools v0.3.0
 	google.golang.org/api v0.103.0
-	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c
+	google.golang.org/genproto v0.0.0-20221201164419-0e50fba7f41c
 	google.golang.org/grpc v1.51.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.1
@@ -43,11 +43,11 @@ require (
 	cloud.google.com/go v0.105.0 // indirect
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
-	cloud.google.com/go/iam v0.6.0 // indirect
-	cloud.google.com/go/longrunning v0.1.1 // indirect
-	cloud.google.com/go/monitoring v1.7.0 // indirect
+	cloud.google.com/go/iam v0.7.0 // indirect
+	cloud.google.com/go/longrunning v0.3.0 // indirect
+	cloud.google.com/go/monitoring v1.8.0 // indirect
 	cloud.google.com/go/storage v1.27.0 // indirect
-	cloud.google.com/go/trace v1.3.0 // indirect
+	cloud.google.com/go/trace v1.4.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
