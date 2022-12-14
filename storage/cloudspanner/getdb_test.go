@@ -32,7 +32,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 )
 
 // To run cloudspanner tests,
