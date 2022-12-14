@@ -68,6 +68,8 @@
 * Bump github/codeql-action from 2.1.35 to 2.1.36 by @dependabot in https://github.com/google/trillian/pull/2874
 * Bump actions/checkout from 3.1.0 to 3.2.0 by @dependabot in https://github.com/google/trillian/pull/2873
 * Bump golang.org/x/crypto from 0.3.0 to 0.4.0 by @dependabot in https://github.com/google/trillian/pull/2872
+* Bump google.golang.org/api from 0.103.0 to 0.104.0 by @dependabot in https://github.com/google/trillian/pull/2871
+* Bump cloud.google.com/go/spanner from 1.41.0 to 1.42.0 by @dependabot in https://github.com/google/trillian/pull/2877
 
 
 ## v.1.5.0
