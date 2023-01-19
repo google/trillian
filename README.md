@@ -73,7 +73,7 @@ The current state of feature implementation is recorded in the
 
 To build and test Trillian you need:
 
- - Go 1.17 or later (go 1.17 matches cloudbuild, and is preferred for developers
+ - Go 1.19 or later (go 1.19 matches cloudbuild, and is preferred for developers
    that will be submitting PRs to this project).
 
 To run many of the tests (and production deployment) you need:

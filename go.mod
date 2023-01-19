@@ -1,6 +1,6 @@
 module github.com/google/trillian
 
-go 1.17
+go 1.19
 
 require (
 	bitbucket.org/creachadair/shell v0.0.7
