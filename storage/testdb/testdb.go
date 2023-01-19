@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -243,7 +242,7 @@ func NewTrillianDB(ctx context.Context, driver DriverName) (*sql.DB, func(contex
 
 	schema := driverMapping[driver].schema
 
-	sqlBytes, err := ioutil.ReadFile(schema)
+	sqlBytes, err := os.ReadFile(schema)
 	if err != nil {
 		return nil, nil, err
 	}

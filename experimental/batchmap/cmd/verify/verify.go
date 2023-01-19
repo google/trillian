@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/google/trillian/experimental/batchmap"
@@ -139,7 +139,7 @@ func getTilesForKey(mapDir string, key []byte) ([]*batchmap.Tile, error) {
 	for i := 0; i <= *prefixStrata; i++ {
 		tilePath := key[0:i]
 		tileFile := fmt.Sprintf("%s/path_%x", mapDir, tilePath)
-		in, err := ioutil.ReadFile(tileFile)
+		in, err := os.ReadFile(tileFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read file %s: %v", tileFile, err)
 		}

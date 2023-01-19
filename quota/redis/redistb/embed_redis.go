@@ -22,7 +22,6 @@ package main
 import (
 	"bytes"
 	"go/format"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -57,7 +56,7 @@ func main() {
 		log.Fatalf("usage: %s prefix file.lua output.go", os.Args[0])
 	}
 
-	data, err := ioutil.ReadFile(os.Args[2])
+	data, err := os.ReadFile(os.Args[2])
 	if err != nil {
 		log.Fatalf("error opening input file: %v", err)
 	}

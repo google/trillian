@@ -15,7 +15,7 @@
 package format
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -42,7 +42,7 @@ func TestDBFormatNoChange(t *testing.T) {
 			if err != nil {
 				t.Fatalf("run: %v", err)
 			}
-			saved, err := ioutil.ReadFile("testdata/" + tc.name)
+			saved, err := os.ReadFile("testdata/" + tc.name)
 			if err != nil {
 				t.Fatalf("ReadFile(%v): %v", tc.name, err)
 			}

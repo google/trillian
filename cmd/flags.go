@@ -18,7 +18,6 @@ package cmd
 import (
 	"errors"
 	"flag"
-	"io/ioutil"
 	"os"
 
 	"bitbucket.org/creachadair/shell"
@@ -49,7 +48,7 @@ func parseFlags(file string) error {
 // so that flags provided on the command line take precedence over
 // flags provided in the file.
 func ParseFlagFile(path string) error {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}

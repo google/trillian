@@ -18,7 +18,6 @@ package etcd
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -45,7 +44,7 @@ const (
 // A temp directory and random ports are used to setup etcd.
 func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) {
 	var dir string
-	dir, err = ioutil.TempDir("", tempDirPrefix)
+	dir, err = os.MkdirTemp("", tempDirPrefix)
 	if err != nil {
 		return
 	}

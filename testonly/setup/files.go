@@ -15,7 +15,6 @@
 package setup
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -25,7 +24,7 @@ import (
 func TempFile(t *testing.T, prefix string) (*os.File, func()) {
 	t.Helper()
 
-	file, err := ioutil.TempFile("", prefix)
+	file, err := os.CreateTemp("", prefix)
 	if err != nil {
 		t.Fatalf("Failed to generate a temporary file: %v", err)
 	}
