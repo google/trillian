@@ -439,6 +439,7 @@ type TreeInfo struct {
 	// config contains the log or map specific tree configuration.
 	//
 	// Types that are assignable to StorageConfig:
+	//
 	//	*TreeInfo_LogStorageConfig
 	//	*TreeInfo_MapStorageConfig
 	StorageConfig isTreeInfo_StorageConfig `protobuf_oneof:"storage_config"`
