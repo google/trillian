@@ -96,6 +96,7 @@ type Specification struct {
 	// The type of parameters provided determines the algorithm used for the key.
 	//
 	// Types that are assignable to Params:
+	//
 	//	*Specification_EcdsaParams
 	//	*Specification_RsaParams
 	//	*Specification_Ed25519Params
@@ -412,7 +413,7 @@ func (x *PKCS11Config) GetPublicKey() string {
 	return ""
 }
 
-/// ECDSA defines parameters for an ECDSA key.
+// / ECDSA defines parameters for an ECDSA key.
 type Specification_ECDSA struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
-	"io/ioutil"
+	"io"
 	"sync"
 	"time"
 
@@ -67,7 +67,7 @@ func warn() {
 			// No need to exit, it's an unlikely error and doesn't affect operation.
 			klog.Warningf("Close()=%v", err)
 		}
-		t, _ := ioutil.ReadAll(r)
+		t, _ := io.ReadAll(r)
 		klog.Warningf("WARNING\n%s\nCloudspanner is an experimental storage implementation, and only supports Logs currently.", string(t))
 	})
 }

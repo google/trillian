@@ -215,6 +215,7 @@ type Config struct {
 	// Replenishment strategy used by the config.
 	//
 	// Types that are assignable to ReplenishmentStrategy:
+	//
 	//	*Config_SequencingBased
 	//	*Config_TimeBased
 	ReplenishmentStrategy isConfig_ReplenishmentStrategy `protobuf_oneof:"replenishment_strategy"`

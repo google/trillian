@@ -173,6 +173,7 @@ type Config struct {
 	// Replenishment strategy used by the config.
 	//
 	// Types that are assignable to ReplenishmentStrategy:
+	//
 	//	*Config_SequencingBased
 	//	*Config_TimeBased
 	ReplenishmentStrategy isConfig_ReplenishmentStrategy `protobuf_oneof:"replenishment_strategy"`
@@ -658,14 +659,14 @@ func (x *ListConfigsResponse) GetConfigs() []*Config {
 // Some config changes will cause the current number of tokens to be updated, as
 // listed below:
 //
-// * If max_tokens is reduced and the current number of tokens is greater than
-//   the new max_tokens, the current number of tokens is reduced to max_tokens.
-//   This happens so the quota is immediately conformant to the new
-//   configuration.
+//   - If max_tokens is reduced and the current number of tokens is greater than
+//     the new max_tokens, the current number of tokens is reduced to max_tokens.
+//     This happens so the quota is immediately conformant to the new
+//     configuration.
 //
-// * A state transition from disabled to enabled causes the quota to be fully
-//   replenished. This happens so the re-enabled quota will enter in action in a
-//   known, predictable state.
+//   - A state transition from disabled to enabled causes the quota to be fully
+//     replenished. This happens so the re-enabled quota will enter in action in a
+//     known, predictable state.
 //
 // A "full replenish", also called "reset", may be forced via the reset_quota
 // parameter, regardless of any other changes. For convenience, reset only

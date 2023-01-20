@@ -461,19 +461,21 @@ type SignedLogRoot struct {
 	// in RFC5246 notation):
 	//
 	// enum { v1(1), (65535)} Version;
-	// struct {
-	//   uint64 tree_size;
-	//   opaque root_hash<0..128>;
-	//   uint64 timestamp_nanos;
-	//   uint64 revision;
-	//   opaque metadata<0..65535>;
-	// } LogRootV1;
-	// struct {
-	//   Version version;
-	//   select(version) {
-	//     case v1: LogRootV1;
-	//   }
-	// } LogRoot;
+	//
+	//	struct {
+	//	  uint64 tree_size;
+	//	  opaque root_hash<0..128>;
+	//	  uint64 timestamp_nanos;
+	//	  uint64 revision;
+	//	  opaque metadata<0..65535>;
+	//	} LogRootV1;
+	//
+	//	struct {
+	//	  Version version;
+	//	  select(version) {
+	//	    case v1: LogRootV1;
+	//	  }
+	//	} LogRoot;
 	//
 	// A serialized v1 log root will therefore be laid out as:
 	//
