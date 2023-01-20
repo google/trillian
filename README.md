@@ -193,7 +193,6 @@ go generate -x ./...  # hunts for //go:generate comments and runs them
 The Trillian codebase uses go.mod to declare fixed versions of its dependencies. 
 With Go modules, updating a dependency simply involves running `go get`:
 ```
-export GO111MODULE=on
 go get package/path       # Fetch the latest published version
 go get package/path@X.Y.Z # Fetch a specific published version
 go get package/path@HEAD  # Fetch the latest commit 

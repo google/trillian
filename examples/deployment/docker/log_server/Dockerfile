@@ -4,7 +4,6 @@ WORKDIR /trillian
 
 ARG GOFLAGS=""
 ENV GOFLAGS=$GOFLAGS
-ENV GO111MODULE=on
 
 # Download dependencies first - this should be cacheable.
 COPY go.mod go.sum ./

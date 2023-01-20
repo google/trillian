@@ -5,7 +5,6 @@ WORKDIR /testbase
 
 ARG GOFLAGS=""
 ENV GOFLAGS=$GOFLAGS
-ENV GO111MODULE=on
 ENV GOPATH /go
 
 RUN apt-get update && apt-get install -y \
