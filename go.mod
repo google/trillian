@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	bitbucket.org/creachadair/shell v0.0.7
-	cloud.google.com/go/spanner v1.42.0
+	cloud.google.com/go/spanner v1.43.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.12
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
 	github.com/cockroachdb/cockroach-go/v2 v2.2.20
@@ -32,7 +32,7 @@ require (
 	golang.org/x/sys v0.4.0
 	golang.org/x/tools v0.5.0
 	google.golang.org/api v0.108.0
-	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f
 	google.golang.org/grpc v1.52.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.1
