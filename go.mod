@@ -2,10 +2,6 @@ module github.com/google/trillian
 
 go 1.19
 
-// We need to use this version due to incompatible pkg dependencies
-// https://github.com/kubernetes/client-go/issues/1084
-replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65
-
 require (
 	bitbucket.org/creachadair/shell v0.0.7
 	cloud.google.com/go/spanner v1.42.0
@@ -103,7 +99,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
-	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
