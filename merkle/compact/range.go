@@ -62,8 +62,8 @@ func (f *RangeFactory) NewEmptyRange(begin uint64) *Range {
 // range. The structure is efficiently mergeable with other compact ranges that
 // share one of the endpoints with it.
 //
-// TODO(pavelkalinnikov): Add document with more details on how it works, and
-// what it can be used for.
+// Compact Ranges is described in more details on:
+// https://github.com/transparency-dev/merkle/blob/main/docs/compact_ranges.md
 type Range struct {
 	f      *RangeFactory
 	begin  uint64
