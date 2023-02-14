@@ -63,7 +63,7 @@ func (f *RangeFactory) NewEmptyRange(begin uint64) *Range {
 // share one of the endpoints with it.
 //
 // Compact Range is described in more details on:
-// https://github.com/transparency-dev/merkle/blob/main/docs/compact_ranges.md
+// https://github.com/transparency-dev/merkle/blob/main/docs/compact_ranges.md .
 type Range struct {
 	f      *RangeFactory
 	begin  uint64
