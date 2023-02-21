@@ -211,8 +211,7 @@ func genEntries(params TestParameters) []*trillian.LogLeaf {
 	// Shuffle the leaves to see if that breaks things, but record the rand seed
 	// so we can reproduce failures.
 	seed := time.Now().UnixNano()
-	rand.Seed(seed)
-	perm := rand.Perm(int(params.LeafCount))
+	perm := rand.New(rand.NewSource(seed)).Perm(int(params.LeafCount))
 	klog.Infof("Generating %d leaves, %d unique, using permutation seed %d", params.LeafCount, params.UniqueLeaves, seed)
 
 	leaves := make([]*trillian.LogLeaf, 0, params.LeafCount)
