@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trillian
+  namespace: trillian-system
+---
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  namespace: trillian-system
+  name: log-server
+  labels:
+    networking.knative.dev/visibility: cluster-local
+spec:
+  template:
+    spec:
+      serviceAccountName: trillian
+      containers:
+      - name: log-server
+        image:  gcr.io/trillian-opensource-ci/log_server:latest
+        imagePullPolicy: Always
+        args: [
+          "--mysql_uri=$(MYSQL_USER):$(MYSQL_PASSWORD)@tcp($(DATABASE_HOSTNAME):3306)/$(DATABASE_NAME)",
+          "--mysql_max_idle_conns=0",
+          "--tree_gc=false",
+          "--storage_system=mysql",
+          "--quota_system=mysql",
+  #        "--etcd_servers=trillian-etcd-cluster-client.etcd-system.svc:2379",
+  #        "--etcd_http_service=trillian-logserver-http",
+          "--rpc_endpoint=0.0.0.0:8090",
+  #        "--http_endpoint=0.0.0.0:8091",
+          "--alsologtostderr"
+        ]
+        env:
+          - name: DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: database-name
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: username
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: password
+          - name: DATABASE_HOSTNAME
+            valueFrom:
+              secretKeyRef:
+                name: trillian-database
+                key: host
+        ports:
+        - name: h2c
+          containerPort: 8090

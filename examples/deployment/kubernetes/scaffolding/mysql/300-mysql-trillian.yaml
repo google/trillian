@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-trillian
+  namespace: trillian-system
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: mysql-trillian
+  clusterIP: None
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-trillian
+  namespace: trillian-system
+  labels:
+    app: mysql-trillian
+spec:
+  containers:
+    - image: gcr.io/trillian-opensource-ci/db_server@sha256:e58334fead37d1f03c77c80f66008966e79739d85214b373b3c0a69f97c59359
+      name: mysql
+      env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: trillian
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: trillian-database
+              key: database-name
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: trillian-database
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trillian-database
+              key: password
+      ports:
+        - containerPort: 3306
+          name: mysql
