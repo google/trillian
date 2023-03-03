@@ -1,0 +1,14 @@
+<dl>
+<dt>Claim<sup>{{.System}}</sup></dt>
+<dd><i>{{.ClaimMarkdown}}</i></dd>
+<dt>Statement<sup>{{.System}}</sup></dt>
+<dd>{{.Statement}}</dd>
+<dt>Claimant<sup>{{.System}}</sup></dt>
+<dd>{{.Claimant}}</dd>
+<dt>Believer<sup>{{.System}}</sup></dt>
+<dd>{{.BelieverMarkdown}}</dd>
+<dt>Verifier<sup>{{.System}}</sup></dt>
+<dd>{{.VerifierMarkdown}}</dd>
+<dt>Arbiter<sup>{{.System}}</sup></dt>
+<dd>{{.Arbiter}}</dd>
+</dl>

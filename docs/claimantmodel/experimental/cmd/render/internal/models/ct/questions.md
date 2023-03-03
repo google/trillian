@@ -1,0 +1,4 @@
+- X.509 Certificate contains all of the terms:
+  - [x] $pubKey
+  - [x] $domain
+- [x] X.509 Certificate is signed by Certificate Authority

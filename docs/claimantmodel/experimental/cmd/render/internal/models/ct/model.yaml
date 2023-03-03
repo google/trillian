@@ -1,0 +1,8 @@
+System:    "CERT"
+Claim:
+  Claim: "I am authorized to certify $pubKey for $domain"
+  Verifier:  "Domain Owner"
+Statement: "X.509 Certificate"
+Claimant:  "Certificate Authority"
+Believer:  "Web Browser"
+Arbiter:   "Browser Vendor"
