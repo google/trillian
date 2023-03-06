@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/spanner v1.42.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.12
 	github.com/apache/beam/sdks/v2 v2.0.0-20211012030016-ef4364519c94
-	github.com/cockroachdb/cockroach-go/v2 v2.2.20
+	github.com/cockroachdb/cockroach-go/v2 v2.3.0
 	github.com/fullstorydev/grpcurl v1.8.7
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.7.0
@@ -147,7 +147,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.0.1 // indirect
 	go.opentelemetry.io/otel/trace v1.0.1 // indirect
 	go.opentelemetry.io/proto/otlp v0.15.0 // indirect
-	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
