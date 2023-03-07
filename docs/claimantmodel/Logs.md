@@ -87,4 +87,4 @@ The signature on each individual Statement<sup>DOMAIN</sup> can be omitted if bo
 * Claimant<sup>DOMAIN</sup> and Claimant<sup>LOG</sup> are the same actor; and
 * Every actor that is Believer<sup>DOMAIN</sup> is also Believer<sup>LOG</sup>
 
-The signature on the Checkpoint effectively transitively signs each of the Claims within the log. This is what the [GoLang SumDB](https://blog.golang.org/module-mirror-launch) does. The Claim here is “*I, ${SumDB}, will return only $hash as the checksum for $module at $version*”. This is falsifiable; correct behaviour can be verified by confirming that no two entries in the log have the same module & version, but different checksums.
+The signature on the Checkpoint effectively transitively signs each of the Claims within the log. This is what the [Go SumDB](https://blog.golang.org/module-mirror-launch) does. The Claim here is “*I, ${SumDB}, commit to $hash as the checksum for $module at $version*”. This is falsifiable; correct behaviour can be verified by confirming that no two entries committed to by the log have the same module & version, but different checksums.
