@@ -7,6 +7,15 @@
     different version can lead to presubmits failing due to unexpected
     diffs.
 
+### Storage
+
+#### CloudSpanner
+
+* Removed use of the `--cloudspanner_write_sessions` flag.
+  This was related to preparing some fraction of CloudSpanner sessionpool entries with
+  Read/Write transactions, however this functionality is no longer supported by the client
+  library.
+
 ### Misc
 
 * Bump Go version from 1.17 to 1.19.
