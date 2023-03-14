@@ -172,11 +172,11 @@ const (
 	TreeState_FROZEN TreeState = 2
 	// Deprecated: now tracked in Tree.deleted.
 	//
-	// Deprecated: Do not use.
+	// Deprecated: Marked as deprecated in trillian.proto.
 	TreeState_DEPRECATED_SOFT_DELETED TreeState = 3
 	// Deprecated: now tracked in Tree.deleted.
 	//
-	// Deprecated: Do not use.
+	// Deprecated: Marked as deprecated in trillian.proto.
 	TreeState_DEPRECATED_HARD_DELETED TreeState = 4
 	// A tree that is draining will continue to integrate queued entries.
 	// No new entries should be accepted.
