@@ -104,6 +104,20 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	return strings.Replace(sql, placeholderSQL, parameters, 1)
 }
 
+// clearAllStmt clean up all sql.Stmt in cache
+func (m *mySQLTreeStorage) cleanAllStmt() {
+	m.statementMutex.Lock()
+	defer m.statementMutex.Unlock()
+
+	for _, ns := range m.statements {
+		for _, s := range ns {
+			s.Close()
+		}
+	}
+
+	m.statements = make(map[string]map[int]*sql.Stmt)
+}
+
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
 // and number of bound arguments.
 // TODO(al,martin): consider pulling this all out as a separate unit for reuse
@@ -200,6 +214,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
+		t.ts.cleanAllStmt()
 		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
 	}
@@ -296,6 +311,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	r, err := stx.ExecContext(ctx, args...)
 	if err != nil {
+		t.ts.cleanAllStmt()
 		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}

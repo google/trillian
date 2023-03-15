@@ -741,6 +741,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 	args = append(args, t.treeID)
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
+		t.ls.cleanAllStmt()
 		klog.Warningf("Query() %s hash = %v", desc, err)
 		return nil, err
 	}
