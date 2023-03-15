@@ -47,9 +47,9 @@ const (
 	 n.TreeId = ? AND n.SubtreeRevision <= ?
 	GROUP BY n.TreeId, n.SubtreeId
  ) AS x
- INNER JOIN Subtree 
- ON Subtree.SubtreeId = x.SubtreeId 
- AND Subtree.SubtreeRevision = x.MaxRevision 
+ INNER JOIN Subtree
+ ON Subtree.SubtreeId = x.SubtreeId
+ AND Subtree.SubtreeRevision = x.MaxRevision
  AND Subtree.TreeId = x.TreeId
  AND Subtree.TreeId = ?`
 	placeholderSQL = "<placeholder>"
@@ -104,8 +104,8 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	return strings.Replace(sql, placeholderSQL, parameters, 1)
 }
 
-// clearAllStmt clean up all sql.Stmt in cache
-func (m *mySQLTreeStorage) cleanAllStmt() {
+// clearStmtCache clear up all sql.Stmt in cache
+func (m *mySQLTreeStorage) clearStmtCache() {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
@@ -120,7 +120,7 @@ func (m *mySQLTreeStorage) cleanAllStmt() {
 	}
 
 	m.statements = make(map[string]map[int]*sql.Stmt)
-	clearedAllStmtCounter.Inc()
+	clearedStmtCacheCounter.Inc()
 }
 
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
@@ -217,7 +217,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
-		t.ts.cleanAllStmt()
+		t.ts.clearStmtCache()
 		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
 	}
@@ -314,7 +314,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	r, err := stx.ExecContext(ctx, args...)
 	if err != nil {
-		t.ts.cleanAllStmt()
+		t.ts.clearStmtCache()
 		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}
