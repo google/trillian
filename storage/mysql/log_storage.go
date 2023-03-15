@@ -82,10 +82,11 @@ const (
 )
 
 var (
-	once             sync.Once
-	queuedCounter    monitoring.Counter
-	queuedDupCounter monitoring.Counter
-	dequeuedCounter  monitoring.Counter
+	once                  sync.Once
+	queuedCounter         monitoring.Counter
+	queuedDupCounter      monitoring.Counter
+	dequeuedCounter       monitoring.Counter
+	clearedAllStmtCounter monitoring.Counter
 
 	queueLatency            monitoring.Histogram
 	queueInsertLatency      monitoring.Histogram
@@ -101,6 +102,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	queuedCounter = mf.NewCounter("mysql_queued_leaves", "Number of leaves queued", logIDLabel)
 	queuedDupCounter = mf.NewCounter("mysql_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
 	dequeuedCounter = mf.NewCounter("mysql_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
+	clearedAllStmtCounter = mf.NewCounter("mysql_cleared_all_prepared_statements", "Number of all prepared statements cleared")
 
 	queueLatency = mf.NewHistogram("mysql_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
 	queueInsertLatency = mf.NewHistogram("mysql_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)

@@ -109,13 +109,18 @@ func (m *mySQLTreeStorage) cleanAllStmt() {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
+	klog.Info("Clearing all prepared statements")
+
 	for _, ns := range m.statements {
 		for _, s := range ns {
-			s.Close()
+			if err := s.Close(); err != nil {
+				klog.Warningf("Failed to close stmt: %s", err)
+			}
 		}
 	}
 
 	m.statements = make(map[string]map[int]*sql.Stmt)
+	clearedAllStmtCounter.Inc()
 }
 
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
@@ -128,8 +133,6 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 
 	if m.statements[statement] != nil {
 		if m.statements[statement][num] != nil {
-			// TODO(al,martin): we'll possibly need to expire Stmts from the cache,
-			// e.g. when DB connections break etc.
 			return m.statements[statement][num], nil
 		}
 	} else {
