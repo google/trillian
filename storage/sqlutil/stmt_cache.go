@@ -1,3 +1,4 @@
+// Package sqlutil contains sql utilities
 package sqlutil
 
 import (
