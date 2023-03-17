@@ -7,6 +7,8 @@
     different version can lead to presubmits failing due to unexpected
     diffs.
 
+* The prepared statement is managed by a separate unit (StmtCache), which wraps the sql.Struct structure to handle and monitor the execution errors of the prepared statement. When an error occurs during statement execution, it closes the statement and clears the cache, as well as increments the error monitoring indicator.
+
 ### Misc
 
 * Bump Go version from 1.17 to 1.19.
