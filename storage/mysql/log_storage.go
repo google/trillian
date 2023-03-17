@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/storage/sqlutil"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/compact"
@@ -135,7 +136,7 @@ func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 	}
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),
-		mySQLTreeStorage: newTreeStorage(db),
+		mySQLTreeStorage: newTreeStorage(db, mf),
 		metricFactory:    mf,
 	}
 }
@@ -144,16 +145,16 @@ func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
 }
 
-func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
+func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sqlutil.Stmt, error) {
 	if orderBySequence {
-		return m.getStmt(ctx, selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
+		return m.stmtCache.GetStmt(ctx, selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
 	}
 
-	return m.getStmt(ctx, selectLeavesByMerkleHashSQL, num, "?", "?")
+	return m.stmtCache.GetStmt(ctx, selectLeavesByMerkleHashSQL, num, "?", "?")
 }
 
-func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
+func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sqlutil.Stmt, error) {
+	return m.stmtCache.GetStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
@@ -730,8 +731,8 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 	return checkResultOkAndRowCountIs(res, err, 1)
 }
 
-func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]*trillian.LogLeaf, error) {
-	stx := t.tx.StmtContext(ctx, tmpl)
+func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sqlutil.Stmt, desc string) ([]*trillian.LogLeaf, error) {
+	stx := tmpl.WithTx(ctx, t.tx)
 	defer stx.Close()
 
 	var args []interface{}
