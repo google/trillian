@@ -169,8 +169,8 @@ type StmtCache struct {
 	mf             monitoring.MetricFactory
 }
 
-// NewStmtCache creates a StmtCache instance.
-func NewStmtCache(db *sql.DB, mf monitoring.MetricFactory) *StmtCache {
+// New creates a StmtCache instance.
+func New(db *sql.DB, mf monitoring.MetricFactory) *StmtCache {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}

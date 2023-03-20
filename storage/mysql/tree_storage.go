@@ -84,7 +84,7 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 func newTreeStorage(db *sql.DB, mf monitoring.MetricFactory) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
 		db:        db,
-		stmtCache: stmtcache.NewStmtCache(db, mf),
+		stmtCache: stmtcache.New(db, mf),
 	}
 }
 
