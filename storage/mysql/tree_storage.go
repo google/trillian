@@ -26,7 +26,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/sqlutil"
+	"github.com/google/trillian/storage/stmtcache"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 	"google.golang.org/protobuf/proto"
@@ -53,7 +53,7 @@ const (
  AND Subtree.SubtreeRevision = x.MaxRevision 
  AND Subtree.TreeId = x.TreeId
  AND Subtree.TreeId = ?`
-	placeholderSQL = sqlutil.PlaceholderSQL
+	placeholderSQL = stmtcache.PlaceholderSQL
 )
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
@@ -61,7 +61,7 @@ const (
 type mySQLTreeStorage struct {
 	db *sql.DB
 
-	stmtCache *sqlutil.StmtCache
+	stmtCache *stmtcache.StmtCache
 }
 
 // OpenDB opens a database connection for all MySQL-based storage implementations.
@@ -84,15 +84,15 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 func newTreeStorage(db *sql.DB, mf monitoring.MetricFactory) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
 		db:        db,
-		stmtCache: sqlutil.NewStmtCache(db, mf),
+		stmtCache: stmtcache.NewStmtCache(db, mf),
 	}
 }
 
-func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sqlutil.Stmt, error) {
+func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*stmtcache.Stmt, error) {
 	return m.stmtCache.GetStmt(ctx, selectSubtreeSQL, num, "?", "?")
 }
 
-func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sqlutil.Stmt, error) {
+func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*stmtcache.Stmt, error) {
 	return m.stmtCache.GetStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 

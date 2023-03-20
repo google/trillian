@@ -1,5 +1,5 @@
-// Package sqlutil contains sql utilities
-package sqlutil
+// Package stmtcache contains tools for managing the prepared-statement cache.
+package stmtcache
 
 import (
 	"context"

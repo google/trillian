@@ -29,7 +29,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/sqlutil"
+	"github.com/google/trillian/storage/stmtcache"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/compact"
@@ -145,7 +145,7 @@ func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.PingContext(ctx)
 }
 
-func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sqlutil.Stmt, error) {
+func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*stmtcache.Stmt, error) {
 	if orderBySequence {
 		return m.stmtCache.GetStmt(ctx, selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
 	}
@@ -153,7 +153,7 @@ func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int
 	return m.stmtCache.GetStmt(ctx, selectLeavesByMerkleHashSQL, num, "?", "?")
 }
 
-func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sqlutil.Stmt, error) {
+func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*stmtcache.Stmt, error) {
 	return m.stmtCache.GetStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
@@ -731,7 +731,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 	return checkResultOkAndRowCountIs(res, err, 1)
 }
 
-func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sqlutil.Stmt, desc string) ([]*trillian.LogLeaf, error) {
+func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *stmtcache.Stmt, desc string) ([]*trillian.LogLeaf, error) {
 	stx := tmpl.WithTx(ctx, t.tx)
 	defer stx.Close()
 
