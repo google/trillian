@@ -31,7 +31,7 @@ type Stmt struct {
 }
 
 // errHandler handling and monitoring SQL errors
-// The err parameter standby
+// This err parameter is not currently used, but it may be necessary to perform more granular processing and monitoring of different errs in the future.
 func (s *Stmt) errHandler(_ error) {
 	o := s
 	if s.parentStmt != nil {
@@ -231,7 +231,7 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	return strings.Replace(sql, PlaceholderSQL, parameters, 1)
 }
 
-// GetStmt creates and caches sql.Stmt structs and returns their wrapper structs Stmt.
+// GetStmt creates and caches sql.Stmt and returns their wrapper Stmt.
 func (sc *StmtCache) GetStmt(ctx context.Context, statement string, num int, first, rest string) (*Stmt, error) {
 	stmt, err := sc.getStmt(ctx, statement, num, first, rest)
 	if err != nil {
