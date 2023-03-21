@@ -15,7 +15,7 @@ require (
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-licenses v1.6.0
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
 	github.com/lib/pq v1.10.7
 	github.com/prometheus/client_golang v1.14.0
