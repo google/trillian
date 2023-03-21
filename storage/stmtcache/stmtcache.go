@@ -68,6 +68,7 @@ func (s *Stmt) Close() error {
 
 // WithTx returns a transaction-specific prepared statement from
 // an existing statement.
+// The transaction-specific Stmt is closed by the caller.
 func (s *Stmt) WithTx(ctx context.Context, tx *sql.Tx) *Stmt {
 	parent := s
 	if s.parentStmt != nil {
@@ -81,7 +82,7 @@ func (s *Stmt) WithTx(ctx context.Context, tx *sql.Tx) *Stmt {
 
 // ExecContext executes a prepared statement with the given arguments and
 // returns a Result summarizing the effect of the statement.
-func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result, error) {
+func (s *Stmt) ExecContext(ctx context.Context, args ...any) (sql.Result, error) {
 	res, err := s.stmt.ExecContext(ctx, args...)
 	if err != nil {
 		s.errHandler(err)
@@ -91,7 +92,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result
 
 // QueryContext executes a prepared query statement with the given arguments
 // and returns the query results as a *Rows.
-func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows, error) {
+func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*sql.Rows, error) {
 	res, err := s.stmt.QueryContext(ctx, args...)
 	if err != nil {
 		s.errHandler(err)
