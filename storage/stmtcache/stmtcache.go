@@ -144,7 +144,7 @@ func (sc *StmtCache) clearOne(s *Stmt) {
 	sc.statementMutex.Lock()
 	defer sc.statementMutex.Unlock()
 
-	if sc.statements[s.statement] != nil && sc.statements[s.statement][s.placeholderNum] == s.stmt {
+	if _s, ok := sc.statements[s.statement][s.placeholderNum]; ok && _s == s.stmt {
 		sc.statements[s.statement][s.placeholderNum] = nil
 	}
 }
