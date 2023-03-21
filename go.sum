@@ -158,8 +158,8 @@ github.com/cncf/xds/go v0.0.0-20230105202645-06c439db220b h1:ACGZRIr7HsgBKHsueQ1
 github.com/cncf/xds/go v0.0.0-20230105202645-06c439db220b/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cockroachdb/apd v1.1.0 h1:3LFP3629v+1aKXU5Q37mxmRxX/pIu1nijXydLShEq5I=
 github.com/cockroachdb/apd v1.1.0/go.mod h1:8Sl8LxpKi29FqWXR16WEFZRNSz3SoPzUzeMeY4+DwBQ=
-github.com/cockroachdb/cockroach-go/v2 v2.3.2 h1:r+HgkUAPoRtB5UUxnSvmh3irEVeUETHSAjCSxX5Tfto=
-github.com/cockroachdb/cockroach-go/v2 v2.3.2/go.mod h1:1wNJ45eSXW9AnOc3skntW9ZUZz6gxrQK3cOj3rK+BC8=
+github.com/cockroachdb/cockroach-go/v2 v2.3.3 h1:fNmtG6XhoA1DhdDCIu66YyGSsNb1szj4CaAsbDxRmy4=
+github.com/cockroachdb/cockroach-go/v2 v2.3.3/go.mod h1:1wNJ45eSXW9AnOc3skntW9ZUZz6gxrQK3cOj3rK+BC8=
 github.com/cockroachdb/datadriven v1.0.1-0.20220214170620-9913f5bc19b7 h1:GCR5egmFNSTyGOv9IvMh636aELybEhZOlpPlW2NtuiU=
 github.com/cockroachdb/errors v1.9.0 h1:B48dYem5SlAY7iU8AKsgedb4gH6mo+bDkbtLIvM/a88=
 github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f h1:o/kfcElHqOiXqcou5a3rIlMc7oJbMQkeLk0VQJ7zgqY=
