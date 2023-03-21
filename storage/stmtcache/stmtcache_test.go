@@ -151,7 +151,7 @@ func TestStmtExecutionError(t *testing.T) {
 	if err = stmt.SQLStmt().Close(); err != nil {
 		t.Fatalf("Failed to close sql.Stmt: %s", err)
 	}
-	// Execution error trigger cache clear logic
+	// Execution error trigger cache clear logic.
 	if _, err = stmt.ExecContext(ctx, ""); err == nil {
 		t.Fatal("Unexpected execution succeeded")
 	}

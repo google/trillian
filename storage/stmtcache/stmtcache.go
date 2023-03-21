@@ -17,7 +17,7 @@ var (
 	errStmtCounter monitoring.Counter
 )
 
-// PlaceholderSQL SQL statement placeholder
+// PlaceholderSQL SQL statement placeholder.
 const PlaceholderSQL = "<placeholder>"
 
 // Stmt is wraps the sql.Stmt struct for handling and monitoring SQL errors.
