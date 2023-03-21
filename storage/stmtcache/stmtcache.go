@@ -79,36 +79,10 @@ func (s *Stmt) WithTx(ctx context.Context, tx *sql.Tx) *Stmt {
 	}
 }
 
-// Exec executes a prepared statement with the given arguments and
-// returns a Result summarizing the effect of the statement.
-//
-// Exec uses context.Background internally; to specify the context, use
-// ExecContext.
-func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
-	res, err := s.stmt.Exec(args...)
-	if err != nil {
-		s.errHandler(err)
-	}
-	return res, err
-}
-
 // ExecContext executes a prepared statement with the given arguments and
 // returns a Result summarizing the effect of the statement.
 func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result, error) {
 	res, err := s.stmt.ExecContext(ctx, args...)
-	if err != nil {
-		s.errHandler(err)
-	}
-	return res, err
-}
-
-// Query executes a prepared query statement with the given arguments
-// and returns the query results as a *Rows.
-//
-// Query uses context.Background internally; to specify the context, use
-// QueryContext.
-func (s *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
-	res, err := s.stmt.Query(args...)
 	if err != nil {
 		s.errHandler(err)
 	}
@@ -123,28 +97,6 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows
 		s.errHandler(err)
 	}
 	return res, err
-}
-
-// QueryRow executes a prepared query statement with the given arguments.
-// If an error occurs during the execution of the statement, that error will
-// be returned by a call to Scan on the returned *Row, which is always non-nil.
-// If the query selects no rows, the *Row's Scan will return ErrNoRows.
-// Otherwise, the *Row's Scan scans the first selected row and discards
-// the rest.
-//
-// Example usage:
-//
-//	var name string
-//	err := nameByUseridStmt.QueryRow(id).Scan(&name)
-//
-// QueryRow uses context.Background internally; to specify the context, use
-// QueryRowContext.
-func (s *Stmt) QueryRow(args ...interface{}) *sql.Row {
-	res := s.stmt.QueryRow(args...)
-	if err := res.Err(); err != nil {
-		s.errHandler(err)
-	}
-	return res
 }
 
 // QueryRowContext executes a prepared query statement with the given arguments.
