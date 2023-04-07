@@ -12,6 +12,10 @@
 * Bump Go version from 1.17 to 1.19.
 * Updated golangci-lint to v1.51.1 (developers should update to this version)
 
+### Dependency updates
+
+* Bump contrib.go.opencensus.io/exporter/stackdriver from 0.13.12 to 0.13.14 by @samuelattwood in https://github.com/google/trillian/pull/2950
+
 ## v1.5.1
 
 ### Storage
