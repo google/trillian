@@ -18,6 +18,7 @@ package mdm
 
 import (
 	"context"
+	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -131,7 +132,7 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 			createNew = true
 		}
 		if createNew {
-			rand.Read(data)
+			crand.Read(data)
 		}
 
 		// Add the leaf data and wait for its inclusion.
