@@ -37,7 +37,7 @@ var (
 	csSessionMaxOpened                   = flag.Uint64("cloudspanner_max_open_sessions", 0, "Max open sessions.")
 	csSessionMinOpened                   = flag.Uint64("cloudspanner_min_open_sessions", 0, "Min open sessions.")
 	csSessionMaxIdle                     = flag.Uint64("cloudspanner_max_idle_sessions", 0, "Max idle sessions.")
-	csSessionWriteSessions               = flag.Float64("cloudspanner_write_sessions", 0, "Fraction of write capable sessions to maintain.")
+	_                                    = flag.Float64("cloudspanner_write_sessions", 0, "DEPRECATED. This flag is unused and will be removed in the future. Fraction of write capable sessions to maintain.")
 	csSessionHCWorkers                   = flag.Int("cloudspanner_num_healthcheckers", 0, "Number of health check workers for Spanner session pool.")
 	csSessionHCInterval                  = flag.Duration("cloudspanner_healthcheck_interval", 0, "Interval betweek pinging sessions.")
 	csSessionTrackHandles                = flag.Bool("cloudspanner_track_session_handles", false, "determines whether the session pool will keep track of the stacktrace of the goroutines that take sessions from the pool.")
@@ -81,7 +81,6 @@ func configFromFlags() spanner.ClientConfig {
 	setUint64IfNotDefault(&r.SessionPoolConfig.MaxOpened, *csSessionMaxOpened)
 	setUint64IfNotDefault(&r.SessionPoolConfig.MinOpened, *csSessionMinOpened)
 	setUint64IfNotDefault(&r.SessionPoolConfig.MaxIdle, *csSessionMaxIdle)
-	setFloat64IfNotDefault(&r.SessionPoolConfig.WriteSessions, *csSessionWriteSessions)
 	setIntIfNotDefault(&r.SessionPoolConfig.HealthCheckWorkers, *csSessionHCWorkers)
 	r.SessionPoolConfig.TrackSessionHandles = *csSessionTrackHandles
 	r.SessionPoolConfig.HealthCheckInterval = *csSessionHCInterval
