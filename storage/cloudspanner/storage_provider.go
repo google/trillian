@@ -155,9 +155,3 @@ func setUint64IfNotDefault(t *uint64, v uint64) {
 		*t = v
 	}
 }
-
-func setFloat64IfNotDefault(t *float64, v float64) {
-	if v != 0 {
-		*t = v
-	}
-}
