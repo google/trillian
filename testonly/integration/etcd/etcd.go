@@ -86,7 +86,7 @@ func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) 
 	}
 
 	c, err = clientv3.New(clientv3.Config{
-		Endpoints:   []string{e.Config().LCUrls[0].String()},
+		Endpoints:   []string{e.Config().ListenClientUrls[0].String()},
 		DialTimeout: defaultTimeout,
 	})
 	if err != nil {
@@ -114,10 +114,10 @@ func tryStartEtcd(dir string) (*embed.Etcd, error) {
 
 	cfg := embed.NewConfig()
 	cfg.Dir = dir
-	cfg.LCUrls = []url.URL{*clientURL} // listen client URLS
-	cfg.ACUrls = []url.URL{*clientURL} // advertise client URLS
-	cfg.LPUrls = []url.URL{*peerURL}   // listen peer URLS
-	cfg.APUrls = []url.URL{*peerURL}   // advertise peer URLS
+	cfg.ListenClientUrls = []url.URL{*clientURL}
+	cfg.AdvertiseClientUrls = []url.URL{*clientURL}
+	cfg.ListenPeerUrls = []url.URL{*peerURL}
+	cfg.AdvertisePeerUrls = []url.URL{*peerURL}
 	cfg.InitialCluster = fmt.Sprintf("default=%v", peerURL)
 	cfg.Logger = "zap"
 

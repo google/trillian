@@ -22,10 +22,10 @@ require (
 	github.com/prometheus/client_model v0.3.0
 	github.com/pseudomuto/protoc-gen-doc v1.5.1
 	github.com/transparency-dev/merkle v0.0.1
-	go.etcd.io/etcd/client/v3 v3.5.7
-	go.etcd.io/etcd/etcdctl/v3 v3.5.7
-	go.etcd.io/etcd/server/v3 v3.5.7
-	go.etcd.io/etcd/v3 v3.5.7
+	go.etcd.io/etcd/client/v3 v3.5.8
+	go.etcd.io/etcd/etcdctl/v3 v3.5.8
+	go.etcd.io/etcd/server/v3 v3.5.8
+	go.etcd.io/etcd/v3 v3.5.8
 	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.8.0
 	golang.org/x/sync v0.1.0
@@ -130,14 +130,14 @@ require (
 	github.com/urfave/cli v1.22.7 // indirect
 	github.com/xanzy/ssh-agent v0.2.1 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
-	go.etcd.io/bbolt v1.3.6 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.7 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.7 // indirect
-	go.etcd.io/etcd/client/v2 v2.305.7 // indirect
-	go.etcd.io/etcd/etcdutl/v3 v3.5.7 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.5.7 // indirect
-	go.etcd.io/etcd/raft/v3 v3.5.7 // indirect
-	go.etcd.io/etcd/tests/v3 v3.5.7 // indirect
+	go.etcd.io/bbolt v1.3.7 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.8 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.8 // indirect
+	go.etcd.io/etcd/client/v2 v2.305.8 // indirect
+	go.etcd.io/etcd/etcdutl/v3 v3.5.8 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.5.8 // indirect
+	go.etcd.io/etcd/raft/v3 v3.5.8 // indirect
+	go.etcd.io/etcd/tests/v3 v3.5.8 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.28.0 // indirect
 	go.opentelemetry.io/otel v1.6.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.6.1 // indirect
