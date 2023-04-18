@@ -43,7 +43,7 @@ func (db *testDBHandle) GetDB() *sql.DB {
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	ts, err := testserver.NewTestServer()
+	ts, err := testserver.NewTestServer(testserver.CustomVersionOpt("22.2.7"))
 	if err != nil {
 		klog.Exitf("Failed to start test server: %v", err)
 	}
