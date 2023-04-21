@@ -21,11 +21,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"runtime/debug"
-	"strings"
 	"sync"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/storage/stmtcache"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 	"google.golang.org/protobuf/proto"
@@ -52,7 +53,7 @@ const (
  AND Subtree.SubtreeRevision = x.MaxRevision 
  AND Subtree.TreeId = x.TreeId
  AND Subtree.TreeId = ?`
-	placeholderSQL = "<placeholder>"
+	placeholderSQL = stmtcache.PlaceholderSQL
 )
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
@@ -60,12 +61,7 @@ const (
 type mySQLTreeStorage struct {
 	db *sql.DB
 
-	// Must hold the mutex before manipulating the statement map. Sharing a lock because
-	// it only needs to be held while the statements are built, not while they execute and
-	// this will be a short time. These maps are from the number of placeholder '?'
-	// in the query to the statement that should be used.
-	statementMutex sync.Mutex
-	statements     map[string]map[int]*sql.Stmt
+	stmtCache *stmtcache.StmtCache
 }
 
 // OpenDB opens a database connection for all MySQL-based storage implementations.
@@ -85,60 +81,19 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
+func newTreeStorage(db *sql.DB, mf monitoring.MetricFactory) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
-		db:         db,
-		statements: make(map[string]map[int]*sql.Stmt),
+		db:        db,
+		stmtCache: stmtcache.New(db, mf),
 	}
 }
 
-// expandPlaceholderSQL expands an sql statement by adding a specified number of '?'
-// placeholder slots. At most one placeholder will be expanded.
-func expandPlaceholderSQL(sql string, num int, first, rest string) string {
-	if num <= 0 {
-		panic(fmt.Errorf("trying to expand SQL placeholder with <= 0 parameters: %s", sql))
-	}
-
-	parameters := first + strings.Repeat(","+rest, num-1)
-
-	return strings.Replace(sql, placeholderSQL, parameters, 1)
+func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*stmtcache.Stmt, error) {
+	return m.stmtCache.GetStmt(ctx, selectSubtreeSQL, num, "?", "?")
 }
 
-// getStmt creates and caches sql.Stmt structs based on the passed in statement
-// and number of bound arguments.
-// TODO(al,martin): consider pulling this all out as a separate unit for reuse
-// elsewhere.
-func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num int, first, rest string) (*sql.Stmt, error) {
-	m.statementMutex.Lock()
-	defer m.statementMutex.Unlock()
-
-	if m.statements[statement] != nil {
-		if m.statements[statement][num] != nil {
-			// TODO(al,martin): we'll possibly need to expire Stmts from the cache,
-			// e.g. when DB connections break etc.
-			return m.statements[statement][num], nil
-		}
-	} else {
-		m.statements[statement] = make(map[int]*sql.Stmt)
-	}
-
-	s, err := m.db.PrepareContext(ctx, expandPlaceholderSQL(statement, num, first, rest))
-	if err != nil {
-		klog.Warningf("Failed to prepare statement %d: %s", num, err)
-		return nil, err
-	}
-
-	m.statements[statement][num] = s
-
-	return s, nil
-}
-
-func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
-}
-
-func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
+func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*stmtcache.Stmt, error) {
+	return m.stmtCache.GetStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
@@ -183,7 +138,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 	if err != nil {
 		return nil, err
 	}
-	stx := t.tx.StmtContext(ctx, tmpl)
+	stx := tmpl.WithTx(ctx, t.tx)
 	defer stx.Close()
 
 	args := make([]interface{}, 0, len(ids)+3)
@@ -291,7 +246,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	if err != nil {
 		return err
 	}
-	stx := t.tx.StmtContext(ctx, tmpl)
+	stx := tmpl.WithTx(ctx, t.tx)
 	defer stx.Close()
 
 	r, err := stx.ExecContext(ctx, args...)
