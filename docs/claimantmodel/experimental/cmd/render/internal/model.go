@@ -30,11 +30,11 @@ var (
 	//go:embed tmpl_model.md
 	TemplateModelMarkdown []byte
 
-	// TemplateQuestions is the markdown template for a model questionnaire.
+	// TemplateQuestionsMarkdown is the markdown template for a model questionnaire.
 	//go:embed tmpl_questions.md
 	TemplateQuestionsMarkdown []byte
 
-	// TemplateSequence is the markdown template for the sequence diagram.
+	// TemplateSequenceMarkdown is the markdown template for the sequence diagram.
 	//go:embed tmpl_sequence.md
 	TemplateSequenceMarkdown []byte
 )
@@ -241,7 +241,7 @@ func (ms Models) Actors() []string {
 		}
 	}
 	r := make([]string, 0, len(am))
-	for actor, _ := range am {
+	for actor := range am {
 		if len(actor) > 0 {
 			r = append(r, actor)
 		}
