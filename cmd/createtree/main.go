@@ -77,7 +77,11 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial %v: %v", *adminServerAddr, err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			klog.Errorf("Close(): %v", err)
+		}
+	}()
 
 	adminClient := trillian.NewTrillianAdminClient(conn)
 	logClient := trillian.NewTrillianLogClient(conn)

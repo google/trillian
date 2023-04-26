@@ -48,19 +48,19 @@ func NewMockServer(ctrl *gomock.Controller) (*MockServer, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	go grpcServer.Serve(lis)
+	go func() { _ = grpcServer.Serve(lis) }()
 
 	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		grpcServer.Stop()
-		lis.Close()
+		_ = lis.Close()
 		return nil, nil, err
 	}
 
 	stopFn := func() {
-		cc.Close()
+		_ = cc.Close()
 		grpcServer.Stop()
-		lis.Close()
+		_ = lis.Close()
 	}
 
 	return &MockServer{

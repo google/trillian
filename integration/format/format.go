@@ -41,6 +41,7 @@ import (
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"k8s.io/klog/v2"
 )
 
 func run(treeSize, batchSize int, leafFormat string) (string, error) {
@@ -171,7 +172,10 @@ func latestRevisions(ls storage.LogStorage, treeID int64, hasher merkle.LogHashe
 	out := new(bytes.Buffer)
 	for _, k := range keys {
 		subtree := vMap[k].subtree
-		cache.PopulateLogTile(subtree, hasher)
+		if err := cache.PopulateLogTile(subtree, hasher); err != nil {
+			// TODO(mhutchinson): This error should be propagated.
+			klog.Errorf("PopulateLogTile(): %v", err)
+		}
 		fmt.Fprintf(out, "%s\n", prototext.Format(subtree))
 	}
 	return out.String(), nil

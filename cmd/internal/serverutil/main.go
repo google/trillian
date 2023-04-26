@@ -98,11 +98,15 @@ func (m *Main) healthz(rw http.ResponseWriter, req *http.Request) {
 		defer cancel()
 		if err := m.IsHealthy(ctx); err != nil {
 			rw.WriteHeader(http.StatusServiceUnavailable)
-			rw.Write([]byte(err.Error()))
+			if _, err := rw.Write([]byte(err.Error())); err != nil {
+				klog.Errorf("Write(): %v", err)
+			}
 			return
 		}
 	}
-	rw.Write([]byte("ok"))
+	if _, err := rw.Write([]byte("ok")); err != nil {
+		klog.Errorf("Write(): %v", err)
+	}
 }
 
 // Run starts the configured server. Blocks until the server exits.
@@ -119,7 +123,11 @@ func (m *Main) Run(ctx context.Context) error {
 	}
 	defer srv.GracefulStop()
 
-	defer m.DBClose()
+	defer func() {
+		if err := m.DBClose(); err != nil {
+			klog.Errorf("DBClose(): %v", err)
+		}
+	}()
 
 	if err := m.RegisterServerFn(srv, m.Registry); err != nil {
 		return err
@@ -278,15 +286,21 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 		klog.Exitf("Failed to create etcd manager: %v", err)
 	}
 	fullEndpoint := fmt.Sprintf("%s/%s", etcdService, endpoint)
-	em.AddEndpoint(ctx, fullEndpoint, endpoints.Endpoint{Addr: endpoint})
+	if err := em.AddEndpoint(ctx, fullEndpoint, endpoints.Endpoint{Addr: endpoint}); err != nil {
+		klog.Exitf("Failed to add endpoint: %v", err)
+	}
 	klog.Infof("Announcing our presence in %v", etcdService)
 
 	return func() {
 		// Use a background context because the original context may have been cancelled.
 		klog.Infof("Removing our presence in %v", etcdService)
 		ctx := context.Background()
-		em.DeleteEndpoint(ctx, fullEndpoint)
-		client.Revoke(ctx, leaseRsp.ID)
+		if err := em.DeleteEndpoint(ctx, fullEndpoint); err != nil {
+			klog.Exitf("Failed to delete endpoint: %v", err)
+		}
+		if _, err := client.Revoke(ctx, leaseRsp.ID); err != nil {
+			klog.Exitf("Failed to revoke lease: %v", err)
+		}
 	}
 }
 

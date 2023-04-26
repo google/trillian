@@ -785,13 +785,13 @@ func startServer(etcdClient *clientv3.Client) (quotapb.QuotaClient, func(), erro
 
 	cleanup := func() {
 		if conn != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 		if s != nil {
 			s.GracefulStop()
 		}
 		if lis != nil {
-			lis.Close()
+			_ = lis.Close()
 		}
 	}
 
@@ -804,7 +804,7 @@ func startServer(etcdClient *clientv3.Client) (quotapb.QuotaClient, func(), erro
 
 	s = grpc.NewServer(grpc.UnaryInterceptor(interceptor.ErrorWrapper))
 	quotapb.RegisterQuotaServer(s, NewServer(etcdClient))
-	go s.Serve(lis)
+	go func() { _ = s.Serve(lis) }()
 
 	conn, err = grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
