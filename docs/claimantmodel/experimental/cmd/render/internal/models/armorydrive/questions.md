@@ -1,0 +1,8 @@
+- Firmware Manifest contains all of the terms:
+  - [x] $artifactHash
+  - [x] $platform
+  - [x] $revision
+  - [x] $git@tag
+  - [x] $tamago@tag
+  - [x] $usbarmory@tag
+- [x] Firmware Manifest is signed by WithSecure

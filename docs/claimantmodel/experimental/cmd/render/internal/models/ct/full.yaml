@@ -1,0 +1,24 @@
+Domain:
+  System: CERT
+  Claimant: Certificate Authority
+  Statement: X.509 Certificate
+  Believer: Web Browser
+  Claim:
+    Claim: I am authorized to certify $pubKey for $domain
+    Verifier: Domain Owner
+  Arbiter: Browser Vendor
+Log:
+  System: LOG_CERT
+  Claimant: Log Operator
+  Statement: Log Checkpoint
+  Believers:
+  - Web Browser
+  - Domain Owner
+  Claims:
+  - Claim: This data structure is append-only from any previous version
+    Verifier: Witness
+  - Claim: This data structure is globally consistent
+    Verifier: Witness Quorum
+  - Claim: This data structure contains only leaves of type `X.509 Certificate`
+    Verifier: Domain Owner
+  Arbiter: Browser Vendor
