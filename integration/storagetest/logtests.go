@@ -130,9 +130,7 @@ func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 				return
 			}
 			defer func() {
-				if err := tx.Close(); err != nil {
-					t.Errorf("Close(): %v", err)
-				}
+				_ = tx.Close()
 			}()
 
 			_, err = tx.LatestSignedLogRoot(ctx)

@@ -133,7 +133,7 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 		}
 		if createNew {
 			if _, err := crand.Read(data); err != nil {
-				return fmt.Errorf("rand.Read(): %v", err)
+				return fmt.Errorf("Read(): %v", err)
 			}
 		}
 

@@ -54,16 +54,13 @@ func (m *Hasher) EmptyRoot() []byte {
 func (m *Hasher) HashEmpty(treeID int64, root node.ID) []byte {
 	depth := int(root.BitLen())
 
+	// bytes.Buffer never returns errors so we can ignore them below.
 	buf := bytes.NewBuffer(make([]byte, 0, 32))
 	h := m.New()
 	buf.Write(emptyIdentifier)
-	if err := binary.Write(buf, binary.BigEndian, uint64(treeID)); err != nil {
-		klog.Errorf("binary.Write(): %v", err)
-	}
+	_ = binary.Write(buf, binary.BigEndian, uint64(treeID))
 	m.writeMaskedNodeID(buf, root)
-	if err := binary.Write(buf, binary.BigEndian, uint32(depth)); err != nil {
-		klog.Errorf("binary.Write(): %v", err)
-	}
+	_ = binary.Write(buf, binary.BigEndian, uint32(depth))
 	h.Write(buf.Bytes())
 	r := h.Sum(nil)
 	if klog.V(5).Enabled() {
@@ -76,16 +73,13 @@ func (m *Hasher) HashEmpty(treeID int64, root node.ID) []byte {
 // H(Identifier || treeID || depth || index || dataHash)
 func (m *Hasher) HashLeaf(treeID int64, id node.ID, leaf []byte) []byte {
 	depth := int(id.BitLen())
+	// bytes.Buffer never returns errors so we can ignore them below.
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
 	buf.Write(leafIdentifier)
-	if err := binary.Write(buf, binary.BigEndian, uint64(treeID)); err != nil {
-		klog.Errorf("binary.Write(): %v", err)
-	}
+	_ = binary.Write(buf, binary.BigEndian, uint64(treeID))
 	m.writeMaskedNodeID(buf, id)
-	if err := binary.Write(buf, binary.BigEndian, uint32(depth)); err != nil {
-		klog.Errorf("binary.Write(): %v", err)
-	}
+	_ = binary.Write(buf, binary.BigEndian, uint32(depth))
 	buf.Write(leaf)
 	h.Write(buf.Bytes())
 	p := h.Sum(nil)
