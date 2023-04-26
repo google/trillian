@@ -25,6 +25,7 @@ import (
 	"github.com/transparency-dev/merkle"
 	"github.com/transparency-dev/merkle/compact"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/klog/v2"
 )
 
 // TODO(al): move this up the stack
@@ -116,7 +117,10 @@ func (s *SubtreeCache) preload(ids []compact.NodeID, getSubtrees GetSubtreesFunc
 			// return it when done
 			defer func() { workTokens <- true }()
 
-			PopulateLogTile(t, s.hasher)
+			if err := PopulateLogTile(t, s.hasher); err != nil {
+				// TODO(mhutchinson): This error should be propagated.
+				klog.Errorf("PopulateLogTile(): %v", err)
+			}
 			ch <- t // Note: This never blocks because len(ch) == len(subtrees).
 		}()
 	}

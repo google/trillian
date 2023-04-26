@@ -166,7 +166,11 @@ func (m *mySQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			klog.Errorf("rows.Close(): %v", err)
+		}
+	}()
 	ids := []int64{}
 	for rows.Next() {
 		var treeID int64
@@ -199,12 +203,16 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 		ltx.treeTX.writeRevision = 0
 		return ltx, err
 	} else if err != nil {
-		ttx.Close()
+		if err := ttx.Close(); err != nil {
+			klog.Errorf("ttx.Close(): %v", err)
+		}
 		return nil, err
 	}
 
 	if err := ltx.root.UnmarshalBinary(ltx.slr.LogRoot); err != nil {
-		ttx.Close()
+		if err := ttx.Close(); err != nil {
+			klog.Errorf("ttx.Close(): %v", err)
+		}
 		return nil, err
 	}
 
@@ -221,7 +229,11 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
-	defer tx.Close()
+	defer func() {
+		if err := tx.Close(); err != nil {
+			klog.Errorf("tx.Close(): %v", err)
+		}
+	}()
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
@@ -234,7 +246,11 @@ func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian
 		// Ensure we don't leak the transaction. For example if we get an
 		// ErrTreeNeedsInit from beginInternal() or if AddSequencedLeaves fails
 		// below.
-		defer tx.Close()
+		defer func() {
+			if err := tx.Close(); err != nil {
+				klog.Errorf("tx.Close(): %v", err)
+			}
+		}()
 	}
 	if err != nil {
 		return nil, err
@@ -263,7 +279,11 @@ func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, 
 		// Ensure we don't leak the transaction. For example if we get an
 		// ErrTreeNeedsInit from beginInternal() or if QueueLeaves fails
 		// below.
-		defer tx.Close()
+		defer func() {
+			if err := tx.Close(); err != nil {
+				klog.Errorf("tx.Close(): %v", err)
+			}
+		}()
 	}
 	if err != nil {
 		return nil, err
@@ -323,7 +343,11 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		klog.Warningf("Failed to prepare dequeue select: %s", err)
 		return nil, err
 	}
-	defer stx.Close()
+	defer func() {
+		if err := stx.Close(); err != nil {
+			klog.Errorf("stx.Close(): %v", err)
+		}
+	}()
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
 	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
@@ -331,7 +355,11 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		klog.Warningf("Failed to select rows for work: %s", err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			klog.Errorf("rows.Close(): %v", err)
+		}
+	}()
 
 	for rows.Next() {
 		leaf, dqInfo, err := t.dequeueLeaf(rows)
@@ -601,7 +629,11 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 		klog.Warningf("Failed to get leaves by range: %s", err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			klog.Errorf("rows.Close(): %v", err)
+		}
+	}()
 
 	ret := make([]*trillian.LogLeaf, 0, count)
 	for wantIndex := start; rows.Next(); wantIndex++ {
@@ -732,7 +764,11 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 
 func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]*trillian.LogLeaf, error) {
 	stx := t.tx.StmtContext(ctx, tmpl)
-	defer stx.Close()
+	defer func() {
+		if err := stx.Close(); err != nil {
+			klog.Errorf("stx.Close(): %v", err)
+		}
+	}()
 
 	var args []interface{}
 	for _, hash := range leafHashes {
@@ -744,7 +780,11 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		klog.Warningf("Query() %s hash = %v", desc, err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			klog.Errorf("rows.Close(): %v", err)
+		}
+	}()
 
 	// The tree could include duplicates so we don't know how many results will be returned
 	var ret []*trillian.LogLeaf
