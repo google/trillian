@@ -21,6 +21,7 @@ import (
 	"errors"
 
 	"github.com/google/trillian/quota"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -87,7 +88,11 @@ func (m *QuotaManager) countUnsequenced(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			klog.Errorf("Close(): %v", err)
+		}
+	}()
 	if !rows.Next() {
 		return 0, errors.New("cursor has no rows after quota limit determination query")
 	}

@@ -132,7 +132,9 @@ func (m *MergeDelayMonitor) monitor(ctx context.Context, idx int) error {
 			createNew = true
 		}
 		if createNew {
-			crand.Read(data)
+			if _, err := crand.Read(data); err != nil {
+				return fmt.Errorf("rand.Read(): %v", err)
+			}
 		}
 
 		// Add the leaf data and wait for its inclusion.

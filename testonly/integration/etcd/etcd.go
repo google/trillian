@@ -51,12 +51,12 @@ func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) 
 
 	cleanup = func() {
 		if c != nil {
-			c.Close()
+			_ = c.Close()
 		}
 		if e != nil {
 			e.Close()
 		}
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 
 	for i := 0; i < MaxEtcdStartAttempts; i++ {
@@ -100,13 +100,17 @@ func tryStartEtcd(dir string) (*embed.Etcd, error) {
 	if err != nil {
 		return nil, err
 	}
-	p1.Close()
+	if err := p1.Close(); err != nil {
+		return nil, err
+	}
 
 	p2, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return nil, err
 	}
-	p2.Close()
+	if err := p2.Close(); err != nil {
+		return nil, err
+	}
 
 	// OK to ignore err, it'll error below if parsing fails
 	clientURL, _ := url.Parse("http://" + p1.Addr().String())

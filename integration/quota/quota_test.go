@@ -43,6 +43,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 )
@@ -206,18 +207,20 @@ type testServer struct {
 
 func (s *testServer) close() {
 	if s.conn != nil {
-		s.conn.Close()
+		_ = s.conn.Close()
 	}
 	if s.server != nil {
 		s.server.GracefulStop()
 	}
 	if s.lis != nil {
-		s.lis.Close()
+		_ = s.lis.Close()
 	}
 }
 
 func (s *testServer) serve() {
-	s.server.Serve(s.lis)
+	if err := s.server.Serve(s.lis); err != nil {
+		klog.Errorf("Serve(): %v", err)
+	}
 }
 
 // newTestServer returns a new testServer configured for integration tests.

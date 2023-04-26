@@ -117,7 +117,11 @@ func main() {
 	if err != nil {
 		klog.Exitf("Failed to get storage provider: %v", err)
 	}
-	defer sp.Close()
+	defer func() {
+		if err := sp.Close(); err != nil {
+			klog.Errorf("Close(): %v", err)
+		}
+	}()
 
 	var client *clientv3.Client
 	if servers := *etcd.Servers; servers != "" {
@@ -127,7 +131,11 @@ func main() {
 		}); err != nil {
 			klog.Exitf("Failed to connect to etcd at %v: %v", servers, err)
 		}
-		defer client.Close()
+		defer func() {
+			if err := client.Close(); err != nil {
+				klog.Errorf("Close(): %v", err)
+			}
+		}()
 	}
 
 	// Announce our endpoints to etcd if so configured.
@@ -154,7 +162,9 @@ func main() {
 	// Enable CPU profile if requested.
 	if *cpuProfile != "" {
 		f := mustCreate(*cpuProfile)
-		pprof.StartCPUProfile(f)
+		if err := pprof.StartCPUProfile(f); err != nil {
+			klog.Exitf("StartCPUProfile(): %v", err)
+		}
 		defer pprof.StopCPUProfile()
 	}
 
@@ -196,7 +206,9 @@ func main() {
 
 	if *memProfile != "" {
 		f := mustCreate(*memProfile)
-		pprof.WriteHeapProfile(f)
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			klog.Exitf("WriteHeapProfile(): %v", err)
+		}
 	}
 }
 

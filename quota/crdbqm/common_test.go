@@ -37,7 +37,10 @@ func TestMain(m *testing.M) {
 	dburl.Path = "/"
 
 	// Set the environment variable for the test server
-	os.Setenv(testdb.CockroachDBURIEnv, dburl.String())
+	if err := os.Setenv(testdb.CockroachDBURIEnv, dburl.String()); err != nil {
+		klog.Errorf("Failed to set CockroachDBURIEnv: %v", err)
+		os.Exit(1)
+	}
 
 	if !testdb.CockroachDBAvailable() {
 		klog.Errorf("CockroachDB not available, skipping all CockroachDB storage tests")

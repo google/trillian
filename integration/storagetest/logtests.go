@@ -117,7 +117,11 @@ func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 			tx, err := s.SnapshotForTree(ctx, test.tree)
 
 			if err == storage.ErrTreeNeedsInit {
-				defer tx.Close()
+				defer func() {
+					if err := tx.Close(); err != nil {
+						t.Errorf("Close(): %v", err)
+					}
+				}()
 			}
 
 			if hasErr := err != nil; hasErr != test.wantErr {
@@ -125,7 +129,11 @@ func (*logTests) TestSnapshot(ctx context.Context, t *testing.T, s storage.LogSt
 			} else if hasErr {
 				return
 			}
-			defer tx.Close()
+			defer func() {
+				if err := tx.Close(); err != nil {
+					t.Errorf("Close(): %v", err)
+				}
+			}()
 
 			_, err = tx.LatestSignedLogRoot(ctx)
 			if err != nil {

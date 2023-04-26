@@ -52,7 +52,11 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileNotSet(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to dial %v: %v", logEnv.Address, err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	adminClient := trillian.NewTrillianAdminClient(conn)
 	if _, err = adminClient.ListTrees(context.Background(), &trillian.ListTreesRequest{}); err != nil {
@@ -127,7 +131,11 @@ func TestNewClientDialOptionsFromFlagsWithTLSCertFileSet(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to dial %v: %v", logEnv.Address, err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	adminClient := trillian.NewTrillianAdminClient(conn)
 	if _, err := adminClient.ListTrees(context.Background(), &trillian.ListTreesRequest{}); err != nil {

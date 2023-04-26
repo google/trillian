@@ -130,7 +130,12 @@ func (fn *writeTileFn) ProcessElement(ctx context.Context, t *batchmap.Tile) err
 	if err != nil {
 		return err
 	}
-	defer w.Close()
+
+	defer func() {
+		if err := w.Close(); err != nil {
+			klog.Errorf("Close(): %v", err)
+		}
+	}()
 
 	bs, err := json.Marshal(t)
 	if err != nil {

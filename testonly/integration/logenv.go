@@ -99,7 +99,9 @@ func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts
 
 	ret, err := NewLogEnvWithRegistryAndGRPCOptions(ctx, numSequencers, registry, serverOpts, clientOpts)
 	if err != nil {
-		db.Close()
+		if err := db.Close(); err != nil {
+			return nil, err
+		}
 		return nil, err
 	}
 	ret.DB = db
@@ -196,7 +198,9 @@ func (env *LogEnv) Close() {
 	if env.sequencerCancel != nil {
 		env.sequencerCancel()
 	}
-	env.ClientConn.Close()
+	if err := env.ClientConn.Close(); err != nil {
+		klog.Errorf("ClientConn.Close(): %v", err)
+	}
 	env.grpcServer.GracefulStop()
 	env.pendingTasks.Wait()
 	if env.dbDone != nil {

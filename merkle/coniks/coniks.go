@@ -57,9 +57,13 @@ func (m *Hasher) HashEmpty(treeID int64, root node.ID) []byte {
 	buf := bytes.NewBuffer(make([]byte, 0, 32))
 	h := m.New()
 	buf.Write(emptyIdentifier)
-	binary.Write(buf, binary.BigEndian, uint64(treeID))
+	if err := binary.Write(buf, binary.BigEndian, uint64(treeID)); err != nil {
+		klog.Errorf("binary.Write(): %v", err)
+	}
 	m.writeMaskedNodeID(buf, root)
-	binary.Write(buf, binary.BigEndian, uint32(depth))
+	if err := binary.Write(buf, binary.BigEndian, uint32(depth)); err != nil {
+		klog.Errorf("binary.Write(): %v", err)
+	}
 	h.Write(buf.Bytes())
 	r := h.Sum(nil)
 	if klog.V(5).Enabled() {
@@ -75,9 +79,13 @@ func (m *Hasher) HashLeaf(treeID int64, id node.ID, leaf []byte) []byte {
 	buf := bytes.NewBuffer(make([]byte, 0, 32+len(leaf)))
 	h := m.New()
 	buf.Write(leafIdentifier)
-	binary.Write(buf, binary.BigEndian, uint64(treeID))
+	if err := binary.Write(buf, binary.BigEndian, uint64(treeID)); err != nil {
+		klog.Errorf("binary.Write(): %v", err)
+	}
 	m.writeMaskedNodeID(buf, id)
-	binary.Write(buf, binary.BigEndian, uint32(depth))
+	if err := binary.Write(buf, binary.BigEndian, uint32(depth)); err != nil {
+		klog.Errorf("binary.Write(): %v", err)
+	}
 	buf.Write(leaf)
 	h.Write(buf.Bytes())
 	p := h.Sum(nil)
