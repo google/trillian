@@ -23,12 +23,17 @@ import (
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 // RunOnLogTX is a helper for mocking out the LogStorage.ReadWriteTransaction method.
 func RunOnLogTX(tx storage.LogTreeTX) func(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
 	return func(ctx context.Context, _ int64, f storage.LogTXFunc) error {
-		defer tx.Close()
+		defer func() {
+			if err := tx.Close(); err != nil {
+				klog.Errorf("tx.Close(): %v", err)
+			}
+		}()
 		if err := f(ctx, tx); err != nil {
 			return err
 		}
@@ -39,7 +44,11 @@ func RunOnLogTX(tx storage.LogTreeTX) func(ctx context.Context, treeID int64, f 
 // RunOnAdminTX is a helper for mocking out the AdminStorage.ReadWriteTransaction method.
 func RunOnAdminTX(tx storage.AdminTX) func(ctx context.Context, f storage.AdminTXFunc) error {
 	return func(ctx context.Context, f storage.AdminTXFunc) error {
-		defer tx.Close()
+		defer func() {
+			if err := tx.Close(); err != nil {
+				klog.Errorf("tx.Close(): %v", err)
+			}
+		}()
 		if err := f(ctx, tx); err != nil {
 			return err
 		}

@@ -754,7 +754,11 @@ func TestGetActiveLogIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PrepareContext() returned err = %v", err)
 	}
-	defer updateDeletedStmt.Close()
+	defer func() {
+		if err := updateDeletedStmt.Close(); err != nil {
+			t.Errorf("updateDeletedStmt.Close(): %v", err)
+		}
+	}()
 	for _, treeID := range []int64{deletedLog.TreeId} {
 		if _, err := updateDeletedStmt.ExecContext(ctx, true, treeID); err != nil {
 			t.Fatalf("ExecContext(%v) returned err = %v", treeID, err)

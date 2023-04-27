@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
+	"k8s.io/klog/v2"
 )
 
 const traceSpanRoot = "/trillian/storage"
@@ -131,7 +132,11 @@ func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx Read
 	if err != nil {
 		return err
 	}
-	defer tx.Close()
+	defer func() {
+		if err := tx.Close(); err != nil {
+			klog.Errorf("tx.Close(): %v", err)
+		}
+	}()
 	if err := fn(tx); err != nil {
 		return err
 	}

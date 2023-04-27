@@ -44,7 +44,11 @@ func (s *memoryAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdmi
 
 func (s *memoryAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
 	tx := &adminTX{ms: s.ms}
-	defer tx.Close()
+	defer func() {
+		if err := tx.Close(); err != nil {
+			klog.Errorf("tx.Close(): %v", err)
+		}
+	}()
 	if err := f(ctx, tx); err != nil {
 		return err
 	}

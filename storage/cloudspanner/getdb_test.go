@@ -101,7 +101,11 @@ func inMemClient(ctx context.Context, t testing.TB, dbName string, statements []
 	}
 	client, err := spanner.NewClient(ctx, dbName, option.WithGRPCConn(conn))
 	if err != nil {
-		conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Errorf("conn.Close(): %v", err)
+			}
+		}()
 		t.Fatalf("Connecting to in-memory fake: %v", err)
 	}
 	t.Cleanup(client.Close)

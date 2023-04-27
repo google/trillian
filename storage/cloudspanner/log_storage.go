@@ -190,7 +190,11 @@ func (ls *logStorage) begin(ctx context.Context, tree *trillian.Tree, readonly b
 	if err := ltx.getLatestRoot(ctx); err == storage.ErrTreeNeedsInit {
 		return ltx, err
 	} else if err != nil {
-		tx.Close()
+		defer func() {
+			if err := tx.Close(); err != nil {
+				klog.Errorf("conn.Close(): %v", err)
+			}
+		}()
 		return nil, err
 	}
 	return ltx, nil

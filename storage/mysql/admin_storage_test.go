@@ -228,7 +228,7 @@ func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	_, err = stmt.ExecContext(ctx, treeID)
 	return err
 }

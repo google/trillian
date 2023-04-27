@@ -189,7 +189,11 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		return nil, err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
-	defer stx.Close()
+	defer func() {
+		if err := stx.Close(); err != nil {
+			klog.Errorf("stx.Close(): %v", err)
+		}
+	}()
 
 	args := make([]interface{}, 0, len(ids)+3)
 
@@ -208,7 +212,11 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			klog.Errorf("rows.Close(): %v", err)
+		}
+	}()
 
 	if rows.Err() != nil {
 		// Nothing from the DB
@@ -297,7 +305,11 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		return err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
-	defer stx.Close()
+	defer func() {
+		if err := stx.Close(); err != nil {
+			klog.Errorf("stx.Close(): %v", err)
+		}
+	}()
 
 	r, err := stx.ExecContext(ctx, args...)
 	if err != nil {

@@ -243,7 +243,7 @@ func getVersion(db *sql.DB) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("getVersion: failed to perform query: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		return "", errors.New("getVersion: cursor has no rows")
 	}

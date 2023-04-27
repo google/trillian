@@ -33,6 +33,7 @@ import (
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 const logIDLabel = "logid"
@@ -148,12 +149,16 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 	if err == storage.ErrTreeNeedsInit {
 		return ltx, err
 	} else if err != nil {
-		ttx.Close()
+		if err := ttx.Close(); err != nil {
+			klog.Errorf("ttx.Close(): %v", err)
+		}
 		return nil, err
 	}
 
 	if err := ltx.root.UnmarshalBinary(ltx.slr.LogRoot); err != nil {
-		ttx.Close()
+		if err := ttx.Close(); err != nil {
+			klog.Errorf("ttx.Close(): %v", err)
+		}
 		return nil, err
 	}
 
@@ -167,7 +172,11 @@ func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, tree *trill
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
-	defer tx.Close()
+	defer func() {
+		if err := tx.Close(); err != nil {
+			klog.Errorf("tx.Close(): %v", err)
+		}
+	}()
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
@@ -192,7 +201,11 @@ func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree,
 		// Ensure we don't leak the transaction. For example if we get an
 		// ErrTreeNeedsInit from beginInternal() or if QueueLeaves fails
 		// below.
-		defer tx.Close()
+		defer func() {
+			if err := tx.Close(); err != nil {
+				klog.Errorf("tx.Close(): %v", err)
+			}
+		}()
 	}
 	if err != nil {
 		return nil, err

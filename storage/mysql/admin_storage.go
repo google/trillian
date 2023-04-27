@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -87,7 +88,11 @@ func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.
 	if err != nil {
 		return err
 	}
-	defer tx.Close()
+	defer func() {
+		if err := tx.Close(); err != nil {
+			klog.Errorf("tx.Close(): %v", err)
+		}
+	}()
 	if err := f(ctx, tx); err != nil {
 		return err
 	}
@@ -131,7 +136,11 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			klog.Errorf("stmt.Close(): %v", err)
+		}
+	}()
 
 	// GetTree is an entry point for most RPCs, let's provide somewhat nicer error messages.
 	tree, err := storage.ReadTree(stmt.QueryRowContext(ctx, treeID))
@@ -157,12 +166,20 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			klog.Errorf("stmt.Close(): %v", err)
+		}
+	}()
 	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			klog.Errorf("rows.Close(): %v", err)
+		}
+	}()
 	trees := []*trillian.Tree{}
 	for rows.Next() {
 		tree, err := storage.ReadTree(rows)
@@ -226,7 +243,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if err != nil {
 		return nil, err
 	}
-	defer insertTreeStmt.Close()
+	defer func() {
+		if err := insertTreeStmt.Close(); err != nil {
+			klog.Errorf("insertTreeStmt.Close(): %v", err)
+		}
+	}()
 
 	_, err = insertTreeStmt.ExecContext(
 		ctx,
@@ -268,7 +289,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if err != nil {
 		return nil, err
 	}
-	defer insertControlStmt.Close()
+	defer func() {
+		if err := insertControlStmt.Close(); err != nil {
+			klog.Errorf("insertControlStmt.Close(): %v", err)
+		}
+	}()
 	_, err = insertControlStmt.ExecContext(
 		ctx,
 		newTree.TreeId,
@@ -317,7 +342,11 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			klog.Errorf("stmt.Close(): %v", err)
+		}
+	}()
 
 	if _, err = stmt.ExecContext(
 		ctx,
