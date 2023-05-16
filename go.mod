@@ -25,7 +25,7 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.9
 	go.etcd.io/etcd/etcdctl/v3 v3.5.9
 	go.etcd.io/etcd/server/v3 v3.5.9
-	go.etcd.io/etcd/v3 v3.5.8
+	go.etcd.io/etcd/v3 v3.5.9
 	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.9.0
 	golang.org/x/sync v0.2.0
@@ -139,7 +139,7 @@ require (
 	go.etcd.io/etcd/etcdutl/v3 v3.5.9 // indirect
 	go.etcd.io/etcd/pkg/v3 v3.5.9 // indirect
 	go.etcd.io/etcd/raft/v3 v3.5.9 // indirect
-	go.etcd.io/etcd/tests/v3 v3.5.8 // indirect
+	go.etcd.io/etcd/tests/v3 v3.5.9 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.28.0 // indirect
 	go.opentelemetry.io/otel v1.6.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.6.1 // indirect
