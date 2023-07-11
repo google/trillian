@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:trusty
+FROM ubuntu:jammy
 
 # add our user and group first to make sure their IDs get assigned
 # consistently, regardless of whatever dependencies get added
@@ -29,8 +29,8 @@ RUN rm -rf /var/lib/apt/lists/*
 
 RUN apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A 9334A25F8507EFA5
 
-RUN echo "deb http://repo.percona.com/apt trusty main" > /etc/apt/sources.list.d/percona.list
-RUN echo "deb-src http://repo.percona.com/apt trusty main" >> /etc/apt/sources.list.d/percona.list
+RUN echo "deb http://repo.percona.com/apt jammy main" > /etc/apt/sources.list.d/percona.list
+RUN echo "deb-src http://repo.percona.com/apt jammy main" >> /etc/apt/sources.list.d/percona.list
 
 RUN { \
                 echo percona-server-server-${MYSQL_VERSION} percona-server-server/root_password password ''; \
