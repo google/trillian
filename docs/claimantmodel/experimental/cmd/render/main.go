@@ -80,7 +80,19 @@ func handleSingleModel(domain claimant.Model) {
 }
 
 func handleMultiModels(models claimant.Models) {
+	generateCommand := getGenerateDocs()
 	fmt.Printf("All actors:\n%s\n\n", strings.Join(models.Actors(), "\n"))
-	fmt.Printf("Models as markdown:\n%s\n\n", models.Markdown())
-	fmt.Printf("Sequence diagrams:\n%s\n\n", models.SequenceDiagram())
+	fmt.Printf("Models as markdown:\n%s\n%s\n\n", generateCommand, models.Markdown())
+	fmt.Printf("Sequence diagrams:\n%s\n%s\n\n", generateCommand, models.SequenceDiagram())
+}
+
+func getGenerateDocs() string {
+	builder := strings.Builder{}
+	builder.WriteString("<!--- This content generated with:\n")
+	builder.WriteString("go run github.com/google/trillian/docs/claimantmodel/experimental/cmd/render@master")
+	for _, a := range os.Args[1:] {
+		builder.WriteString(fmt.Sprintf(" %s", a))
+	}
+	builder.WriteString("\n-->")
+	return builder.String()
 }

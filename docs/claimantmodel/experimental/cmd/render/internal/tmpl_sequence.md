@@ -1,4 +1,4 @@
-{{ $logClaimant := .Log.Claimant }}
+{{ $logClaimant := .Log.Claimant -}}
 ```mermaid
 sequenceDiagram
 {{- range .Actors}}
