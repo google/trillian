@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 
 # Build the server.
-RUN go install ./cmd/trillian_log_server
+RUN CGO_ENABLED=0 go install ./cmd/trillian_log_server
 # Run the licensing tool and save licenses, copyright notices, etc.
 RUN go run github.com/google/go-licenses save ./cmd/trillian_log_server --save_path /THIRD_PARTY_NOTICES
 

@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 
 # Build the signer.
-RUN go install ./cmd/trillian_log_signer
+RUN CGO_ENABLED=0 go install ./cmd/trillian_log_signer
 # Run the licensing tool and save licenses, copyright notices, etc.
 RUN go run github.com/google/go-licenses save ./cmd/trillian_log_signer --save_path /THIRD_PARTY_NOTICES
 
