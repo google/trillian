@@ -1,15 +1,51 @@
 version: 2
 updates:
 - package-ecosystem: gomod
-  directory: "/"
+  directory: /
   schedule:
-    interval: weekly
-  open-pull-requests-limit: 10
-- package-ecosystem: "github-actions"
-  directory: "/"
+    interval: daily
+
+- package-ecosystem: github-actions
+  directory: /
   schedule:
-    interval: "weekly"
-- package-ecosystem: "docker"
-  directory: "/"
+    interval: daily
+
+- package-ecosystem: docker
+  directory: /examples/deployment/docker/db_client
   schedule:
-    interval: "weekly"
+    interval: daily
+
+- package-ecosystem: docker
+  directory: /examples/deployment/docker/db_server
+  schedule:
+    interval: daily
+
+- package-ecosystem: docker
+  directory: /examples/deployment/docker/envsubst
+  schedule:
+    interval: daily
+
+- package-ecosystem: docker
+  directory: /examples/deployment/docker/log_server
+  schedule:
+    interval: daily
+
+- package-ecosystem: docker
+  directory: /examples/deployment/docker/log_signer
+  schedule:
+    interval: daily
+
+- package-ecosystem: docker
+  directory: /examples/deployment/kubernetes/mysql/image
+  schedule:
+    interval: daily
+
+- package-ecosystem: docker
+  directory: /integration/cloudbuild/testbase
+  schedule:
+    interval: daily
+
+- package-ecosystem: npm
+  directory: /scripts/gcb2slack
+  schedule:
+    interval: daily
