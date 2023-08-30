@@ -77,6 +77,7 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource clock.TimeS
 		fetchedLeaves: mf.NewCounter(
 			"fetched_leaves",
 			"Count of individual leaves fetched through GetLeaves* calls",
+			"logid",
 		),
 	}
 }
@@ -446,7 +447,8 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 		if err != nil {
 			return nil, err
 		}
-		t.fetchedLeaves.Add(float64(len(leaves)))
+		label := strconv.FormatInt(req.LogId, 10)
+		t.fetchedLeaves.Add(float64(len(leaves)), label)
 		r.Leaves = leaves
 	}
 
