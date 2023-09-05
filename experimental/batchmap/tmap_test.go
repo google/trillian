@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
@@ -28,6 +29,15 @@ import (
 )
 
 const hash = crypto.SHA512_256
+
+func init() {
+	register.Function1x1(countTilesFn)
+	register.Function1x1(testFilterRootOnlyFn)
+	register.Function1x1(testFnTileRootHash)
+	register.Function1x1(testLeavesSortedFn)
+}
+
+func testFnTileRootHash(t *Tile) string { return fmt.Sprintf("%x", t.RootHash) }
 
 func TestMain(m *testing.M) {
 	ptest.Main(m)
@@ -132,8 +142,8 @@ func TestCreate(t *testing.T) {
 			if test.wantFailConstruct {
 				return
 			}
-			rootTile := filter.Include(s, tiles, func(t *Tile) bool { return len(t.Path) == 0 })
-			roots := beam.ParDo(s, func(t *Tile) string { return fmt.Sprintf("%x", t.RootHash) }, rootTile)
+			rootTile := filter.Include(s, tiles, testFilterRootOnlyFn)
+			roots := beam.ParDo(s, testFnTileRootHash, rootTile)
 
 			assertTileCount(s, tiles, test.wantTileCount)
 			passert.Equals(s, roots, test.wantRoot)
@@ -219,8 +229,8 @@ func TestUpdate(t *testing.T) {
 			if err != nil {
 				t.Errorf("pipeline construction failure: %v", err)
 			}
-			rootTile := filter.Include(s, tiles, func(t *Tile) bool { return len(t.Path) == 0 })
-			roots := beam.ParDo(s, func(t *Tile) string { return fmt.Sprintf("%x", t.RootHash) }, rootTile)
+			rootTile := filter.Include(s, tiles, testFilterRootOnlyFn)
+			roots := beam.ParDo(s, testFnTileRootHash, rootTile)
 
 			assertTileCount(s, tiles, test.wantTileCount)
 			passert.Equals(s, roots, test.wantRoot)
@@ -231,6 +241,8 @@ func TestUpdate(t *testing.T) {
 		})
 	}
 }
+
+func testFilterRootOnlyFn(t *Tile) bool { return len(t.Path) == 0 }
 
 func TestChildrenSorted(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
@@ -244,12 +256,14 @@ func TestChildrenSorted(t *testing.T) {
 		t.Fatalf("failed to create pipeline: %v", err)
 	}
 
-	passert.True(s, tiles, func(t *Tile) bool { return isStrictlySorted(t.Leaves) })
+	passert.True(s, tiles, testLeavesSortedFn)
 
 	if err := ptest.Run(p); err != nil {
 		t.Fatalf("pipeline failed: %v", err)
 	}
 }
+
+func testLeavesSortedFn(t *Tile) bool { return isStrictlySorted(t.Leaves) }
 
 func TestGoldenCreate(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
@@ -259,8 +273,8 @@ func TestGoldenCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create pipeline: %v", err)
 	}
-	rootTile := filter.Include(s, tiles, func(t *Tile) bool { return len(t.Path) == 0 })
-	roots := beam.ParDo(s, func(t *Tile) string { return fmt.Sprintf("%x", t.RootHash) }, rootTile)
+	rootTile := filter.Include(s, tiles, testFilterRootOnlyFn)
+	roots := beam.ParDo(s, testFnTileRootHash, rootTile)
 
 	assertTileCount(s, tiles, 1218)
 	passert.Equals(s, roots, "daf17dc2c83f37962bae8a65d294ef7fca4ffa02c10bdc4ca5c4dec408001c98")
@@ -286,8 +300,8 @@ func TestGoldenUpdate(t *testing.T) {
 		t.Fatalf("failed to create v1 pipeline: %v", err)
 	}
 
-	rootTile := filter.Include(s, tiles, func(t *Tile) bool { return len(t.Path) == 0 })
-	roots := beam.ParDo(s, func(t *Tile) string { return fmt.Sprintf("%x", t.RootHash) }, rootTile)
+	rootTile := filter.Include(s, tiles, testFilterRootOnlyFn)
+	roots := beam.ParDo(s, testFnTileRootHash, rootTile)
 
 	assertTileCount(s, tiles, 1218)
 	passert.Equals(s, roots, "daf17dc2c83f37962bae8a65d294ef7fca4ffa02c10bdc4ca5c4dec408001c98")
@@ -300,9 +314,10 @@ func TestGoldenUpdate(t *testing.T) {
 // tiles has the given cardinality. If the check fails then ptest.Run will
 // return an error.
 func assertTileCount(s beam.Scope, tiles beam.PCollection, count int) {
-	countTiles := func(t *Tile) int { return 1 }
-	passert.Equals(s, stats.Sum(s, beam.ParDo(s, countTiles, tiles)), count)
+	passert.Equals(s, stats.Sum(s, beam.ParDo(s, countTilesFn, tiles)), count)
 }
+
+func countTilesFn(t *Tile) int { return 1 }
 
 // Copied from http://google3/third_party/golang/trillian/merkle/smt/hstar3_test.go?l=201&rcl=298994396
 func leafNodes(t testing.TB, n int) []*Entry {

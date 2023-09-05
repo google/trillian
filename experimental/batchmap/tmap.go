@@ -25,6 +25,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 
 	"github.com/google/trillian/merkle/coniks"
 	"github.com/google/trillian/merkle/smt"
@@ -37,6 +38,15 @@ var (
 	cntTilesCreated = beam.NewCounter("batchmap", "tiles-created")
 	cntTilesUpdated = beam.NewCounter("batchmap", "tiles-updated")
 )
+
+func init() {
+	register.DoFn1x2[nodeHash, []byte, nodeHash](&leafShardFn{})
+	register.DoFn3x2[context.Context, []byte, func(*nodeHash) bool, *Tile, error](&tileHashFn{})
+	register.DoFn4x2[context.Context, []byte, func(**Tile) bool, func(*nodeHash) bool, *Tile, error](&tileUpdateFn{})
+	register.Function5x1(createStratum)
+	register.Function6x1(updateStratum)
+	register.Function1x2(tilePathFn)
+}
 
 // Create builds a new map from the given PCollection of *Entry. Outputs
 // the resulting Merkle tree tiles as a PCollection of *Tile.
@@ -122,10 +132,12 @@ func createStratum(s beam.Scope, leaves beam.PCollection, treeID int64, hash cry
 // output is a PCollection of *Tile.
 func updateStratum(s beam.Scope, base, deltas beam.PCollection, treeID int64, hash crypto.Hash, rootDepth int) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("updateStratum-%d", rootDepth))
-	shardedBase := beam.ParDo(s, func(t *Tile) ([]byte, *Tile) { return t.Path, t }, base)
+	shardedBase := beam.ParDo(s, tilePathFn, base)
 	shardedDelta := beam.ParDo(s, &leafShardFn{RootDepthBytes: rootDepth}, deltas)
 	return beam.ParDo(s, &tileUpdateFn{TreeID: treeID, Hash: hash}, beam.CoGroupByKey(s, shardedBase, shardedDelta))
 }
+
+func tilePathFn(t *Tile) ([]byte, *Tile) { return t.Path, t }
 
 // nodeHash describes a leaf to be included in a tile.
 // This is logically the same as smt.Node however it has public fields so is
