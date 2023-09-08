@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -260,7 +261,8 @@ func TestGetLeavesByRange(t *testing.T) {
 			t.Errorf("GetLeavesByRange(%d, %+d)=%+v; want %+v", req.StartIndex, req.Count, got, test.want)
 		}
 
-		if gotCount, wantCount := server.fetchedLeaves.Value(), float64(len(test.want)); gotCount != wantCount {
+		label := strconv.FormatInt(req.LogId, 10)
+		if gotCount, wantCount := server.fetchedLeaves.Value(label), float64(len(test.want)); gotCount != wantCount {
 			t.Errorf("GetLeavesByRange() incremented fetched count by %f,  want %f", gotCount, wantCount)
 		}
 	}
