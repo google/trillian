@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
   docker-compose \
   lsof \
   mariadb-client \
-  netcat \
+  netcat-openbsd \
   socat \
   softhsm \
   unzip \
