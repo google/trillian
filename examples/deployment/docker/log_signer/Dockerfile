@@ -1,4 +1,4 @@
-FROM golang:1.21.1-bookworm@sha256:e06b3a4a2ad2d274dfbd5377330b018b07fbe96179fd5de4cf2a2248f96311a3 as build
+FROM golang:1.21.1-bookworm@sha256:114b9cc39f435cfc34e2d48d0cb12cba2015a87f359f5dbf3ee3b6cf3591b7fb as build
 
 WORKDIR /trillian
 
