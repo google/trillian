@@ -1,5 +1,5 @@
 # This Dockerfile builds a base image for Trillan integration tests.
-FROM golang:1.21.2-bookworm@sha256:0bd76fd6e69d7686b2471c810015fe2bdddcd309b3cd066f938388fa8b2f146a
+FROM golang:1.21.2-bookworm@sha256:a44d05d5de3474f8135462903bbf74a0fdb761aec455ff557c467339dc0b729b
 
 WORKDIR /testbase
 
