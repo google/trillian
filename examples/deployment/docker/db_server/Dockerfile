@@ -1,4 +1,4 @@
-FROM gcr.io/trillian-opensource-ci/mysql5:5.7@sha256:f45c849cf48c49c75cf9cbdf1ef68cecd7fd3fb9612325909a9eee1b2d1c462e
+FROM gcr.io/trillian-opensource-ci/mysql5:5.7@sha256:99d604368e40acbb52140fc5e6e9c7b0d0cc51b8dd9d79522bc7127b60b0ab93
 
 # Patch the OS-level packages and remove unneeded dependencies.
 ENV DEBIAN_FRONTEND=noninteractive
