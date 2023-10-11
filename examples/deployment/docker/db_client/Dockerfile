@@ -1,4 +1,4 @@
-FROM golang:1.21.2-bookworm@sha256:a44d05d5de3474f8135462903bbf74a0fdb761aec455ff557c467339dc0b729b
+FROM golang:1.21.3-bookworm@sha256:efde471c5c8a5a800836723a747c774ef5fde10aa16f539ae0e9e0989c0b1b80
 
 RUN apt-get update && \
     apt-get install -y mariadb-client
