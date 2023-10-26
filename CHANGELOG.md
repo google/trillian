@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* Update dependencies
+  * update google.golang.org/grpc to v1.59.0 to fix CVE-2023-44487 (https://github.com/advisories/GHSA-qppj-fm5r-hxr3)
 * Export logserver read counter metric together with logIDs
 * Recommended go version for development: 1.20
   * This is the version used by the cloudbuild presubmits. Using a
