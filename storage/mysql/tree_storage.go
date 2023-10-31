@@ -252,6 +252,10 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		}
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
 	return ret, nil
