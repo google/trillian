@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
   xxd
 
 # Install golangci-lint. See docs at: https://golangci-lint.run/usage/install/.
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.51.1
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.1
 
 # Install CockroachDB, see https://www.cockroachlabs.com/docs/v22.1/install-cockroachdb-linux
 RUN curl https://binaries.cockroachdb.com/cockroach-v22.1.11.linux-amd64.tgz | tar -xz && cp -i cockroach-v22.1.11.linux-amd64/cockroach /usr/local/bin/

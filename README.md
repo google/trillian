@@ -192,7 +192,8 @@ go generate -x ./...  # hunts for //go:generate comments and runs them
 
 The Trillian codebase uses go.mod to declare fixed versions of its dependencies. 
 With Go modules, updating a dependency simply involves running `go get`:
-```
+
+```bash
 go get package/path       # Fetch the latest published version
 go get package/path@X.Y.Z # Fetch a specific published version
 go get package/path@HEAD  # Fetch the latest commit 
@@ -203,7 +204,8 @@ Be warned however, that this may undo any selected versions that resolve issues 
 
 While running `go build` and `go test`, go will add any ambiguous transitive dependencies to `go.mod`
 To clean these up run:
-```
+
+```bash
 go mod tidy
 ```
 
@@ -213,20 +215,22 @@ The [`scripts/presubmit.sh`](scripts/presubmit.sh) script runs various tools
 and tests over the codebase.
 
 #### Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
+
 ```bash
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.1
 ```
 
 #### Run code generation, build, test and linters
+
 ```bash
 ./scripts/presubmit.sh
 ```
 
 #### Or just run the linters alone
+
 ```bash
 golangci-lint run
 ```
-
 
 ## Design
 
