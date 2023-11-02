@@ -2,6 +2,7 @@
 
 ## HEAD
 
+* Bump CI version of MySQL from 5.7 to 8.0
 * Bump golangci-lint from 1.51.1 to 1.55.1 (developers should update to this version)
 
 ## v1.5.3
