@@ -5,7 +5,7 @@ timeout: 1800s
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
-  _MYSQL_TAG: "5.7"
+  _MYSQL_TAG: "8.0"
   _MYSQL_ROOT_PASSWORD: ""
   _MYSQL_PASSWORD: ""
 options:

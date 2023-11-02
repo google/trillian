@@ -1,6 +1,6 @@
 timeout: 1800s
 substitutions:
-  _MYSQL_TAG: "5.7"
+  _MYSQL_TAG: "8.0"
 options:
   machineType: E2_HIGHCPU_32
 steps:
