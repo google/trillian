@@ -181,6 +181,6 @@ steps:
   entrypoint: ./integration/cloudbuild/run_integration.sh
   env:
     - GO_TEST_TIMEOUT=20m
-    - MYSQLD_IMAGE=mariadb:10.3
+    - MYSQLD_IMAGE=mariadb:11.1
   waitFor:
     - presubmits_done
