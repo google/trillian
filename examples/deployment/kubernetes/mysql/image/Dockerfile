@@ -25,7 +25,7 @@ RUN apt-get update \
 # consistently, regardless of whatever dependencies get added
 RUN groupadd -r mysql && useradd -r -g mysql mysql
 
-ENV MYSQL_VERSION 5.7
+ENV MYSQL_VERSION 8.0
 ENV TERM linux
 
 # Install perl.

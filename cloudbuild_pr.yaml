@@ -5,7 +5,7 @@ timeout: 1800s
 substitutions:
   _CLUSTER_NAME: trillian-opensource-ci
   _MASTER_ZONE: us-central1-a
-  _MYSQL_TAG: "5.7"
+  _MYSQL_TAG: "8.0"
   _MYSQL_ROOT_PASSWORD: ""
   _MYSQL_PASSWORD: ""
 options:
@@ -17,20 +17,20 @@ steps:
   name : gcr.io/cloud-builders/docker
   args:
   - pull
-  - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
+  - marketplace.gcr.io/google/mysql8:${_MYSQL_TAG}
 - id: tag_mysql
   name: gcr.io/cloud-builders/docker
   args:
   - tag
-  - marketplace.gcr.io/google/mysql5:${_MYSQL_TAG}
-  - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
+  - marketplace.gcr.io/google/mysql8:${_MYSQL_TAG}
+  - gcr.io/${PROJECT_ID}/mysql8:${_MYSQL_TAG}
   waitFor:
   - pull_mysql
 - id: push_mysql
   name: gcr.io/cloud-builders/docker
   args:
   - push
-  - gcr.io/${PROJECT_ID}/mysql5:${_MYSQL_TAG}
+  - gcr.io/${PROJECT_ID}/mysql8:${_MYSQL_TAG}
   waitFor:
   - tag_mysql
 
