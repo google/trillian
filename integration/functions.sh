@@ -37,10 +37,10 @@ wait_for_server_startup() {
   # as the test will fail if the server is really not up.
   local port=$1
   set +e
-  wget -q --spider --retry-connrefused --waitretry=1 -t 10 localhost:${port}
+  wget -q --spider --retry-connrefused --waitretry=2 -t 20 localhost:${port}
   # Wait a bit more to give it a chance to become actually available, e.g. if CI
   # environment is slow.
-  sleep 2
+  sleep 5
   wget -q --spider -t 1 localhost:${port}
   local rc=$?
   set -e
