@@ -34,7 +34,7 @@ import (
 
 // These statements are fixed
 const (
-	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
+	insertSubtreeMultiSQL = `REPLACE INTO Subtree(TreeId, SubtreeId, Nodes) ` + placeholderSQL
 	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
 
@@ -138,7 +138,7 @@ func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.St
 }
 
 func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
+	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?)", "(?, ?, ?)")
 }
 
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
@@ -172,7 +172,7 @@ type treeTX struct {
 	writeRevision int64
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(ctx context.Context, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 	klog.V(2).Infof("getSubtrees(len(ids)=%d)", len(ids))
 	klog.V(4).Infof("getSubtrees(")
 	if len(ids) == 0 {
@@ -190,17 +190,14 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		}
 	}()
 
-	args := make([]interface{}, 0, len(ids)+3)
+	args := make([]interface{}, 0, len(ids)+1)
+	args = append(args, t.treeID)
 
 	// populate args with ids.
 	for _, id := range ids {
 		klog.V(4).Infof("  id: %x", id)
 		args = append(args, id)
 	}
-
-	args = append(args, t.treeID)
-	args = append(args, treeRevision)
-	args = append(args, t.treeID)
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
@@ -295,7 +292,6 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		args = append(args, t.treeID)
 		args = append(args, s.Prefix)
 		args = append(args, subtreeBytes)
-		args = append(args, t.writeRevision)
 	}
 
 	tmpl, err := t.ts.setSubtreeStmt(ctx, len(subtrees))
@@ -339,18 +335,16 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	return nil
 }
 
-// getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
-func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
+func (t *treeTX) getSubtreesFunc(ctx context.Context) cache.GetSubtreesFunc {
 	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
-		return t.getSubtrees(ctx, rev, ids)
+		return t.getSubtrees(ctx, ids)
 	}
 }
 
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	rev := t.writeRevision - 1
-	return t.subtreeCache.SetNodes(nodes, t.getSubtreesAtRev(ctx, rev))
+	return t.subtreeCache.SetNodes(nodes, t.getSubtreesFunc(ctx))
 }
 
 func (t *treeTX) Commit(ctx context.Context) error {
