@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS Trees(
   CreateTimeMillis      BIGINT NOT NULL,
   UpdateTimeMillis      BIGINT NOT NULL,
   MaxRootDurationMillis BIGINT NOT NULL,
-  PrivateKey            MEDIUMBLOB NOT NULL,
-  PublicKey             MEDIUMBLOB NOT NULL,
+  PrivateKey            MEDIUMBLOB NOT NULL, -- Unused.
+  PublicKey             MEDIUMBLOB NOT NULL, -- This is now used to store settings.
   Deleted               BOOLEAN,
   DeleteTimeMillis      BIGINT,
   PRIMARY KEY(TreeId)
@@ -40,9 +40,10 @@ CREATE TABLE IF NOT EXISTS Subtree(
   TreeId               BIGINT NOT NULL,
   SubtreeId            VARBINARY(255) NOT NULL,
   Nodes                MEDIUMBLOB NOT NULL,
+  SubtreeRevision      INTEGER NOT NULL,
   -- Key columns must be in ASC order in order to benefit from group-by/min-max
   -- optimization in MySQL.
-  PRIMARY KEY(TreeId, SubtreeId),
+  PRIMARY KEY(TreeId, SubtreeId, SubtreeRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 

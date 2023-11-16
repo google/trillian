@@ -324,7 +324,7 @@ type logTreeTX struct {
 func (t *logTreeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error) {
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()
-	return t.subtreeCache.GetNodes(ids, t.getSubtreesFunc(ctx))
+	return t.subtreeCache.GetNodes(ids, t.getSubtreesAtRev(ctx, t.readRev))
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {

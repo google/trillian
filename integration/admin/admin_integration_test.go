@@ -220,8 +220,9 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		want.TreeId = tree.TreeId
 		want.CreateTime = tree.CreateTime
 		want.UpdateTime = tree.UpdateTime
+		want.StorageSettings = tree.StorageSettings
 		if !proto.Equal(tree, want) {
-			diff := cmp.Diff(tree, want)
+			diff := cmp.Diff(tree, want, cmp.Comparer(proto.Equal))
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
 		}
 	}
@@ -357,7 +358,7 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 		want.Deleted = true
 		want.DeleteTime = deletedTree.DeleteTime
 		if got := deletedTree; !proto.Equal(got, want) {
-			diff := cmp.Diff(got, want)
+			diff := cmp.Diff(got, want, cmp.Comparer(proto.Equal))
 			t.Errorf("%v: post-DeleteTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 
@@ -366,7 +367,7 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 			t.Fatalf("%v: GetTree() returned err = %v", test.desc, err)
 		}
 		if got, want := storedTree, deletedTree; !proto.Equal(got, want) {
-			diff := cmp.Diff(got, want)
+			diff := cmp.Diff(got, want, cmp.Comparer(proto.Equal))
 			t.Errorf("%v: post-GetTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
@@ -447,7 +448,7 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 			continue
 		}
 		if got, want := undeletedTree, createdTree; !proto.Equal(got, want) {
-			diff := cmp.Diff(got, want)
+			diff := cmp.Diff(got, want, cmp.Comparer(proto.Equal))
 			t.Errorf("%v: post-UndeleteTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 
@@ -456,7 +457,7 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 			t.Fatalf("%v: GetTree() returned err = %v", test.desc, err)
 		}
 		if got, want := storedTree, createdTree; !proto.Equal(got, want) {
-			diff := cmp.Diff(got, want)
+			diff := cmp.Diff(got, want, cmp.Comparer(proto.Equal))
 			t.Errorf("%v: post-GetTree() diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
