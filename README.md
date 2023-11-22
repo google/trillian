@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/google/trillian)](https://goreportcard.com/report/github.com/google/trillian)
 [![codecov](https://codecov.io/gh/google/trillian/branch/master/graph/badge.svg?token=QwofUwmvAs)](https://codecov.io/gh/google/trillian)
 [![GoDoc](https://godoc.org/github.com/google/trillian?status.svg)](https://godoc.org/github.com/google/trillian)
-[![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://gtrillian.slack.com/)
+[![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
 
  - [Overview](#overview)
  - [Support](#support)
@@ -54,7 +54,7 @@ Other examples of Trillian personalities are available in the
 ## Support
 
 - Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
-- Slack: https://gtrillian.slack.com/ ([invitation](https://join.slack.com/t/gtrillian/shared_invite/enQtNDM3NTE3NjA4NDcwLTMwYzVlMDUxMDQ2MGU5MjcyZGIxMmVmZGNlNzdhMzRlOGFjMWJkNzc0MGY1Y2QyNWQyMWM4NzJlOGMxNTZkZGU))
+- Slack: https://transparency-dev.slack.com/ ([invitation](https://join.slack.com/t/transparency-dev/shared_invite/zt-27pkqo21d-okUFhur7YZ0rFoJVIOPznQ))
 
 
 ## Using the Code
