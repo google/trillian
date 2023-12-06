@@ -101,7 +101,7 @@ func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*tri
 
 // WaitForRootUpdate repeatedly fetches the latest root until there is an
 // update, which it then applies, or until ctx times out.
-func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, error) {
+func (c *LogClient) WaitForRootUpdate(ctx context.Context, current *types.LogRootV1) (*types.LogRootV1, error) {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
@@ -110,6 +110,10 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 	}
 
 	for {
+		if new := c.GetRoot(); c.rootUpdated(current, new) {
+			return new, nil
+		}
+
 		newTrusted, err := c.UpdateRoot(ctx)
 		switch status.Code(err) {
 		case codes.OK:
@@ -181,6 +185,11 @@ func (c *LogClient) GetRoot() *types.LogRootV1 {
 	return &ret
 }
 
+func (c *LogClient) rootUpdated(old, new *types.LogRootV1) bool {
+	return new.TimestampNanos > old.TimestampNanos &&
+		new.TreeSize >= old.TreeSize
+}
+
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
 // seen in the past, and updating the currently trusted root if the new root verifies, and is
 // newer than the currently trusted root.
@@ -211,9 +220,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 	c.rootLock.Lock()
 	defer c.rootLock.Unlock()
 
-	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
-		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
-
+	if c.rootUpdated(currentlyTrusted, newTrusted) {
 		// Take a copy of the new trusted root in order to prevent clients from modifying it.
 		c.root = *newTrusted
 
@@ -259,7 +266,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		}
 
 		// If not found or tree is empty, wait for a root update before retrying again.
-		if _, err := c.WaitForRootUpdate(ctx); err != nil {
+		if _, err := c.WaitForRootUpdate(ctx, root); err != nil {
 			return err
 		}
 
