@@ -143,7 +143,7 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 	}()
 
 	// GetTree is an entry point for most RPCs, let's provide somewhat nicer error messages.
-	tree, err := storage.ReadTree(stmt.QueryRowContext(ctx, treeID))
+	tree, err := readTree(stmt.QueryRowContext(ctx, treeID))
 	switch {
 	case err == sql.ErrNoRows:
 		// ErrNoRows doesn't provide useful information, so we don't forward it.
@@ -182,7 +182,7 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 	}()
 	trees := []*trillian.Tree{}
 	for rows.Next() {
-		tree, err := storage.ReadTree(rows)
+		tree, err := readTree(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -205,8 +205,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 
 	// Use the time truncated-to-millis throughout, as that's what's stored.
-	nowMillis := storage.ToMillisSinceEpoch(time.Now())
-	now := storage.FromMillisSinceEpoch(nowMillis)
+	nowMillis := toMillisSinceEpoch(time.Now())
+	now := fromMillisSinceEpoch(nowMillis)
 
 	newTree := proto.Clone(tree).(*trillian.Tree)
 	newTree.TreeId = id
@@ -327,8 +327,8 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	// ensure all entries in SequencedLeafData are integrated.
 
 	// Use the time truncated-to-millis throughout, as that's what's stored.
-	nowMillis := storage.ToMillisSinceEpoch(time.Now())
-	now := storage.FromMillisSinceEpoch(nowMillis)
+	nowMillis := toMillisSinceEpoch(time.Now())
+	now := fromMillisSinceEpoch(nowMillis)
 	tree.UpdateTime = timestamppb.New(now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build update time: %v", err)
@@ -365,7 +365,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 }
 
 func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	return t.updateDeleted(ctx, treeID, true /* deleted */, storage.ToMillisSinceEpoch(time.Now()) /* deleteTimeMillis */)
+	return t.updateDeleted(ctx, treeID, true /* deleted */, toMillisSinceEpoch(time.Now()) /* deleteTimeMillis */)
 }
 
 func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
