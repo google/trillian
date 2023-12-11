@@ -393,7 +393,10 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		tree.Description,
 		nowMillis,
 		rootDuration/time.Millisecond,
-		[]byte{}, // Unused, filling in for backward compatibility.
+		[]byte{}, // PrivateKey: Unused, filling in for backward compatibility.
+		// PublicKey should not be updated with any storageSettings here without
+		// a lot of thought put into it. At the moment storageSettings are inferred
+		// when reading the tree, even if no value is stored in the database.
 		tree.TreeId); err != nil {
 		return nil, err
 	}
