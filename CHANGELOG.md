@@ -7,7 +7,7 @@
 
 ### MySQL: Changes to Subtree Revisions
 
-Support for skipping subtree revisions to increase read performance and disk usage: added in #3201
+Support for skipping subtree revisions to increase read performance and reduce disk usage: added in #3201
 
 TL;DR: existing trees will continue to be stored and queried as they were before, but new trees
 created with the MySQL storage layer will be stored and queried in a way that uses less space
