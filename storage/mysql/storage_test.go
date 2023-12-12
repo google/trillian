@@ -25,17 +25,46 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/mysql/mysqlpb"
 	"github.com/google/trillian/storage/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"k8s.io/klog/v2"
 )
+
+var (
+	// LogTree is a valid, LOG-type trillian.Tree for tests.
+	// This tree is configured to write revisions for each subtree.
+	// This matches the legacy behaviour before revisions were removed.
+	RevisionedLogTree = &trillian.Tree{
+		TreeState:       trillian.TreeState_ACTIVE,
+		TreeType:        trillian.TreeType_LOG,
+		DisplayName:     "Llamas Log",
+		Description:     "Registry of publicly-owned llamas",
+		MaxRootDuration: durationpb.New(0 * time.Millisecond),
+		StorageSettings: mustCreateRevisionedStorage(),
+	}
+)
+
+func mustCreateRevisionedStorage() *anypb.Any {
+	o := &mysqlpb.StorageOptions{
+		SubtreeRevisions: true,
+	}
+	a, err := anypb.New(o)
+	if err != nil {
+		panic(err)
+	}
+	return a
+}
 
 func TestNodeRoundTrip(t *testing.T) {
 	nodes := createSomeNodes(256)
@@ -58,11 +87,11 @@ func TestNodeRoundTrip(t *testing.T) {
 		{desc: "store-all-read-all", store: nodes, read: nodeIDs, want: nodes},
 		{desc: "store-all-read-none", store: nodes, read: nil, want: nil},
 	} {
-		t.Run(tc.desc, func(t *testing.T) {
+		testbody := func(treeDef *trillian.Tree) {
 			ctx := context.Background()
 			cleanTestDB(DB)
 			as := NewAdminStorage(DB)
-			tree := mustCreateTree(ctx, t, as, storageto.LogTree)
+			tree := mustCreateTree(ctx, t, as, treeDef)
 			s := NewLogStorage(DB, nil)
 
 			const writeRev = int64(100)
@@ -86,6 +115,12 @@ func TestNodeRoundTrip(t *testing.T) {
 				}
 				return nil
 			})
+		}
+		t.Run(tc.desc+"-norevisions", func(t *testing.T) {
+			testbody(storageto.LogTree)
+		})
+		t.Run(tc.desc+"-revisions", func(t *testing.T) {
+			testbody(RevisionedLogTree)
 		})
 	}
 }
@@ -93,50 +128,67 @@ func TestNodeRoundTrip(t *testing.T) {
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
-	ctx := context.Background()
-	cleanTestDB(DB)
-	as := NewAdminStorage(DB)
-	tree := mustCreateTree(ctx, t, as, storageto.LogTree)
-	s := NewLogStorage(DB, nil)
-
-	const writeRev = int64(100)
-	const size = 871
-	nodesToStore, err := createLogNodesForTreeAtSize(t, size, writeRev)
-	if err != nil {
-		t.Fatalf("failed to create test tree: %v", err)
+	testCases := []struct {
+		desc string
+		tree *trillian.Tree
+	}{
+		{
+			desc: "Revisionless",
+			tree: storageto.LogTree,
+		},
+		{
+			desc: "Revisions",
+			tree: RevisionedLogTree,
+		},
 	}
-	nodeIDsToRead := make([]compact.NodeID, len(nodesToStore))
-	for i := range nodesToStore {
-		nodeIDsToRead[i] = nodesToStore[i].ID
-	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			ctx := context.Background()
+			cleanTestDB(DB)
+			as := NewAdminStorage(DB)
+			tree := mustCreateTree(ctx, t, as, tC.tree)
+			s := NewLogStorage(DB, nil)
 
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			forceWriteRevision(writeRev, tx)
-			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
-				t.Fatalf("Failed to store nodes: %s", err)
-			}
-			return storeLogRoot(ctx, tx, uint64(size), uint64(writeRev), []byte{1, 2, 3})
-		})
-	}
-
-	{
-		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-			readNodes, err := tx.GetMerkleNodes(ctx, nodeIDsToRead)
+			const writeRev = int64(100)
+			const size = 871
+			nodesToStore, err := createLogNodesForTreeAtSize(t, size, writeRev)
 			if err != nil {
-				t.Fatalf("Failed to retrieve nodes: %s", err)
+				t.Fatalf("failed to create test tree: %v", err)
 			}
-			if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
-				missing, extra := diffNodes(readNodes, nodesToStore)
-				for _, n := range missing {
-					t.Errorf("Missing: %v", n.ID)
-				}
-				for _, n := range extra {
-					t.Errorf("Extra  : %v", n.ID)
-				}
-				t.Fatalf("Read back different nodes from the ones stored: %s", err)
+			nodeIDsToRead := make([]compact.NodeID, len(nodesToStore))
+			for i := range nodesToStore {
+				nodeIDsToRead[i] = nodesToStore[i].ID
 			}
-			return nil
+
+			{
+				runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+					forceWriteRevision(writeRev, tx)
+					if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
+						t.Fatalf("Failed to store nodes: %s", err)
+					}
+					return storeLogRoot(ctx, tx, uint64(size), uint64(writeRev), []byte{1, 2, 3})
+				})
+			}
+
+			{
+				runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+					readNodes, err := tx.GetMerkleNodes(ctx, nodeIDsToRead)
+					if err != nil {
+						t.Fatalf("Failed to retrieve nodes: %s", err)
+					}
+					if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
+						missing, extra := diffNodes(readNodes, nodesToStore)
+						for _, n := range missing {
+							t.Errorf("Missing: %v", n.ID)
+						}
+						for _, n := range extra {
+							t.Errorf("Extra  : %v", n.ID)
+						}
+						t.Fatalf("Read back different nodes from the ones stored: %s", err)
+					}
+					return nil
+				})
+			}
 		})
 	}
 }

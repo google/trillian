@@ -328,8 +328,10 @@ func runListTreesTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDe
 	sort.Slice(want, func(i, j int) bool { return want[i].TreeId < want[j].TreeId })
 
 	for i, wantTree := range want {
+		// Ignore storage_settings changes (OK to vary between implementations)
+		wantTree.StorageSettings = got[i].StorageSettings
 		if !proto.Equal(got[i], wantTree) {
-			return fmt.Errorf("post-ListTrees() diff (-got +want):\n%v", cmp.Diff(got, want))
+			return fmt.Errorf("post-ListTrees() diff (-got +want):\n%v", cmp.Diff(got, want, cmp.Comparer(proto.Equal)))
 		}
 	}
 	return nil
@@ -362,8 +364,10 @@ func (tester *AdminStorageTester) TestSoftDeleteTree(t *testing.T) {
 		wantTree := proto.Clone(test.tree).(*trillian.Tree)
 		wantTree.Deleted = true
 		wantTree.DeleteTime = deletedTree.DeleteTime
+		// Ignore storage_settings changes (OK to vary between implementations)
+		wantTree.StorageSettings = deletedTree.StorageSettings
 		if got, want := deletedTree, wantTree; !proto.Equal(got, want) {
-			t.Errorf("%v: post-SoftDeleteTree diff (-got +want):\n%v", test.desc, cmp.Diff(got, want))
+			t.Errorf("%v: post-SoftDeleteTree diff (-got +want):\n%v", test.desc, cmp.Diff(got, want, cmp.Comparer(proto.Equal)))
 		}
 
 		if err := assertStoredTree(ctx, s, deletedTree); err != nil {
@@ -557,8 +561,11 @@ func assertStoredTree(ctx context.Context, s storage.AdminStorage, want *trillia
 	if err != nil {
 		return fmt.Errorf("GetTree() returned err = %v", err)
 	}
+
+	// Ignore storage_settings changes (OK to vary between implementations)
+	want.StorageSettings = got.StorageSettings
 	if !proto.Equal(got, want) {
-		return fmt.Errorf("post-GetTree() diff (-got +want):\n%v", cmp.Diff(got, want))
+		return fmt.Errorf("post-GetTree() diff (-got +want):\n%v", cmp.Diff(got, want, cmp.Comparer(proto.Equal)))
 	}
 	return nil
 }

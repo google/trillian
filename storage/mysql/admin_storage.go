@@ -15,17 +15,21 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/gob"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/mysql/mysqlpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/klog/v2"
 )
@@ -47,8 +51,8 @@ const (
 			Description,
 			CreateTimeMillis,
 			UpdateTimeMillis,
-			PrivateKey,
-			PublicKey,
+			PrivateKey, -- Unused
+			PublicKey, -- Used to store StorageSettings
 			MaxRootDurationMillis,
 			Deleted,
 			DeleteTimeMillis
@@ -62,7 +66,7 @@ const (
 )
 
 // NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
-func NewAdminStorage(db *sql.DB) storage.AdminStorage {
+func NewAdminStorage(db *sql.DB) *mysqlAdminStorage {
 	return &mysqlAdminStorage{db}
 }
 
@@ -223,6 +227,39 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 	rootDuration := newTree.MaxRootDuration.AsDuration()
 
+	// When creating a new tree we automatically add StorageSettings to allow us to
+	// determine that this tree can support newer storage features. When reading
+	// trees that do not have this StorageSettings populated, it must be assumed that
+	// the tree was created with the oldest settings.
+	// The gist of this code is super simple: create a new StorageSettings with the most
+	// modern defaults if the created tree does not have one, and then create a struct that
+	// represents this to store in the DB. Unfortunately because this involves anypb, struct
+	// copies, marshalling, and proper error handling this turns into a scary amount of code.
+	if tree.StorageSettings != nil {
+		newTree.StorageSettings = proto.Clone(tree.StorageSettings).(*anypb.Any)
+	} else {
+		o := &mysqlpb.StorageOptions{
+			SubtreeRevisions: false, // Default behaviour for new trees is to skip writing subtree revisions.
+		}
+		a, err := anypb.New(o)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create new StorageOptions: %v", err)
+		}
+		newTree.StorageSettings = a
+	}
+	o := &mysqlpb.StorageOptions{}
+	if err := anypb.UnmarshalTo(newTree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal StorageOptions: %v", err)
+	}
+	ss := storageSettings{
+		Revisioned: o.SubtreeRevisions,
+	}
+	buff := &bytes.Buffer{}
+	enc := gob.NewEncoder(buff)
+	if err := enc.Encode(ss); err != nil {
+		return nil, fmt.Errorf("failed to encode storageSettings: %v", err)
+	}
+
 	insertTreeStmt, err := t.tx.PrepareContext(
 		ctx,
 		`INSERT INTO Trees(
@@ -236,8 +273,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			Description,
 			CreateTimeMillis,
 			UpdateTimeMillis,
-			PrivateKey,
-			PublicKey,
+			PrivateKey, -- Unused
+			PublicKey, -- Used to store StorageSettings
 			MaxRootDurationMillis)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
@@ -261,8 +298,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.Description,
 		nowMillis,
 		nowMillis,
-		[]byte{}, // Unused, filling in for backward compatibility.
-		[]byte{}, // Unused, filling in for backward compatibility.
+		[]byte{},     // PrivateKey: Unused, filling in for backward compatibility.
+		buff.Bytes(), // Using the otherwise unused PublicKey for storing StorageSettings.
 		rootDuration/time.Millisecond,
 	)
 	if err != nil {
@@ -356,7 +393,10 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		tree.Description,
 		nowMillis,
 		rootDuration/time.Millisecond,
-		[]byte{}, // Unused, filling in for backward compatibility.
+		[]byte{}, // PrivateKey: Unused, filling in for backward compatibility.
+		// PublicKey should not be updated with any storageSettings here without
+		// a lot of thought put into it. At the moment storageSettings are inferred
+		// when reading the tree, even if no value is stored in the database.
 		tree.TreeId); err != nil {
 		return nil, err
 	}
@@ -419,8 +459,21 @@ func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted 
 }
 
 func validateStorageSettings(tree *trillian.Tree) error {
-	if tree.StorageSettings != nil {
-		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)
+	if tree.StorageSettings.MessageIs(&mysqlpb.StorageOptions{}) {
+		return nil
 	}
-	return nil
+	if tree.StorageSettings == nil {
+		// No storage settings is OK, we'll just use the defaults for new trees
+		return nil
+	}
+	return fmt.Errorf("storage_settings must be nil or mysqlpb.StorageOptions, but got %v", tree.StorageSettings)
+}
+
+// storageSettings allows us to persist storage settings to the DB.
+// It is a tempting trap to use protos for this, but the way they encode
+// makes it impossible to tell the difference between no value ever written
+// and a value that was written with the default values for each field.
+// Using an explicit struct and gob encoding allows us to tell the difference.
+type storageSettings struct {
+	Revisioned bool
 }

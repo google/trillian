@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS Trees(
   CreateTimeMillis      BIGINT NOT NULL,
   UpdateTimeMillis      BIGINT NOT NULL,
   MaxRootDurationMillis BIGINT NOT NULL,
-  PrivateKey            MEDIUMBLOB NOT NULL,
-  PublicKey             MEDIUMBLOB NOT NULL,
+  PrivateKey            MEDIUMBLOB NOT NULL, -- Unused.
+  PublicKey             MEDIUMBLOB NOT NULL, -- This is now used to store settings.
   Deleted               BOOLEAN,
   DeleteTimeMillis      BIGINT,
   PRIMARY KEY(TreeId)

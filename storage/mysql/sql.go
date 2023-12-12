@@ -15,11 +15,15 @@
 package mysql
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/gob"
 	"fmt"
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage/mysql/mysqlpb"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -122,6 +126,31 @@ func readTree(r row) (*trillian.Tree, error) {
 		if err := tree.DeleteTime.CheckValid(); err != nil {
 			return nil, fmt.Errorf("failed to parse delete time: %w", err)
 		}
+	}
+
+	// We're going to try to interpret PublicKey as storageSettings, but it could be a
+	// public key from a really old tree, or an empty column from a tree created in the
+	// period between Trillian key material being removed and this column being used for
+	// storing settings.
+	buff := bytes.NewBuffer(publicKey)
+	dec := gob.NewDecoder(buff)
+	ss := &storageSettings{}
+	var o *mysqlpb.StorageOptions
+	if err := dec.Decode(ss); err != nil {
+		// If there are no storageSettings then this tree was created before settings
+		// were supported, and thus we have to populate the settings with the oldest
+		// settings for features.
+		o = &mysqlpb.StorageOptions{
+			SubtreeRevisions: true,
+		}
+	} else {
+		o = &mysqlpb.StorageOptions{
+			SubtreeRevisions: ss.Revisioned,
+		}
+	}
+	tree.StorageSettings, err = anypb.New(o)
+	if err != nil {
+		return nil, fmt.Errorf("failed to put StorageSettings into tree: %w", err)
 	}
 
 	return tree, nil

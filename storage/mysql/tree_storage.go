@@ -26,15 +26,17 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/storage/mysql/mysqlpb"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"k8s.io/klog/v2"
 )
 
 // These statements are fixed
 const (
-	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
+	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL + ` ON DUPLICATE KEY UPDATE Nodes=VALUES(Nodes)`
 	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
 
@@ -52,6 +54,12 @@ const (
  AND Subtree.SubtreeRevision = x.MaxRevision 
  AND Subtree.TreeId = x.TreeId
  AND Subtree.TreeId = ?`
+
+	selectSubtreeSQLNoRev = `
+ SELECT SubtreeId, Subtree.Nodes
+ FROM Subtree
+ WHERE Subtree.TreeId = ?
+   AND SubtreeId IN (` + placeholderSQL + `)`
 	placeholderSQL = "<placeholder>"
 )
 
@@ -133,8 +141,12 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 	return s, nil
 }
 
-func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
+func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, subtreeRevs bool, num int) (*sql.Stmt, error) {
+	if subtreeRevs {
+		return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
+	} else {
+		return m.getStmt(ctx, selectSubtreeSQLNoRev, num, "?", "?")
+	}
 }
 
 func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
@@ -147,6 +159,12 @@ func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree,
 		klog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
 	}
+	var subtreeRevisions bool
+	o := &mysqlpb.StorageOptions{}
+	if err := anypb.UnmarshalTo(tree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
+		return treeTX{}, fmt.Errorf("failed to unmarshal StorageSettings: %v", err)
+	}
+	subtreeRevisions = o.SubtreeRevisions
 	return treeTX{
 		tx:            t,
 		mu:            &sync.Mutex{},
@@ -156,6 +174,7 @@ func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree,
 		hashSizeBytes: hashSizeBytes,
 		subtreeCache:  subtreeCache,
 		writeRevision: -1,
+		subtreeRevs:   subtreeRevisions,
 	}, nil
 }
 
@@ -170,6 +189,7 @@ type treeTX struct {
 	hashSizeBytes int
 	subtreeCache  *cache.SubtreeCache
 	writeRevision int64
+	subtreeRevs   bool
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
@@ -179,7 +199,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		return nil, nil
 	}
 
-	tmpl, err := t.ts.getSubtreeStmt(ctx, len(ids))
+	tmpl, err := t.ts.getSubtreeStmt(ctx, t.subtreeRevs, len(ids))
 	if err != nil {
 		return nil, err
 	}
@@ -190,17 +210,27 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		}
 	}()
 
-	args := make([]interface{}, 0, len(ids)+3)
+	var args []interface{}
+	if t.subtreeRevs {
+		args = make([]interface{}, 0, len(ids)+3)
+		// populate args with ids.
+		for _, id := range ids {
+			klog.V(4).Infof("  id: %x", id)
+			args = append(args, id)
+		}
+		args = append(args, t.treeID)
+		args = append(args, treeRevision)
+		args = append(args, t.treeID)
+	} else {
+		args = make([]interface{}, 0, len(ids)+1)
+		args = append(args, t.treeID)
 
-	// populate args with ids.
-	for _, id := range ids {
-		klog.V(4).Infof("  id: %x", id)
-		args = append(args, id)
+		// populate args with ids.
+		for _, id := range ids {
+			klog.V(4).Infof("  id: %x", id)
+			args = append(args, id)
+		}
 	}
-
-	args = append(args, t.treeID)
-	args = append(args, treeRevision)
-	args = append(args, t.treeID)
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
@@ -283,6 +313,13 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	// a really large number of subtrees to store.
 	args := make([]interface{}, 0, len(subtrees))
 
+	// If not using subtree revisions then default value of 0 is fine. There is no
+	// significance to this value, other than it cannot be NULL in the DB.
+	var subtreeRev int64
+	if t.subtreeRevs {
+		// We're using subtree revisions, so ensure we write at the correct revision
+		subtreeRev = t.writeRevision
+	}
 	for _, s := range subtrees {
 		s := s
 		if s.Prefix == nil {
@@ -295,7 +332,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		args = append(args, t.treeID)
 		args = append(args, s.Prefix)
 		args = append(args, subtreeBytes)
-		args = append(args, t.writeRevision)
+		args = append(args, subtreeRev)
 	}
 
 	tmpl, err := t.ts.setSubtreeStmt(ctx, len(subtrees))
