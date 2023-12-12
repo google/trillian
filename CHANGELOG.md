@@ -5,6 +5,42 @@
 * Bump CI version of MySQL from 5.7 to 8.0
 * Bump golangci-lint from 1.51.1 to 1.55.1 (developers should update to this version)
 
+### MySQL: Changes to Subtree Revisions
+
+Support for skipping subtree revisions to increase read performance and disk usage: added in #3201
+
+TL;DR: existing trees will continue to be stored and queried as they were before, but new trees
+created with the MySQL storage layer will be stored and queried in a way that uses less space
+and allows for simpler and faster queries. No schema changes are required by log operators.
+
+The Trillian MySQL implementation stores the internal state of the log as Subtrees in the database.
+These are essentially tiles as described by [tlog: Tiling a log](https://research.swtch.com/tlog).
+Trees created with previous versions of Trillian stored a different revision of each Subtree when
+the tree was updated. This is somewhat redundant for append-only logs because an earlier version
+of a Subtree can always be derived from a later one by simply removing entries from the right of
+the Subtree. PR #3201 removes this Subtree revision history, and updates Subtrees in place when
+they are updated.
+
+Measurements from @n-canter show that revisionless storage saves around 75% storage costs for the
+Subtree table, and queries over this table are more than 15% faster.
+
+The same schema is used for both revisioned and unrevisioned subtrees. The difference is that we
+always write a revision of 0 in the unrevisioned case, which still means that there will only be
+a single entry per subtree.
+
+Support is maintained for the old way of revisioning Subtrees in order to avoid breaking changes
+to existing trees. There is no simple code change that would safely allow a previously revisioned
+tree to start becoming a revisionless tree. This new revisionless Subtree feature is only available
+for trees created with new versions of Trillian.
+
+Users with legacy revisioned trees that wish to take advantage of smaller storage costs and faster
+queries of the new revisionless storage should come speak to us on
+[transparency-dev Slack](https://join.slack.com/t/transparency-dev/shared_invite/zt-27pkqo21d-okUFhur7YZ0rFoJVIOPznQ).
+The safest option we have available is to use [migrillian](https://github.com/google/certificate-transparency-go/tree/master/trillian/migrillian) to create a new copy of trees, but this will be quite a manual
+process and will only work for CT logs.
+Other migration options are conceivable and we're eager to work with the community to develop
+and test tools for upgrading trees in place.
+
 ## v1.5.3
 
 * Recommended go version for development: 1.20
