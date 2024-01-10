@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	bitbucket.org/creachadair/shell v0.0.8
-	cloud.google.com/go/spanner v1.53.1
+	cloud.google.com/go/spanner v1.54.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/apache/beam/sdks/v2 v2.52.0
 	github.com/cockroachdb/cockroach-go/v2 v2.3.5
