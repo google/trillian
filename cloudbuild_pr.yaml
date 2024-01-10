@@ -13,27 +13,6 @@ options:
 
 steps:
 
-- id: pull_mysql
-  name : gcr.io/cloud-builders/docker
-  args:
-  - pull
-  - marketplace.gcr.io/google/mysql8:${_MYSQL_TAG}
-- id: tag_mysql
-  name: gcr.io/cloud-builders/docker
-  args:
-  - tag
-  - marketplace.gcr.io/google/mysql8:${_MYSQL_TAG}
-  - gcr.io/${PROJECT_ID}/mysql8:${_MYSQL_TAG}
-  waitFor:
-  - pull_mysql
-- id: push_mysql
-  name: gcr.io/cloud-builders/docker
-  args:
-  - push
-  - gcr.io/${PROJECT_ID}/mysql8:${_MYSQL_TAG}
-  waitFor:
-  - tag_mysql
-
 - id: build_db_server
   name: gcr.io/kaniko-project/executor:v1.15.0
   args:
@@ -41,8 +20,6 @@ steps:
   - --destination=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
   - --cache=true
   - --cache-dir= # Cache is in Google Container Registry.
-  waitFor:
-  - push_mysql
 
 - id: build_log_server
   name: gcr.io/kaniko-project/executor:v1.15.0
