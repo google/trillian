@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "@google-cloud/functions-framework": "^3.3.0",
-    "@slack/webhook": "^7.0.1",
+    "@slack/webhook": "^7.0.2",
     "google-auth-library": "^9.4.1"
   }
 }
