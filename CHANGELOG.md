@@ -2,8 +2,7 @@
 
 ## HEAD
 
-* Bump CI version of MySQL from 5.7 to 8.0
-* Bump golangci-lint from 1.51.1 to 1.55.1 (developers should update to this version)
+## v1.6.0 (Jan 2024)
 
 ### MySQL: Changes to Subtree Revisions
 
@@ -40,6 +39,37 @@ The safest option we have available is to use [migrillian](https://github.com/go
 process and will only work for CT logs.
 Other migration options are conceivable and we're eager to work with the community to develop
 and test tools for upgrading trees in place.
+
+## Notable Changes
+
+* CI now runs with MySQL 8.2 instead of MySQL 5.7
+* Bump golangci-lint from 1.51.1 to 1.55.1 (developers should update to this version)
+
+## All Changes (ignoring dependabot)
+
+* Strip unused docker image manipulation from cloudbuild by @mhutchinson in https://github.com/google/trillian/pull/3278
+* Switch from using unmaintained Google Cloud mysql db image to dockerhub official image by @patflynn in https://github.com/google/trillian/pull/3272
+* Disable the OS package patches to bypass the mysql8 gpg key rotation issue by @roger2hk in https://github.com/google/trillian/pull/3270
+* Disable race condition checking for beam code by @mhutchinson in https://github.com/google/trillian/pull/3249
+* Make uninitializedBegin test accurately test its intention by @mhutchinson in https://github.com/google/trillian/pull/3244
+* Fix deadlock in log_client by @n-canter in https://github.com/google/trillian/pull/3236
+* Bump go-version-input from 1.20.11 to 1.20.12 in govulncheck.yml by @roger2hk in https://github.com/google/trillian/pull/3237
+* Inlined storage/sql.go into both implementations that use it by @mhutchinson in https://github.com/google/trillian/pull/3235
+* Support for skipping subtree revisions to increase read performance and reduce disk usage by @mhutchinson in https://github.com/google/trillian/pull/3201
+* Updated Slack channel details by @mhutchinson in https://github.com/google/trillian/pull/3214
+* Skip SELECTing revision that isn't used by @mhutchinson in https://github.com/google/trillian/pull/3207
+* Increase some timeouts in integration tests by @mhutchinson in https://github.com/google/trillian/pull/3203
+* Do vuln scanning with a version of Go not subject to GO-2023-2185 by @mhutchinson in https://github.com/google/trillian/pull/3202
+* Bump MariaDB image from 10.3 to 11.1 in Cloud Build by @roger2hk in https://github.com/google/trillian/pull/3189
+* Move golangci-lint from Cloud Build to GitHub Action by @roger2hk in https://github.com/google/trillian/pull/3188
+* Updated all MySQL deps to 8.0 #3182 by @mhutchinson in https://github.com/google/trillian/pull/3183
+* Bump golangci-lint from 1.51.1 to 1.55.1 by @roger2hk in https://github.com/google/trillian/pull/3177
+
+The above was generated with the following command:
+```bash
+gh pr list -s closed -S "NOT dependabot" --json url,title,author  -t '{{range .}}* {{.title}} by @{{.author.login}} in {{.url}}
+{{end}}'
+```
 
 ## v1.5.3
 
