@@ -30,7 +30,7 @@ require (
 	golang.org/x/crypto v0.18.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.16.0
-	golang.org/x/tools v0.16.1
+	golang.org/x/tools v0.17.0
 	google.golang.org/api v0.156.0
 	google.golang.org/genproto v0.0.0-20231212172506-995d672761c0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240102182953-50ed04b92917
