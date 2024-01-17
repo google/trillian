@@ -2,6 +2,10 @@
 
 ## HEAD
 
+## Notable Changes
+
+* Updated go version 1.20 -> 1.21
+
 ## v1.6.0 (Jan 2024)
 
 ### MySQL: Changes to Subtree Revisions
