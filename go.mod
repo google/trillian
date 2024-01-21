@@ -31,10 +31,10 @@ require (
 	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.16.0
 	golang.org/x/tools v0.17.0
-	google.golang.org/api v0.156.0
-	google.golang.org/genproto v0.0.0-20231212172506-995d672761c0
+	google.golang.org/api v0.157.0
+	google.golang.org/genproto v0.0.0-20240102182953-50ed04b92917
 	google.golang.org/genproto/googleapis/api v0.0.0-20240102182953-50ed04b92917
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240116215550-a9fa1716bcac
 	google.golang.org/grpc v1.60.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.32.0
@@ -48,7 +48,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.5 // indirect
 	cloud.google.com/go/longrunning v0.5.4 // indirect
-	cloud.google.com/go/monitoring v1.16.3 // indirect
+	cloud.google.com/go/monitoring v1.17.0 // indirect
 	cloud.google.com/go/profiler v0.4.0 // indirect
 	cloud.google.com/go/storage v1.35.1 // indirect
 	cloud.google.com/go/trace v1.10.4 // indirect
