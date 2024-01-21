@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.1
 
 # Install CockroachDB, see https://www.cockroachlabs.com/docs/v22.2/install-cockroachdb-linux
-RUN curl https://binaries.cockroachdb.com/cockroach-v22.2.17.linux-amd64.tgz | tar -xz && cp -i cockroach-v22.2.17.linux-amd64/cockroach /usr/local/bin/
+RUN curl https://binaries.cockroachdb.com/cockroach-v22.2.7.linux-amd64.tgz | tar -xz && cp -i cockroach-v22.2.7.linux-amd64/cockroach /usr/local/bin/
 
 RUN mkdir protoc && \
     (cd protoc && \
