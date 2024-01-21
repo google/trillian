@@ -24,7 +24,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	ts, err := testserver.NewTestServer(testserver.CustomVersionOpt("22.2.17"), testserver.StoreOnDiskOpt())
+	ts, err := testserver.NewTestServer(testserver.CustomVersionOpt("v22.2.17"))
 	if err != nil {
 		klog.Errorf("Failed to start test server: %v", err)
 		os.Exit(1)
