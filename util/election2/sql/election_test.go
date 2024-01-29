@@ -34,7 +34,7 @@ func TestOneElection(t *testing.T) {
 
 	factory, err := NewFactory("serv", db, WithElectionInterval(10*time.Millisecond))
 	if err != nil {
-		t.Fatalf("Unablet to open database: %v", err)
+		t.Fatalf("Unable to open database: %v", err)
 	}
 
 	ctx := context.Background()
@@ -71,7 +71,7 @@ func TestTwoElections(t *testing.T) {
 
 	factory, err := NewFactory("serv", db, WithElectionInterval(10*time.Millisecond))
 	if err != nil {
-		t.Fatalf("Unablet to open database: %v", err)
+		t.Fatalf("Unable to open database: %v", err)
 	}
 
 	ctx := context.Background()
@@ -100,6 +100,68 @@ func TestTwoElections(t *testing.T) {
 	}
 }
 
+func TestElectionTwoServers(t *testing.T) {
+	db, err := initializeDB("sqllite3", "file::two-election?mode=memory")
+	if err != nil {
+		t.Fatalf("Unable to initialize database: %v", err)
+	}
+
+	factory1, err := NewFactory("s1", db, WithElectionInterval(10*time.Millisecond))
+	if err != nil {
+		t.Fatalf("Unable to open database: %v", err)
+	}
+	factory2, err := NewFactory("s2", db, WithElectionInterval(10*time.Millisecond))
+	if err != nil {
+		t.Fatalf("Unable to open database: %v", err)
+	}
+
+	ctx := context.Background()
+	el1, err := factory1.NewElection(ctx, "10")
+	if err != nil {
+		t.Fatalf("NewElection(10): %v", err)
+	}
+	el2, err := factory2.NewElection(ctx, "10")
+	if err != nil {
+		t.Fatalf("NewElection(10, again): %t %v", err, err)
+	}
+
+	if err := el1.Await(ctx); err != nil {
+		t.Fatalf("Await(el1): %v", err)
+	}
+	go func() {
+		time.Sleep(4 * time.Millisecond)
+		el1.Resign(ctx)
+	}()
+	if err := el2.Await(ctx); err != nil {
+		t.Fatalf("Await(el2): %v", err)
+	}
+
+	if err := el1.Close(ctx); err != nil {
+		t.Fatalf("Close(el1): %v", err)
+	}
+	if err := el2.Close(ctx); err != nil {
+		t.Fatalf("Close(el2): %v", err)
+	}
+}
+
+func TestElection(t *testing.T) {
+	for _, nt := range testonly.Tests {
+		// Create a new DB and Factory for each test for better isolation.
+		db, err := initializeDB("sqllite3", fmt.Sprintf("file::%s?mode=memory", nt.Name))
+		if err != nil {
+			t.Fatalf("Initialize DB: %v", err)
+		}
+
+		fact, err := NewFactory("testID", db, WithElectionInterval(10*time.Millisecond))
+		if err != nil {
+			t.Fatalf("NewFactory: %v", err)
+		}
+		t.Run(nt.Name, func(t *testing.T) {
+			nt.Run(t, fact)
+		})
+	}
+}
+
 func initializeDB(driver string, uri string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", uri)
 	if err != nil {
@@ -113,22 +175,4 @@ func initializeDB(driver string, uri string) (*sql.DB, error) {
 	}
 
 	return db, nil
-}
-
-func TestElection(t *testing.T) {
-	for _, nt := range testonly.Tests {
-		// Create a new DB and Factory for each test for better isolation.
-		db, err := initializeDB("sqllite3", fmt.Sprintf("file::%s?mode=memory", nt.Name))
-		if err != nil {
-			t.Fatalf("Initialize DB: %v", err)
-		}
-	
-		fact, err := NewFactory("testID", db, WithElectionInterval(10*time.Millisecond))
-		if err != nil {
-			t.Fatalf("NewFactory: %v", err)
-		}
-		t.Run(nt.Name, func(t *testing.T) {
-			nt.Run(t, fact)
-		})
-	}
 }

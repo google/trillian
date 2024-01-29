@@ -18,6 +18,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -146,7 +147,7 @@ func (e *Election) becomeLeaderLoop(ctx context.Context, closer chan *chan error
 				e.leaderLock.L.Lock()
 				if leader != e.currentLeader {
 					// Note: this code does not actually care _which_ instance was
-					// elected, it sends notifications on each leadership cahnge.
+					// elected, it sends notifications on each leadership change.
 					e.currentLeader = leader
 					e.leaderLock.Broadcast()
 				}
@@ -163,21 +164,25 @@ func (e *Election) tryBecomeLeader(ctx context.Context) (leaderData, error) {
 	if err != nil {
 		return leader, fmt.Errorf("BeginTX: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			klog.Errorf("Rollback failed: %v", err)
+		}
+	}()
 	row := tx.QueryRow(
-		"SELECT leader, last_update FROM leader_election WHERE resource_id = $1",
+		"SELECT leader, last_update FROM leader_election WHERE resource_id = ?",
 		e.resourceID)
 	if err := row.Scan(&leader.currentLeader, &leader.timestamp); err != nil {
 		return leader, fmt.Errorf("Select: %w", err)
 	}
-	
+
 	if leader.currentLeader != e.instanceID && leader.timestamp.Add(e.electionInterval*10).After(time.Now()) {
 		return leader, nil // Someone else won the election
 	}
 
 	timestamp := time.Now()
 	_, err = tx.Exec(
-		"UPDATE leader_election SET leader = $1, last_update = $2 WHERE resource_id = $3 AND leader = $4 AND last_update = $5",
+		"UPDATE leader_election SET leader = ?, last_update = ? WHERE resource_id = ? AND leader = ? AND last_update = ?",
 		e.instanceID, timestamp, e.resourceID, leader.currentLeader, leader.timestamp)
 	if err != nil {
 		return leader, fmt.Errorf("Update: %w", err)
@@ -201,7 +206,7 @@ func (e *Election) tearDown() error {
 
 	// Reset election time to epoch to allow a faster fail-over
 	res, err := e.db.Exec(
-		"UPDATE leader_election SET last_update = $1 WHERE resource_id = $2 AND leader = $3 AND last_update = $4",
+		"UPDATE leader_election SET last_update = ? WHERE resource_id = ? AND leader = ? AND last_update = ?",
 		time.Time{}, e.resourceID, e.instanceID, e.currentLeader.timestamp)
 	if err != nil {
 		return fmt.Errorf("Update: %w", err)
@@ -213,27 +218,31 @@ func (e *Election) tearDown() error {
 }
 
 func (e *Election) initializeLock(ctx context.Context) error {
-	insert, err := e.db.Prepare("INSERT INTO leader_election (resource_id, leader, last_update) VALUES ($1, $2, $3)")
-	if err != nil {
-		return err
+	var leader string
+	err := e.db.QueryRow(
+		"SELECT leader FROM leader_election WHERE resource_id = ?",
+		e.resourceID,
+	).Scan(&leader)
+	if errors.Is(err, sql.ErrNoRows) {
+		_, err = e.db.Exec(
+			"INSERT INTO leader_election (resource_id, leader, last_update) VALUES (?, ?, ?)",
+			e.resourceID, "empty leader", time.Time{},
+		)
 	}
-	defer insert.Close()
-
-	_, err = insert.Exec(e.resourceID, "empty leader", time.Time{})
 	return err
 }
 
 type SqlFactory struct {
 	db         *sql.DB
 	instanceID string
-	opts 	 []Option
+	opts       []Option
 }
 
 var _ election2.Factory = (*SqlFactory)(nil)
 
 type Option func(*Election) *Election
 
-func NewFactory(instanceID string, database *sql.DB, opts... Option) (*SqlFactory, error) {
+func NewFactory(instanceID string, database *sql.DB, opts ...Option) (*SqlFactory, error) {
 	return &SqlFactory{db: database, instanceID: instanceID, opts: opts}, nil
 }
 
@@ -263,7 +272,9 @@ func (f *SqlFactory) NewElection(ctx context.Context, resourceID string) (electi
 	for _, opt := range f.opts {
 		e = opt(e)
 	}
-	e.initializeLock(ctx)
+	if err := e.initializeLock(ctx); err != nil {
+		return nil, err
+	}
 
 	return e, nil
 }
