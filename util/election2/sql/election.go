@@ -170,7 +170,7 @@ func (e *Election) tryBecomeLeader(ctx context.Context) (leaderData, error) {
 		}
 	}()
 	row := tx.QueryRow(
-		"SELECT leader, last_update FROM leader_election WHERE resource_id = ?",
+		"SELECT leader, last_update FROM LeaderElection WHERE resource_id = ?",
 		e.resourceID)
 	if err := row.Scan(&leader.currentLeader, &leader.timestamp); err != nil {
 		return leader, fmt.Errorf("Select: %w", err)
@@ -182,7 +182,7 @@ func (e *Election) tryBecomeLeader(ctx context.Context) (leaderData, error) {
 
 	timestamp := time.Now()
 	_, err = tx.Exec(
-		"UPDATE leader_election SET leader = ?, last_update = ? WHERE resource_id = ? AND leader = ? AND last_update = ?",
+		"UPDATE LeaderElection SET leader = ?, last_update = ? WHERE resource_id = ? AND leader = ? AND last_update = ?",
 		e.instanceID, timestamp, e.resourceID, leader.currentLeader, leader.timestamp)
 	if err != nil {
 		return leader, fmt.Errorf("Update: %w", err)
@@ -206,7 +206,7 @@ func (e *Election) tearDown() error {
 
 	// Reset election time to epoch to allow a faster fail-over
 	res, err := e.db.Exec(
-		"UPDATE leader_election SET last_update = ? WHERE resource_id = ? AND leader = ? AND last_update = ?",
+		"UPDATE LeaderElection SET last_update = ? WHERE resource_id = ? AND leader = ? AND last_update = ?",
 		time.Time{}, e.resourceID, e.instanceID, e.currentLeader.timestamp)
 	if err != nil {
 		return fmt.Errorf("Update: %w", err)
@@ -220,12 +220,12 @@ func (e *Election) tearDown() error {
 func (e *Election) initializeLock(ctx context.Context) error {
 	var leader string
 	err := e.db.QueryRow(
-		"SELECT leader FROM leader_election WHERE resource_id = ?",
+		"SELECT leader FROM LeaderElection WHERE resource_id = ?",
 		e.resourceID,
 	).Scan(&leader)
 	if errors.Is(err, sql.ErrNoRows) {
 		_, err = e.db.Exec(
-			"INSERT INTO leader_election (resource_id, leader, last_update) VALUES (?, ?, ?)",
+			"INSERT INTO LeaderElection (resource_id, leader, last_update) VALUES (?, ?, ?)",
 			e.resourceID, "empty leader", time.Time{},
 		)
 	}

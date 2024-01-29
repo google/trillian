@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -172,7 +173,13 @@ func initializeDB(driver string, uri string) (*sql.DB, error) {
 	}
 	// Additional connections open a _new_, _empty_ database!
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec("CREATE TABLE leader_election (resource_id TEXT PRIMARY KEY, leader TEXT, last_update TIMESTAMP);")
+
+	tableDecl, err := os.ReadFile("election.sql")
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = db.Exec(string(tableDecl))
 	if err != nil {
 		return nil, err
 	}

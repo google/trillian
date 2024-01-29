@@ -47,6 +47,7 @@ import (
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election2"
 	etcdelect "github.com/google/trillian/util/election2/etcd"
+	"github.com/google/trillian/util/election2/sql"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
@@ -54,6 +55,7 @@ import (
 	// Register supported storage providers.
 	_ "github.com/google/trillian/storage/cloudspanner"
 	_ "github.com/google/trillian/storage/crdb"
+	"github.com/google/trillian/storage/mysql"
 	_ "github.com/google/trillian/storage/mysql"
 
 	// Load quota providers
@@ -71,6 +73,7 @@ var (
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
+	electionBackend          = flag.String("election_backend", "etcd", fmt.Sprintf("Election backend to use. One of: mysql, etcd, noop"))
 	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
 	healthzTimeout           = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
@@ -143,13 +146,22 @@ func main() {
 	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
 	var electionFactory election2.Factory
 	switch {
-	case *forceMaster:
+	case *forceMaster || *electionBackend == "noop":
 		klog.Warning("**** Acting as master for all logs ****")
 		electionFactory = election2.NoopFactory{}
-	case client != nil:
+	case client != nil && *electionBackend == "etcd":
 		electionFactory = etcdelect.NewFactory(instanceID, client, *lockDir)
+	case *storageSystem == "mysql" && *electionBackend == "mysql":
+		db, err := mysql.GetDatabase()
+		if err != nil {
+			klog.Exit("Failed to get MySQL database when reuested: %v", err)
+		}
+		electionFactory, err = sql.NewFactory(instanceID)
+		if err != nil {
+			klog.Exitf("Failed to create MySQL election factory: %v", err)
+		}
 	default:
-		klog.Exit("Either --force_master or --etcd_servers must be supplied")
+		klog.Exit("Either --force_master, --etcd_servers, or --election_backend=mysql must be supplied")
 	}
 
 	qm, err := quota.NewManager(*quotaSystem)
