@@ -130,7 +130,10 @@ func TestElectionTwoServers(t *testing.T) {
 	}
 	go func() {
 		time.Sleep(4 * time.Millisecond)
-		el1.Resign(ctx)
+		err := el1.Resign(ctx)
+		if err != nil {
+			t.Log(err)
+		}
 	}()
 	if err := el2.Await(ctx); err != nil {
 		t.Fatalf("Await(el2): %v", err)
