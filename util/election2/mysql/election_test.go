@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package etcd provides an implementation of leader election based on a SQL database.
-package sql
+// Package mysql provides an implementation of leader election based on a SQL database.
+package mysql
 
 import (
 	"context"

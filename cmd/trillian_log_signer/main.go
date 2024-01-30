@@ -47,7 +47,7 @@ import (
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election2"
 	etcdelect "github.com/google/trillian/util/election2/etcd"
-	"github.com/google/trillian/util/election2/sql"
+	mysqlElection "github.com/google/trillian/util/election2/mysql"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
@@ -56,7 +56,6 @@ import (
 	_ "github.com/google/trillian/storage/cloudspanner"
 	_ "github.com/google/trillian/storage/crdb"
 	"github.com/google/trillian/storage/mysql"
-	_ "github.com/google/trillian/storage/mysql"
 
 	// Load quota providers
 	_ "github.com/google/trillian/quota/crdbqm"
@@ -73,7 +72,7 @@ var (
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
-	electionBackend          = flag.String("election_backend", "etcd", fmt.Sprintf("Election backend to use. One of: mysql, etcd, noop"))
+	electionBackend          = flag.String("election_backend", "etcd", "Election backend to use. One of: mysql, etcd, noop")
 	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
 	healthzTimeout           = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
@@ -156,7 +155,7 @@ func main() {
 		if err != nil {
 			klog.Exit("Failed to get MySQL database when reuested: %v", err)
 		}
-		electionFactory, err = sql.NewFactory(instanceID)
+		electionFactory, err = mysqlElection.NewFactory(instanceID, db)
 		if err != nil {
 			klog.Exitf("Failed to create MySQL election factory: %v", err)
 		}
