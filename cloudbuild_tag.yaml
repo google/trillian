@@ -5,14 +5,14 @@ options:
   machineType: E2_HIGHCPU_32
 steps:
 - id: build_db_server
-  name: gcr.io/kaniko-project/executor:v1.15.0
+  name: gcr.io/kaniko-project/executor:v1.20.0
   args:
   - --dockerfile=examples/deployment/docker/db_server/Dockerfile
   - --destination=gcr.io/${PROJECT_ID}/db_server:${TAG_NAME}
   - --cache=true
   - --cache-dir= # Cache is in Google Container Registry
 - id: build_log_server
-  name: gcr.io/kaniko-project/executor:v1.15.0
+  name: gcr.io/kaniko-project/executor:v1.20.0
   args:
   - --dockerfile=examples/deployment/docker/log_server/Dockerfile
   - --destination=gcr.io/${PROJECT_ID}/log_server:${TAG_NAME}
@@ -20,7 +20,7 @@ steps:
   - --cache-dir= # Cache is in Google Container Registry
   waitFor: ["-"]
 - id: build_log_signer
-  name: gcr.io/kaniko-project/executor:v1.15.0
+  name: gcr.io/kaniko-project/executor:v1.20.0
   args:
   - --dockerfile=examples/deployment/docker/log_signer/Dockerfile
   - --destination=gcr.io/${PROJECT_ID}/log_signer:${TAG_NAME}
