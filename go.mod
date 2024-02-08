@@ -27,9 +27,9 @@ require (
 	go.etcd.io/etcd/server/v3 v3.5.12
 	go.etcd.io/etcd/v3 v3.5.12
 	go.opencensus.io v0.24.0
-	golang.org/x/crypto v0.18.0
+	golang.org/x/crypto v0.19.0
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.16.0
+	golang.org/x/sys v0.17.0
 	golang.org/x/tools v0.17.0
 	google.golang.org/api v0.162.0
 	google.golang.org/genproto v0.0.0-20240116215550-a9fa1716bcac
