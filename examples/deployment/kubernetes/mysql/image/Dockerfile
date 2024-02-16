@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:jammy@sha256:e9569c25505f33ff72e88b2990887c9dcf230f23259da296eb814fc2b41af999
+FROM ubuntu:jammy@sha256:f9d633ff6640178c2d0525017174a688e2c1aef28f0a0130b26bd5554491f0da
 
 # Patch the OS-level packages and remove unneeded dependencies.
 RUN apt-get update \
