@@ -18,7 +18,7 @@ RUN go install ./cmd/trillian_log_signer
 RUN go run github.com/google/go-licenses save ./cmd/trillian_log_signer --save_path /THIRD_PARTY_NOTICES
 
 # Make a minimal image.
-FROM gcr.io/distroless/base-debian12@sha256:5eae9ef0b97acf7de819f936e12b24976b2d54333a2cf329615366e16ba598cd
+FROM gcr.io/distroless/base-debian12@sha256:f9b0e861e881c77033560204e0a1f0368d7fdac60c5bb18457785ee647d70078
 
 COPY --from=build /go/bin/trillian_log_signer /
 COPY --from=build /THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES
