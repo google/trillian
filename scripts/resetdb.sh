@@ -19,6 +19,7 @@ Accepts environment variables:
   (default: zaphod).
 - MYSQL_USER_HOST: The host that the Trillian user will connect from; use '%' as
   a wildcard (default: localhost).
+- MYSQL_USE_ELECTION: If set to true, create election tables as well.
 EOF
 }
 
@@ -36,6 +37,7 @@ collect_vars() {
   [ -z ${MYSQL_USER+x} ] && MYSQL_USER="test"
   [ -z ${MYSQL_PASSWORD+x} ] && MYSQL_PASSWORD="zaphod"
   [ -z ${MYSQL_USER_HOST+x} ] && MYSQL_USER_HOST="localhost"
+
   FLAGS=()
 
   # handle flags
@@ -85,6 +87,10 @@ main() {
         die "Error: Failed to grant '${MYSQL_USER}' user all privileges on '${MYSQL_DATABASE}'."
       mysql "${FLAGS[@]}" -D ${MYSQL_DATABASE} < ${TRILLIAN_PATH}/storage/mysql/schema/storage.sql || \
         die "Error: Failed to create tables in '${MYSQL_DATABASE}' database."
+      if [[ "${MYSQL_USE_ELECTION}" = 'true' ]]; then
+        mysql "${FLAGS[@]}" -D ${MYSQL_DATABASE} < ${TRILLIAN_PATH}/util/election2/sql/election.sql || \
+          die "Error: Failed to create election tables in '${MYSQL_DATABASE}' database."
+      fi
       echo "Reset Complete"
   fi
 }
