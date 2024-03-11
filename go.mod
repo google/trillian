@@ -10,7 +10,7 @@ require (
 	github.com/cockroachdb/cockroach-go/v2 v2.3.7
 	github.com/fullstorydev/grpcurl v1.8.9
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/go-sql-driver/mysql v1.7.1
+	github.com/go-sql-driver/mysql v1.8.0
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.6.0
@@ -52,6 +52,7 @@ require (
 	cloud.google.com/go/profiler v0.4.0 // indirect
 	cloud.google.com/go/storage v1.38.0 // indirect
 	cloud.google.com/go/trace v1.10.5 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
