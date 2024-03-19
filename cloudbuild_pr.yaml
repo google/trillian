@@ -92,7 +92,7 @@ steps:
   - -f=envsubst-spanner/trillian-log-signer-service.yaml
   - --prune
   - --all
-  - --prune-whitelist=core/v1/ConfigMap
+  - --prune-allowlist=core/v1/ConfigMap
   env:
   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
@@ -141,7 +141,7 @@ steps:
   - -f=envsubst-mysql/trillian-log-signer-service.yaml
   - --prune
   - --all
-  - --prune-whitelist=core/v1/ConfigMap
+  - --prune-allowlist=core/v1/ConfigMap
   env:
   - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
   - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
