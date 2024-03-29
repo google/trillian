@@ -22,7 +22,7 @@ require (
 	github.com/prometheus/client_model v0.6.0
 	github.com/pseudomuto/protoc-gen-doc v1.5.1
 	github.com/transparency-dev/merkle v0.0.2
-	go.etcd.io/etcd/client/v3 v3.5.12
+	go.etcd.io/etcd/client/v3 v3.5.13
 	go.etcd.io/etcd/etcdctl/v3 v3.5.12
 	go.etcd.io/etcd/server/v3 v3.5.12
 	go.etcd.io/etcd/v3 v3.5.12
@@ -144,8 +144,8 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xiang90/probing v0.0.0-20221125231312-a49e3df8f510 // indirect
 	go.etcd.io/bbolt v1.3.9 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.12 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.12 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.13 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.13 // indirect
 	go.etcd.io/etcd/client/v2 v2.305.12 // indirect
 	go.etcd.io/etcd/etcdutl/v3 v3.5.12 // indirect
 	go.etcd.io/etcd/pkg/v3 v3.5.12 // indirect
