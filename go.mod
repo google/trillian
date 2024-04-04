@@ -29,7 +29,7 @@ require (
 	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.18.0
+	golang.org/x/sys v0.19.0
 	golang.org/x/tools v0.19.0
 	google.golang.org/api v0.172.0
 	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9
