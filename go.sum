@@ -106,8 +106,8 @@ github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7/go.mod h1:6zEj6s6u/g
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/apache/beam/sdks/v2 v2.55.0 h1:zVoIJc4/TEpxBAakzPSNVEJ3gdafMFFUByb6BVUaPHs=
-github.com/apache/beam/sdks/v2 v2.55.0/go.mod h1:jpi0PBhBaAs0FkQAUpVp2S8LBVyUTyahO8Fb7XE5m+4=
+github.com/apache/beam/sdks/v2 v2.55.1 h1:tlpVpS/dE+6MjbByuTYDh7N0fV8xkxu4w95xy4PEW6o=
+github.com/apache/beam/sdks/v2 v2.55.1/go.mod h1:jpi0PBhBaAs0FkQAUpVp2S8LBVyUTyahO8Fb7XE5m+4=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/aws/aws-sdk-go v1.51.8 h1:tD7gQq5XKuKdhA6UMEH26ZNQH0s+HbL95rzv/ACz5TQ=
