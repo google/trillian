@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	bitbucket.org/creachadair/shell v0.0.8
-	cloud.google.com/go/spanner v1.60.0
+	cloud.google.com/go/spanner v1.61.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/apache/beam/sdks/v2 v2.55.1
 	github.com/cockroachdb/cockroach-go/v2 v2.3.7
@@ -32,8 +32,8 @@ require (
 	golang.org/x/sys v0.19.0
 	golang.org/x/tools v0.20.0
 	google.golang.org/api v0.176.1
-	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de
-	google.golang.org/genproto/googleapis/api v0.0.0-20240311132316-a219d84964c2
+	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
+	google.golang.org/genproto/googleapis/api v0.0.0-20240415180920-8c6c420018be
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be
 	google.golang.org/grpc v1.63.2
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
@@ -43,7 +43,7 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.112.1 // indirect
+	cloud.google.com/go v0.112.2 // indirect
 	cloud.google.com/go/auth v0.3.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
@@ -54,6 +54,7 @@ require (
 	cloud.google.com/go/storage v1.39.1 // indirect
 	cloud.google.com/go/trace v1.10.6 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
