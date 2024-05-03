@@ -705,8 +705,8 @@ github.com/cncf/xds/go v0.0.0-20240325133356-033564927e4a h1:0IKE7HzC41Ix6m77lUC
 github.com/cncf/xds/go v0.0.0-20240325133356-033564927e4a/go.mod h1:WUVC2iiBwM8d2EIwZ5aY57xRl8CEgct1O2MEP+65MmU=
 github.com/cockroachdb/apd v1.1.0 h1:3LFP3629v+1aKXU5Q37mxmRxX/pIu1nijXydLShEq5I=
 github.com/cockroachdb/apd v1.1.0/go.mod h1:8Sl8LxpKi29FqWXR16WEFZRNSz3SoPzUzeMeY4+DwBQ=
-github.com/cockroachdb/cockroach-go/v2 v2.3.7 h1:nq5GYDuA2zIR/kdLkVLTg7oHTw0UbGU9RWpC+OZVYYU=
-github.com/cockroachdb/cockroach-go/v2 v2.3.7/go.mod h1:1wNJ45eSXW9AnOc3skntW9ZUZz6gxrQK3cOj3rK+BC8=
+github.com/cockroachdb/cockroach-go/v2 v2.3.8 h1:53yoUo4+EtrC1NrAEgnnad4AS3ntNvGup1PAXZ7UmpE=
+github.com/cockroachdb/cockroach-go/v2 v2.3.8/go.mod h1:9uH5jK4yQ3ZQUT9IXe4I2fHzMIF5+JC/oOdzTRgJYJk=
 github.com/cockroachdb/datadriven v1.0.2 h1:H9MtNqVoVhvd9nCBwOyDjUEdZCREqbIdCJD93PBm/jA=
 github.com/cockroachdb/datadriven v1.0.2/go.mod h1:a9RdTaap04u637JoCzcUoIcDmvwSUtcUFtT/C3kJlTU=
 github.com/containerd/log v0.1.0 h1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=
