@@ -12,4 +12,4 @@ main() {
   go install golang.org/x/tools/cmd/stringer
 }
 
-main "$@"
+main
