@@ -18,7 +18,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
 	github.com/lib/pq v1.10.9
-	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/pseudomuto/protoc-gen-doc v1.5.1
 	github.com/transparency-dev/merkle v0.0.2
