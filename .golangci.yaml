@@ -18,3 +18,12 @@ linters-settings:
 issues:
   # Don't turn off any checks by default. We can do this explicitly if needed.
   exclude-use-default: false
+
+  exclude-rules:
+    # The following grpc linters are excluded because grpc.Dial, grpc.DialContext and grpc.WithBlock will be supported throughout 1.x.
+    - linters: [staticcheck]
+      text: 'SA1019: grpc.Dial is deprecated: use NewClient instead'
+    - linters: [staticcheck]
+      text: 'SA1019: grpc.DialContext is deprecated: use NewClient instead'
+    - linters: [staticcheck]
+      text: 'SA1019: grpc.WithBlock is deprecated: this DialOption is not supported by NewClient'
