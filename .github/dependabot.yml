@@ -3,49 +3,94 @@ updates:
 - package-ecosystem: gomod
   directory: /
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    go-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: github-actions
   directory: /
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    github-actions-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: docker
   directory: /examples/deployment/docker/db_client
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    docker-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: docker
   directory: /examples/deployment/docker/db_server
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    docker-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: docker
   directory: /examples/deployment/docker/envsubst
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    docker-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: docker
   directory: /examples/deployment/docker/log_server
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    docker-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: docker
   directory: /examples/deployment/docker/log_signer
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    docker-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: docker
   directory: /examples/deployment/kubernetes/mysql/image
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    docker-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: docker
   directory: /integration/cloudbuild/testbase
   schedule:
-    interval: daily
+    interval: weekly
+  groups:
+    docker-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
 
 - package-ecosystem: npm
   directory: /scripts/gcb2slack
   schedule:
-    interval: daily
+    interval: weekly
