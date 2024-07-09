@@ -34,6 +34,9 @@ updates:
   directory: /examples/deployment/docker/db_server
   schedule:
     interval: weekly
+  ignore:
+    versions:
+      - ">= 9.0"
   groups:
     docker-deps:
       applies-to: version-updates
