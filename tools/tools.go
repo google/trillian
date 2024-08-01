@@ -24,7 +24,7 @@ import (
 	_ "github.com/fullstorydev/grpcurl/cmd/grpcurl"
 	_ "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen"
-	_ "github.com/google/go-licenses"
+	_ "github.com/google/go-licenses/v2"
 	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 	_ "go.etcd.io/etcd/etcdctl/v3"
 	_ "go.etcd.io/etcd/etcdctl/v3/ctlv3/command"
