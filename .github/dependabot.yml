@@ -35,8 +35,8 @@ updates:
   schedule:
     interval: weekly
   ignore:
-    versions:
-      - ">= 9.0"
+    - dependency-name: "mysql"
+      versions: [">= 9.0"]
   groups:
     docker-deps:
       applies-to: version-updates
