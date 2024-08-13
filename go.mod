@@ -4,9 +4,9 @@ go 1.21.12
 
 require (
 	bitbucket.org/creachadair/shell v0.0.8
-	cloud.google.com/go/spanner v1.65.0
+	cloud.google.com/go/spanner v1.66.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
-	github.com/apache/beam/sdks/v2 v2.57.0
+	github.com/apache/beam/sdks/v2 v2.58.0
 	github.com/cockroachdb/cockroach-go/v2 v2.3.8
 	github.com/fullstorydev/grpcurl v1.9.1
 	github.com/go-redis/redis v6.15.9+incompatible
@@ -27,11 +27,11 @@ require (
 	go.etcd.io/etcd/server/v3 v3.5.15
 	go.etcd.io/etcd/v3 v3.5.15
 	go.opencensus.io v0.24.0
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.26.0
 	golang.org/x/sync v0.8.0
-	golang.org/x/sys v0.23.0
-	golang.org/x/tools v0.23.0
-	google.golang.org/api v0.190.0
+	golang.org/x/sys v0.24.0
+	golang.org/x/tools v0.24.0
+	google.golang.org/api v0.191.0
 	google.golang.org/genproto v0.0.0-20240730163845-b1a4ccb954bf
 	google.golang.org/genproto/googleapis/api v0.0.0-20240725223205-93522f1f2a9f
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240730163845-b1a4ccb954bf
@@ -52,7 +52,7 @@ require (
 	cloud.google.com/go/longrunning v0.5.11 // indirect
 	cloud.google.com/go/monitoring v1.20.3 // indirect
 	cloud.google.com/go/profiler v0.4.0 // indirect
-	cloud.google.com/go/storage v1.41.0 // indirect
+	cloud.google.com/go/storage v1.43.0 // indirect
 	cloud.google.com/go/trace v1.10.11 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.0 // indirect
@@ -60,6 +60,7 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/avast/retry-go/v4 v4.6.0 // indirect
 	github.com/aws/aws-sdk-go v1.51.8 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
@@ -160,15 +161,14 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
-	golang.org/x/mod v0.19.0 // indirect
-	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
-	golang.org/x/time v0.5.0 // indirect
+	golang.org/x/mod v0.20.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
+	golang.org/x/oauth2 v0.22.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/time v0.6.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
-	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
