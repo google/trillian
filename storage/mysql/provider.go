@@ -87,11 +87,11 @@ func getMySQLDatabaseLocked() (*sql.DB, error) {
 	if mysqlDB != nil || mysqlErr != nil {
 		return mysqlDB, mysqlErr
 	}
-	if err := registerTLSConfig(); err != nil {
-		return nil, err
-	}
 	dsn := *mySQLURI
 	if *mySQLTLSCA != "" {
+		if err := registerMySQLTLSConfig(); err != nil {
+			return nil, err
+		}
 		dsn += "?tls=custom"
 	}
 	db, err := OpenDB(dsn)
@@ -121,11 +121,12 @@ func (s *mysqlProvider) Close() error {
 	return s.db.Close()
 }
 
-func registerTLSConfig() error {
+// registerMySQLTLSConfig registers a custom TLS config for MySQL using a provided CA certificate and optional server name.
+// Returns an error if the CA certificate can't be read or added to the root cert pool, or when the registration of the TLS config fails.
+func registerMySQLTLSConfig() error {
 	if *mySQLTLSCA == "" {
 		return nil
 	}
-
 	rootCertPool := x509.NewCertPool()
 	pem, err := os.ReadFile(*mySQLTLSCA)
 	if err != nil {
@@ -134,18 +135,11 @@ func registerTLSConfig() error {
 	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 		return errors.New("failed to append PEM")
 	}
-	serverName := ""
+	tlsConfig := &tls.Config{
+		RootCAs: rootCertPool,
+	}
 	if *mySQLServerName != "" {
-		serverName = *mySQLServerName
-	} else {
-		serverName = os.Getenv("MYSQL_HOSTNAME")
+		tlsConfig.ServerName = *mySQLServerName
 	}
-	err = mysql.RegisterTLSConfig("custom", &tls.Config{
-		RootCAs:    rootCertPool,
-		ServerName: serverName,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return mysql.RegisterTLSConfig("custom", tlsConfig)
 }
