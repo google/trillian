@@ -15,8 +15,12 @@
 package mysql
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
+	"errors"
 	"flag"
+	"os"
 	"sync"
 
 	"github.com/google/trillian/monitoring"
@@ -24,13 +28,15 @@ import (
 	"k8s.io/klog/v2"
 
 	// Load MySQL driver
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 var (
-	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	maxConns = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
-	maxIdle  = flag.Int("mysql_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
+	mySQLURI        = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	maxConns        = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
+	maxIdle         = flag.Int("mysql_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
+	mySQLTLSCA      = flag.String("mysql_tls_ca", "", "Path to the CA certificate file for MySQL TLS connection ")
+	mySQLServerName = flag.String("mysql_server_name", "", "Name of the MySQL server to be used as the Server Name in the TLS configuration")
 
 	mysqlMu              sync.Mutex
 	mysqlErr             error
@@ -81,7 +87,14 @@ func getMySQLDatabaseLocked() (*sql.DB, error) {
 	if mysqlDB != nil || mysqlErr != nil {
 		return mysqlDB, mysqlErr
 	}
-	db, err := OpenDB(*mySQLURI)
+	dsn := *mySQLURI
+	if *mySQLTLSCA != "" {
+		if err := registerMySQLTLSConfig(); err != nil {
+			return nil, err
+		}
+		dsn += "?tls=custom"
+	}
+	db, err := OpenDB(dsn)
 	if err != nil {
 		mysqlErr = err
 		return nil, err
@@ -106,4 +119,27 @@ func (s *mysqlProvider) AdminStorage() storage.AdminStorage {
 
 func (s *mysqlProvider) Close() error {
 	return s.db.Close()
+}
+
+// registerMySQLTLSConfig registers a custom TLS config for MySQL using a provided CA certificate and optional server name.
+// Returns an error if the CA certificate can't be read or added to the root cert pool, or when the registration of the TLS config fails.
+func registerMySQLTLSConfig() error {
+	if *mySQLTLSCA == "" {
+		return nil
+	}
+	rootCertPool := x509.NewCertPool()
+	pem, err := os.ReadFile(*mySQLTLSCA)
+	if err != nil {
+		return err
+	}
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		return errors.New("failed to append PEM")
+	}
+	tlsConfig := &tls.Config{
+		RootCAs: rootCertPool,
+	}
+	if *mySQLServerName != "" {
+		tlsConfig.ServerName = *mySQLServerName
+	}
+	return mysql.RegisterTLSConfig("custom", tlsConfig)
 }

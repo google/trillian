@@ -2,6 +2,10 @@
 
 ## HEAD
 
+* Add TLS support for MySQL: https://github.com/google/trillian/pull/3593
+  * `--mysql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with MySQL server. 
+  * `--mysql_server_name`: users can provide the name of the MySQL server to be used as the Server Name in the TLS configuration.
+
 ## Notable Changes
 
 * Updated go version 1.20 -> 1.21
