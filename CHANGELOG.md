@@ -8,7 +8,7 @@
 
 ## Notable Changes
 
-* Updated go version 1.20 -> 1.21
+* Updated go version 1.20 -> 1.22
 * Bump kaniko (used to build Docker images in GCB) to 1.20.0
 
 ## v1.6.0 (Jan 2024)
