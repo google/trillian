@@ -2,14 +2,303 @@
 
 ## HEAD
 
-* Add TLS support for MySQL: https://github.com/google/trillian/pull/3593
+## v1.6.1
+
+* Recommended go version for development: 1.22
+  * This is the version used by the cloudbuild presubmits. Using a
+    different version can lead to presubmits failing due to unexpected
+    diffs.
+
+### MySQL
+
+* Add TLS support for MySQL by @fghanmi in https://github.com/google/trillian/pull/3593
   * `--mysql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with MySQL server. 
   * `--mysql_server_name`: users can provide the name of the MySQL server to be used as the Server Name in the TLS configuration.
+* dedup leafidentityhash values ahead of SQL lookup of existing leaves by @bobcallaway in https://github.com/google/trillian/pull/3607
 
-## Notable Changes
+### Documentation
 
-* Updated go version 1.20 -> 1.22
-* Bump kaniko (used to build Docker images in GCB) to 1.20.0
+* Add instructions for using docker to regen derived files by @mhutchinson in https://github.com/google/trillian/pull/3489
+
+### Misc
+
+* Fix invalid Go toolchain version by @roger2hk in https://github.com/google/trillian/pull/3491
+* Replace deprecated `prune-whitelist` flag with `prune-allowlist` for `kubectl` command by @roger2hk in https://github.com/google/trillian/pull/3307
+* Remove @pphaneuf from CODEOWNERS by @roger2hk in https://github.com/google/trillian/pull/3516
+* Don't bump to MySQL 9 until we explicitly choose to by @mhutchinson in https://github.com/google/trillian/pull/3560
+* Don't update to MySQL 9.0 by @mhutchinson in https://github.com/google/trillian/pull/3584
+
+### Dependency updates
+* Bump google.golang.org/api from 0.155.0 to 0.156.0 by @dependabot in https://github.com/google/trillian/pull/3290
+* Bump golang from `688ad7f` to `cbee5d2` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3286
+* Bump golang from `688ad7f` to `cbee5d2` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3287
+* Bump golang from `688ad7f` to `cbee5d2` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3289
+* Bump golang from `688ad7f` to `cbee5d2` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3288
+* Bump actions/upload-artifact from 4.0.0 to 4.1.0 by @dependabot in https://github.com/google/trillian/pull/3292
+* Bump golang.org/x/tools from 0.16.1 to 0.17.0 by @dependabot in https://github.com/google/trillian/pull/3291
+* Bump go 1.20 -> 1.21 by @mhutchinson in https://github.com/google/trillian/pull/3293
+* Bump github.com/apache/beam/sdks/v2 from 2.52.0 to 2.53.0 by @dependabot in https://github.com/google/trillian/pull/3281
+* Bump CockroachDB to 22.2.17 by @roger2hk in https://github.com/google/trillian/pull/3301
+* Bump github.com/cockroachdb/cockroach-go/v2 from 2.3.5 to 2.3.6 by @dependabot in https://github.com/google/trillian/pull/3305
+* Bump actions/upload-artifact from 4.1.0 to 4.2.0 by @dependabot in https://github.com/google/trillian/pull/3302
+* Bump k8s.io/klog/v2 from 2.120.0 to 2.120.1 by @dependabot in https://github.com/google/trillian/pull/3303
+* Bump google.golang.org/api from 0.156.0 to 0.157.0 by @dependabot in https://github.com/google/trillian/pull/3304
+* Bump golang from `cbee5d2` to `c4b696f` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3298
+* Bump ubuntu from `6042500` to `e6173d4` in /examples/deployment/kubernetes/mysql/image by @dependabot in https://github.com/google/trillian/pull/3299
+* Bump golang from `cbee5d2` to `c4b696f` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3295
+* Bump golang from `cbee5d2` to `c4b696f` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3297
+* Bump golang from `cbee5d2` to `c4b696f` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3296
+* Bump mysql from 8.2 to 8.3 in /examples/deployment/docker/db_server by @dependabot in https://github.com/google/trillian/pull/3306
+* Bump golang from `c4b696f` to `d8c365d` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3308
+* Bump actions/upload-artifact from 4.2.0 to 4.3.0 by @dependabot in https://github.com/google/trillian/pull/3309
+* Bump golang from `c4b696f` to `d8c365d` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3310
+* Bump golang from `c4b696f` to `d8c365d` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3311
+* Bump golang from `c4b696f` to `d8c365d` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3312
+* Bump google.golang.org/grpc from 1.60.1 to 1.61.0 by @dependabot in https://github.com/google/trillian/pull/3314
+* Bump google.golang.org/api from 0.157.0 to 0.158.0 by @dependabot in https://github.com/google/trillian/pull/3315
+* Bump google-auth-library from 9.4.2 to 9.5.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3316
+* Bump google.golang.org/api from 0.158.0 to 0.159.0 by @dependabot in https://github.com/google/trillian/pull/3317
+* Bump google-auth-library from 9.5.0 to 9.6.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3319
+* Bump google.golang.org/api from 0.159.0 to 0.160.0 by @dependabot in https://github.com/google/trillian/pull/3320
+* Bump alpine from `51b6726` to `c5b1261` in /examples/deployment/docker/envsubst by @dependabot in https://github.com/google/trillian/pull/3321
+* Bump cloud.google.com/go/spanner from 1.55.0 to 1.56.0 by @dependabot in https://github.com/google/trillian/pull/3322
+* Bump go.etcd.io/etcd/v3 from 3.5.11 to 3.5.12 by @dependabot in https://github.com/google/trillian/pull/3327
+* Bump google.golang.org/api from 0.160.0 to 0.161.0 by @dependabot in https://github.com/google/trillian/pull/3323
+* Bump nick-fields/retry from 2.9.0 to 3.0.0 by @dependabot in https://github.com/google/trillian/pull/3328
+* Bump golang from `d8c365d` to `3efef61` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3329
+* Bump golang from `d8c365d` to `3efef61` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3331
+* Bump golang from `d8c365d` to `3efef61` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3330
+* Bump golang from `d8c365d` to `3efef61` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3332
+* Bump google-auth-library from 9.6.0 to 9.6.1 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3333
+* Bump google-auth-library from 9.6.1 to 9.6.2 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3334
+* Bump ubuntu from `e6173d4` to `e9569c2` in /examples/deployment/kubernetes/mysql/image by @dependabot in https://github.com/google/trillian/pull/3335
+* Bump distroless/base-debian12 from `0a93daa` to `f47fa3d` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3336
+* Bump distroless/base-debian12 from `0a93daa` to `f47fa3d` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3337
+* Bump google.golang.org/api from 0.161.0 to 0.162.0 by @dependabot in https://github.com/google/trillian/pull/3340
+* Bump actions/upload-artifact from 4.3.0 to 4.3.1 by @dependabot in https://github.com/google/trillian/pull/3342
+* Bump kaniko to v1.20.0 to fix #3338 by @AlCutter in https://github.com/google/trillian/pull/3339
+* Bump golang.org/x/crypto from 0.18.0 to 0.19.0 by @dependabot in https://github.com/google/trillian/pull/3347
+* Bump golang from 1.21.6-bookworm to 1.22.0-bookworm in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3346
+* Bump google-auth-library from 9.6.2 to 9.6.3 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3352
+* Bump golang from 1.21.6-bookworm to 1.22.0-bookworm in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3351
+* Bump golang from 1.21.6-bookworm to 1.22.0-bookworm in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3350
+* Bump golang from 1.21.6-bookworm to 1.22.0-bookworm in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3349
+* Bump golangci/golangci-lint-action from 3.7.0 to 3.7.1 by @dependabot in https://github.com/google/trillian/pull/3354
+* Bump google.golang.org/api from 0.162.0 to 0.163.0 by @dependabot in https://github.com/google/trillian/pull/3353
+* Bump distroless/base-debian12 from `f47fa3d` to `2102ce1` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3355
+* Bump distroless/base-debian12 from `f47fa3d` to `2102ce1` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3356
+* Bump golang from `874c267` to `925fe3f` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3361
+* Bump cloud.google.com/go/spanner from 1.56.0 to 1.57.0 by @dependabot in https://github.com/google/trillian/pull/3358
+* Bump github.com/apache/beam/sdks/v2 from 2.53.0 to 2.54.0 by @dependabot in https://github.com/google/trillian/pull/3365
+* Bump google.golang.org/api from 0.163.0 to 0.165.0 by @dependabot in https://github.com/google/trillian/pull/3366
+* Bump golang from `874c267` to `925fe3f` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3357
+* Bump golang from `874c267` to `925fe3f` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3362
+* Bump golang.org/x/tools from 0.17.0 to 0.18.0 by @dependabot in https://github.com/google/trillian/pull/3360
+* Bump google.golang.org/grpc from 1.61.0 to 1.61.1 by @dependabot in https://github.com/google/trillian/pull/3364
+* Bump golang from `874c267` to `925fe3f` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3363
+* Bump github.com/prometheus/client_model from 0.5.0 to 0.6.0 by @dependabot in https://github.com/google/trillian/pull/3367
+* Bump ubuntu from `e9569c2` to `f9d633f` in /examples/deployment/kubernetes/mysql/image by @dependabot in https://github.com/google/trillian/pull/3368
+* Bump golang/govulncheck-action from 1.0.1 to 1.0.2 by @dependabot in https://github.com/google/trillian/pull/3369
+* Bump google.golang.org/api from 0.165.0 to 0.166.0 by @dependabot in https://github.com/google/trillian/pull/3370
+* Bump google.golang.org/grpc from 1.61.1 to 1.62.0 by @dependabot in https://github.com/google/trillian/pull/3371
+* Bump google.golang.org/api from 0.166.0 to 0.167.0 by @dependabot in https://github.com/google/trillian/pull/3374
+* Bump distroless/base-debian12 from `2102ce1` to `5eae9ef` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3373
+* Bump distroless/base-debian12 from `2102ce1` to `5eae9ef` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3372
+* Bump golang.org/x/crypto from 0.19.0 to 0.20.0 by @dependabot in https://github.com/google/trillian/pull/3375
+* Bump distroless/base-debian12 from `5eae9ef` to `f9b0e86` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3377
+* Bump github.com/prometheus/client_golang from 1.18.0 to 1.19.0 by @dependabot in https://github.com/google/trillian/pull/3376
+* Bump distroless/base-debian12 from `f9b0e86` to `5eae9ef` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3379
+* Bump golang.org/x/crypto from 0.20.0 to 0.21.0 by @dependabot in https://github.com/google/trillian/pull/3380
+* Bump google.golang.org/api from 0.167.0 to 0.168.0 by @dependabot in https://github.com/google/trillian/pull/3382
+* Bump go-version-input from 1.21.6 to 1.21.8 in govulncheck and bump google.golang.org/protobuf from 1.32.0 to 1.33.0 and bump github.com/golang/protobuf from 1.5.3 to 1.5.4 by @roger2hk in https://github.com/google/trillian/pull/3393
+* Bump google.golang.org/grpc from 1.62.0 to 1.62.1 by @dependabot in https://github.com/google/trillian/pull/3385
+* Bump golang.org/x/tools from 0.18.0 to 0.19.0 by @dependabot in https://github.com/google/trillian/pull/3383
+* Bump cloud.google.com/go/spanner from 1.57.0 to 1.58.0 by @dependabot in https://github.com/google/trillian/pull/3391
+* Bump golang from 1.22.0-bookworm to 1.22.1-bookworm in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3389
+* Bump ubuntu from `f9d633f` to `77906da` in /examples/deployment/kubernetes/mysql/image by @dependabot in https://github.com/google/trillian/pull/3392
+* Bump golang from 1.22.0-bookworm to 1.22.1-bookworm in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3387
+* Bump github.com/cockroachdb/cockroach-go/v2 from 2.3.6 to 2.3.7 by @dependabot in https://github.com/google/trillian/pull/3390
+* Bump golang from 1.22.0-bookworm to 1.22.1-bookworm in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3388
+* Bump golang from 1.22.0-bookworm to 1.22.1-bookworm in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3386
+* Bump google.golang.org/api from 0.168.0 to 0.169.0 by @dependabot in https://github.com/google/trillian/pull/3394
+* Bump distroless/base-debian12 from `5eae9ef` to `28a7f1f` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3396
+* Bump github.com/go-sql-driver/mysql from 1.7.1 to 1.8.0 by @dependabot in https://github.com/google/trillian/pull/3395
+* Bump distroless/base-debian12 from `5eae9ef` to `28a7f1f` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3397
+* Bump github.com/jackc/pgx/v4 from 4.18.1 to 4.18.2 by @dependabot in https://github.com/google/trillian/pull/3398
+* Bump actions/checkout from 4.1.1 to 4.1.2 by @dependabot in https://github.com/google/trillian/pull/3401
+* Bump golang from `6699d28` to `d996c64` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3399
+* Bump golang from `6699d28` to `d996c64` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3403
+* Bump golang from `6699d28` to `d996c64` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3402
+* Bump golang from `6699d28` to `d996c64` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3400
+* Bump google-auth-library from 9.6.3 to 9.7.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3404
+* Bump cloud.google.com/go/spanner from 1.58.0 to 1.59.0 by @dependabot in https://github.com/google/trillian/pull/3405
+* Bump google.golang.org/api from 0.169.0 to 0.170.0 by @dependabot in https://github.com/google/trillian/pull/3406
+* Bump follow-redirects from 1.15.4 to 1.15.6 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3407
+* Bump cloud.google.com/go/spanner from 1.59.0 to 1.60.0 by @dependabot in https://github.com/google/trillian/pull/3408
+* Bump github.com/docker/docker from 24.0.7+incompatible to 24.0.9+incompatible by @dependabot in https://github.com/google/trillian/pull/3409
+* Bump google.golang.org/api from 0.170.0 to 0.171.0 by @dependabot in https://github.com/google/trillian/pull/3410
+* Bump github.com/go-sql-driver/mysql from 1.8.0 to 1.8.1 by @dependabot in https://github.com/google/trillian/pull/3412
+* Bump express from 4.18.2 to 4.19.2 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3413
+* Bump github.com/apache/beam/sdks/v2 from 2.54.0 to 2.55.0 by @dependabot in https://github.com/google/trillian/pull/3411
+* Bump go.etcd.io/etcd/v3 from 3.5.12 to 3.5.13 by @dependabot in https://github.com/google/trillian/pull/3415
+* Bump google.golang.org/api from 0.171.0 to 0.172.0 by @dependabot in https://github.com/google/trillian/pull/3414
+* Bump distroless/base-debian12 from `28a7f1f` to `611d30d` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3419
+* Bump distroless/base-debian12 from `28a7f1f` to `611d30d` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3420
+* Bump golang from 1.22.1-bookworm to 1.22.2-bookworm in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3421
+* update govulncheck go version from 1.21.8 to 1.21.9 and bump golang.org/x/net from v0.22.0 to v0.23.0 by @phbnf in https://github.com/google/trillian/pull/3427
+* Bump golang from 1.22.1-bookworm to 1.22.2-bookworm in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3426
+* Bump github.com/prometheus/client_model from 0.6.0 to 0.6.1 by @dependabot in https://github.com/google/trillian/pull/3422
+* Bump golang.org/x/sys from 0.18.0 to 0.19.0 by @dependabot in https://github.com/google/trillian/pull/3428
+* Bump golang from 1.22.1-bookworm to 1.22.2-bookworm in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3424
+* Bump golang from 1.22.1-bookworm to 1.22.2-bookworm in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3425
+* Bump golang.org/x/crypto from 0.21.0 to 0.22.0 by @dependabot in https://github.com/google/trillian/pull/3429
+* Bump golang.org/x/tools from 0.19.0 to 0.20.0 by @dependabot in https://github.com/google/trillian/pull/3432
+* Bump github.com/apache/beam/sdks/v2 from 2.55.0 to 2.55.1 by @dependabot in https://github.com/google/trillian/pull/3433
+* Bump google.golang.org/grpc from 1.62.1 to 1.63.2 by @dependabot in https://github.com/google/trillian/pull/3434
+* Bump golang from `48b942a` to `3c7ad81` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3437
+* Bump golang from `48b942a` to `3c7ad81` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3435
+* Bump golang from `48b942a` to `3c7ad81` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3436
+* Bump golang from `48b942a` to `fb54c61` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3439
+* Bump golang from `3c7ad81` to `b03f3ba` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3440
+* Bump golang from `3c7ad81` to `b03f3ba` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3442
+* Bump golang from `3c7ad81` to `b03f3ba` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3441
+* Bump golang from `fb54c61` to `b03f3ba` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3443
+* Bump google-auth-library from 9.7.0 to 9.8.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3444
+* Bump google.golang.org/api from 0.172.0 to 0.173.0 by @dependabot in https://github.com/google/trillian/pull/3445
+* Bump ubuntu from `77906da` to `1b8d8ff` in /examples/deployment/kubernetes/mysql/image by @dependabot in https://github.com/google/trillian/pull/3446
+* Bump google.golang.org/api from 0.173.0 to 0.174.0 by @dependabot in https://github.com/google/trillian/pull/3447
+* Bump actions/upload-artifact from 4.3.1 to 4.3.2 by @dependabot in https://github.com/google/trillian/pull/3448
+* Bump google.golang.org/api from 0.174.0 to 0.175.0 by @dependabot in https://github.com/google/trillian/pull/3449
+* Bump actions/checkout from 4.1.2 to 4.1.3 by @dependabot in https://github.com/google/trillian/pull/3450
+* Bump actions/upload-artifact from 4.3.2 to 4.3.3 by @dependabot in https://github.com/google/trillian/pull/3451
+* Bump google.golang.org/api from 0.175.0 to 0.176.0 by @dependabot in https://github.com/google/trillian/pull/3452
+* Bump google.golang.org/api from 0.176.0 to 0.176.1 by @dependabot in https://github.com/google/trillian/pull/3453
+* Bump actions/checkout from 4.1.3 to 4.1.4 by @dependabot in https://github.com/google/trillian/pull/3455
+* Bump golangci/golangci-lint-action from 4.0.0 to 5.0.0 by @dependabot in https://github.com/google/trillian/pull/3460
+* Bump google-auth-library from 9.8.0 to 9.9.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3456
+* Bump golang from `b03f3ba` to `d0902ba` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3454
+* Bump golang from `b03f3ba` to `d0902ba` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3457
+* Bump ubuntu from `1b8d8ff` to `6d7b5d3` in /examples/deployment/kubernetes/mysql/image by @dependabot in https://github.com/google/trillian/pull/3461
+* Bump golang from `b03f3ba` to `d0902ba` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3459
+* Bump golang from `b03f3ba` to `d0902ba` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3458
+* Bump distroless/base-debian12 from `611d30d` to `d8d01e2` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3463
+* Bump distroless/base-debian12 from `611d30d` to `d8d01e2` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3464
+* Bump cloud.google.com/go/spanner from 1.60.0 to 1.61.0 by @dependabot in https://github.com/google/trillian/pull/3468
+* Bump golangci/golangci-lint-action from 5.0.0 to 5.1.0 by @dependabot in https://github.com/google/trillian/pull/3462
+* Bump @google-cloud/functions-framework from 3.3.0 to 3.4.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3465
+* Bump mysql from 8.3 to 8.4 in /examples/deployment/docker/db_server by @dependabot in https://github.com/google/trillian/pull/3469
+* Bump actions/setup-go from 5.0.0 to 5.0.1 by @dependabot in https://github.com/google/trillian/pull/3470
+* Bump ubuntu from `6d7b5d3` to `a6d2b38` in /examples/deployment/kubernetes/mysql/image by @dependabot in https://github.com/google/trillian/pull/3471
+* Bump github.com/apache/beam/sdks/v2 from 2.55.1 to 2.56.0 by @dependabot in https://github.com/google/trillian/pull/3472
+* Bump github.com/cockroachdb/cockroach-go/v2 from 2.3.7 to 2.3.8 by @dependabot in https://github.com/google/trillian/pull/3473
+* Bump distroless/base-debian12 from `d8d01e2` to `786007f` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3474
+* Bump golangci/golangci-lint-action from 5.1.0 to 5.3.0 by @dependabot in https://github.com/google/trillian/pull/3479
+* Bump golang.org/x/crypto from 0.22.0 to 0.23.0 by @dependabot in https://github.com/google/trillian/pull/3476
+* Bump distroless/base-debian12 from `d8d01e2` to `786007f` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3480
+* Bump golang from 1.22.2-bookworm to 1.22.3-bookworm in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3482
+* Bump golang from 1.22.2-bookworm to 1.22.3-bookworm in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3481
+* Bump `go-version-input` to 1.21.10 in govulncheck.yml by @roger2hk in https://github.com/google/trillian/pull/3488
+* Bump google.golang.org/protobuf from 1.33.0 to 1.34.1 by @dependabot in https://github.com/google/trillian/pull/3475
+* Bump google.golang.org/api from 0.176.1 to 0.178.0 by @dependabot in https://github.com/google/trillian/pull/3484
+* Bump github.com/fullstorydev/grpcurl from 1.8.9 to 1.9.1 by @dependabot in https://github.com/google/trillian/pull/3438
+* Bump actions/checkout from 4.1.4 to 4.1.5 by @dependabot in https://github.com/google/trillian/pull/3478
+* Bump golang.org/x/tools from 0.20.0 to 0.21.0 by @dependabot in https://github.com/google/trillian/pull/3485
+* Bump golang from 1.22.2-bookworm to 1.22.3-bookworm in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3487
+* Bump golang from 1.22.2-bookworm to 1.22.3-bookworm in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3483
+* Bump golangci/golangci-lint-action from 5.3.0 to 6.0.1 by @dependabot in https://github.com/google/trillian/pull/3490
+* Bump ossf/scorecard-action from 2.3.1 to 2.3.3 by @dependabot in https://github.com/google/trillian/pull/3492
+* Bump github.com/prometheus/client_golang from 1.19.0 to 1.19.1 by @dependabot in https://github.com/google/trillian/pull/3493
+* Bump google.golang.org/api from 0.178.0 to 0.180.0 by @dependabot in https://github.com/google/trillian/pull/3494
+* Bump google-auth-library from 9.9.0 to 9.10.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3495
+* Bump golang from `6d71b7c` to `c2bc4ef` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3496
+* Bump golang from `6d71b7c` to `c2bc4ef` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3497
+* Bump golang from `6d71b7c` to `c2bc4ef` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3498
+* Bump golang from `6d71b7c` to `c2bc4ef` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3499
+* Bump golang from `c2bc4ef` to `ef27a3c` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3501
+* Bump golang from `c2bc4ef` to `ef27a3c` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3500
+* Bump golang from `c2bc4ef` to `ef27a3c` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3505
+* Bump golang from `c2bc4ef` to `ef27a3c` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3502
+* Bump cloud.google.com/go/spanner from 1.61.0 to 1.62.0 by @dependabot in https://github.com/google/trillian/pull/3504
+* Bump google.golang.org/api from 0.180.0 to 0.181.0 by @dependabot in https://github.com/google/trillian/pull/3506
+* Bump actions/checkout from 4.1.5 to 4.1.6 by @dependabot in https://github.com/google/trillian/pull/3508
+* Bump golang from `ef27a3c` to `5c56bd4` in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3507
+* Bump golang from `ef27a3c` to `5c56bd4` in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3510
+* Bump golang from `ef27a3c` to `5c56bd4` in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3511
+* Bump github/codeql-action from 2.13.4 to 3.25.5 by @dependabot in https://github.com/google/trillian/pull/3512
+* Bump golang from `ef27a3c` to `5c56bd4` in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3509
+* Bump github/codeql-action from 3.25.5 to 3.25.6 by @dependabot in https://github.com/google/trillian/pull/3513
+* Bump alpine from 3.19 to 3.20 in /examples/deployment/docker/envsubst by @dependabot in https://github.com/google/trillian/pull/3514
+* Bump google.golang.org/grpc from 1.63.2 to 1.64.0 by @dependabot in https://github.com/google/trillian/pull/3503
+* Bump cloud.google.com/go/spanner from 1.62.0 to 1.63.0 by @dependabot in https://github.com/google/trillian/pull/3515
+* Bump google.golang.org/api from 0.181.0 to 0.182.0 by @dependabot in https://github.com/google/trillian/pull/3517
+* Bump go.etcd.io/etcd/v3 from 3.5.13 to 3.5.14 by @dependabot in https://github.com/google/trillian/pull/3520
+* Bump github/codeql-action from 3.25.6 to 3.25.7 by @dependabot in https://github.com/google/trillian/pull/3523
+* Bump golang/govulncheck-action from 1.0.2 to 1.0.3 by @dependabot in https://github.com/google/trillian/pull/3524
+* Bump the version of go used by the vuln scanner by @mhutchinson in https://github.com/google/trillian/pull/3536
+* Group dependabot updates together by @mhutchinson in https://github.com/google/trillian/pull/3535
+* Bump ubuntu from `a6d2b38` to `19478ce` in /examples/deployment/kubernetes/mysql/image in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3537
+* Bump the go-deps group with 8 updates by @dependabot in https://github.com/google/trillian/pull/3538
+* Bump github/codeql-action from 3.25.7 to 3.25.8 by @dependabot in https://github.com/google/trillian/pull/3534
+* Bump golang from 1.22.3-bookworm to 1.22.4-bookworm in /integration/cloudbuild/testbase by @dependabot in https://github.com/google/trillian/pull/3533
+* Bump golang from 1.22.3-bookworm to 1.22.4-bookworm in /examples/deployment/docker/log_server by @dependabot in https://github.com/google/trillian/pull/3526
+* Bump golang from 1.22.3-bookworm to 1.22.4-bookworm in /examples/deployment/docker/log_signer by @dependabot in https://github.com/google/trillian/pull/3528
+* Bump golang from 1.22.3-bookworm to 1.22.4-bookworm in /examples/deployment/docker/db_client by @dependabot in https://github.com/google/trillian/pull/3527
+* Bump golang from `aec4784` to `9678844` in /examples/deployment/docker/log_server in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3545
+* Bump golang from `aec4784` to `9678844` in /examples/deployment/docker/log_signer in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3544
+* Bump golang from `aec4784` to `9678844` in /examples/deployment/docker/db_client in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3543
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3540
+* Bump google-auth-library from 9.10.0 to 9.11.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3539
+* Bump golang from `aec4784` to `9678844` in /integration/cloudbuild/testbase in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3542
+* Bump alpine from `77726ef` to `b89d9c9` in /examples/deployment/docker/envsubst in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3546
+* Bump the go-deps group across 1 directory with 7 updates by @dependabot in https://github.com/google/trillian/pull/3547
+* Bump the go-deps group with 5 updates by @dependabot in https://github.com/google/trillian/pull/3550
+* Bump github/codeql-action from 3.25.10 to 3.25.11 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3549
+* Bump the version of go, and make vuln check share version by @mhutchinson in https://github.com/google/trillian/pull/3551
+* Bump golang from 1.22.4-bookworm to 1.22.5-bookworm in /integration/cloudbuild/testbase in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3552
+* Bump actions/upload-artifact from 4.3.3 to 4.3.4 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3556
+* Bump golang from 1.22.4-bookworm to 1.22.5-bookworm in /examples/deployment/docker/db_client in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3559
+* Bump the docker-deps group in /examples/deployment/docker/log_signer with 2 updates by @dependabot in https://github.com/google/trillian/pull/3554
+* Bump ubuntu from `19478ce` to `340d9b0` in /examples/deployment/kubernetes/mysql/image in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3558
+* Bump the docker-deps group in /examples/deployment/docker/log_server with 2 updates by @dependabot in https://github.com/google/trillian/pull/3555
+* Bump the go-deps group with 5 updates by @dependabot in https://github.com/google/trillian/pull/3557
+* Bump the go-deps group with 4 updates by @dependabot in https://github.com/google/trillian/pull/3564
+* Bump @google-cloud/functions-framework from 3.4.0 to 3.4.1 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3563
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3562
+* Bump the go-deps group with 7 updates by @dependabot in https://github.com/google/trillian/pull/3565
+* Bump alpine from `b89d9c9` to `a59bbcb` in /examples/deployment/docker/envsubst in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3567
+* Bump github/codeql-action from 3.25.12 to 3.25.13 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3566
+* Bump golang from `6c27802` to `af9b40f` in /examples/deployment/docker/log_server in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3569
+* Bump golang from `6c27802` to `af9b40f` in /integration/cloudbuild/testbase in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3576
+* Bump alpine from `a59bbcb` to `0a4eaa0` in /examples/deployment/docker/envsubst in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3571
+* Bump golang from `6c27802` to `af9b40f` in /examples/deployment/docker/log_signer in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3573
+* Bump the go-deps group with 3 updates by @dependabot in https://github.com/google/trillian/pull/3568
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3572
+* Bump @google-cloud/functions-framework from 3.4.1 to 3.4.2 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3574
+* Bump golang from `6c27802` to `af9b40f` in /examples/deployment/docker/db_client in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3570
+* Bump google-auth-library from 9.11.0 to 9.12.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3575
+* Upgrade to go-licenses v2 by @mhutchinson in https://github.com/google/trillian/pull/3578
+* Bump github.com/docker/docker from 25.0.5+incompatible to 25.0.6+incompatible in the go_modules group by @dependabot in https://github.com/google/trillian/pull/3579
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3582
+* Bump google-auth-library from 9.12.0 to 9.13.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3583
+* Bump the go-deps group with 6 updates by @dependabot in https://github.com/google/trillian/pull/3580
+* Bump golang from 1.22.5-bookworm to 1.22.6-bookworm in /integration/cloudbuild/testbase in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3586
+* Bump the go-deps group with 6 updates by @dependabot in https://github.com/google/trillian/pull/3590
+* Bump golang from 1.22.5-bookworm to 1.22.6-bookworm in /examples/deployment/docker/db_client in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3588
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3587
+* Bump golang from 1.22.5-bookworm to 1.22.6-bookworm in /examples/deployment/docker/log_signer in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3589
+* Bump golang from 1.22.5-bookworm to 1.22.6-bookworm in /examples/deployment/docker/log_server in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3591
+* Bump ubuntu from `340d9b0` to `adbb901` in /examples/deployment/kubernetes/mysql/image in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3595
+* Bump golang from 1.22.6-bookworm to 1.23.0-bookworm in /integration/cloudbuild/testbase in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3601
+* Bump golang from 1.22.6-bookworm to 1.23.0-bookworm in /examples/deployment/docker/db_client in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3594
+* Bump @slack/webhook from 7.0.2 to 7.0.3 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3596
+* Bump github/codeql-action from 3.26.0 to 3.26.3 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3599
+* Bump golang from 1.22.6-bookworm to 1.23.0-bookworm in /examples/deployment/docker/log_server in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3598
+* Bump golang from 1.22.6-bookworm to 1.23.0-bookworm in /examples/deployment/docker/log_signer in the docker-deps group by @dependabot in https://github.com/google/trillian/pull/3600
+* Bump the go-deps group with 4 updates by @dependabot in https://github.com/google/trillian/pull/3597
+* Bump go version to 1.22.6 by @roger2hk in https://github.com/google/trillian/pull/3602
+* Bump the go-deps group with 6 updates by @dependabot in https://github.com/google/trillian/pull/3606
+* Bump google-auth-library from 9.13.0 to 9.14.0 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3604
+* Bump github/codeql-action from 3.26.3 to 3.26.5 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3605
 
 ## v1.6.0 (Jan 2024)
 
