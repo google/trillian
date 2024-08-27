@@ -476,11 +476,18 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		return existingLeaves, nil
 	}
 
-	// For existing leaves, we need to retrieve the contents.  First collate the desired LeafIdentityHash values.
+	// For existing leaves, we need to retrieve the contents.  First collate the desired LeafIdentityHash values
+	// We deduplicate the hashes to address https://github.com/google/trillian/issues/3603 but will be mapped
+	// back to the existingLeaves slice below
+	uniqueLeafMap := make(map[string]struct{}, len(existingLeaves))
 	var toRetrieve [][]byte
 	for _, existing := range existingLeaves {
 		if existing != nil {
-			toRetrieve = append(toRetrieve, existing.LeafIdentityHash)
+			key := string(existing.LeafIdentityHash)
+			if _, ok := uniqueLeafMap[key]; !ok {
+				uniqueLeafMap[key] = struct{}{}
+				toRetrieve = append(toRetrieve, existing.LeafIdentityHash)
+			}
 		}
 	}
 	results, err := t.getLeafDataByIdentityHash(ctx, toRetrieve)
