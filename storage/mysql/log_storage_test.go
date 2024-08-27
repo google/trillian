@@ -139,6 +139,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 	leaves := createTestLeaves(int64(count), 10)
 	leaves2 := createTestLeaves(int64(count), 12)
 	leaves3 := createTestLeaves(3, 100)
+	leaves4 := createTestLeaves(3, 105)
 
 	// Note that tests accumulate queued leaves on top of each other.
 	tests := []struct {
@@ -160,6 +161,12 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 			desc:   "[10, 100, 11, 101, 102] so [dup, new, dup, new, dup]",
 			leaves: []*trillian.LogLeaf{leaves[0], leaves3[0], leaves[1], leaves3[1], leaves[2]},
 			want:   []*trillian.LogLeaf{leaves[0], nil, leaves[1], nil, leaves[2]},
+		},
+		{
+			// we explictly reuse tests that have already been integrated to test issue 3603
+			desc:   "[100, 100, 106, 101, 107]",
+			leaves: []*trillian.LogLeaf{leaves3[0], leaves3[0], leaves4[1], leaves3[1], leaves4[2]},
+			want:   []*trillian.LogLeaf{leaves3[0], leaves3[0], leaves4[1], leaves3[1], leaves4[2]},
 		},
 	}
 
