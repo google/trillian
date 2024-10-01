@@ -1,4 +1,4 @@
-# PostgreSQL / MariaDB version of the tree schema
+# PostgreSQL version of the tree schema.
 
 -- ---------------------------------------------
 -- Tree stuff here
@@ -6,20 +6,26 @@
 
 -- Tree parameters should not be changed after creation. Doing so can
 -- render the data in the tree unusable or inconsistent.
+CREATE TYPE TreeState AS ENUM ('ACTIVE', 'FROZEN', 'DRAINING');
+CREATE TYPE TreeType AS ENUM ('LOG', 'MAP', 'PREORDERED_LOG');
+CREATE TYPE HashStrategy AS ENUM ('RFC6962_SHA256', 'TEST_MAP_HASHER', 'OBJECT_RFC6962_SHA256', 'CONIKS_SHA512_256', 'CONIKS_SHA256');
+CREATE TYPE HashAlgorithm AS ENUM ('SHA256');
+CREATE TYPE SignatureAlgorithm AS ENUM ('ECDSA', 'RSA', 'ED25519');
+
 CREATE TABLE IF NOT EXISTS Trees(
   TreeId                BIGINT NOT NULL,
-  TreeState             ENUM('ACTIVE', 'FROZEN', 'DRAINING') NOT NULL,
-  TreeType              ENUM('LOG', 'MAP', 'PREORDERED_LOG') NOT NULL,
-  HashStrategy          ENUM('RFC6962_SHA256', 'TEST_MAP_HASHER', 'OBJECT_RFC6962_SHA256', 'CONIKS_SHA512_256', 'CONIKS_SHA256') NOT NULL,
-  HashAlgorithm         ENUM('SHA256') NOT NULL,
-  SignatureAlgorithm    ENUM('ECDSA', 'RSA', 'ED25519') NOT NULL,
+  TreeState             TreeState NOT NULL,
+  TreeType              TreeType NOT NULL,
+  HashStrategy          HashStrategy NOT NULL,
+  HashAlgorithm         HashAlgorithm NOT NULL,
+  SignatureAlgorithm    SignatureAlgorithm NOT NULL,
   DisplayName           VARCHAR(20),
   Description           VARCHAR(200),
   CreateTimeMillis      BIGINT NOT NULL,
   UpdateTimeMillis      BIGINT NOT NULL,
   MaxRootDurationMillis BIGINT NOT NULL,
-  PrivateKey            MEDIUMBLOB NOT NULL, -- Unused.
-  PublicKey             MEDIUMBLOB NOT NULL, -- This is now used to store settings.
+  PrivateKey            BYTEA NOT NULL, -- Unused.
+  PublicKey             BYTEA NOT NULL, -- This is now used to store settings.
   Deleted               BOOLEAN,
   DeleteTimeMillis      BIGINT,
   PRIMARY KEY(TreeId)
@@ -38,13 +44,14 @@ CREATE TABLE IF NOT EXISTS TreeControl(
 
 CREATE TABLE IF NOT EXISTS Subtree(
   TreeId               BIGINT NOT NULL,
-  SubtreeId            VARBINARY(255) NOT NULL,
-  Nodes                MEDIUMBLOB NOT NULL,
+  SubtreeId            BYTEA NOT NULL,
+  Nodes                BYTEA NOT NULL,
   SubtreeRevision      INTEGER NOT NULL,
   -- Key columns must be in ASC order in order to benefit from group-by/min-max
   -- optimization in PostgreSQL.
-  PRIMARY KEY(TreeId, SubtreeId, SubtreeRevision),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
+  PRIMARY KEY (TreeId, SubtreeId, SubtreeRevision),
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
+  CHECK (length(SubtreeId) <= 255)
 );
 
 -- The TreeRevisionIdx is used to enforce that there is only one STH at any
@@ -53,11 +60,13 @@ CREATE TABLE IF NOT EXISTS TreeHead(
   TreeId               BIGINT NOT NULL,
   TreeHeadTimestamp    BIGINT,
   TreeSize             BIGINT,
-  RootHash             VARBINARY(255) NOT NULL,
-  RootSignature        VARBINARY(1024) NOT NULL,
+  RootHash             BYTEA NOT NULL,
+  RootSignature        BYTEA NOT NULL,
   TreeRevision         BIGINT,
   PRIMARY KEY(TreeId, TreeHeadTimestamp),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
+  CHECK (length(RootHash) <= 255),
+  CHECK (length(RootSignature) <= 1024)
 );
 
 CREATE UNIQUE INDEX TreeHeadRevisionIdx
@@ -78,17 +87,18 @@ CREATE TABLE IF NOT EXISTS LeafData(
   -- This is a personality specific has of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
-  LeafIdentityHash     VARBINARY(255) NOT NULL,
+  LeafIdentityHash     BYTEA NOT NULL,
   -- This is the data stored in the leaf for example in CT it contains a DER encoded
   -- X.509 certificate but is application dependent
-  LeafValue            LONGBLOB NOT NULL,
+  LeafValue            BYTEA NOT NULL,
   -- This is extra data that the application can associate with the leaf should it wish to.
   -- This data is not included in signing and hashing.
-  ExtraData            LONGBLOB,
+  ExtraData            BYTEA,
   -- The timestamp from when this leaf data was first queued for inclusion.
   QueueTimestampNanos  BIGINT NOT NULL,
   PRIMARY KEY(TreeId, LeafIdentityHash),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
+  CHECK (length(LeafIdentityHash) <= 255)
 );
 
 -- When a leaf is sequenced a row is added to this table. If logs allow duplicates then
@@ -99,18 +109,21 @@ CREATE TABLE IF NOT EXISTS LeafData(
 -- LeafData table is keyed by the raw data hash.
 CREATE TABLE IF NOT EXISTS SequencedLeafData(
   TreeId               BIGINT NOT NULL,
-  SequenceNumber       BIGINT UNSIGNED NOT NULL,
+  SequenceNumber       BIGINT NOT NULL,
   -- This is a personality specific has of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
-  LeafIdentityHash     VARBINARY(255) NOT NULL,
+  LeafIdentityHash     BYTEA NOT NULL,
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
-  MerkleLeafHash       VARBINARY(255) NOT NULL,
+  MerkleLeafHash       BYTEA NOT NULL,
   IntegrateTimestampNanos BIGINT NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
-  FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE
+  FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE,
+  CHECK (SequenceNumber >= 0),
+  CHECK (length(LeafIdentityHash) <= 255),
+  CHECK (length(MerkleLeafHash) <= 255)
 );
 
 CREATE INDEX SequencedLeafMerkleIdx
@@ -124,14 +137,17 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- This is a personality specific hash of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
-  LeafIdentityHash     VARBINARY(255) NOT NULL,
+  LeafIdentityHash     BYTEA NOT NULL,
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
-  MerkleLeafHash       VARBINARY(255) NOT NULL,
+  MerkleLeafHash       BYTEA NOT NULL,
   QueueTimestampNanos  BIGINT NOT NULL,
   -- This is a SHA256 hash of the TreeID, LeafIdentityHash and QueueTimestampNanos. It is used
   -- for batched deletes from the table when trillian_log_server and trillian_log_signer are
   -- built with the batched_queue tag.
-  QueueID VARBINARY(32) DEFAULT NULL UNIQUE,
-  PRIMARY KEY (TreeId, Bucket, QueueTimestampNanos, LeafIdentityHash)
+  QueueID              BYTEA DEFAULT NULL UNIQUE,
+  PRIMARY KEY (TreeId, Bucket, QueueTimestampNanos, LeafIdentityHash),
+  CHECK (length(LeafIdentityHash) <= 255),
+  CHECK (length(MerkleLeafHash) <= 255),
+  CHECK (length(QueueID) <= 32)
 );
