@@ -151,3 +151,19 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   CHECK (length(MerkleLeafHash) <= 255),
   CHECK (length(QueueID) <= 32)
 );
+
+-- Adapted from https://wiki.postgresql.org/wiki/Count_estimate
+CREATE OR REPLACE FUNCTION count_estimate(
+  table_name text
+) RETURNS bigint
+LANGUAGE plpgsql AS $$
+DECLARE
+  plan jsonb;
+BEGIN
+  EXECUTE 'EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
+  RETURN plan->0->'Plan'->'Plan Rows';
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN 0;
+END;
+$$;

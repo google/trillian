@@ -17,13 +17,10 @@ package postgresqlqm
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/google/trillian/quota"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -31,13 +28,8 @@ const (
 	// Note that this is a Global/Write quota suggestion, so it applies across trees.
 	DefaultMaxUnsequenced = 500000 // About 2h of non-stop signing at 70QPS.
 
-	countFromInformationSchemaQuery = `
-		SELECT table_rows
-		FROM information_schema.tables
-		WHERE table_schema = schema()
-			AND table_name = ?
-			AND table_type = ?`
-	countFromUnsequencedQuery = "SELECT COUNT(*) FROM Unsequenced"
+	countFromExplainOutputQuery = "SELECT count_estimate($1)"
+	countFromUnsequencedQuery   = "SELECT COUNT(*) FROM Unsequenced"
 )
 
 // ErrTooManyUnsequencedRows is returned when tokens are requested but Unsequenced has grown
@@ -46,10 +38,15 @@ var ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
 
 // QuotaManager is a PostgreSQL-based quota.Manager implementation.
 //
-// It has two working modes: one queries the information schema for the number of Unsequenced rows,
-// the other does a select count(*) on the Unsequenced table. Information schema queries are
-// default, even though they are approximate, as they're constant time (select count(*) on InnoDB
-// based PostgreSQL needs to traverse the index and may take quite a while to complete).
+// It has two working modes: one estimates the number of Unsequenced rows by collecting information
+// from EXPLAIN output; the other does a select count(*) on the Unsequenced table. Estimates are
+// default, even though they are approximate, as they're constant time (select count(*) on
+// PostgreSQL needs to traverse the index and may take quite a while to complete).
+// Other estimation methods exist (see https://wiki.postgresql.org/wiki/Count_estimate), but using
+// EXPLAIN output is the most accurate because it "fetches the actual current number of pages in
+// the table (this is a cheap operation, not requiring a table scan). If that is different from
+// relpages then reltuples is scaled accordingly to arrive at a current number-of-rows estimate."
+// (quoting https://www.postgresql.org/docs/current/row-estimation-examples.html)
 //
 // QuotaManager only implements Global/Write quotas, which is based on the number of Unsequenced
 // rows (to be exact, tokens = MaxUnsequencedRows - actualUnsequencedRows).
@@ -96,34 +93,13 @@ func (m *QuotaManager) countUnsequenced(ctx context.Context) (int, error) {
 	if m.UseSelectCount {
 		return countFromTable(ctx, m.DB)
 	}
-	return countFromInformationSchema(ctx, m.DB)
+	return countFromExplainOutput(ctx, m.DB)
 }
 
-func countFromInformationSchema(ctx context.Context, db *pgxpool.Pool) (int, error) {
-	// turn off statistics caching for PostgreSQL 8
-	if err := turnOffInformationSchemaCache(ctx, db); err != nil {
-		return 0, err
-	}
-	// information_schema.tables doesn't have an explicit PK, so let's play it safe and ensure
-	// the cursor returns a single row.
-	rows, err := db.Query(ctx, countFromInformationSchemaQuery, "Unsequenced", "BASE TABLE")
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			klog.Errorf("Close(): %v", err)
-		}
-	}()
-	if !rows.Next() {
-		return 0, errors.New("cursor has no rows after information_schema query")
-	}
+func countFromExplainOutput(ctx context.Context, db *pgxpool.Pool) (int, error) {
 	var count int
-	if err := rows.Scan(&count); err != nil {
+	if err := db.QueryRow(ctx, countFromExplainOutputQuery, "Unsequenced").Scan(&count); err != nil {
 		return 0, err
-	}
-	if rows.Next() {
-		return 0, errors.New("too many rows returned from information_schema query")
 	}
 	return count, nil
 }
@@ -134,32 +110,4 @@ func countFromTable(ctx context.Context, db *pgxpool.Pool) (int, error) {
 		return 0, err
 	}
 	return count, nil
-}
-
-// turnOffInformationSchemaCache turn off statistics caching for PostgreSQL 8
-// To always retrieve the latest statistics directly from the storage engine and bypass cached values, set information_schema_stats_expiry to 0.
-// See https://dev.postgresql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_information_schema_stats_expiry
-// PostgreSQL versions prior to 8 will fail safely.
-func turnOffInformationSchemaCache(ctx context.Context, db *pgxpool.Pool) error {
-	opt := "information_schema_stats_expiry"
-	res := db.QueryRow(ctx, "SHOW VARIABLES LIKE '"+opt+"'")
-	var none string
-	var expiry int
-
-	if err := res.Scan(&none, &expiry); err != nil {
-		// fail safely for all versions of PostgreSQL prior to 8
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-
-		return fmt.Errorf("failed to get variable %q: %v", opt, err)
-	}
-
-	if expiry != 0 {
-		if _, err := db.Exec(ctx, "SET SESSION "+opt+"=0"); err != nil {
-			return fmt.Errorf("failed to set variable %q: %v", opt, err)
-		}
-	}
-
-	return nil
 }
