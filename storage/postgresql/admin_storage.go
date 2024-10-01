@@ -308,15 +308,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 
-	// PostgreSQL silently truncates data when running in non-strict mode.
-	// We shouldn't be using non-strict modes, but let's guard against it
-	// anyway.
-	if _, err := t.GetTree(ctx, newTree.TreeId); err != nil {
-		// GetTree will fail for truncated enums (they get recorded as
-		// empty strings, which will not match any known value).
-		return nil, fmt.Errorf("enum truncated: %v", err)
-	}
-
 	insertControlStmt, err := t.tx.PrepareContext(
 		ctx,
 		`INSERT INTO TreeControl(

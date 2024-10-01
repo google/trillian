@@ -88,11 +88,6 @@ func OpenDB(dbURL string) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	if _, err := db.Exec(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
-		klog.Warningf("Failed to set strict mode on postgresql db: %s", err)
-		return nil, err
-	}
-
 	return db, nil
 }
 
