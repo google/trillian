@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package testdb creates new databases for tests.
-package testdb
+package testdbpgx
 
 import (
 	"bytes"

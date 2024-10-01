@@ -30,7 +30,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgresql/postgresqlpb"
-	"github.com/google/trillian/storage/testdb"
+	testdb "github.com/google/trillian/storage/postgresql/testdbpgx"
 	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"

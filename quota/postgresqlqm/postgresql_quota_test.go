@@ -27,7 +27,7 @@ import (
 	"github.com/google/trillian/quota/postgresqlqm"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgresql"
-	"github.com/google/trillian/storage/testdb"
+	testdb "github.com/google/trillian/storage/postgresql/testdbpgx"
 	"github.com/google/trillian/types"
 
 	stestonly "github.com/google/trillian/storage/testonly"
