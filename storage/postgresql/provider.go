@@ -15,11 +15,7 @@
 package postgresql
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"flag"
-	"os"
 	"sync"
 
 	"github.com/google/trillian/monitoring"
@@ -29,9 +25,7 @@ import (
 )
 
 var (
-	postgreSQLURI        = flag.String("postgresql_uri", "postgresql:///ctlog?host=localhost&user=ctlog", "Connection URI for PostgreSQL database")
-	postgreSQLTLSCA      = flag.String("postgresql_tls_ca", "", "Path to the CA certificate file for PostgreSQL TLS connection ")
-	postgreSQLServerName = flag.String("postgresql_server_name", "", "Name of the PostgreSQL server to be used as the Server Name in the TLS configuration")
+	postgreSQLURI = flag.String("postgresql_uri", "postgresql:///ctlog?host=localhost&user=ctlog", "Connection URI for PostgreSQL database")
 
 	postgresqlMu              sync.Mutex
 	postgresqlErr             error
@@ -82,14 +76,7 @@ func getPostgreSQLDatabaseLocked() (*pgxpool.Pool, error) {
 	if postgresqlDB != nil || postgresqlErr != nil {
 		return postgresqlDB, postgresqlErr
 	}
-	dsn := *postgreSQLURI
-	if *postgreSQLTLSCA != "" {
-		if err := registerPostgreSQLTLSConfig(); err != nil {
-			return nil, err
-		}
-		dsn += "?tls=custom"
-	}
-	db, err := OpenDB(dsn)
+	db, err := OpenDB(*postgreSQLURI)
 	if err != nil {
 		postgresqlErr = err
 		return nil, err
@@ -109,27 +96,4 @@ func (s *postgresqlProvider) AdminStorage() storage.AdminStorage {
 func (s *postgresqlProvider) Close() error {
 	s.db.Close()
 	return nil
-}
-
-// registerPostgreSQLTLSConfig registers a custom TLS config for PostgreSQL using a provided CA certificate and optional server name.
-// Returns an error if the CA certificate can't be read or added to the root cert pool, or when the registration of the TLS config fails.
-func registerPostgreSQLTLSConfig() error {
-	if *postgreSQLTLSCA == "" {
-		return nil
-	}
-	rootCertPool := x509.NewCertPool()
-	pem, err := os.ReadFile(*postgreSQLTLSCA)
-	if err != nil {
-		return err
-	}
-	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		return errors.New("failed to append PEM")
-	}
-	tlsConfig := &tls.Config{
-		RootCAs: rootCertPool,
-	}
-	if *postgreSQLServerName != "" {
-		tlsConfig.ServerName = *postgreSQLServerName
-	}
-	return postgresql.RegisterTLSConfig("custom", tlsConfig)
 }
