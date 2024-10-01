@@ -168,7 +168,7 @@ LANGUAGE plpgsql AS $$
 DECLARE
   plan jsonb;
 BEGIN
-  EXECUTE 'EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
+  EXECUTE 'ANALYZE (SKIP_LOCKED TRUE) ' || table_name || ';EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
   RETURN plan->0->'Plan'->'Plan Rows';
 EXCEPTION
   WHEN OTHERS THEN
