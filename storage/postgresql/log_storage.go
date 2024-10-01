@@ -62,11 +62,10 @@ const (
 			WHERE l.LeafIdentityHash = s.LeafIdentityHash
 			AND s.SequenceNumber >= ? AND s.SequenceNumber < ? AND l.TreeId = ? AND s.TreeId = l.TreeId` + orderBySequenceNumberSQL
 
-	// These statements need to be expanded to provide the correct number of parameter placeholders.
 	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
 			FROM LeafData l,SequencedLeafData s
 			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+			AND s.MerkleLeafHash = ANY(?) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 	// TODO(#1548): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
 	dummyMerkleLeafHash = "00000000000000000000000000000000"
 	// This statement returns a dummy Merkle leaf hash value (which must be
@@ -74,7 +73,7 @@ const (
 	// leaf-selection statements.
 	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
 			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
-			WHERE l.LeafIdentityHash IN (` + placeholderSQL + `) AND l.TreeId = ?`
+			WHERE l.LeafIdentityHash = ANY(?) AND l.TreeId = ?`
 
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
@@ -144,18 +143,6 @@ func NewLogStorage(db *pgxpool.Pool, mf monitoring.MetricFactory) storage.LogSto
 
 func (m *postgreSQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.db.Ping(ctx)
-}
-
-func (m *postgreSQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
-	if orderBySequence {
-		return m.getStmt(ctx, selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
-	}
-
-	return m.getStmt(ctx, selectLeavesByMerkleHashSQL, num, "?", "?")
-}
-
-func (m *postgreSQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
 func (m *postgreSQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
@@ -677,23 +664,21 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()
 
-	tmpl, err := t.ls.getLeavesByMerkleHashStmt(ctx, len(leafHashes), orderBySequence)
-	if err != nil {
-		return nil, err
+	var query string
+	if orderBySequence {
+		query = selectLeavesByMerkleHashOrderedBySequenceSQL
+	} else {
+		query = selectLeavesByMerkleHashSQL
 	}
 
-	return t.getLeavesByHashInternal(ctx, leafHashes, tmpl, "merkle")
+	return t.getLeavesByHashInternal(ctx, leafHashes, query, "merkle")
 }
 
 // getLeafDataByIdentityHash retrieves leaf data by LeafIdentityHash, returned
 // as a slice of LogLeaf objects for convenience.  However, note that the
 // returned LogLeaf objects will not have a valid MerkleLeafHash, LeafIndex, or IntegrateTimestamp.
 func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
-	tmpl, err := t.ls.getLeavesByLeafIdentityHashStmt(ctx, len(leafHashes))
-	if err != nil {
-		return nil, err
-	}
-	return t.getLeavesByHashInternal(ctx, leafHashes, tmpl, "leaf-identity")
+	return t.getLeavesByHashInternal(ctx, leafHashes, selectLeavesByLeafIdentityHashSQL, "leaf-identity")
 }
 
 func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
@@ -761,20 +746,8 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 	return checkResultOkAndRowCountIs(res, err, 1)
 }
 
-func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]*trillian.LogLeaf, error) {
-	stx := t.tx.StmtContext(ctx, tmpl)
-	defer func() {
-		if err := stx.Close(); err != nil {
-			klog.Errorf("stx.Close(): %v", err)
-		}
-	}()
-
-	var args []interface{}
-	for _, hash := range leafHashes {
-		args = append(args, []byte(hash))
-	}
-	args = append(args, t.treeID)
-	rows, err := stx.Query(ctx, args...)
+func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, query string, desc string) ([]*trillian.LogLeaf, error) {
+	rows, err := t.tx.Query(ctx, query, leafHashes, t.treeID)
 	if err != nil {
 		klog.Warningf("Query() %s hash = %v", desc, err)
 		return nil, err

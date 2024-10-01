@@ -17,11 +17,9 @@ package postgresql
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"runtime/debug"
-	"strings"
 	"sync"
 
 	"github.com/google/trillian"
@@ -48,7 +46,7 @@ const (
  FROM (
  	SELECT n.TreeId, n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
 	FROM Subtree n
-	WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
+	WHERE n.SubtreeId = ANY(?) AND
 	 n.TreeId = ? AND n.SubtreeRevision <= ?
 	GROUP BY n.TreeId, n.SubtreeId
  ) AS x
@@ -62,7 +60,7 @@ const (
  SELECT SubtreeId, Subtree.Nodes
  FROM Subtree
  WHERE Subtree.TreeId = ?
-   AND SubtreeId IN (` + placeholderSQL + `)`
+   AND SubtreeId = ANY(?)`
 	placeholderSQL = "<placeholder>"
 )
 
@@ -92,59 +90,6 @@ func newTreeStorage(db *pgxpool.Pool) *postgreSQLTreeStorage {
 	return &postgreSQLTreeStorage{
 		db: db,
 	}
-}
-
-// expandPlaceholderSQL expands an sql statement by adding a specified number of '?'
-// placeholder slots. At most one placeholder will be expanded.
-func expandPlaceholderSQL(sql string, num int, first, rest string) string {
-	if num <= 0 {
-		panic(fmt.Errorf("trying to expand SQL placeholder with <= 0 parameters: %s", sql))
-	}
-
-	parameters := first + strings.Repeat(","+rest, num-1)
-
-	return strings.Replace(sql, placeholderSQL, parameters, 1)
-}
-
-// getStmt creates and caches sql.Stmt structs based on the passed in statement
-// and number of bound arguments.
-// TODO(al,martin): consider pulling this all out as a separate unit for reuse
-// elsewhere.
-func (m *postgreSQLTreeStorage) getStmt(ctx context.Context, statement string, num int, first, rest string) (*sql.Stmt, error) {
-	m.statementMutex.Lock()
-	defer m.statementMutex.Unlock()
-
-	if m.statements[statement] != nil {
-		if m.statements[statement][num] != nil {
-			// TODO(al,martin): we'll possibly need to expire Stmts from the cache,
-			// e.g. when DB connections break etc.
-			return m.statements[statement][num], nil
-		}
-	} else {
-		m.statements[statement] = make(map[int]*sql.Stmt)
-	}
-
-	s, err := m.db.PrepareContext(ctx, expandPlaceholderSQL(statement, num, first, rest))
-	if err != nil {
-		klog.Warningf("Failed to prepare statement %d: %s", num, err)
-		return nil, err
-	}
-
-	m.statements[statement][num] = s
-
-	return s, nil
-}
-
-func (m *postgreSQLTreeStorage) getSubtreeStmt(ctx context.Context, subtreeRevs bool, num int) (*sql.Stmt, error) {
-	if subtreeRevs {
-		return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
-	} else {
-		return m.getStmt(ctx, selectSubtreeSQLNoRev, num, "?", "?")
-	}
-}
-
-func (m *postgreSQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
 func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
@@ -193,40 +138,13 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		return nil, nil
 	}
 
-	tmpl, err := t.ts.getSubtreeStmt(ctx, t.subtreeRevs, len(ids))
-	if err != nil {
-		return nil, err
-	}
-	stx := t.tx.StmtContext(ctx, tmpl)
-	defer func() {
-		if err := stx.Close(); err != nil {
-			klog.Errorf("stx.Close(): %v", err)
-		}
-	}()
-
-	var args []interface{}
+	var rows pgx.Rows
+	var err error
 	if t.subtreeRevs {
-		args = make([]interface{}, 0, len(ids)+3)
-		// populate args with ids.
-		for _, id := range ids {
-			klog.V(4).Infof("  id: %x", id)
-			args = append(args, id)
-		}
-		args = append(args, t.treeID)
-		args = append(args, treeRevision)
-		args = append(args, t.treeID)
+		rows, err = t.tx.Query(ctx, selectSubtreeSQL, ids, t.treeID, treeRevision, t.treeID)
 	} else {
-		args = make([]interface{}, 0, len(ids)+1)
-		args = append(args, t.treeID)
-
-		// populate args with ids.
-		for _, id := range ids {
-			klog.V(4).Infof("  id: %x", id)
-			args = append(args, id)
-		}
+		rows, err = t.tx.Query(ctx, selectSubtreeSQLNoRev, t.treeID, ids)
 	}
-
-	rows, err := stx.Query(ctx, args...)
 	if err != nil {
 		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
@@ -329,18 +247,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		args = append(args, subtreeRev)
 	}
 
-	tmpl, err := t.ts.setSubtreeStmt(ctx, len(subtrees))
-	if err != nil {
-		return err
-	}
-	stx := t.tx.StmtContext(ctx, tmpl)
-	defer func() {
-		if err := stx.Close(); err != nil {
-			klog.Errorf("stx.Close(): %v", err)
-		}
-	}()
-
-	r, err := stx.Exec(ctx, args...)
+	r, err := t.tx.Exec(ctx, insertSubtreeMultiSQL, args...)
 	if err != nil {
 		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err

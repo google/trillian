@@ -20,7 +20,6 @@ package postgresql
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/binary"
 	"fmt"
 	"strings"
@@ -41,7 +40,7 @@ const (
 			AND QueueTimestampNanos<=?
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID) VALUES(?,0,?,?,?,?)`
-	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE QueueID IN (<placeholder>)"
+	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE QueueID = ANY(?)"
 )
 
 type dequeuedLeaf []byte
@@ -122,27 +121,13 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	return t.removeSequencedLeaves(ctx, dequeuedLeaves)
 }
 
-func (m *postgreSQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, deleteUnsequencedSQL, num, "?", "?")
-}
-
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
 func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeuedLeaf) error {
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here. See comment in
 	// QueueLeaves.
-	tmpl, err := t.ls.getDeleteUnsequencedStmt(ctx, len(queueIDs))
-	if err != nil {
-		klog.Warningf("Failed to get delete statement for sequenced work: %s", err)
-		return err
-	}
-	stx := t.tx.StmtContext(ctx, tmpl)
-	args := make([]interface{}, len(queueIDs))
-	for i, q := range queueIDs {
-		args[i] = []byte(q)
-	}
-	result, err := stx.Exec(ctx, args...)
+	result, err := t.tx.Exec(ctx, deleteUnsequencedSQL, queueIDs)
 	if err != nil {
 		// Error is handled by checkResultOkAndRowCountIs() below
 		klog.Warningf("Failed to delete sequenced work: %s", err)
