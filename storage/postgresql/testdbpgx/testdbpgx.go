@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package testdb creates new databases for tests.
+// Package testdbpgx creates new PostgreSQL databases for tests.
 package testdbpgx
 
 import (
@@ -20,19 +20,15 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/trillian/testonly"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/pgxpool" // postgresql driver
-	_ "github.com/lib/pq"               // postgres driver
 )
 
 const (
@@ -40,25 +36,16 @@ const (
 	// instance URI to use. The value must have a trailing slash.
 	PostgreSQLURIEnv = "TEST_POSTGRESQL_URI"
 
-	// Note: pgxpool.New requires the URI to end with a slash.
-	defaultTestPostgreSQLURI = "root@tcp(127.0.0.1)/"
-
-	// CockroachDBURIEnv is the name of the ENV variable checked for the test CockroachDB
-	// instance URI to use. The value must have a trailing slash.
-	CockroachDBURIEnv = "TEST_COCKROACHDB_URI"
-
-	defaultTestCockroachDBURI = "postgres://root@localhost:26257/?sslmode=disable"
+	defaultTestPostgreSQLURI = "postgresql:///ctlog?host=localhost&user=ctlog"
 )
 
 type storageDriverInfo struct {
-	sqlDriverName string
-	schema        string
-	uriFunc       func(paths ...string) string
+	schema  string
+	uriFunc func(paths ...string) string
 }
 
 var (
 	trillianPostgreSQLSchema = testonly.RelativeToPackage("../postgresql/schema/storage.sql")
-	trillianCRDBSchema  = testonly.RelativeToPackage("../crdb/schema/storage.sql")
 )
 
 // DriverName is the name of a database driver.
@@ -67,20 +54,12 @@ type DriverName string
 const (
 	// DriverPostgreSQL is the identifier for the PostgreSQL storage driver.
 	DriverPostgreSQL DriverName = "postgresql"
-	// DriverCockroachDB is the identifier for the CockroachDB storage driver.
-	DriverCockroachDB DriverName = "cockroachdb"
 )
 
 var driverMapping = map[DriverName]storageDriverInfo{
 	DriverPostgreSQL: {
-		sqlDriverName: "postgresql",
-		schema:        trillianPostgreSQLSchema,
-		uriFunc:       postgresqlURI,
-	},
-	DriverCockroachDB: {
-		sqlDriverName: "postgres",
-		schema:        trillianCRDBSchema,
-		uriFunc:       crdbURI,
+		schema:  trillianPostgreSQLSchema,
+		uriFunc: postgresqlURI,
 	},
 }
 
@@ -101,8 +80,8 @@ func postgresqlURI(dbRef ...string) string {
 	}
 
 	for _, ref := range dbRef {
-		separator := "/"
-		if strings.HasSuffix(stringurl, "/") {
+		separator := "&"
+		if strings.HasSuffix(stringurl, "&") {
 			separator = ""
 		}
 		stringurl = strings.Join([]string{stringurl, ref}, separator)
@@ -111,52 +90,12 @@ func postgresqlURI(dbRef ...string) string {
 	return stringurl
 }
 
-// crdbURI returns the CockroachDB connection URI to use for tests. It returns the
-// value in the ENV variable defined by CockroachDBURIEnv. If the value is empty,
-// returns defaultTestCockroachDBURI.
-func crdbURI(dbRef ...string) string {
-	var uri *url.URL
-	if e := os.Getenv(CockroachDBURIEnv); len(e) > 0 {
-		uri = getURL(e)
-	} else {
-		uri = getURL(defaultTestCockroachDBURI)
-	}
-
-	return addPathToURI(uri, dbRef...)
-}
-
-func addPathToURI(uri *url.URL, paths ...string) string {
-	if len(paths) > 0 {
-		for _, ref := range paths {
-			currentPaths := uri.Path
-			// If the path is the root path, we don't want to append a slash.
-			if currentPaths == "/" {
-				currentPaths = ""
-			}
-			uri.Path = strings.Join([]string{currentPaths, ref}, "/")
-		}
-	}
-	return uri.String()
-}
-
-func getURL(unparsedurl string) *url.URL {
-	//nolint:errcheck // We're not expecting an error here.
-	u, _ := url.Parse(unparsedurl)
-	return u
-}
-
 // PostgreSQLAvailable indicates whether the configured PostgreSQL database is available.
 func PostgreSQLAvailable() bool {
 	return dbAvailable(DriverPostgreSQL)
 }
 
-// CockroachDBAvailable indicates whether the configured CockroachDB database is available.
-func CockroachDBAvailable() bool {
-	return dbAvailable(DriverCockroachDB)
-}
-
 func dbAvailable(driver DriverName) bool {
-	driverName := driverMapping[driver].sqlDriverName
 	uri := driverMapping[driver].uriFunc()
 	db, err := pgxpool.New(context.TODO(), uri)
 	if err != nil {
@@ -279,13 +218,4 @@ func SkipIfNoPostgreSQL(t *testing.T) {
 		t.Skip("Skipping test as PostgreSQL not available")
 	}
 	t.Logf("Test PostgreSQL available at %q", postgresqlURI())
-}
-
-// SkipIfNoCockroachDB is a test helper that skips tests that require a local CockroachDB.
-func SkipIfNoCockroachDB(t *testing.T) {
-	t.Helper()
-	if !CockroachDBAvailable() {
-		t.Skip("Skipping test as CockroachDB not available")
-	}
-	t.Logf("Test CockroachDB available at %q", crdbURI())
 }
