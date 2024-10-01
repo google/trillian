@@ -163,11 +163,7 @@ func dbAvailable(driver DriverName) bool {
 		log.Printf("pgxpool.New(): %v", err)
 		return false
 	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Printf("db.Close(): %v", err)
-		}
-	}()
+	defer db.Close()
 	if err := db.Ping(context.TODO()); err != nil {
 		log.Printf("db.Ping(): %v", err)
 		return false
@@ -218,9 +214,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(con
 		return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
 
-	if err := db.Close(); err != nil {
-		return nil, nil, fmt.Errorf("failed to close DB: %v", err)
-	}
+	db.Close()
 	uri := inf.uriFunc(name)
 	db, err = pgxpool.New(ctx, uri)
 	if err != nil {
@@ -228,11 +222,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(con
 	}
 
 	done := func(ctx context.Context) {
-		defer func() {
-			if err := db.Close(); err != nil {
-				klog.Errorf("db.Close(): %v", err)
-			}
-		}()
+		defer db.Close()
 		if _, err := db.Exec(ctx, fmt.Sprintf("DROP DATABASE %v", name)); err != nil {
 			klog.Warningf("Failed to drop test database %q: %v", name, err)
 		}

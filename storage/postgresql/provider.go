@@ -117,7 +117,8 @@ func (s *postgresqlProvider) AdminStorage() storage.AdminStorage {
 }
 
 func (s *postgresqlProvider) Close() error {
-	return s.db.Close()
+	s.db.Close()
+	return nil
 }
 
 // registerPostgreSQLTLSConfig registers a custom TLS config for PostgreSQL using a provided CA certificate and optional server name.
