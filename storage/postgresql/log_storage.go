@@ -163,8 +163,9 @@ func (m *postgreSQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, er
 		return nil, err
 	}
 	defer func() {
-		if err := rows.Close(); err != nil {
-			klog.Errorf("rows.Close(): %v", err)
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			klog.Errorf("rows.Err(): %v", err)
 		}
 	}()
 	ids := []int64{}
@@ -175,7 +176,10 @@ func (m *postgreSQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, er
 		}
 		ids = append(ids, treeID)
 	}
-	return ids, rows.Err()
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 func (m *postgreSQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (*logTreeTX, error) {
@@ -342,8 +346,9 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		return nil, err
 	}
 	defer func() {
-		if err := rows.Close(); err != nil {
-			klog.Errorf("rows.Close(): %v", err)
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			klog.Errorf("rows.Err(): %v", err)
 		}
 	}()
 
@@ -366,10 +371,10 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		t.dequeued[k] = dqInfo
 		leaves = append(leaves, leaf)
 	}
-
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
+
 	label := labelForTX(t)
 	observe(dequeueSelectLatency, time.Since(start), label)
 	observe(dequeueLatency, time.Since(start), label)
@@ -623,8 +628,9 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 		return nil, err
 	}
 	defer func() {
-		if err := rows.Close(); err != nil {
-			klog.Errorf("rows.Close(): %v", err)
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			klog.Errorf("rows.Err(): %v", err)
 		}
 	}()
 
@@ -760,8 +766,9 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		return nil, err
 	}
 	defer func() {
-		if err := rows.Close(); err != nil {
-			klog.Errorf("rows.Close(): %v", err)
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			klog.Errorf("rows.Err(): %v", err)
 		}
 	}()
 

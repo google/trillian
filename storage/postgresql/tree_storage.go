@@ -154,16 +154,11 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		return nil, err
 	}
 	defer func() {
-		if err := rows.Close(); err != nil {
-			klog.Errorf("rows.Close(): %v", err)
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			klog.Errorf("rows.Err(): %v", err)
 		}
 	}()
-
-	if rows.Err() != nil {
-		// Nothing from the DB
-		klog.Warningf("Nothing from DB: %s", rows.Err())
-		return nil, rows.Err()
-	}
 
 	ret := make([]*storagepb.SubtreeProto, 0, len(ids))
 
@@ -196,7 +191,6 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 			}
 		}
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}

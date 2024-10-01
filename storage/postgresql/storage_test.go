@@ -295,7 +295,12 @@ func getVersion(db *pgxpool.Pool) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("getVersion: failed to perform query: %v", err)
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			klog.Errorf("rows.Err(): %v", err)
+		}
+	}()
 	if !rows.Next() {
 		return "", errors.New("getVersion: cursor has no rows")
 	}
@@ -305,6 +310,9 @@ func getVersion(db *pgxpool.Pool) (string, error) {
 	}
 	if rows.Next() {
 		return "", errors.New("getVersion: too many rows returned")
+	}
+	if err = rows.Err(); err != nil {
+		return "", err
 	}
 	return v, nil
 }

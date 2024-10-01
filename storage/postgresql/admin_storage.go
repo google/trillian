@@ -145,8 +145,9 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 		return nil, err
 	}
 	defer func() {
-		if err := rows.Close(); err != nil {
-			klog.Errorf("rows.Close(): %v", err)
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			klog.Errorf("rows.Err(): %v", err)
 		}
 	}()
 	trees := []*trillian.Tree{}
@@ -156,6 +157,9 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 			return nil, err
 		}
 		trees = append(trees, tree)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 	return trees, nil
 }
