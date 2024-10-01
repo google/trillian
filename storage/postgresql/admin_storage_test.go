@@ -333,11 +333,6 @@ func TestCheckDatabaseAccessible_OK(t *testing.T) {
 }
 
 func setNulls(ctx context.Context, db *pgxpool.Pool, treeID int64) error {
-	stmt, err := db.PrepareContext(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = ?")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = stmt.Close() }()
-	_, err = stmt.Exec(ctx, treeID)
+	_, err := db.Exec(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = ?", treeID)
 	return err
 }

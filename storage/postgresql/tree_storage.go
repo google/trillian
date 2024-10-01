@@ -71,12 +71,9 @@ const (
 type postgreSQLTreeStorage struct {
 	db *pgxpool.Pool
 
-	// Must hold the mutex before manipulating the statement map. Sharing a lock because
-	// it only needs to be held while the statements are built, not while they execute and
-	// this will be a short time. These maps are from the number of placeholder '?'
-	// in the query to the statement that should be used.
-	statementMutex sync.Mutex
-	statements     map[string]map[int]*sql.Stmt
+	// pgx automatically prepares and caches statements, so there is no need for
+	// a statement map in this struct.
+	// (See https://github.com/jackc/pgx/wiki/Automatic-Prepared-Statement-Caching)
 }
 
 // OpenDB opens a database connection for all PostgreSQL-based storage implementations.
@@ -93,8 +90,7 @@ func OpenDB(dbURL string) (*pgxpool.Pool, error) {
 
 func newTreeStorage(db *pgxpool.Pool) *postgreSQLTreeStorage {
 	return &postgreSQLTreeStorage{
-		db:         db,
-		statements: make(map[string]map[int]*sql.Stmt),
+		db: db,
 	}
 }
 

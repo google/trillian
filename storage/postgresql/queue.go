@@ -123,18 +123,8 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeued
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here. See comment in
 	// QueueLeaves.
-	stx, err := t.tx.PrepareContext(ctx, deleteUnsequencedSQL)
-	if err != nil {
-		klog.Warningf("Failed to prep delete statement for sequenced work: %v", err)
-		return err
-	}
-	defer func() {
-		if err := stx.Close(); err != nil {
-			klog.Errorf("stx.Close(): %v", err)
-		}
-	}()
 	for _, dql := range leaves {
-		result, err := stx.Exec(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
+		result, err := t.tx.Exec(ctx, deleteUnsequencedSQL, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
 		err = checkResultOkAndRowCountIs(result, err, int64(1))
 		if err != nil {
 			return err

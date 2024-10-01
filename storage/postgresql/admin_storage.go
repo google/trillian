@@ -138,18 +138,8 @@ func (t *adminTX) Close() error {
 }
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	stmt, err := t.tx.PrepareContext(ctx, selectTreeByID)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			klog.Errorf("stmt.Close(): %v", err)
-		}
-	}()
-
 	// GetTree is an entry point for most RPCs, let's provide somewhat nicer error messages.
-	tree, err := readTree(stmt.QueryRow(ctx, treeID))
+	tree, err := readTree(t.tx.QueryRow(ctx, selectTreeByID, treeID))
 	switch {
 	case err == pgx.ErrNoRows:
 		// ErrNoRows doesn't provide useful information, so we don't forward it.
@@ -168,16 +158,7 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 		query = selectNonDeletedTrees
 	}
 
-	stmt, err := t.tx.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			klog.Errorf("stmt.Close(): %v", err)
-		}
-	}()
-	rows, err := stmt.Query(ctx)
+	rows, err := t.tx.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +243,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, fmt.Errorf("failed to encode storageSettings: %v", err)
 	}
 
-	insertTreeStmt, err := t.tx.PrepareContext(
+	_, err = t.tx.Exec(
 		ctx,
 		`INSERT INTO Trees(
 			TreeId,
@@ -278,18 +259,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			PrivateKey, -- Unused
 			PublicKey, -- Used to store StorageSettings
 			MaxRootDurationMillis)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := insertTreeStmt.Close(); err != nil {
-			klog.Errorf("insertTreeStmt.Close(): %v", err)
-		}
-	}()
-
-	_, err = insertTreeStmt.Exec(
-		ctx,
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
@@ -308,24 +278,14 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 
-	insertControlStmt, err := t.tx.PrepareContext(
+	_, err = t.tx.Exec(
 		ctx,
 		`INSERT INTO TreeControl(
 			TreeId,
 			SigningEnabled,
 			SequencingEnabled,
 			SequenceIntervalSeconds)
-		VALUES(?, ?, ?, ?)`)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := insertControlStmt.Close(); err != nil {
-			klog.Errorf("insertControlStmt.Close(): %v", err)
-		}
-	}()
-	_, err = insertControlStmt.Exec(
-		ctx,
+		VALUES(?, ?, ?, ?)`,
 		newTree.TreeId,
 		true, /* SigningEnabled */
 		true, /* SequencingEnabled */
@@ -368,18 +328,9 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	}
 	rootDuration := tree.MaxRootDuration.AsDuration()
 
-	stmt, err := t.tx.PrepareContext(ctx, updateTreeSQL)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			klog.Errorf("stmt.Close(): %v", err)
-		}
-	}()
-
-	if _, err = stmt.Exec(
+	if _, err = t.tx.Exec(
 		ctx,
+		updateTreeSQL,
 		tree.TreeState.String(),
 		tree.TreeType.String(),
 		tree.DisplayName,

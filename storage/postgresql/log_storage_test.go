@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian/types"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"k8s.io/klog/v2"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/pgxpool"
@@ -725,17 +724,8 @@ func TestGetActiveLogIDs(t *testing.T) {
 	}
 
 	// Update deleted trees accordingly
-	updateDeletedStmt, err := DB.PrepareContext(ctx, "UPDATE Trees SET Deleted = ? WHERE TreeId = ?")
-	if err != nil {
-		t.Fatalf("PrepareContext() returned err = %v", err)
-	}
-	defer func() {
-		if err := updateDeletedStmt.Close(); err != nil {
-			klog.Errorf("updateDeletedStmt.Close(): %v", err)
-		}
-	}()
 	for _, treeID := range []int64{deletedLog.TreeId} {
-		if _, err := updateDeletedStmt.Exec(ctx, true, treeID); err != nil {
+		if _, err := DB.Exec(ctx, "UPDATE Trees SET Deleted = ? WHERE TreeId = ?", true, treeID); err != nil {
 			t.Fatalf("Exec(%v) returned err = %v", treeID, err)
 		}
 	}

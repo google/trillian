@@ -136,9 +136,9 @@ func NewLogStorage(db *pgxpool.Pool, mf monitoring.MetricFactory) storage.LogSto
 		mf = monitoring.InertMetricFactory{}
 	}
 	return &postgreSQLLogStorage{
-		admin:            NewAdminStorage(db),
+		admin:                 NewAdminStorage(db),
 		postgreSQLTreeStorage: newTreeStorage(db),
-		metricFactory:    mf,
+		metricFactory:         mf,
 	}
 }
 
@@ -340,19 +340,9 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	}
 
 	start := time.Now()
-	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
-	if err != nil {
-		klog.Warningf("Failed to prepare dequeue select: %s", err)
-		return nil, err
-	}
-	defer func() {
-		if err := stx.Close(); err != nil {
-			klog.Errorf("stx.Close(): %v", err)
-		}
-	}()
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
-	rows, err := stx.Query(ctx, t.treeID, cutoffTime.UnixNano(), limit)
+	rows, err := t.tx.Query(ctx, selectQueuedLeavesSQL, t.treeID, cutoffTime.UnixNano(), limit)
 	if err != nil {
 		klog.Warningf("Failed to select rows for work: %s", err)
 		return nil, err
