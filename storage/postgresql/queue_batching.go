@@ -49,7 +49,7 @@ func dequeueInfo(_ []byte, queueID []byte) dequeuedLeaf {
 	return dequeuedLeaf(queueID)
 }
 
-func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
+func (t *logTreeTX) dequeueLeaf(rows pgx.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
 	var leafIDHash []byte
 	var merkleHash []byte
 	var queueTimestamp int64
@@ -110,7 +110,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 		}
 		dequeuedLeaves = append(dequeuedLeaves, qe)
 	}
-	result, err := t.tx.ExecContext(ctx, insertSequencedLeafSQL+strings.Join(querySuffix, ","), args...)
+	result, err := t.tx.Exec(ctx, insertSequencedLeafSQL+strings.Join(querySuffix, ","), args...)
 	if err != nil {
 		klog.Warningf("Failed to update sequenced leaves: %s", err)
 	}
@@ -141,7 +141,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeu
 	for i, q := range queueIDs {
 		args[i] = []byte(q)
 	}
-	result, err := stx.ExecContext(ctx, args...)
+	result, err := stx.Exec(ctx, args...)
 	if err != nil {
 		// Error is handled by checkResultOkAndRowCountIs() below
 		klog.Warningf("Failed to delete sequenced work: %s", err)

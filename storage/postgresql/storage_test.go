@@ -273,7 +273,7 @@ func diffNodes(got, want []stree.Node) ([]stree.Node, []stree.Node) {
 	return missing, extra
 }
 
-func openTestDBOrDie() (*sql.DB, func(context.Context)) {
+func openTestDBOrDie() (*pgxpool.Pool, func(context.Context)) {
 	db, done, err := testdb.NewTrillianDB(context.TODO(), testdb.DriverPostgreSQL)
 	if err != nil {
 		panic(err)
@@ -282,16 +282,16 @@ func openTestDBOrDie() (*sql.DB, func(context.Context)) {
 }
 
 // cleanTestDB deletes all the entries in the database.
-func cleanTestDB(db *sql.DB) {
+func cleanTestDB(db *pgxpool.Pool) {
 	for _, table := range allTables {
-		if _, err := db.ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+		if _, err := db.Exec(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
 			panic(fmt.Sprintf("Failed to delete rows in %s: %v", table, err))
 		}
 	}
 }
 
-func getVersion(db *sql.DB) (string, error) {
-	rows, err := db.QueryContext(context.TODO(), "SELECT @@GLOBAL.version")
+func getVersion(db *pgxpool.Pool) (string, error) {
+	rows, err := db.Query(context.TODO(), "SELECT @@GLOBAL.version")
 	if err != nil {
 		return "", fmt.Errorf("getVersion: failed to perform query: %v", err)
 	}
@@ -341,7 +341,7 @@ func mustCreateTree(ctx context.Context, t *testing.T, s storage.AdminStorage, t
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().
-var DB *sql.DB
+var DB *pgxpool.Pool
 
 func TestMain(m *testing.M) {
 	flag.Parse()

@@ -129,7 +129,7 @@ type postgreSQLLogStorage struct {
 
 // NewLogStorage creates a storage.LogStorage instance for the specified PostgreSQL URL.
 // It assumes storage.AdminStorage is backed by the same PostgreSQL database as well.
-func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
+func NewLogStorage(db *pgxpool.Pool, mf monitoring.MetricFactory) storage.LogStorage {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
@@ -141,7 +141,7 @@ func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 }
 
 func (m *postgreSQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return m.db.PingContext(ctx)
+	return m.db.Ping(ctx)
 }
 
 func (m *postgreSQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int, orderBySequence bool) (*sql.Stmt, error) {
@@ -159,7 +159,7 @@ func (m *postgreSQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Conte
 func (m *postgreSQLLogStorage) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	// Include logs that are DRAINING in the active list as we're still
 	// integrating leaves into them.
-	rows, err := m.db.QueryContext(
+	rows, err := m.db.Query(
 		ctx, selectNonDeletedTreeIDByTypeAndStateSQL,
 		trillian.TreeType_LOG.String(), trillian.TreeType_PREORDERED_LOG.String(),
 		trillian.TreeState_ACTIVE.String(), trillian.TreeState_DRAINING.String())
@@ -350,7 +350,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	}()
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
-	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
+	rows, err := stx.Query(ctx, t.treeID, cutoffTime.UnixNano(), limit)
 	if err != nil {
 		klog.Warningf("Failed to select rows for work: %s", err)
 		return nil, err
@@ -434,7 +434,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		qTimestamp := leaf.QueueTimestamp.AsTime()
-		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
+		_, err := t.tx.Exec(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
@@ -456,7 +456,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			leaf.MerkleLeafHash,
 		}
 		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, qTimestamp)...)
-		_, err = t.tx.ExecContext(
+		_, err = t.tx.Exec(
 			ctx,
 			insertUnsequencedEntrySQL,
 			args...,
@@ -533,7 +533,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	// one of the two inserts fails, we remove the side effect by rolling back to
 	// a savepoint installed before the first insert of the two.
 	const savepoint = "SAVEPOINT AddSequencedLeaves"
-	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+	if _, err := t.tx.Exec(ctx, savepoint); err != nil {
 		klog.Errorf("Error adding savepoint: %s", err)
 		return nil, postgresqlToGRPC(err)
 	}
@@ -554,7 +554,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
 		}
 
-		if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+		if _, err := t.tx.Exec(ctx, savepoint); err != nil {
 			klog.Errorf("Error updating savepoint: %s", err)
 			return nil, postgresqlToGRPC(err)
 		}
@@ -562,7 +562,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
 
 		// TODO(pavelkalinnikov): Measure latencies.
-		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL,
+		_, err := t.tx.Exec(ctx, insertLeafDataSQL,
 			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, timestamp.UnixNano())
 		// TODO(pavelkalinnikov): Detach PREORDERED_LOG integration latency metric.
 
@@ -576,13 +576,13 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return nil, postgresqlToGRPC(err)
 		}
 
-		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
+		_, err = t.tx.Exec(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
 			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
 		// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
 
 		if isDuplicateErr(err) {
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
-			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
+			if _, err := t.tx.Exec(ctx, "ROLLBACK TO "+savepoint); err != nil {
 				klog.Errorf("Error rolling back to savepoint: %s", err)
 				return nil, postgresqlToGRPC(err)
 			}
@@ -594,7 +594,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
 	}
 
-	if _, err := t.tx.ExecContext(ctx, "RELEASE "+savepoint); err != nil {
+	if _, err := t.tx.Exec(ctx, "RELEASE "+savepoint); err != nil {
 		klog.Errorf("Error releasing savepoint: %s", err)
 		return nil, postgresqlToGRPC(err)
 	}
@@ -631,7 +631,7 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
 
 	args := []interface{}{start, start + count, t.treeID}
-	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
+	rows, err := t.tx.Query(ctx, selectLeavesByRangeSQL, args...)
 	if err != nil {
 		klog.Warningf("Failed to get leaves by range: %s", err)
 		return nil, err
@@ -719,10 +719,10 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLo
 func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, int64, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
-	if err := t.tx.QueryRowContext(
+	if err := t.tx.QueryRow(
 		ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
-	); err == sql.ErrNoRows {
+	); err == pgx.ErrNoRows {
 		// It's possible there are no roots for this tree yet
 		return nil, 0, storage.ErrTreeNeedsInit
 	}
@@ -753,7 +753,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 		return fmt.Errorf("unimplemented: postgresql storage does not support log root metadata")
 	}
 
-	res, err := t.tx.ExecContext(
+	res, err := t.tx.Exec(
 		ctx,
 		insertTreeHeadSQL,
 		t.treeID,
@@ -782,7 +782,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		args = append(args, []byte(hash))
 	}
 	args = append(args, t.treeID)
-	rows, err := stx.QueryContext(ctx, args...)
+	rows, err := stx.Query(ctx, args...)
 	if err != nil {
 		klog.Warningf("Query() %s hash = %v", desc, err)
 		return nil, err

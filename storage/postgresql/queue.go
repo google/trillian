@@ -51,7 +51,7 @@ func dequeueInfo(leafIDHash []byte, queueTimestamp int64) dequeuedLeaf {
 	return dequeuedLeaf{queueTimestampNanos: queueTimestamp, leafIdentityHash: leafIDHash}
 }
 
-func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
+func (t *logTreeTX) dequeueLeaf(rows pgx.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
 	var leafIDHash []byte
 	var merkleHash []byte
 	var queueTimestamp int64
@@ -93,7 +93,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		iTimestamp := leaf.IntegrateTimestamp.AsTime()
-		_, err := t.tx.ExecContext(
+		_, err := t.tx.Exec(
 			ctx,
 			insertSequencedLeafSQL+valuesPlaceholder5,
 			t.treeID,
@@ -134,7 +134,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeued
 		}
 	}()
 	for _, dql := range leaves {
-		result, err := stx.ExecContext(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
+		result, err := stx.Exec(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
 		err = checkResultOkAndRowCountIs(result, err, int64(1))
 		if err != nil {
 			return err

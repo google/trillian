@@ -53,7 +53,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	// Check if TreeControl is correctly written.
 	var signingEnabled, sequencingEnabled bool
 	var sequenceIntervalSeconds int
-	if err := DB.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
+	if err := DB.QueryRow(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
 		t.Fatalf("Failed to read TreeControl: %v", err)
 	}
 	// We don't mind about specific values, defaults change, but let's check
@@ -256,7 +256,7 @@ func TestAdminTX_GetTreeLegacies(t *testing.T) {
 		// We are reaching really into the internals here, but it's the only way to set up
 		// archival state. Going through the Create/Update methods will change the storage
 		// options.
-		tx, err := s.db.BeginTx(ctx, nil /* opts */)
+		tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -303,8 +303,8 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 	// database and check that the rows are gone, so let's do just that.
 	// If there's no record on Trees, then there can be no record in any of the dependent tables.
 	var name string
-	if err := DB.QueryRowContext(ctx, "SELECT DisplayName FROM Trees WHERE TreeId = ?", tree.TreeId).Scan(&name); err != sql.ErrNoRows {
-		t.Errorf("QueryRowContext() returned err = %v, want = %v", err, sql.ErrNoRows)
+	if err := DB.QueryRow(ctx, "SELECT DisplayName FROM Trees WHERE TreeId = ?", tree.TreeId).Scan(&name); err != pgx.ErrNoRows {
+		t.Errorf("QueryRow() returned err = %v, want = %v", err, pgx.ErrNoRows)
 	}
 }
 
@@ -331,12 +331,12 @@ func TestCheckDatabaseAccessible_OK(t *testing.T) {
 	}
 }
 
-func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
+func setNulls(ctx context.Context, db *pgxpool.Pool, treeID int64) error {
 	stmt, err := db.PrepareContext(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = ?")
 	if err != nil {
 		return err
 	}
 	defer func() { _ = stmt.Close() }()
-	_, err = stmt.ExecContext(ctx, treeID)
+	_, err = stmt.Exec(ctx, treeID)
 	return err
 }

@@ -54,7 +54,7 @@ var ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
 // rows (to be exact, tokens = MaxUnsequencedRows - actualUnsequencedRows).
 // Other quotas are considered infinite.
 type QuotaManager struct {
-	DB                 *sql.DB
+	DB                 *pgxpool.Pool
 	MaxUnsequencedRows int
 	UseSelectCount     bool
 }
@@ -98,14 +98,14 @@ func (m *QuotaManager) countUnsequenced(ctx context.Context) (int, error) {
 	return countFromInformationSchema(ctx, m.DB)
 }
 
-func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
+func countFromInformationSchema(ctx context.Context, db *pgxpool.Pool) (int, error) {
 	// turn off statistics caching for PostgreSQL 8
 	if err := turnOffInformationSchemaCache(ctx, db); err != nil {
 		return 0, err
 	}
 	// information_schema.tables doesn't have an explicit PK, so let's play it safe and ensure
 	// the cursor returns a single row.
-	rows, err := db.QueryContext(ctx, countFromInformationSchemaQuery, "Unsequenced", "BASE TABLE")
+	rows, err := db.Query(ctx, countFromInformationSchemaQuery, "Unsequenced", "BASE TABLE")
 	if err != nil {
 		return 0, err
 	}
@@ -127,9 +127,9 @@ func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
 	return count, nil
 }
 
-func countFromTable(ctx context.Context, db *sql.DB) (int, error) {
+func countFromTable(ctx context.Context, db *pgxpool.Pool) (int, error) {
 	var count int
-	if err := db.QueryRowContext(ctx, countFromUnsequencedQuery).Scan(&count); err != nil {
+	if err := db.QueryRow(ctx, countFromUnsequencedQuery).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -139,9 +139,9 @@ func countFromTable(ctx context.Context, db *sql.DB) (int, error) {
 // To always retrieve the latest statistics directly from the storage engine and bypass cached values, set information_schema_stats_expiry to 0.
 // See https://dev.postgresql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_information_schema_stats_expiry
 // PostgreSQL versions prior to 8 will fail safely.
-func turnOffInformationSchemaCache(ctx context.Context, db *sql.DB) error {
+func turnOffInformationSchemaCache(ctx context.Context, db *pgxpool.Pool) error {
 	opt := "information_schema_stats_expiry"
-	res := db.QueryRowContext(ctx, "SHOW VARIABLES LIKE '"+opt+"'")
+	res := db.QueryRow(ctx, "SHOW VARIABLES LIKE '"+opt+"'")
 	var none string
 	var expiry int
 
@@ -155,7 +155,7 @@ func turnOffInformationSchemaCache(ctx context.Context, db *sql.DB) error {
 	}
 
 	if expiry != 0 {
-		if _, err := db.ExecContext(ctx, "SET SESSION "+opt+"=0"); err != nil {
+		if _, err := db.Exec(ctx, "SET SESSION "+opt+"=0"); err != nil {
 			return fmt.Errorf("failed to set variable %q: %v", opt, err)
 		}
 	}

@@ -66,13 +66,13 @@ const (
 )
 
 // NewAdminStorage returns a PostgreSQL storage.AdminStorage implementation backed by DB.
-func NewAdminStorage(db *sql.DB) *postgresqlAdminStorage {
+func NewAdminStorage(db *pgxpool.Pool) *postgresqlAdminStorage {
 	return &postgresqlAdminStorage{db}
 }
 
 // postgresqlAdminStorage implements storage.AdminStorage
 type postgresqlAdminStorage struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 func (s *postgresqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
@@ -80,7 +80,7 @@ func (s *postgresqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnly
 }
 
 func (s *postgresqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX, error) {
-	tx, err := s.db.BeginTx(ctx, nil /* opts */)
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +104,11 @@ func (s *postgresqlAdminStorage) ReadWriteTransaction(ctx context.Context, f sto
 }
 
 func (s *postgresqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return s.db.PingContext(ctx)
+	return s.db.Ping(ctx)
 }
 
 type adminTX struct {
-	tx *sql.Tx
+	tx pgx.Tx
 
 	// mu guards reads/writes on closed, which happen on Commit/Close methods.
 	//
@@ -147,9 +147,9 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 	}()
 
 	// GetTree is an entry point for most RPCs, let's provide somewhat nicer error messages.
-	tree, err := readTree(stmt.QueryRowContext(ctx, treeID))
+	tree, err := readTree(stmt.QueryRow(ctx, treeID))
 	switch {
-	case err == sql.ErrNoRows:
+	case err == pgx.ErrNoRows:
 		// ErrNoRows doesn't provide useful information, so we don't forward it.
 		return nil, status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
@@ -175,7 +175,7 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 			klog.Errorf("stmt.Close(): %v", err)
 		}
 	}()
-	rows, err := stmt.QueryContext(ctx)
+	rows, err := stmt.Query(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		}
 	}()
 
-	_, err = insertTreeStmt.ExecContext(
+	_, err = insertTreeStmt.Exec(
 		ctx,
 		newTree.TreeId,
 		newTree.TreeState.String(),
@@ -331,7 +331,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			klog.Errorf("insertControlStmt.Close(): %v", err)
 		}
 	}()
-	_, err = insertControlStmt.ExecContext(
+	_, err = insertControlStmt.Exec(
 		ctx,
 		newTree.TreeId,
 		true, /* SigningEnabled */
@@ -385,7 +385,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		}
 	}()
 
-	if _, err = stmt.ExecContext(
+	if _, err = stmt.Exec(
 		ctx,
 		tree.TreeState.String(),
 		tree.TreeType.String(),
@@ -418,7 +418,7 @@ func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool,
 	if err := validateDeleted(ctx, t.tx, treeID, !deleted); err != nil {
 		return nil, err
 	}
-	if _, err := t.tx.ExecContext(
+	if _, err := t.tx.Exec(
 		ctx,
 		"UPDATE Trees SET Deleted = ?, DeleteTimeMillis = ? WHERE TreeId = ?",
 		deleted, deleteTimeMillis, treeID); err != nil {
@@ -433,17 +433,17 @@ func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 	}
 
 	// TreeControl didn't have "ON DELETE CASCADE" on previous versions, so let's hit it explicitly
-	if _, err := t.tx.ExecContext(ctx, "DELETE FROM TreeControl WHERE TreeId = ?", treeID); err != nil {
+	if _, err := t.tx.Exec(ctx, "DELETE FROM TreeControl WHERE TreeId = ?", treeID); err != nil {
 		return err
 	}
-	_, err := t.tx.ExecContext(ctx, "DELETE FROM Trees WHERE TreeId = ?", treeID)
+	_, err := t.tx.Exec(ctx, "DELETE FROM Trees WHERE TreeId = ?", treeID)
 	return err
 }
 
-func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted bool) error {
+func validateDeleted(ctx context.Context, tx pgx.Tx, treeID int64, wantDeleted bool) error {
 	var nullDeleted sql.NullBool
-	switch err := tx.QueryRowContext(ctx, "SELECT Deleted FROM Trees WHERE TreeId = ?", treeID).Scan(&nullDeleted); {
-	case err == sql.ErrNoRows:
+	switch err := tx.QueryRow(ctx, "SELECT Deleted FROM Trees WHERE TreeId = ?", treeID).Scan(&nullDeleted); {
+	case err == pgx.ErrNoRows:
 		return status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
 		return err

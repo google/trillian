@@ -40,7 +40,7 @@ const (
 	// instance URI to use. The value must have a trailing slash.
 	PostgreSQLURIEnv = "TEST_POSTGRESQL_URI"
 
-	// Note: sql.Open requires the URI to end with a slash.
+	// Note: pgxpool.New requires the URI to end with a slash.
 	defaultTestPostgreSQLURI = "root@tcp(127.0.0.1)/"
 
 	// CockroachDBURIEnv is the name of the ENV variable checked for the test CockroachDB
@@ -158,9 +158,9 @@ func CockroachDBAvailable() bool {
 func dbAvailable(driver DriverName) bool {
 	driverName := driverMapping[driver].sqlDriverName
 	uri := driverMapping[driver].uriFunc()
-	db, err := sql.Open(driverName, uri)
+	db, err := pgxpool.New(driverName, uri)
 	if err != nil {
-		log.Printf("sql.Open(): %v", err)
+		log.Printf("pgxpool.New(): %v", err)
 		return false
 	}
 	defer func() {
@@ -195,7 +195,7 @@ func SetFDLimit(uLimit uint64) error {
 // using the DB, the caller should not continue to use the returned DB after
 // calling this function as it may, for example, delete the underlying
 // instance.
-func newEmptyDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.Context), error) {
+func newEmptyDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(context.Context), error) {
 	if err := SetFDLimit(2048); err != nil {
 		return nil, nil, err
 	}
@@ -205,7 +205,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.C
 		return nil, nil, fmt.Errorf("unknown driver %q", driver)
 	}
 
-	db, err := sql.Open(inf.sqlDriverName, inf.uriFunc())
+	db, err := pgxpool.New(inf.sqlDriverName, inf.uriFunc())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -214,7 +214,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.C
 	name := fmt.Sprintf("trl_%v", time.Now().UnixNano())
 
 	stmt := fmt.Sprintf("CREATE DATABASE %v", name)
-	if _, err := db.ExecContext(ctx, stmt); err != nil {
+	if _, err := db.Exec(ctx, stmt); err != nil {
 		return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 	}
 
@@ -222,7 +222,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.C
 		return nil, nil, fmt.Errorf("failed to close DB: %v", err)
 	}
 	uri := inf.uriFunc(name)
-	db, err = sql.Open(inf.sqlDriverName, uri)
+	db, err = pgxpool.New(inf.sqlDriverName, uri)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -233,7 +233,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.C
 				klog.Errorf("db.Close(): %v", err)
 			}
 		}()
-		if _, err := db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE %v", name)); err != nil {
+		if _, err := db.Exec(ctx, fmt.Sprintf("DROP DATABASE %v", name)); err != nil {
 			klog.Warningf("Failed to drop test database %q: %v", name, err)
 		}
 	}
@@ -244,7 +244,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.C
 // NewTrillianDB creates an empty database with the Trillian schema. The database name is randomly
 // generated.
 // NewTrillianDB is equivalent to Default().NewTrillianDB(ctx).
-func NewTrillianDB(ctx context.Context, driver DriverName) (*sql.DB, func(context.Context), error) {
+func NewTrillianDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(context.Context), error) {
 	db, done, err := newEmptyDB(ctx, driver)
 	if err != nil {
 		return nil, nil, err
@@ -262,7 +262,7 @@ func NewTrillianDB(ctx context.Context, driver DriverName) (*sql.DB, func(contex
 		if stmt == "" {
 			continue
 		}
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
+		if _, err := db.Exec(ctx, stmt); err != nil {
 			return nil, nil, fmt.Errorf("error running statement %q: %v", stmt, err)
 		}
 	}

@@ -226,15 +226,15 @@ func allSpecs(_ context.Context, _ quota.Manager, treeID int64) []quota.Spec {
 	}
 }
 
-func countUnsequenced(ctx context.Context, db *sql.DB) (int, error) {
+func countUnsequenced(ctx context.Context, db *pgxpool.Pool) (int, error) {
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced").Scan(&count); err != nil {
+	if err := db.QueryRow(ctx, "SELECT COUNT(*) FROM Unsequenced").Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
+func createTree(ctx context.Context, db *pgxpool.Pool) (*trillian.Tree, error) {
 	var tree *trillian.Tree
 
 	{
@@ -267,7 +267,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	return tree, nil
 }
 
-func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, num int) error {
+func queueLeaves(ctx context.Context, db *pgxpool.Pool, tree *trillian.Tree, firstID, num int) error {
 	hasher := crypto.SHA256.New()
 
 	leaves := []*trillian.LogLeaf{}
@@ -291,7 +291,7 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 	return err
 }
 
-func setUnsequencedRows(ctx context.Context, db *sql.DB, tree *trillian.Tree, wantRows int) error {
+func setUnsequencedRows(ctx context.Context, db *pgxpool.Pool, tree *trillian.Tree, wantRows int) error {
 	count, err := countUnsequenced(ctx, db)
 	if err != nil {
 		return err
@@ -302,10 +302,10 @@ func setUnsequencedRows(ctx context.Context, db *sql.DB, tree *trillian.Tree, wa
 
 	// Clear the tables and re-create leaves from scratch. It's easier than having to reason
 	// about duplicate entries.
-	if _, err := db.ExecContext(ctx, "DELETE FROM LeafData"); err != nil {
+	if _, err := db.Exec(ctx, "DELETE FROM LeafData"); err != nil {
 		return err
 	}
-	if _, err := db.ExecContext(ctx, "DELETE FROM Unsequenced"); err != nil {
+	if _, err := db.Exec(ctx, "DELETE FROM Unsequenced"); err != nil {
 		return err
 	}
 	if err := queueLeaves(ctx, db, tree, 0 /* firstID */, wantRows); err != nil {

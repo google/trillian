@@ -66,7 +66,7 @@ const (
 // postgreSQLTreeStorage is shared between the postgreSQLLog- and (forthcoming) postgreSQLMap-
 // Storage implementations, and contains functionality which is common to both,
 type postgreSQLTreeStorage struct {
-	db *sql.DB
+	db *pgxpool.Pool
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
 	// it only needs to be held while the statements are built, not while they execute and
@@ -77,15 +77,15 @@ type postgreSQLTreeStorage struct {
 }
 
 // OpenDB opens a database connection for all PostgreSQL-based storage implementations.
-func OpenDB(dbURL string) (*sql.DB, error) {
-	db, err := sql.Open("postgresql", dbURL)
+func OpenDB(dbURL string) (*pgxpool.Pool, error) {
+	db, err := pgxpool.New("postgresql", dbURL)
 	if err != nil {
 		// Don't log uri as it could contain credentials
 		klog.Warningf("Could not open PostgreSQL database, check config: %s", err)
 		return nil, err
 	}
 
-	if _, err := db.ExecContext(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
+	if _, err := db.Exec(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
 		klog.Warningf("Failed to set strict mode on postgresql db: %s", err)
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(db *sql.DB) *postgreSQLTreeStorage {
+func newTreeStorage(db *pgxpool.Pool) *postgreSQLTreeStorage {
 	return &postgreSQLTreeStorage{
 		db:         db,
 		statements: make(map[string]map[int]*sql.Stmt),
@@ -154,7 +154,7 @@ func (m *postgreSQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*s
 }
 
 func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
-	t, err := m.db.BeginTx(ctx, nil /* opts */)
+	t, err := m.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		klog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
@@ -182,7 +182,7 @@ type treeTX struct {
 	// mu ensures that tx can only be used for one query/exec at a time.
 	mu            *sync.Mutex
 	closed        bool
-	tx            *sql.Tx
+	tx            pgx.Tx
 	ts            *postgreSQLTreeStorage
 	treeID        int64
 	treeType      trillian.TreeType
@@ -232,7 +232,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		}
 	}
 
-	rows, err := stx.QueryContext(ctx, args...)
+	rows, err := stx.Query(ctx, args...)
 	if err != nil {
 		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
@@ -346,7 +346,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		}
 	}()
 
-	r, err := stx.ExecContext(ctx, args...)
+	r, err := stx.Exec(ctx, args...)
 	if err != nil {
 		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
@@ -355,7 +355,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	return nil
 }
 
-func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
+func checkResultOkAndRowCountIs(res pgconn.CommandTag, err error, count int64) error {
 	// The Exec() might have just failed
 	if err != nil {
 		return postgresqlToGRPC(err)

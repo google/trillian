@@ -40,7 +40,7 @@ var (
 
 	postgresqlMu              sync.Mutex
 	postgresqlErr             error
-	postgresqlDB              *sql.DB
+	postgresqlDB              *pgxpool.Pool
 	postgresqlStorageInstance *postgresqlProvider
 )
 
@@ -48,7 +48,7 @@ var (
 //
 // TODO(pavelkalinnikov): Make the dependency of PostgreSQL quota provider from
 // PostgreSQL storage provider explicit.
-func GetDatabase() (*sql.DB, error) {
+func GetDatabase() (*pgxpool.Pool, error) {
 	postgresqlMu.Lock()
 	defer postgresqlMu.Unlock()
 	return getPostgreSQLDatabaseLocked()
@@ -61,7 +61,7 @@ func init() {
 }
 
 type postgresqlProvider struct {
-	db *sql.DB
+	db *pgxpool.Pool
 	mf monitoring.MetricFactory
 }
 
@@ -83,7 +83,7 @@ func newPostgreSQLStorageProvider(mf monitoring.MetricFactory) (storage.Provider
 
 // getPostgreSQLDatabaseLocked returns an instance of PostgreSQL database, or creates
 // one. Requires postgresqlMu to be locked.
-func getPostgreSQLDatabaseLocked() (*sql.DB, error) {
+func getPostgreSQLDatabaseLocked() (*pgxpool.Pool, error) {
 	if postgresqlDB != nil || postgresqlErr != nil {
 		return postgresqlDB, postgresqlErr
 	}
