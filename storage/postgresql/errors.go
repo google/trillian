@@ -15,25 +15,20 @@
 package postgresql
 
 import (
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-)
-
-const (
-	// ER_DUP_ENTRY: Error returned by driver when inserting a duplicate row.
-	errNumDuplicate = 1062
-	// ER_LOCK_DEADLOCK: Error returned when there was a deadlock.
-	errNumDeadlock = 1213
 )
 
 // postgresqlToGRPC converts some types of PostgreSQL errors to GRPC errors. This gives
 // clients more signal when the operation can be retried.
 func postgresqlToGRPC(err error) error {
-	postgresqlErr, ok := err.(*postgresql.PostgreSQLError)
+	postgresqlErr, ok := err.(*pgconn.PgError)
 	if !ok {
 		return err
 	}
-	if postgresqlErr.Number == errNumDeadlock {
+	if postgresqlErr.Code == pgerrcode.DeadlockDetected {
 		return status.Errorf(codes.Aborted, "PostgreSQL: %v", postgresqlErr)
 	}
 	return err
@@ -41,8 +36,8 @@ func postgresqlToGRPC(err error) error {
 
 func isDuplicateErr(err error) bool {
 	switch err := err.(type) {
-	case *postgresql.PostgreSQLError:
-		return err.Number == errNumDuplicate
+	case *pgconn.PgError:
+		return err.Code == pgerrcode.UniqueViolation
 	default:
 		return false
 	}
