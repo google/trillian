@@ -46,29 +46,28 @@ const (
 ) ON COMMIT DROP`
 	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) SELECT TreeId, SubtreeId, Nodes, SubtreeRevision FROM TempSubtree ON CONFLICT ON CONSTRAINT TempSubtree_pk DO UPDATE Nodes=EXCLUDED.Nodes`
 	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
-		 VALUES(?,?,?,?,?,?)`
+		 VALUES($1,$2,$3,$4,$5,$6)`
 
 	selectSubtreeSQL = `
  SELECT x.SubtreeId, Subtree.Nodes
  FROM (
  	SELECT n.TreeId, n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
 	FROM Subtree n
-	WHERE n.SubtreeId = ANY(?) AND
-	 n.TreeId = ? AND n.SubtreeRevision <= ?
+	WHERE n.SubtreeId = ANY($1) AND
+	 n.TreeId = $2 AND n.SubtreeRevision <= $3
 	GROUP BY n.TreeId, n.SubtreeId
  ) AS x
  INNER JOIN Subtree 
  ON Subtree.SubtreeId = x.SubtreeId 
  AND Subtree.SubtreeRevision = x.MaxRevision 
  AND Subtree.TreeId = x.TreeId
- AND Subtree.TreeId = ?`
+ AND Subtree.TreeId = $4`
 
 	selectSubtreeSQLNoRev = `
  SELECT SubtreeId, Subtree.Nodes
  FROM Subtree
- WHERE Subtree.TreeId = ?
-   AND SubtreeId = ANY(?)`
-	placeholderSQL = "<placeholder>"
+ WHERE Subtree.TreeId = $1
+   AND SubtreeId = ANY($2)`
 )
 
 // postgreSQLTreeStorage is shared between the postgreSQLLog- and (forthcoming) postgreSQLMap-

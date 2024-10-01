@@ -70,8 +70,8 @@ func createFakeLeaf(ctx context.Context, db *pgxpool.Pool, logID int64, rawHash,
 	t.Helper()
 	queuedAtNanos := fakeQueueTime.UnixNano()
 	integratedAtNanos := fakeIntegrateTime.UnixNano()
-	_, err := db.Exec(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES(?,?,?,?,?)", logID, rawHash, data, extraData, queuedAtNanos)
-	_, err2 := db.Exec(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES(?,?,?,?,?)", logID, seq, rawHash, hash, integratedAtNanos)
+	_, err := db.Exec(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES($1,$2,$3,$4,$5)", logID, rawHash, data, extraData, queuedAtNanos)
+	_, err2 := db.Exec(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES($1,$2,$3,$4,$5)", logID, seq, rawHash, hash, integratedAtNanos)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
@@ -213,7 +213,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	// Should see the leaves in the database. There is no API to read from the unsequenced data.
 	var count int
-	if err := DB.QueryRow(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", tree.TreeId).Scan(&count); err != nil {
+	if err := DB.QueryRow(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=$1", tree.TreeId).Scan(&count); err != nil {
 		t.Fatalf("Could not query row count: %v", err)
 	}
 	if leavesToInsert != count {
@@ -222,7 +222,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	// Additional check on timestamp being set correctly in the database
 	var queueTimestamp int64
-	if err := DB.QueryRow(ctx, "SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=?", tree.TreeId).Scan(&queueTimestamp); err != nil {
+	if err := DB.QueryRow(ctx, "SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=$1", tree.TreeId).Scan(&queueTimestamp); err != nil {
 		t.Fatalf("Could not query timestamp: %v", err)
 	}
 	if got, want := queueTimestamp, fakeQueueTime.UnixNano(); got != want {
@@ -253,7 +253,7 @@ func TestQueueLeavesDuplicateBigBatch(t *testing.T) {
 
 	// Should see the leaves in the database. There is no API to read from the unsequenced data.
 	var count int
-	if err := DB.QueryRow(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", tree.TreeId).Scan(&count); err != nil {
+	if err := DB.QueryRow(ctx, "SELECT COUNT(*) FROM Unsequenced WHERE TreeID=$1", tree.TreeId).Scan(&count); err != nil {
 		t.Fatalf("Could not query row count: %v", err)
 	}
 	if leafCount != count {
@@ -725,7 +725,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 
 	// Update deleted trees accordingly
 	for _, treeID := range []int64{deletedLog.TreeId} {
-		if _, err := DB.Exec(ctx, "UPDATE Trees SET Deleted = ? WHERE TreeId = ?", true, treeID); err != nil {
+		if _, err := DB.Exec(ctx, "UPDATE Trees SET Deleted = $1 WHERE TreeId = $2", true, treeID); err != nil {
 			t.Fatalf("Exec(%v) returned err = %v", treeID, err)
 		}
 	}

@@ -35,12 +35,12 @@ const (
 	// If this statement ORDER BY clause is changed refer to the comment in removeSequencedLeaves
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID
 			FROM Unsequenced
-			WHERE TreeID=?
+			WHERE TreeID=$1
 			AND Bucket=0
-			AND QueueTimestampNanos<=?
-			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
-	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID) VALUES(?,0,?,?,?,?)`
-	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE QueueID = ANY(?)"
+			AND QueueTimestampNanos<=$2
+			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT $3`
+	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID) VALUES($1,0,$2,$3,$4,$5)`
+	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE QueueID = ANY($1)"
 )
 
 type dequeuedLeaf []byte

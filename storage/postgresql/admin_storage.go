@@ -60,11 +60,11 @@ const (
 			DeleteTimeMillis
 		FROM Trees`
 	selectNonDeletedTrees = selectTrees + nonDeletedWhere
-	selectTreeByID        = selectTrees + " WHERE TreeId = ?"
+	selectTreeByID        = selectTrees + " WHERE TreeId = $1"
 
 	updateTreeSQL = `UPDATE Trees
-		SET TreeState = ?, TreeType = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?, MaxRootDurationMillis = ?, PrivateKey = ?
-		WHERE TreeId = ?`
+		SET TreeState = $1, TreeType = $2, DisplayName = $3, Description = $4, UpdateTimeMillis = $5, MaxRootDurationMillis = $6, PrivateKey = $7
+		WHERE TreeId = $8`
 )
 
 // NewAdminStorage returns a PostgreSQL storage.AdminStorage implementation backed by DB.
@@ -259,7 +259,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			PrivateKey, -- Unused
 			PublicKey, -- Used to store StorageSettings
 			MaxRootDurationMillis)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
@@ -285,7 +285,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			SigningEnabled,
 			SequencingEnabled,
 			SequenceIntervalSeconds)
-		VALUES(?, ?, ?, ?)`,
+		VALUES($1, $2, $3, $4)`,
 		newTree.TreeId,
 		true, /* SigningEnabled */
 		true, /* SequencingEnabled */
@@ -364,7 +364,7 @@ func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool,
 	}
 	if _, err := t.tx.Exec(
 		ctx,
-		"UPDATE Trees SET Deleted = ?, DeleteTimeMillis = ? WHERE TreeId = ?",
+		"UPDATE Trees SET Deleted = $1, DeleteTimeMillis = $2 WHERE TreeId = $3",
 		deleted, deleteTimeMillis, treeID); err != nil {
 		return nil, err
 	}
@@ -377,16 +377,16 @@ func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 	}
 
 	// TreeControl didn't have "ON DELETE CASCADE" on previous versions, so let's hit it explicitly
-	if _, err := t.tx.Exec(ctx, "DELETE FROM TreeControl WHERE TreeId = ?", treeID); err != nil {
+	if _, err := t.tx.Exec(ctx, "DELETE FROM TreeControl WHERE TreeId = $1", treeID); err != nil {
 		return err
 	}
-	_, err := t.tx.Exec(ctx, "DELETE FROM Trees WHERE TreeId = ?", treeID)
+	_, err := t.tx.Exec(ctx, "DELETE FROM Trees WHERE TreeId = $1", treeID)
 	return err
 }
 
 func validateDeleted(ctx context.Context, tx pgx.Tx, treeID int64, wantDeleted bool) error {
 	var nullDeleted sql.NullBool
-	switch err := tx.QueryRow(ctx, "SELECT Deleted FROM Trees WHERE TreeId = ?", treeID).Scan(&nullDeleted); {
+	switch err := tx.QueryRow(ctx, "SELECT Deleted FROM Trees WHERE TreeId = $1", treeID).Scan(&nullDeleted); {
 	case err == pgx.ErrNoRows:
 		return status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
