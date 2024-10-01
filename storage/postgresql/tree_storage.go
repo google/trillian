@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mysql provides a MySQL-based storage layer implementation.
-package mysql
+// Package postgresql provides a PostgreSQL-based storage layer implementation.
+package postgresql
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/mysql/mysqlpb"
+	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 	"google.golang.org/protobuf/proto"
@@ -63,9 +63,9 @@ const (
 	placeholderSQL = "<placeholder>"
 )
 
-// mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
+// postgreSQLTreeStorage is shared between the postgreSQLLog- and (forthcoming) postgreSQLMap-
 // Storage implementations, and contains functionality which is common to both,
-type mySQLTreeStorage struct {
+type postgreSQLTreeStorage struct {
 	db *sql.DB
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
@@ -76,25 +76,25 @@ type mySQLTreeStorage struct {
 	statements     map[string]map[int]*sql.Stmt
 }
 
-// OpenDB opens a database connection for all MySQL-based storage implementations.
+// OpenDB opens a database connection for all PostgreSQL-based storage implementations.
 func OpenDB(dbURL string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dbURL)
+	db, err := sql.Open("postgresql", dbURL)
 	if err != nil {
 		// Don't log uri as it could contain credentials
-		klog.Warningf("Could not open MySQL database, check config: %s", err)
+		klog.Warningf("Could not open PostgreSQL database, check config: %s", err)
 		return nil, err
 	}
 
 	if _, err := db.ExecContext(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
-		klog.Warningf("Failed to set strict mode on mysql db: %s", err)
+		klog.Warningf("Failed to set strict mode on postgresql db: %s", err)
 		return nil, err
 	}
 
 	return db, nil
 }
 
-func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
-	return &mySQLTreeStorage{
+func newTreeStorage(db *sql.DB) *postgreSQLTreeStorage {
+	return &postgreSQLTreeStorage{
 		db:         db,
 		statements: make(map[string]map[int]*sql.Stmt),
 	}
@@ -116,7 +116,7 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 // and number of bound arguments.
 // TODO(al,martin): consider pulling this all out as a separate unit for reuse
 // elsewhere.
-func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num int, first, rest string) (*sql.Stmt, error) {
+func (m *postgreSQLTreeStorage) getStmt(ctx context.Context, statement string, num int, first, rest string) (*sql.Stmt, error) {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
@@ -141,7 +141,7 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 	return s, nil
 }
 
-func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, subtreeRevs bool, num int) (*sql.Stmt, error) {
+func (m *postgreSQLTreeStorage) getSubtreeStmt(ctx context.Context, subtreeRevs bool, num int) (*sql.Stmt, error) {
 	if subtreeRevs {
 		return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
 	} else {
@@ -149,18 +149,18 @@ func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, subtreeRevs bool,
 	}
 }
 
-func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+func (m *postgreSQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
 	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
+func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		klog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
 	}
 	var subtreeRevisions bool
-	o := &mysqlpb.StorageOptions{}
+	o := &postgresqlpb.StorageOptions{}
 	if err := anypb.UnmarshalTo(tree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
 		return treeTX{}, fmt.Errorf("failed to unmarshal StorageSettings: %v", err)
 	}
@@ -183,7 +183,7 @@ type treeTX struct {
 	mu            *sync.Mutex
 	closed        bool
 	tx            *sql.Tx
-	ts            *mySQLTreeStorage
+	ts            *postgreSQLTreeStorage
 	treeID        int64
 	treeType      trillian.TreeType
 	hashSizeBytes int
@@ -358,14 +358,14 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	// The Exec() might have just failed
 	if err != nil {
-		return mysqlToGRPC(err)
+		return postgresqlToGRPC(err)
 	}
 
 	// Otherwise we have to look at the result of the operation
 	rowsAffected, rowsError := res.RowsAffected()
 
 	if rowsError != nil {
-		return mysqlToGRPC(rowsError)
+		return postgresqlToGRPC(rowsError)
 	}
 
 	if rowsAffected != count {

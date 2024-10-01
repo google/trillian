@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
 	"bytes"
@@ -29,7 +29,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql/mysqlpb"
+	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"github.com/google/trillian/storage/testdb"
 	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
@@ -56,7 +56,7 @@ var (
 )
 
 func mustCreateRevisionedStorage() *anypb.Any {
-	o := &mysqlpb.StorageOptions{
+	o := &postgresqlpb.StorageOptions{
 		SubtreeRevisions: true,
 	}
 	a, err := anypb.New(o)
@@ -274,7 +274,7 @@ func diffNodes(got, want []stree.Node) ([]stree.Node, []stree.Node) {
 }
 
 func openTestDBOrDie() (*sql.DB, func(context.Context)) {
-	db, done, err := testdb.NewTrillianDB(context.TODO(), testdb.DriverMySQL)
+	db, done, err := testdb.NewTrillianDB(context.TODO(), testdb.DriverPostgreSQL)
 	if err != nil {
 		panic(err)
 	}
@@ -345,8 +345,8 @@ var DB *sql.DB
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	if !testdb.MySQLAvailable() {
-		klog.Errorf("MySQL not available, skipping all MySQL storage tests")
+	if !testdb.PostgreSQLAvailable() {
+		klog.Errorf("PostgreSQL not available, skipping all PostgreSQL storage tests")
 		return
 	}
 
@@ -355,7 +355,7 @@ func TestMain(m *testing.M) {
 	DB, done = openTestDBOrDie()
 
 	if v, err := getVersion(DB); err == nil {
-		klog.Infof("MySQL version '%v'", v)
+		klog.Infof("PostgreSQL version '%v'", v)
 	}
 	status := m.Run()
 	done(context.Background())

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/storage/mysql/mysqlpb"
+	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -135,16 +135,16 @@ func readTree(r row) (*trillian.Tree, error) {
 	buff := bytes.NewBuffer(publicKey)
 	dec := gob.NewDecoder(buff)
 	ss := &storageSettings{}
-	var o *mysqlpb.StorageOptions
+	var o *postgresqlpb.StorageOptions
 	if err := dec.Decode(ss); err != nil {
 		// If there are no storageSettings then this tree was created before settings
 		// were supported, and thus we have to populate the settings with the oldest
 		// settings for features.
-		o = &mysqlpb.StorageOptions{
+		o = &postgresqlpb.StorageOptions{
 			SubtreeRevisions: true,
 		}
 	} else {
-		o = &mysqlpb.StorageOptions{
+		o = &postgresqlpb.StorageOptions{
 			SubtreeRevisions: ss.Revisioned,
 		}
 	}

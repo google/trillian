@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
 	"bytes"
@@ -34,7 +34,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/klog/v2"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/postgresql"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees"}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql/mysqlpb"
+	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -65,21 +65,21 @@ const (
 		WHERE TreeId = ?`
 )
 
-// NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
-func NewAdminStorage(db *sql.DB) *mysqlAdminStorage {
-	return &mysqlAdminStorage{db}
+// NewAdminStorage returns a PostgreSQL storage.AdminStorage implementation backed by DB.
+func NewAdminStorage(db *sql.DB) *postgresqlAdminStorage {
+	return &postgresqlAdminStorage{db}
 }
 
-// mysqlAdminStorage implements storage.AdminStorage
-type mysqlAdminStorage struct {
+// postgresqlAdminStorage implements storage.AdminStorage
+type postgresqlAdminStorage struct {
 	db *sql.DB
 }
 
-func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
+func (s *postgresqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
 	return s.beginInternal(ctx)
 }
 
-func (s *mysqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX, error) {
+func (s *postgresqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX, error) {
 	tx, err := s.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (s *mysqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX,
 	return &adminTX{tx: tx}, nil
 }
 
-func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
+func (s *postgresqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
 	tx, err := s.beginInternal(ctx)
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.
 	return tx.Commit()
 }
 
-func (s *mysqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
+func (s *postgresqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return s.db.PingContext(ctx)
 }
 
@@ -238,7 +238,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if tree.StorageSettings != nil {
 		newTree.StorageSettings = proto.Clone(tree.StorageSettings).(*anypb.Any)
 	} else {
-		o := &mysqlpb.StorageOptions{
+		o := &postgresqlpb.StorageOptions{
 			SubtreeRevisions: false, // Default behaviour for new trees is to skip writing subtree revisions.
 		}
 		a, err := anypb.New(o)
@@ -247,7 +247,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		}
 		newTree.StorageSettings = a
 	}
-	o := &mysqlpb.StorageOptions{}
+	o := &postgresqlpb.StorageOptions{}
 	if err := anypb.UnmarshalTo(newTree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal StorageOptions: %v", err)
 	}
@@ -306,7 +306,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 
-	// MySQL silently truncates data when running in non-strict mode.
+	// PostgreSQL silently truncates data when running in non-strict mode.
 	// We shouldn't be using non-strict modes, but let's guard against it
 	// anyway.
 	if _, err := t.GetTree(ctx, newTree.TreeId); err != nil {
@@ -459,14 +459,14 @@ func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted 
 }
 
 func validateStorageSettings(tree *trillian.Tree) error {
-	if tree.StorageSettings.MessageIs(&mysqlpb.StorageOptions{}) {
+	if tree.StorageSettings.MessageIs(&postgresqlpb.StorageOptions{}) {
 		return nil
 	}
 	if tree.StorageSettings == nil {
 		// No storage settings is OK, we'll just use the defaults for new trees
 		return nil
 	}
-	return fmt.Errorf("storage_settings must be nil or mysqlpb.StorageOptions, but got %v", tree.StorageSettings)
+	return fmt.Errorf("storage_settings must be nil or postgresqlpb.StorageOptions, but got %v", tree.StorageSettings)
 }
 
 // storageSettings allows us to persist storage settings to the DB.

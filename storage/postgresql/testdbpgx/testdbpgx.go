@@ -31,17 +31,17 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 
-	_ "github.com/go-sql-driver/mysql" // mysql driver
+	_ "github.com/go-sql-driver/postgresql" // postgresql driver
 	_ "github.com/lib/pq"              // postgres driver
 )
 
 const (
-	// MySQLURIEnv is the name of the ENV variable checked for the test MySQL
+	// PostgreSQLURIEnv is the name of the ENV variable checked for the test PostgreSQL
 	// instance URI to use. The value must have a trailing slash.
-	MySQLURIEnv = "TEST_MYSQL_URI"
+	PostgreSQLURIEnv = "TEST_POSTGRESQL_URI"
 
 	// Note: sql.Open requires the URI to end with a slash.
-	defaultTestMySQLURI = "root@tcp(127.0.0.1)/"
+	defaultTestPostgreSQLURI = "root@tcp(127.0.0.1)/"
 
 	// CockroachDBURIEnv is the name of the ENV variable checked for the test CockroachDB
 	// instance URI to use. The value must have a trailing slash.
@@ -57,7 +57,7 @@ type storageDriverInfo struct {
 }
 
 var (
-	trillianMySQLSchema = testonly.RelativeToPackage("../mysql/schema/storage.sql")
+	trillianPostgreSQLSchema = testonly.RelativeToPackage("../postgresql/schema/storage.sql")
 	trillianCRDBSchema  = testonly.RelativeToPackage("../crdb/schema/storage.sql")
 )
 
@@ -65,17 +65,17 @@ var (
 type DriverName string
 
 const (
-	// DriverMySQL is the identifier for the MySQL storage driver.
-	DriverMySQL DriverName = "mysql"
+	// DriverPostgreSQL is the identifier for the PostgreSQL storage driver.
+	DriverPostgreSQL DriverName = "postgresql"
 	// DriverCockroachDB is the identifier for the CockroachDB storage driver.
 	DriverCockroachDB DriverName = "cockroachdb"
 )
 
 var driverMapping = map[DriverName]storageDriverInfo{
-	DriverMySQL: {
-		sqlDriverName: "mysql",
-		schema:        trillianMySQLSchema,
-		uriFunc:       mysqlURI,
+	DriverPostgreSQL: {
+		sqlDriverName: "postgresql",
+		schema:        trillianPostgreSQLSchema,
+		uriFunc:       postgresqlURI,
 	},
 	DriverCockroachDB: {
 		sqlDriverName: "postgres",
@@ -84,20 +84,20 @@ var driverMapping = map[DriverName]storageDriverInfo{
 	},
 }
 
-// mysqlURI returns the MySQL connection URI to use for tests. It returns the
-// value in the ENV variable defined by MySQLURIEnv. If the value is empty,
-// returns defaultTestMySQLURI.
+// postgresqlURI returns the PostgreSQL connection URI to use for tests. It returns the
+// value in the ENV variable defined by PostgreSQLURIEnv. If the value is empty,
+// returns defaultTestPostgreSQLURI.
 //
 // We use an ENV variable, rather than a flag, for flexibility. Only a subset
 // of the tests in this repo require a database and import this package. With a
 // flag, it would be necessary to distinguish "go test" invocations that need a
 // database, and those that don't. ENV allows to "blanket apply" this setting.
-func mysqlURI(dbRef ...string) string {
+func postgresqlURI(dbRef ...string) string {
 	var stringurl string
-	if e := os.Getenv(MySQLURIEnv); len(e) > 0 {
+	if e := os.Getenv(PostgreSQLURIEnv); len(e) > 0 {
 		stringurl = e
 	} else {
-		stringurl = defaultTestMySQLURI
+		stringurl = defaultTestPostgreSQLURI
 	}
 
 	for _, ref := range dbRef {
@@ -145,9 +145,9 @@ func getURL(unparsedurl string) *url.URL {
 	return u
 }
 
-// MySQLAvailable indicates whether the configured MySQL database is available.
-func MySQLAvailable() bool {
-	return dbAvailable(DriverMySQL)
+// PostgreSQLAvailable indicates whether the configured PostgreSQL database is available.
+func PostgreSQLAvailable() bool {
+	return dbAvailable(DriverPostgreSQL)
 }
 
 // CockroachDBAvailable indicates whether the configured CockroachDB database is available.
@@ -282,13 +282,13 @@ func sanitize(script string) string {
 	return buf.String()
 }
 
-// SkipIfNoMySQL is a test helper that skips tests that require a local MySQL.
-func SkipIfNoMySQL(t *testing.T) {
+// SkipIfNoPostgreSQL is a test helper that skips tests that require a local PostgreSQL.
+func SkipIfNoPostgreSQL(t *testing.T) {
 	t.Helper()
-	if !MySQLAvailable() {
-		t.Skip("Skipping test as MySQL not available")
+	if !PostgreSQLAvailable() {
+		t.Skip("Skipping test as PostgreSQL not available")
 	}
-	t.Logf("Test MySQL available at %q", mysqlURI())
+	t.Logf("Test PostgreSQL available at %q", postgresqlURI())
 }
 
 // SkipIfNoCockroachDB is a test helper that skips tests that require a local CockroachDB.

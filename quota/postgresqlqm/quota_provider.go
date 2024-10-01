@@ -12,30 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysqlqm
+package postgresqlqm
 
 import (
 	"flag"
 
 	"github.com/google/trillian/quota"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/postgresql"
 	"k8s.io/klog/v2"
 )
 
-// QuotaManagerName identifies the MySQL quota implementation.
-const QuotaManagerName = "mysql"
+// QuotaManagerName identifies the PostgreSQL quota implementation.
+const QuotaManagerName = "postgresql"
 
 var maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
-	"Only effective for quota_system=mysql.")
+	"Only effective for quota_system=postgresql.")
 
 func init() {
-	if err := quota.RegisterProvider(QuotaManagerName, newMySQLQuotaManager); err != nil {
+	if err := quota.RegisterProvider(QuotaManagerName, newPostgreSQLQuotaManager); err != nil {
 		klog.Fatalf("Failed to register quota manager %v: %v", QuotaManagerName, err)
 	}
 }
 
-func newMySQLQuotaManager() (quota.Manager, error) {
-	db, err := mysql.GetDatabase()
+func newPostgreSQLQuotaManager() (quota.Manager, error) {
+	db, err := postgresql.GetDatabase()
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +43,6 @@ func newMySQLQuotaManager() (quota.Manager, error) {
 		DB:                 db,
 		MaxUnsequencedRows: *maxUnsequencedRows,
 	}
-	klog.Info("Using MySQL QuotaManager")
+	klog.Info("Using PostgreSQL QuotaManager")
 	return qm, nil
 }

@@ -1,4 +1,4 @@
-# MySQL / MariaDB version of the tree schema
+# PostgreSQL / MariaDB version of the tree schema
 
 -- ---------------------------------------------
 -- Tree stuff here
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS Subtree(
   Nodes                MEDIUMBLOB NOT NULL,
   SubtreeRevision      INTEGER NOT NULL,
   -- Key columns must be in ASC order in order to benefit from group-by/min-max
-  -- optimization in MySQL.
+  -- optimization in PostgreSQL.
   PRIMARY KEY(TreeId, SubtreeId, SubtreeRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );

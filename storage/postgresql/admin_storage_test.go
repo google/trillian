@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql/mysqlpb"
+	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"github.com/google/trillian/storage/testonly"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -32,7 +32,7 @@ import (
 
 const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = ?"
 
-func TestMysqlAdminStorage(t *testing.T) {
+func TestPostgresqlAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
 		cleanTestDB(DB)
 		return NewAdminStorage(DB)
@@ -140,7 +140,7 @@ func TestAdminTX_StorageSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
-	goodSettings, err := anypb.New(&mysqlpb.StorageOptions{})
+	goodSettings, err := anypb.New(&postgresqlpb.StorageOptions{})
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestAdminTX_GetTreeLegacies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		o := &mysqlpb.StorageOptions{}
+		o := &postgresqlpb.StorageOptions{}
 		if err := anypb.UnmarshalTo(readTree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
 			t.Fatal(err)
 		}

@@ -20,8 +20,8 @@ import (
 	_ "k8s.io/klog/v2"
 )
 
-func TestMySQLWarning(t *testing.T) {
-	if !MySQLAvailable() {
-		t.Error("Deliberate test failure as a reminder that all storage-related tests are being skipped due to absent MySQL")
+func TestPostgreSQLWarning(t *testing.T) {
+	if !PostgreSQLAvailable() {
+		t.Error("Deliberate test failure as a reminder that all storage-related tests are being skipped due to absent PostgreSQL")
 	}
 }

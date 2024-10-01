@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mysqlqm defines a MySQL-based quota.Manager implementation.
-package mysqlqm
+// Package postgresqlqm defines a PostgreSQL-based quota.Manager implementation.
+package postgresqlqm
 
 import (
 	"context"
@@ -43,12 +43,12 @@ const (
 // beyond the configured limit.
 var ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
 
-// QuotaManager is a MySQL-based quota.Manager implementation.
+// QuotaManager is a PostgreSQL-based quota.Manager implementation.
 //
 // It has two working modes: one queries the information schema for the number of Unsequenced rows,
 // the other does a select count(*) on the Unsequenced table. Information schema queries are
 // default, even though they are approximate, as they're constant time (select count(*) on InnoDB
-// based MySQL needs to traverse the index and may take quite a while to complete).
+// based PostgreSQL needs to traverse the index and may take quite a while to complete).
 //
 // QuotaManager only implements Global/Write quotas, which is based on the number of Unsequenced
 // rows (to be exact, tokens = MaxUnsequencedRows - actualUnsequencedRows).
@@ -99,7 +99,7 @@ func (m *QuotaManager) countUnsequenced(ctx context.Context) (int, error) {
 }
 
 func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
-	// turn off statistics caching for MySQL 8
+	// turn off statistics caching for PostgreSQL 8
 	if err := turnOffInformationSchemaCache(ctx, db); err != nil {
 		return 0, err
 	}
@@ -135,10 +135,10 @@ func countFromTable(ctx context.Context, db *sql.DB) (int, error) {
 	return count, nil
 }
 
-// turnOffInformationSchemaCache turn off statistics caching for MySQL 8
+// turnOffInformationSchemaCache turn off statistics caching for PostgreSQL 8
 // To always retrieve the latest statistics directly from the storage engine and bypass cached values, set information_schema_stats_expiry to 0.
-// See https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_information_schema_stats_expiry
-// MySQL versions prior to 8 will fail safely.
+// See https://dev.postgresql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_information_schema_stats_expiry
+// PostgreSQL versions prior to 8 will fail safely.
 func turnOffInformationSchemaCache(ctx context.Context, db *sql.DB) error {
 	opt := "information_schema_stats_expiry"
 	res := db.QueryRowContext(ctx, "SHOW VARIABLES LIKE '"+opt+"'")
@@ -146,7 +146,7 @@ func turnOffInformationSchemaCache(ctx context.Context, db *sql.DB) error {
 	var expiry int
 
 	if err := res.Scan(&none, &expiry); err != nil {
-		// fail safely for all versions of MySQL prior to 8
+		// fail safely for all versions of PostgreSQL prior to 8
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}

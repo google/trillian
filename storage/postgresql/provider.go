@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
 	"crypto/tls"
@@ -27,76 +27,76 @@ import (
 	"github.com/google/trillian/storage"
 	"k8s.io/klog/v2"
 
-	// Load MySQL driver
-	"github.com/go-sql-driver/mysql"
+	// Load PostgreSQL driver
+	"github.com/go-sql-driver/postgresql"
 )
 
 var (
-	mySQLURI        = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	maxConns        = flag.Int("mysql_max_conns", 0, "Maximum connections to the database")
-	maxIdle         = flag.Int("mysql_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
-	mySQLTLSCA      = flag.String("mysql_tls_ca", "", "Path to the CA certificate file for MySQL TLS connection ")
-	mySQLServerName = flag.String("mysql_server_name", "", "Name of the MySQL server to be used as the Server Name in the TLS configuration")
+	postgreSQLURI        = flag.String("postgresql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for PostgreSQL database")
+	maxConns        = flag.Int("postgresql_max_conns", 0, "Maximum connections to the database")
+	maxIdle         = flag.Int("postgresql_max_idle_conns", -1, "Maximum idle database connections in the connection pool")
+	postgreSQLTLSCA      = flag.String("postgresql_tls_ca", "", "Path to the CA certificate file for PostgreSQL TLS connection ")
+	postgreSQLServerName = flag.String("postgresql_server_name", "", "Name of the PostgreSQL server to be used as the Server Name in the TLS configuration")
 
-	mysqlMu              sync.Mutex
-	mysqlErr             error
-	mysqlDB              *sql.DB
-	mysqlStorageInstance *mysqlProvider
+	postgresqlMu              sync.Mutex
+	postgresqlErr             error
+	postgresqlDB              *sql.DB
+	postgresqlStorageInstance *postgresqlProvider
 )
 
-// GetDatabase returns an instance of MySQL database, or creates one.
+// GetDatabase returns an instance of PostgreSQL database, or creates one.
 //
-// TODO(pavelkalinnikov): Make the dependency of MySQL quota provider from
-// MySQL storage provider explicit.
+// TODO(pavelkalinnikov): Make the dependency of PostgreSQL quota provider from
+// PostgreSQL storage provider explicit.
 func GetDatabase() (*sql.DB, error) {
-	mysqlMu.Lock()
-	defer mysqlMu.Unlock()
-	return getMySQLDatabaseLocked()
+	postgresqlMu.Lock()
+	defer postgresqlMu.Unlock()
+	return getPostgreSQLDatabaseLocked()
 }
 
 func init() {
-	if err := storage.RegisterProvider("mysql", newMySQLStorageProvider); err != nil {
-		klog.Fatalf("Failed to register storage provider mysql: %v", err)
+	if err := storage.RegisterProvider("postgresql", newPostgreSQLStorageProvider); err != nil {
+		klog.Fatalf("Failed to register storage provider postgresql: %v", err)
 	}
 }
 
-type mysqlProvider struct {
+type postgresqlProvider struct {
 	db *sql.DB
 	mf monitoring.MetricFactory
 }
 
-func newMySQLStorageProvider(mf monitoring.MetricFactory) (storage.Provider, error) {
-	mysqlMu.Lock()
-	defer mysqlMu.Unlock()
-	if mysqlStorageInstance == nil {
-		db, err := getMySQLDatabaseLocked()
+func newPostgreSQLStorageProvider(mf monitoring.MetricFactory) (storage.Provider, error) {
+	postgresqlMu.Lock()
+	defer postgresqlMu.Unlock()
+	if postgresqlStorageInstance == nil {
+		db, err := getPostgreSQLDatabaseLocked()
 		if err != nil {
 			return nil, err
 		}
-		mysqlStorageInstance = &mysqlProvider{
+		postgresqlStorageInstance = &postgresqlProvider{
 			db: db,
 			mf: mf,
 		}
 	}
-	return mysqlStorageInstance, nil
+	return postgresqlStorageInstance, nil
 }
 
-// getMySQLDatabaseLocked returns an instance of MySQL database, or creates
-// one. Requires mysqlMu to be locked.
-func getMySQLDatabaseLocked() (*sql.DB, error) {
-	if mysqlDB != nil || mysqlErr != nil {
-		return mysqlDB, mysqlErr
+// getPostgreSQLDatabaseLocked returns an instance of PostgreSQL database, or creates
+// one. Requires postgresqlMu to be locked.
+func getPostgreSQLDatabaseLocked() (*sql.DB, error) {
+	if postgresqlDB != nil || postgresqlErr != nil {
+		return postgresqlDB, postgresqlErr
 	}
-	dsn := *mySQLURI
-	if *mySQLTLSCA != "" {
-		if err := registerMySQLTLSConfig(); err != nil {
+	dsn := *postgreSQLURI
+	if *postgreSQLTLSCA != "" {
+		if err := registerPostgreSQLTLSConfig(); err != nil {
 			return nil, err
 		}
 		dsn += "?tls=custom"
 	}
 	db, err := OpenDB(dsn)
 	if err != nil {
-		mysqlErr = err
+		postgresqlErr = err
 		return nil, err
 	}
 	if *maxConns > 0 {
@@ -105,30 +105,30 @@ func getMySQLDatabaseLocked() (*sql.DB, error) {
 	if *maxIdle >= 0 {
 		db.SetMaxIdleConns(*maxIdle)
 	}
-	mysqlDB, mysqlErr = db, nil
+	postgresqlDB, postgresqlErr = db, nil
 	return db, nil
 }
 
-func (s *mysqlProvider) LogStorage() storage.LogStorage {
+func (s *postgresqlProvider) LogStorage() storage.LogStorage {
 	return NewLogStorage(s.db, s.mf)
 }
 
-func (s *mysqlProvider) AdminStorage() storage.AdminStorage {
+func (s *postgresqlProvider) AdminStorage() storage.AdminStorage {
 	return NewAdminStorage(s.db)
 }
 
-func (s *mysqlProvider) Close() error {
+func (s *postgresqlProvider) Close() error {
 	return s.db.Close()
 }
 
-// registerMySQLTLSConfig registers a custom TLS config for MySQL using a provided CA certificate and optional server name.
+// registerPostgreSQLTLSConfig registers a custom TLS config for PostgreSQL using a provided CA certificate and optional server name.
 // Returns an error if the CA certificate can't be read or added to the root cert pool, or when the registration of the TLS config fails.
-func registerMySQLTLSConfig() error {
-	if *mySQLTLSCA == "" {
+func registerPostgreSQLTLSConfig() error {
+	if *postgreSQLTLSCA == "" {
 		return nil
 	}
 	rootCertPool := x509.NewCertPool()
-	pem, err := os.ReadFile(*mySQLTLSCA)
+	pem, err := os.ReadFile(*postgreSQLTLSCA)
 	if err != nil {
 		return err
 	}
@@ -138,8 +138,8 @@ func registerMySQLTLSConfig() error {
 	tlsConfig := &tls.Config{
 		RootCAs: rootCertPool,
 	}
-	if *mySQLServerName != "" {
-		tlsConfig.ServerName = *mySQLServerName
+	if *postgreSQLServerName != "" {
+		tlsConfig.ServerName = *postgreSQLServerName
 	}
-	return mysql.RegisterTLSConfig("custom", tlsConfig)
+	return postgresql.RegisterTLSConfig("custom", tlsConfig)
 }

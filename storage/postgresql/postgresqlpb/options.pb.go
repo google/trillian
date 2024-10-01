@@ -18,7 +18,7 @@
 // 	protoc        v3.20.1
 // source: options.proto
 
-package mysqlpb
+package postgresqlpb
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -34,7 +34,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// StorageOptions contains configuration parameters for MySQL implementation
+// StorageOptions contains configuration parameters for PostgreSQL implementation
 // of the storage backend. This is envisioned only to be used for changes that
 // would be breaking, but need to support old behaviour for backwards compatibility.
 type StorageOptions struct {
@@ -115,7 +115,7 @@ func file_options_proto_rawDescGZIP() []byte {
 
 var file_options_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_options_proto_goTypes = []any{
-	(*StorageOptions)(nil), // 0: mysqlpb.StorageOptions
+	(*StorageOptions)(nil), // 0: postgresqlpb.StorageOptions
 }
 var file_options_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

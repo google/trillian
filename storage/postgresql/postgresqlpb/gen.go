@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mysqlpb contains protobuf definitions used by the mysql implementation.
-package mysqlpb
+// Package postgresqlpb contains protobuf definitions used by the postgresql implementation.
+package postgresqlpb
 
 //go:generate protoc -I=. --go_out=paths=source_relative:. options.proto

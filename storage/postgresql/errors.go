@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
-	"github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/postgresql"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -27,22 +27,22 @@ const (
 	errNumDeadlock = 1213
 )
 
-// mysqlToGRPC converts some types of MySQL errors to GRPC errors. This gives
+// postgresqlToGRPC converts some types of PostgreSQL errors to GRPC errors. This gives
 // clients more signal when the operation can be retried.
-func mysqlToGRPC(err error) error {
-	mysqlErr, ok := err.(*mysql.MySQLError)
+func postgresqlToGRPC(err error) error {
+	postgresqlErr, ok := err.(*postgresql.PostgreSQLError)
 	if !ok {
 		return err
 	}
-	if mysqlErr.Number == errNumDeadlock {
-		return status.Errorf(codes.Aborted, "MySQL: %v", mysqlErr)
+	if postgresqlErr.Number == errNumDeadlock {
+		return status.Errorf(codes.Aborted, "PostgreSQL: %v", postgresqlErr)
 	}
 	return err
 }
 
 func isDuplicateErr(err error) bool {
 	switch err := err.(type) {
-	case *mysql.MySQLError:
+	case *postgresql.PostgreSQLError:
 		return err.Number == errNumDuplicate
 	default:
 		return false

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysqlqm_test
+package postgresqlqm_test
 
 import (
 	"context"
@@ -24,9 +24,9 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
-	"github.com/google/trillian/quota/mysqlqm"
+	"github.com/google/trillian/quota/postgresqlqm"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/postgresql"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/types"
 
@@ -34,10 +34,10 @@ import (
 )
 
 func TestQuotaManager_GetTokens(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
+	testdb.SkipIfNoPostgreSQL(t)
 	ctx := context.Background()
 
-	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverPostgreSQL)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
@@ -106,16 +106,16 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 		// Test general cases using select count(*) to avoid flakiness / allow for more
 		// precise assertions.
 		// See TestQuotaManager_GetTokens_InformationSchema for information schema tests.
-		qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows, UseSelectCount: true}
+		qm := &postgresqlqm.QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows, UseSelectCount: true}
 		err := qm.GetTokens(ctx, test.numTokens, test.specs)
-		if hasErr := err == mysqlqm.ErrTooManyUnsequencedRows; hasErr != test.wantErr {
+		if hasErr := err == postgresqlqm.ErrTooManyUnsequencedRows; hasErr != test.wantErr {
 			t.Errorf("%v: GetTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
 		}
 	}
 }
 
 func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
+	testdb.SkipIfNoPostgreSQL(t)
 	ctx := context.Background()
 
 	maxUnsequenced := 20
@@ -131,7 +131,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 	for _, test := range tests {
 		desc := fmt.Sprintf("useSelectCount = %v", test.useSelectCount)
 		t.Run(desc, func(t *testing.T) {
-			db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
+			db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverPostgreSQL)
 			if err != nil {
 				t.Fatalf("NewTrillianDB() returned err = %v", err)
 			}
@@ -142,7 +142,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 				t.Fatalf("createTree() returned err = %v", err)
 			}
 
-			qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
+			qm := &postgresqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
 
 			// All GetTokens() calls where leaves < maxUnsequenced should succeed:
 			// information_schema may be outdated, but it should refer to a valid point in the
@@ -171,7 +171,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 					stop = true
 				default:
 					// An error means that GetTokens is working correctly
-					stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == mysqlqm.ErrTooManyUnsequencedRows
+					stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == postgresqlqm.ErrTooManyUnsequencedRows
 				}
 			}
 		})
@@ -179,16 +179,16 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 }
 
 func TestQuotaManager_Noops(t *testing.T) {
-	testdb.SkipIfNoMySQL(t)
+	testdb.SkipIfNoPostgreSQL(t)
 	ctx := context.Background()
 
-	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverMySQL)
+	db, done, err := testdb.NewTrillianDB(ctx, testdb.DriverPostgreSQL)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
 	defer done(ctx)
 
-	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: 1000}
+	qm := &postgresqlqm.QuotaManager{DB: db, MaxUnsequencedRows: 1000}
 	specs := allSpecs(ctx, qm, 10 /* treeID */)
 
 	tests := []struct {
@@ -238,7 +238,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	var tree *trillian.Tree
 
 	{
-		as := mysql.NewAdminStorage(db)
+		as := postgresql.NewAdminStorage(db)
 		err := as.ReadWriteTransaction(ctx, func(ctx context.Context, tx storage.AdminTX) error {
 			var err error
 			tree, err = tx.CreateTree(ctx, stestonly.LogTree)
@@ -250,7 +250,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	}
 
 	{
-		ls := mysql.NewLogStorage(db, nil)
+		ls := postgresql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 			logRoot, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
 			if err != nil {
@@ -286,7 +286,7 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 		})
 	}
 
-	ls := mysql.NewLogStorage(db, nil)
+	ls := postgresql.NewLogStorage(db, nil)
 	_, err := ls.QueueLeaves(ctx, tree, leaves, time.Now())
 	return err
 }

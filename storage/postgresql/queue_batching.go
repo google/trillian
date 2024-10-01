@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package postgresql
 
 import (
 	"context"
@@ -121,7 +121,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	return t.removeSequencedLeaves(ctx, dequeuedLeaves)
 }
 
-func (m *mySQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
+func (m *postgreSQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
 	return m.getStmt(ctx, deleteUnsequencedSQL, num, "?", "?")
 }
 

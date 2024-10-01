@@ -13,11 +13,11 @@
 // limitations under the License.
 
 syntax = "proto3";
-option go_package = "github.com/google/trillian/storage/mysql/mysqlpb";
+option go_package = "github.com/google/trillian/storage/postgresql/postgresqlpb";
 
-package mysqlpb;
+package postgresqlpb;
 
-// StorageOptions contains configuration parameters for MySQL implementation
+// StorageOptions contains configuration parameters for PostgreSQL implementation
 // of the storage backend. This is envisioned only to be used for changes that
 // would be breaking, but need to support old behaviour for backwards compatibility.
 message StorageOptions {
