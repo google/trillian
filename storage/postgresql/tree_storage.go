@@ -78,9 +78,15 @@ type postgreSQLTreeStorage struct {
 	// (See https://github.com/jackc/pgx/wiki/Automatic-Prepared-Statement-Caching)
 }
 
-// OpenDB opens a database connection for all PostgreSQL-based storage implementations.
+// OpenDB opens a database connection pool for all PostgreSQL-based storage implementations.
 func OpenDB(dbURL string) (*pgxpool.Pool, error) {
-	db, err := pgxpool.New("postgresql", dbURL)
+	pgxConfig, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		klog.Warningf("Could not parse PostgreSQL connection URI, check config: %s", err)
+		return nil, err
+	}
+
+	db, err := pgxpool.NewWithConfig(context.TODO(), pgxConfig)
 	if err != nil {
 		// Don't log uri as it could contain credentials
 		klog.Warningf("Could not open PostgreSQL database, check config: %s", err)

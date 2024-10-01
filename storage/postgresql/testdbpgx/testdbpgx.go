@@ -158,7 +158,7 @@ func CockroachDBAvailable() bool {
 func dbAvailable(driver DriverName) bool {
 	driverName := driverMapping[driver].sqlDriverName
 	uri := driverMapping[driver].uriFunc()
-	db, err := pgxpool.New(driverName, uri)
+	db, err := pgxpool.New(context.TODO(), uri)
 	if err != nil {
 		log.Printf("pgxpool.New(): %v", err)
 		return false
@@ -205,7 +205,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(con
 		return nil, nil, fmt.Errorf("unknown driver %q", driver)
 	}
 
-	db, err := pgxpool.New(inf.sqlDriverName, inf.uriFunc())
+	db, err := pgxpool.New(ctx, inf.uriFunc())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -222,7 +222,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(con
 		return nil, nil, fmt.Errorf("failed to close DB: %v", err)
 	}
 	uri := inf.uriFunc(name)
-	db, err = pgxpool.New(inf.sqlDriverName, uri)
+	db, err = pgxpool.New(ctx, uri)
 	if err != nil {
 		return nil, nil, err
 	}
