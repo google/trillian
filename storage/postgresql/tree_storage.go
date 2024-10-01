@@ -273,7 +273,6 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}
-	_, _ = r.RowsAffected()
 	return nil
 }
 
@@ -284,12 +283,7 @@ func checkResultOkAndRowCountIs(res pgconn.CommandTag, err error, count int64) e
 	}
 
 	// Otherwise we have to look at the result of the operation
-	rowsAffected, rowsError := res.RowsAffected()
-
-	if rowsError != nil {
-		return postgresqlToGRPC(rowsError)
-	}
-
+	rowsAffected := res.RowsAffected()
 	if rowsAffected != count {
 		return fmt.Errorf("expected %d row(s) to be affected but saw: %d", count,
 			rowsAffected)
