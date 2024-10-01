@@ -621,8 +621,7 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 	}
 	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
 
-	args := []interface{}{start, start + count, t.treeID}
-	rows, err := t.tx.Query(ctx, selectLeavesByRangeSQL, args...)
+	rows, err := t.tx.Query(ctx, selectLeavesByRangeSQL, start, start+count, t.treeID)
 	if err != nil {
 		klog.Warningf("Failed to get leaves by range: %s", err)
 		return nil, err
