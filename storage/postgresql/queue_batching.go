@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/klog/v2"
 )

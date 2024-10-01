@@ -17,7 +17,6 @@ package postgresql
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/gob"
 	"fmt"
 	"testing"
@@ -26,6 +25,8 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )

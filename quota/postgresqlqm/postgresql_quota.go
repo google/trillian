@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/google/trillian/quota"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"k8s.io/klog/v2"
 )
 

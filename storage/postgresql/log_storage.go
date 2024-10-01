@@ -31,6 +31,8 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/tree"
 	"github.com/google/trillian/types"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"google.golang.org/grpc/codes"

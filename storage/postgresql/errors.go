@@ -15,7 +15,6 @@
 package postgresql
 
 import (
-	"github.com/go-sql-driver/postgresql"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

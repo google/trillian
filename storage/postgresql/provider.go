@@ -17,7 +17,6 @@ package postgresql
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"database/sql"
 	"errors"
 	"flag"
 	"os"
@@ -28,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 
 	// Load PostgreSQL driver
-	"github.com/go-sql-driver/postgresql"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (

@@ -18,7 +18,6 @@ package testdbpgx
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/url"
@@ -31,8 +30,9 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 
-	_ "github.com/go-sql-driver/postgresql" // postgresql driver
-	_ "github.com/lib/pq"              // postgres driver
+	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/pgxpool" // postgresql driver
+	_ "github.com/lib/pq"               // postgres driver
 )
 
 const (

@@ -17,7 +17,6 @@ package postgresqlqm_test
 import (
 	"context"
 	"crypto"
-	"database/sql"
 	"fmt"
 	"testing"
 	"time"
@@ -29,6 +28,7 @@ import (
 	"github.com/google/trillian/storage/postgresql"
 	testdb "github.com/google/trillian/storage/postgresql/testdbpgx"
 	"github.com/google/trillian/types"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 )
