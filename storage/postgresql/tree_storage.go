@@ -37,7 +37,14 @@ import (
 
 // These statements are fixed
 const (
-	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL + ` ON DUPLICATE KEY UPDATE Nodes=VALUES(Nodes)`
+	createTempSubtreeTable = `CREATE TEMP TABLE TempSubtree (
+	TreeId BIGINT,
+	SubtreeId BYTEA,
+	Nodes BYTEA,
+	SubtreeRevision INTEGER,
+	CONSTRAINT TempSubtree_pk PRIMARY KEY (TreeId,SubtreeId,SubtreeRevision)
+) ON COMMIT DROP`
+	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) SELECT TreeId, SubtreeId, Nodes, SubtreeRevision FROM TempSubtree ON CONFLICT ON CONSTRAINT TempSubtree_pk DO UPDATE Nodes=EXCLUDED.Nodes`
 	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
 
@@ -223,7 +230,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	// TODO(al): probably need to be able to batch this in the case where we have
 	// a really large number of subtrees to store.
-	args := make([]interface{}, 0, len(subtrees))
+	rows := make([][]interface{}, 0, len(subtrees))
 
 	// If not using subtree revisions then default value of 0 is fine. There is no
 	// significance to this value, other than it cannot be NULL in the DB.
@@ -241,13 +248,30 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		if err != nil {
 			return err
 		}
-		args = append(args, t.treeID)
-		args = append(args, s.Prefix)
-		args = append(args, subtreeBytes)
-		args = append(args, subtreeRev)
+		rows = append(rows, []interface{}{t.treeID, s.Prefix, subtreeBytes, subtreeRev})
 	}
 
-	r, err := t.tx.Exec(ctx, insertSubtreeMultiSQL, args...)
+	// Create temporary subtree table.
+	_, err := t.tx.Exec(ctx, createTempSubtreeTable)
+	if err != nil {
+		klog.Warningf("Failed to create temporary subtree table: %s", err)
+		return err
+	}
+
+	// Copy subtrees to temporary table.
+	_, err = t.tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"TempSubtree"},
+		[]string{"TreeId", "SubtreeId", "Nodes", "SubtreeRevision"},
+		pgx.CopyFromRows(rows),
+	)
+	if err != nil {
+		klog.Warningf("Failed to copy merkle subtrees: %s", err)
+		return err
+	}
+
+	// Upsert the subtrees.
+	_, err = t.tx.Exec(ctx, insertSubtreeMultiSQL)
 	if err != nil {
 		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
