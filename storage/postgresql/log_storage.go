@@ -47,33 +47,40 @@ const (
 	insertLeafDataSQL      = "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES" + valuesPlaceholder5
 	insertSequencedLeafSQL = "INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"
 
-	selectNonDeletedTreeIDByTypeAndStateSQL = `
-		SELECT TreeId FROM Trees
-		  WHERE TreeType IN($1,$2)
-		  AND TreeState IN($3,$4)
-		  AND (Deleted IS NULL OR Deleted = 'false')`
+	selectNonDeletedTreeIDByTypeAndStateSQL = "SELECT TreeId " +
+		"FROM Trees " +
+		"WHERE TreeType IN($1,$2)" +
+		" AND TreeState IN($3,$4)" +
+		" AND (Deleted IS NULL OR Deleted='false')"
 
-	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
-			FROM TreeHead WHERE TreeId=$1
-			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
+	selectLatestSignedLogRootSQL = "SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature " +
+		"FROM TreeHead " +
+		"WHERE TreeId=$1 " +
+		"ORDER BY TreeHeadTimestamp DESC " +
+		"LIMIT 1"
 
-	selectLeavesByRangeSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.SequenceNumber >= $1 AND s.SequenceNumber < $2 AND l.TreeId = $3 AND s.TreeId = l.TreeId` + orderBySequenceNumberSQL
+	selectLeavesByRangeSQL = "SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos " +
+		"FROM SequencedLeafData s" +
+		" INNER JOIN LeafData l ON (s.LeafIdentityHash=l.LeafIdentityHash AND s.TreeId=l.TreeId) " +
+		"WHERE s.SequenceNumber>=$1" +
+		" AND s.SequenceNumber<$2" +
+		" AND l.TreeId=$3" + orderBySequenceNumberSQL
 
-	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l,SequencedLeafData s
-			WHERE l.LeafIdentityHash = s.LeafIdentityHash
-			AND s.MerkleLeafHash = ANY($1) AND l.TreeId = $2 AND s.TreeId = l.TreeId`
+	selectLeavesByMerkleHashSQL = "SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos " +
+		"FROM SequencedLeafData s" +
+		" INNER JOIN LeafData l ON (s.LeafIdentityHash=l.LeafIdentityHash AND s.TreeId=l.TreeId) " +
+		"WHERE s.MerkleLeafHash=ANY($1)" +
+		" AND l.TreeId=$2"
 	// TODO(#1548): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
 	dummyMerkleLeafHash = "00000000000000000000000000000000"
 	// This statement returns a dummy Merkle leaf hash value (which must be
 	// of the right size) so that its signature matches that of the other
 	// leaf-selection statements.
-	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
-			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
-			WHERE l.LeafIdentityHash = ANY($1) AND l.TreeId = $2`
+	selectLeavesByLeafIdentityHashSQL = "SELECT E'\\\\x" + dummyMerkleLeafHash + "',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos " +
+		"FROM LeafData l" +
+		" LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash=s.LeafIdentityHash AND l.TreeId=s.TreeId) " +
+		"WHERE l.LeafIdentityHash=ANY($1)" +
+		" AND l.TreeId=$2"
 
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"

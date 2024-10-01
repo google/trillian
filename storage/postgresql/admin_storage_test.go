@@ -31,7 +31,9 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = $1"
+const selectTreeControlByID = "SELECT SigningEnabled,SequencingEnabled,SequenceIntervalSeconds " +
+	"FROM TreeControl " +
+	"WHERE TreeId=$1"
 
 func TestPostgresqlAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
@@ -261,7 +263,7 @@ func TestAdminTX_GetTreeLegacies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := tx.Exec("UPDATE Trees SET PublicKey = $1 WHERE TreeId = $2", tC.key, tree.TreeId); err != nil {
+		if _, err := tx.Exec("UPDATE Trees SET PublicKey=$1 WHERE TreeId=$2", tC.key, tree.TreeId); err != nil {
 			t.Fatal(err)
 		}
 		if err := tx.Commit(ctx); err != nil {
@@ -304,7 +306,7 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 	// database and check that the rows are gone, so let's do just that.
 	// If there's no record on Trees, then there can be no record in any of the dependent tables.
 	var name string
-	if err := DB.QueryRow(ctx, "SELECT DisplayName FROM Trees WHERE TreeId = $1", tree.TreeId).Scan(&name); err != pgx.ErrNoRows {
+	if err := DB.QueryRow(ctx, "SELECT DisplayName FROM Trees WHERE TreeId=$1", tree.TreeId).Scan(&name); err != pgx.ErrNoRows {
 		t.Errorf("QueryRow() returned err = %v, want = %v", err, pgx.ErrNoRows)
 	}
 }
@@ -333,6 +335,6 @@ func TestCheckDatabaseAccessible_OK(t *testing.T) {
 }
 
 func setNulls(ctx context.Context, db *pgxpool.Pool, treeID int64) error {
-	_, err := db.Exec(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = $1", treeID)
+	_, err := db.Exec(ctx, "UPDATE Trees SET DisplayName=NULL,Description=NULL WHERE TreeId=$1", treeID)
 	return err
 }

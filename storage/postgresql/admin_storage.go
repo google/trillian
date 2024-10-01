@@ -39,32 +39,14 @@ import (
 const (
 	defaultSequenceIntervalSeconds = 60
 
-	nonDeletedWhere = " WHERE (Deleted IS NULL OR Deleted = 'false')"
+	selectTrees = "SELECT TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,PrivateKey,PublicKey,MaxRootDurationMillis,Deleted,DeleteTimeMillis " +
+		"FROM Trees" // PrivateKey is unused; PublicKey is used to store StorageSettings.
+	selectNonDeletedTrees = selectTrees + " WHERE (Deleted IS NULL OR Deleted='false')"
+	selectTreeByID        = selectTrees + " WHERE TreeId=$1"
 
-	selectTrees = `
-		SELECT
-			TreeId,
-			TreeState,
-			TreeType,
-			HashStrategy,
-			HashAlgorithm,
-			SignatureAlgorithm,
-			DisplayName,
-			Description,
-			CreateTimeMillis,
-			UpdateTimeMillis,
-			PrivateKey, -- Unused
-			PublicKey, -- Used to store StorageSettings
-			MaxRootDurationMillis,
-			Deleted,
-			DeleteTimeMillis
-		FROM Trees`
-	selectNonDeletedTrees = selectTrees + nonDeletedWhere
-	selectTreeByID        = selectTrees + " WHERE TreeId = $1"
-
-	updateTreeSQL = `UPDATE Trees
-		SET TreeState = $1, TreeType = $2, DisplayName = $3, Description = $4, UpdateTimeMillis = $5, MaxRootDurationMillis = $6, PrivateKey = $7
-		WHERE TreeId = $8`
+	updateTreeSQL = "UPDATE Trees " +
+		"SET TreeState=$1,TreeType=$2,DisplayName=$3,Description=$4,UpdateTimeMillis=$5,MaxRootDurationMillis=$6,PrivateKey=$7 " +
+		"WHERE TreeId=$8"
 )
 
 // NewAdminStorage returns a PostgreSQL storage.AdminStorage implementation backed by DB.
@@ -245,21 +227,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	_, err = t.tx.Exec(
 		ctx,
-		`INSERT INTO Trees(
-			TreeId,
-			TreeState,
-			TreeType,
-			HashStrategy,
-			HashAlgorithm,
-			SignatureAlgorithm,
-			DisplayName,
-			Description,
-			CreateTimeMillis,
-			UpdateTimeMillis,
-			PrivateKey, -- Unused
-			PublicKey, -- Used to store StorageSettings
-			MaxRootDurationMillis)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		"INSERT INTO Trees(TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,PrivateKey,PublicKey,MaxRootDurationMillis) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
@@ -280,12 +248,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	_, err = t.tx.Exec(
 		ctx,
-		`INSERT INTO TreeControl(
-			TreeId,
-			SigningEnabled,
-			SequencingEnabled,
-			SequenceIntervalSeconds)
-		VALUES($1, $2, $3, $4)`,
+		"INSERT INTO TreeControl(TreeId,SigningEnabled,SequencingEnabled,SequenceIntervalSeconds) VALUES($1,$2,$3,$4)",
 		newTree.TreeId,
 		true, /* SigningEnabled */
 		true, /* SequencingEnabled */
@@ -364,7 +327,7 @@ func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool,
 	}
 	if _, err := t.tx.Exec(
 		ctx,
-		"UPDATE Trees SET Deleted = $1, DeleteTimeMillis = $2 WHERE TreeId = $3",
+		"UPDATE Trees SET Deleted=$1, DeleteTimeMillis=$2 WHERE TreeId=$3",
 		deleted, deleteTimeMillis, treeID); err != nil {
 		return nil, err
 	}
@@ -377,16 +340,16 @@ func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 	}
 
 	// TreeControl didn't have "ON DELETE CASCADE" on previous versions, so let's hit it explicitly
-	if _, err := t.tx.Exec(ctx, "DELETE FROM TreeControl WHERE TreeId = $1", treeID); err != nil {
+	if _, err := t.tx.Exec(ctx, "DELETE FROM TreeControl WHERE TreeId=$1", treeID); err != nil {
 		return err
 	}
-	_, err := t.tx.Exec(ctx, "DELETE FROM Trees WHERE TreeId = $1", treeID)
+	_, err := t.tx.Exec(ctx, "DELETE FROM Trees WHERE TreeId=$1", treeID)
 	return err
 }
 
 func validateDeleted(ctx context.Context, tx pgx.Tx, treeID int64, wantDeleted bool) error {
 	var nullDeleted sql.NullBool
-	switch err := tx.QueryRow(ctx, "SELECT Deleted FROM Trees WHERE TreeId = $1", treeID).Scan(&nullDeleted); {
+	switch err := tx.QueryRow(ctx, "SELECT Deleted FROM Trees WHERE TreeId=$1", treeID).Scan(&nullDeleted); {
 	case err == pgx.ErrNoRows:
 		return status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
