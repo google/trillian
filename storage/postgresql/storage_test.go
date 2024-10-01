@@ -291,7 +291,7 @@ func cleanTestDB(db *pgxpool.Pool) {
 }
 
 func getVersion(db *pgxpool.Pool) (string, error) {
-	rows, err := db.Query(context.TODO(), "SELECT @@GLOBAL.version")
+	rows, err := db.Query(context.TODO(), "SELECT version()")
 	if err != nil {
 		return "", fmt.Errorf("getVersion: failed to perform query: %v", err)
 	}
