@@ -124,7 +124,7 @@ func (t *adminTX) Commit() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.closed = true
-	return t.tx.Commit()
+	return t.tx.Commit(context.TODO())
 }
 
 func (t *adminTX) Close() error {
@@ -134,7 +134,7 @@ func (t *adminTX) Close() error {
 		return nil
 	}
 	t.closed = true
-	return t.tx.Rollback()
+	return t.tx.Rollback(context.TODO())
 }
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {

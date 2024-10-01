@@ -264,7 +264,7 @@ func TestAdminTX_GetTreeLegacies(t *testing.T) {
 		if _, err := tx.Exec("UPDATE Trees SET PublicKey = ? WHERE TreeId = ?", tC.key, tree.TreeId); err != nil {
 			t.Fatal(err)
 		}
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			t.Fatal(err)
 		}
 		readTree, err := storage.GetTree(ctx, s, tree.TreeId)

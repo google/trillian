@@ -404,7 +404,7 @@ func (t *treeTX) Commit(ctx context.Context) error {
 		}
 	}
 	t.closed = true
-	if err := t.tx.Commit(); err != nil {
+	if err := t.tx.Commit(ctx); err != nil {
 		klog.Warningf("TX commit error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
 	}
@@ -413,7 +413,7 @@ func (t *treeTX) Commit(ctx context.Context) error {
 
 func (t *treeTX) rollbackInternal() error {
 	t.closed = true
-	if err := t.tx.Rollback(); err != nil {
+	if err := t.tx.Rollback(context.TODO()); err != nil {
 		klog.Warningf("TX rollback error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
 	}
