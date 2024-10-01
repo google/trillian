@@ -36,7 +36,7 @@ const (
 	// instance URI to use. The value must have a trailing slash.
 	PostgreSQLURIEnv = "TEST_POSTGRESQL_URI"
 
-	defaultTestPostgreSQLURI = "postgresql:///ctlog?host=localhost&user=ctlog"
+	defaultTestPostgreSQLURI = "postgresql:///template1?host=localhost&user=postgres&password=postgres"
 )
 
 type storageDriverInfo struct {
@@ -45,7 +45,7 @@ type storageDriverInfo struct {
 }
 
 var (
-	trillianPostgreSQLSchema = testonly.RelativeToPackage("../postgresql/schema/storage.sql")
+	trillianPostgreSQLSchema = testonly.RelativeToPackage("../schema/storage.sql")
 )
 
 // DriverName is the name of a database driver.
@@ -80,11 +80,20 @@ func postgresqlURI(dbRef ...string) string {
 	}
 
 	for _, ref := range dbRef {
-		separator := "&"
-		if strings.HasSuffix(stringurl, "&") {
-			separator = ""
+		if strings.Contains(ref, "=") {
+			separator := "&"
+			if strings.HasSuffix(stringurl, "&") {
+				separator = ""
+			}
+			stringurl = strings.Join([]string{stringurl, ref}, separator)
+		} else {
+			// No equals character, so use this string as the database name.
+			if s1 := strings.SplitN(stringurl, "//", 2); len(s1) == 2 {
+				if s2 := strings.SplitN(stringurl, "?", 2); len(s2) == 2 {
+					stringurl = s1[0] + "///" + ref + "?" + s2[1]
+				}
+			}
 		}
-		stringurl = strings.Join([]string{stringurl, ref}, separator)
 	}
 
 	return stringurl
@@ -161,6 +170,10 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(con
 	}
 
 	done := func(ctx context.Context) {
+		db.Close()
+		if db, err = pgxpool.New(ctx, inf.uriFunc()); err != nil {
+			klog.Warningf("Failed to reconnect: %v", err)
+		}
 		defer db.Close()
 		if _, err := db.Exec(ctx, fmt.Sprintf("DROP DATABASE %v", name)); err != nil {
 			klog.Warningf("Failed to drop test database %q: %v", name, err)
@@ -186,7 +199,8 @@ func NewTrillianDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(
 		return nil, nil, err
 	}
 
-	for _, stmt := range strings.Split(sanitize(string(sqlBytes)), ";") {
+	// Execute each statement in the schema file.  Each statement must end with a semicolon, and there must be a blank line before the next statement.
+	for _, stmt := range strings.Split(sanitize(string(sqlBytes)), ";\n\n") {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue

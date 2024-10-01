@@ -1,4 +1,7 @@
-# PostgreSQL version of the tree schema.
+-- PostgreSQL version of the tree schema.
+--
+-- Each statement must end with a semicolon, and there must be a blank line before the next statement.
+-- This will ensure that the testdbpgx tokenizer will handle semicolons in the PL/pgSQL function correctly.
 
 -- ---------------------------------------------
 -- Tree stuff here
@@ -7,10 +10,15 @@
 -- Tree parameters should not be changed after creation. Doing so can
 -- render the data in the tree unusable or inconsistent.
 CREATE TYPE TreeState AS ENUM ('ACTIVE', 'FROZEN', 'DRAINING');
+
 CREATE TYPE TreeType AS ENUM ('LOG', 'MAP', 'PREORDERED_LOG');
+
 CREATE TYPE HashStrategy AS ENUM ('RFC6962_SHA256', 'TEST_MAP_HASHER', 'OBJECT_RFC6962_SHA256', 'CONIKS_SHA512_256', 'CONIKS_SHA256');
+
 CREATE TYPE HashAlgorithm AS ENUM ('SHA256');
+
 CREATE TYPE SignatureAlgorithm AS ENUM ('ECDSA', 'RSA', 'ED25519');
+
 
 CREATE TABLE IF NOT EXISTS Trees(
   TreeId                BIGINT NOT NULL,
