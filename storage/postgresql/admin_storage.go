@@ -339,10 +339,6 @@ func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
 		return err
 	}
 
-	// TreeControl didn't have "ON DELETE CASCADE" on previous versions, so let's hit it explicitly
-	if _, err := t.tx.Exec(ctx, "DELETE FROM TreeControl WHERE TreeId=$1", treeID); err != nil {
-		return err
-	}
 	_, err := t.tx.Exec(ctx, "DELETE FROM Trees WHERE TreeId=$1", treeID)
 	return err
 }
