@@ -168,7 +168,7 @@ func dbAvailable(driver DriverName) bool {
 			log.Printf("db.Close(): %v", err)
 		}
 	}()
-	if err := db.Ping(); err != nil {
+	if err := db.Ping(context.TODO()); err != nil {
 		log.Printf("db.Ping(): %v", err)
 		return false
 	}
@@ -238,7 +238,7 @@ func newEmptyDB(ctx context.Context, driver DriverName) (*pgxpool.Pool, func(con
 		}
 	}
 
-	return db, done, db.Ping()
+	return db, done, db.Ping(ctx)
 }
 
 // NewTrillianDB creates an empty database with the Trillian schema. The database name is randomly

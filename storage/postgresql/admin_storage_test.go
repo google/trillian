@@ -263,7 +263,7 @@ func TestAdminTX_GetTreeLegacies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := tx.Exec("UPDATE Trees SET PublicKey=$1 WHERE TreeId=$2", tC.key, tree.TreeId); err != nil {
+		if _, err := tx.Exec(ctx, "UPDATE Trees SET PublicKey=$1 WHERE TreeId=$2", tC.key, tree.TreeId); err != nil {
 			t.Fatal(err)
 		}
 		if err := tx.Commit(ctx); err != nil {
