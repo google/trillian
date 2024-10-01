@@ -55,10 +55,12 @@ import (
 	_ "github.com/google/trillian/storage/cloudspanner"
 	_ "github.com/google/trillian/storage/crdb"
 	_ "github.com/google/trillian/storage/mysql"
+	_ "github.com/google/trillian/storage/postgresql"
 
 	// Load quota providers
 	_ "github.com/google/trillian/quota/crdbqm"
 	_ "github.com/google/trillian/quota/mysqlqm"
+	_ "github.com/google/trillian/quota/postgresqlqm"
 )
 
 var (
