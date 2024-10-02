@@ -292,6 +292,21 @@ func checkResultOkAndRowCountIs(res pgconn.CommandTag, err error, count int64) e
 	return nil
 }
 
+func checkResultOkAndCopyCountIs(rowsAffected int64, err error, count int64) error {
+	// The Exec() might have just failed
+	if err != nil {
+		return postgresqlToGRPC(err)
+	}
+
+	// Otherwise we have to look at the result of the operation
+	if rowsAffected != count {
+		return fmt.Errorf("expected %d row(s) to be affected but saw: %d", count,
+			rowsAffected)
+	}
+
+	return nil
+}
+
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
 func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
 	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {

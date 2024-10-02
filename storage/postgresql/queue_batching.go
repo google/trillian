@@ -21,8 +21,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/trillian"
@@ -62,13 +62,13 @@ func (t *logTreeTX) dequeueLeaf(rows pgx.Rows) (*trillian.LogLeaf, dequeuedLeaf,
 		return nil, nil, err
 	}
 
+	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
+	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
+	// supplied data was already written to LeafData as part of queueing the leaf.
 	queueTimestampProto := timestamppb.New(time.Unix(0, queueTimestamp))
 	if err := queueTimestampProto.CheckValid(); err != nil {
 		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %w", err)
 	}
-	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
-	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
-	// supplied data was already written to LeafData as part of queueing the leaf.
 	leaf := &trillian.LogLeaf{
 		LeafIdentityHash: leafIDHash,
 		MerkleLeafHash:   merkleHash,
@@ -95,27 +95,37 @@ func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []in
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
-	querySuffix := []string{}
-	args := []interface{}{}
+	rows := make([][]interface{}, 0, len(leaves))
 	dequeuedLeaves := make([]dequeuedLeaf, 0, len(leaves))
 	for _, leaf := range leaves {
+		// This should fail on insert but catch it early
+		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
+			return errors.New("sequenced leaf has incorrect hash size")
+		}
+
 		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
 			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		iTimestamp := leaf.IntegrateTimestamp.AsTime()
-		querySuffix = append(querySuffix, valuesPlaceholder5)
-		args = append(args, t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, iTimestamp.UnixNano())
+		rows = append(rows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, iTimestamp.UnixNano()})
 		qe, ok := t.dequeued[string(leaf.LeafIdentityHash)]
 		if !ok {
 			return fmt.Errorf("attempting to update leaf that wasn't dequeued. IdentityHash: %x", leaf.LeafIdentityHash)
 		}
 		dequeuedLeaves = append(dequeuedLeaves, qe)
 	}
-	result, err := t.tx.Exec(ctx, insertSequencedLeafSQL+strings.Join(querySuffix, ","), args...)
+
+	// Copy sequenced leaves to SequencedLeafData table.
+	n, err := t.tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"SequencedLeafData"},
+		[]string{"TreeId", "LeafIdentityHash", "MerkleLeafHash", "SequenceNumber", "IntegrateTimestampNanos"},
+		pgx.CopyFromRows(rows),
+	)
 	if err != nil {
-		klog.Warningf("Failed to update sequenced leaves: %s", err)
+		klog.Warningf("Failed to copy sequenced leaves: %s", err)
 	}
-	if err := checkResultOkAndRowCountIs(result, err, int64(len(leaves))); err != nil {
+	if err := checkResultOkAndCopyCountIs(n, err, int64(len(leaves))); err != nil {
 		return err
 	}
 
