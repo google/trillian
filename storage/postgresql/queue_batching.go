@@ -118,8 +118,8 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	// Copy sequenced leaves to SequencedLeafData table.
 	n, err := t.tx.CopyFrom(
 		ctx,
-		pgx.Identifier{"SequencedLeafData"},
-		[]string{"TreeId", "LeafIdentityHash", "MerkleLeafHash", "SequenceNumber", "IntegrateTimestampNanos"},
+		pgx.Identifier{"sequencedleafdata"},
+		[]string{"treeid", "leafidentityhash", "merkleleafhash", "sequencenumber", "integratetimestampnanos"},
 		pgx.CopyFromRows(rows),
 	)
 	if err != nil {

@@ -258,8 +258,8 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	// Copy subtrees to temporary table.
 	_, err = t.tx.CopyFrom(
 		ctx,
-		pgx.Identifier{"TempSubtree"},
-		[]string{"TreeId", "SubtreeId", "Nodes", "SubtreeRevision"},
+		pgx.Identifier{"tempsubtree"},
+		[]string{"treeid", "subtreeid", "nodes", "subtreerevision"},
 		pgx.CopyFromRows(rows),
 	)
 	if err != nil {
