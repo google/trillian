@@ -33,12 +33,3 @@ func postgresqlToGRPC(err error) error {
 	}
 	return err
 }
-
-func isDuplicateErr(err error) bool {
-	switch err := err.(type) {
-	case *pgconn.PgError:
-		return err.Code == pgerrcode.UniqueViolation
-	default:
-		return false
-	}
-}

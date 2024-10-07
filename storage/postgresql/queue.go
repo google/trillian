@@ -78,7 +78,7 @@ func (t *logTreeTX) dequeueLeaf(rows pgx.Rows) (*trillian.LogLeaf, dequeuedLeaf,
 }
 
 func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []interface{} {
-	return []interface{}{queueTimestamp.UnixNano()}
+	return []interface{}{queueTimestamp.UnixNano(), nil}
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {

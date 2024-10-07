@@ -42,10 +42,30 @@ import (
 )
 
 const (
-	valuesPlaceholder5 = "($1,$2,$3,$4,$5)"
+	createTempQueueLeavesTable = "CREATE TEMP TABLE TempQueueLeaves (" +
+		" TreeId BIGINT," +
+		" LeafIdentityHash BYTEA," +
+		" LeafValue BYTEA," +
+		" ExtraData BYTEA," +
+		" MerkleLeafHash BYTEA," +
+		" QueueTimestampNanos BIGINT," +
+		" QueueID BYTEA," +
+		" IsDuplicate BOOLEAN DEFAULT FALSE" +
+		") ON COMMIT DROP"
+	queueLeavesSQL = "SELECT * FROM queue_leaves()"
 
-	insertLeafDataSQL      = "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES" + valuesPlaceholder5
-	insertSequencedLeafSQL = "INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"
+	createTempAddSequencedLeavesTable = "CREATE TEMP TABLE TempAddSequencedLeaves (" +
+		" TreeId BIGINT," +
+		" LeafIdentityHash BYTEA," +
+		" LeafValue BYTEA," +
+		" ExtraData BYTEA," +
+		" MerkleLeafHash BYTEA," +
+		" QueueTimestampNanos BIGINT," +
+		" SequenceNumber BIGINT," +
+		" IsDuplicateLeafData BOOLEAN DEFAULT FALSE," +
+		" IsDuplicateSequencedLeafData BOOLEAN DEFAULT FALSE" +
+		") ON COMMIT DROP"
+	addSequencedLeavesSQL = "SELECT * FROM add_sequenced_leaves()"
 
 	selectNonDeletedTreeIDByTypeAndStateSQL = "SELECT TreeId " +
 		"FROM Trees " +
@@ -76,7 +96,7 @@ const (
 	// This statement returns a dummy Merkle leaf hash value (which must be
 	// of the right size) so that its signature matches that of the other
 	// leaf-selection statements.
-	selectLeavesByLeafIdentityHashSQL = "SELECT E'\\\\x" + dummyMerkleLeafHash + "',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos " +
+	selectLeavesByLeafIdentityHashSQL = "SELECT decode('" + dummyMerkleLeafHash + "','escape'),l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos " +
 		"FROM LeafData l" +
 		" LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash=s.LeafIdentityHash AND l.TreeId=s.TreeId) " +
 		"WHERE l.LeafIdentityHash=ANY($1)" +
@@ -95,26 +115,15 @@ var (
 	queuedDupCounter monitoring.Counter
 	dequeuedCounter  monitoring.Counter
 
-	queueLatency            monitoring.Histogram
-	queueInsertLatency      monitoring.Histogram
-	queueReadLatency        monitoring.Histogram
-	queueInsertLeafLatency  monitoring.Histogram
-	queueInsertEntryLatency monitoring.Histogram
-	dequeueLatency          monitoring.Histogram
-	dequeueSelectLatency    monitoring.Histogram
-	dequeueRemoveLatency    monitoring.Histogram
+	dequeueLatency       monitoring.Histogram
+	dequeueSelectLatency monitoring.Histogram
+	dequeueRemoveLatency monitoring.Histogram
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
 	queuedCounter = mf.NewCounter("postgresql_queued_leaves", "Number of leaves queued", logIDLabel)
 	queuedDupCounter = mf.NewCounter("postgresql_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
 	dequeuedCounter = mf.NewCounter("postgresql_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
-
-	queueLatency = mf.NewHistogram("postgresql_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
-	queueInsertLatency = mf.NewHistogram("postgresql_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)
-	queueReadLatency = mf.NewHistogram("postgresql_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in seconds", logIDLabel)
-	queueInsertLeafLatency = mf.NewHistogram("postgresql_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in seconds", logIDLabel)
-	queueInsertEntryLatency = mf.NewHistogram("postgresql_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in seconds", logIDLabel)
 
 	dequeueLatency = mf.NewHistogram("postgresql_dequeue_leaves_latency", "Latency of dequeue leaves operation in seconds", logIDLabel)
 	dequeueSelectLatency = mf.NewHistogram("postgresql_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in seconds", logIDLabel)
@@ -410,77 +419,79 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 	}
-	start := time.Now()
 	label := labelForTX(t)
 
 	ordLeaves := sortLeavesForInsert(leaves)
 	existingCount := 0
 	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
+	copyRows := make([][]interface{}, 0, len(ordLeaves))
 
+	// Prepare rows to copy.
 	for _, ol := range ordLeaves {
-		i, leaf := ol.idx, ol.leaf
+		leaf := ol.leaf
 
-		leafStart := time.Now()
 		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
 		qTimestamp := leaf.QueueTimestamp.AsTime()
-		_, err := t.tx.Exec(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
-		insertDuration := time.Since(leafStart)
-		observe(queueInsertLeafLatency, insertDuration, label)
-		if isDuplicateErr(err) {
-			// Remember the duplicate leaf, using the requested leaf for now.
-			existingLeaves[i] = leaf
-			existingCount++
-			queuedDupCounter.Inc(label)
-			continue
-		}
-		if err != nil {
-			klog.Warningf("Error inserting %d into LeafData: %s", i, err)
-			return nil, postgresqlToGRPC(err)
-		}
-
-		// Create the work queue entry
-		args := []interface{}{
-			t.treeID,
-			leaf.LeafIdentityHash,
-			leaf.MerkleLeafHash,
-		}
-		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, qTimestamp)...)
-		_, err = t.tx.Exec(
-			ctx,
-			insertUnsequencedEntrySQL,
-			args...,
-		)
-		if err != nil {
-			klog.Warningf("Error inserting into Unsequenced: %s", err)
-			return nil, postgresqlToGRPC(err)
-		}
-		leafDuration := time.Since(leafStart)
-		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)
+		args := queueArgs(t.treeID, leaf.LeafIdentityHash, qTimestamp)
+		copyRows = append(copyRows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, args[0], args[1]})
 	}
-	insertDuration := time.Since(start)
-	observe(queueInsertLatency, insertDuration, label)
+
+	// Create temporary table.
+	_, err := t.tx.Exec(ctx, createTempQueueLeavesTable)
+	if err != nil {
+		klog.Warningf("Failed to create tempqueueleaves table: %s", err)
+		return nil, postgresqlToGRPC(err)
+	}
+
+	// Copy rows to temporary table.
+	_, err = t.tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"tempqueueleaves"},
+		[]string{"treeid", "leafidentityhash", "leafvalue", "extradata", "merkleleafhash", "queuetimestampnanos", "queueid"},
+		pgx.CopyFromRows(copyRows),
+	)
+	if err != nil {
+		klog.Warningf("Failed to copy queued leaves: %s", err)
+		return nil, postgresqlToGRPC(err)
+	}
+
+	// Create the leaf data records, work queue entries, and obtain a deduplicated list of existing leaves.
+	var toRetrieve [][]byte
+	var leafIdentityHash []byte
+	if rows, err := t.tx.Query(ctx, queueLeavesSQL); err != nil {
+		klog.Warningf("Failed to queue leaves: %s", err)
+		return nil, postgresqlToGRPC(err)
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			if err = rows.Scan(&leafIdentityHash); err != nil {
+				klog.Warningf("Failed to scan row: %s", err)
+				return nil, postgresqlToGRPC(err)
+			}
+
+			for i, leaf := range leaves {
+				if bytes.Equal(leaf.LeafIdentityHash, leafIdentityHash) {
+					// Remember the duplicate leaf, using the requested leaf for now.
+					existingLeaves[i] = leaf
+					existingCount++
+					queuedDupCounter.Inc(label)
+				}
+			}
+			toRetrieve = append(toRetrieve, leafIdentityHash)
+		}
+		if rows.Err() != nil {
+			klog.Errorf("Failed processing rows: %s", err)
+			return nil, postgresqlToGRPC(err)
+		}
+	}
 	queuedCounter.Add(float64(len(leaves)), label)
 
 	if existingCount == 0 {
 		return existingLeaves, nil
 	}
 
-	// For existing leaves, we need to retrieve the contents.  First collate the desired LeafIdentityHash values
-	// We deduplicate the hashes to address https://github.com/google/trillian/issues/3603 but will be mapped
-	// back to the existingLeaves slice below
-	uniqueLeafMap := make(map[string]struct{}, len(existingLeaves))
-	var toRetrieve [][]byte
-	for _, existing := range existingLeaves {
-		if existing != nil {
-			key := string(existing.LeafIdentityHash)
-			if _, ok := uniqueLeafMap[key]; !ok {
-				uniqueLeafMap[key] = struct{}{}
-				toRetrieve = append(toRetrieve, existing.LeafIdentityHash)
-			}
-		}
-	}
 	results, err := t.getLeafDataByIdentityHash(ctx, toRetrieve)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve existing leaves: %v", err)
@@ -505,10 +516,6 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("failed to find existing leaf for hash %x", requested.LeafIdentityHash)
 		}
 	}
-	totalDuration := time.Since(start)
-	readDuration := totalDuration - insertDuration
-	observe(queueReadLatency, readDuration, label)
-	observe(queueLatency, totalDuration, label)
 
 	return existingLeaves, nil
 }
@@ -520,23 +527,10 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	ok := status.New(codes.OK, "OK").Proto()
 
-	// Leaves in this transaction are inserted in two tables. For each leaf, if
-	// one of the two inserts fails, we remove the side effect by rolling back to
-	// a savepoint installed before the first insert of the two.
-	const savepoint = "SAVEPOINT AddSequencedLeaves"
-	if _, err := t.tx.Exec(ctx, savepoint); err != nil {
-		klog.Errorf("Error adding savepoint: %s", err)
-		return nil, postgresqlToGRPC(err)
-	}
-	// TODO(pavelkalinnikov): Consider performance implication of executing this
-	// extra SAVEPOINT, especially for 1-entry batches. Optimize if necessary.
-
-	// Note: LeafData inserts are presumably protected from deadlocks due to
-	// sorting, but the order of the corresponding SequencedLeafData inserts
-	// becomes indeterministic. However, in a typical case when leaves are
-	// supplied in contiguous non-intersecting batches, the chance of having
-	// circular dependencies between transactions is significantly lower.
 	ordLeaves := sortLeavesForInsert(leaves)
+	copyRows := make([][]interface{}, 0, len(ordLeaves))
+
+	// Prepare rows to copy.
 	for _, ol := range ordLeaves {
 		i, leaf := ol.idx, ol.leaf
 
@@ -545,50 +539,65 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
 		}
 
-		if _, err := t.tx.Exec(ctx, savepoint); err != nil {
-			klog.Errorf("Error updating savepoint: %s", err)
-			return nil, postgresqlToGRPC(err)
-		}
-
+		copyRows = append(copyRows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, timestamp.UnixNano(), leaf.LeafIndex})
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
-
-		// TODO(pavelkalinnikov): Measure latencies.
-		_, err := t.tx.Exec(ctx, insertLeafDataSQL,
-			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, timestamp.UnixNano())
-		// TODO(pavelkalinnikov): Detach PREORDERED_LOG integration latency metric.
-
-		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
-		if isDuplicateErr(err) {
-			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
-			// Note: No rolling back to savepoint because there is no side effect.
-			continue
-		} else if err != nil {
-			klog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
-			return nil, postgresqlToGRPC(err)
-		}
-
-		_, err = t.tx.Exec(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
-			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
-		// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
-
-		if isDuplicateErr(err) {
-			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
-			if _, err := t.tx.Exec(ctx, "ROLLBACK TO "+savepoint); err != nil {
-				klog.Errorf("Error rolling back to savepoint: %s", err)
-				return nil, postgresqlToGRPC(err)
-			}
-		} else if err != nil {
-			klog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
-			return nil, postgresqlToGRPC(err)
-		}
-
-		// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
 	}
 
-	if _, err := t.tx.Exec(ctx, "RELEASE "+savepoint); err != nil {
-		klog.Errorf("Error releasing savepoint: %s", err)
+	// Create temporary table.
+	_, err := t.tx.Exec(ctx, createTempAddSequencedLeavesTable)
+	if err != nil {
+		klog.Warningf("Failed to create tempaddsequencedleaves table: %s", err)
 		return nil, postgresqlToGRPC(err)
 	}
+
+	// Copy rows to temporary table.
+	_, err = t.tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"tempaddsequencedleaves"},
+		[]string{"treeid", "leafidentityhash", "leafvalue", "extradata", "merkleleafhash", "queuetimestampnanos", "sequencenumber"},
+		pgx.CopyFromRows(copyRows),
+	)
+	if err != nil {
+		klog.Warningf("Failed to copy sequenced leaves: %s", err)
+		return nil, postgresqlToGRPC(err)
+	}
+
+	// Create the leaf data records and sequenced leaf data records, returning details of which records already existed.
+	if rows, err := t.tx.Query(ctx, addSequencedLeavesSQL); err != nil {
+		klog.Warningf("Failed to add sequenced leaves: %s", err)
+		return nil, postgresqlToGRPC(err)
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var leafIdentityHash []byte
+			var isDuplicateLeafData, isDuplicateSequencedLeafData bool
+			if err = rows.Scan(&leafIdentityHash, &isDuplicateLeafData, &isDuplicateSequencedLeafData); err != nil {
+				klog.Warningf("Failed to scan row: %s", err)
+				return nil, postgresqlToGRPC(err)
+			}
+
+			for _, ol := range ordLeaves {
+				i, leaf := ol.idx, ol.leaf
+
+				if bytes.Equal(leaf.LeafIdentityHash, leafIdentityHash) {
+					if isDuplicateLeafData {
+						res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
+					} else if isDuplicateSequencedLeafData {
+						res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
+					}
+					break
+				}
+			}
+		}
+		if rows.Err() != nil {
+			klog.Errorf("Error processing rows: %s", err)
+			return nil, postgresqlToGRPC(err)
+		}
+	}
+
+	// TODO(pavelkalinnikov): Support opting out from duplicates detection.
+	// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
+	// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
 
 	return res, nil
 }

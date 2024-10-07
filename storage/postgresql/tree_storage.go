@@ -48,7 +48,9 @@ const (
 		"SELECT TreeId,SubtreeId,Nodes,SubtreeRevision " +
 		"FROM TempSubtree " +
 		"ON CONFLICT ON CONSTRAINT TempSubtree_pk DO UPDATE Nodes=EXCLUDED.Nodes"
-	insertTreeHeadSQL = "INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature) VALUES($1,$2,$3,$4,$5,$6)"
+	insertTreeHeadSQL = "INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature) " +
+		"VALUES($1,$2,$3,$4,$5,$6) " +
+		"ON CONFLICT DO NOTHING"
 
 	selectSubtreeSQL = "SELECT x.SubtreeId,s.Nodes " +
 		"FROM (" +
