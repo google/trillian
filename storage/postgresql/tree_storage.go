@@ -105,17 +105,19 @@ func newTreeStorage(db *pgxpool.Pool) *postgreSQLTreeStorage {
 }
 
 func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
-	t, err := m.db.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		klog.Warningf("Could not start tree TX: %s", err)
-		return treeTX{}, err
-	}
 	var subtreeRevisions bool
 	o := &postgresqlpb.StorageOptions{}
 	if err := anypb.UnmarshalTo(tree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
 		return treeTX{}, fmt.Errorf("failed to unmarshal StorageSettings: %v", err)
 	}
 	subtreeRevisions = o.SubtreeRevisions
+
+	t, err := m.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		klog.Warningf("Could not start tree TX: %s", err)
+		return treeTX{}, err
+	}
+
 	return treeTX{
 		tx:            t,
 		mu:            &sync.Mutex{},
