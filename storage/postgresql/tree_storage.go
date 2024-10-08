@@ -47,7 +47,7 @@ const (
 	insertSubtreeMultiSQL = "INSERT INTO Subtree(TreeId,SubtreeId,Nodes,SubtreeRevision) " +
 		"SELECT TreeId,SubtreeId,Nodes,SubtreeRevision " +
 		"FROM TempSubtree " +
-		"ON CONFLICT ON CONSTRAINT TempSubtree_pk DO UPDATE Nodes=EXCLUDED.Nodes"
+		"ON CONFLICT ON CONSTRAINT Subtree_pk DO UPDATE SET Nodes=EXCLUDED.Nodes"
 	insertTreeHeadSQL = "INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature) " +
 		"VALUES($1,$2,$3,$4,$5,$6) " +
 		"ON CONFLICT DO NOTHING"

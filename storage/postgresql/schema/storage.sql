@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS Subtree(
   SubtreeRevision      INTEGER NOT NULL,
   -- Key columns must be in ASC order in order to benefit from group-by/min-max
   -- optimization in PostgreSQL.
-  PRIMARY KEY (TreeId, SubtreeId, SubtreeRevision),
+  CONSTRAINT Subtree_pk PRIMARY KEY (TreeId, SubtreeId, SubtreeRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
   CHECK (length(SubtreeId) <= 255)
 );
