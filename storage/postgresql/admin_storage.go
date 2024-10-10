@@ -318,12 +318,3 @@ func validateDeleted(ctx context.Context, tx pgx.Tx, treeID int64, wantDeleted b
 	}
 	return nil
 }
-
-// storageSettings allows us to persist storage settings to the DB.
-// It is a tempting trap to use protos for this, but the way they encode
-// makes it impossible to tell the difference between no value ever written
-// and a value that was written with the default values for each field.
-// Using an explicit struct and gob encoding allows us to tell the difference.
-type storageSettings struct {
-	Revisioned bool
-}
