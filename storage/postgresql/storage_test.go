@@ -24,11 +24,9 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	testdb "github.com/google/trillian/storage/postgresql/testdbpgx"
 	storageto "github.com/google/trillian/storage/testonly"
 	stree "github.com/google/trillian/storage/tree"
@@ -36,35 +34,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
-	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/durationpb"
 	"k8s.io/klog/v2"
 )
-
-var (
-	// LogTree is a valid, LOG-type trillian.Tree for tests.
-	// This tree is configured to write revisions for each subtree.
-	// This matches the legacy behaviour before revisions were removed.
-	RevisionedLogTree = &trillian.Tree{
-		TreeState:       trillian.TreeState_ACTIVE,
-		TreeType:        trillian.TreeType_LOG,
-		DisplayName:     "Llamas Log",
-		Description:     "Registry of publicly-owned llamas",
-		MaxRootDuration: durationpb.New(0 * time.Millisecond),
-		StorageSettings: mustCreateRevisionedStorage(),
-	}
-)
-
-func mustCreateRevisionedStorage() *anypb.Any {
-	o := &postgresqlpb.StorageOptions{
-		SubtreeRevisions: true,
-	}
-	a, err := anypb.New(o)
-	if err != nil {
-		panic(err)
-	}
-	return a
-}
 
 func TestNodeRoundTrip(t *testing.T) {
 	nodes := createSomeNodes(256)
@@ -100,7 +71,7 @@ func TestNodeRoundTrip(t *testing.T) {
 				if err := tx.SetMerkleNodes(ctx, tc.store); err != nil {
 					t.Fatalf("Failed to store nodes: %s", err)
 				}
-				return storeLogRoot(ctx, tx, uint64(len(tc.store)), uint64(writeRev), []byte{1, 2, 3})
+				return storeLogRoot(ctx, tx, uint64(len(tc.store)), []byte{1, 2, 3})
 			})
 
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -119,9 +90,6 @@ func TestNodeRoundTrip(t *testing.T) {
 		t.Run(tc.desc+"-norevisions", func(t *testing.T) {
 			testbody(storageto.LogTree)
 		})
-		t.Run(tc.desc+"-revisions", func(t *testing.T) {
-			testbody(RevisionedLogTree)
-		})
 	}
 }
 
@@ -136,10 +104,6 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 			desc: "Revisionless",
 			tree: storageto.LogTree,
 		},
-		{
-			desc: "Revisions",
-			tree: RevisionedLogTree,
-		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
@@ -151,7 +115,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 			const writeRev = int64(100)
 			const size = 871
-			nodesToStore, err := createLogNodesForTreeAtSize(t, size, writeRev)
+			nodesToStore, err := createLogNodesForTreeAtSize(t, size)
 			if err != nil {
 				t.Fatalf("failed to create test tree: %v", err)
 			}
@@ -166,7 +130,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 					if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 						t.Fatalf("Failed to store nodes: %s", err)
 					}
-					return storeLogRoot(ctx, tx, uint64(size), uint64(writeRev), []byte{1, 2, 3})
+					return storeLogRoot(ctx, tx, uint64(size), []byte{1, 2, 3})
 				})
 			}
 
@@ -196,7 +160,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 func forceWriteRevision(rev int64, tx storage.LogTreeTX) {
 	mtx, ok := tx.(*logTreeTX)
 	if !ok {
-		panic(nil)
+		panic(errors.New("uh oh"))
 	}
 	mtx.treeTX.writeRevision = rev
 }
@@ -212,7 +176,8 @@ func createSomeNodes(count int) []stree.Node {
 	return r
 }
 
-func createLogNodesForTreeAtSize(t *testing.T, ts, rev int64) ([]stree.Node, error) {
+func createLogNodesForTreeAtSize(t *testing.T, ts int64) ([]stree.Node, error) {
+	t.Helper()
 	hasher := rfc6962.New(crypto.SHA256)
 	fact := compact.RangeFactory{Hash: hasher.HashChildren}
 	cr := fact.NewEmptyRange(0)
@@ -320,13 +285,13 @@ func getVersion(db *pgxpool.Pool) (string, error) {
 func mustSignAndStoreLogRoot(ctx context.Context, t *testing.T, l storage.LogStorage, tree *trillian.Tree, treeSize uint64) {
 	t.Helper()
 	if err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		return storeLogRoot(ctx, tx, treeSize, 0, []byte{0})
+		return storeLogRoot(ctx, tx, treeSize, []byte{0})
 	}); err != nil {
 		t.Fatalf("ReadWriteTransaction: %v", err)
 	}
 }
 
-func storeLogRoot(ctx context.Context, tx storage.LogTreeTX, size, rev uint64, hash []byte) error {
+func storeLogRoot(ctx context.Context, tx storage.LogTreeTX, size uint64, hash []byte) error {
 	logRoot, err := (&types.LogRootV1{TreeSize: size, RootHash: hash}).MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("error marshaling new LogRoot: %v", err)

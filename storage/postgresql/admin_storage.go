@@ -15,23 +15,19 @@
 package postgresql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/gob"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/klog/v2"
 )
@@ -168,9 +164,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if err := storage.ValidateTreeForCreation(ctx, tree); err != nil {
 		return nil, err
 	}
-	if err := validateStorageSettings(tree); err != nil {
-		return nil, err
-	}
 
 	id, err := storage.NewTreeID()
 	if err != nil {
@@ -196,39 +189,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 	rootDuration := newTree.MaxRootDuration.AsDuration()
 
-	// When creating a new tree we automatically add StorageSettings to allow us to
-	// determine that this tree can support newer storage features. When reading
-	// trees that do not have this StorageSettings populated, it must be assumed that
-	// the tree was created with the oldest settings.
-	// The gist of this code is super simple: create a new StorageSettings with the most
-	// modern defaults if the created tree does not have one, and then create a struct that
-	// represents this to store in the DB. Unfortunately because this involves anypb, struct
-	// copies, marshalling, and proper error handling this turns into a scary amount of code.
-	if tree.StorageSettings != nil {
-		newTree.StorageSettings = proto.Clone(tree.StorageSettings).(*anypb.Any)
-	} else {
-		o := &postgresqlpb.StorageOptions{
-			SubtreeRevisions: false, // Default behaviour for new trees is to skip writing subtree revisions.
-		}
-		a, err := anypb.New(o)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create new StorageOptions: %v", err)
-		}
-		newTree.StorageSettings = a
-	}
-	o := &postgresqlpb.StorageOptions{}
-	if err := anypb.UnmarshalTo(newTree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal StorageOptions: %v", err)
-	}
-	ss := storageSettings{
-		Revisioned: o.SubtreeRevisions,
-	}
-	buff := &bytes.Buffer{}
-	enc := gob.NewEncoder(buff)
-	if err := enc.Encode(ss); err != nil {
-		return nil, fmt.Errorf("failed to encode storageSettings: %v", err)
-	}
-
 	_, err = t.tx.Exec(
 		ctx,
 		"INSERT INTO Trees(TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,PrivateKey,PublicKey,MaxRootDurationMillis) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
@@ -242,8 +202,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.Description,
 		nowMillis,
 		nowMillis,
-		[]byte{},     // PrivateKey: Unused, filling in for backward compatibility.
-		buff.Bytes(), // Using the otherwise unused PublicKey for storing StorageSettings.
+		[]byte{}, // PrivateKey: Unused, filling in for backward compatibility.
+		[]byte{}, // PublicKey: Unused, filling in for backward compatibility.
 		rootDuration/time.Millisecond,
 	)
 	if err != nil {
@@ -276,9 +236,6 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if err := storage.ValidateTreeForUpdate(ctx, beforeUpdate, tree); err != nil {
 		return nil, err
 	}
-	if err := validateStorageSettings(tree); err != nil {
-		return nil, err
-	}
 
 	// TODO(pavelkalinnikov): When switching TreeType from PREORDERED_LOG to LOG,
 	// ensure all entries in SequencedLeafData are integrated.
@@ -287,9 +244,6 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	nowMillis := toMillisSinceEpoch(time.Now())
 	now := fromMillisSinceEpoch(nowMillis)
 	tree.UpdateTime = timestamppb.New(now)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build update time: %v", err)
-	}
 	if err := tree.MaxRootDuration.CheckValid(); err != nil {
 		return nil, fmt.Errorf("could not parse MaxRootDuration: %w", err)
 	}
@@ -363,17 +317,6 @@ func validateDeleted(ctx context.Context, tx pgx.Tx, treeID int64, wantDeleted b
 		return status.Errorf(codes.FailedPrecondition, "tree %v already soft deleted", treeID)
 	}
 	return nil
-}
-
-func validateStorageSettings(tree *trillian.Tree) error {
-	if tree.StorageSettings.MessageIs(&postgresqlpb.StorageOptions{}) {
-		return nil
-	}
-	if tree.StorageSettings == nil {
-		// No storage settings is OK, we'll just use the defaults for new trees
-		return nil
-	}
-	return fmt.Errorf("storage_settings must be nil or postgresqlpb.StorageOptions, but got %v", tree.StorageSettings)
 }
 
 // storageSettings allows us to persist storage settings to the DB.

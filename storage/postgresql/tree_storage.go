@@ -24,14 +24,12 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/tree"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"k8s.io/klog/v2"
 )
 
@@ -52,19 +50,7 @@ const (
 		"VALUES($1,$2,$3,$4,$5,$6) " +
 		"ON CONFLICT DO NOTHING"
 
-	selectSubtreeSQL = "SELECT x.SubtreeId,s.Nodes " +
-		"FROM (" +
-		"SELECT n.TreeId,n.SubtreeId,max(n.SubtreeRevision) AS MaxRevision " +
-		"FROM Subtree n " +
-		"WHERE n.SubtreeId=ANY($1)" +
-		" AND n.TreeId=$2" +
-		" AND n.SubtreeRevision<=$3 " +
-		"GROUP BY n.TreeId,n.SubtreeId" +
-		") AS x" +
-		" INNER JOIN Subtree s ON (x.SubtreeId=s.SubtreeId AND x.MaxRevision=s.SubtreeRevision AND x.TreeId=s.TreeId) " +
-		"WHERE s.TreeId=$4"
-
-	selectSubtreeSQLNoRev = "SELECT SubtreeId,Nodes " +
+	selectSubtreeSQL = "SELECT SubtreeId,Nodes " +
 		"FROM Subtree " +
 		"WHERE TreeId=$1" +
 		" AND SubtreeId=ANY($2)"
@@ -105,13 +91,6 @@ func newTreeStorage(db *pgxpool.Pool) *postgreSQLTreeStorage {
 }
 
 func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
-	var subtreeRevisions bool
-	o := &postgresqlpb.StorageOptions{}
-	if err := anypb.UnmarshalTo(tree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
-		return treeTX{}, fmt.Errorf("failed to unmarshal StorageSettings: %v", err)
-	}
-	subtreeRevisions = o.SubtreeRevisions
-
 	t, err := m.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		klog.Warningf("Could not start tree TX: %s", err)
@@ -127,7 +106,6 @@ func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.
 		hashSizeBytes: hashSizeBytes,
 		subtreeCache:  subtreeCache,
 		writeRevision: -1,
-		subtreeRevs:   subtreeRevisions,
 	}, nil
 }
 
@@ -142,10 +120,9 @@ type treeTX struct {
 	hashSizeBytes int
 	subtreeCache  *cache.SubtreeCache
 	writeRevision int64
-	subtreeRevs   bool
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(ctx context.Context, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
 	klog.V(2).Infof("getSubtrees(len(ids)=%d)", len(ids))
 	klog.V(4).Infof("getSubtrees(")
 	if len(ids) == 0 {
@@ -154,11 +131,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 
 	var rows pgx.Rows
 	var err error
-	if t.subtreeRevs {
-		rows, err = t.tx.Query(ctx, selectSubtreeSQL, ids, t.treeID, treeRevision, t.treeID)
-	} else {
-		rows, err = t.tx.Query(ctx, selectSubtreeSQLNoRev, t.treeID, ids)
-	}
+	rows, err = t.tx.Query(ctx, selectSubtreeSQL, t.treeID, ids)
 	if err != nil {
 		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
@@ -233,13 +206,8 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	// a really large number of subtrees to store.
 	rows := make([][]interface{}, 0, len(subtrees))
 
-	// If not using subtree revisions then default value of 0 is fine. There is no
-	// significance to this value, other than it cannot be NULL in the DB.
+	// TODO(mhutchinson): continue deleting this throughout
 	var subtreeRev int64
-	if t.subtreeRevs {
-		// We're using subtree revisions, so ensure we write at the correct revision
-		subtreeRev = t.writeRevision
-	}
 	for _, s := range subtrees {
 		s := s
 		if s.Prefix == nil {
@@ -311,18 +279,17 @@ func checkResultOkAndCopyCountIs(rowsAffected int64, err error, count int64) err
 	return nil
 }
 
-// getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
-func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
+// getSubtreesFunc returns a GetSubtreesFunc which reads at the passed in rev.
+func (t *treeTX) getSubtreesFunc(ctx context.Context) cache.GetSubtreesFunc {
 	return func(ids [][]byte) ([]*storagepb.SubtreeProto, error) {
-		return t.getSubtrees(ctx, rev, ids)
+		return t.getSubtrees(ctx, ids)
 	}
 }
 
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []tree.Node) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	rev := t.writeRevision - 1
-	return t.subtreeCache.SetNodes(nodes, t.getSubtreesAtRev(ctx, rev))
+	return t.subtreeCache.SetNodes(nodes, t.getSubtreesFunc(ctx))
 }
 
 func (t *treeTX) Commit(ctx context.Context) error {

@@ -15,20 +15,16 @@
 package postgresql
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"fmt"
 	"testing"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/postgresql/postgresqlpb"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const selectTreeControlByID = "SELECT SigningEnabled,SequencingEnabled,SequenceIntervalSeconds " +
@@ -130,155 +126,6 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	for _, test := range tests {
 		if err := s.ReadWriteTransaction(ctx, test.fn); err != nil {
 			t.Errorf("%v: err = %v, want = nil", test.desc, err)
-		}
-	}
-}
-
-func TestAdminTX_StorageSettings(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
-	ctx := context.Background()
-
-	badSettings, err := anypb.New(&trillian.Tree{})
-	if err != nil {
-		t.Fatalf("Error marshaling proto: %v", err)
-	}
-	goodSettings, err := anypb.New(&postgresqlpb.StorageOptions{})
-	if err != nil {
-		t.Fatalf("Error marshaling proto: %v", err)
-	}
-
-	tests := []struct {
-		desc string
-		// fn attempts to either create or update a tree with a non-nil, valid Any proto
-		// on Tree.StorageSettings. It's expected to return an error.
-		fn      func(storage.AdminStorage) error
-		wantErr bool
-	}{
-		{
-			desc: "CreateTree Bad Settings",
-			fn: func(s storage.AdminStorage) error {
-				tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-				tree.StorageSettings = badSettings
-				_, err := storage.CreateTree(ctx, s, tree)
-				return err
-			},
-			wantErr: true,
-		},
-		{
-			desc: "CreateTree nil Settings",
-			fn: func(s storage.AdminStorage) error {
-				tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-				tree.StorageSettings = nil
-				_, err := storage.CreateTree(ctx, s, tree)
-				return err
-			},
-			wantErr: false,
-		},
-		{
-			desc: "CreateTree StorageOptions Settings",
-			fn: func(s storage.AdminStorage) error {
-				tree := proto.Clone(testonly.LogTree).(*trillian.Tree)
-				tree.StorageSettings = goodSettings
-				_, err := storage.CreateTree(ctx, s, tree)
-				return err
-			},
-			wantErr: false,
-		},
-		{
-			desc: "UpdateTree",
-			fn: func(s storage.AdminStorage) error {
-				tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
-				if err != nil {
-					t.Fatalf("CreateTree() failed with err = %v", err)
-				}
-				_, err = storage.UpdateTree(ctx, s, tree.TreeId, func(tree *trillian.Tree) { tree.StorageSettings = badSettings })
-				return err
-			},
-			wantErr: true,
-		},
-	}
-	for _, test := range tests {
-		if err := test.fn(s); (err != nil) != test.wantErr {
-			t.Errorf("err: %v, wantErr = %v", err, test.wantErr)
-		}
-	}
-}
-
-// Test reading variants of trees that could have been created by old versions
-// of Trillian to check we infer the correct storage options.
-func TestAdminTX_GetTreeLegacies(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
-	ctx := context.Background()
-
-	serializedStorageSettings := func(revisioned bool) []byte {
-		ss := storageSettings{
-			Revisioned: revisioned,
-		}
-		buff := &bytes.Buffer{}
-		enc := gob.NewEncoder(buff)
-		if err := enc.Encode(ss); err != nil {
-			t.Fatalf("failed to encode storageSettings: %v", err)
-		}
-		return buff.Bytes()
-	}
-	tests := []struct {
-		desc           string
-		key            []byte
-		wantRevisioned bool
-	}{
-		{
-			desc:           "No data",
-			key:            []byte{},
-			wantRevisioned: true,
-		},
-		{
-			desc:           "Public key",
-			key:            []byte("trustmethatthisisapublickey"),
-			wantRevisioned: true,
-		},
-		{
-			desc:           "StorageOptions revisioned",
-			key:            serializedStorageSettings(true),
-			wantRevisioned: true,
-		},
-		{
-			desc:           "StorageOptions revisionless",
-			key:            serializedStorageSettings(false),
-			wantRevisioned: false,
-		},
-	}
-	for _, tC := range tests {
-		// Create a tree with default settings, and then reach into the DB to override
-		// whatever was written into the persisted settings to align with the test case.
-		tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// We are reaching really into the internals here, but it's the only way to set up
-		// archival state. Going through the Create/Update methods will change the storage
-		// options.
-		tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := tx.Exec(ctx, "UPDATE Trees SET PublicKey=$1 WHERE TreeId=$2", tC.key, tree.TreeId); err != nil {
-			t.Fatal(err)
-		}
-		if err := tx.Commit(ctx); err != nil {
-			t.Fatal(err)
-		}
-		readTree, err := storage.GetTree(ctx, s, tree.TreeId)
-		if err != nil {
-			t.Fatal(err)
-		}
-		o := &postgresqlpb.StorageOptions{}
-		if err := anypb.UnmarshalTo(readTree.StorageSettings, o, proto.UnmarshalOptions{}); err != nil {
-			t.Fatal(err)
-		}
-		if got, want := o.SubtreeRevisions, tC.wantRevisioned; got != want {
-			t.Errorf("%s SubtreeRevisions: got %t, wanted %t", tC.desc, got, want)
 		}
 	}
 }
