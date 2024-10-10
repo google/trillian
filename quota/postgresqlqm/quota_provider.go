@@ -25,7 +25,7 @@ import (
 // QuotaManagerName identifies the PostgreSQL quota implementation.
 const QuotaManagerName = "postgresql"
 
-var maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
+var maxUnsequencedRows = flag.Int("pg_max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
 	"Only effective for quota_system=postgresql.")
 
 func init() {
