@@ -54,40 +54,15 @@ are identified.
 ### Setup
 
 The map uses Apache Beam to assemble and run a pipeline of tasks to construct the map.
-The following instructions show how to run this code locally using the Python portable runner.
-Comprehensive documentation for setting up a Python environment is beyond the scope of this demo, but instructions can be found at [Beam Python Tips](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips).
-Steps that worked for me using python 3.10.12 on a Debian machine are:
-
-```shell
-python3 --version # Confirm 3.10.12
-sudo apt install python3-venv
-
-# Create a virtual python env for configuring the runner and deps
-python3 -m venv ~/Virtualenvs/beampy31012
-source ~/Virtualenvs/beampy31012/bin/activate
-python3 -m pip install --upgrade pip
-pip install wheel
-pip install apache-beam
-
-# Now run the portable runner, and leave it listening for work on 8099
-python -m apache_beam.runners.portability.local_job_service_main --port=8099
-```
-
-Alternate steps that may work from checking out the source repo:
-
-1. Check out `github.com/apache/beam` (tested at branch `release-2.24.0`)
-2. `cd sdks/python` within that repository
-3. `python -m apache_beam.runners.portability.local_job_service_main --port=8099`
-
+Fortunately there is now a Go local portable runner, so you don't need to set up Python any more!
 
 ### Building the map
 
 These instructions are for Linux/MacOS but can likely be adapted for Windows.
-Ensure that you have a python portable runner listening on port 8099, as documented above.
 
 In another terminal:
 1. Check out this repository and `cd` to the folder containing this README
-2. `go run ./cmd/build/mapdemo.go --output=/tmp/mapv1 --runner=universal --endpoint=localhost:8099 --environment_type=LOOPBACK`
+2. `go run ./cmd/build/mapdemo.go --output=/tmp/mapv1 --runner=PrismRunner`
 
 The pipeline should run and generate files under the ouput directory, each of which contains a tile from the map.
 Note that a new file will be constructed for each tile output, which can get very large
