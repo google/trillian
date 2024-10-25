@@ -36,7 +36,7 @@ const (
 	// instance URI to use. The value must have a trailing slash.
 	PostgreSQLURIEnv = "TEST_POSTGRESQL_URI"
 
-	defaultTestPostgreSQLURI = "postgresql:///template1?host=localhost&user=postgres&password=postgres"
+	defaultTestPostgreSQLURI = "postgresql:///defaultdb?host=localhost&user=postgres&password=postgres"
 )
 
 type storageDriverInfo struct {

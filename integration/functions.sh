@@ -127,6 +127,8 @@ log_prep_test() {
     yes | bash "${TRILLIAN_PATH}/scripts/resetdb.sh"
   elif [[ "${TEST_COCKROACHDB_URI}" != "" ]]; then
     yes | bash "${TRILLIAN_PATH}/scripts/resetcrdb.sh"
+  elif [[ "${TEST_POSTGRESQL_URI}" != "" ]]; then
+    yes | bash "${TRILLIAN_PATH}/scripts/resetpgdb.sh"
   fi
 
   local logserver_opts=''
@@ -139,6 +141,9 @@ log_prep_test() {
   elif [[ "${TEST_COCKROACHDB_URI}" != "" ]]; then
     logserver_opts+="--quota_system=crdb --storage_system=crdb --crdb_uri=${TEST_COCKROACHDB_URI}"
     logsigner_opts+="--quota_system=crdb --storage_system=crdb --crdb_uri=${TEST_COCKROACHDB_URI}"
+  elif [[ "${TEST_POSTGRESQL_URI}" != "" ]]; then
+    logserver_opts+="--quota_system=postgresql --storage_system=postgresql --postgresql_uri=${TEST_POSTGRESQL_URI}"
+    logsigner_opts+="--quota_system=postgresql --storage_system=postgresql --postgresql_uri=${TEST_POSTGRESQL_URI}"
   fi
 
   # Start a local etcd instance (if configured).
