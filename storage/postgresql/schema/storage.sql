@@ -229,8 +229,7 @@ BEGIN
       WHERE NOT IsDuplicateLeafData
         AND NOT IsDuplicateSequencedLeafData;
   RETURN QUERY SELECT LeafIdentityHash, IsDuplicateLeafData, IsDuplicateSequencedLeafData
-    FROM TempAddSequencedLeaves
-    ORDER BY LeafIdentityHash;
+    FROM TempAddSequencedLeaves;
   RETURN;
 END;
 $$;

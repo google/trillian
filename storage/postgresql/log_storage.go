@@ -18,9 +18,9 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -392,25 +392,14 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	return leaves, nil
 }
 
-// sortLeavesForInsert returns a slice containing the passed in leaves sorted
-// by LeafIdentityHash, and paired with their original positions.
-// QueueLeaves and AddSequencedLeaves use this to make the order that LeafData
-// row locks are acquired deterministic and reduce the chance of deadlocks.
-func sortLeavesForInsert(leaves []*trillian.LogLeaf) []leafAndPosition {
-	ordLeaves := make([]leafAndPosition, len(leaves))
-	for i, leaf := range leaves {
-		ordLeaves[i] = leafAndPosition{leaf: leaf, idx: i}
-	}
-	sort.Sort(byLeafIdentityHashWithPosition(ordLeaves))
-	return ordLeaves
-}
-
 func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()
 
-	// Don't accept batches if any of the leaves are invalid.
-	for _, leaf := range leaves {
+	// Prepare rows to copy, but don't accept batches if any of the leaves are invalid.
+	leafMap := make(map[string]int)
+	copyRows := make([][]interface{}, 0, len(leaves))
+	for i, leaf := range leaves {
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
@@ -418,25 +407,12 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
 		}
-	}
-	label := labelForTX(t)
-
-	ordLeaves := sortLeavesForInsert(leaves)
-	existingCount := 0
-	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
-	copyRows := make([][]interface{}, 0, len(ordLeaves))
-
-	// Prepare rows to copy.
-	for _, ol := range ordLeaves {
-		leaf := ol.leaf
-
-		if err := leaf.QueueTimestamp.CheckValid(); err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
-		}
 		qTimestamp := leaf.QueueTimestamp.AsTime()
 		args := queueArgs(t.treeID, leaf.LeafIdentityHash, qTimestamp)
 		copyRows = append(copyRows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, args[0], args[1]})
+		leafMap[hex.EncodeToString(leaf.LeafIdentityHash)] = i
 	}
+	label := labelForTX(t)
 
 	// Create temporary table.
 	_, err := t.tx.Exec(ctx, createTempQueueLeavesTable)
@@ -458,6 +434,8 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	}
 
 	// Create the leaf data records, work queue entries, and obtain a deduplicated list of existing leaves.
+	existingCount := 0
+	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
 	var toRetrieve [][]byte
 	var leafIdentityHash []byte
 	if rows, err := t.tx.Query(ctx, queueLeavesSQL); err != nil {
@@ -471,13 +449,14 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 				return nil, postgresqlToGRPC(err)
 			}
 
-			for i, leaf := range leaves {
-				if bytes.Equal(leaf.LeafIdentityHash, leafIdentityHash) {
-					// Remember the duplicate leaf, using the requested leaf for now.
-					existingLeaves[i] = leaf
-					existingCount++
-					queuedDupCounter.Inc(label)
-				}
+			if i, ok := leafMap[hex.EncodeToString(leafIdentityHash)]; !ok {
+				klog.Warningf("Unexpected leafIdentityHash: %s", hex.EncodeToString(leafIdentityHash))
+				return nil, postgresqlToGRPC(err)
+			} else {
+				// Remember the duplicate leaf, using the requested leaf for now.
+				existingLeaves[i] = leaves[i]
+				existingCount++
+				queuedDupCounter.Inc(label)
 			}
 			toRetrieve = append(toRetrieve, leafIdentityHash)
 		}
@@ -527,19 +506,17 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	ok := status.New(codes.OK, "OK").Proto()
 
-	ordLeaves := sortLeavesForInsert(leaves)
-	copyRows := make([][]interface{}, 0, len(ordLeaves))
-
 	// Prepare rows to copy.
-	for _, ol := range ordLeaves {
-		i, leaf := ol.idx, ol.leaf
-
+	leafMap := make(map[string]int)
+	copyRows := make([][]interface{}, 0, len(leaves))
+	for i, leaf := range leaves {
 		// This should fail on insert, but catch it early.
 		if got, want := len(leaf.LeafIdentityHash), t.hashSizeBytes; got != want {
 			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
 		}
 
 		copyRows = append(copyRows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, timestamp.UnixNano(), leaf.LeafIndex})
+		leafMap[hex.EncodeToString(leaf.LeafIdentityHash)] = i
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
 	}
 
@@ -576,17 +553,13 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 				return nil, postgresqlToGRPC(err)
 			}
 
-			for _, ol := range ordLeaves {
-				i, leaf := ol.idx, ol.leaf
-
-				if bytes.Equal(leaf.LeafIdentityHash, leafIdentityHash) {
-					if isDuplicateLeafData {
-						res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
-					} else if isDuplicateSequencedLeafData {
-						res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
-					}
-					break
-				}
+			if i, ok := leafMap[hex.EncodeToString(leafIdentityHash)]; !ok {
+				klog.Warningf("Unexpected leafIdentityHash: %s", hex.EncodeToString(leafIdentityHash))
+				return nil, postgresqlToGRPC(err)
+			} else if isDuplicateLeafData {
+				res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
+			} else if isDuplicateSequencedLeafData {
+				res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
 			}
 		}
 		if rows.Err() != nil {
@@ -819,26 +792,4 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 	}
 
 	return ret, nil
-}
-
-// leafAndPosition records original position before sort.
-type leafAndPosition struct {
-	leaf *trillian.LogLeaf
-	idx  int
-}
-
-// byLeafIdentityHashWithPosition allows sorting (as above), but where we need
-// to remember the original position
-type byLeafIdentityHashWithPosition []leafAndPosition
-
-func (l byLeafIdentityHashWithPosition) Len() int {
-	return len(l)
-}
-
-func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-
-func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
-	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
 }
