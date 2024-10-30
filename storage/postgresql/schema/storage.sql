@@ -32,8 +32,6 @@ CREATE TABLE IF NOT EXISTS Trees(
   CreateTimeMillis      BIGINT NOT NULL,
   UpdateTimeMillis      BIGINT NOT NULL,
   MaxRootDurationMillis BIGINT NOT NULL,
-  PrivateKey            BYTEA NOT NULL, -- Unused.
-  PublicKey             BYTEA NOT NULL, -- This is now used to store settings.
   Deleted               BOOLEAN,
   DeleteTimeMillis      BIGINT,
   PRIMARY KEY(TreeId)

@@ -35,14 +35,14 @@ import (
 const (
 	defaultSequenceIntervalSeconds = 60
 
-	selectTrees = "SELECT TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,PrivateKey,PublicKey,MaxRootDurationMillis,Deleted,DeleteTimeMillis " +
-		"FROM Trees" // PrivateKey is unused; PublicKey is used to store StorageSettings.
+	selectTrees = "SELECT TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,MaxRootDurationMillis,Deleted,DeleteTimeMillis " +
+		"FROM Trees"
 	selectNonDeletedTrees = selectTrees + " WHERE (Deleted IS NULL OR Deleted='false')"
 	selectTreeByID        = selectTrees + " WHERE TreeId=$1"
 
 	updateTreeSQL = "UPDATE Trees " +
-		"SET TreeState=$1,TreeType=$2,DisplayName=$3,Description=$4,UpdateTimeMillis=$5,MaxRootDurationMillis=$6,PrivateKey=$7 " +
-		"WHERE TreeId=$8"
+		"SET TreeState=$1,TreeType=$2,DisplayName=$3,Description=$4,UpdateTimeMillis=$5,MaxRootDurationMillis=$6 " +
+		"WHERE TreeId=$7"
 )
 
 // NewAdminStorage returns a PostgreSQL storage.AdminStorage implementation backed by DB.
@@ -191,7 +191,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	_, err = t.tx.Exec(
 		ctx,
-		"INSERT INTO Trees(TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,PrivateKey,PublicKey,MaxRootDurationMillis) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
+		"INSERT INTO Trees(TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,MaxRootDurationMillis) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
@@ -202,8 +202,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.Description,
 		nowMillis,
 		nowMillis,
-		[]byte{}, // PrivateKey: Unused, filling in for backward compatibility.
-		[]byte{}, // PublicKey: Unused, filling in for backward compatibility.
 		rootDuration/time.Millisecond,
 	)
 	if err != nil {
@@ -258,10 +256,6 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		tree.Description,
 		nowMillis,
 		rootDuration/time.Millisecond,
-		[]byte{}, // PrivateKey: Unused, filling in for backward compatibility.
-		// PublicKey should not be updated with any storageSettings here without
-		// a lot of thought put into it. At the moment storageSettings are inferred
-		// when reading the tree, even if no value is stored in the database.
 		tree.TreeId); err != nil {
 		return nil, err
 	}

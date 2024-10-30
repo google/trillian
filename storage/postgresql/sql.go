@@ -54,7 +54,6 @@ func readTree(r row) (*trillian.Tree, error) {
 	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm string
 	var createMillis, updateMillis, maxRootDurationMillis int64
 	var displayName, description sql.NullString
-	var privateKey, publicKey []byte
 	var deleted sql.NullBool
 	var deleteMillis sql.NullInt64
 	err := r.Scan(
@@ -68,8 +67,6 @@ func readTree(r row) (*trillian.Tree, error) {
 		&description,
 		&createMillis,
 		&updateMillis,
-		&privateKey,
-		&publicKey,
 		&maxRootDurationMillis,
 		&deleted,
 		&deleteMillis,
