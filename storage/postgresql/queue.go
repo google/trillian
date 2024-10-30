@@ -1,7 +1,7 @@
 //go:build !batched_queue
 // +build !batched_queue
 
-// Copyright 2017 Google LLC. All Rights Reserved.
+// Copyright 2024 Trillian Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
