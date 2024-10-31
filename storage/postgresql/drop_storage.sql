@@ -1,6 +1,8 @@
 -- Caution - this removes all tables in our schema
 
 DROP FUNCTION IF EXISTS count_estimate;
+DROP FUNCTION IF EXISTS queue_leaves;
+DROP FUNCTION IF EXISTS add_sequenced_leaves;
 
 DROP TABLE IF EXISTS Unsequenced;
 DROP TABLE IF EXISTS Subtree;
