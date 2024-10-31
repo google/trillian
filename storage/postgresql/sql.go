@@ -51,7 +51,7 @@ func readTree(r row) (*trillian.Tree, error) {
 	tree := &trillian.Tree{}
 
 	// Enums and Datetimes need an extra conversion step
-	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm string
+	var treeState, treeType string
 	var createMillis, updateMillis, maxRootDurationMillis int64
 	var displayName, description sql.NullString
 	var deleted sql.NullBool
@@ -60,9 +60,6 @@ func readTree(r row) (*trillian.Tree, error) {
 		&tree.TreeId,
 		&treeState,
 		&treeType,
-		&hashStrategy,
-		&hashAlgorithm,
-		&signatureAlgorithm,
 		&displayName,
 		&description,
 		&createMillis,
@@ -89,18 +86,15 @@ func readTree(r row) (*trillian.Tree, error) {
 	} else {
 		return nil, fmt.Errorf("unknown TreeType: %v", treeType)
 	}
-	if hashStrategy != "RFC6962_SHA256" {
-		return nil, fmt.Errorf("unknown HashStrategy: %v", hashStrategy)
-	}
 
 	// Let's make sure we didn't mismatch any of the casts above
 	ok := tree.TreeState.String() == treeState &&
 		tree.TreeType.String() == treeType
 	if !ok {
 		return nil, fmt.Errorf(
-			"mismatched enum: tree = %v, enums = [%v, %v, %v, %v, %v]",
+			"mismatched enum: tree = %v, enums = [%v, %v]",
 			tree,
-			treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm)
+			treeState, treeType)
 	}
 
 	tree.CreateTime = timestamppb.New(fromMillisSinceEpoch(createMillis))

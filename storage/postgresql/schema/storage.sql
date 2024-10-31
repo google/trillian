@@ -13,20 +13,11 @@ CREATE TYPE TreeState AS ENUM ('ACTIVE', 'FROZEN', 'DRAINING');
 
 CREATE TYPE TreeType AS ENUM ('LOG', 'MAP', 'PREORDERED_LOG');
 
-CREATE TYPE HashStrategy AS ENUM ('RFC6962_SHA256', 'TEST_MAP_HASHER', 'OBJECT_RFC6962_SHA256', 'CONIKS_SHA512_256', 'CONIKS_SHA256');
-
-CREATE TYPE HashAlgorithm AS ENUM ('SHA256');
-
-CREATE TYPE SignatureAlgorithm AS ENUM ('ECDSA', 'RSA', 'ED25519');
-
 
 CREATE TABLE IF NOT EXISTS Trees(
   TreeId                BIGINT NOT NULL,
   TreeState             TreeState NOT NULL,
   TreeType              TreeType NOT NULL,
-  HashStrategy          HashStrategy NOT NULL,
-  HashAlgorithm         HashAlgorithm NOT NULL,
-  SignatureAlgorithm    SignatureAlgorithm NOT NULL,
   DisplayName           VARCHAR(20),
   Description           VARCHAR(200),
   CreateTimeMillis      BIGINT NOT NULL,

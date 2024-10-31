@@ -35,7 +35,7 @@ import (
 const (
 	defaultSequenceIntervalSeconds = 60
 
-	selectTrees = "SELECT TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,MaxRootDurationMillis,Deleted,DeleteTimeMillis " +
+	selectTrees = "SELECT TreeId,TreeState,TreeType,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,MaxRootDurationMillis,Deleted,DeleteTimeMillis " +
 		"FROM Trees"
 	selectNonDeletedTrees = selectTrees + " WHERE (Deleted IS NULL OR Deleted='false')"
 	selectTreeByID        = selectTrees + " WHERE TreeId=$1"
@@ -191,13 +191,10 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	_, err = t.tx.Exec(
 		ctx,
-		"INSERT INTO Trees(TreeId,TreeState,TreeType,HashStrategy,HashAlgorithm,SignatureAlgorithm,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,MaxRootDurationMillis) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+		"INSERT INTO Trees(TreeId,TreeState,TreeType,DisplayName,Description,CreateTimeMillis,UpdateTimeMillis,MaxRootDurationMillis) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
-		"RFC6962_SHA256", // Unused, filling in for backward compatibility.
-		"SHA256",         // Unused, filling in for backward compatibility.
-		"ECDSA",          // Unused, filling in for backward compatibility.
 		newTree.DisplayName,
 		newTree.Description,
 		nowMillis,
