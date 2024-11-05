@@ -38,6 +38,12 @@ var ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
 
 // QuotaManager is a PostgreSQL-based quota.Manager implementation.
 //
+// QuotaManager only implements Global/Write quotas, which is based on the number of Unsequenced
+// rows (to be exact, tokens = MaxUnsequencedRows - actualUnsequencedRows).
+// Other quotas are considered infinite. In other words, it attempts to protect the MMD SLO of all
+// logs in the instance, but it does not make any attempt to ensure fairness, whether per-tree,
+// per-intermediate-CA (in the case of Certificate Transparency), or any other dimension.
+//
 // It has two working modes: one estimates the number of Unsequenced rows by collecting information
 // from EXPLAIN output; the other does a select count(*) on the Unsequenced table. Estimates are
 // default, even though they are approximate, as they're constant time (select count(*) on
@@ -47,10 +53,6 @@ var ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
 // the table (this is a cheap operation, not requiring a table scan). If that is different from
 // relpages then reltuples is scaled accordingly to arrive at a current number-of-rows estimate."
 // (quoting https://www.postgresql.org/docs/current/row-estimation-examples.html)
-//
-// QuotaManager only implements Global/Write quotas, which is based on the number of Unsequenced
-// rows (to be exact, tokens = MaxUnsequencedRows - actualUnsequencedRows).
-// Other quotas are considered infinite.
 type QuotaManager struct {
 	DB                 *pgxpool.Pool
 	MaxUnsequencedRows int
