@@ -61,6 +61,7 @@ The Log storage implementations supporting the original Trillian log.
 | CloudSpanner    | Beta     |                     | Google maintains continuous-integration environment based on CloudSpanner.  |
 | MySQL            | GA      | ✓                   |                                                                             |
 | CockroachDB      | Alpha   |                     | Supported by [Equinix Metal](https://deploy.equinix.com/).                  |
+| PostgreSQL       | Alpha   |                     | Supported by [Rob Stradling](https://github.com/robstradling) at [Sectigo](https://github.com/sectigo) |
 
 ##### Spanner
 This is a Google-internal implementation, and is used by all of Google's current Trillian deployments.
@@ -83,6 +84,12 @@ Write throughput of 4-500 entries/s has been observed.
 ##### CockroachDB
 
 This implementation has been tested with CockroachDB 22.1.10.
+
+It's currently in alpha mode and is not yet in production use.
+
+##### PostgreSQL
+
+This implementation has been tested with PostgreSQL 17.0.
 
 It's currently in alpha mode and is not yet in production use.
 
@@ -115,6 +122,7 @@ Supported frameworks for quota management.
 | MySQL           | Beta    | ?                   |                                                                             |
 | Redis           | Alpha   | ✓                   |                                                                             |
 | CockroachDB     | Alpha   |                     | Supported by [Equinix Metal](https://deploy.equinix.com/).                  |
+| PostgreSQL      | Alpha   |                     | Supported by [Rob Stradling](https://github.com/robstradling) at [Sectigo](https://github.com/sectigo) |
 
 ### Key management
 
