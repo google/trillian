@@ -15,6 +15,7 @@ The [pgx](https://github.com/jackc/pgx) driver is used directly. This offers fas
 ## Major changes compared to the MySQL storage implementation
 
 - Implemented [bulk processing](#bulk-processing) to greatly improve performance, making use of `COPY`, temporary tables, and database functions.
+- Switched to [batched queuing](https://github.com/google/trillian/pull/717), for further performance gains.
 - Removed SQL statement caching, because pgx does this itself automatically.
 - Removed several vestigial features (e.g., pre-#3201 subtree revisions).
 - Forked `storage/testdb` to `storage/postgresql/testdbpgx`, because the former only supports the `database/sql` interface.

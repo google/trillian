@@ -140,8 +140,7 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   MerkleLeafHash       BYTEA NOT NULL,
   QueueTimestampNanos  BIGINT NOT NULL,
   -- This is a SHA256 hash of the TreeId, LeafIdentityHash and QueueTimestampNanos. It is used
-  -- for batched deletes from the table when trillian_log_server and trillian_log_signer are
-  -- built with the batched_queue tag.
+  -- for batched deletes from the table.
   QueueID              BYTEA DEFAULT NULL UNIQUE,
   PRIMARY KEY (TreeId, Bucket, QueueTimestampNanos, LeafIdentityHash),
   CHECK (length(LeafIdentityHash) <= 255),

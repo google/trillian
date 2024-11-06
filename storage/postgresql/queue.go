@@ -1,6 +1,3 @@
-//go:build !batched_queue
-// +build !batched_queue
-
 // Copyright 2024 Trillian Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +16,8 @@ package postgresql
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
@@ -31,35 +30,33 @@ import (
 
 const (
 	// If this statement ORDER BY clause is changed refer to the comment in removeSequencedLeaves
-	selectQueuedLeavesSQL = "SELECT LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos " +
+	selectQueuedLeavesSQL = "SELECT LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID " +
 		"FROM Unsequenced " +
 		"WHERE TreeId=$1" +
 		" AND Bucket=0" +
 		" AND QueueTimestampNanos<=$2 " +
 		"ORDER BY QueueTimestampNanos,LeafIdentityHash " +
 		"LIMIT $3"
-	insertUnsequencedEntrySQL = "INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos) VALUES($1,0,$2,$3,$4)"
-	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE TreeId=$1 AND Bucket=0 AND QueueTimestampNanos=$2 AND LeafIdentityHash=$3"
+	insertUnsequencedEntrySQL = "INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID) VALUES($1,0,$2,$3,$4,$5)"
+	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE QueueID=ANY($1)"
 )
 
-type dequeuedLeaf struct {
-	queueTimestampNanos int64
-	leafIdentityHash    []byte
-}
+type dequeuedLeaf []byte
 
-func dequeueInfo(leafIDHash []byte, queueTimestamp int64) dequeuedLeaf {
-	return dequeuedLeaf{queueTimestampNanos: queueTimestamp, leafIdentityHash: leafIDHash}
+func dequeueInfo(_ []byte, queueID []byte) dequeuedLeaf {
+	return dequeuedLeaf(queueID)
 }
 
 func (t *logTreeTX) dequeueLeaf(rows pgx.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
 	var leafIDHash []byte
 	var merkleHash []byte
 	var queueTimestamp int64
+	var queueID []byte
 
-	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp)
+	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp, &queueID)
 	if err != nil {
 		klog.Warningf("Error scanning work rows: %s", err)
-		return nil, dequeuedLeaf{}, err
+		return nil, nil, err
 	}
 
 	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
@@ -74,11 +71,24 @@ func (t *logTreeTX) dequeueLeaf(rows pgx.Rows) (*trillian.LogLeaf, dequeuedLeaf,
 		MerkleLeafHash:   merkleHash,
 		QueueTimestamp:   queueTimestampProto,
 	}
-	return leaf, dequeueInfo(leafIDHash, queueTimestamp), nil
+	return leaf, dequeueInfo(leafIDHash, queueID), nil
 }
 
-func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []interface{} {
-	return []interface{}{queueTimestamp.UnixNano(), nil}
+func generateQueueID(treeID int64, leafIdentityHash []byte, timestamp int64) []byte {
+	h := sha256.New()
+	b := make([]byte, 10)
+	binary.PutVarint(b, treeID)
+	h.Write(b)
+	b = make([]byte, 10)
+	binary.PutVarint(b, timestamp)
+	h.Write(b)
+	h.Write(leafIdentityHash)
+	return h.Sum(nil)
+}
+
+func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
+	timestamp := queueTimestamp.UnixNano()
+	return []interface{}{timestamp, generateQueueID(treeID, identityHash, timestamp)}
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
@@ -121,17 +131,20 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
-func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeuedLeaf) error {
+func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeuedLeaf) error {
 	start := time.Now()
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here. See comment in
 	// QueueLeaves.
-	for _, dql := range leaves {
-		result, err := t.tx.Exec(ctx, deleteUnsequencedSQL, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
-		err = checkResultOkAndRowCountIs(result, err, int64(1))
-		if err != nil {
-			return err
-		}
+	result, err := t.tx.Exec(ctx, deleteUnsequencedSQL, queueIDs)
+	if err != nil {
+		// Error is handled by checkResultOkAndRowCountIs() below
+		klog.Warningf("Failed to delete sequenced work: %s", err)
+	}
+
+	err = checkResultOkAndRowCountIs(result, err, int64(len(queueIDs)))
+	if err != nil {
+		return err
 	}
 
 	observe(dequeueRemoveLatency, time.Since(start), labelForTX(t))
