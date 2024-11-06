@@ -45,8 +45,8 @@ const (
 		"SELECT TreeId,SubtreeId,Nodes " +
 		"FROM TempSubtree " +
 		"ON CONFLICT ON CONSTRAINT Subtree_pk DO UPDATE SET Nodes=EXCLUDED.Nodes"
-	insertTreeHeadSQL = "INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature) " +
-		"VALUES($1,$2,$3,$4,$5,$6) " +
+	insertTreeHeadSQL = "INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,RootSignature) " +
+		"VALUES($1,$2,$3,$4,$5) " +
 		"ON CONFLICT DO NOTHING"
 
 	selectSubtreeSQL = "SELECT SubtreeId,Nodes " +
@@ -104,7 +104,6 @@ func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.
 		treeType:      tree.TreeType,
 		hashSizeBytes: hashSizeBytes,
 		subtreeCache:  subtreeCache,
-		writeRevision: -1,
 	}, nil
 }
 
@@ -118,7 +117,6 @@ type treeTX struct {
 	treeType      trillian.TreeType
 	hashSizeBytes int
 	subtreeCache  *cache.SubtreeCache
-	writeRevision int64
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, ids [][]byte) ([]*storagepb.SubtreeProto, error) {
@@ -293,16 +291,14 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if t.writeRevision > -1 {
-		tiles, err := t.subtreeCache.UpdatedTiles()
-		if err != nil {
-			klog.Warningf("SubtreeCache updated tiles error: %v", err)
-			return err
-		}
-		if err := t.storeSubtrees(ctx, tiles); err != nil {
-			klog.Warningf("TX commit flush error: %v", err)
-			return err
-		}
+	tiles, err := t.subtreeCache.UpdatedTiles()
+	if err != nil {
+		klog.Warningf("SubtreeCache updated tiles error: %v", err)
+		return err
+	}
+	if err := t.storeSubtrees(ctx, tiles); err != nil {
+		klog.Warningf("TX commit flush error: %v", err)
+		return err
 	}
 	t.closed = true
 	if err := t.tx.Commit(ctx); err != nil {

@@ -73,7 +73,7 @@ const (
 		" AND TreeState IN($3,$4)" +
 		" AND (Deleted IS NULL OR Deleted='false')"
 
-	selectLatestSignedLogRootSQL = "SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature " +
+	selectLatestSignedLogRootSQL = "SELECT TreeHeadTimestamp,TreeSize,RootHash,RootSignature " +
 		"FROM TreeHead " +
 		"WHERE TreeId=$1 " +
 		"ORDER BY TreeHeadTimestamp DESC " +
@@ -207,9 +207,8 @@ func (m *postgreSQLLogStorage) beginInternal(ctx context.Context, tree *trillian
 		ls:       m,
 		dequeued: make(map[string]dequeuedLeaf),
 	}
-	ltx.slr, ltx.readRev, err = ltx.fetchLatestRoot(ctx)
+	ltx.slr, err = ltx.fetchLatestRoot(ctx)
 	if err == storage.ErrTreeNeedsInit {
-		ltx.treeTX.writeRevision = 0
 		return ltx, err
 	} else if err != nil {
 		if err := ttx.Close(); err != nil {
@@ -225,7 +224,6 @@ func (m *postgreSQLLogStorage) beginInternal(ctx context.Context, tree *trillian
 		return nil, err
 	}
 
-	ltx.treeTX.writeRevision = ltx.readRev + 1
 	return ltx, nil
 }
 
@@ -324,12 +322,11 @@ type logTreeTX struct {
 	treeTX
 	ls       *postgreSQLLogStorage
 	root     types.LogRootV1
-	readRev  int64
 	slr      *trillian.SignedLogRoot
 	dequeued map[string]dequeuedLeaf
 }
 
-// GetMerkleNodes returns the requested nodes at the read revision.
+// GetMerkleNodes returns the requested nodes.
 func (t *logTreeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error) {
 	t.treeTX.mu.Lock()
 	defer t.treeTX.mu.Unlock()
@@ -686,16 +683,16 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLo
 	return t.slr, nil
 }
 
-// fetchLatestRoot reads the latest root and the revision from the DB.
-func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, int64, error) {
-	var timestamp, treeSize, treeRevision int64
+// fetchLatestRoot reads the latest root from the DB.
+func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
+	var timestamp, treeSize int64
 	var rootHash, rootSignatureBytes []byte
 	if err := t.tx.QueryRow(
 		ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
-		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
+		&timestamp, &treeSize, &rootHash, &rootSignatureBytes,
 	); err == pgx.ErrNoRows {
 		// It's possible there are no roots for this tree yet
-		return nil, 0, storage.ErrTreeNeedsInit
+		return nil, storage.ErrTreeNeedsInit
 	}
 
 	// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
@@ -705,10 +702,10 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoo
 		TreeSize:       uint64(treeSize),
 	}).MarshalBinary()
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return &trillian.SignedLogRoot{LogRoot: logRoot}, treeRevision, nil
+	return &trillian.SignedLogRoot{LogRoot: logRoot}, nil
 }
 
 func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
@@ -731,7 +728,6 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 		logRoot.TimestampNanos,
 		logRoot.TreeSize,
 		logRoot.RootHash,
-		t.treeTX.writeRevision,
 		[]byte{})
 	if err != nil {
 		klog.Warningf("Failed to store signed root: %s", err)

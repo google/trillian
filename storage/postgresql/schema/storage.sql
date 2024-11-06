@@ -50,23 +50,17 @@ CREATE TABLE IF NOT EXISTS Subtree(
   CHECK (length(SubtreeId) <= 255)
 );
 
--- The TreeRevisionIdx is used to enforce that there is only one STH at any
--- tree revision
 CREATE TABLE IF NOT EXISTS TreeHead(
   TreeId               BIGINT NOT NULL,
   TreeHeadTimestamp    BIGINT,
   TreeSize             BIGINT,
   RootHash             BYTEA NOT NULL,
   RootSignature        BYTEA NOT NULL,
-  TreeRevision         BIGINT,
   PRIMARY KEY(TreeId, TreeHeadTimestamp),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
   CHECK (length(RootHash) <= 255),
   CHECK (length(RootSignature) <= 1024)
 );
-
-CREATE UNIQUE INDEX TreeHeadRevisionIdx
-  ON TreeHead(TreeId, TreeRevision);
 
 -- ---------------------------------------------
 -- Log specific stuff here

@@ -65,9 +65,7 @@ func TestNodeRoundTrip(t *testing.T) {
 			tree := mustCreateTree(ctx, t, as, treeDef)
 			s := NewLogStorage(DB, nil)
 
-			const writeRev = int64(100)
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-				forceWriteRevision(writeRev, tx)
 				if err := tx.SetMerkleNodes(ctx, tc.store); err != nil {
 					t.Fatalf("Failed to store nodes: %s", err)
 				}
@@ -113,7 +111,6 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 			tree := mustCreateTree(ctx, t, as, tC.tree)
 			s := NewLogStorage(DB, nil)
 
-			const writeRev = int64(100)
 			const size = 871
 			nodesToStore, err := createLogNodesForTreeAtSize(t, size)
 			if err != nil {
@@ -126,7 +123,6 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 			{
 				runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-					forceWriteRevision(writeRev, tx)
 					if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 						t.Fatalf("Failed to store nodes: %s", err)
 					}
@@ -155,14 +151,6 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 			}
 		})
 	}
-}
-
-func forceWriteRevision(rev int64, tx storage.LogTreeTX) {
-	mtx, ok := tx.(*logTreeTX)
-	if !ok {
-		panic(errors.New("uh oh"))
-	}
-	mtx.treeTX.writeRevision = rev
 }
 
 func createSomeNodes(count int) []stree.Node {
