@@ -202,11 +202,10 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		return nil
 	}
 
-	// TODO(al): probably need to be able to batch this in the case where we have
+	// TODO(robstradling): probably need to be able to batch this in the case where we have
 	// a really large number of subtrees to store.
 	rows := make([][]interface{}, 0, len(subtrees))
 
-	// TODO(mhutchinson): continue deleting this throughout
 	var subtreeRev int64
 	for _, s := range subtrees {
 		s := s

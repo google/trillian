@@ -201,7 +201,7 @@ func createLogNodesForTreeAtSize(t *testing.T, ts int64) ([]stree.Node, error) {
 	return nodes, nil
 }
 
-// TODO(pavelkalinnikov): Allow nodes to be out of order.
+// TODO(robstradling): Allow nodes to be out of order.
 func nodesAreEqual(lhs, rhs []stree.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)

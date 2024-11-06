@@ -232,7 +232,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
-	// TODO(pavelkalinnikov): When switching TreeType from PREORDERED_LOG to LOG,
+	// TODO(robstradling): When switching TreeType from PREORDERED_LOG to LOG,
 	// ensure all entries in SequencedLeafData are integrated.
 
 	// Use the time truncated-to-millis throughout, as that's what's stored.

@@ -91,7 +91,7 @@ const (
 		" INNER JOIN LeafData l ON (s.LeafIdentityHash=l.LeafIdentityHash AND s.TreeId=l.TreeId) " +
 		"WHERE s.MerkleLeafHash=ANY($1)" +
 		" AND l.TreeId=$2"
-	// TODO(#1548): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
+	// TODO(robstradling): Per #1548, rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
 	dummyMerkleLeafHash = "00000000000000000000000000000000"
 	// This statement returns a dummy Merkle leaf hash value (which must be
 	// of the right size) so that its signature matches that of the other
@@ -229,7 +229,7 @@ func (m *postgreSQLLogStorage) beginInternal(ctx context.Context, tree *trillian
 	return ltx, nil
 }
 
-// TODO(pavelkalinnikov): This and many other methods of this storage
+// TODO(robstradling): This and many other methods of this storage
 // implementation can leak a specific sql.ErrTxDone all the way to the client,
 // if the transaction is rolled back as a result of a canceled context. It must
 // return "generic" errors, and only log the specific ones for debugging.
@@ -341,7 +341,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	defer t.treeTX.mu.Unlock()
 
 	if t.treeType == trillian.TreeType_PREORDERED_LOG {
-		// TODO(pavelkalinnikov): Optimize this by fetching only the required
+		// TODO(robstradling): Optimize this by fetching only the required
 		// fields of LogLeaf. We can avoid joining with LeafData table here.
 		return t.getLeavesByRangeInternal(ctx, int64(t.root.TreeSize), int64(limit))
 	}
@@ -568,9 +568,9 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		}
 	}
 
-	// TODO(pavelkalinnikov): Support opting out from duplicates detection.
-	// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
-	// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
+	// TODO(robstradling): Support opting out from duplicates detection.
+	// TODO(robstradling): Update IntegrateTimestamp on integrating the leaf.
+	// TODO(robstradling): Load LeafData for conflicting entries.
 
 	return res, nil
 }
@@ -601,7 +601,7 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 			count = maxCount
 		}
 	}
-	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
+	// TODO(robstradling): Further clip `count` to a safe upper bound like 64k.
 
 	rows, err := t.tx.Query(ctx, selectLeavesByRangeSQL, start, start+count, t.treeID)
 	if err != nil {

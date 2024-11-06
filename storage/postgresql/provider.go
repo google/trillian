@@ -35,7 +35,7 @@ var (
 
 // GetDatabase returns an instance of PostgreSQL database, or creates one.
 //
-// TODO(pavelkalinnikov): Make the dependency of PostgreSQL quota provider from
+// TODO(robstradling): Make the dependency of PostgreSQL quota provider from
 // PostgreSQL storage provider explicit.
 func GetDatabase() (*pgxpool.Pool, error) {
 	postgresqlMu.Lock()
