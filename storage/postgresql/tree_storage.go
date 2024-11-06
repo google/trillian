@@ -39,11 +39,10 @@ const (
 		" TreeId BIGINT," +
 		" SubtreeId BYTEA," +
 		" Nodes BYTEA," +
-		" SubtreeRevision INTEGER," +
-		" CONSTRAINT TempSubtree_pk PRIMARY KEY (TreeId,SubtreeId,SubtreeRevision)" +
+		" CONSTRAINT TempSubtree_pk PRIMARY KEY (TreeId,SubtreeId)" +
 		") ON COMMIT DROP"
-	insertSubtreeMultiSQL = "INSERT INTO Subtree(TreeId,SubtreeId,Nodes,SubtreeRevision) " +
-		"SELECT TreeId,SubtreeId,Nodes,SubtreeRevision " +
+	insertSubtreeMultiSQL = "INSERT INTO Subtree(TreeId,SubtreeId,Nodes) " +
+		"SELECT TreeId,SubtreeId,Nodes " +
 		"FROM TempSubtree " +
 		"ON CONFLICT ON CONSTRAINT Subtree_pk DO UPDATE SET Nodes=EXCLUDED.Nodes"
 	insertTreeHeadSQL = "INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature) " +
@@ -206,7 +205,6 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	// a really large number of subtrees to store.
 	rows := make([][]interface{}, 0, len(subtrees))
 
-	var subtreeRev int64
 	for _, s := range subtrees {
 		s := s
 		if s.Prefix == nil {
@@ -216,7 +214,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		if err != nil {
 			return err
 		}
-		rows = append(rows, []interface{}{t.treeID, s.Prefix, subtreeBytes, subtreeRev})
+		rows = append(rows, []interface{}{t.treeID, s.Prefix, subtreeBytes})
 	}
 
 	// Create temporary subtree table.
@@ -230,7 +228,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	_, err = t.tx.CopyFrom(
 		ctx,
 		pgx.Identifier{"tempsubtree"},
-		[]string{"treeid", "subtreeid", "nodes", "subtreerevision"},
+		[]string{"treeid", "subtreeid", "nodes"},
 		pgx.CopyFromRows(rows),
 	)
 	if err != nil {
