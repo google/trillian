@@ -2,7 +2,13 @@
 
 ## HEAD
 
+### Storage
+
 * Add PostgreSQL quota manager and storage backend by @robstradling in https://github.com/google/trillian/pull/3644
+
+### Misc
+
+* Control included quota and storage providers via build tags by @robstradling in https://github.com/google/trillian/pull/3664
 
 ## v1.6.1
 
