@@ -45,6 +45,9 @@ It currently exists as internal prototype.
 
 This section lists the status of implementations for the _pluggable_ subsystems which Trillian supports.
 
+[Build tags](/storage/README.md#build-tags) can be used to control which [storage](#storage) and
+[quota](#quota) implementations are compiled in to Trillian binaries.
+
 ### Storage
 
 Trillian supports "pluggable" storage implementations for durable storage of the merkle tree data.
