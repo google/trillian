@@ -93,6 +93,10 @@ cd trillian
 go build ./...
 ```
 
+To build slimmer Trillian binaries that only include the storage and quota
+implementation(s) that you need, consider specifying
+[build tags](/storage/README.md#build-tags).
+
 To build and run tests, use:
 
 ```bash
@@ -151,6 +155,9 @@ additional dependencies and tools, described in the following sections. The
 [Cloud Build configuration](cloudbuild.yaml) and the scripts it depends on are
 also a useful reference for the required tools and scripts, as it may be more
 up-to-date than this document.
+
+Anyone wanting to add a new storage and/or quota implementation should
+understand how Trillian uses [build tags](/storage/README.md#build-tags).
 
 ### Rebuilding Generated Code
 
