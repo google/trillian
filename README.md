@@ -94,7 +94,7 @@ go build ./...
 ```
 
 To build slimmer Trillian binaries that only include the storage and quota
-implementation(s) that you need, consider specifying
+implementations that you need, consider specifying
 [build tags](/storage/README.md#build-tags).
 
 To build and run tests, use:
