@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* Add PostgreSQL quota manager and storage backend by @robstradling in https://github.com/google/trillian/pull/3644
+
 ## v1.6.1
 
 * Recommended go version for development: 1.22

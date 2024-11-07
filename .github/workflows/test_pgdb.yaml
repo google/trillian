@@ -1,0 +1,70 @@
+---
+name: Test PostgreSQL
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+
+    - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+      with:
+        go-version-file: go.mod
+        check-latest: true
+        cache: true
+
+    - uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
+      with:
+        version: 'v1.55.1'
+        args: ./storage/postgresql
+
+  integration-and-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+
+    - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+      with:
+        go-version-file: go.mod
+        check-latest: true
+        cache: true
+
+    - name: Build before tests
+      run: go mod download && go build ./...
+    
+    - name: Run PostgreSQL
+      run: docker run --rm -d --name=pgsql -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust postgres:latest
+
+    - name: Wait for PostgreSQL
+      uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3.0.0
+      with:
+        timeout_seconds: 15
+        max_attempts: 3
+        retry_on: error
+        command: docker exec pgsql psql -U postgres -c "SELECT 1"
+
+    - name: Get PostgreSQL logs
+      run: docker logs pgsql 2>&1
+
+    - name: Run integration tests
+      run: ./integration/integration_test.sh
+      env:
+        TEST_POSTGRESQL_URI: postgresql:///defaultdb?host=localhost&user=postgres&password=postgres
+        POSTGRESQL_IN_CONTAINER: true
+        POSTGRESQL_CONTAINER_NAME: pgsql
+
+    - name: Run unit tests
+      run: go test -v ./storage/postgresql/... ./quota/postgresqlqm/...
+  
