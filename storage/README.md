@@ -13,9 +13,58 @@ The MySQL / MariaDB implementation includes support for Maps. This has not yet
 been implemented by Cloud Spanner. There may be other storage implementations
 available from third parties.
 
+These implementations are in alpha mode and are not yet ready to be used by
+real applications:
+   * PostgreSQL in the [postgresql/](postgresql) package.
+   * CockroachDB in the [crdb/](crdb) package.
+
 These implementations are for test purposes only and should not be used by real
 applications:
    * In-memory Storage, in the [memory](memory) package.
+
+## Build tags
+
+By default all of the storage and quota implementations are compiled in to the
+log server and signer binaries. These binaries can be slimmed down
+significantly by specifying one or more of the following build tags:
+
+   * cloudspanner
+   * crdb
+   * mysql
+   * postgresql
+
+### Adding a new storage implementation
+
+To add a new storage and/or quota implementation requires:
+
+   * each of the `go:build` directives in the existing files in the
+[cmd/internal/provider](/cmd/internal/provider) directory to be made aware of
+the build tag for the new implementation.
+   * a new file to be created for the new implementation in that same
+directory, whose contents follow the pattern established by the existing files.
+
+### Examples
+
+Include all storage and quota implementations (default):
+
+```bash
+> cd cmd/trillian_log_server && go build && ls -sh trillian_log_server
+62M trillian_log_server*
+```
+
+Include just one storage and associated quota implementation:
+
+```bash
+> cd cmd/trillian_log_server && go build -tags=crdb && ls -sh trillian_log_server
+37M trillian_log_server*
+```
+
+Include multiple storage and associated quota implementations:
+
+```bash
+> cd cmd/trillian_log_server && go build -tags=mysql,postgresql && ls -sh trillian_log_server
+40M trillian_log_server*
+```
 
 ## Notes and Caveats
 

@@ -51,16 +51,8 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 
-	// Register supported storage providers.
-	_ "github.com/google/trillian/storage/cloudspanner"
-	_ "github.com/google/trillian/storage/crdb"
-	_ "github.com/google/trillian/storage/mysql"
-	_ "github.com/google/trillian/storage/postgresql"
-
-	// Load quota providers
-	_ "github.com/google/trillian/quota/crdbqm"
-	_ "github.com/google/trillian/quota/mysqlqm"
-	_ "github.com/google/trillian/quota/postgresqlqm"
+	// Register supported storage and quota providers.
+	_ "github.com/google/trillian/cmd/internal/provider"
 )
 
 var (
