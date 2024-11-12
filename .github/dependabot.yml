@@ -21,72 +21,19 @@ updates:
         - "*"
 
 - package-ecosystem: docker
-  directory: /examples/deployment/docker/db_client
-  schedule:
-    interval: weekly
-  groups:
-    docker-deps:
-      applies-to: version-updates
-      patterns:
-        - "*"
-
-- package-ecosystem: docker
-  directory: /examples/deployment/docker/db_server
+  directories:
+    - /examples/deployment/docker/db_client
+    - /examples/deployment/docker/db_server
+    - /examples/deployment/docker/envsubst
+    - /examples/deployment/docker/log_server
+    - /examples/deployment/docker/log_signer
+    - /examples/deployment/kubernetes/mysql/image
+    - /integration/cloudbuild/testbase
   schedule:
     interval: weekly
   ignore:
     - dependency-name: "mysql"
       versions: [">= 9.0"]
-  groups:
-    docker-deps:
-      applies-to: version-updates
-      patterns:
-        - "*"
-
-- package-ecosystem: docker
-  directory: /examples/deployment/docker/envsubst
-  schedule:
-    interval: weekly
-  groups:
-    docker-deps:
-      applies-to: version-updates
-      patterns:
-        - "*"
-
-- package-ecosystem: docker
-  directory: /examples/deployment/docker/log_server
-  schedule:
-    interval: weekly
-  groups:
-    docker-deps:
-      applies-to: version-updates
-      patterns:
-        - "*"
-
-- package-ecosystem: docker
-  directory: /examples/deployment/docker/log_signer
-  schedule:
-    interval: weekly
-  groups:
-    docker-deps:
-      applies-to: version-updates
-      patterns:
-        - "*"
-
-- package-ecosystem: docker
-  directory: /examples/deployment/kubernetes/mysql/image
-  schedule:
-    interval: weekly
-  groups:
-    docker-deps:
-      applies-to: version-updates
-      patterns:
-        - "*"
-
-- package-ecosystem: docker
-  directory: /integration/cloudbuild/testbase
-  schedule:
-    interval: weekly
   groups:
     docker-deps:
       applies-to: version-updates
