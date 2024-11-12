@@ -22,7 +22,6 @@ updates:
 
 - package-ecosystem: docker
   directories:
-    - /examples/deployment/docker/db_client
     - /examples/deployment/docker/db_server
     - /examples/deployment/docker/envsubst
     - /examples/deployment/docker/log_server
