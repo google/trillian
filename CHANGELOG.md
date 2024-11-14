@@ -5,6 +5,7 @@
 ### Storage
 
 * Add PostgreSQL quota manager and storage backend by @robstradling in https://github.com/google/trillian/pull/3644
+* PostgreSQL documentation / consistency fixes by @robstradling in https://github.com/google/trillian/pull/3676
 
 ### Misc
 
