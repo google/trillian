@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	postgreSQLURI = flag.String("postgresql_uri", "postgresql:///ctlog?host=localhost&user=ctlog", "Connection URI for PostgreSQL database")
+	postgreSQLURI = flag.String("postgresql_uri", "postgresql:///defaultdb?host=localhost&user=test", "Connection URI for PostgreSQL database")
 
 	postgresqlMu              sync.Mutex
 	postgresqlErr             error
