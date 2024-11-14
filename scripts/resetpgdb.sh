@@ -17,8 +17,6 @@ Accepts environment variables:
 - POSTGRESQL_USER: The name to give to the new Trillian user (default: test).
 - POSTGRESQL_PASSWORD: The password to use for the new Trillian user
   (default: zaphod).
-- POSTGRESQL_USER_HOST: The host that the Trillian user will connect from; use '%' as
-  a wildcard (default: localhost).
 - POSTGRESQL_IN_CONTAINER: If set, the script will assume it is running in a Docker
   container and will exec into the container to operate (default: false).
 - POSTGRESQL_CONTAINER_NAME: The name of the Docker container to exec into (default:
@@ -39,7 +37,6 @@ collect_vars() {
   [ -z ${POSTGRESQL_DATABASE+x} ] && POSTGRESQL_DATABASE="defaultdb"
   [ -z ${POSTGRESQL_USER+x} ] && POSTGRESQL_USER="test"
   [ -z ${POSTGRESQL_PASSWORD+x} ] && POSTGRESQL_PASSWORD="zaphod"
-  [ -z ${POSTGRESQL_USER_HOST+x} ] && POSTGRESQL_USER_HOST="localhost"
   [ -z ${POSTGRESQL_INSECURE+x} ] && POSTGRESQL_INSECURE="true"
   [ -z ${POSTGRESQL_IN_CONTAINER+x} ] && POSTGRESQL_IN_CONTAINER="false"
   [ -z ${POSTGRESQL_CONTAINER_NAME+x} ] && POSTGRESQL_CONTAINER_NAME="pgsql"
