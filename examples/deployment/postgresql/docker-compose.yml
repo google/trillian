@@ -1,0 +1,52 @@
+version: '3.1'
+services:
+  postgresql:
+    build:
+      context: ../../..
+      dockerfile: examples/deployment/docker/db_server/postgresql/Dockerfile
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRESQL_DATABASE=defaultdb
+      - POSTGRESQL_USER=test
+      - POSTGRESQL_PASSWORD=zaphod
+    restart: always # keep the PostgreSQL server running
+  trillian-log-server:
+    build:
+      context: ../../..
+      dockerfile: examples/deployment/docker/log_server/Dockerfile
+      args:
+        - GOFLAGS
+    command: [
+      "--quota_system=postgresql",
+      "--storage_system=postgresql",
+      "--postgresql_uri=postgresql:///defaultdb?host=localhost&user=test&password=zaphod",
+      "--rpc_endpoint=0.0.0.0:8090",
+      "--http_endpoint=0.0.0.0:8091",
+      "--alsologtostderr",
+    ]
+    restart: always # retry while PostgreSQL is starting up
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+    depends_on:
+      - postgresql
+  trillian-log-signer:
+    build:
+      context: ../../..
+      dockerfile: examples/deployment/docker/log_signer/Dockerfile
+      args:
+        - GOFLAGS
+    command: [
+      "--quota_system=postgresql",
+      "--storage_system=postgresql",
+      "--postgresql_uri=postgresql:///defaultdb?host=localhost&user=test&password=zaphod",
+      "--rpc_endpoint=0.0.0.0:8090",
+      "--http_endpoint=0.0.0.0:8091",
+      "--force_master",
+      "--alsologtostderr",
+    ]
+    restart: always # retry while PostgreSQL is starting up
+    ports:
+      - "8092:8091"
+    depends_on:
+      - postgresql
