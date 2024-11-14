@@ -8,19 +8,19 @@ $(basename $0) [--force] [--verbose] ...
 All unrecognised arguments will be passed through to the 'psql' command.
 Accepts environment variables:
 - POSTGRESQL_ROOT_USER: A user with sufficient rights to create/reset the Trillian
-  database (default: root).
+  database (default: postgres).
 - POSTGRESQL_ROOT_PASSWORD: The password for \$POSTGRESQL_ROOT_USER (default: none).
-- POSTGRESQL_HOST: The hostname of the PostgreSQL} server (default: localhost).
+- POSTGRESQL_HOST: The hostname of the PostgreSQL server (default: localhost).
 - POSTGRESQL_PORT: The port the PostgreSQL server is listening on (default: 5432).
 - POSTGRESQL_DATABASE: The name to give to the new Trillian user and database
-  (default: test).
+  (default: defaultdb).
 - POSTGRESQL_USER: The name to give to the new Trillian user (default: test).
 - POSTGRESQL_PASSWORD: The password to use for the new Trillian user
   (default: zaphod).
 - POSTGRESQL_USER_HOST: The host that the Trillian user will connect from; use '%' as
   a wildcard (default: localhost).
 - POSTGRESQL_IN_CONTAINER: If set, the script will assume it is running in a Docker
-  container and will exec into the container to operate.
+  container and will exec into the container to operate (default: false).
 - POSTGRESQL_CONTAINER_NAME: The name of the Docker container to exec into (default:
   pgsql).
 EOF
@@ -103,7 +103,7 @@ main() {
         $CMD "${FLAGS[@]}" -c "CREATE USER ${POSTGRESQL_USER} WITH PASSWORD '${POSTGRESQL_PASSWORD}';" || \
           die "Error: Failed to create user '${POSTGRESQL_USER}'."
       fi
-      $CMD "${FLAGS[@]}" -c "GRANT ALL PRIVILEGES ON DATABASE ${POSTGRESQL_DATABASE} TO ${POSTGRESQL_USER} WITH GRANT OPTION" || \
+      $CMD "${FLAGS[@]}" -c "GRANT ALL PRIVILEGES ON DATABASE ${POSTGRESQL_DATABASE} TO ${POSTGRESQL_USER} WITH GRANT OPTION;" || \
         die "Error: Failed to grant '${POSTGRESQL_USER}' user all privileges on '${POSTGRESQL_DATABASE}'."
       $CMD "${FLAGS[@]}" -d ${POSTGRESQL_DATABASE} < ${TRILLIAN_PATH}/storage/postgresql/schema/storage.sql || \
         die "Error: Failed to create tables in '${POSTGRESQL_DATABASE}' database."
