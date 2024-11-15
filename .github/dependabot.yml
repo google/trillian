@@ -23,6 +23,7 @@ updates:
 - package-ecosystem: docker
   directories:
     - /examples/deployment/docker/db_server
+    - /examples/deployment/docker/db_server/postgresql
     - /examples/deployment/docker/envsubst
     - /examples/deployment/docker/log_server
     - /examples/deployment/docker/log_signer
