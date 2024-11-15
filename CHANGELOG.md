@@ -6,6 +6,7 @@
 
 * Add PostgreSQL quota manager and storage backend by @robstradling in https://github.com/google/trillian/pull/3644
 * PostgreSQL deployment example by @robstradling in https://github.com/google/trillian/pull/3675
+* PostgreSQL documentation / consistency fixes by @robstradling in https://github.com/google/trillian/pull/3676
 
 ### Misc
 
