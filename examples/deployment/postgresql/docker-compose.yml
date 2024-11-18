@@ -6,9 +6,6 @@ services:
       dockerfile: examples/deployment/docker/db_server/postgresql/Dockerfile
     environment:
       - POSTGRES_HOST_AUTH_METHOD=trust
-      - POSTGRESQL_DATABASE=defaultdb
-      - POSTGRESQL_USER=test
-      - POSTGRESQL_PASSWORD=zaphod
     restart: always # keep the PostgreSQL server running
   trillian-log-server:
     build:
