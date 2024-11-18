@@ -19,7 +19,7 @@ services:
     command: [
       "--quota_system=postgresql",
       "--storage_system=postgresql",
-      "--postgresql_uri=postgresql:///defaultdb?host=localhost&user=test&password=zaphod",
+      "--postgresql_uri=postgresql:///defaultdb?host=postgresql&user=postgres",
       "--rpc_endpoint=0.0.0.0:8090",
       "--http_endpoint=0.0.0.0:8091",
       "--alsologtostderr",
@@ -39,7 +39,7 @@ services:
     command: [
       "--quota_system=postgresql",
       "--storage_system=postgresql",
-      "--postgresql_uri=postgresql:///defaultdb?host=localhost&user=test&password=zaphod",
+      "--postgresql_uri=postgresql:///defaultdb?host=postgresql&user=postgres",
       "--rpc_endpoint=0.0.0.0:8090",
       "--http_endpoint=0.0.0.0:8091",
       "--force_master",
