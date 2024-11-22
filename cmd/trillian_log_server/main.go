@@ -46,7 +46,7 @@ import (
 	"k8s.io/klog/v2"
 
 	// Register supported storage and quota providers.
-	_ "github.com/google/trillian/cmd/internal/provider"
+	"github.com/google/trillian/cmd/internal/provider"
 )
 
 var (
@@ -58,10 +58,10 @@ var (
 	etcdService     = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
 	etcdHTTPService = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 
-	quotaSystem = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quota.Providers()))
+	quotaSystem = flag.String("quota_system", provider.DefaultQuotaSystem, fmt.Sprintf("Quota system to use. One of: %v", quota.Providers()))
 	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
-	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", storage.Providers()))
+	storageSystem = flag.String("storage_system", provider.DefaultStorageSystem, fmt.Sprintf("Storage system to use. One of: %v", storage.Providers()))
 
 	treeGCEnabled            = flag.Bool("tree_gc", true, "If true, tree garbage collection (hard-deletion) is periodically performed")
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", serverutil.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")

@@ -12,6 +12,7 @@
 ### Misc
 
 * Control included quota and storage providers via build tags by @robstradling in https://github.com/google/trillian/pull/3664
+* Sensible default quota and storage systems when MySQL support unavailable by @robstradling in https://github.com/google/trillian/pull/3679
 
 ## v1.6.1
 
