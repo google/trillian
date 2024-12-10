@@ -5,6 +5,14 @@
 [![GoDoc](https://godoc.org/github.com/google/trillian?status.svg)](https://godoc.org/github.com/google/trillian)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
 
+> [!NOTE]
+> Trillian is in maintenance mode.
+> The next generation of transparency logs uses [Tiled APIs](ttps://c2sp.org/tlog-tiles)
+> and are better supported by [Trillian Tessera](https://github.com/transparency-dev/trillian-tessera).
+> We recommend that any new log operators first try Tessera.
+>
+> Community contributions to Trillian are still welcome!
+
  - [Overview](#overview)
  - [Support](#support)
  - [Using the Code](#using-the-code)
