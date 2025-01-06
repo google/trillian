@@ -119,6 +119,9 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
 CREATE INDEX SequencedLeafMerkleIdx
   ON SequencedLeafData(TreeId, MerkleLeafHash);
 
+CREATE INDEX SequencedLeafIdentityIdx
+  ON SequencedLeafData(TreeId, LeafIdentityHash);
+
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               BIGINT NOT NULL,
   -- The bucket field is to allow the use of time based ring bucketed schemes if desired. If
