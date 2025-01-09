@@ -2,9 +2,15 @@
 
 ## HEAD
 
+## v1.7.1
+
 ### Storage
 
 * For PostgreSQL, explicitly create index on SequencedLeafData(TreeId, LeafIdentityHash) by @robstradling in https://github.com/google/trillian/pull/3695
+
+### Misc
+
+* Relaxed go.mod version requirements to `1.22.x`
 
 ## v1.7.0
 
