@@ -11,7 +11,7 @@
 > and are better supported by [Trillian Tessera](https://github.com/transparency-dev/trillian-tessera).
 > We recommend that any new log operators first try Tessera.
 >
-> Community contributions to Trillian are still welcome!
+> Community contributions to Trillian are still welcome, but please file an issue and/or swing by the Slack first for discussion!
 
  - [Overview](#overview)
  - [Support](#support)
