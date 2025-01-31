@@ -5,6 +5,9 @@ import (
 
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+
+	_ "github.com/google/trillian/util/election2/etcd"
+	_ "github.com/google/trillian/util/election2/k8s"
 )
 
 var (

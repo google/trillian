@@ -132,16 +132,6 @@ type Factory struct {
 	lockDir    string
 }
 
-// NewFactory builds an election factory that uses the given parameters. The
-// passed in etcd client should remain valid for the lifetime of the object.
-func NewFactory(instanceID string, client *clientv3.Client, lockDir string) *Factory {
-	return &Factory{
-		client:     client,
-		instanceID: instanceID,
-		lockDir:    lockDir,
-	}
-}
-
 // NewElection creates a specific Election instance.
 func (f *Factory) NewElection(ctx context.Context, resourceID string) (election2.Election, error) {
 	// TODO(pavelkalinnikov): Re-create the session if it expires.
