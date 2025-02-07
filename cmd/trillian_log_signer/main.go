@@ -74,7 +74,7 @@ var (
 
 	storageSystem = flag.String("storage_system", provider.DefaultStorageSystem, fmt.Sprintf("Storage system to use. One of: %v", storage.Providers()))
 
-	electionSystem     = flag.String("election_system", "etcd", fmt.Sprintf("Election system to use. One of: %v", election2.Providers()))
+	electionSystem     = flag.String("election_system", provider.DefaultElectionSystem, fmt.Sprintf("Election system to use. One of: %v", election2.Providers()))
 	preElectionPause   = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterHoldInterval = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
 	masterHoldJitter   = flag.Duration("master_hold_jitter", 120*time.Second, "Maximal random addition to --master_hold_interval")
