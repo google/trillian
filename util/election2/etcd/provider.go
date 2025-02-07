@@ -44,7 +44,7 @@ func newFactory() (election2.Factory, error) {
 	}
 
 	if client == nil {
-		return nil, errors.New("Either --force_master or --etcd_servers must be supplied")
+		return nil, errors.New("--etcd_servers must be supplied to initialize etcd elections")
 	}
 
 	// The passed in etcd client should remain valid for the lifetime of the object.
