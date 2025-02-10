@@ -14,7 +14,22 @@
 
 package election2
 
-import "context"
+import (
+	"context"
+
+	"k8s.io/klog/v2"
+)
+
+// noopElectionName represents the noop election implementation.
+const noopElectionName = "noop"
+
+func init() {
+	if err := RegisterProvider(noopElectionName, func() (Factory, error) {
+		return NoopFactory{}, nil
+	}); err != nil {
+		klog.Fatalf("Failed to register %q: %v", noopElectionName, err)
+	}
+}
 
 // NoopElection is a stub Election that always believes to be the master.
 type NoopElection string

@@ -31,7 +31,11 @@ func TestElectionThroughCommonClient(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	fact := NewFactory("serv", client, "res/")
+	fact := Factory{
+		client:     client,
+		instanceID: "serv",
+		lockDir:    "res/",
+	}
 
 	el1, err := fact.NewElection(ctx, "10")
 	if err != nil {
@@ -66,9 +70,13 @@ func TestElection(t *testing.T) {
 
 	for _, nt := range testonly.Tests {
 		// Create a new Factory for each test for better isolation.
-		fact := NewFactory("testID", client, fmt.Sprintf("%s/resources/", nt.Name))
+		fact := Factory{
+			client:     client,
+			instanceID: "testID",
+			lockDir:    fmt.Sprintf("%s/resources/", nt.Name),
+		}
 		t.Run(nt.Name, func(t *testing.T) {
-			nt.Run(t, fact)
+			nt.Run(t, &fact)
 		})
 	}
 }

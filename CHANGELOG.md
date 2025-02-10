@@ -2,6 +2,9 @@
 
 ## HEAD
 
+* Add `--election_system` parameter to allow selection of the election system by @osmman in https://github.com/google/trillian/pull/3721
+* Add Kubernetes-based leader election system by @osmman in https://github.com/google/trillian/pull/3721
+
 ## v1.7.1
 
 ### Storage

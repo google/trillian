@@ -40,16 +40,16 @@ type NamedTest struct {
 	Run  func(t *testing.T, f election2.Factory)
 }
 
-// checkNotDone ensures that the context is not done for some time.
-func checkNotDone(ctx context.Context, t *testing.T) {
+// CheckNotDone ensures that the context is not done for some time.
+func CheckNotDone(ctx context.Context, t *testing.T) {
 	t.Helper()
 	if err := clock.SleepContext(ctx, 100*time.Millisecond); err != nil {
 		t.Error("unexpected context cancelation")
 	}
 }
 
-// checkDone ensures that the context is done within the specified duration.
-func checkDone(ctx context.Context, t *testing.T, wait time.Duration) {
+// CheckDone ensures that the context is done within the specified duration.
+func CheckDone(ctx context.Context, t *testing.T, wait time.Duration) {
 	t.Helper()
 	if wait == 0 {
 		select {
@@ -142,9 +142,9 @@ func runElectionWithMastership(t *testing.T, f election2.Factory) {
 				cancel()
 			}
 			if tc.beMaster && !tc.cancel {
-				checkNotDone(mctx, t)
+				CheckNotDone(mctx, t)
 			} else {
-				checkDone(mctx, t, 0)
+				CheckDone(mctx, t, 0)
 			}
 		})
 	}
@@ -186,11 +186,11 @@ func runElectionResign(t *testing.T, f election2.Factory) {
 				t.Errorf("Resign(): %v, want %v", got, want)
 			}
 			if tc.beMaster && tc.wantErr == nil {
-				checkDone(mctx, t, 1*time.Second)
+				CheckDone(mctx, t, 1*time.Second)
 			} else if tc.beMaster {
-				checkNotDone(mctx, t)
+				CheckNotDone(mctx, t)
 			} else {
-				checkDone(mctx, t, 0)
+				CheckDone(mctx, t, 0)
 			}
 		})
 	}
@@ -241,11 +241,11 @@ func runElectionClose(t *testing.T, f election2.Factory) {
 				t.Errorf("Close(): %v, want %v", got, want)
 			}
 			if tc.beMaster && tc.wantErr == nil {
-				checkDone(mctx, t, 1*time.Second)
+				CheckDone(mctx, t, 1*time.Second)
 			} else if tc.beMaster {
-				checkNotDone(mctx, t)
+				CheckNotDone(mctx, t)
 			} else {
-				checkDone(mctx, t, 0)
+				CheckDone(mctx, t, 0)
 			}
 		})
 	}
@@ -275,10 +275,10 @@ func runElectionLoop(t *testing.T, f election2.Factory) {
 		if err != nil {
 			t.Fatalf("WithMastership(): %v", err)
 		}
-		checkNotDone(mctx, t) // Do some work as master.
+		CheckNotDone(mctx, t) // Do some work as master.
 		if err := d.Resign(ctx); err != nil {
 			t.Errorf("Resign(): %v", err)
 		}
-		checkDone(mctx, t, 1*time.Second) // The mastership context should close.
+		CheckDone(mctx, t, 1*time.Second) // The mastership context should close.
 	}
 }

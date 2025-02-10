@@ -46,7 +46,6 @@ import (
 	"github.com/google/trillian/util/clock"
 	"github.com/google/trillian/util/election"
 	"github.com/google/trillian/util/election2"
-	etcdelect "github.com/google/trillian/util/election2/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
@@ -66,7 +65,6 @@ var (
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
 	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
-	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
 	healthzTimeout           = flag.Duration("healthz_timeout", time.Second*5, "Timeout used during healthz checks")
 
 	quotaSystem         = flag.String("quota_system", provider.DefaultQuotaSystem, fmt.Sprintf("Quota system to use. One of: %v", quota.Providers()))
@@ -76,6 +74,7 @@ var (
 
 	storageSystem = flag.String("storage_system", provider.DefaultStorageSystem, fmt.Sprintf("Storage system to use. One of: %v", storage.Providers()))
 
+	electionSystem     = flag.String("election_system", provider.DefaultElectionSystem, fmt.Sprintf("Election system to use. One of: %v", election2.Providers()))
 	preElectionPause   = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterHoldInterval = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
 	masterHoldJitter   = flag.Duration("master_hold_jitter", 120*time.Second, "Maximal random addition to --master_hold_interval")
@@ -133,17 +132,16 @@ func main() {
 	defer cancel()
 	go util.AwaitSignal(ctx, cancel)
 
-	hostname, _ := os.Hostname()
-	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
 	var electionFactory election2.Factory
 	switch {
 	case *forceMaster:
 		klog.Warning("**** Acting as master for all logs ****")
 		electionFactory = election2.NoopFactory{}
-	case client != nil:
-		electionFactory = etcdelect.NewFactory(instanceID, client, *lockDir)
 	default:
-		klog.Exit("Either --force_master or --etcd_servers must be supplied")
+		electionFactory, err = election2.NewProvider(*electionSystem)
+		if err != nil {
+			klog.Exitf("Failed to get election provider: %v", err)
+		}
 	}
 
 	qm, err := quota.NewManager(*quotaSystem)
