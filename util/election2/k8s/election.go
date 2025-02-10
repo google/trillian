@@ -272,7 +272,12 @@ func (e *Election) Close(ctx context.Context) error {
 }
 
 func (e *Election) isLeaseValid(now time.Time) bool {
-	return e.observedTime.Add(time.Second * time.Duration(e.getObservedRecord().LeaseDurationSeconds)).After(now)
+	duration := e.getObservedRecord().LeaseDurationSeconds
+
+	e.observedRecordLock.Lock()
+	defer e.observedRecordLock.Unlock()
+
+	return e.observedTime.Add(time.Second * time.Duration(duration)).After(now)
 }
 
 // setObservedRecord will set a new observedRecord and update observedTime to the current time.
