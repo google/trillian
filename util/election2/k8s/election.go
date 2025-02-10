@@ -253,7 +253,7 @@ func (e *Election) Resign(ctx context.Context) error {
 
 	now := metav1.NewTime(e.clock.Now())
 	leaderElectionRecord := resourcelock.LeaderElectionRecord{
-		LeaderTransitions:    e.observedRecord.LeaderTransitions,
+		LeaderTransitions:    e.getObservedRecord().LeaderTransitions,
 		LeaseDurationSeconds: 1,
 		RenewTime:            now,
 		AcquireTime:          now,
