@@ -3,12 +3,13 @@ package k8s
 import (
 	"flag"
 	"fmt"
+	"time"
+
 	"github.com/google/trillian/util/election2"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
-	"time"
 )
 
 // ElectionName identifies the kubernetes election implementation.

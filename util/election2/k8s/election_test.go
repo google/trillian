@@ -17,14 +17,15 @@ package k8s
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/google/trillian/util/election2"
 	"github.com/google/trillian/util/election2/testonly"
 	v1 "k8s.io/api/coordination/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
-	"time"
 )
 
 var Tests []testonly.NamedTest

@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/google/trillian/util/election2"
 	v1 "k8s.io/api/coordination/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -14,9 +18,6 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
-	"strings"
-	"sync"
-	"time"
 )
 
 // Factory creates Election instances.

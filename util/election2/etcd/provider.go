@@ -4,12 +4,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/google/trillian/util/election2"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"k8s.io/klog/v2"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/google/trillian/util/election2"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"k8s.io/klog/v2"
 )
 
 // ElectionName identifies the etcd election implementation.
