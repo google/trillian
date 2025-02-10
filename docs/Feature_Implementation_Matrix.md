@@ -109,10 +109,11 @@ Supported monitoring frameworks, allowing for production monitoring and alerting
 
 Supported frameworks for providing Master Election.
 
-| Election        | Status  | Deployed in prod    | Notes                                                                       |
-|:---             | :---:   | :---:               |:---                                                                         |
-| Chubby          | GA      | ✓                   | Google internal-only.                                                       |
-| etcd            | GA      | ✓                   |                                                                             |
+| Election | Status | Deployed in prod | Notes                                                                                  |
+|:---------|:------:|:----------------:|:---------------------------------------------------------------------------------------|
+| Chubby   |   GA   |        ✓         | Google internal-only.                                                                  |
+| etcd     |   GA   |        ✓         |                                                                                        |
+| k8s      | Alpha  |                  | Supported by [Tomas Turek](https://github.com/osmman) at [Red Hat](https://redhat.com) |
 
 ### Quota
 

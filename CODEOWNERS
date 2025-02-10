@@ -20,3 +20,5 @@
 /storage/mysql/schema/*          @mhutchinson @AlCutter
 /storage/cloudspanner/spanner.sdl @mhutchinson @AlCutter
 /storage/postgresql/schema/*     @mhutchinson @AlCutter
+
+/util/election2/k8s/*            @osmman
