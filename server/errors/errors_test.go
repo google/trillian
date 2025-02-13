@@ -42,7 +42,7 @@ func TestWrapError(t *testing.T) {
 		},
 		{
 			err:     sql.ErrNoRows,
-			wantErr: status.Errorf(codes.NotFound, sql.ErrNoRows.Error()),
+			wantErr: status.Error(codes.NotFound, sql.ErrNoRows.Error()),
 		},
 	}
 	for _, test := range tests {

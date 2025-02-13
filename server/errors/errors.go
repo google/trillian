@@ -25,7 +25,7 @@ import (
 // (such as canonical SQL errors), else err is returned unmodified.
 func WrapError(err error) error {
 	if err == sql.ErrNoRows {
-		return status.Errorf(codes.NotFound, err.Error())
+		return status.Error(codes.NotFound, err.Error())
 	}
 
 	return err

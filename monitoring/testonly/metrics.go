@@ -71,7 +71,7 @@ func TestCounter(t *testing.T, factory monitoring.MetricFactory) {
 			// Use a different set of label values
 			// Metrics with different valued label values, are distinct
 			// This test is only applicable when a Metric has labels
-			if test.labelVals != nil && len(test.labelVals) >= 1 {
+			if len(test.labelVals) >= 1 {
 				altLabels := make([]string, len(test.labelVals))
 				copy(altLabels, test.labelVals)
 				altLabels[0] = "alt-val1"
@@ -151,7 +151,7 @@ func TestGauge(t *testing.T, factory monitoring.MetricFactory) {
 			// Use a different set of label values
 			// Metrics with different valued label values, are distinct
 			// This test is only applicable when a Metric has labels
-			if test.labelVals != nil && len(test.labelVals) >= 1 {
+			if len(test.labelVals) >= 1 {
 				altLabels := make([]string, len(test.labelVals))
 				copy(altLabels, test.labelVals)
 				altLabels[0] = "alt-val1"
@@ -223,7 +223,7 @@ func TestHistogram(t *testing.T, factory monitoring.MetricFactory) {
 			// Use a different set of label values
 			// Metrics with different valued label values, are distinct
 			// This test is only applicable when a Metric has labels
-			if test.labelVals != nil && len(test.labelVals) >= 1 {
+			if len(test.labelVals) >= 1 {
 				altLabels := make([]string, len(test.labelVals))
 				copy(altLabels, test.labelVals)
 				altLabels[0] = "alt-val1"
