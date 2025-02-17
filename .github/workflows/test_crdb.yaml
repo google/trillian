@@ -25,7 +25,7 @@ jobs:
         check-latest: true
         cache: true
 
-    - uses: golangci/golangci-lint-action@051d91933864810ecd5e2ea2cfd98f6a5bca5347 # v6.3.2
+    - uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837 # v6.5.0
       with:
         version: 'v1.61.0'
         args: ./storage/crdb
@@ -62,7 +62,7 @@ jobs:
       run: docker run --rm -d --name=roach -p 8080:8080 -p 26257:26257 -v "${PWD}/cockroach-data:/cockroach/cockroach-data"  cockroachdb/cockroach:latest start-single-node --insecure
 
     - name: Wait for CockroachDB
-      uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3.0.0
+      uses: nick-fields/retry@c97818ca39074beaea45180dba704f92496a0082 # v3.0.1
       with:
         timeout_seconds: 15
         max_attempts: 3
