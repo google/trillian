@@ -413,24 +413,16 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	return nil
 }
 
-func (t *treeTX) rollbackInternal() error {
-	t.closed = true
-	if err := t.tx.Rollback(); err != nil {
-		klog.Warningf("TX rollback error: %s, stack:\n%s", err, string(debug.Stack()))
-		return err
-	}
-	return nil
-}
-
 func (t *treeTX) Close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.closed {
 		return nil
 	}
-	err := t.rollbackInternal()
-	if err != nil {
+	t.closed = true
+	if err := t.tx.Rollback(); err != nil && err != sql.ErrTxDone {
 		klog.Warningf("Rollback error on Close(): %v", err)
+		return err
 	}
-	return err
+	return nil
 }

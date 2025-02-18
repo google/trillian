@@ -132,7 +132,10 @@ func (t *adminTX) Close() error {
 		return nil
 	}
 	t.closed = true
-	return t.tx.Rollback()
+	if err := t.tx.Rollback(); err != nil && err != sql.ErrTxDone {
+		return err
+	}
+	return nil
 }
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
