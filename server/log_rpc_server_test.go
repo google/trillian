@@ -27,6 +27,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/monitoring/testonly"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/storage/tree"
@@ -322,10 +324,15 @@ func TestQueueLeaf(t *testing.T) {
 	mockStorage.EXPECT().QueueLeaves(gomock.Any(), cmpMatcher{tree1}, cmpMatcher{[]*trillian.LogLeaf{leaf1}}, fakeTime).After(c1).Return([]*trillian.QueuedLogLeaf{dupeQueuedLeaf(leaf1)}, nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: queueRequest0.LogId, numSnapshots: 2}),
-		LogStorage:   mockStorage,
+		AdminStorage:  fakeAdminStorage(ctrl, storageParams{treeID: queueRequest0.LogId, numSnapshots: 2}),
+		LogStorage:    mockStorage,
+		MetricFactory: &monitoring.InertMetricFactory{},
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+	logIDLabel := strconv.FormatInt(queueRequest0.LogId, 10)
+	leafCounterInsertedBase := testonly.NewCounterSnapshot(server.leafCounter, logIDLabel, "inserted")
+	leafCounterSkippedBase := testonly.NewCounterSnapshot(server.leafCounter, logIDLabel, "skipped")
 
 	rsp, err := server.QueueLeaf(ctx, &queueRequest0)
 	if err != nil {
@@ -340,6 +347,12 @@ func TestQueueLeaf(t *testing.T) {
 	if !proto.Equal(queueRequest0.Leaf, rsp.QueuedLeaf.Leaf) {
 		diff := cmp.Diff(queueRequest0.Leaf, rsp.QueuedLeaf.Leaf)
 		t.Errorf("post-QueueLeaf() diff:\n%v", diff)
+	}
+	if d := leafCounterInsertedBase.Delta(); d != 1.0 {
+		t.Errorf("%f leaves added, want 1 leaf added", d)
+	}
+	if d := leafCounterSkippedBase.Delta(); d != 0.0 {
+		t.Errorf("%f leaves skipped, want 0 leaves added", d)
 	}
 
 	// Repeating the operation gives ALREADY_EXISTS.
@@ -361,6 +374,13 @@ func TestQueueLeaf(t *testing.T) {
 		diff := cmp.Diff(queueRequest0.Leaf, rsp.QueuedLeaf.Leaf)
 		t.Errorf("post-QueueLeaf() diff:\n%v", diff)
 	}
+	if d := leafCounterInsertedBase.Delta(); d != 1.0 {
+		t.Errorf("%f leaves added, want 1 leaf added", d)
+	}
+	if d := leafCounterSkippedBase.Delta(); d != 1.0 {
+		t.Errorf("%f leaves skipped, want 1 leaves added", d)
+	}
+
 }
 
 func TestAddSequencedLeavesStorageError(t *testing.T) {
