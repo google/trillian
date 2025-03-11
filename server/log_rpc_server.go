@@ -118,6 +118,15 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 	if len(ret) != 1 {
 		return nil, status.Errorf(codes.Internal, "unexpected count of leaves %d", len(ret))
 	}
+
+	// Mirror the use of this counter in AddSequencedLeaves below.
+	label := strconv.FormatInt(req.LogId, 10)
+	if s := ret[0].Status; s == nil || s.Code == int32(codes.OK) {
+		t.leafCounter.Inc(label, "inserted")
+	} else {
+		t.leafCounter.Inc(label, "skipped")
+	}
+
 	return &trillian.QueueLeafResponse{QueuedLeaf: ret[0]}, nil
 }
 
