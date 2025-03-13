@@ -457,7 +457,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			}
 			toRetrieve = append(toRetrieve, leafIdentityHash)
 		}
-		if rows.Err() != nil {
+		if err = rows.Err(); err != nil {
 			klog.Errorf("Failed processing rows: %s", err)
 			return nil, postgresqlToGRPC(err)
 		}
@@ -559,7 +559,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 				res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
 			}
 		}
-		if rows.Err() != nil {
+		if err = rows.Err(); err != nil {
 			klog.Errorf("Error processing rows: %s", err)
 			return nil, postgresqlToGRPC(err)
 		}
