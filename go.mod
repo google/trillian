@@ -4,6 +4,9 @@ go 1.23.0
 
 toolchain go1.23.4
 
+// Pin pgx to v5.5.3 due to https://github.com/jackc/pgx/issues/2100
+replace github.com/jackc/pgx/v5 => github.com/jackc/pgx/v5 v5.5.3
+
 require (
 	bitbucket.org/creachadair/shell v0.0.8
 	cloud.google.com/go/spanner v1.77.0
