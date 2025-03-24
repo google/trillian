@@ -12,36 +12,36 @@ require (
 	github.com/cockroachdb/cockroach-go/v2 v2.4.0
 	github.com/fullstorydev/grpcurl v1.9.3
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/go-sql-driver/mysql v1.9.0
+	github.com/go-sql-driver/mysql v1.9.1
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/google/btree v1.1.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-licenses/v2 v2.0.0-alpha.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
-	github.com/jackc/pgx/v5 v5.7.2
+	github.com/jackc/pgx/v5 v5.7.3
 	github.com/letsencrypt/pkcs11key/v4 v4.0.0
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.21.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/pseudomuto/protoc-gen-doc v1.5.1
 	github.com/transparency-dev/merkle v0.0.2
-	go.etcd.io/etcd/client/v3 v3.5.19
-	go.etcd.io/etcd/etcdctl/v3 v3.5.19
-	go.etcd.io/etcd/server/v3 v3.5.19
-	go.etcd.io/etcd/v3 v3.5.19
+	go.etcd.io/etcd/client/v3 v3.5.20
+	go.etcd.io/etcd/etcdctl/v3 v3.5.20
+	go.etcd.io/etcd/server/v3 v3.5.20
+	go.etcd.io/etcd/v3 v3.5.20
 	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.36.0
 	golang.org/x/sync v0.12.0
 	golang.org/x/sys v0.31.0
 	golang.org/x/tools v0.31.0
-	google.golang.org/api v0.226.0
+	google.golang.org/api v0.227.0
 	google.golang.org/genproto v0.0.0-20250122153221-138b5a5a4fd4
 	google.golang.org/genproto/googleapis/api v0.0.0-20250219182151-9fdb1cabc7b2
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4
 	google.golang.org/grpc v1.71.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
@@ -110,7 +110,7 @@ require (
 	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.5 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
@@ -167,13 +167,13 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xiang90/probing v0.0.0-20221125231312-a49e3df8f510 // indirect
 	go.etcd.io/bbolt v1.3.11 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.19 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.19 // indirect
-	go.etcd.io/etcd/client/v2 v2.305.19 // indirect
-	go.etcd.io/etcd/etcdutl/v3 v3.5.19 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.5.19 // indirect
-	go.etcd.io/etcd/raft/v3 v3.5.19 // indirect
-	go.etcd.io/etcd/tests/v3 v3.5.19 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.20 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.20 // indirect
+	go.etcd.io/etcd/client/v2 v2.305.20 // indirect
+	go.etcd.io/etcd/etcdutl/v3 v3.5.20 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.5.20 // indirect
+	go.etcd.io/etcd/raft/v3 v3.5.20 // indirect
+	go.etcd.io/etcd/tests/v3 v3.5.20 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.34.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.59.0 // indirect
