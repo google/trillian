@@ -200,7 +200,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	}
 	ltx.slr, ltx.readRev, err = ltx.fetchLatestRoot(ctx)
 	if err == storage.ErrTreeNeedsInit {
-		ltx.treeTX.writeRevision = 0
+		ltx.writeRevision = 0
 		return ltx, err
 	} else if err != nil {
 		if err := ttx.Close(); err != nil {
@@ -216,7 +216,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 		return nil, err
 	}
 
-	ltx.treeTX.writeRevision = ltx.readRev + 1
+	ltx.writeRevision = ltx.readRev + 1
 	return ltx, nil
 }
 
@@ -322,14 +322,14 @@ type logTreeTX struct {
 
 // GetMerkleNodes returns the requested nodes at the read revision.
 func (t *logTreeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.subtreeCache.GetNodes(ids, t.getSubtreesAtRev(ctx, t.readRev))
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	if t.treeType == trillian.TreeType_PREORDERED_LOG {
 		// TODO(pavelkalinnikov): Optimize this by fetching only the required
@@ -406,8 +406,8 @@ func sortLeavesForInsert(leaves []*trillian.LogLeaf) []leafAndPosition {
 }
 
 func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
@@ -523,8 +523,8 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 }
 
 func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	ok := status.New(codes.OK, "OK").Proto()
@@ -603,8 +603,8 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.getLeavesByRangeInternal(ctx, start, count)
 }
 
@@ -682,8 +682,8 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 }
 
 func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	tmpl, err := t.ls.getLeavesByMerkleHashStmt(ctx, len(leafHashes), orderBySequence)
 	if err != nil {
@@ -705,8 +705,8 @@ func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes []
 }
 
 func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	if t.slr == nil {
 		return nil, storage.ErrTreeNeedsInit
@@ -741,8 +741,8 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoo
 }
 
 func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
@@ -760,7 +760,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 		logRoot.TimestampNanos,
 		logRoot.TreeSize,
 		logRoot.RootHash,
-		t.treeTX.writeRevision,
+		t.writeRevision,
 		[]byte{})
 	if err != nil {
 		klog.Warningf("Failed to store signed root: %s", err)
