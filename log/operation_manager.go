@@ -295,7 +295,7 @@ func (o *OperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	runCtx, cancel := context.WithTimeout(ctx, o.info.Timeout)
 	defer cancel()
 
-	activeIDs, err := o.info.Registry.LogStorage.GetActiveLogIDs(ctx)
+	activeIDs, err := o.info.Registry.GetActiveLogIDs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list active log IDs: %v", err)
 	}

@@ -127,7 +127,7 @@ func SetFDLimit(uLimit uint64) error {
 		return err
 	}
 	if uLimit > rLimit.Max {
-		return fmt.Errorf("Could not set FD limit to %v. Must be less than the hard limit %v", uLimit, rLimit.Max)
+		return fmt.Errorf("could not set FD limit to %v. Must be less than the hard limit %v", uLimit, rLimit.Max)
 	}
 	rLimit.Cur = uLimit
 	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rLimit)

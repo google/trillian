@@ -177,7 +177,7 @@ func (*logTests) TestReadWriteTransaction(ctx context.Context, t *testing.T, s s
 			test.doBefore()
 			err := s.ReadWriteTransaction(ctx, activeLog, func(ctx context.Context, tx storage.LogTreeTX) error {
 				root, err := tx.LatestSignedLogRoot(ctx)
-				if err != nil && !(err == storage.ErrTreeNeedsInit && test.wantNeedsInit) {
+				if err != nil && (err != storage.ErrTreeNeedsInit || !test.wantNeedsInit) {
 					t.Fatalf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
 				}
 				if got, want := root.GetLogRoot(), test.wantLogRoot; !bytes.Equal(got, want) {

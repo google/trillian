@@ -351,7 +351,7 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		}
 		info.StorageConfig = &spannerpb.TreeInfo_LogStorageConfig{LogStorageConfig: config}
 	default:
-		return nil, fmt.Errorf("Unknown tree type %v", tt)
+		return nil, fmt.Errorf("unknown tree type %v", tt)
 	}
 
 	return info, nil

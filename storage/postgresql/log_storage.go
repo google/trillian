@@ -328,14 +328,14 @@ type logTreeTX struct {
 
 // GetMerkleNodes returns the requested nodes.
 func (t *logTreeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]tree.Node, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.subtreeCache.GetNodes(ids, t.getSubtreesFunc(ctx))
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	if t.treeType == trillian.TreeType_PREORDERED_LOG {
 		// TODO(robstradling): Optimize this by fetching only the required
@@ -390,8 +390,8 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 }
 
 func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	// Prepare rows to copy, but don't accept batches if any of the leaves are invalid.
 	leafMap := make(map[string]int)
@@ -497,8 +497,8 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 }
 
 func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	ok := status.New(codes.OK, "OK").Proto()
@@ -573,8 +573,8 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.getLeavesByRangeInternal(ctx, start, count)
 }
 
@@ -652,8 +652,8 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 }
 
 func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	var query string
 	if orderBySequence {
@@ -673,8 +673,8 @@ func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes []
 }
 
 func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	if t.slr == nil {
 		return nil, storage.ErrTreeNeedsInit
@@ -709,8 +709,8 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (*trillian.SignedLogRoo
 }
 
 func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLogRoot) error {
-	t.treeTX.mu.Lock()
-	defer t.treeTX.mu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {

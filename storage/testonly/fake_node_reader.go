@@ -121,7 +121,7 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 			hash := hasher.HashLeaf([]byte(leaf))
 			// Store the new leaf node, and all new perfect nodes.
 			if err := cr.Append(hash, store); err != nil {
-				panic(fmt.Errorf("Append: %v", err))
+				panic(fmt.Errorf("append: %v", err))
 			}
 		}
 		// TODO(pavelkalinnikov): Use testing.T.Fatalf instead of panics.

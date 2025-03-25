@@ -134,7 +134,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 	})
 
 	stCache := cache.NewLogSubtreeCache(rfc6962.DefaultHasher)
-	ttx, err := m.TreeStorage.beginTreeTX(ctx, tree.TreeId, rfc6962.DefaultHasher.Size(), stCache, readonly)
+	ttx, err := m.beginTreeTX(ctx, tree.TreeId, rfc6962.DefaultHasher.Size(), stCache, readonly)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 		return nil, err
 	}
 
-	ltx.treeTX.writeRevision = rev + 1
+	ltx.writeRevision = rev + 1
 
 	return ltx, nil
 }
@@ -242,8 +242,8 @@ type logTreeTX struct {
 
 // GetMerkleNodes returns the requested nodes at (or below) the read revision.
 func (t *logTreeTX) GetMerkleNodes(ctx context.Context, ids []compact.NodeID) ([]stree.Node, error) {
-	rev := t.treeTX.writeRevision - 1
-	return t.treeTX.subtreeCache.GetNodes(ids, t.treeTX.getSubtreesAtRev(ctx, rev))
+	rev := t.writeRevision - 1
+	return t.subtreeCache.GetNodes(ids, t.getSubtreesAtRev(ctx, rev))
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
@@ -344,7 +344,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr *trillian.Signed
 	t.tx.ReplaceOrInsert(k)
 
 	k = revKey(t.treeID, root.TimestampNanos)
-	k.(*kv).v = t.treeTX.writeRevision
+	k.(*kv).v = t.writeRevision
 	t.tx.ReplaceOrInsert(k)
 
 	// TODO(alcutter): this breaks the transactional model

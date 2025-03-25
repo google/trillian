@@ -103,7 +103,7 @@ type mapEntryFn struct {
 
 func (fn *mapEntryFn) ProcessElement(i int64) *batchmap.Entry {
 	h := hash.New()
-	h.Write([]byte(fmt.Sprintf("%d", i)))
+	_, _ = fmt.Fprintf(h, "%d", i)
 	kbs := h.Sum(nil)
 	leafID := node.NewID(string(kbs), uint(len(kbs)*8))
 

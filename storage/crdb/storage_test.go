@@ -148,7 +148,7 @@ func forceWriteRevision(rev int64, tx storage.LogTreeTX) {
 	if !ok {
 		panic(nil)
 	}
-	mtx.treeTX.writeRevision = rev
+	mtx.writeRevision = rev
 }
 
 func createSomeNodes(count int) []stree.Node {
