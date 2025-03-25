@@ -56,7 +56,7 @@ func main() {
 	// If the map needs to return the values to clients then it is recommended that the
 	// map operator uses a Content Addressable Store to store these values.
 	h := hash.New()
-	h.Write([]byte(fmt.Sprintf("%d", *key)))
+	_, _ = fmt.Fprintf(h, "%d", *key)
 	keyPath := h.Sum(nil)
 	leafID := node.NewID(string(keyPath), uint(len(keyPath)*8))
 

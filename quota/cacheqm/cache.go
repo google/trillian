@@ -164,7 +164,7 @@ func (m *manager) evict(ctx context.Context) {
 		// goroutines must not access the cache, the lock is released before they complete.
 		wg.Add(1)
 		go func() {
-			if err := m.Manager.PutTokens(ctx, b.tokens, []quota.Spec{b.spec}); err != nil {
+			if err := m.PutTokens(ctx, b.tokens, []quota.Spec{b.spec}); err != nil {
 				klog.Warningf("Error replenishing tokens from evicted bucket (spec = %+v, bucket = %+v): %v", b.spec, b.bucket, err)
 			}
 			wg.Done()

@@ -78,12 +78,12 @@ type cloudSpannerProvider struct {
 
 func configFromFlags() spanner.ClientConfig {
 	r := spanner.ClientConfig{}
-	setUint64IfNotDefault(&r.SessionPoolConfig.MaxOpened, *csSessionMaxOpened)
-	setUint64IfNotDefault(&r.SessionPoolConfig.MinOpened, *csSessionMinOpened)
-	setUint64IfNotDefault(&r.SessionPoolConfig.MaxIdle, *csSessionMaxIdle)
-	setIntIfNotDefault(&r.SessionPoolConfig.HealthCheckWorkers, *csSessionHCWorkers)
-	r.SessionPoolConfig.TrackSessionHandles = *csSessionTrackHandles
-	r.SessionPoolConfig.HealthCheckInterval = *csSessionHCInterval
+	setUint64IfNotDefault(&r.MaxOpened, *csSessionMaxOpened)
+	setUint64IfNotDefault(&r.MinOpened, *csSessionMinOpened)
+	setUint64IfNotDefault(&r.MaxIdle, *csSessionMaxIdle)
+	setIntIfNotDefault(&r.HealthCheckWorkers, *csSessionHCWorkers)
+	r.TrackSessionHandles = *csSessionTrackHandles
+	r.HealthCheckInterval = *csSessionHCInterval
 	return r
 }
 

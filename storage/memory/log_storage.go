@@ -134,7 +134,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 	})
 
 	stCache := cache.NewLogSubtreeCache(rfc6962.DefaultHasher)
-	ttx, err := m.TreeStorage.beginTreeTX(ctx, tree.TreeId, rfc6962.DefaultHasher.Size(), stCache, readonly)
+	ttx, err := m.beginTreeTX(ctx, tree.TreeId, rfc6962.DefaultHasher.Size(), stCache, readonly)
 	if err != nil {
 		return nil, err
 	}
