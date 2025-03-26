@@ -164,25 +164,29 @@ CREATE OR REPLACE FUNCTION queue_leaves(
 ) RETURNS SETOF bytea
 LANGUAGE plpgsql AS $$
 BEGIN
-  LOCK TABLE LeafData IN SHARE ROW EXCLUSIVE MODE;
-  LOCK TABLE Unsequenced IN SHARE ROW EXCLUSIVE MODE;
-  UPDATE TempQueueLeaves t
-    SET IsDuplicate = TRUE
-    FROM LeafData l
-    WHERE t.TreeId = l.TreeId
-      AND t.LeafIdentityHash = l.LeafIdentityHash;
-  INSERT INTO LeafData (TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
-    SELECT TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos
-      FROM TempQueueLeaves
-      WHERE NOT IsDuplicate;
-  INSERT INTO Unsequenced (TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID)
-    SELECT TreeId,0,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID
-      FROM TempQueueLeaves
-      WHERE NOT IsDuplicate;
-  RETURN QUERY SELECT DISTINCT LeafIdentityHash
-    FROM TempQueueLeaves
-    WHERE IsDuplicate;
-  RETURN;
+  RETURN QUERY
+  WITH dedup_leaves AS (
+    SELECT t.*,
+           (l.LeafIdentityHash IS NOT NULL) AS AlreadyExists
+      FROM TempQueueLeaves t
+        LEFT JOIN LeafData l ON (
+          t.TreeId = l.TreeId
+          AND t.LeafIdentityHash = l.LeafIdentityHash
+        )
+  ), insert_leaf_data AS (
+    INSERT INTO LeafData (TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
+      SELECT TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos
+        FROM dedup_leaves
+        WHERE NOT AlreadyExists
+  ), insert_unsequenced AS (
+    INSERT INTO Unsequenced (TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID)
+      SELECT TreeId,0,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID
+        FROM dedup_leaves
+        WHERE NOT AlreadyExists
+  )
+  SELECT DISTINCT LeafIdentityHash
+    FROM dedup_leaves
+    WHERE AlreadyExists;
 END;
 $$;
 
@@ -190,30 +194,34 @@ CREATE OR REPLACE FUNCTION add_sequenced_leaves(
 ) RETURNS TABLE(leaf_identity_hash bytea, is_duplicate_leaf_data boolean, is_duplicate_sequenced_leaf_data boolean)
 LANGUAGE plpgsql AS $$
 BEGIN
-  LOCK TABLE LeafData IN SHARE ROW EXCLUSIVE MODE;
-  LOCK TABLE SequencedLeafData IN SHARE ROW EXCLUSIVE MODE;
-  UPDATE TempAddSequencedLeaves t
-    SET IsDuplicateLeafData = TRUE
-    FROM LeafData l
-    WHERE t.TreeId = l.TreeId
-      AND t.LeafIdentityHash = l.LeafIdentityHash;
-  UPDATE TempAddSequencedLeaves t
-    SET IsDuplicateSequencedLeafData = TRUE
-    FROM SequencedLeafData s
-    WHERE t.TreeId = s.TreeId
-      AND t.SequenceNumber = s.SequenceNumber;
-  INSERT INTO LeafData (TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
-    SELECT TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos
-      FROM TempAddSequencedLeaves
-      WHERE NOT IsDuplicateLeafData
-        AND NOT IsDuplicateSequencedLeafData;
-  INSERT INTO SequencedLeafData (TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos)
-    SELECT TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,0
-      FROM TempAddSequencedLeaves
-      WHERE NOT IsDuplicateLeafData
-        AND NOT IsDuplicateSequencedLeafData;
-  RETURN QUERY SELECT LeafIdentityHash, IsDuplicateLeafData, IsDuplicateSequencedLeafData
-    FROM TempAddSequencedLeaves;
-  RETURN;
+  RETURN QUERY
+  WITH dedup_leaves AS (
+    SELECT t.*,
+          (l.LeafIdentityHash IS NOT NULL) AS LeafDataAlreadyExists,
+          (s.SequenceNumber IS NOT NULL) AS SequencedLeafDataAlreadyExists
+      FROM TempAddSequencedLeaves t
+        LEFT JOIN LeafData l ON (
+          t.TreeId = l.TreeId
+          AND t.LeafIdentityHash = l.LeafIdentityHash
+        )
+        LEFT JOIN SequencedLeafData s ON (
+          t.TreeId = s.TreeId
+          AND t.SequenceNumber = s.SequenceNumber
+        )
+  ), insert_leaf_data AS (
+    INSERT INTO LeafData (TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
+      SELECT TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos
+        FROM dedup_leaves
+        WHERE NOT LeafDataAlreadyExists
+          AND NOT SequencedLeafDataAlreadyExists
+  ), insert_sequenced_leaf_data AS (
+    INSERT INTO SequencedLeafData (TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos)
+      SELECT TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,0
+        FROM dedup_leaves
+        WHERE NOT LeafDataAlreadyExists
+          AND NOT SequencedLeafDataAlreadyExists
+  )
+  SELECT LeafIdentityHash, LeafDataAlreadyExists, SequencedLeafDataAlreadyExists
+    FROM dedup_leaves;
 END;
 $$;

@@ -49,8 +49,7 @@ const (
 		" ExtraData BYTEA," +
 		" MerkleLeafHash BYTEA," +
 		" QueueTimestampNanos BIGINT," +
-		" QueueID BYTEA," +
-		" IsDuplicate BOOLEAN DEFAULT FALSE" +
+		" QueueID BYTEA" +
 		") ON COMMIT DROP"
 	queueLeavesSQL = "SELECT * FROM queue_leaves()"
 
@@ -61,9 +60,7 @@ const (
 		" ExtraData BYTEA," +
 		" MerkleLeafHash BYTEA," +
 		" QueueTimestampNanos BIGINT," +
-		" SequenceNumber BIGINT," +
-		" IsDuplicateLeafData BOOLEAN DEFAULT FALSE," +
-		" IsDuplicateSequencedLeafData BOOLEAN DEFAULT FALSE" +
+		" SequenceNumber BIGINT" +
 		") ON COMMIT DROP"
 	addSequencedLeavesSQL = "SELECT * FROM add_sequenced_leaves()"
 
