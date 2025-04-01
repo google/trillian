@@ -3,7 +3,7 @@ updates:
 - package-ecosystem: gomod
   directory: /
   schedule:
-    interval: weekly
+    interval: monthly
   groups:
     go-deps:
       applies-to: version-updates
@@ -13,7 +13,7 @@ updates:
 - package-ecosystem: github-actions
   directory: /
   schedule:
-    interval: weekly
+    interval: monthly
   groups:
     github-actions-deps:
       applies-to: version-updates
@@ -30,7 +30,7 @@ updates:
     - /examples/deployment/kubernetes/mysql/image
     - /integration/cloudbuild/testbase
   schedule:
-    interval: weekly
+    interval: monthly
   ignore:
     - dependency-name: "mysql"
       versions: [">= 9.0"]
@@ -43,4 +43,4 @@ updates:
 - package-ecosystem: npm
   directory: /scripts/gcb2slack
   schedule:
-    interval: weekly
+    interval: monthly
