@@ -42,6 +42,15 @@ import (
 )
 
 const (
+	queueLeafSQL = "WITH insert_leaf AS (" +
+		"INSERT INTO LeafData (TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) " +
+		"VALUES ($1,$2,$3,$4,$5) " +
+		"ON CONFLICT DO NOTHING " +
+		"RETURNING *" +
+		") " +
+		"INSERT INTO Unsequenced (TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID) " +
+		"SELECT TreeId,0,LeafIdentityHash,$6,QueueTimestampNanos,$7 " +
+		"FROM insert_leaf"
 	createTempQueueLeavesTable = "CREATE TEMP TABLE TempQueueLeaves (" +
 		" TreeId BIGINT," +
 		" LeafIdentityHash BYTEA," +
@@ -295,7 +304,14 @@ func (m *postgreSQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.T
 	if err != nil {
 		return nil, err
 	}
-	existing, err := tx.QueueLeaves(ctx, leaves, queueTimestamp)
+
+	// Queue leave(s), using a more efficient implementation when the batch size is 1.
+	var existing []*trillian.LogLeaf
+	if len(leaves) == 1 {
+		existing, err = tx.QueueLeaf(ctx, leaves[0], queueTimestamp)
+	} else {
+		existing, err = tx.QueueLeaves(ctx, leaves, queueTimestamp)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -387,6 +403,55 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	dequeuedCounter.Add(float64(len(leaves)), label)
 
 	return leaves, nil
+}
+
+func (t *logTreeTX) QueueLeaf(ctx context.Context, leaf *trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	// Prepare details to store, but don't accept leaf if invalid.
+	if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
+		return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
+	}
+	leaf.QueueTimestamp = timestamppb.New(queueTimestamp)
+	if err := leaf.QueueTimestamp.CheckValid(); err != nil {
+		return nil, fmt.Errorf("got invalid queue timestamp: %w", err)
+	}
+	qTimestamp := leaf.QueueTimestamp.AsTime()
+	args := queueArgs(t.treeID, leaf.LeafIdentityHash, qTimestamp)
+	label := labelForTX(t)
+
+	// Create the leaf data record and work queue entry, unless the leaf already exists.
+	existingLeaves := make([]*trillian.LogLeaf, 1)
+	result, err := t.tx.Exec(ctx, queueLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, args[0], leaf.MerkleLeafHash, args[1])
+	if err != nil {
+		klog.Warningf("Failed to queue leaf: %s", err)
+		return nil, postgresqlToGRPC(err)
+	}
+	queuedCounter.Add(1, label)
+	if result.RowsAffected() > 0 {
+		// Leaf did not already exist.
+		return existingLeaves, nil
+	}
+
+	var toRetrieve [][]byte
+	toRetrieve = append(toRetrieve, leaf.LeafIdentityHash)
+	queuedDupCounter.Inc(label)
+	results, err := t.getLeafDataByIdentityHash(ctx, toRetrieve)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve existing leaf: %v", err)
+	}
+	if len(results) != len(toRetrieve) {
+		return nil, fmt.Errorf("failed to retrieve existing leaf: got %d, want %d", len(results), len(toRetrieve))
+	}
+	// Replace the requested leaf with the actual leaf.
+	if bytes.Equal(results[0].LeafIdentityHash, leaf.LeafIdentityHash) {
+		existingLeaves[0] = results[0]
+	} else {
+		return nil, fmt.Errorf("failed to find existing leaf for hash %x", leaf.LeafIdentityHash)
+	}
+
+	return existingLeaves, nil
 }
 
 func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
