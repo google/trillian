@@ -11,6 +11,7 @@
 ### Storage
 
 * For PostgreSQL, explicitly create index on SequencedLeafData(TreeId, LeafIdentityHash) by @robstradling in https://github.com/google/trillian/pull/3695
+* Add an optimized QueueLeaves implementation for single-leaf batches in the PostgreSQL storage backend by @robstradling in https://github.com/google/trillian/pull/3769
 
 ### Misc
 
