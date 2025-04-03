@@ -150,10 +150,16 @@ CREATE OR REPLACE FUNCTION count_estimate(
 ) RETURNS bigint
 LANGUAGE plpgsql AS $$
 DECLARE
+  n bigint;
   plan jsonb;
 BEGIN
-  EXECUTE 'ANALYZE (SKIP_LOCKED TRUE) ' || table_name || ';EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
-  RETURN plan->0->'Plan'->'Plan Rows';
+  EXECUTE 'SELECT count(1) FROM (SELECT 1 FROM ' || table_name || ' LIMIT 1000) sub' INTO n;
+  IF n < 1000 THEN
+    RETURN n;
+  ELSE
+    EXECUTE 'ANALYZE ' || table_name || ';EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
+    RETURN plan->0->'Plan'->'Plan Rows';
+  END IF;
 EXCEPTION
   WHEN OTHERS THEN
     RETURN 0;
@@ -164,8 +170,7 @@ CREATE OR REPLACE FUNCTION queue_leaves(
 ) RETURNS SETOF bytea
 LANGUAGE plpgsql AS $$
 BEGIN
-  LOCK TABLE LeafData IN SHARE ROW EXCLUSIVE MODE;
-  LOCK TABLE Unsequenced IN SHARE ROW EXCLUSIVE MODE;
+  LOCK TABLE LeafData, Unsequenced IN SHARE ROW EXCLUSIVE MODE;
   UPDATE TempQueueLeaves t
     SET IsDuplicate = TRUE
     FROM LeafData l
@@ -182,7 +187,6 @@ BEGIN
   RETURN QUERY SELECT DISTINCT LeafIdentityHash
     FROM TempQueueLeaves
     WHERE IsDuplicate;
-  RETURN;
 END;
 $$;
 
@@ -190,8 +194,7 @@ CREATE OR REPLACE FUNCTION add_sequenced_leaves(
 ) RETURNS TABLE(leaf_identity_hash bytea, is_duplicate_leaf_data boolean, is_duplicate_sequenced_leaf_data boolean)
 LANGUAGE plpgsql AS $$
 BEGIN
-  LOCK TABLE LeafData IN SHARE ROW EXCLUSIVE MODE;
-  LOCK TABLE SequencedLeafData IN SHARE ROW EXCLUSIVE MODE;
+  LOCK TABLE LeafData, SequencedLeafData IN SHARE ROW EXCLUSIVE MODE;
   UPDATE TempAddSequencedLeaves t
     SET IsDuplicateLeafData = TRUE
     FROM LeafData l
@@ -214,6 +217,5 @@ BEGIN
         AND NOT IsDuplicateSequencedLeafData;
   RETURN QUERY SELECT LeafIdentityHash, IsDuplicateLeafData, IsDuplicateSequencedLeafData
     FROM TempAddSequencedLeaves;
-  RETURN;
 END;
 $$;
