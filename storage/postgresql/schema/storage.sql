@@ -187,7 +187,6 @@ BEGIN
   RETURN QUERY SELECT DISTINCT LeafIdentityHash
     FROM TempQueueLeaves
     WHERE IsDuplicate;
-  RETURN;
 END;
 $$;
 
@@ -218,6 +217,5 @@ BEGIN
         AND NOT IsDuplicateSequencedLeafData;
   RETURN QUERY SELECT LeafIdentityHash, IsDuplicateLeafData, IsDuplicateSequencedLeafData
     FROM TempAddSequencedLeaves;
-  RETURN;
 END;
 $$;
