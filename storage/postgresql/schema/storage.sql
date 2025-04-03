@@ -150,10 +150,16 @@ CREATE OR REPLACE FUNCTION count_estimate(
 ) RETURNS bigint
 LANGUAGE plpgsql AS $$
 DECLARE
+  n bigint;
   plan jsonb;
 BEGIN
-  EXECUTE 'ANALYZE (SKIP_LOCKED TRUE) ' || table_name || ';EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
-  RETURN plan->0->'Plan'->'Plan Rows';
+  EXECUTE 'SELECT count(1) FROM (SELECT 1 FROM ' || table_name || ' LIMIT 1000) sub' INTO n;
+  IF n < 1000 THEN
+    RETURN n;
+  ELSE
+    EXECUTE 'ANALYZE ' || table_name || ';EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
+    RETURN plan->0->'Plan'->'Plan Rows';
+  END IF;
 EXCEPTION
   WHEN OTHERS THEN
     RETURN 0;
