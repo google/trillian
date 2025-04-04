@@ -16,4 +16,4 @@ annotations:
   - type: comment
     text: "/gcbrun"
 trustedContributors:
-  - dependabot
+  - dependabot[bot]
