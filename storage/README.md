@@ -5,7 +5,7 @@
 The interface, various concrete implementations, and any associated components
 live here. Interfaces and types are defined at the top level package.
 
-Currently, there are two usable storage implementation for logs:
+Currently, there are three usable storage implementation for logs:
    * MySQL/MariaDB in the [mysql/](mysql) package.
    * Cloud Spanner in the [cloudspanner](cloudspanner) package.
    * PostgreSQL in the [postgresql/](postgresql) package (in beta mode).
