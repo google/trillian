@@ -11,6 +11,7 @@
 ### Storage
 
 * For PostgreSQL, explicitly create index on SequencedLeafData(TreeId, LeafIdentityHash) by @robstradling in https://github.com/google/trillian/pull/3695
+* PostgreSQL is now in beta mode by @robstradling in https://github.com/google/trillian/pull/3772
 
 ### Misc
 
