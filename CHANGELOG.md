@@ -14,6 +14,7 @@
 * Fix error checking for QueueLeaves and AddSequencedLeaves in the PostgreSQL storage backend by @robstradling in https://github.com/google/trillian/pull/3752
 * Add an optimized QueueLeaves implementation for single-leaf batches in the PostgreSQL storage backend by @robstradling in https://github.com/google/trillian/pull/3769
 * Improve PostgreSQL functions by @robstradling in https://github.com/google/trillian/pull/3770
+* PostgreSQL is now in beta mode by @robstradling in https://github.com/google/trillian/pull/3772
 
 ### Misc
 

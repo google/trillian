@@ -64,7 +64,7 @@ The Log storage implementations supporting the original Trillian log.
 | CloudSpanner    | Beta     |                     | Google maintains continuous-integration environment based on CloudSpanner.  |
 | MySQL            | GA      | ✓                   |                                                                             |
 | CockroachDB      | Alpha   |                     | Supported by [Equinix Metal](https://deploy.equinix.com/).                  |
-| PostgreSQL       | Alpha   |                     | Supported by [Rob Stradling](https://github.com/robstradling) at [Sectigo](https://github.com/sectigo). |
+| PostgreSQL       | Beta    |                     | Supported by [Rob Stradling](https://github.com/robstradling) at [Sectigo](https://github.com/sectigo). |
 
 ##### Spanner
 This is a Google-internal implementation, and is used by all of Google's current Trillian deployments.
@@ -92,9 +92,9 @@ It's currently in alpha mode and is not yet in production use.
 
 ##### PostgreSQL
 
-This implementation has been tested with PostgreSQL 17.0.
+This implementation has been tested with PostgreSQL 17.0 and 13.20.
 
-It's currently in alpha mode and is not yet in production use.
+It's currently in beta mode, and is used by some of Sectigo's current Trillian deployments.
 
 ### Monitoring
 
@@ -126,7 +126,7 @@ Supported frameworks for quota management.
 | MySQL           | Beta    | ?                   |                                                                             |
 | Redis           | Alpha   | ✓                   |                                                                             |
 | CockroachDB     | Alpha   |                     | Supported by [Equinix Metal](https://deploy.equinix.com/).                  |
-| PostgreSQL      | Alpha   |                     | Supported by [Rob Stradling](https://github.com/robstradling) at [Sectigo](https://github.com/sectigo). |
+| PostgreSQL      | Beta    |                     | Supported by [Rob Stradling](https://github.com/robstradling) at [Sectigo](https://github.com/sectigo). |
 
 ### Key management
 
