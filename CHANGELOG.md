@@ -2,19 +2,84 @@
 
 ## HEAD
 
+## v1.7.2
+
+* Recommended go version for development: 1.23
+  * This is the version used by the cloudbuild presubmits. Using a
+    different version can lead to presubmits failing due to unexpected
+    diffs.
+
+### Storage
+
+* Fix error checking for QueueLeaves and AddSequencedLeaves in the PostgreSQL storage backend by @robstradling in https://github.com/google/trillian/pull/3752
+* Add an optimized QueueLeaves implementation for single-leaf batches in the PostgreSQL storage backend by @robstradling in https://github.com/google/trillian/pull/3769
+* Improve PostgreSQL functions by @robstradling in https://github.com/google/trillian/pull/3770
+* PostgreSQL is now in beta mode by @robstradling in https://github.com/google/trillian/pull/3772
+
+### Election system
+
 * Add `--election_system` parameter to allow selection of the election system by @osmman in https://github.com/google/trillian/pull/3721
 * Add Kubernetes-based leader election system by @osmman in https://github.com/google/trillian/pull/3721
-* Bump go to 1.23
+
+### Misc
+
+* Update README.md by @AlCutter in https://github.com/google/trillian/pull/3725
+* Ignore ErrTxDone when closing transactions by @mhutchinson in https://github.com/google/trillian/pull/3738
+* Add metric tracking queued/skipped leaves by @AlCutter in https://github.com/google/trillian/pull/3751
+* Friendlier intro/discussion for the Claimant Model by @mhutchinson in https://github.com/google/trillian/pull/2980
+* Trust dependabot prs by @patflynn in https://github.com/google/trillian/pull/3771
+* Fix spelling on claimant model landing page by @haydentherapper in https://github.com/google/trillian/pull/3777
+
+### Dependency update
+
+* Bump @google-cloud/functions-framework from 3.4.3 to 3.4.5 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3712
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3715
+* Bump the docker-deps group across 3 directories with 2 updates by @dependabot in https://github.com/google/trillian/pull/3717
+* Bump the go-deps group with 5 updates by @dependabot in https://github.com/google/trillian/pull/3716
+* Bump the docker-deps group across 4 directories with 2 updates by @dependabot in https://github.com/google/trillian/pull/3720
+* Bump golangci/golangci-lint-action from 6.1.1 to 6.2.0 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3718
+* Bump the go-deps group with 3 updates by @dependabot in https://github.com/google/trillian/pull/3719
+* Bump mysql from `106d519` to `1d967fb` in /examples/deployment/docker/db_server in the docker-deps group across 1 directory by @dependabot in https://github.com/google/trillian/pull/3723
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3724
+* Bump google-auth-library from 9.15.0 to 9.15.1 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3728
+* Bump github/codeql-action from 3.28.6 to 3.28.8 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3727
+* Add kubernetes election module by @osmman in https://github.com/google/trillian/pull/3721
+* Bump the docker-deps group across 6 directories with 4 updates by @dependabot in https://github.com/google/trillian/pull/3731
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3730
+* go update to 1.23 by @phbnf in https://github.com/google/trillian/pull/3733
+* Bump the go-deps group across 1 directory with 21 updates, and update protoc-gen-go by @dependabot in https://github.com/google/trillian/pull/3732
+* Bump the docker-deps group across 6 directories with 4 updates by @dependabot in https://github.com/google/trillian/pull/3737
+* Bump the go-deps group across 1 directory with 7 updates by @dependabot in https://github.com/google/trillian/pull/3739
+* Bump the github-actions-deps group with 2 updates by @dependabot in https://github.com/google/trillian/pull/3736
+* Bump the github-actions-deps group with 3 updates by @dependabot in https://github.com/google/trillian/pull/3741
+* Bump postgres from 17.3 to 17.4 in /examples/deployment/docker/db_server/postgresql in the docker-deps group across 1 directory by @dependabot in https://github.com/google/trillian/pull/3742
+* Bump the go-deps group with 8 updates by @dependabot in https://github.com/google/trillian/pull/3740
+* Bump nick-fields/retry from 3.0.1 to 3.0.2 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3745
+* Bump google.golang.org/api from 0.222.0 to 0.223.0 in the go-deps group by @dependabot in https://github.com/google/trillian/pull/3744
+* Bump the docker-deps group across 4 directories with 2 updates by @dependabot in https://github.com/google/trillian/pull/3743
+* Bump @google-cloud/functions-framework from 3.4.5 to 3.4.6 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3746
+* Bump the go-deps group with 13 updates by @dependabot in https://github.com/google/trillian/pull/3749
+* Bump the docker-deps group across 3 directories with 1 update by @dependabot in https://github.com/google/trillian/pull/3747
+* Bump github/codeql-action from 3.28.10 to 3.28.11 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3748
+* Bump axios from 1.7.9 to 1.8.2 in /scripts/gcb2slack in the npm_and_yarn group by @dependabot in https://github.com/google/trillian/pull/3750
+* Bump the go-deps group with 6 updates by @dependabot in https://github.com/google/trillian/pull/3755
+* Bump golangci/golangci-lint-action from 6.5.0 to 6.5.1 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3753
+* Bump mysql from `0917ecc` to `0f775a9` in /examples/deployment/docker/db_server in the docker-deps group across 1 directory by @dependabot in https://github.com/google/trillian/pull/3756
+* Bump @slack/webhook from 7.0.4 to 7.0.5 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3754
+* Bump github.com/golang-jwt/jwt/v4 from 4.5.1 to 4.5.2 in the go_modules group by @dependabot in https://github.com/google/trillian/pull/3759
+* Bump the docker-deps group across 4 directories with 3 updates by @dependabot in https://github.com/google/trillian/pull/3761
+* Bump the github-actions-deps group with 4 updates plus newly required lint fixes by @dependabot in https://github.com/google/trillian/pull/3762
+* Move dependabot to monthly cadence by @mhutchinson in https://github.com/google/trillian/pull/3767
+* Bump @google-cloud/functions-framework from 3.4.6 to 3.5.1 in /scripts/gcb2slack by @dependabot in https://github.com/google/trillian/pull/3764
+* Bump the docker-deps group across 6 directories with 5 updates by @dependabot in https://github.com/google/trillian/pull/3774
+* Bump github/codeql-action from 3.28.13 to 3.28.15 in the github-actions-deps group by @dependabot in https://github.com/google/trillian/pull/3773
+* Bump golang.org/x/net from 0.37.0 to 0.38.0 in the go_modules group by @dependabot in https://github.com/google/trillian/pull/3776
 
 ## v1.7.1
 
 ### Storage
 
 * For PostgreSQL, explicitly create index on SequencedLeafData(TreeId, LeafIdentityHash) by @robstradling in https://github.com/google/trillian/pull/3695
-* Fix error checking for QueueLeaves and AddSequencedLeaves in the PostgreSQL storage backend by @robstradling in https://github.com/google/trillian/pull/3752
-* Add an optimized QueueLeaves implementation for single-leaf batches in the PostgreSQL storage backend by @robstradling in https://github.com/google/trillian/pull/3769
-* Improve PostgreSQL functions by @robstradling in https://github.com/google/trillian/pull/3770
-* PostgreSQL is now in beta mode by @robstradling in https://github.com/google/trillian/pull/3772
 
 ### Misc
 
