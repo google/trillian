@@ -1,5 +1,8 @@
 # TRILLIAN Changelog
 
+### Election system
+* Reintroduce an exported ectd `NewFactory` function.
+
 ## HEAD
 
 ## v1.7.2
