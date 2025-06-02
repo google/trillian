@@ -243,10 +243,10 @@ go mod tidy
 The [`scripts/presubmit.sh`](scripts/presubmit.sh) script runs various tools
 and tests over the codebase.
 
-#### Install [golangci-lint](https://github.com/golangci/golangci-lint#local-installation).
+#### Install [golangci-lint](https://golangci-lint.run/welcome/install/#install-from-sources).
 
 ```bash
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.1
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
 ```
 
 #### Run code generation, build, test and linters

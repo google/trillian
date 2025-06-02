@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* Bump golangci-lint to v2.1.6
+
 ## v1.7.2
 
 * Recommended go version for development: 1.23
