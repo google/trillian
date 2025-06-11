@@ -3,6 +3,7 @@
 ## HEAD
 
 * Bump golangci-lint to v2.1.6
+* Fix leader resignation during a graceful shutdown by @osmman in https://github.com/google/trillian/pull/3790
 
 ## v1.7.2
 
