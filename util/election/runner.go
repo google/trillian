@@ -108,8 +108,10 @@ func (er *Runner) Run(ctx context.Context, pending chan<- Resignation) {
 
 	klog.V(1).Infof("%s: start election-monitoring loop ", er.id)
 	defer func() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), time.Second)
+		defer closeCancel()
 		klog.Infof("%s: shutdown election-monitoring loop", er.id)
-		if err := er.election.Close(ctx); err != nil {
+		if err := er.election.Close(closeCtx); err != nil {
 			klog.Warningf("%s: election.Close: %v", er.id, err)
 		}
 	}()
