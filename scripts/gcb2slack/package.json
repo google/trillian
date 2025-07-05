@@ -6,6 +6,6 @@
   "dependencies": {
     "@google-cloud/functions-framework": "^4.0.0",
     "@slack/webhook": "^7.0.5",
-    "google-auth-library": "^9.15.1"
+    "google-auth-library": "^10.1.0"
   }
 }
