@@ -62,7 +62,7 @@ Other examples of Trillian personalities are available in the
 ## Support
 
 - Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
-- Slack: https://transparency-dev.slack.com/ ([invitation](https://join.slack.com/t/transparency-dev/shared_invite/zt-2jt6643n4-I5wLUo90_tvTVd4nfmfDug))
+- Slack: https://transparency-dev.slack.com/ ([invitation](https://transparency.dev/slack/))
 
 
 ## Using the Code
