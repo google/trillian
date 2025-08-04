@@ -4,6 +4,7 @@
 
 * Bump golangci-lint to v2.1.6
 * Fix leader resignation during a graceful shutdown by @osmman in https://github.com/google/trillian/pull/3790
+* Add optional gRPC message size limit via `--max_msg_size_bytes` flag by @fghanmi in https://github.com/google/trillian/pull/3801
 
 ## v1.7.2
 
