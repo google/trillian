@@ -76,6 +76,7 @@ var (
 	// Profiling related flags.
 	cpuProfile = flag.String("cpuprofile", "", "If set, write CPU profile to this file")
 	memProfile = flag.String("memprofile", "", "If set, write memory profile to this file")
+	maxMsgSize = flag.Int("max_msg_size_bytes", 0, "Optional max gRPC message size in bytes")
 )
 
 func main() {
@@ -107,6 +108,9 @@ func main() {
 		options = append(options, opts...)
 	}
 
+	if *maxMsgSize > 0 {
+		options = append(options, grpc.MaxRecvMsgSize(*maxMsgSize))
+	}
 	sp, err := storage.NewProvider(*storageSystem, mf)
 	if err != nil {
 		klog.Exitf("Failed to get storage provider: %v", err)
