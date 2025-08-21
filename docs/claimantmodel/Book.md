@@ -3,13 +3,13 @@
 ## Introduction
 
 Transparency logs (tlogs) form the foundation of a number of security architectures.
-Ranging from securing TLS, securing the software supply chain, usage of signing keys, etc., tlogs are becoming more prevalant.
+Ranging from securing TLS, securing the software supply chain, auditing usage of signing keys, etc., tlogs are becoming more prevalant.
 Each deployment of tlogs is different, but when looked at from a certain perspective, they can be understood through a common language.
 The Claimant Model is the first language designed to communicate about the commonalities all these tlogs share.
 
 The inspiration is [Paxos](https://en.wikipedia.org/wiki/Paxos_(computer_science)), which describes a whole family of situations that solve
 _consensus_ in an unreliable network.
-The Claimant Model is similar, and describes a whole family of situations that solve _discovery_ in an ecosystem where trust can't be relied on.
+The Claimant Model is similar, and describes a whole family of situations that solve _discoverability_ in an ecosystem where trust can't be relied on.
 
 The discoverability property is desirable whenever a situation arises where:
  1. An end-user needs to rely on information provided by a third party
@@ -17,8 +17,8 @@ The discoverability property is desirable whenever a situation arises where:
  3. The end-user cannot verify the information themselves
 
 An ecosystem that has discoverability ensures that any information that is relied upon will ultimately be verified by someone with the ability to do so.
-Discoverability is commonly achieved by ensuring that information is first committed to by a tlog, which work as a [verifiable transport layer](https://transparency.dev/articles/logs-a-verifiable-transport-layer/).
-For a modern implementation of a tlog, we recommend [Tessera](https://github.com/transparency-dev/tessera).
+Discoverability is commonly achieved by ensuring that information is first committed to by a tlog, which works as a [verifiable transport layer](https://transparency.dev/articles/logs-a-verifiable-transport-layer/).
+For a modern general-purpose implementation of a tlog, we recommend [Tessera](https://github.com/transparency-dev/tessera).
 
 ### Why this documentation?
 
