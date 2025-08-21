@@ -2,6 +2,26 @@
 
 ## Introduction
 
+Transparency logs (tlogs) form the foundation of a number of security architectures.
+Ranging from securing TLS, securing the software supply chain, auditing usage of signing keys, etc., tlogs are becoming more prevalant.
+Each deployment of tlogs is different, but when looked at from a certain perspective, they can be understood through a common language.
+The Claimant Model is the first language designed to communicate about the commonalities all these tlogs share.
+
+The inspiration is [Paxos](https://en.wikipedia.org/wiki/Paxos_(computer_science)), which describes a whole family of situations that solve
+_consensus_ in an unreliable network.
+The Claimant Model is similar, and describes a whole family of situations that solve _discoverability_ in an ecosystem where trust can't be relied on.
+
+The discoverability property is desirable whenever a situation arises where:
+ 1. An end-user needs to rely on information provided by a third party
+ 2. This information is verifiable (aka _falsifiable_)
+ 3. The end-user cannot verify the information themselves
+
+An ecosystem that has discoverability ensures that any information that is relied upon will ultimately be verified by someone with the ability to do so.
+Discoverability is commonly achieved by ensuring that information is first committed to by a tlog, which works as a [verifiable transport layer](https://transparency.dev/articles/logs-a-verifiable-transport-layer/).
+For a modern general-purpose implementation of a tlog, we recommend [Tessera](https://github.com/transparency-dev/tessera).
+
+### Why this documentation?
+
 The Claimant Model is very concisely introduced in the [Core Model](./CoreModel.md).
 While this concise documentation works well as a refresher for those that already understand the model, it has
 empirically proved to be a tough introduction to those new to the domain.
@@ -9,14 +29,10 @@ This longer form text on the Claimant Model serves as a more gentle on-ramp to u
 
 This text is broken into sections, but is intended to be read from start to finish.
 
-TODO: perhaps introduce the idea of logs implementing discoverability here and link to the later sections for those that want to skip to this topic. I'd expect that a significant audience for this guide will want to understand logs and before committing to reading so much will want some assurance that this is going to the correct destination.
-
-TODO: introduce [actors and roles](#actors-and-roles) around here; a basic understanding of the distinction is important.
-
 ## Motivation
 
 Prior to the Claimant Model being developed, new transparency projects were designed by copying and modifying
-patterns from existing deployments, most notably [Certificate Transparency](https://certificate.transparency.dev/) (CT).
+patterns directly from existing deployments, most notably [Certificate Transparency](https://certificate.transparency.dev/) (CT).
 While this allows those familiar with CT to reach consensus on a rough design quickly, it has a number of drawbacks:
 
 1. Those that don't already understand CT now have to read [RFC 6962](https://www.rfc-editor.org/rfc/rfc6962) to understand
@@ -30,8 +46,8 @@ With this in mind, a clean, role-based model for describing transparency systems
 
 ## Applicability
 
-The Claimant Model can be used to describe any system where an actor (`Believer`) performs some trusted action based on some
-information (`Claim`) provided to them by a trusted third-party (`Claimant`). There is _usually_ an asymmetry, where the
+The Claimant Model can be used to describe any system where an actor (Believer) performs some trusted action based on some
+information (Claim) provided to them by a trusted third-party (Claimant). There is _usually_ an asymmetry, where the
 Believer can not verify that the Claim is true, but believes it because they trust the Claimant.
 
 The situation above appears in countless settings in our everyday human lives.
@@ -39,11 +55,11 @@ For example if you open a tab at a bar then any drinks are served as a trusted a
 Even if you leave a payment card as a requirement for opening the tab, unless some amount is pre-authorized ahead of time, verification by the bank that the card is good for the value of the tab is deferred until after the actions have been performed.
 
 On a technical level, this also happens frequently, often invisibly to the user.
-For example, when a Chrome browser (`Believer`) receives a TLS certificate (`Claim`) for a domain, it only performs
-the connection (trusted action) if the certificate is issued by a Certificate Authority (`Claimant`) that chains to its
+For example, when a Chrome browser (Believer) receives a TLS certificate (Claim) for a domain, it only performs
+the connection (trusted action) if the certificate is issued by a Certificate Authority (Claimant) that chains to its
 trusted roots.
-As another example, a software package manager (`Believer`) will only install software (trusted action) when the package
-(`Claim`) is signed by the correct package maintainer (`Claimant`).
+As another example, a software package manager (Believer) will only install software (trusted action) when the package
+(Claim) is signed by the correct package maintainer (Claimant).
 
 Above we state that it must be possible to verify that the Claim is true.
 This means that all Claims must be _falsifiable_, i.e. they are able to be proven false.
@@ -103,9 +119,17 @@ Given enough time, potential motivation, and/or bad luck, any Claimant could iss
 The question is how to make a system with enough security given this fact.
 
 Earlier we established that Claims must be falsifiable, but that in general the Believer will not be able to perform this verification.
-Thus we introduce the role of the `Verifier`, which will be able to verify all Claims in a system.
+Thus we introduce the role of the _Verifier_, which will be able to verify all Claims in a system.
 
-TODO: expand on verification. In particular, link this to discoverablity. This is where logs should first be mentioned.
+For a Verifier to be able to check all Claims, it must first be able to find them.
+This is the principle of **discoverability**: ensuring that any information relied upon by a Believer will ultimately be seen and checked by a Verifier.
+Discoverability is typically achieved by requiring all Claims to be published in a public, append-only [transparency log](https://transparency.dev) (tlog).
+
+By forcing all Claims to be logged, the system ensures that a Claimant cannot make a private Claim to a Believer that no one else can see.
+Any Believer, before acting on a Claim, can require proof that the Claim has been included in the log.
+Verifiers can then monitor the log's contents, inspect every Claim that has been made, and check its validity.
+If a false Claim is discovered, the Verifier can then take action, such as notifying an Arbiter (e.g. notifying an authority, or making the misbehavior public).
+This public auditability is what provides the security guarantee; Claimants are discouraged from making false claims because they know they will be discovered.
 
 ## More Precision
 
@@ -120,7 +144,7 @@ We have used the term Claim until this point to mean two related, but conceptual
 - A falsifiable logical statement
 - Data
 
-The first of these is the correct usage of `Claim`: a falsifiable logical statement made by the Claimant.
+The first of these is the correct usage of Claim: a falsifiable logical statement made by the Claimant.
 The second of these is often referred to as the Claim at high levels, but where precision is required we should refer
 to this as the `Statement`.
 
@@ -137,16 +161,36 @@ Thus far we've referred to the Believer taking action based on a single Claim.
 This isn't incorrect, but at times it is useful to consider a single Claim as multiple sub-claims.
 In particular, this is useful when a claim has multiple sub-claims that can be verified by different actors.
 
-TODO: expand on this and add an example
+When a Claim is composed of multiple sub-claims, the Believer's trust decision may depend on the validity of all of them.
+Each sub-claim can have its own Claimant and Verifier. This allows for a separation of concerns and a more robust trust model.
+
+For example, consider a software supply chain security scenario: a user (Believer) wants to install a software package. The high-level Claim is "this package is safe to install". This can be broken down into several sub-claims:
+
+*   **Sub-claim 1: Source Integrity.** "This binary package was built from the source code at commit `abc` in repository `XYZ`."
+    *   **Claimant:** A trusted, reproducible build service.
+    *   **Verifier:** Anyone who can re-run the build from the same source and verify that the output is identical.
+*   **Sub-claim 2: Source Security.** "The source code at commit `abc` has passed all security scans and has no critical vulnerabilities."
+    *   **Claimant:** An automated security scanning tool or a security audit firm.
+    *   **Verifier:** A security team that can review the scan results or the audit report.
+*   **Sub-claim 3: Author Identity.** "The source code was authored and signed by a trusted developer."
+    *   **Claimant:** The developer.
+    *   **Verifier:** The developer themselves (to ensure their key wasn't used without their knowledge), or a system that tracks developer identities.
+
+The package manager (Believer) will only proceed with the installation if all these sub-claims are present and appear valid. Different Verifiers, each with their own expertise, are responsible for checking the different facets of the overall Claim. This composite approach provides a much stronger security guarantee than a single, monolithic claim.
 
 ### Actors and Roles
 
-TODO: write up about actors and roles. I got the idea initially from https://en.wikipedia.org/wiki/Paxos_(computer_science)#Typical_deployment but looking at this again it doesn't talk about actors, and there isn't much easily appearing in searches about the distinction between these concepts.
+In the Claimant Model, we distinguish between a _Role_ and an _Actor_.
 
-Roles are an abstract description of a participant in a system. The Actor is the person that will perform this Role. It _may_ be the case that all actors play precisely one role, and that all roles are played by precisely one actor. However, in general this Role:Actor mapping should be considered many-to-many. This can mean:
+*   A **Role** is an abstract description of a function or responsibility within the system. The primary Roles we have discussed are Claimant, Believer, Verifier, and Arbiter.
+*   An **Actor** is a concrete entity, such as a person, a company, or a software system, that performs one or more Roles.
 
-* One actor plays multiple roles: this is the case for [signature transparency](https://www.sigstore.dev/) use-cases; the owner of the signing material is both the claimant (signing stuff) and the verifier (checking that all usages of the signing material were known to the rightful owner)
-* One role is fulfilled by multiple actors: this commonly occurs for the Verifier role where there are [composite claims](#composite-claims); multiple different actors each verify a sub-claim ([example](https://github.com/google/trillian/blob/master/docs/claimantmodel/experimental/cmd/render/internal/models/armorydrive/full.md)).
+It is tempting to think of a one-to-one mapping, where each Actor performs exactly one Role. However, the relationship is often more complex and is best considered a many-to-many mapping. Understanding this distinction is key to accurately modeling real-world systems.
+
+This means:
+*   **One Actor can play multiple Roles.** This is common in systems where an entity has multiple responsibilities. For example, in [signature transparency](https://www.sigstore.dev/) use-cases, a software developer (`Actor`) is the Claimant when they sign their code. They are also the primary Verifier, as they are the one best positioned to check a transparency log to ensure that their signing key has not been used to sign anything without their knowledge.
+
+*   **One Role can be fulfilled by multiple Actors.** This often happens when a responsibility is distributed. For instance, the Verifier Role is frequently fulfilled by a diverse set of Actors. In Certificate Transparency, browser vendors, CAs, and independent researchers all act as Verifiers. In systems with [composite claims](#composite-claims), different Actors may verify different sub-claims, yet they all share the single Role of Verifier for the overall system.
 
 ## Other Reading
 
@@ -169,7 +213,7 @@ When an item is added to a log, it is usually an asynchronous operation, i.e. th
 It is standard practice that logs publish a Maximum Merge Delay (MMD) for what this delay can be.
 In the case of CT this is 24h.
 
-A long merge delay makes it easier for log operators to operate the logs within [SLA](https://en.wikipedia.org/wiki/Service-level_agreement), but this comes at the expense of Believers not being able to rely on proving inclusion of any claim that is fresher the MMD in the worst case.
+A long merge delay makes it easier for log operators to operate the logs within [SLA](https://en.wikipedia.org/wiki/Service-level_agreement), but this comes at the expense of Believers not being able to rely on proving inclusion of any claim that is fresher than the MMD in the worst case.
 
 SCTs are a promise that is issued when a claim is sent to the log that claims that the log operator promises to include the claim by a given integration time.
 This promise is signed by the log and returned to the user that logged the claim.
@@ -191,9 +235,13 @@ If you're getting that feeling that this itself now feels like a Claim, then bin
 Using the Claimant Model to describe promises succinctly shows the inherent problem with them; promises need to be verified.
 Anyone _can_ verify an inclusion promise, but making it so that everyone will verify any promise they have seen is generally not feasible.
 For example, in CT this would require that every browser that has been shown a certificate containing one or more SCTs would verify the inclusion in all logs that had issued SCTs after the MMD had passed.
-Even if this was feasible to implement and users were happy to sacrifice having a lightweight browser for something that performed this additional work (using more disk space, network, battery etc in the meantime), there would then need to be a mechanism for these browsers to be able to report SCTs that did not verify.
+This would place a significant burden on clients (impacting network, storage, and battery) and require a mechanism for reporting failures.
+This would also have privacy implications, as the user would be revealing informations about their browsing history to the log operators by the inclusion proofs they check.
 
 The other option is that SCTs are made discoverable to a party of dedicated verifiers who can report non-fulfilled promises to the arbiter.
-This disoverability problem would require a log for SCTs, which then appears to be precisely the same problem as logging certificates in the first place!
+This discoverability problem would require a log for SCTs, which then appears to be precisely the same problem as logging certificates in the first place!
 
-TODO(#3014): complete this stub and document solutions for working around the need for SCTs.
+#### Alternatives to SCTs
+
+The simplest solution is to reduce or eliminate the long merge delay. If a log can offer an MMD of a few seconds, a user can simply wait for the inclusion proof to be available before using the Claim. This shifts the burden to log operators, who must maintain highly available and performant infrastructure, but it dramatically simplifies the client-side logic and verification story.
+
