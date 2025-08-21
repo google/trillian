@@ -164,7 +164,7 @@ In particular, this is useful when a claim has multiple sub-claims that can be v
 When a Claim is composed of multiple sub-claims, the Believer's trust decision may depend on the validity of all of them.
 Each sub-claim can have its own Claimant and Verifier. This allows for a separation of concerns and a more robust trust model.
 
-For example, consider a software supply chain security scenario. A user (Believer) wants to install a software package. The high-level Claim is "this package is safe to install". This can be broken down into several sub-claims:
+For example, consider a software supply chain security scenario: a user (Believer) wants to install a software package. The high-level Claim is "this package is safe to install". This can be broken down into several sub-claims:
 
 *   **Sub-claim 1: Source Integrity.** "This binary package was built from the source code at commit `abc` in repository `XYZ`."
     *   **Claimant:** A trusted, reproducible build service.
@@ -236,11 +236,12 @@ Using the Claimant Model to describe promises succinctly shows the inherent prob
 Anyone _can_ verify an inclusion promise, but making it so that everyone will verify any promise they have seen is generally not feasible.
 For example, in CT this would require that every browser that has been shown a certificate containing one or more SCTs would verify the inclusion in all logs that had issued SCTs after the MMD had passed.
 This would place a significant burden on clients (impacting network, storage, and battery) and require a mechanism for reporting failures.
+This would also have privacy implications, as the user would be revealing informations about their browsing history to the log operators by the inclusion proofs they check.
 
 The other option is that SCTs are made discoverable to a party of dedicated verifiers who can report non-fulfilled promises to the arbiter.
 This discoverability problem would require a log for SCTs, which then appears to be precisely the same problem as logging certificates in the first place!
 
 #### Alternatives to SCTs
 
-The simplest solution is to reduce or eliminate the long merge delay. If a log can offer an MMD of a few seconds, a Believer can simply wait for the inclusion proof to be available before acting on the Claim. This shifts the burden from Believers to the log operators, who must maintain highly available and performant infrastructure, but it dramatically simplifies the client-side logic.
+The simplest solution is to reduce or eliminate the long merge delay. If a log can offer an MMD of a few seconds, a user can simply wait for the inclusion proof to be available before using the Claim. This shifts the burden to log operators, who must maintain highly available and performant infrastructure, but it dramatically simplifies the client-side logic and verification story.
 
