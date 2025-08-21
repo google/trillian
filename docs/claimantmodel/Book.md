@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Transparency logs form the foundation of a number of security architectures.
+Transparency logs (tlogs) form the foundation of a number of security architectures.
 Ranging from securing TLS, securing the software supply chain, usage of signing keys, etc., tlogs are becoming more prevalant.
 Each deployment of tlogs is different, but when looked at from a certain perspective, they can be understood through a common language.
 The Claimant Model is the first language designed to communicate about the commonalities all these tlogs share.
