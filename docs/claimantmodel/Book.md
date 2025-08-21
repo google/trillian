@@ -2,6 +2,26 @@
 
 ## Introduction
 
+Transparency logs form the foundation of a number of security architectures.
+Ranging from securing TLS, securing the software supply chain, usage of signing keys, etc., tlogs are becoming more prevalant.
+Each deployment of tlogs is different, but when looked at from a certain perspective, they can be understood through a common language.
+The Claimant Model is the first language designed to communicate about the commonalities all these tlogs share.
+
+The inspiration is [Paxos](https://en.wikipedia.org/wiki/Paxos_(computer_science)), which describes a whole family of situations that solve
+_consensus_ in an unreliable network.
+The Claimant Model is similar, and describes a whole family of situations that solve _discovery_ in an ecosystem where trust can't be relied on.
+
+The discoverability property is desirable whenever a situation arises where:
+ 1. An end-user needs to rely on information provided by a third party
+ 2. This information is verifiable (aka _falsifiable_)
+ 3. The end-user cannot verify the information themselves
+
+An ecosystem that has discoverability ensures that any information that is relied upon will ultimately be verified by someone with the ability to do so.
+Discoverability is commonly achieved by ensuring that information is first committed to by a tlog, which work as a [verifiable transport layer](https://transparency.dev/articles/logs-a-verifiable-transport-layer/).
+For a modern implementation of a tlog, we recommend [Tessera](https://github.com/transparency-dev/tessera).
+
+### Why this documentation?
+
 The Claimant Model is very concisely introduced in the [Core Model](./CoreModel.md).
 While this concise documentation works well as a refresher for those that already understand the model, it has
 empirically proved to be a tough introduction to those new to the domain.
@@ -9,14 +29,10 @@ This longer form text on the Claimant Model serves as a more gentle on-ramp to u
 
 This text is broken into sections, but is intended to be read from start to finish.
 
-TODO: perhaps introduce the idea of logs implementing discoverability here and link to the later sections for those that want to skip to this topic. I'd expect that a significant audience for this guide will want to understand logs and before committing to reading so much will want some assurance that this is going to the correct destination.
-
-TODO: introduce [actors and roles](#actors-and-roles) around here; a basic understanding of the distinction is important.
-
 ## Motivation
 
 Prior to the Claimant Model being developed, new transparency projects were designed by copying and modifying
-patterns from existing deployments, most notably [Certificate Transparency](https://certificate.transparency.dev/) (CT).
+patterns directly from existing deployments, most notably [Certificate Transparency](https://certificate.transparency.dev/) (CT).
 While this allows those familiar with CT to reach consensus on a rough design quickly, it has a number of drawbacks:
 
 1. Those that don't already understand CT now have to read [RFC 6962](https://www.rfc-editor.org/rfc/rfc6962) to understand
