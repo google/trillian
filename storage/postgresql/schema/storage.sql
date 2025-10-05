@@ -153,8 +153,8 @@ DECLARE
   n bigint;
   plan jsonb;
 BEGIN
-  EXECUTE 'SELECT count(1) FROM (SELECT 1 FROM ' || table_name || ' LIMIT 1000) sub' INTO n;
-  IF n < 1000 THEN
+  EXECUTE 'SELECT count(1) FROM (SELECT 1 FROM ' || table_name || ' LIMIT 10000) sub' INTO n;
+  IF n < 10000 THEN
     RETURN n;
   ELSE
     EXECUTE 'ANALYZE ' || table_name || ';EXPLAIN (FORMAT JSON) SELECT * FROM ' || table_name INTO plan;
