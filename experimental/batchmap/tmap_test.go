@@ -1,5 +1,4 @@
 //go:build !race
-// +build !race
 
 // Copyright 2020 Google LLC. All Rights Reserved.
 //
