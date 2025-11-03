@@ -17,16 +17,16 @@ FROM ubuntu:jammy@sha256:4e0171b9275e12d375863f2b3ae9ce00a4c53ddda176bd55868df97
 
 # Patch the OS-level packages and remove unneeded dependencies.
 RUN apt-get update \
-    && apt-get -y upgrade \
-    && apt-get -y autoremove \
-    && rm -rf /var/lib/apt/lists/*
+   && apt-get -y upgrade \
+   && apt-get -y autoremove \
+   && rm -rf /var/lib/apt/lists/*
 
 # add our user and group first to make sure their IDs get assigned
 # consistently, regardless of whatever dependencies get added
 RUN groupadd -r mysql && useradd -r -g mysql mysql
 
-ENV MYSQL_VERSION 8.0
-ENV TERM linux
+ENV MYSQL_VERSION=8.0
+ENV TERM=linux
 
 # Install perl.
 # Install dig, for discovering IP addresses of other Galera nodes.
@@ -39,11 +39,11 @@ RUN echo "deb http://repo.percona.com/apt jammy main" > /etc/apt/sources.list.d/
 RUN echo "deb-src http://repo.percona.com/apt jammy main" >> /etc/apt/sources.list.d/percona.list
 
 RUN { \
-                echo percona-server-server-${MYSQL_VERSION} percona-server-server/root_password password ''; \
-        } | debconf-set-selections \
-        && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y percona-xtradb-cluster-client-"${MYSQL_VERSION}" \
-           percona-xtradb-cluster-common-"${MYSQL_VERSION}" percona-xtradb-cluster-server-"${MYSQL_VERSION}" \
-        && rm -rf /var/lib/apt/lists/*
+   echo percona-server-server-${MYSQL_VERSION} percona-server-server/root_password password ''; \
+   } | debconf-set-selections \
+   && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y percona-xtradb-cluster-client-"${MYSQL_VERSION}" \
+   percona-xtradb-cluster-common-"${MYSQL_VERSION}" percona-xtradb-cluster-server-"${MYSQL_VERSION}" \
+   && rm -rf /var/lib/apt/lists/*
 
 COPY my.cnf /etc/mysql/my.cnf
 COPY cluster.cnf /etc/mysql/conf.d/cluster.cnf
