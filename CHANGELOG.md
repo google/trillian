@@ -6,6 +6,10 @@
 * Fix leader resignation during a graceful shutdown by @osmman in https://github.com/google/trillian/pull/3790
 * Add optional gRPC message size limit via `--max_msg_size_bytes` flag by @fghanmi in https://github.com/google/trillian/pull/3801
 
+### Storage
+
+* PostgreSQL quota manager: Use SELECT(*) instead of ANALYZE up to 10,000 rows instead of 1,000 by @robstradling in https://github.com/google/trillian/pull/3813
+
 ## v1.7.2
 
 * Recommended go version for development: 1.23
