@@ -4,7 +4,7 @@
   "description": "Slack integration for Google Cloud Build.",
   "main": "index.js",
   "dependencies": {
-    "@google-cloud/functions-framework": "^4.0.0",
+    "@google-cloud/functions-framework": "^4.0.1",
     "@slack/webhook": "^7.0.6",
     "google-auth-library": "^10.5.0"
   }
