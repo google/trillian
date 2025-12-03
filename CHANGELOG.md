@@ -5,6 +5,9 @@
 * Bump golangci-lint to v2.1.6
 * Fix leader resignation during a graceful shutdown by @osmman in https://github.com/google/trillian/pull/3790
 * Add optional gRPC message size limit via `--max_msg_size_bytes` flag by @fghanmi in https://github.com/google/trillian/pull/3801
+* Add TLS support for PostgreSQL: https://github.com/google/trillian/pull/3831
+  * `--postgresql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with PostgreSQL server. 
+  * `--postgresql_verify_full`: users can enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.
 
 ## v1.7.2
 

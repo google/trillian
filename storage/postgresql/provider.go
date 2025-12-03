@@ -82,30 +82,11 @@ func getPostgreSQLDatabaseLocked() (*pgxpool.Pool, error) {
 		return postgresqlDB, postgresqlErr
 	}
 	uri := *postgreSQLURI
-	if *postgresqlTLSCA != "" {
-		if _, err := os.Stat(*postgresqlTLSCA); err != nil {
-			postgresqlErr = fmt.Errorf("postgresql CA file error: %w", err)
-			return nil, postgresqlErr
-		}
-
-		u, err := url.Parse(uri)
-		if err != nil {
-			postgresqlErr = fmt.Errorf("invalid postgresql URI %q: %w", uri, err)
-			return nil, postgresqlErr
-		}
-
-		q := u.Query()
-		q.Set("sslrootcert", *postgresqlTLSCA)
-
-		if *postgresqlVerifyFull {
-			q.Set("sslmode", "verify-full")
-		} else {
-			if q.Get("sslmode") == "" {
-				q.Set("sslmode", "verify-ca")
-			}
-		}
-		u.RawQuery = q.Encode()
-		uri = u.String()
+	var err error
+	uri, err = BuildPostgresTLSURI(uri)
+	if err != nil {
+		postgresqlErr = err
+		return nil, err
 	}
 	db, err := OpenDB(uri)
 	if err != nil {
@@ -127,4 +108,32 @@ func (s *postgresqlProvider) AdminStorage() storage.AdminStorage {
 func (s *postgresqlProvider) Close() error {
 	s.db.Close()
 	return nil
+}
+
+// BuildPostgresTLSURI modifies the given PostgreSQL URI to include TLS parameters based on flags.
+// It returns the modified URI and any error encountered.
+func BuildPostgresTLSURI(uri string) (string, error) {
+	if *postgresqlTLSCA == "" {
+		return uri, nil
+	}
+	if _, err := os.Stat(*postgresqlTLSCA); err != nil {
+		postgresqlErr = fmt.Errorf("postgresql CA file error: %w", err)
+		return "", postgresqlErr
+	}
+	u, err := url.Parse(uri)
+	if err != nil {
+		postgresqlErr = fmt.Errorf("invalid postgresql URI %q: %w", uri, err)
+		return "", postgresqlErr
+	}
+	q := u.Query()
+	q.Set("sslrootcert", *postgresqlTLSCA)
+	if *postgresqlVerifyFull {
+		q.Set("sslmode", "verify-full")
+	} else {
+		if q.Get("sslmode") == "" {
+			q.Set("sslmode", "verify-ca")
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }
