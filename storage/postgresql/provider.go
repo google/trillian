@@ -16,6 +16,9 @@ package postgresql
 
 import (
 	"flag"
+	"fmt"
+	"net/url"
+	"os"
 	"sync"
 
 	"github.com/google/trillian/monitoring"
@@ -25,7 +28,9 @@ import (
 )
 
 var (
-	postgreSQLURI = flag.String("postgresql_uri", "postgresql:///defaultdb?host=localhost&user=test", "Connection URI for PostgreSQL database")
+	postgreSQLURI        = flag.String("postgresql_uri", "postgresql:///defaultdb?host=localhost&user=test", "Connection URI for PostgreSQL database")
+	postgresqlTLSCA      = flag.String("postgresql_tls_ca", "", "Path to the CA certificate file for PostgreSQL TLS connection ")
+	postgresqlVerifyFull = flag.Bool("postgresql_verify_full", false, "Enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.")
 
 	postgresqlMu              sync.Mutex
 	postgresqlErr             error
@@ -76,7 +81,14 @@ func getPostgreSQLDatabaseLocked() (*pgxpool.Pool, error) {
 	if postgresqlDB != nil || postgresqlErr != nil {
 		return postgresqlDB, postgresqlErr
 	}
-	db, err := OpenDB(*postgreSQLURI)
+	uri := *postgreSQLURI
+	var err error
+	uri, err = BuildPostgresTLSURI(uri)
+	if err != nil {
+		postgresqlErr = err
+		return nil, err
+	}
+	db, err := OpenDB(uri)
 	if err != nil {
 		postgresqlErr = err
 		return nil, err
@@ -96,4 +108,32 @@ func (s *postgresqlProvider) AdminStorage() storage.AdminStorage {
 func (s *postgresqlProvider) Close() error {
 	s.db.Close()
 	return nil
+}
+
+// BuildPostgresTLSURI modifies the given PostgreSQL URI to include TLS parameters based on flags.
+// It returns the modified URI and any error encountered.
+func BuildPostgresTLSURI(uri string) (string, error) {
+	if *postgresqlTLSCA == "" {
+		return uri, nil
+	}
+	if _, err := os.Stat(*postgresqlTLSCA); err != nil {
+		postgresqlErr = fmt.Errorf("postgresql CA file error: %w", err)
+		return "", postgresqlErr
+	}
+	u, err := url.Parse(uri)
+	if err != nil {
+		postgresqlErr = fmt.Errorf("invalid postgresql URI %q: %w", uri, err)
+		return "", postgresqlErr
+	}
+	q := u.Query()
+	q.Set("sslrootcert", *postgresqlTLSCA)
+	if *postgresqlVerifyFull {
+		q.Set("sslmode", "verify-full")
+	} else {
+		if q.Get("sslmode") == "" {
+			q.Set("sslmode", "verify-ca")
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }
