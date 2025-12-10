@@ -21,8 +21,9 @@ const _OpType_name = "UnknownAdminQueryQueueLogSequenceLogUpdateMap"
 var _OpType_index = [...]uint8{0, 7, 12, 17, 25, 36, 45}
 
 func (i OpType) String() string {
-	if i < 0 || i >= OpType(len(_OpType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_OpType_index)-1 {
 		return "OpType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _OpType_name[_OpType_index[i]:_OpType_index[i+1]]
+	return _OpType_name[_OpType_index[idx]:_OpType_index[idx+1]]
 }
