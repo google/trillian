@@ -32,6 +32,9 @@ var (
 	postgresqlTLSCA      = flag.String("postgresql_tls_ca", "", "Path to the CA certificate file for PostgreSQL TLS connection ")
 	postgresqlVerifyFull = flag.Bool("postgresql_verify_full", false, "Enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.")
 
+	maxConns = flag.Int("postgresql_max_conns", 4, "Maximum connections to the database")
+	minConns = flag.Int("postgresql_min_conns", 0, "Minmum connections to the database")
+
 	postgresqlMu              sync.Mutex
 	postgresqlErr             error
 	postgresqlDB              *pgxpool.Pool
@@ -88,7 +91,11 @@ func getPostgreSQLDatabaseLocked() (*pgxpool.Pool, error) {
 		postgresqlErr = err
 		return nil, err
 	}
-	db, err := OpenDB(uri)
+
+	maxC := max(int32(*maxConns), 2)
+	minC := max(int32(*minConns), 0)
+
+	db, err := OpenDB(*postgreSQLURI, maxC, minC)
 	if err != nil {
 		postgresqlErr = err
 		return nil, err
