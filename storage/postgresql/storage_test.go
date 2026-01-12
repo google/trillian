@@ -322,3 +322,18 @@ func TestMain(m *testing.M) {
 	done(context.Background())
 	os.Exit(status)
 }
+
+func TestOpenDBmaxCminC(t *testing.T) {
+	var maxC int32 = 4
+	var minC int32 = 1
+
+	pool, err := OpenDB("postgresql:///defaultdb?host=localhost&user=postgres&password=postgres", maxC, minC)
+
+	if pool.Config().MaxConns != 4 {
+		t.Fatalf("Config MaxConns failed: %v", err)
+	}
+	if pool.Config().MinConns != 1 {
+		t.Fatalf("Config MinConns failed: %v", err)
+	}
+
+}
