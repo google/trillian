@@ -92,7 +92,7 @@ func getPostgreSQLDatabaseLocked() (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	maxC := max(int32(*maxConns), 2)
+	maxC := max(int32(*maxConns), 4)
 	minC := max(int32(*minConns), 0)
 
 	db, err := OpenDB(uri, maxC, minC)
