@@ -8,7 +8,9 @@
 * Add TLS support for PostgreSQL: https://github.com/google/trillian/pull/3831
   * `--postgresql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with PostgreSQL server. 
   * `--postgresql_verify_full`: users can enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.
-
+* add PostgreSQL connections Min & Max 
+  * `--postgresql_max_conns`: maximum connections to the database.
+  * `--postgresql_min_conns`: minmum connections to the database.
 ### Storage
 
 * PostgreSQL quota manager: Use SELECT(*) instead of ANALYZE up to 10,000 rows instead of 1,000 by @robstradling in https://github.com/google/trillian/pull/3813

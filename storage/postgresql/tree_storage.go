@@ -66,13 +66,14 @@ type postgreSQLTreeStorage struct {
 }
 
 // OpenDB opens a database connection pool for all PostgreSQL-based storage implementations.
-func OpenDB(dbURL string) (*pgxpool.Pool, error) {
+func OpenDB(dbURL string, maxConns int32, minConns int32) (*pgxpool.Pool, error) {
 	pgxConfig, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		klog.Warningf("Could not parse PostgreSQL connection URI, check config: %s", err)
 		return nil, err
 	}
-
+	pgxConfig.MaxConns = maxConns
+	pgxConfig.MinConns = minConns
 	db, err := pgxpool.NewWithConfig(context.TODO(), pgxConfig)
 	if err != nil {
 		// Don't log uri as it could contain credentials
