@@ -39,8 +39,3 @@ updates:
       applies-to: version-updates
       patterns:
         - "*"
-
-- package-ecosystem: npm
-  directory: /scripts/gcb2slack
-  schedule:
-    interval: monthly
