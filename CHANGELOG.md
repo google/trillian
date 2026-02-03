@@ -8,6 +8,7 @@
 * Add TLS support for PostgreSQL: https://github.com/google/trillian/pull/3831
   * `--postgresql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with PostgreSQL server. 
   * `--postgresql_verify_full`: users can enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.
+* Deleted `gcb2slack`
 
 ### Storage
 
