@@ -60,7 +60,7 @@ require (
 	cloud.google.com/go/profiler v0.4.3 // indirect
 	cloud.google.com/go/storage v1.58.0 // indirect
 	cloud.google.com/go/trace v1.11.7 // indirect
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.3 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.30.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0 // indirect
