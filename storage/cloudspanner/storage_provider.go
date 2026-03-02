@@ -34,13 +34,13 @@ import (
 var (
 	csURI                                = flag.String("cloudspanner_uri", "", "Connection URI for CloudSpanner database")
 	csNumChannels                        = flag.Int("cloudspanner_num_channels", 0, "Number of gRPC channels to use to talk to CloudSpanner.")
-	csSessionMaxOpened                   = flag.Uint64("cloudspanner_max_open_sessions", 0, "Max open sessions.")
-	csSessionMinOpened                   = flag.Uint64("cloudspanner_min_open_sessions", 0, "Min open sessions.")
-	csSessionMaxIdle                     = flag.Uint64("cloudspanner_max_idle_sessions", 0, "Max idle sessions.")
+	_                                    = flag.Uint64("cloudspanner_max_open_sessions", 0, "DEPRECATED. Spanner no longer supports this feature.")
+	_                                    = flag.Uint64("cloudspanner_min_open_sessions", 0, "DEPRECATED. Spanner no longer supports this feature.")
+	_                                    = flag.Uint64("cloudspanner_max_idle_sessions", 0, "DEPRECATED. Spanner no longer supports this feature.")
 	_                                    = flag.Float64("cloudspanner_write_sessions", 0, "DEPRECATED. This flag is unused and will be removed in the future. Fraction of write capable sessions to maintain.")
-	csSessionHCWorkers                   = flag.Int("cloudspanner_num_healthcheckers", 0, "Number of health check workers for Spanner session pool.")
-	csSessionHCInterval                  = flag.Duration("cloudspanner_healthcheck_interval", 0, "Interval betweek pinging sessions.")
-	csSessionTrackHandles                = flag.Bool("cloudspanner_track_session_handles", false, "determines whether the session pool will keep track of the stacktrace of the goroutines that take sessions from the pool.")
+	_                                    = flag.Int("cloudspanner_num_healthcheckers", 0, "DEPRECATED. Spanner no longer supports this feature.")
+	_                                    = flag.Duration("cloudspanner_healthcheck_interval", 0, "DEPRECATED. Spanner no longer supports this feature.")
+	_                                    = flag.Bool("cloudspanner_track_session_handles", false, "DEPRECATED. Spanner no longer supports this feature.")
 	csDequeueAcrossMerkleBucketsFraction = flag.Float64("cloudspanner_dequeue_bucket_fraction", 0.75, "Fraction of merkle keyspace to dequeue from, set to zero to disable.")
 	csReadOnlyStaleness                  = flag.Duration("cloudspanner_readonly_staleness", time.Minute, "How far in the past to perform readonly operations. Within limits, raising this should help to increase performance/reduce latency.")
 	_                                    = flag.Uint64("cloudspanner_max_burst_sessions", 0, "No longer used")
@@ -77,14 +77,7 @@ type cloudSpannerProvider struct {
 }
 
 func configFromFlags() spanner.ClientConfig {
-	r := spanner.ClientConfig{}
-	setUint64IfNotDefault(&r.MaxOpened, *csSessionMaxOpened)
-	setUint64IfNotDefault(&r.MinOpened, *csSessionMinOpened)
-	setUint64IfNotDefault(&r.MaxIdle, *csSessionMaxIdle)
-	setIntIfNotDefault(&r.HealthCheckWorkers, *csSessionHCWorkers)
-	r.TrackSessionHandles = *csSessionTrackHandles
-	r.HealthCheckInterval = *csSessionHCInterval
-	return r
+	return spanner.ClientConfig{}
 }
 
 func optionsFromFlags() []option.ClientOption {
@@ -142,16 +135,4 @@ func (s *cloudSpannerProvider) AdminStorage() storage.AdminStorage {
 func (s *cloudSpannerProvider) Close() error {
 	s.client.Close()
 	return nil
-}
-
-func setIntIfNotDefault(t *int, v int) {
-	if v != 0 {
-		*t = v
-	}
-}
-
-func setUint64IfNotDefault(t *uint64, v uint64) {
-	if v != 0 {
-		*t = v
-	}
 }
