@@ -9,6 +9,7 @@
   * `--postgresql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with PostgreSQL server. 
   * `--postgresql_verify_full`: users can enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.
 * Deleted `gcb2slack`
+* CloudSpanner: Many storage-specific options are deprecated and have likely been ineffective for some time: https://github.com/google/trillian/pull/3860
 
 ### Storage
 
