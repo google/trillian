@@ -65,12 +65,39 @@ type postgreSQLTreeStorage struct {
 	// (See https://github.com/jackc/pgx/wiki/Automatic-Prepared-Statement-Caching)
 }
 
+// connIsUsable checks whether a pgx connection is in a clean, usable state.
+// It returns false if the connection is closed or has an active/failed transaction,
+// which can happen when a context cancellation interrupts a query mid-flight and
+// the connection is returned to the pool without proper cleanup.
+// See https://github.com/jackc/pgx/issues/2100
+func connIsUsable(c *pgx.Conn) bool {
+	if c.IsClosed() {
+		return false
+	}
+	txStatus := c.PgConn().TxStatus()
+	// 'I' = idle (no transaction), 'T' = in transaction, 'E' = failed transaction
+	return txStatus == 'I'
+}
+
 // OpenDB opens a database connection pool for all PostgreSQL-based storage implementations.
 func OpenDB(dbURL string) (*pgxpool.Pool, error) {
 	pgxConfig, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		klog.Warningf("Could not parse PostgreSQL connection URI, check config: %s", err)
 		return nil, err
+	}
+
+	// Mitigate connection pool contamination caused by context cancellation
+	// during in-flight queries. When a gRPC context is cancelled, pgx may
+	// close the underlying connection or leave it in a dirty transaction state.
+	// These callbacks ensure such connections are destroyed rather than being
+	// returned to or acquired from the pool.
+	// See https://github.com/jackc/pgx/issues/2100
+	pgxConfig.PrepareConn = func(ctx context.Context, c *pgx.Conn) (bool, error) {
+		return connIsUsable(c), nil
+	}
+	pgxConfig.AfterRelease = func(c *pgx.Conn) bool {
+		return connIsUsable(c)
 	}
 
 	db, err := pgxpool.NewWithConfig(context.TODO(), pgxConfig)
