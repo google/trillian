@@ -120,7 +120,11 @@ func newTreeStorage(db *pgxpool.Pool) *postgreSQLTreeStorage {
 func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		klog.Warningf("Could not start tree TX: %s", err)
+		if ctx.Err() != nil {
+			klog.V(1).Infof("Could not start tree TX: %s", err)
+		} else {
+			klog.Warningf("Could not start tree TX: %s", err)
+		}
 		return treeTX{}, err
 	}
 

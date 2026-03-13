@@ -425,7 +425,11 @@ func (t *logTreeTX) QueueLeaf(ctx context.Context, leaf *trillian.LogLeaf, queue
 	existingLeaves := make([]*trillian.LogLeaf, 1)
 	result, err := t.tx.Exec(ctx, queueLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, args[0], leaf.MerkleLeafHash, args[1])
 	if err != nil {
-		klog.Warningf("Failed to queue leaf: %s", err)
+		if ctx.Err() != nil {
+			klog.V(1).Infof("Failed to queue leaf: %s", err)
+		} else {
+			klog.Warningf("Failed to queue leaf: %s", err)
+		}
 		return nil, postgresqlToGRPC(err)
 	}
 	queuedCounter.Add(1, label)
@@ -709,7 +713,11 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 		ret = append(ret, leaf)
 	}
 	if err := rows.Err(); err != nil {
-		klog.Warningf("Failed to read returned leaves: %s", err)
+		if ctx.Err() != nil {
+			klog.V(1).Infof("Failed to read returned leaves: %s", err)
+		} else {
+			klog.Warningf("Failed to read returned leaves: %s", err)
+		}
 		return nil, err
 	}
 
@@ -804,13 +812,21 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root *trillian.Signe
 func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, query string, desc string) ([]*trillian.LogLeaf, error) {
 	rows, err := t.tx.Query(ctx, query, leafHashes, t.treeID)
 	if err != nil {
-		klog.Warningf("Query() %s hash = %v", desc, err)
+		if ctx.Err() != nil {
+			klog.V(1).Infof("Query() %s hash = %v", desc, err)
+		} else {
+			klog.Warningf("Query() %s hash = %v", desc, err)
+		}
 		return nil, err
 	}
 	defer func() {
 		rows.Close()
 		if err := rows.Err(); err != nil {
-			klog.Errorf("rows.Err(): %v", err)
+			if ctx.Err() != nil {
+				klog.V(1).Infof("rows.Err(): %v", err)
+			} else {
+				klog.Errorf("rows.Err(): %v", err)
+			}
 		}
 	}()
 
@@ -848,7 +864,11 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		ret = append(ret, leaf)
 	}
 	if err := rows.Err(); err != nil {
-		klog.Warningf("Failed to read returned leaves: %s", err)
+		if ctx.Err() != nil {
+			klog.V(1).Infof("Failed to read returned leaves: %s", err)
+		} else {
+			klog.Warningf("Failed to read returned leaves: %s", err)
+		}
 		return nil, err
 	}
 

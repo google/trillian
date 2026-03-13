@@ -102,6 +102,9 @@ func (t *adminTX) Commit() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.closed = true
+	if t.tx.Conn().IsClosed() {
+		return fmt.Errorf("commit aborted: connection already closed")
+	}
 	return t.tx.Commit(context.TODO())
 }
 
@@ -112,6 +115,9 @@ func (t *adminTX) Close() error {
 		return nil
 	}
 	t.closed = true
+	if t.tx.Conn().IsClosed() {
+		return nil
+	}
 	return t.tx.Rollback(context.TODO())
 }
 
