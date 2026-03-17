@@ -671,13 +671,21 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 
 	rows, err := t.tx.Query(ctx, selectLeavesByRangeSQL, start, start+count, t.treeID)
 	if err != nil {
-		klog.Warningf("Failed to get leaves by range: %s", err)
+		if ctx.Err() != nil {
+			klog.V(1).Infof("Failed to get leaves by range: %s", err)
+		} else {
+			klog.Warningf("Failed to get leaves by range: %s", err)
+		}
 		return nil, err
 	}
 	defer func() {
 		rows.Close()
 		if err := rows.Err(); err != nil {
-			klog.Errorf("rows.Err(): %v", err)
+			if ctx.Err() != nil {
+				klog.V(1).Infof("rows.Err(): %v", err)
+			} else {
+				klog.Errorf("rows.Err(): %v", err)
+			}
 		}
 	}()
 
