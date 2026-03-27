@@ -62,7 +62,7 @@ jobs:
       run: docker run --rm -d --name=roach -p 8080:8080 -p 26257:26257 -v "${PWD}/cockroach-data:/cockroach/cockroach-data"  cockroachdb/cockroach:latest start-single-node --insecure
 
     - name: Wait for CockroachDB
-      uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+      uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
       with:
         timeout_seconds: 15
         max_attempts: 3
