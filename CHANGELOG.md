@@ -2,18 +2,95 @@
 
 ## HEAD
 
-* Bump golangci-lint to v2.1.6
-* Fix leader resignation during a graceful shutdown by @osmman in https://github.com/google/trillian/pull/3790
-* Add optional gRPC message size limit via `--max_msg_size_bytes` flag by @fghanmi in https://github.com/google/trillian/pull/3801
-* Add TLS support for PostgreSQL: https://github.com/google/trillian/pull/3831
-  * `--postgresql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with PostgreSQL server. 
-  * `--postgresql_verify_full`: users can enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.
-* Deleted `gcb2slack`
-* CloudSpanner: Many storage-specific options are deprecated and have likely been ineffective for some time: https://github.com/google/trillian/pull/3860
+## v1.7.3
+
+* Recommended go version for development: 1.25
+  * This is the version used by the cloudbuild presubmits. Using a
+    different version can lead to presubmits failing due to unexpected
+    diffs.
 
 ### Storage
 
 * PostgreSQL quota manager: Use SELECT(*) instead of ANALYZE up to 10,000 rows instead of 1,000 by @robstradling in https://github.com/google/trillian/pull/3813
+
+* Add TLS support for PostgreSQL by @fghanmi in https://github.com/google/trillian/pull/3831
+  * `--postgresql_tls_ca`: users can provide a CA certificate, that is used to establish a secure communication with PostgreSQL server. 
+  * `--postgresql_verify_full`: users can enable full TLS verification for PostgreSQL (sslmode=verify-full). If false, only sslmode=verify-ca is used.
+* CloudSpanner: Many storage-specific options are deprecated and have likely been ineffective for some time in https://github.com/google/trillian/pull/3860
+
+### Election system
+
+* Ensure leader resignation on shutdown by @osmman in https://github.com/google/trillian/pull/3790
+
+### Documentation
+
+* [Claimant Model] New intro by @mhutchinson in https://github.com/google/trillian/pull/3804
+* Refresh README by @roger2hk in https://github.com/google/trillian/pull/3865
+
+### Misc
+
+* add optional gRPC max message size limit to trillian logserver and logsigner by @fghanmi in https://github.com/google/trillian/pull/3801
+* Updated slack invite link by @mhutchinson in https://github.com/google/trillian/pull/3791
+* Update transparency-dev slack invite link by @taknira in https://github.com/google/trillian/pull/3796
+* Delete k8s CI steps by @mhutchinson in https://github.com/google/trillian/pull/3838
+* Deleted gcb2slack by @mhutchinson in https://github.com/google/trillian/pull/3849
+
+### Dependency update
+
+* Bump @google-cloud/functions-framework from 3.5.1 to 4.0.0 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3780
+* Bump the docker-deps group across 5 directories with 3 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3781
+* Bump github/codeql-action from 3.28.15 to 3.28.16 in the github-actions-deps group by @dependabot[bot] in https://github.com/google/trillian/pull/3782
+* Bump the docker-deps group across 7 directories with 6 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3787
+* update golangci-lint to v2.1.6 by @phbnf in https://github.com/google/trillian/pull/3788
+* Bump the github-actions-deps group with 4 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3786
+* Bump the docker-deps group across 6 directories with 5 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3792
+* Bump github/codeql-action from 3.28.18 to 3.29.2 in the github-actions-deps group by @dependabot[bot] in https://github.com/google/trillian/pull/3795
+* Bump google-auth-library from 9.15.1 to 10.1.0 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3793
+* Bump form-data from 4.0.2 to 4.0.4 in /scripts/gcb2slack in the npm_and_yarn group by @dependabot[bot] in https://github.com/google/trillian/pull/3797
+* Bump the docker-deps group across 7 directories with 6 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3800
+* Bump google-auth-library from 10.1.0 to 10.2.0 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3799
+* Bump github/codeql-action from 3.29.2 to 3.29.5 in the github-actions-deps group by @dependabot[bot] in https://github.com/google/trillian/pull/3798
+* Bump the go-deps group across 1 directory with 24 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3794
+* Bump github.com/docker/docker from 28.2.2+incompatible to 28.3.3+incompatible in the go_modules group by @dependabot[bot] in https://github.com/google/trillian/pull/3802
+* Bump google-auth-library from 10.2.0 to 10.3.0 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3808
+* Bump the github-actions-deps group with 2 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3807
+* Bump the docker-deps group across 6 directories with 5 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3811
+* Bump the go-deps group with 17 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3809
+* Bump @slack/webhook from 7.0.5 to 7.0.6 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3810
+* Bump axios from 1.11.0 to 1.12.1 in /scripts/gcb2slack in the npm_and_yarn group across 1 directory by @dependabot[bot] in https://github.com/google/trillian/pull/3812
+* Bump the github-actions-deps group with 3 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3819
+* Bump the docker-deps group across 6 directories with 5 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3822
+* Bump google-auth-library from 10.3.0 to 10.4.0 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3820
+* Bump the go-deps group with 20 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3821
+* Bump the docker-deps group across 7 directories with 6 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3827
+* Bump the go-deps group with 9 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3826
+* Bump google-auth-library from 10.4.0 to 10.5.0 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3824
+* Bump the github-actions-deps group with 2 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3825
+* Bump @google-cloud/functions-framework from 4.0.0 to 4.0.1 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3833
+* Bump jws from 4.0.0 to 4.0.1 in /scripts/gcb2slack in the npm_and_yarn group across 1 directory by @dependabot[bot] in https://github.com/google/trillian/pull/3836
+* Bump the github-actions-deps group with 4 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3834
+* Bump the go-deps group with 15 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3835
+* Bump the docker-deps group across 5 directories with 3 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3832
+* Bump the docker-deps group across 6 directories with 5 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3843
+* Bump qs from 6.14.0 to 6.14.1 in /scripts/gcb2slack in the npm_and_yarn group across 1 directory by @dependabot[bot] in https://github.com/google/trillian/pull/3839
+* Bump @google-cloud/functions-framework from 4.0.1 to 5.0.0 in /scripts/gcb2slack by @dependabot[bot] in https://github.com/google/trillian/pull/3840
+* Bump the go-deps group with 21 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3842
+* Bump the github-actions-deps group with 4 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3841
+* Bump the go-deps group with 9 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3847
+* Bump the github-actions-deps group with 3 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3846
+* Bump the docker-deps group across 7 directories with 6 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3848
+* Bump golang.org/x/tools from 0.40.0 to 0.41.0 in the go-deps group by @dependabot[bot] in https://github.com/google/trillian/pull/3851
+* Bump the docker-deps group across 4 directories with 2 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3850
+* Bump filippo.io/edwards25519 from 1.1.0 to 1.1.1 by @dependabot[bot] in https://github.com/google/trillian/pull/3854
+* Bump go.opentelemetry.io/otel/sdk from 1.39.0 to 1.40.0 by @dependabot[bot] in https://github.com/google/trillian/pull/3855
+* Bump the github-actions-deps group across 1 directory with 3 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3856
+* Bumped go/x/net to fix GO-2026-4559 by @mhutchinson in https://github.com/google/trillian/pull/3859
+* Bump the go-deps group across 1 directory with 17 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3860
+* Bump google.golang.org/grpc from 1.79.1 to 1.79.3 by @dependabot[bot] in https://github.com/google/trillian/pull/3863
+* Bump go.etcd.io/etcd/v3 from 3.6.8 to 3.6.9 by @dependabot[bot] in https://github.com/google/trillian/pull/3864
+* Bump the github-actions-deps group with 2 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3868
+* Bump the docker-deps group across 6 directories with 5 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3867
+* Bump the go-deps group with 15 updates by @dependabot[bot] in https://github.com/google/trillian/pull/3869
 
 ## v1.7.2
 
