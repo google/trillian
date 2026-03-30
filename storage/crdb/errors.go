@@ -16,9 +16,10 @@ package crdb
 
 import (
 	"github.com/lib/pq"
+	"github.com/lib/pq/pqerror"
 )
 
-var uniqueViolationErrorCode = pq.ErrorCode("23505")
+var uniqueViolationErrorCode = pqerror.Code("23505")
 
 // crdbToGRPC converts some types of CockroachDB errors to GRPC errors. This gives
 // clients more signal when the operation can be retried.
