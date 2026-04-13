@@ -1,59 +1,74 @@
 # Claimant Model
 
-This paper introduces an intuitive, standalone model for a common scenario where one party needs to perform an action which is reasonable only if a claim made by another party is true. The Claimant Model allows formally verifiable constructs to be bound to a messy reality.
+The Claimant Model provides a framework for analyzing trust in systems. It helps map formal cryptographic or verifiable constructs to real-world scenarios where one party needs to rely on information provided by another.
 
-## Model
+## Core Roles
 
-*This model describes roles, not actors. In a concrete deployment of this model, the same actor may play multiple roles, or multiple actors may need to work together to cover a role.*
+*Note: This model describes **roles**, not specific actors. In practice, a single actor might play multiple roles, or multiple actors might share a single role.*
 
-There is a **Claimant** that makes a **Claim** that is relied upon by a **Believer** as a precondition to take an action they would not have taken if the claim was false. Claims are represented by signed **Statements**. The veracity of a Claim can be verified by a **Claim Verifier**, who will notify a **Claim Arbiter** of any false Claims.
+The model defines five key roles:
 
-## Example: Certification Claims
+*   **Claimant**: The party that makes a **Claim**.
+*   **Claim**: A falsifiable logical statement made by the Claimant.
+*   **Statement**: The concrete data (usually signed) that represents the Claim.
+*   **Believer**: The party that relies on the Claim to take an action. They would not take this action if the Claim were false.
+*   **Claim Verifier**: The party that checks whether the Claim is actually true.
+*   **Claim Arbiter**: The party that handles disputes and takes action if a false Claim is discovered.
 
-As a concrete example of the Claimant Model in action, we'll model one of the core claims made by [Certificate Authorities](https://en.wikipedia.org/wiki/Certificate_authority) (CAs).
-A CA should create and sign a Certificate, *only at the request of the Domain Owner*.
-A user's web browser receives this cert when attempting to establish a secure connection to a domain, and proceeds with the connection only if it was signed by a CA that the Browser Vendor has blessed.
-In the event of a CA issuing bad certificates, the Browser Vendor can protect their users by removing the CA from the blessed set.
-The only party which can verify that a certificate was issued under authorization is the Domain Owner.
+## Example: Certificate Transparency
 
-<dl>
-<dt>Claim<sup>CERT</sup></dt>
-<dd><i>"I, ${CA}, am authorized to certify $pubKey for $domain"</i></dd>
-<dt>Statement<sup>CERT</sup></dt>
-<dd>X.509 Certificate</dd>
-<dt>Claimant<sup>CERT</sup></dt>
-<dd>Certificate Authority</dd>
-<dt>Believer<sup>CERT</sup></dt>
-<dd>Web Browser</dd>
-<dt>Verifier<sup>CERT</sup></dt>
-<dd>Domain Owner</dd>
-<dt>Arbiter<sup>CERT</sup></dt>
-<dd>Browser Vendor</dd>
-</dl>
+To see the model in action, consider how it applies to web security and Certificate Authorities (CAs).
 
-The Browser has sufficient trust in the CA to employ a strategy of [Trust But Verify](#trust-but-verify), however this model alone does not provide a mechanism to ensure that any Statement<sup>CERT</sup> relied on by Believer<sup>CERT</sup> can be discovered by Verifier<sup>CERT</sup>. This is why Certificate Transparency was created; to allow verifiers to discover all of the certificates that have been believed.
-Using Logs to provide this discoverability is described in [Claimant Model: Logs](Logs.md).
+*   **Background**: A CA signs a digital certificate for a domain. A web browser trusts this certificate to establish a secure connection.
+*   **The Tension**: A CA should only issue a certificate if the domain owner requests it. If a CA issues a certificate maliciously or by mistake, the browser relies on a false claim.
 
-<!-- TODO(mhutchinson): Discuss Closed Loop Systems below and link to this. -->
+Here is how we map this to the Claimant Model roles for this specific domain:
 
-# Claim Requirements
-* The Statement for any claim must be signed by the Claimant to ensure that it is immutable and non-repudiable.
-* It must be possible to generate the Claim from the Statement without any additional context.
-* Claims must be [falsifiable](https://en.wikipedia.org/wiki/Falsifiability).
-  
-## Compound Claims
-When the Claim is composed of multiple subclaims, the Verifier role must be covered by actors that can verify all components of the Claim.
+*   **Cert Claim**: *"I, [CA Name], am authorized to certify [Public Key] for [Domain]."*
+*   **Cert Statement**: The X.509 Certificate itself.
+*   **Cert Claimant**: The Certificate Authority.
+*   **Cert Believer**: The Web Browser (which connects based on the cert).
+*   **Cert Verifier**: The Domain Owner (the only one who knows if they requested the cert).
+*   **Cert Arbiter**: The Browser Vendor (who can remove the CA from the trusted set if they misbehave).
 
-For example, imagine a Claimant<sup>PRIME</sup> that provides Believer<sup>PRIME</sup> with an integer covered by Claim<sup>PRIME</sup>: *"This is prime, and is uniquely issued to $believerID"*. This is a compound Claim: verification would need to confirm 1) the primality of the integer, and 2) that no other Believer had been issued the same value.
+> [!NOTE]
+> **Notation Note:** In complex systems, we often apply the Claimant Model at multiple layers (e.g., the certificate layer and the log layer). To distinguish roles at different layers, we use descriptive prefixes (like **Cert** Claimant or **Log** Claimant). An alternative way of formatting this in older versions of this documentation was using superscripts (e.g., Claimant<sup>CERT</sup>), but this was deprecated in favor of straight text for accessibility and readability.
 
-# Believer Strategies
-## Trust But Verify
-If the Believer has sufficient trust to believe the Claimant for some action, Trust But Verify allows the Believer to take the Claim on face value, and perform the action before the Claim Verifier verifies this Claim. This system requires all Claims trusted by the Believer to be discovered by a Verifier, and this is what is meant by transparency. Such systems generally include a Claim Arbiter that closes the feedback loop by notifying Believers of bad Claimants, and of new Claimants that can be trusted.
+In this example, the Browser has sufficient trust in the CA to employ a "**Trust But Verify**" strategy. However, the model above doesn't guarantee that the **Cert Verifier** (Domain Owner) will ever *see* the certificate that the **Cert Believer** relied on. This gap is why Certificate Transparency was created—to make all issued certificates discoverable.
 
-## Verify Before Use
-If the Believer does not have sufficient trust in the Claimant to perform an action without verifying the claim, then the Believer must wait until the claim is verified. It is attractive to imagine that the veracity of a Claim starts UNKNOWN and then is verified to be either TRUE or FALSE, and this will hold for all time. Reality isn't as kind as this, and the veracity of claims is best considered a degree of confidence that can be very volatile as new data points are brought to light. Believers need to determine what degree of confidence they require before proceeding with an action. The role of the Arbiter is less critical in this strategy, but they can still be included to prevent bad Claimants from wasting other actor's time.
+(For details on how logs fill this gap, see [Claimant Model: Logs](Logs.md)).
+
+## Claim Requirements
+
+For the model to work effectively, Claims and Statements must meet certain criteria:
+*   **Signed Statements**: The Statement for any claim must be signed by the Claimant to ensure it is immutable and non-repudiable.
+*   **Self-Contained**: It must be possible to extract the Claim from the Statement without needing additional context.
+*   **Falsifiable**: Claims must be able to be proven false.
+
+### Compound Claims
+
+Sometimes a Claim is composed of multiple sub-claims. In these cases, the Verifier role must be covered by actors that can verify all components of the Claim.
+
+*Example:* Imagine a **Prime Claimant** that provides a **Prime Believer** with an integer covered by a **Prime Claim**: *"This integer is prime, and it is uniquely issued to [Believer ID]."* This is a compound claim because verification requires checking two different things:
+1.  Is the integer actually prime?
+2.  Has this integer been issued to anyone else?
+
+## Believer Strategies
+
+How a Believer acts on a Claim depends on their level of trust. There are two primary strategies:
+
+### 1. Trust But Verify
+If the Believer has sufficient trust in the Claimant, they may take the Claim at face value and act on it *before* it is verified. This is how Certificate Transparency works.
+*   **Requirement**: This strategy requires all Claims to be discoverable by Verifiers so that accountability is possible after the fact.
+*   **Role of Arbiter**: Critical here to penalize bad Claimants and protect future Believers.
+
+### 2. Verify Before Use
+If the Believer does not have sufficient trust, they must wait until the Claim is verified before acting.
+*   **Nuance**: Reality is messy, and "verified" often means reaching a certain level of confidence rather than absolute certainty. The Believer must decide what degree of confidence they require.
+*   **Role of Arbiter**: Less critical for blocking actions, but still useful for penalizing bad Claimants to save others' time.
 
 ## Discussion
-A Believer can be flexible about which strategy they employ. For example: Trust But Verify might be reasonable for a low-stakes action based on a Claim from a Claimant with a good reputation; allowing the action to be taken without blocking. As the potential loss involved in the action increases, the Believer will demand increased trust in the Claimant and/or a higher degree of verification. Some systems may also provide other incentives, such as some promise of compensation from the arbitration process (e.g. FSCS).
+
+A Believer can be flexible. They might use "Trust But Verify" for low-stakes actions or highly reputable Claimants, but switch to "Verify Before Use" as the risk increases.
 
 <!-- TODO(mhutchinson): Discuss Closed Loop Systems. -->
