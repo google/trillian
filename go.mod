@@ -17,7 +17,7 @@ require (
 	github.com/google/go-licenses/v2 v2.0.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/letsencrypt/pkcs11key/v4 v4.0.1
 	github.com/lib/pq v1.12.1
 	github.com/prometheus/client_golang v1.23.2
