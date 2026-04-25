@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sync"
+	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/cache"
@@ -65,12 +66,39 @@ type postgreSQLTreeStorage struct {
 	// (See https://github.com/jackc/pgx/wiki/Automatic-Prepared-Statement-Caching)
 }
 
+// connIsUsable checks whether a pgx connection is in a clean, usable state.
+// It returns false if the connection is closed or has an active/failed transaction,
+// which can happen when a context cancellation interrupts a query mid-flight and
+// the connection is returned to the pool without proper cleanup.
+// See https://github.com/jackc/pgx/issues/2100
+func connIsUsable(c *pgx.Conn) bool {
+	if c.IsClosed() {
+		return false
+	}
+	txStatus := c.PgConn().TxStatus()
+	// 'I' = idle (no transaction), 'T' = in transaction, 'E' = failed transaction
+	return txStatus == 'I'
+}
+
 // OpenDB opens a database connection pool for all PostgreSQL-based storage implementations.
 func OpenDB(dbURL string) (*pgxpool.Pool, error) {
 	pgxConfig, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		klog.Warningf("Could not parse PostgreSQL connection URI, check config: %s", err)
 		return nil, err
+	}
+
+	// Mitigate connection pool contamination caused by context cancellation
+	// during in-flight queries. When a gRPC context is cancelled, pgx may
+	// close the underlying connection or leave it in a dirty transaction state.
+	// These callbacks ensure such connections are destroyed rather than being
+	// returned to or acquired from the pool.
+	// See https://github.com/jackc/pgx/issues/2100
+	pgxConfig.PrepareConn = func(ctx context.Context, c *pgx.Conn) (bool, error) {
+		return connIsUsable(c), nil
+	}
+	pgxConfig.AfterRelease = func(c *pgx.Conn) bool {
+		return connIsUsable(c)
 	}
 
 	db, err := pgxpool.NewWithConfig(context.TODO(), pgxConfig)
@@ -92,7 +120,11 @@ func newTreeStorage(db *pgxpool.Pool) *postgreSQLTreeStorage {
 func (m *postgreSQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache *cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		klog.Warningf("Could not start tree TX: %s", err)
+		if ctx.Err() != nil {
+			klog.V(1).Infof("Could not start tree TX: %s", err)
+		} else {
+			klog.Warningf("Could not start tree TX: %s", err)
+		}
 		return treeTX{}, err
 	}
 
@@ -291,17 +323,33 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	// If the connection is already closed (e.g., due to context cancellation
+	// during a prior query), don't attempt the commit. This avoids noisy
+	// "failed to deallocate cached statement(s): conn closed" errors.
+	if t.tx.Conn().IsClosed() {
+		t.closed = true
+		return fmt.Errorf("commit aborted: connection already closed")
+	}
+
 	tiles, err := t.subtreeCache.UpdatedTiles()
 	if err != nil {
 		klog.Warningf("SubtreeCache updated tiles error: %v", err)
 		return err
 	}
-	if err := t.storeSubtrees(ctx, tiles); err != nil {
+
+	// Use a non-cancellable context for the commit path to prevent context
+	// cancellation (e.g., from a gRPC client disconnect) from interrupting
+	// the commit and causing "conn closed" errors during cached statement
+	// deallocation. A timeout is applied as a safety net.
+	commitCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
+
+	if err := t.storeSubtrees(commitCtx, tiles); err != nil {
 		klog.Warningf("TX commit flush error: %v", err)
 		return err
 	}
 	t.closed = true
-	if err := t.tx.Commit(ctx); err != nil {
+	if err := t.tx.Commit(commitCtx); err != nil {
 		klog.Warningf("TX commit error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
 	}
@@ -310,6 +358,12 @@ func (t *treeTX) Commit(ctx context.Context) error {
 
 func (t *treeTX) rollbackInternal() error {
 	t.closed = true
+	// If the connection is already closed (e.g., due to context cancellation
+	// during a prior query), don't attempt the rollback. The server has
+	// already discarded the transaction when the connection closed.
+	if t.tx.Conn().IsClosed() {
+		return nil
+	}
 	if err := t.tx.Rollback(context.TODO()); err != nil {
 		klog.Warningf("TX rollback error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
