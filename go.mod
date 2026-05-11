@@ -24,10 +24,10 @@ require (
 	github.com/prometheus/client_model v0.6.2
 	github.com/pseudomuto/protoc-gen-doc v1.5.1
 	github.com/transparency-dev/merkle v0.0.2
-	go.etcd.io/etcd/client/v3 v3.6.10
-	go.etcd.io/etcd/etcdctl/v3 v3.6.10
-	go.etcd.io/etcd/server/v3 v3.6.10
-	go.etcd.io/etcd/v3 v3.6.10
+	go.etcd.io/etcd/client/v3 v3.6.11
+	go.etcd.io/etcd/etcdctl/v3 v3.6.11
+	go.etcd.io/etcd/server/v3 v3.6.11
+	go.etcd.io/etcd/v3 v3.6.11
 	go.opencensus.io v0.24.0
 	golang.org/x/crypto v0.49.0
 	golang.org/x/sync v0.20.0
@@ -173,11 +173,11 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xiang90/probing v0.0.0-20221125231312-a49e3df8f510 // indirect
 	go.etcd.io/bbolt v1.4.3 // indirect
-	go.etcd.io/etcd/api/v3 v3.6.10 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.10 // indirect
-	go.etcd.io/etcd/etcdutl/v3 v3.6.10 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.6.10 // indirect
-	go.etcd.io/etcd/tests/v3 v3.6.10 // indirect
+	go.etcd.io/etcd/api/v3 v3.6.11 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.6.11 // indirect
+	go.etcd.io/etcd/etcdutl/v3 v3.6.11 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.6.11 // indirect
+	go.etcd.io/etcd/tests/v3 v3.6.11 // indirect
 	go.etcd.io/gofail v0.2.0 // indirect
 	go.etcd.io/raft/v3 v3.6.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
@@ -202,7 +202,7 @@ require (
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c // indirect
 	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
