@@ -77,6 +77,10 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 			keyPass: "towel",
 		},
 		{
+			desc:    "ECDSA from file without password",
+			keyPath: "../../../testdata/log-rpc-server-unencrypted.privkey.pem",
+		},
+		{
 			desc:        "Non-existent file",
 			keyPath:     "non-existent.pem",
 			wantLoadErr: true,

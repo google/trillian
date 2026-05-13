@@ -30,12 +30,9 @@ import (
 )
 
 // ReadPrivateKeyFile reads a PEM-encoded private key from a file.
-// The key must be protected by a password.
+// The key may be protected by a password. If password is empty, the key is
+// assumed to be unencrypted.
 func ReadPrivateKeyFile(file, password string) (crypto.Signer, error) {
-	if password == "" {
-		return nil, fmt.Errorf("pemfile: empty password for file %q", file)
-	}
-
 	keyPEM, err := os.ReadFile(file)
 	if err != nil {
 		return nil, fmt.Errorf("pemfile: error reading file %q: %v", file, err)
