@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* Replace deprecated `golang.org/x/crypto/ed25519` with stdlib `crypto/ed25519` by @JasonPowr
+
 ## v1.7.3
 
 * Recommended go version for development: 1.25

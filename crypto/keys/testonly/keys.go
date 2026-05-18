@@ -20,6 +20,7 @@ package testonly
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -29,8 +30,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-
-	"golang.org/x/crypto/ed25519"
 )
 
 // MustMarshalPublicPEMToDER reads a PEM-encoded public key and returns it in DER encoding.

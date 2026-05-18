@@ -23,8 +23,9 @@ import (
 	"crypto/x509"
 	"fmt"
 
+	"crypto/ed25519"
+
 	"github.com/google/trillian/crypto/keyspb"
-	"golang.org/x/crypto/ed25519"
 	"google.golang.org/protobuf/proto"
 )
 
