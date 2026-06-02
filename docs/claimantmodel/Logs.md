@@ -18,20 +18,23 @@ In other words, Logs provide a verifiable transport mechanism to ensure that any
 
 Log Transparency applies the Claimant Model to solve a transport problem in the **Domain System** (the application layer, like certificates). It ensures that all **Domain Statements** relied upon by a **Domain Believer** can be discovered by the **Domain Verifier**.
 
+> [!IMPORTANT]
+> "Domain" here means the application domain. e.g. Binary Transparency. The word domain does **NOT** mean a web domain as in CT.
+
 ## The Log System
 
 In this layer, the Log itself becomes the system we are modeling:
 
 *   **Log Claim**: *"I make available a globally consistent, append-only list of Domain Statements."*
 *   **Log Statement**: The Log Checkpoint (signed by the log).
-*   **Log Claimant**: The Claim Log (operator).
+*   **Log Claimant**: The operator of the Log of Domain Statements.
 *   **Log Believer**: Both the **Domain Believer** and the **Domain Verifier**.
 *   **Log Verifier**: The Log Verifier (watches for consistency).
 *   **Log Arbiter**: The Log Arbiter (handles disputes).
 
 ### Key Artifacts
 
-*   **Log Checkpoint (aka STH)**: A signed statement by the **Log Claimant** declaring the number of entries in the log and committing to its contents. The signature does not verify the *veracity* of the domain claims; it only asserts that:
+*   **Log Checkpoint**: A signed statement by the **Log Claimant** declaring the number of entries in the log and committing to its contents. The signature does not attest to the *veracity* of the domain claims; it only asserts that:
     *   This Checkpoint is consistent with all earlier Checkpoints.
     *   All Domain Statements committed to by this Checkpoint are immutable and discoverable.
 

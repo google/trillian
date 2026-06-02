@@ -64,7 +64,7 @@ If the Believer has sufficient trust in the Claimant, they may take the Claim at
 
 ### 2. Verify Before Use
 If the Believer does not have sufficient trust, they must wait until the Claim is verified before acting.
-*   **Nuance**: Reality is messy, and "verified" often means reaching a certain level of confidence rather than absolute certainty. The Believer must decide what degree of confidence they require.
+*   **Nuance**: Reality is messy, and "verified" often means reaching a certain level of confidence rather than absolute certainty. The Believer must decide what degree of confidence they require. There is also the nuance that a claim can only be verified with the information available at the time. e.g. "This binary contains no known vulnerabilities" may be true when first checked, but if the knowledge base of vulnerabilities changes, then a future check could fail.
 *   **Role of Arbiter**: Less critical for blocking actions, but still useful for penalizing bad Claimants to save others' time.
 
 ## Discussion

@@ -24,19 +24,19 @@ However, if the expected location for Claims in a Map is precisely understood ah
 ### New Terms
 
 *   **Claim Subject**: The entity to which a Claim relates (e.g., a domain name in a certificate).
-*   **Mog**: A Map where the values are Logs (Map + Log).
+*   **[Mog](https://arxiv.org/abs/2011.04551)**: A Map where the values are Logs (Map + Log).
 *   **Claim Subject Map/Mog (CSM)**: A Map keyed by the Claim Subject. The value is either a single Claim (for Maps) or a Log of Claims (for Mogs). Crucially, the claims keyed under a Subject must relate to that Subject.
 
 ### Introduction
 
 CSMs allow for more efficient discoverability of Claims, particularly when there are many independent Claim Verifiers interested in distinct Subjects (e.g., different domain owners).
 
-Verifiers can look after only their own Subjects, trusting others to do the same. The risk is that any Claims placed at locations the Verifier does not expect will not be discovered. This risk can be eliminated with careful design of Claim Subjects.
+Verifiers can look after only their own Subjects, trusting others to do the same. The risk is that any Claims placed at locations the Verifier does not expect will not be discovered, though this risk can be eliminated with careful design of Claim Subjects.
 
 ### Requirements
 
 To use a CSM for discoverability, these properties must hold:
-1.  **Derivable Subjects**: Claim Subjects must be derived from the Claim itself (e.g., extracting the domain from a cert).
+1.  **Derivable Subjects**: Claim Subjects must be deterministically derived from the Claim itself (e.g., extracting the domain from a cert).
 2.  **Canonical Forms**: Claim Subjects must be keyed only under their canonical form to avoid split-view attacks where users look in different places for the same thing.
 3.  **Known Subjects**: Claim Verifiers must know the complete set of Subjects they intend to verify.
 
