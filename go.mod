@@ -32,7 +32,7 @@ require (
 	go.etcd.io/etcd/v3 v3.6.11
 	go.opencensus.io v0.24.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.45.0
 	golang.org/x/tools v0.44.0
 	google.golang.org/api v0.273.1
 	google.golang.org/genproto v0.0.0-20260316180232-0b37fe3546d5
@@ -200,7 +200,7 @@ require (
 	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa // indirect
 	golang.org/x/term v0.43.0 // indirect
