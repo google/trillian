@@ -1,0 +1,3 @@
+# ID           Module                  Reason
+GO-2026-4887   github.com/docker/docker No fix available - AuthZ plugin bypass in github.com/docker/docker when provided oversized request bodies
+GO-2026-4883   github.com/docker/docker No fix available - Plugin privilege validation off-by-one error in github.com/docker/docker

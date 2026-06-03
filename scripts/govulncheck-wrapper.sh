@@ -6,15 +6,15 @@
 #
 # How it works:
 #   1. Runs `govulncheck -json` to get detailed finding data.
-#   2. Parses `.govulncheck-ignore.json` to get the list of ignored vuln IDs + modules.
-#   3. Filters the findings using `jq`.
+#   2. Parses `.govulncheck-ignore` to get the list of ignored vuln IDs + modules.
+#   3. Filters the findings.
 #   4. Crucially, it ONLY ignores a vulnerability if there is NO fix available yet.
 #      If a vulnerability is in the ignore list but has a 'fixed_version' reported
 #      by govulncheck, the script will NOT ignore it and will fail the build,
 #      forcing an upgrade when possible.
 set -euo pipefail
 
-CONFIG_FILE=".govulncheck-ignore.json"
+CONFIG_FILE=".govulncheck-ignore"
 VERBOSE=0
 
 while [[ $# -gt 0 ]]; do
@@ -96,7 +96,16 @@ if [[ -z "$UNIQUE_VULNS_TSV" ]]; then
   exit 0
 fi
 
-IGNORED_LIST=$(jq -r '.ignored_vulnerabilities[] | "\(.id)|\(.module)"' "$CONFIG_FILE" 2>/dev/null || true)
+IGNORED_LIST=""
+while read -r id module reason || [[ -n "$id" ]]; do
+  # Skip comments and empty lines
+  if [[ -z "$id" || "$id" =~ ^# ]]; then
+    continue
+  fi
+  if [[ -n "$id" && -n "$module" ]]; then
+    IGNORED_LIST="${IGNORED_LIST}${id}|${module}"$'\n'
+  fi
+done < "$CONFIG_FILE"
 
 IGNORED_COUNT=0
 UNIGNORED_COUNT=0
