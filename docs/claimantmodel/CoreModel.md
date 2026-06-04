@@ -71,4 +71,43 @@ If the Believer does not have sufficient trust, they must wait until the Claim i
 
 A Believer can be flexible. They might use "Trust But Verify" for low-stakes actions or highly reputable Claimants, but switch to "Verify Before Use" as the risk increases.
 
+## References
+
+### Core Framework & Theory
+
+*   **[Transparency.dev: Designing a Verifiable System](https://transparency.dev/how-to-design-a-verifiable-system/)**
+    *   Description: The official guide for the Claimant Model. Defines the core roles: Claimant, Believer, Verifier, and Arbiter.
+*   **[OSFC 2021 Talk: "Designing Transparency Systems using the Claimant Model"](https://osfc.io/2021/talks/designing-transparency-systems-using-the-claimant-model/)**
+    *   Description: Presentation by Martin Hutchinson (Google) introducing the model (no video as of 2026).
+
+### Examples of Application
+
+*   **CoSAI: Signing ML Artifacts**
+    *   Links:
+        *   [CoSAI Signing ML Artifacts Specification](https://github.com/cosai-oasis/ws1-supply-chain/blob/main/signing-ml-artifacts.md)
+    *   Description: Applies the Claimant Model to machine learning supply chain security, defining the roles for publishing and verifying ML model signatures.
+*   **Google APK & Pixel Binary Transparency**
+    *   Links:
+        *   [Google APK Binary Transparency Claimant Model](https://developers.google.com/android/binary_transparency/google_apk/overview#claimant_model)
+        *   [Pixel Device Binary Transparency Claimant Model](https://developers.google.com/android/binary_transparency/pixel_overview#claimant_model)
+    *   Description: Google logs binary hashes to a public log; devices and users verify them to ensure authenticity of the system images and APKs.
+*   **Armory Drive Log & Armored Witness**
+    *   Links:
+        *   [Armory Drive Log Repository](https://github.com/usbarmory/armory-drive-log)
+        *   [Armored Witness Claimant Model Mapping](https://github.com/transparency-dev/armored-witness#claimant-model)
+    *   Description: Firmware transparency logs and hardware verifier/witness that applies the Claimant Model to verifiable builds and deployments.
+*   **Go Checksum Database (SumDB)**
+    *   Links:
+        *   [Go SumDB Design Doc](https://go.dev/design/25530-sumdb)
+        *   [Local Transitive Signing Discussion](Logs.md#transitive-signing)
+    *   Description: Logs Go module hashes for verification. Utilizes the Claimant Model to define roles for transitive signing and verification of modules.
+*   **Sigstore (Rekor)**
+    *   Links:
+        *   [Sigstore Homepage](https://www.sigstore.dev/)
+    *   Description: Records software signing events in a transparency log. *Note: Sigstore does not have an official Claimant Model mapping document, but its architecture directly implements the Claimant Model pattern.*
+*   **Sigsum**
+    *   Links:
+        *   [Sigsum Claimant Model Documentation](https://git.glasklar.is/sigsum/project/documentation/-/blob/main/claimant.md)
+    *   Description: Applies the Claimant Model to make cryptographic key-usage transparent, where key owners (Claimants) log signed checksums, and verifiers check for consistent key usage.
+
 <!-- TODO(mhutchinson): Discuss Closed Loop Systems. -->
