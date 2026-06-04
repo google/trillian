@@ -99,7 +99,7 @@ fi
 IGNORED_LIST=""
 while read -r id module reason || [[ -n "$id" ]]; do
   # Skip comments and empty lines
-  if [[ -z "$id" || "$id" =~ ^# ]]; then
+  if [[ -z "$id" || "$id" =~ '^#' ]]; then
     continue
   fi
   if [[ -n "$id" && -n "$module" ]]; then
