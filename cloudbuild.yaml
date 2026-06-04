@@ -15,6 +15,7 @@ options:
     - GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore # Temporary work-around v1.proto already registered error.
     - DOCKER_CLIENT_TIMEOUT=120
     - COMPOSE_HTTP_TIMEOUT=120
+    - GOTOOLCHAIN=local
 
 # Cache the testbase image in Container Regisrty, to be reused by subsequent
 # builds. The technique is described here:
