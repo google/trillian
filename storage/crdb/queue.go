@@ -74,8 +74,8 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf
 	return leaf, dequeueInfo(leafIDHash, queueTimestamp), nil
 }
 
-func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []interface{} {
-	return []interface{}{queueTimestamp.UnixNano()}
+func queueArgs(_ int64, _ []byte, queueTimestamp time.Time) []any {
+	return []any{queueTimestamp.UnixNano()}
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {

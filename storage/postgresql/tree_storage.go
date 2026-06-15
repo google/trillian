@@ -201,7 +201,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	// TODO(robstradling): probably need to be able to batch this in the case where we have
 	// a really large number of subtrees to store.
-	rows := make([][]interface{}, 0, len(subtrees))
+	rows := make([][]any, 0, len(subtrees))
 
 	for _, s := range subtrees {
 		s := s
@@ -212,7 +212,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		if err != nil {
 			return err
 		}
-		rows = append(rows, []interface{}{t.treeID, s.Prefix, subtreeBytes})
+		rows = append(rows, []any{t.treeID, s.Prefix, subtreeBytes})
 	}
 
 	// Create temporary subtree table.

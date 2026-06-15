@@ -69,12 +69,12 @@ type RequestProcessor interface {
 	// Before implements all interceptor logic that happens before the handler is called.
 	// It returns a (potentially) modified context that's passed forward to the handler (and After),
 	// plus an error, in case the request should be interrupted before the handler is invoked.
-	Before(ctx context.Context, req interface{}, method string) (context.Context, error)
+	Before(ctx context.Context, req any, method string) (context.Context, error)
 
 	// After implements all interceptor logic that happens after the handler is invoked.
 	// Before must be invoked prior to After and the same RequestProcessor instance must to be used
 	// to process a given request.
-	After(ctx context.Context, resp interface{}, method string, handlerErr error)
+	After(ctx context.Context, resp any, method string, handlerErr error)
 }
 
 // TrillianInterceptor checks that:
@@ -124,7 +124,7 @@ func incRequestDeniedCounter(reason string, treeID int64, quotaUser string) {
 }
 
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
-func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	// Implement UnaryInterceptor using a RequestProcessor, so we
 	// 1. exercise it
 	// 2. make it easier to port this logic to non-gRPC implementations.
@@ -150,7 +150,7 @@ type trillianProcessor struct {
 	info   *rpcInfo
 }
 
-func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method string) (context.Context, error) {
+func (tp *trillianProcessor) Before(ctx context.Context, req any, method string) (context.Context, error) {
 	// Skip if the interceptor is not enabled for this service.
 	if !enabledServices[serviceName(method)] {
 		return ctx, nil
@@ -203,7 +203,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}, method
 	return ctx, nil
 }
 
-func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, method string, handlerErr error) {
+func (tp *trillianProcessor) After(ctx context.Context, resp any, method string, handlerErr error) {
 	if !enabledServices[serviceName(method)] {
 		return
 	}
@@ -319,7 +319,7 @@ type chargable interface {
 }
 
 // chargedUsers returns user identifiers for any chargable user quotas.
-func chargedUsers(req interface{}) []string {
+func chargedUsers(req any) []string {
 	c, ok := req.(chargable)
 	if !ok {
 		return nil
@@ -332,7 +332,7 @@ func chargedUsers(req interface{}) []string {
 	return chargeTo.User
 }
 
-func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
+func newRPCInfoForRequest(req any) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
 	info := &rpcInfo{
 		getTree:   true,
@@ -413,7 +413,7 @@ func newRPCInfoForRequest(req interface{}) (*rpcInfo, error) {
 	return info, nil
 }
 
-func newRPCInfo(req interface{}) (*rpcInfo, error) {
+func newRPCInfo(req any) (*rpcInfo, error) {
 	info, err := newRPCInfoForRequest(req)
 	if err != nil {
 		return nil, err
@@ -467,7 +467,7 @@ type treeRequest interface {
 }
 
 // ErrorWrapper is a grpc.UnaryServerInterceptor that wraps the errors emitted by the underlying handler.
-func ErrorWrapper(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func ErrorWrapper(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	ctx, spanEnd := spanFor(ctx, "ErrorWrapper")
 	defer spanEnd()
 	rsp, err := handler(ctx, req)

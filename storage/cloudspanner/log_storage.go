@@ -513,7 +513,7 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root *trillian.SignedLo
 			"TreeRevision",
 			"TreeMetadata",
 		},
-		[]interface{}{
+		[]any{
 			int64(tx.treeID),
 			int64(logRoot.TimestampNanos),
 			int64(logRoot.TreeSize),
