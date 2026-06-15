@@ -86,13 +86,13 @@ func generateQueueID(treeID int64, leafIdentityHash []byte, timestamp int64) []b
 	return h.Sum(nil)
 }
 
-func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
+func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []any {
 	timestamp := queueTimestamp.UnixNano()
-	return []interface{}{timestamp, generateQueueID(treeID, identityHash, timestamp)}
+	return []any{timestamp, generateQueueID(treeID, identityHash, timestamp)}
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
-	rows := make([][]interface{}, 0, len(leaves))
+	rows := make([][]any, 0, len(leaves))
 	dequeuedLeaves := make([]dequeuedLeaf, 0, len(leaves))
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
@@ -104,7 +104,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			return fmt.Errorf("got invalid integrate timestamp: %w", err)
 		}
 		iTimestamp := leaf.IntegrateTimestamp.AsTime()
-		rows = append(rows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, iTimestamp.UnixNano()})
+		rows = append(rows, []any{t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, iTimestamp.UnixNano()})
 		qe, ok := t.dequeued[string(leaf.LeafIdentityHash)]
 		if !ok {
 			return fmt.Errorf("attempting to update leaf that wasn't dequeued. IdentityHash: %x", leaf.LeafIdentityHash)

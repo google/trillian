@@ -19,7 +19,7 @@ import (
 	"strings"
 )
 
-func testFunctions(x interface{}) []string {
+func testFunctions(x any) []string {
 	const prefix = "Test"
 	xt := reflect.TypeOf(x)
 	tests := []string{}

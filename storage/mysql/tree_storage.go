@@ -210,9 +210,9 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		}
 	}()
 
-	var args []interface{}
+	var args []any
 	if t.subtreeRevs {
-		args = make([]interface{}, 0, len(ids)+3)
+		args = make([]any, 0, len(ids)+3)
 		// populate args with ids.
 		for _, id := range ids {
 			klog.V(4).Infof("  id: %x", id)
@@ -222,7 +222,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		args = append(args, treeRevision)
 		args = append(args, t.treeID)
 	} else {
-		args = make([]interface{}, 0, len(ids)+1)
+		args = make([]any, 0, len(ids)+1)
 		args = append(args, t.treeID)
 
 		// populate args with ids.
@@ -311,7 +311,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	// TODO(al): probably need to be able to batch this in the case where we have
 	// a really large number of subtrees to store.
-	args := make([]interface{}, 0, len(subtrees))
+	args := make([]any, 0, len(subtrees))
 
 	// If not using subtree revisions then default value of 0 is fine. There is no
 	// significance to this value, other than it cannot be NULL in the DB.

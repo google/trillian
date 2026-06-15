@@ -31,7 +31,7 @@ func ProtoEqual(m proto.Message) gomock.Matcher {
 }
 
 // Matches implements the gomock.Matcher API.
-func (pe protoEqual) Matches(msg interface{}) bool {
+func (pe protoEqual) Matches(msg any) bool {
 	m, ok := msg.(proto.Message)
 	if !ok {
 		return false
