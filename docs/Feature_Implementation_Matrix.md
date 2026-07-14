@@ -103,7 +103,6 @@ Supported monitoring frameworks, allowing for production monitoring and alerting
 | Monitoring      | Status  | Deployed in prod    | Notes                                                                       |
 |:---             | :---:   | :---:               |:---                                                                         |
 | Prometheus      | GA      | ✓                   |                                                                             |
-| OpenCensus      | Partial |                     | Currently, only support for Tracing is implemented.                         |
 
 ### Master election
 

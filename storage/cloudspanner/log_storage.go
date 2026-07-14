@@ -32,7 +32,6 @@ import (
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"github.com/google/trillian/types"
 	"github.com/transparency-dev/merkle/rfc6962"
-	"go.opencensus.io/trace"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -298,13 +297,8 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 }
 
 func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	ctx, span := trace.StartSpan(ctx, "AddSequencedLeaves")
-	defer span.End()
-
 	okProto := status.New(codes.OK, "OK").Proto()
 
-	_, span = trace.StartSpan(ctx, "insert")
-	defer span.End()
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	errs := make(chan error, 1)
 	var wg sync.WaitGroup
@@ -370,12 +364,9 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 			}()
 		}
 	}
-	span.End()
 
 	// Wait for all of our mutations to apply (or fail).
-	_, span = trace.StartSpan(ctx, "wait")
 	wg.Wait()
-	span.End()
 
 	// Check if any failed, and return the first error if so.
 	select {
