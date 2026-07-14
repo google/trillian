@@ -71,7 +71,7 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	tests := []struct {
 		desc       string
 		method     string
-		req        interface{}
+		req        any
 		handlerErr error
 		wantErr    bool
 		wantTree   *trillian.Tree
@@ -196,7 +196,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		desc         string
 		dryRun       bool
 		method       string
-		req          interface{}
+		req          any
 		specs        []quota.Spec
 		getTokensErr error
 		wantCode     codes.Code
@@ -371,7 +371,7 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 	tests := []struct {
 		desc                         string
 		method                       string
-		req, resp                    interface{}
+		req, resp                    any
 		specs                        []quota.Spec
 		handlerErr                   error
 		wantGetTokens, wantPutTokens int
@@ -485,7 +485,7 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 func TestTrillianInterceptor_NotIntercepted(t *testing.T) {
 	tests := []struct {
 		method string
-		req    interface{}
+		req    any
 	}{
 		// Admin
 		{method: "/trillian.TrillianAdmin/CreateTree", req: &trillian.CreateTreeRequest{}},
@@ -524,7 +524,7 @@ func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 
 	tests := []struct {
 		desc          string
-		req, resp     interface{}
+		req, resp     any
 		handlerErr    error
 		wantBeforeErr bool
 	}{
@@ -690,7 +690,7 @@ func TestErrorWrapper(t *testing.T) {
 	badLlamaErr := status.Errorf(codes.InvalidArgument, "Bad Llama")
 	tests := []struct {
 		desc         string
-		resp         interface{}
+		resp         any
 		err, wantErr error
 	}{
 		{
@@ -724,14 +724,14 @@ func equalError(x, y error) bool {
 
 type fakeHandler struct {
 	called bool
-	resp   interface{}
+	resp   any
 	err    error
 	// Attributes recorded by run calls
 	ctx context.Context
-	req interface{}
+	req any
 }
 
-func (f *fakeHandler) run(ctx context.Context, req interface{}) (interface{}, error) {
+func (f *fakeHandler) run(ctx context.Context, req any) (any, error) {
 	if f.called {
 		panic("handler already called; either create a new handler or set called to false before reusing")
 	}
@@ -742,13 +742,13 @@ func (f *fakeHandler) run(ctx context.Context, req interface{}) (interface{}, er
 }
 
 type fakeInterceptor struct {
-	key    interface{}
-	val    interface{}
+	key    any
+	val    any
 	called bool
 	err    error
 }
 
-func (f *fakeInterceptor) run(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (f *fakeInterceptor) run(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	if f.called {
 		panic("interceptor already called; either create a new interceptor or set called to false before reusing")
 	}
