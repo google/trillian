@@ -16,21 +16,15 @@ package storage
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/monitoring"
 	"k8s.io/klog/v2"
 )
-
-const traceSpanRoot = "/trillian/storage"
 
 // GetTree reads a tree from storage using a snapshot transaction.
 // It's a convenience wrapper around RunInAdminSnapshot and ReadOnlyAdminTX's GetTree.
 // See RunInAdminSnapshot if you need to perform more than one action per transaction.
 func GetTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
-	ctx, spanEnd := spanFor(ctx, "GetTree")
-	defer spanEnd()
 	var tree *trillian.Tree
 	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) error {
 		var err error
@@ -44,8 +38,6 @@ func GetTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.T
 // It's a convenience wrapper around RunInAdminSnapshot and ReadOnlyAdminTX's ListTrees.
 // See RunInAdminSnapshot if you need to perform more than one action per transaction.
 func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool) ([]*trillian.Tree, error) {
-	ctx, spanEnd := spanFor(ctx, "ListTrees")
-	defer spanEnd()
 	var resp []*trillian.Tree
 	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) error {
 		var err error
@@ -59,8 +51,6 @@ func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool) ([]
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's CreateTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
 func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
-	ctx, spanEnd := spanFor(ctx, "CreateTree")
-	defer spanEnd()
 	var createdTree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
 		var err error
@@ -74,8 +64,6 @@ func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree) (*
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's UpdateTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
 func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*trillian.Tree)) (*trillian.Tree, error) {
-	ctx, spanEnd := spanFor(ctx, "UpdateTree")
-	defer spanEnd()
 	var updatedTree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
 		var err error
@@ -89,8 +77,6 @@ func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's SoftDeleteTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
 func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
-	ctx, spanEnd := spanFor(ctx, "SoftDeleteTree")
-	defer spanEnd()
 	var tree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
 		var err error
@@ -104,8 +90,6 @@ func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*tri
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's HardDeleteTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
 func HardDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) error {
-	ctx, spanEnd := spanFor(ctx, "HardDeleteTree")
-	defer spanEnd()
 	return admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
 		return tx.HardDeleteTree(ctx, treeID)
 	})
@@ -115,8 +99,6 @@ func HardDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) error
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's UndeleteTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
 func UndeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
-	ctx, spanEnd := spanFor(ctx, "UndeleteTree")
-	defer spanEnd()
 	var tree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
 		var err error
@@ -141,8 +123,4 @@ func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx Read
 		return err
 	}
 	return tx.Commit()
-}
-
-func spanFor(ctx context.Context, name string) (context.Context, func()) {
-	return monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }

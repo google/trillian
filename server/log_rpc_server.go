@@ -16,7 +16,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/google/trillian"
@@ -36,8 +35,6 @@ import (
 
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
-
-const traceSpanRoot = "/trillian"
 
 var (
 	optsLogInit            = trees.NewGetOpts(trees.Admin, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
@@ -84,15 +81,11 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource clock.TimeS
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
 func (t *TrillianLogRPCServer) IsHealthy() error {
-	ctx, spanEnd := spanFor(context.Background(), "IsHealthy")
-	defer spanEnd()
-	return t.registry.LogStorage.CheckDatabaseAccessible(ctx)
+	return t.registry.LogStorage.CheckDatabaseAccessible(context.Background())
 }
 
 // QueueLeaf submits one leaf to the queue.
 func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "QueueLeaf")
-	defer spanEnd()
 	if err := validateLogLeaf(req.Leaf, "QueueLeafRequest.Leaf"); err != nil {
 		return nil, err
 	}
@@ -142,8 +135,6 @@ func hashLeaves(leaves []*trillian.LogLeaf, hasher merkle.LogHasher) {
 // AddSequencedLeaves submits a batch of sequenced leaves to a pre-ordered log
 // for later integration into its underlying tree.
 func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "AddSequencedLeaves")
-	defer spanEnd()
 	if err := validateAddSequencedLeavesRequest(req); err != nil {
 		return nil, err
 	}
@@ -179,8 +170,6 @@ func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *tril
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
 // Similar to the get proof by hash handler but one less step as we don't need to look up the index
 func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetInclusionProof")
-	defer spanEnd()
 	if err := validateGetInclusionProofRequest(req); err != nil {
 		return nil, err
 	}
@@ -233,8 +222,6 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 // GetInclusionProofByHash obtains proofs of inclusion by leaf hash. Because some logs can
 // contain duplicate hashes it is possible for multiple proofs to be returned.
 func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetInclusionProofByHash")
-	defer spanEnd()
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogRead)
 	if err != nil {
@@ -304,8 +291,6 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 // other and that the later tree includes all the entries of the prior one. For more details
 // see the example trees in RFC 6962.
 func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetConsistencyProof")
-	defer spanEnd()
 	if err := validateGetConsistencyProofRequest(req); err != nil {
 		return nil, err
 	}
@@ -354,8 +339,6 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
 // underlies the log.
 func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetLatestSignedLogRoot")
-	defer spanEnd()
 	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsLogRead)
 	if err != nil {
 		return nil, err
@@ -424,8 +407,6 @@ func tryGetConsistencyProof(ctx context.Context, firstTreeSize, secondTreeSize u
 // This only fetches sequenced leaves; leaves that have been queued but not yet integrated
 // are not visible.
 func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trillian.GetLeavesByRangeRequest) (*trillian.GetLeavesByRangeResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetLeavesByRange")
-	defer spanEnd()
 	if err := validateGetLeavesByRangeRequest(req); err != nil {
 		return nil, err
 	}
@@ -471,8 +452,6 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
 // and tree size.
 func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "GetEntryAndProof")
-	defer spanEnd()
 	if err := validateGetEntryAndProofRequest(req); err != nil {
 		return nil, err
 	}
@@ -583,8 +562,6 @@ func (t *TrillianLogRPCServer) getTreeAndContext(ctx context.Context, treeID int
 // InitLog initialises a freshly created Log by creating the first STH with
 // size 0.
 func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
-	ctx, spanEnd := spanFor(ctx, "InitLog")
-	defer spanEnd()
 	logID := req.LogId
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogInit)
 	if err != nil {
@@ -636,10 +613,6 @@ func (t *TrillianLogRPCServer) recordIndexPercent(leafIndex int64, treeSize uint
 		percent := float64(leafIndex) / float64(treeSize) * 100.0
 		t.proofIndexPercentiles.Observe(percent)
 	}
-}
-
-func spanFor(ctx context.Context, name string) (context.Context, func()) {
-	return monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }
 
 func (t *TrillianLogRPCServer) snapshotForTree(ctx context.Context, tree *trillian.Tree, method string) (storage.ReadOnlyLogTreeTX, error) {

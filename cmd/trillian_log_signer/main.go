@@ -36,8 +36,6 @@ import (
 	"github.com/google/trillian/cmd/internal/serverutil"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
-	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd"
@@ -102,7 +100,6 @@ func main() {
 	klog.Info("**** Log Signer Starting ****")
 
 	mf := prometheus.MetricFactory{}
-	monitoring.SetStartSpan(opencensus.StartSpan)
 
 	sp, err := storage.NewProvider(*storageSystem, mf)
 	if err != nil {
