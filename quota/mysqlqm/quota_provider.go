@@ -16,6 +16,7 @@ package mysqlqm
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/cacheqm"
