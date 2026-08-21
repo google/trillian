@@ -18,6 +18,7 @@ import (
 	"flag"
 
 	"github.com/google/trillian/quota"
+	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/storage/mysql"
 	"k8s.io/klog/v2"
 )
@@ -25,8 +26,14 @@ import (
 // QuotaManagerName identifies the MySQL quota implementation.
 const QuotaManagerName = "mysql"
 
-var maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
-	"Only effective for quota_system=mysql.")
+var (
+	maxUnsequencedRows = flag.Int("max_unsequenced_rows", DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
+		"Only effective for quota_system=mysql.")
+	mysqlQuotaMinBatchSize = flag.Int("mysql_quota_min_batch_size", 0, "Minimum number of tokens to request from the MySQL quota system. "+
+		"Zero or lower disables batching. Only effective for quota_system=mysql.")
+	mysqlQuotaMaxCacheEntries = flag.Int("mysql_quota_max_cache_entries", cacheqm.DefaultMaxCacheEntries, "Maximum number of quota specs in the MySQL quota cache. "+
+		"Only effective when mysql_quota_min_batch_size is positive.")
+)
 
 func init() {
 	if err := quota.RegisterProvider(QuotaManagerName, newMySQLQuotaManager); err != nil {
@@ -42,6 +49,14 @@ func newMySQLQuotaManager() (quota.Manager, error) {
 	qm := &QuotaManager{
 		DB:                 db,
 		MaxUnsequencedRows: *maxUnsequencedRows,
+	}
+	if *mysqlQuotaMinBatchSize > 0 {
+		cachedqm, err := cacheqm.NewCachedManager(qm, *mysqlQuotaMinBatchSize, *mysqlQuotaMaxCacheEntries)
+		if err != nil {
+			return nil, err
+		}
+		klog.Infof("Using cached MySQL QuotaManager with minimum batch size %d", *mysqlQuotaMinBatchSize)
+		return cachedqm, nil
 	}
 	klog.Info("Using MySQL QuotaManager")
 	return qm, nil
