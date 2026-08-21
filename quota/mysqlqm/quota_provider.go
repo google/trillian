@@ -51,6 +51,9 @@ func newMySQLQuotaManager() (quota.Manager, error) {
 		MaxUnsequencedRows: *maxUnsequencedRows,
 	}
 	if *mysqlQuotaMinBatchSize > 0 {
+		if *mysqlQuotaMinBatchSize >= *maxUnsequencedRows {
+			return nil, fmt.Errorf("mysql_quota_min_batch_size (%d) must be less than max_unsequenced_rows (%d)", *mysqlQuotaMinBatchSize, *maxUnsequencedRows)
+		}
 		cachedqm, err := cacheqm.NewCachedManager(qm, *mysqlQuotaMinBatchSize, *mysqlQuotaMaxCacheEntries)
 		if err != nil {
 			return nil, err
