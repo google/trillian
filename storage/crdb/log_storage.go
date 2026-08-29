@@ -478,7 +478,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 
 		// Create the work queue entry
-		args := []interface{}{
+		args := []any{
 			t.treeID,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
@@ -661,7 +661,7 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 	}
 	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
 
-	args := []interface{}{start, start + count, t.treeID}
+	args := []any{start, start + count, t.treeID}
 	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
 	if err != nil {
 		klog.Warningf("Failed to get leaves by range: %s", err)
@@ -808,7 +808,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		}
 	}()
 
-	var args []interface{}
+	var args []any
 	for _, hash := range leafHashes {
 		args = append(args, []byte(hash))
 	}

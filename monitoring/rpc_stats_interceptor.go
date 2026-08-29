@@ -68,7 +68,7 @@ func (r *RPCStatsInterceptor) recordFailureLatency(labels []string, startTime ti
 // Interceptor returns a UnaryServerInterceptor that can be registered with an RPC server and
 // will record request counts / errors and latencies for that servers handlers
 func (r *RPCStatsInterceptor) Interceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		labels := []string{info.FullMethod}
 
 		// This interceptor wraps the request handler so we should track the

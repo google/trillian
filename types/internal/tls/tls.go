@@ -145,13 +145,13 @@ var (
 //	}
 //
 // If the encoded value does not fit in the Go type, Unmarshal returns a parse error.
-func Unmarshal(b []byte, val interface{}) ([]byte, error) {
+func Unmarshal(b []byte, val any) ([]byte, error) {
 	return UnmarshalWithParams(b, val, "")
 }
 
 // UnmarshalWithParams allows field parameters to be specified for the
 // top-level element. The form of the params is the same as the field tags.
-func UnmarshalWithParams(b []byte, val interface{}, params string) ([]byte, error) {
+func UnmarshalWithParams(b []byte, val any, params string) ([]byte, error) {
 	info, err := fieldTagToFieldInfo(params, "")
 	if err != nil {
 		return nil, err
@@ -504,14 +504,14 @@ func parseField(v reflect.Value, data []byte, initOffset int, info *fieldInfo) (
 }
 
 // Marshal returns the TLS encoding of val.
-func Marshal(val interface{}) ([]byte, error) {
+func Marshal(val any) ([]byte, error) {
 	return MarshalWithParams(val, "")
 }
 
 // MarshalWithParams returns the TLS encoding of val, and allows field
 // parameters to be specified for the top-level element.  The form
 // of the params is the same as the field tags.
-func MarshalWithParams(val interface{}, params string) ([]byte, error) {
+func MarshalWithParams(val any, params string) ([]byte, error) {
 	info, err := fieldTagToFieldInfo(params, "")
 	if err != nil {
 		return nil, err

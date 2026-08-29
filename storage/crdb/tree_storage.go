@@ -195,7 +195,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 		}
 	}()
 
-	args := make([]interface{}, 0, len(ids)+3)
+	args := make([]any, 0, len(ids)+3)
 
 	// populate args with ids.
 	for _, id := range ids {
@@ -283,7 +283,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	// TODO(al): probably need to be able to batch this in the case where we have
 	// a really large number of subtrees to store.
-	args := make([]interface{}, 0, len(subtrees))
+	args := make([]any, 0, len(subtrees))
 
 	for _, s := range subtrees {
 		s := s

@@ -460,7 +460,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 
 	// Prepare rows to copy, but don't accept batches if any of the leaves are invalid.
 	leafMap := make(map[string]int)
-	copyRows := make([][]interface{}, 0, len(leaves))
+	copyRows := make([][]any, 0, len(leaves))
 	for i, leaf := range leaves {
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
@@ -471,7 +471,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 		qTimestamp := leaf.QueueTimestamp.AsTime()
 		args := queueArgs(t.treeID, leaf.LeafIdentityHash, qTimestamp)
-		copyRows = append(copyRows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, args[0], args[1]})
+		copyRows = append(copyRows, []any{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, args[0], args[1]})
 		leafMap[hex.EncodeToString(leaf.LeafIdentityHash)] = i
 	}
 	label := labelForTX(t)
@@ -570,14 +570,14 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 	// Prepare rows to copy.
 	leafMap := make(map[string]int)
-	copyRows := make([][]interface{}, 0, len(leaves))
+	copyRows := make([][]any, 0, len(leaves))
 	for i, leaf := range leaves {
 		// This should fail on insert, but catch it early.
 		if got, want := len(leaf.LeafIdentityHash), t.hashSizeBytes; got != want {
 			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
 		}
 
-		copyRows = append(copyRows, []interface{}{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, timestamp.UnixNano(), leaf.LeafIndex})
+		copyRows = append(copyRows, []any{t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.MerkleLeafHash, timestamp.UnixNano(), leaf.LeafIndex})
 		leafMap[hex.EncodeToString(leaf.LeafIdentityHash)] = i
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
 	}

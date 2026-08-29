@@ -190,9 +190,9 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 // cmpMatcher is a custom gomock.Matcher that uses cmp.Equal combined with a
 // cmp.Comparer that knows how to properly compare proto.Message types.
-type cmpMatcher struct{ want interface{} }
+type cmpMatcher struct{ want any }
 
-func (m cmpMatcher) Matches(got interface{}) bool {
+func (m cmpMatcher) Matches(got any) bool {
 	return cmp.Equal(got, m.want, cmp.Comparer(proto.Equal))
 }
 

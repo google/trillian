@@ -827,9 +827,9 @@ func deserializeRedisResults(t *testing.T, resp *redis.Cmd) (bool, int64, int64,
 	}
 
 	// Deserialize results
-	returnVals, ok := results.([]interface{})
+	returnVals, ok := results.([]any)
 	if !ok {
-		t.Fatalf("invalid return type %T (expected []interface{})", results)
+		t.Fatalf("invalid return type %T (expected []any)", results)
 	}
 
 	var allowed bool

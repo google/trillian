@@ -101,7 +101,7 @@ func (m *TreeStorage) getTree(id int64) *tree {
 // kv is a simple key->value type which implements btree's Item interface.
 type kv struct {
 	k string
-	v interface{}
+	v any
 }
 
 // Less than by k's string key

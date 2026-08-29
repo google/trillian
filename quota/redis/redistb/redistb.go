@@ -29,8 +29,8 @@ import (
 // implementations (e.g. regular Redis, Redis Cluster, sharded, etc.)
 type RedisClient interface {
 	// Required to load and execute scripts
-	Eval(script string, keys []string, args ...interface{}) *redis.Cmd
-	EvalSha(sha1 string, keys []string, args ...interface{}) *redis.Cmd
+	Eval(script string, keys []string, args ...any) *redis.Cmd
+	EvalSha(sha1 string, keys []string, args ...any) *redis.Cmd
 	ScriptExists(hashes ...string) *redis.BoolSliceCmd
 	ScriptLoad(script string) *redis.StringCmd
 }
@@ -101,7 +101,7 @@ func (tb *TokenBucket) Call(
 		now, nowUs = timeToRedisPair(tb.timeSource.Now())
 	}
 
-	args := []interface{}{
+	args := []any{
 		replenishRate,
 		capacity,
 		numTokens,
@@ -124,9 +124,9 @@ func (tb *TokenBucket) Call(
 		return false, 0, err
 	}
 
-	returnVals, ok := result.([]interface{})
+	returnVals, ok := result.([]any)
 	if !ok {
-		return false, 0, fmt.Errorf("redistb: invalid return type %T (expected []interface{})", result)
+		return false, 0, fmt.Errorf("redistb: invalid return type %T (expected []any)", result)
 	}
 
 	// The script returns:

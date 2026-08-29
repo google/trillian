@@ -43,7 +43,7 @@ func setNullStringIfValid(src sql.NullString, dest *string) {
 
 // row defines a common interface between sql.Row and sql.Rows(!)
 type row interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 // readTree takes a sql row and returns a tree

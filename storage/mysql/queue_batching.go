@@ -87,14 +87,14 @@ func generateQueueID(treeID int64, leafIdentityHash []byte, timestamp int64) []b
 	return h.Sum(nil)
 }
 
-func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
+func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []any {
 	timestamp := queueTimestamp.UnixNano()
-	return []interface{}{timestamp, generateQueueID(treeID, identityHash, timestamp)}
+	return []any{timestamp, generateQueueID(treeID, identityHash, timestamp)}
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	querySuffix := []string{}
-	args := []interface{}{}
+	args := []any{}
 	dequeuedLeaves := make([]dequeuedLeaf, 0, len(leaves))
 	for _, leaf := range leaves {
 		if err := leaf.IntegrateTimestamp.CheckValid(); err != nil {
@@ -136,7 +136,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeu
 		return err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
-	args := make([]interface{}, len(queueIDs))
+	args := make([]any, len(queueIDs))
 	for i, q := range queueIDs {
 		args[i] = []byte(q)
 	}

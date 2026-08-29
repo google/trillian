@@ -34,7 +34,7 @@ func (re RetriableError) Error() string {
 }
 
 // RetriableErrorf wraps a formatted string into a RetriableError.
-func RetriableErrorf(format string, a ...interface{}) error {
+func RetriableErrorf(format string, a ...any) error {
 	return RetriableError(fmt.Sprintf(format, a...))
 }
 
