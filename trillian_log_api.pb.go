@@ -1166,17 +1166,17 @@ func (x *GetLeavesByRangeResponse) GetSignedLogRoot() *SignedLogRoot {
 type QueuedLogLeaf struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The leaf as it was stored by Trillian. Empty unless `status.code` is:
-	//   - `google.rpc.OK`: the `leaf` data is the same as in the request.
-	//   - `google.rpc.ALREADY_EXISTS` or 'google.rpc.FAILED_PRECONDITION`: the
-	//     `leaf` is the conflicting one already in the log.
+	//  - `google.rpc.OK`: the `leaf` data is the same as in the request.
+	//  - `google.rpc.ALREADY_EXISTS` or 'google.rpc.FAILED_PRECONDITION`: the
+	//    `leaf` is the conflicting one already in the log.
 	Leaf *LogLeaf `protobuf:"bytes,1,opt,name=leaf,proto3" json:"leaf,omitempty"`
 	// The status of adding the leaf.
-	//   - `google.rpc.OK`: successfully added.
-	//   - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already
-	//     existing one. Either `leaf_identity_hash` is the same in the `LOG`
-	//     mode, or `leaf_index` in the `PREORDERED_LOG`.
-	//   - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already
-	//     present in the log, e.g., same `leaf_index` but different `leaf_data`.
+	//  - `google.rpc.OK`: successfully added.
+	//  - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already
+	//    existing one. Either `leaf_identity_hash` is the same in the `LOG`
+	//    mode, or `leaf_index` in the `PREORDERED_LOG`.
+	//  - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already
+	//    present in the log, e.g., same `leaf_index` but different `leaf_data`.
 	Status        *status.Status `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1273,6 +1273,7 @@ type LogLeaf struct {
 	// by setting the leaf identity hash to a hash over (just) the certificate,
 	// whereas the Merkle leaf hash encompasses both the certificate and its
 	// submission time -- allowing duplicate certificates to be detected.
+	//
 	//
 	// Continuing the CT example, for a CT mirror personality (which must allow
 	// dupes since the source log could contain them), the part of the
