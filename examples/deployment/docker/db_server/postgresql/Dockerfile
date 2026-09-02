@@ -1,4 +1,4 @@
-FROM postgres:18.4@sha256:4aabea78cf39b90e834caf3af7d602a18565f6fe2508705c8d01aa63245c2e20
+FROM postgres:18.6@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
 
 # expects the build context to be: $GOPATH/src/github.com/google/trillian
 COPY storage/postgresql/schema/storage.sql /docker-entrypoint-initdb.d/storage.sql
