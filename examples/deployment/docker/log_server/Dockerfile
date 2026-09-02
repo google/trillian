@@ -1,4 +1,4 @@
-FROM golang:1.26.4-bookworm@sha256:b305420a68d0f229d91eb3b3ed9e519fcf2cf5461da4bef997bf927e8c0bfd2b as build
+FROM golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452 as build
 
 WORKDIR /trillian
 
@@ -18,7 +18,7 @@ RUN go install ./cmd/trillian_log_server
 RUN go run github.com/google/go-licenses/v2 save ./cmd/trillian_log_server --save_path /THIRD_PARTY_NOTICES
 
 # Make a minimal image.
-FROM gcr.io/distroless/base-debian12@sha256:e7e678c88c59e70e105a46549bb3fbfb3d732ee3b4afd3a19fdab2e15afaa6b3
+FROM gcr.io/distroless/base-debian12@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84
 
 COPY --from=build /go/bin/trillian_log_server /
 COPY --from=build /THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES
