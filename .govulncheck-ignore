@@ -1,3 +1,6 @@
-# ID           Module                  Reason
-GO-2026-4887   github.com/docker/docker No fix available - AuthZ plugin bypass in github.com/docker/docker when provided oversized request bodies
-GO-2026-4883   github.com/docker/docker No fix available - Plugin privilege validation off-by-one error in github.com/docker/docker
+# ID           Module                            Reason
+GO-2026-4887   github.com/docker/docker          No fix available - AuthZ plugin bypass in github.com/docker/docker when provided oversized request bodies
+GO-2026-4883   github.com/docker/docker          No fix available - Plugin privilege validation off-by-one error in github.com/docker/docker
+GO-2026-5617   github.com/docker/docker          No fix available - Race condition in docker cp allows bind mount redirection to host path in github.com/docker/docker
+GO-2026-5668   github.com/docker/docker          No fix available - Race condition in docker cp allows creation of arbitrary empty files on the host via symlink swap in github.com/docker/docker
+GO-2026-5746   github.com/docker/docker          No fix available - `PUT /containers/{id}/archive` executes container binary on the host in github.com/docker/docker
