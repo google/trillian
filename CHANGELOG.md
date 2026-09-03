@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* Remove OpenCensus tracing support and associated instrumentation hooks by @phb
+  * Removed internal tracing packages (`monitoring/trace.go` and `monitoring/opencensus/`), command-line `--tracing` flags, and `spanFor` / `StartSpan` instrumentation across server, tree, and storage entrypoints.
 * Allow unencrypted PEM private key files by @JasonPowr
   * `ReadPrivateKeyFile` and `FromProto` (via `PEMKeyFile`) now accept an empty password, treating the key as unencrypted. Previously, an empty password was rejected with an error.
 * Replace deprecated `golang.org/x/crypto/ed25519` with stdlib `crypto/ed25519` by @JasonPowr

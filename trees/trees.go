@@ -18,16 +18,12 @@ package trees
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-const traceSpanRoot = "/trillian/trees"
 
 type treeKey struct{}
 
@@ -140,8 +136,6 @@ func validate(o GetOpts, tree *trillian.Tree) error {
 // The tree will be validated according to GetOpts before returned. Tree state is also considered
 // (for example, deleted tree will return NotFound errors).
 func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
-	ctx, spanEnd := spanFor(ctx, "GetTree")
-	defer spanEnd()
 	tree, ok := FromContext(ctx)
 	if !ok {
 		var err error
@@ -165,8 +159,4 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 	}
 
 	return tree, nil
-}
-
-func spanFor(ctx context.Context, name string) (context.Context, func()) {
-	return monitoring.StartSpan(ctx, fmt.Sprintf("%s.%s", traceSpanRoot, name))
 }
