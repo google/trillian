@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* Fix unbounded `Count` in `GetLeavesByRange` for `PREORDERED_LOG` trees by @DebasishTripathy13
+  * `storage/{mysql,postgresql,crdb,memory}` now cap `count` to a safe upper bound (`1<<16`) regardless of tree type, resolving the long-standing `TODO` on this line. Previously, an attacker-supplied `Count` on a `PREORDERED_LOG` tree (not bounded by `TreeSize` like `LOG` trees are) reached `make([]*trillian.LogLeaf, 0, count)` unclamped, panicking with `makeslice: cap out of range` and crashing the server process — with no request-level authorization on the log server, this was remotely triggerable by any client that could discover a tree ID via the also-unauthenticated `ListTrees`.
 * Allow unencrypted PEM private key files by @JasonPowr
   * `ReadPrivateKeyFile` and `FromProto` (via `PEMKeyFile`) now accept an empty password, treating the key as unencrypted. Previously, an empty password was rejected with an error.
 * Replace deprecated `golang.org/x/crypto/ed25519` with stdlib `crypto/ed25519` by @JasonPowr

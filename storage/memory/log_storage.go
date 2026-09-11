@@ -282,7 +282,21 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
 }
 
+// maxGetLeavesByRangeCount mirrors the cap applied by the SQL storage backends (mysql/
+// postgresql/crdb): an attacker-supplied count must never reach make([]*trillian.LogLeaf, 0,
+// count) unbounded, or the process crashes (runtime error: makeslice: cap out of range).
+const maxGetLeavesByRangeCount = 1 << 16
+
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
+	if count <= 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid count %d, want > 0", count)
+	}
+	if start < 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid start %d, want >= 0", start)
+	}
+	if count > maxGetLeavesByRangeCount {
+		count = maxGetLeavesByRangeCount
+	}
 	ret := make([]*trillian.LogLeaf, 0, count)
 	for i := int64(0); i < count; i++ {
 		leaf := t.tx.Get(seqLeafKey(t.treeID, start+i))

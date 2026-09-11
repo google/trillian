@@ -633,6 +633,13 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	return res, nil
 }
 
+// maxGetLeavesByRangeCount caps the number of leaves a single GetLeavesByRange call will
+// attempt to fetch. Without this, an attacker-supplied count (e.g. on a PREORDERED_LOG tree,
+// which isn't bounded by TreeSize below) flows straight into a make([]*trillian.LogLeaf, 0,
+// count) allocation and crashes the process (runtime error: makeslice: cap out of range, or an
+// OOM kill for smaller-but-still-huge values) before a single row is read.
+const maxGetLeavesByRangeCount = 1 << 16
+
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -659,7 +666,9 @@ func (t *logTreeTX) getLeavesByRangeInternal(ctx context.Context, start, count i
 			count = maxCount
 		}
 	}
-	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
+	if count > maxGetLeavesByRangeCount {
+		count = maxGetLeavesByRangeCount
+	}
 
 	args := []interface{}{start, start + count, t.treeID}
 	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
