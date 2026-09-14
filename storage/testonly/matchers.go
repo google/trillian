@@ -31,7 +31,7 @@ func NodeSet(nodes []tree.Node) gomock.Matcher {
 type nodeSet []tree.Node
 
 // Matches implements the gomock.Matcher API.
-func (n nodeSet) Matches(x interface{}) bool {
+func (n nodeSet) Matches(x any) bool {
 	nodes, ok := x.([]tree.Node)
 	if !ok {
 		return false

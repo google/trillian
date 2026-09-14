@@ -32,14 +32,14 @@ var fakeTime = time.Date(2016, 10, 3, 12, 38, 27, 36, time.UTC)
 type recordingUnaryHandler struct {
 	// ctx and req are recorded on invocation
 	ctx context.Context
-	req interface{}
+	req any
 	// rsp and err are returned on invocation
-	rsp interface{}
+	rsp any
 	err error
 }
 
 func (r recordingUnaryHandler) handler() grpc.UnaryHandler {
-	return func(ctx context.Context, req interface{}) (interface{}, error) {
+	return func(ctx context.Context, req any) (any, error) {
 		r.ctx = ctx
 		r.req = req
 		return r.rsp, r.err

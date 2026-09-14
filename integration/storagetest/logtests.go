@@ -51,7 +51,7 @@ func RunLogStorageTests(t *testing.T, storageFactory LogStorageFactory) {
 	}
 }
 
-func logTestFunctions(t *testing.T, x interface{}) map[string]LogStorageTest {
+func logTestFunctions(t *testing.T, x any) map[string]LogStorageTest {
 	tests := make(map[string]LogStorageTest)
 	xv := reflect.ValueOf(x)
 	for _, name := range testFunctions(x) {

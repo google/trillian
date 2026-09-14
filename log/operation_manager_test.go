@@ -74,7 +74,7 @@ type logOpInfoMatcher struct {
 	BatchSize int
 }
 
-func (l logOpInfoMatcher) Matches(x interface{}) bool {
+func (l logOpInfoMatcher) Matches(x any) bool {
 	o, ok := x.(*OperationInfo)
 	if !ok {
 		return false

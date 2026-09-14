@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 	status := m.Run()
 
 	// Clean up databases
-	testDBs.Range(func(key, value interface{}) bool {
+	testDBs.Range(func(key, value any) bool {
 		testName := key.(string)
 		klog.Infof("Cleaning up database for test %s", testName)
 

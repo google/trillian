@@ -576,7 +576,7 @@ type spec struct {
 }
 
 // makeTreeOrFail delegates to makeTree. If makeTree returns a non-nil error, failFn is called.
-func makeTreeOrFail(ctx context.Context, s storage.AdminStorage, spec spec, failFn func(string, ...interface{})) *trillian.Tree {
+func makeTreeOrFail(ctx context.Context, s storage.AdminStorage, spec spec, failFn func(string, ...any)) *trillian.Tree {
 	tree, err := makeTree(ctx, s, spec)
 	if err != nil {
 		failFn("makeTree() returned err = %v", err)

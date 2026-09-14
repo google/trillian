@@ -417,7 +417,7 @@ func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tre
 
 // updateDeleted updates the Deleted and DeleteTimeMillis fields of the specified tree.
 // deleteTimeMillis must be either an int64 (in millis since epoch) or nil.
-func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool, deleteTimeMillis interface{}) (*trillian.Tree, error) {
+func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool, deleteTimeMillis any) (*trillian.Tree, error) {
 	if err := validateDeleted(ctx, t.tx, treeID, !deleted); err != nil {
 		return nil, err
 	}

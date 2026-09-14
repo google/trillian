@@ -292,7 +292,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			"TreeInfo",
 			"Deleted",
 		},
-		[]interface{}{
+		[]any{
 			info.TreeId,
 			int64(info.TreeState),
 			int64(info.TreeType),
@@ -436,7 +436,7 @@ func (t *adminTX) updateTreeInfo(ctx context.Context, info *spannerpb.TreeInfo) 
 			"Deleted",
 			"DeleteTimeMillis",
 		},
-		[]interface{}{
+		[]any{
 			info.TreeId,
 			int64(info.TreeState),
 			int64(info.TreeType),

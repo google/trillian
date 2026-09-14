@@ -32,7 +32,7 @@ type atLeastMatcher struct {
 
 // Matches tests whether a supplied value, which must be of an int type is
 // at least the value the AtLeast matcher expects. If so then it returns true.
-func (m atLeastMatcher) Matches(x interface{}) bool {
+func (m atLeastMatcher) Matches(x any) bool {
 	if x, ok := x.(int); ok {
 		return x >= m.num
 	}

@@ -155,7 +155,7 @@ func TestServer_CreateConfig(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	rpc := func(ctx context.Context, req interface{}) (*quotapb.Config, error) {
+	rpc := func(ctx context.Context, req any) (*quotapb.Config, error) {
 		return quotaClient.CreateConfig(ctx, req.(*quotapb.CreateConfigRequest))
 	}
 	for _, test := range tests {
@@ -306,7 +306,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	rpc := func(ctx context.Context, req interface{}) (*quotapb.Config, error) {
+	rpc := func(ctx context.Context, req any) (*quotapb.Config, error) {
 		return quotaClient.UpdateConfig(ctx, req.(*quotapb.UpdateConfigRequest))
 	}
 	for _, test := range tests {
@@ -462,7 +462,7 @@ type upsertRequest interface {
 	GetName() string
 }
 
-type upsertRPC func(ctx context.Context, req interface{}) (*quotapb.Config, error)
+type upsertRPC func(ctx context.Context, req any) (*quotapb.Config, error)
 
 // runUpsertTest runs either CreateConfig or UpdateConfig tests, depending on the supplied rpc.
 // Storage is reset() before the test is executed.

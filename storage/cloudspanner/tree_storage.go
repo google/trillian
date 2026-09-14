@@ -237,7 +237,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, sts []*storagepb.SubtreeProt
 		m := spanner.Insert(
 			subtreeTbl,
 			[]string{colTreeID, colSubtreeID, colRevision, colSubtree},
-			[]interface{}{t.treeID, st.Prefix, t._writeRev, stBytes},
+			[]any{t.treeID, st.Prefix, t._writeRev, stBytes},
 		)
 		if err := stx.BufferWrite([]*spanner.Mutation{m}); err != nil {
 			return err
