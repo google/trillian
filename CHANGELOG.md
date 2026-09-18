@@ -2,6 +2,7 @@
 
 ## HEAD
 
+* Bump golang to 1.26
 * Remove OpenCensus tracing support and associated instrumentation hooks by @phb
   * Removed internal tracing packages (`monitoring/trace.go` and `monitoring/opencensus/`), command-line `--tracing` flags, and `spanFor` / `StartSpan` instrumentation across server, tree, and storage entrypoints.
 * Allow unencrypted PEM private key files by @JasonPowr
