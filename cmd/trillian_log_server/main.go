@@ -30,8 +30,6 @@ import (
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd"
@@ -67,10 +65,6 @@ var (
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", serverutil.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
 	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", serverutil.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
 
-	tracing          = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
-	tracingProjectID = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
-	tracingPercent   = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler")
-
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 
 	// Profiling related flags.
@@ -97,16 +91,6 @@ func main() {
 
 	var options []grpc.ServerOption
 	mf := prometheus.MetricFactory{}
-	monitoring.SetStartSpan(opencensus.StartSpan)
-
-	if *tracing {
-		opts, err := opencensus.EnableRPCServerTracing(*tracingProjectID, *tracingPercent)
-		if err != nil {
-			klog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
-		}
-		// Enable the server request counter tracing etc.
-		options = append(options, opts...)
-	}
 
 	if *maxMsgSize > 0 {
 		options = append(options, grpc.MaxRecvMsgSize(*maxMsgSize))
