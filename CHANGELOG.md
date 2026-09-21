@@ -2,6 +2,9 @@
 
 ## HEAD
 
+## v1.8.0
+
+* Recommended go version for development: 1.26
 * Bump golang to 1.26, golangci-lint to v2.10.1.
 * Filter mastership election event watching by lease name
 * Remove OpenCensus tracing support and associated instrumentation hooks by @phb
