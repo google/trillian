@@ -30,7 +30,8 @@ export TEST_MYSQL_URI="${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL
 
 # If the test will use etcd, then install etcd + tools.
 if [ "${ETCD_DIR}" != "" ]; then
-  go install go.etcd.io/etcd/v3 go.etcd.io/etcd/etcdctl/v3 github.com/fullstorydev/grpcurl/cmd/grpcurl
+  go build -o "${ETCD_DIR}/etcd" go.etcd.io/etcd/server/v3
+  GOBIN="${ETCD_DIR}" go install go.etcd.io/etcd/etcdctl/v3 github.com/fullstorydev/grpcurl/cmd/grpcurl
 fi
 
 go test -alsologtostderr ./storage/mysql/...

@@ -27,7 +27,7 @@ import (
 	_ "github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc"
 	_ "go.etcd.io/etcd/etcdctl/v3"
 	_ "go.etcd.io/etcd/etcdctl/v3/ctlv3/command"
-	_ "go.etcd.io/etcd/v3"
+	_ "go.etcd.io/etcd/server/v3"
 	_ "golang.org/x/tools/cmd/goimports"
 	_ "golang.org/x/tools/cmd/stringer"
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
