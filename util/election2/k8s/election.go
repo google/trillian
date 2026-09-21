@@ -228,12 +228,16 @@ func (e *Election) watchLease(ctx context.Context, onLeaseChanged *sync.Cond) er
 				switch event.Type {
 				case watch.Modified, watch.Added:
 					lease, ok := event.Object.(*v1.Lease)
-					if !ok {
+					if !ok || lease.Name != e.lock.LeaseMeta.Name {
 						continue
 					}
 					record := resourcelock.LeaseSpecToLeaderElectionRecord(&lease.Spec)
 					e.setObservedRecord(record)
 				case watch.Deleted:
+					lease, ok := event.Object.(*v1.Lease)
+					if !ok || lease.Name != e.lock.LeaseMeta.Name {
+						continue
+					}
 					e.setObservedRecord(&resourcelock.LeaderElectionRecord{})
 				}
 			}
