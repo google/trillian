@@ -102,6 +102,13 @@ func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*tri
 // WaitForRootUpdate repeatedly fetches the latest root until there is an
 // update, which it then applies, or until ctx times out.
 func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, error) {
+	return c.waitForRootUpdate(ctx, c.GetRoot())
+}
+
+// waitForRootUpdate waits until the trusted root is newer than lastSeen and
+// then returns it. The update can be applied either by this call or by a
+// concurrent caller that happened to fetch it first.
+func (c *LogClient) waitForRootUpdate(ctx context.Context, lastSeen *types.LogRootV1) (*types.LogRootV1, error) {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
@@ -115,6 +122,12 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context) (*types.LogRootV1, er
 		case codes.OK:
 			if newTrusted != nil {
 				return newTrusted, nil
+			}
+			// UpdateRoot only reports an update when this call applied it. If
+			// another caller applied the update first, the trusted root may
+			// have moved on already, so wake up and let the caller re-check.
+			if cur := c.GetRoot(); rootUpdated(lastSeen, cur) {
+				return cur, nil
 			}
 		case codes.Unavailable, codes.NotFound, codes.FailedPrecondition:
 			// Retry.
@@ -211,9 +224,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 	c.rootLock.Lock()
 	defer c.rootLock.Unlock()
 
-	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
-		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
-
+	if rootUpdated(currentlyTrusted, newTrusted) {
 		// Take a copy of the new trusted root in order to prevent clients from modifying it.
 		c.root = *newTrusted
 
@@ -221,6 +232,13 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 	}
 
 	return nil, nil
+}
+
+// rootUpdated reports whether newRoot is a valid successor to oldRoot, i.e.
+// whether applying it advances the trusted root.
+func rootUpdated(oldRoot, newRoot *types.LogRootV1) bool {
+	return newRoot.TimestampNanos > oldRoot.TimestampNanos &&
+		newRoot.TreeSize >= oldRoot.TreeSize
 }
 
 // WaitForInclusion blocks until the requested data has been verified with an
@@ -259,7 +277,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		}
 
 		// If not found or tree is empty, wait for a root update before retrying again.
-		if _, err := c.WaitForRootUpdate(ctx); err != nil {
+		if _, err := c.waitForRootUpdate(ctx, root); err != nil {
 			return err
 		}
 
