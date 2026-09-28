@@ -13,13 +13,33 @@ options:
 
 steps:
 
+# db_server is a thin repack of the multi-arch mysql base (two COPYs and a
+# chmod), but kaniko only builds the host platform, so every published tag
+# has been amd64-only and arm64 consumers of the sigstore/helm-charts
+# trillian chart cannot run it. Build this one image with buildx for both
+# platforms; the QEMU emulation only covers the chmod layer.
+- id: enable_binfmt
+  name: gcr.io/cloud-builders/docker
+  args: [run, --privileged, --rm, tonistiigi/binfmt:qemu-v10.2.3, --install, arm64]
+  waitFor: ['-']
+
+- id: create_buildx_builder
+  name: gcr.io/cloud-builders/docker
+  args: [buildx, create, --name, multiarch, --driver, docker-container]
+  waitFor: [enable_binfmt]
+
 - id: build_db_server
-  name: gcr.io/kaniko-project/executor:v1.20.0
+  name: gcr.io/cloud-builders/docker
   args:
-  - --dockerfile=examples/deployment/docker/db_server/Dockerfile
-  - --destination=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
-  - --cache=true
-  - --cache-dir= # Cache is in Google Container Registry.
+  - buildx
+  - build
+  - --builder=multiarch
+  - --platform=linux/amd64,linux/arm64
+  - --file=examples/deployment/docker/db_server/Dockerfile
+  - --tag=gcr.io/${PROJECT_ID}/db_server:${COMMIT_SHA}
+  - --push
+  - .
+  waitFor: [create_buildx_builder]
 
 - id: build_log_server
   name: gcr.io/kaniko-project/executor:v1.20.0
