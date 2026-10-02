@@ -2,6 +2,8 @@ module github.com/google/trillian
 
 go 1.26.6
 
+toolchain go1.26.8
+
 require (
 	bitbucket.org/creachadair/shell v0.0.9
 	cloud.google.com/go/spanner v1.95.1
