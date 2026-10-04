@@ -15,6 +15,7 @@
 package log
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 	"github.com/google/trillian/util/clock"
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/rfc6962"
+	"k8s.io/klog/v2"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/storage/tree"
@@ -689,5 +691,62 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 				t.Errorf("%v: IntegrateBatch() returned %v leaves, want = %v", test.desc, leaves, test.wantLeaves)
 			}
 		}()
+	}
+}
+
+// TestIntegrateBatch_LogsSequencedLeaves verifies that after successfully
+// sequencing leaves, IntegrateBatch emits a "sequenced N leaves" log message.
+// Before the fix, newSLR was shadowed by := inside the closure, so the outer
+// variable stayed nil and the log message never fired.
+func TestIntegrateBatch_LogsSequencedLeaves(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Capture klog output. klog's logtostderr defaults to true and takes
+	// priority over SetOutput, so we must disable it first.
+	var buf bytes.Buffer
+	klog.SetOutput(&buf)
+	klog.LogToStderr(false)
+	defer func() {
+		klog.LogToStderr(true)
+		klog.SetOutput(nil)
+	}()
+
+	qm := quota.NewMockManager(ctrl)
+	specs := []quota.Spec{
+		{Group: quota.Tree, Kind: quota.Read, TreeID: 154035},
+		{Group: quota.Tree, Kind: quota.Write, TreeID: 154035},
+		{Group: quota.Global, Kind: quota.Read},
+		{Group: quota.Global, Kind: quota.Write},
+	}
+	qm.EXPECT().PutTokens(gomock.Any(), 1, specs).Return(nil)
+
+	leaves16 := []*trillian.LogLeaf{testLeaf16}
+	c, ctx := createTestContext(ctrl, testParameters{
+		logID:            154035,
+		dequeueLimit:     1,
+		shouldCommit:     true,
+		dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
+		latestSignedRoot: testSignedRoot16,
+		merkleNodesGet:   &compactTree16,
+		updatedLeaves:    &leaves16,
+		merkleNodesSet:   &updatedNodes,
+		storeSignedRoot:  testSignedRoot,
+		qm:               qm,
+	})
+
+	tree := &trillian.Tree{TreeId: 154035, TreeType: trillian.TreeType_LOG}
+	count, err := IntegrateBatch(ctx, tree, 1, 0, 0, c.timeSource, c.fakeStorage, c.qm)
+	if err != nil {
+		t.Fatalf("IntegrateBatch() returned err = %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("IntegrateBatch() returned %d leaves, want 1", count)
+	}
+
+	klog.Flush()
+	logged := buf.String()
+	if !strings.Contains(logged, "sequenced") || !strings.Contains(logged, "154035") {
+		t.Errorf("expected log message containing 'sequenced' and tree ID '154035', got: %q", logged)
 	}
 }

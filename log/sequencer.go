@@ -400,7 +400,7 @@ func IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWi
 		if err != nil {
 			return fmt.Errorf("%v: signer failed to marshal root: %v", tree.TreeId, err)
 		}
-		newSLR := &trillian.SignedLogRoot{LogRoot: logRoot}
+		newSLR = &trillian.SignedLogRoot{LogRoot: logRoot}
 
 		if err := tx.StoreSignedLogRoot(ctx, newSLR); err != nil {
 			return fmt.Errorf("%v: failed to write updated tree root: %v", tree.TreeId, err)
