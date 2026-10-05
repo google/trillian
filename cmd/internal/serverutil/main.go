@@ -138,11 +138,13 @@ func (m *Main) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
-		http.Handle("/metrics", promhttp.Handler())
-		http.HandleFunc("/healthz", m.healthz)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		mux.HandleFunc("/healthz", m.healthz)
 
 		s := &http.Server{
-			Addr: endpoint,
+			Addr:    endpoint,
+			Handler: mux,
 		}
 
 		run := func() error {
