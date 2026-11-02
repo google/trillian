@@ -2,7 +2,7 @@ module github.com/google/trillian
 
 go 1.26.6
 
-toolchain go1.26.8
+toolchain go1.26.10
 
 require (
 	bitbucket.org/creachadair/shell v0.0.9
@@ -204,7 +204,7 @@ require (
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260908163034-4bcc4b2ee518 // indirect
 	golang.org/x/term v0.46.0 // indirect
