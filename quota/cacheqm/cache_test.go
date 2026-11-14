@@ -172,6 +172,40 @@ func TestCachedManager_GetTokens_EvictsCache(t *testing.T) {
 	}
 }
 
+func TestCachedManager_GetTokens_MaxEntriesBelowGlobalSpecs(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mock := quota.NewMockManager(ctrl)
+	mock.EXPECT().GetTokens(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+
+	ctx := context.Background()
+	qm, err := NewCachedManager(mock, minBatchSize, 1 /* maxEntries */)
+	if err != nil {
+		t.Fatalf("NewCachedManager() returned err = %v", err)
+	}
+
+	tokens := 5
+	treeID := int64(10)
+	// Mirror the specs requested by the quota interceptor: one tree spec plus
+	// the global spec of the same kind. Once both global specs are cached, the
+	// cache holds more global entries than maxEntries, and only the tree
+	// entries can be evicted.
+	for _, kind := range []quota.Kind{quota.Read, quota.Write} {
+		treeSpec := quota.Spec{Group: quota.Tree, Kind: kind, TreeID: treeID}
+		// The evicted tree bucket returns its leftover minBatchSize tokens.
+		mock.EXPECT().PutTokens(ctx, minBatchSize, []quota.Spec{treeSpec}).Return(nil)
+
+		if err := qm.GetTokens(ctx, tokens, []quota.Spec{
+			treeSpec,
+			{Group: quota.Global, Kind: kind, Refundable: true},
+		}); err != nil {
+			t.Fatalf("GetTokens(%v) returned err = %v", kind, err)
+		}
+		qm.(*manager).wait()
+	}
+}
+
 func TestManager_GetTokensErrors(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

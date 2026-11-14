@@ -67,7 +67,7 @@ func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) (quota.Man
 	case minBatchSize <= 0:
 		return nil, fmt.Errorf("invalid minBatchSize: %v", minBatchSize)
 	case maxEntries <= 0:
-		return nil, fmt.Errorf("invalid maxEntries: %v", minBatchSize)
+		return nil, fmt.Errorf("invalid maxEntries: %v", maxEntries)
 	}
 	return &manager{
 		Manager:      qm,
@@ -155,7 +155,10 @@ func (m *manager) evict(ctx context.Context) {
 	sort.Sort(buckets)
 
 	wg := sync.WaitGroup{}
-	evicts := len(m.cache) - m.maxEntries
+	// Global entries are never evicted, so there may be fewer candidates than
+	// entries over the limit (e.g. if maxEntries is less than the number of
+	// cached global specs).
+	evicts := min(len(m.cache)-m.maxEntries, len(buckets))
 	for i := 0; i < evicts; i++ {
 		b := buckets[i]
 		klog.V(1).Infof("Too many tokens cached, returning least recently used (%v tokens for %+v)", b.tokens, b.spec)
