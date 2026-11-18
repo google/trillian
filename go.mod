@@ -2,10 +2,9 @@ module github.com/google/trillian
 
 go 1.26.6
 
-toolchain go1.26.10
+toolchain go1.26.11
 
 require (
-	bitbucket.org/creachadair/shell v0.0.9
 	cloud.google.com/go/spanner v1.96.1
 	github.com/apache/beam/sdks/v2 v2.77.0
 	github.com/cockroachdb/cockroach-go/v2 v2.4.3

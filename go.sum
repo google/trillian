@@ -1,5 +1,3 @@
-bitbucket.org/creachadair/shell v0.0.9 h1:59YbZQA1KosUs8pHcAqleVcM1f6ci04TN2vu/hw4DsU=
-bitbucket.org/creachadair/shell v0.0.9/go.mod h1:P53Kp0x83ZjziLdoOzw2r/Brj/hpTzilITUjuFQRVFA=
 cel.dev/expr v0.25.3 h1:A2jO8jwOugrrovveCWfj0KEZOfqiLgAcwjpHPhzIGw0=
 cel.dev/expr v0.25.3/go.mod h1:hrXvqGP6G6gyx8UAHSHJ5RGk//1Oj5nXQ2NI02Nrsg4=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=

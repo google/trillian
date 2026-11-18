@@ -19,12 +19,11 @@ import (
 	"errors"
 	"flag"
 	"os"
-
-	"bitbucket.org/creachadair/shell"
+	"strings"
 )
 
 func parseFlags(file string) error {
-	args, valid := shell.Split(file)
+	args, valid := splitFlags(file)
 	if !valid {
 		return errors.New("flag file contains unclosed quotations")
 	}
@@ -53,4 +52,61 @@ func ParseFlagFile(path string) error {
 		return err
 	}
 	return parseFlags(string(file))
+}
+
+// splitFlags splits s into whitespace-delimited tokens, honoring single quotes,
+// double quotes, and backslash escapes (including \<newline> line continuations).
+// It returns false if s ends with an unclosed quote or trailing backslash.
+func splitFlags(s string) ([]string, bool) {
+	var (
+		tokens []string
+		cur    strings.Builder
+		inWord bool
+		quote  byte // 0, '\'', or '"'
+	)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case quote != 0 && c == quote: // closing quote
+			quote = 0
+		case quote == '\'': // everything is literal inside single quotes
+			cur.WriteByte(c)
+		case c == '\\': // escape, either unquoted or inside double quotes
+			i++
+			if i == len(s) {
+				return nil, false
+			}
+			switch e := s[i]; {
+			case e == '\n':
+				// Line continuation.
+			case quote == '"' && e != '"' && e != '\\':
+				// Inside double quotes, only \" and \\ are escapes.
+				cur.WriteByte('\\')
+				cur.WriteByte(e)
+			default:
+				cur.WriteByte(e)
+				inWord = true
+			}
+		case quote == '"':
+			cur.WriteByte(c)
+		case c == '\'' || c == '"':
+			quote, inWord = c, true
+		case c == ' ' || c == '\t' || c == '\n':
+			if inWord {
+				tokens = append(tokens, cur.String())
+				cur.Reset()
+				inWord = false
+			}
+		default:
+			cur.WriteByte(c)
+			inWord = true
+		}
+	}
+	if quote != 0 {
+		return nil, false
+	}
+	if inWord {
+		tokens = append(tokens, cur.String())
+	}
+	return tokens, true
 }
