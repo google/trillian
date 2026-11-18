@@ -66,49 +66,36 @@ func splitFlags(s string) ([]string, bool) {
 	)
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if quote == '\'' {
-			if c == '\'' {
-				quote = 0
-			} else {
-				cur.WriteByte(c)
-			}
-			continue
-		}
-		if quote == '"' {
-			if c == '"' {
-				quote = 0
-				continue
-			}
-			if c == '\\' {
-				i++
-				if i >= len(s) {
-					return nil, false
-				}
-				writeDoubleQuoteEscape(&cur, s[i])
-				continue
-			}
+		switch {
+		case quote != 0 && c == quote: // closing quote
+			quote = 0
+		case quote == '\'': // everything is literal inside single quotes
 			cur.WriteByte(c)
-			continue
-		}
-
-		switch c {
-		case ' ', '\t', '\n':
+		case c == '\\': // escape, either unquoted or inside double quotes
+			i++
+			if i == len(s) {
+				return nil, false
+			}
+			switch e := s[i]; {
+			case e == '\n':
+				// Line continuation.
+			case quote == '"' && e != '"' && e != '\\':
+				// Inside double quotes, only \" and \\ are escapes.
+				cur.WriteByte('\\')
+				cur.WriteByte(e)
+			default:
+				cur.WriteByte(e)
+				inWord = true
+			}
+		case quote == '"':
+			cur.WriteByte(c)
+		case c == '\'' || c == '"':
+			quote, inWord = c, true
+		case c == ' ' || c == '\t' || c == '\n':
 			if inWord {
 				tokens = append(tokens, cur.String())
 				cur.Reset()
 				inWord = false
-			}
-		case '\'', '"':
-			quote = c
-			inWord = true
-		case '\\':
-			i++
-			if i >= len(s) {
-				return nil, false
-			}
-			if s[i] != '\n' {
-				cur.WriteByte(s[i])
-				inWord = true
 			}
 		default:
 			cur.WriteByte(c)
@@ -122,16 +109,4 @@ func splitFlags(s string) ([]string, bool) {
 		tokens = append(tokens, cur.String())
 	}
 	return tokens, true
-}
-
-func writeDoubleQuoteEscape(cur *strings.Builder, c byte) {
-	switch c {
-	case '\n':
-		// Line continuation inside double quotes.
-	case '\\', '"':
-		cur.WriteByte(c)
-	default:
-		cur.WriteByte('\\')
-		cur.WriteByte(c)
-	}
 }
