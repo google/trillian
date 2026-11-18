@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* Fix a panic in the caching quota manager (`quota/cacheqm`) when the max cache entries flag is lower than the number of cached global quota specs.
+
 ## v1.8.0
 
 * Recommended go version for development: 1.26
