@@ -49,9 +49,9 @@ const (
 	 n.TreeId = ? AND n.SubtreeRevision <= ?
 	GROUP BY n.TreeId, n.SubtreeId
  ) AS x
- INNER JOIN Subtree 
- ON Subtree.SubtreeId = x.SubtreeId 
- AND Subtree.SubtreeRevision = x.MaxRevision 
+ INNER JOIN Subtree
+ ON Subtree.SubtreeId = x.SubtreeId
+ AND Subtree.SubtreeRevision = x.MaxRevision
  AND Subtree.TreeId = x.TreeId
  AND Subtree.TreeId = ?`
 
@@ -112,6 +112,25 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	return strings.Replace(sql, placeholderSQL, parameters, 1)
 }
 
+// clearStmtCache clear up all sql.Stmt in cache
+func (m *mySQLTreeStorage) clearStmtCache() {
+	m.statementMutex.Lock()
+	defer m.statementMutex.Unlock()
+
+	klog.Info("Clearing all prepared statements")
+
+	for _, ns := range m.statements {
+		for _, s := range ns {
+			if err := s.Close(); err != nil {
+				klog.Warningf("Failed to close stmt: %s", err)
+			}
+		}
+	}
+
+	m.statements = make(map[string]map[int]*sql.Stmt)
+	clearedStmtCacheCounter.Inc()
+}
+
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
 // and number of bound arguments.
 // TODO(al,martin): consider pulling this all out as a separate unit for reuse
@@ -122,8 +141,6 @@ func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num in
 
 	if m.statements[statement] != nil {
 		if m.statements[statement][num] != nil {
-			// TODO(al,martin): we'll possibly need to expire Stmts from the cache,
-			// e.g. when DB connections break etc.
 			return m.statements[statement][num], nil
 		}
 	} else {
@@ -234,6 +251,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, ids [][]by
 
 	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
+		t.ts.clearStmtCache()
 		klog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
 	}
@@ -348,6 +366,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 
 	r, err := stx.ExecContext(ctx, args...)
 	if err != nil {
+		t.ts.clearStmtCache()
 		klog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}
